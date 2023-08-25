@@ -1094,6 +1094,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 		"foo",
 		[]byte("taco"))
 
+	AssertEq(nil, err)
 	// Request to create another version of the object, with a precondition for
 	// the wrong meta-generation. The request should fail.
 	var metagen int64 = o.MetaGeneration + 1
@@ -1134,6 +1135,7 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 		t.bucket,
 		"foo",
 		[]byte("taco"))
+	AssertEq(nil, err)
 
 	// Request to create another version of the object, with a satisfied
 	// precondition.
@@ -1922,7 +1924,6 @@ func (t *composeTest) CompositeSources() {
 		"taco",
 		"burrito",
 	})
-
 	AssertEq(nil, err)
 
 	// Compose them to form another source object.
@@ -2842,27 +2843,27 @@ func (t *readTest) Ranges_EmptyObject() {
 		{gcs.ByteRange{Start: 1, Limit: 1}},
 		{gcs.ByteRange{Start: 1, Limit: 0}},
 
-		{gcs.ByteRange{math.MaxInt64, math.MaxInt64}},
-		{gcs.ByteRange{math.MaxInt64, 17}},
-		{gcs.ByteRange{math.MaxInt64, 0}},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64}},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 17}},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}},
 
-		{gcs.ByteRange{math.MaxUint64, math.MaxUint64}},
-		{gcs.ByteRange{math.MaxUint64, 17}},
-		{gcs.ByteRange{math.MaxUint64, 0}},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: 17}},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: 0}},
 
 		// Not empty without knowing object length
-		{gcs.ByteRange{0, 1}},
-		{gcs.ByteRange{0, 17}},
-		{gcs.ByteRange{0, math.MaxInt64}},
-		{gcs.ByteRange{0, math.MaxUint64}},
+		{gcs.ByteRange{Start: 0, Limit: 1}},
+		{gcs.ByteRange{Start: 0, Limit: 17}},
+		{gcs.ByteRange{Start: 0, Limit: math.MaxInt64}},
+		{gcs.ByteRange{Start: 0, Limit: math.MaxUint64}},
 
-		{gcs.ByteRange{1, 2}},
-		{gcs.ByteRange{1, 17}},
-		{gcs.ByteRange{1, math.MaxInt64}},
-		{gcs.ByteRange{1, math.MaxUint64}},
+		{gcs.ByteRange{Start: 1, Limit: 2}},
+		{gcs.ByteRange{Start: 1, Limit: 17}},
+		{gcs.ByteRange{Start: 1, Limit: math.MaxInt64}},
+		{gcs.ByteRange{Start: 1, Limit: math.MaxUint64}},
 
-		{gcs.ByteRange{math.MaxInt64, math.MaxInt64 + 1}},
-		{gcs.ByteRange{math.MaxInt64, math.MaxUint64}},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}},
 	}
 
 	// Turn test cases into read requests.
@@ -2902,59 +2903,59 @@ func (t *readTest) Ranges_NonEmptyObject() {
 		expectedContents string
 	}{
 		// Left anchored
-		{gcs.ByteRange{0, math.MaxUint64}, "taco"},
-		{gcs.ByteRange{0, 5}, "taco"},
-		{gcs.ByteRange{0, 4}, "taco"},
-		{gcs.ByteRange{0, 3}, "tac"},
-		{gcs.ByteRange{0, 1}, "t"},
-		{gcs.ByteRange{0, 0}, ""},
+		{gcs.ByteRange{Start: 0, Limit: math.MaxUint64}, "taco"},
+		{gcs.ByteRange{Start: 0, Limit: 5}, "taco"},
+		{gcs.ByteRange{Start: 0, Limit: 4}, "taco"},
+		{gcs.ByteRange{Start: 0, Limit: 3}, "tac"},
+		{gcs.ByteRange{Start: 0, Limit: 1}, "t"},
+		{gcs.ByteRange{Start: 0, Limit: 0}, ""},
 
 		// Floating left edge
-		{gcs.ByteRange{1, math.MaxUint64}, "aco"},
-		{gcs.ByteRange{1, 5}, "aco"},
-		{gcs.ByteRange{1, 4}, "aco"},
-		{gcs.ByteRange{1, 2}, "a"},
-		{gcs.ByteRange{1, 1}, ""},
-		{gcs.ByteRange{1, 0}, ""},
+		{gcs.ByteRange{Start: 1, Limit: math.MaxUint64}, "aco"},
+		{gcs.ByteRange{Start: 1, Limit: 5}, "aco"},
+		{gcs.ByteRange{Start: 1, Limit: 4}, "aco"},
+		{gcs.ByteRange{Start: 1, Limit: 2}, "a"},
+		{gcs.ByteRange{Start: 1, Limit: 1}, ""},
+		{gcs.ByteRange{Start: 1, Limit: 0}, ""},
 
 		// Left edge at right edge of object
-		{gcs.ByteRange{4, math.MaxUint64}, ""},
-		{gcs.ByteRange{4, math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{4, math.MaxInt64 + 0}, ""},
-		{gcs.ByteRange{4, math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{4, 17}, ""},
-		{gcs.ByteRange{4, 5}, ""},
-		{gcs.ByteRange{4, 4}, ""},
-		{gcs.ByteRange{4, 1}, ""},
-		{gcs.ByteRange{4, 0}, ""},
+		{gcs.ByteRange{Start: 4, Limit: math.MaxUint64}, ""},
+		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 + 1}, ""},
+		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 + 0}, ""},
+		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 - 1}, ""},
+		{gcs.ByteRange{Start: 4, Limit: 17}, ""},
+		{gcs.ByteRange{Start: 4, Limit: 5}, ""},
+		{gcs.ByteRange{Start: 4, Limit: 4}, ""},
+		{gcs.ByteRange{Start: 4, Limit: 1}, ""},
+		{gcs.ByteRange{Start: 4, Limit: 0}, ""},
 
 		// Left edge past right edge of object
-		{gcs.ByteRange{5, math.MaxUint64}, ""},
-		{gcs.ByteRange{5, 17}, ""},
-		{gcs.ByteRange{5, 5}, ""},
-		{gcs.ByteRange{5, 4}, ""},
-		{gcs.ByteRange{5, 1}, ""},
-		{gcs.ByteRange{5, 0}, ""},
+		{gcs.ByteRange{Start: 5, Limit: math.MaxUint64}, ""},
+		{gcs.ByteRange{Start: 5, Limit: 17}, ""},
+		{gcs.ByteRange{Start: 5, Limit: 5}, ""},
+		{gcs.ByteRange{Start: 5, Limit: 4}, ""},
+		{gcs.ByteRange{Start: 5, Limit: 1}, ""},
+		{gcs.ByteRange{Start: 5, Limit: 0}, ""},
 
 		// Left edge is 2^63 - 1
-		{gcs.ByteRange{math.MaxInt64, math.MaxUint64}, ""},
-		{gcs.ByteRange{math.MaxInt64, math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{math.MaxInt64, math.MaxInt64 + 0}, ""},
-		{gcs.ByteRange{math.MaxInt64, math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{math.MaxInt64, 5}, ""},
-		{gcs.ByteRange{math.MaxInt64, 4}, ""},
-		{gcs.ByteRange{math.MaxInt64, 1}, ""},
-		{gcs.ByteRange{math.MaxInt64, 0}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 0}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 - 1}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 5}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
 
 		// Left edge is 2^64 - 1
-		{gcs.ByteRange{math.MaxUint64, math.MaxUint64}, ""},
-		{gcs.ByteRange{math.MaxUint64, math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{math.MaxUint64, math.MaxInt64}, ""},
-		{gcs.ByteRange{math.MaxUint64, math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{math.MaxUint64, 5}, ""},
-		{gcs.ByteRange{math.MaxInt64, 4}, ""},
-		{gcs.ByteRange{math.MaxInt64, 1}, ""},
-		{gcs.ByteRange{math.MaxInt64, 0}, ""},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}, ""},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 + 1}, ""},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64}, ""},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 - 1}, ""},
+		{gcs.ByteRange{Start: math.MaxUint64, Limit: 5}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
+		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
 	}
 
 	// Turn test cases into read requests.
@@ -4392,6 +4393,8 @@ func (t *cancellationTest) ReadObject() {
 		&gcs.ReadObjectRequest{
 			Name: name,
 		})
+
+	AssertEq(nil, err)
 
 	defer rc.Close()
 

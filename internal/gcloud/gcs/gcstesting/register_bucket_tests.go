@@ -17,9 +17,10 @@ package gcstesting
 import (
 	"errors"
 	"reflect"
-	"strings"
 
 	"golang.org/x/net/context"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/ogletest"
@@ -52,7 +53,8 @@ type bucketTestSetUpInterface interface {
 }
 
 func getSuiteName(suiteType reflect.Type) string {
-	return strings.Title(suiteType.Name())
+	var enCases = cases.Title(language.AmericanEnglish)
+	return enCases.String(suiteType.Name())
 }
 
 func isExported(name string) bool {
