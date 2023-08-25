@@ -34,8 +34,8 @@ const NameOfServiceAccount = "creds-test-gcsfuse"
 func setPermission(permission string, serviceAccount string) {
 	// Provide permission to the bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
-	// Adding sleep time to set the permission properly.
-	time.Sleep(1 * time.Second)
+	// Adding sleep time for new permissions to propagate in GCS.
+	time.Sleep(10 * time.Second)
 }
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
