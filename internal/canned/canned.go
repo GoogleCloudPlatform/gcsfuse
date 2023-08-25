@@ -23,8 +23,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -34,10 +34,9 @@ import (
 // The initial contents of the bucket are objects with names given by the
 // following constants:
 //
-//     TopLevelFile
-//     TopLevelDir
-//     ImplicitDirFile
-//
+//	TopLevelFile
+//	TopLevelDir
+//	ImplicitDirFile
 const FakeBucketName = "fake@bucket"
 
 // See notes on FakeBucketName.
