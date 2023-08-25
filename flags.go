@@ -135,9 +135,11 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name: "custom-endpoint",
-				Usage: "Alternate endpoint for fetching data. Should be used only for testing purposes. " +
-					"The endpoint should be equivalent to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). " +
-					"If not specified GCS endpoint will be used. Auth will be skipped for custom endpoint.",
+				Usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. " +
+					"The custom endpoint must support the equivalent resources and operations as the GCS " +
+					"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
+					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1. " +
+					"If a custom endpoint is specified, authentication is disabled on the endpoint.",
 			},
 
 			cli.StringFlag{
@@ -298,8 +300,9 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name:  "experimental-enable-json-read",
-				Usage: "By default read flow uses xml api, this flag will enable the json path for read operation.",
+				Name: "experimental-enable-json-read",
+				Usage: "By default, GCSFuse uses the GCS XML API to get and read objects. " +
+					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
 			},
 
 			/////////////////////////
