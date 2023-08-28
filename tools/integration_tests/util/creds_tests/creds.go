@@ -35,7 +35,7 @@ func setPermission(permission string, serviceAccount string) {
 	// Provide permission to the bucket.
 	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
 	// Adding sleep time for new permissions to propagate in GCS.
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
