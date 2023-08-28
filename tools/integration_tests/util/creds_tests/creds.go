@@ -36,7 +36,7 @@ func setPermission(permission string, serviceAccount string) error {
 	// Provide permission to the bucket.
 	err := operations.ProvidePermissionToServiceAccount(serviceAccount, permission, setup.TestBucket())
 	// Adding sleep time for new permissions to propagate in GCS.
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 	return err
 }
 
