@@ -481,7 +481,7 @@ func GenerateRandomString(length int) string {
 }
 
 func CreateServiceAccount(serviceAccount, description, displayName string) error {
-	_, err := executeGcloudCommandf("iam service-accounts create %s %s %s", serviceAccount, description, displayName)
+	_, err := executeGcloudCommandf("iam service-accounts create %s --description=%s --display-name=%s", serviceAccount, description, displayName)
 	return err
 }
 
