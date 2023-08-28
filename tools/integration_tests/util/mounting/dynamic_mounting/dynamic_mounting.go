@@ -17,21 +17,18 @@ package dynamic_mounting
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
-const Charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
-var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + generateRandomString(5)
+var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + operations.GenerateRandomString(5)
 
 func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
@@ -90,14 +87,6 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	// Setting back the original mntDir after testing.
 	setup.SetMntDir(rootMntDir)
 	return
-}
-
-func generateRandomString(length int) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = Charset[seededRand.Intn(len(Charset))]
-	}
-	return string(b)
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {

@@ -17,17 +17,22 @@ package operations
 
 import (
 	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
+
+const Charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
 	if !allowOverwrite {
@@ -386,6 +391,11 @@ func executeGsutilCommandf(format string, args ...any) ([]byte, error) {
 	return executeToolCommandf("gsutil", format, args...)
 }
 
+// Executes any given gcloud command with given args.
+func executeGcloudCommandf(format string, args ...any) ([]byte, error) {
+	return executeToolCommandf("gcloud", format, args...)
+}
+
 // Returns size of a give GCS object with path (without 'gs://').
 // Fails if the object doesn't exist or permission to read object's metadata is not
 // available.
@@ -460,4 +470,34 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	// implementation for updating object metadata is missing on the kokoro VM.
 	_, err := executeGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
+}
+
+func GenerateRandomString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = Charset[seededRand.Intn(len(Charset))]
+	}
+	return string(b)
+}
+
+func CreateServiceAccount(serviceAccount, description, displayName string) error {
+	_, err := executeGcloudCommandf("iam service-accounts create %s %s %s", serviceAccount, description, displayName)
+	return err
+}
+
+func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
+	_, err := executeGcloudCommandf("iam service-accounts keys create %s %s %s", keyFilePath, serviceAccount)
+	return err
+}
+
+func ProvidePermissionToServiceAccount(serviceAccount, permission, bucketName string) error {
+	_, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
+	return err
+}
+
+func DeleteServiceAccount(serviceAccount string) {
+	_, err := executeGcloudCommandf("iam service-accounts delete %s -q", serviceAccount)
+	if err != nil {
+		log.Fatalf("Error in deleting service account:%s", err)
+	}
 }

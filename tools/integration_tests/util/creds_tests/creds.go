@@ -22,17 +22,22 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const NameOfServiceAccount = "creds-test-gcsfuse"
 
-func setPermission(permission string, serviceAccount string) {
+func setPermission(permission string, serviceAccount string) error {
 	// Provide permission to the bucket.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
+	err := operations.ProvidePermissionToServiceAccount(serviceAccount, permission, setup.TestBucket())
+	// Adding sleep time for new permissions to propagate in GCS.
+	time.Sleep(5 * time.Second)
+	return err
 }
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
@@ -42,22 +47,37 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
+	serviceAccountName := NameOfServiceAccount + "-" + operations.GenerateRandomString(10)
+
 	// Service account id format is name@project-id.iam.gserviceaccount.com
-	serviceAccount := NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
+	serviceAccount := serviceAccountName + "@" + id + ".iam.gserviceaccount.com"
+	description := serviceAccount
+	displayName := serviceAccount
+
+	defer operations.DeleteServiceAccount(serviceAccount)
 
 	// Create service account
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", NameOfServiceAccount)
+	err = operations.CreateServiceAccount(serviceAccountName, description, displayName)
+	if err != nil {
+		log.Fatalf("Error in creating service account:%v", err)
+	}
 
 	key_file_path := path.Join(os.Getenv("HOME"), "creds.json")
 
-	// Create credentials
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", key_file_path, serviceAccount)
-
-	// Provide permission to service account for testing.
-	setPermission(permission, serviceAccount)
-
 	// Revoke the permission and delete creds after testing.
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_creds.sh", serviceAccount, key_file_path)
+
+	// Create credentials
+	err = operations.CreateKeyFileForServiceAccount(key_file_path, serviceAccount)
+	if err != nil {
+		log.Fatalf("Error in creating key file:%v", err)
+	}
+
+	// Provide permission to service account for testing.
+	err = setPermission(permission, serviceAccount)
+	if err != nil {
+		log.Fatalf("Error in providing permission:%v", err)
+	}
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
