@@ -486,7 +486,7 @@ func CreateServiceAccount(serviceAccount, description, displayName string) error
 }
 
 func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
-	_, err := executeGcloudCommandf("iam service-accounts keys create %s %s %s", keyFilePath, serviceAccount)
+	_, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s", keyFilePath, serviceAccount)
 	return err
 }
 
