@@ -11,11 +11,9 @@ require (
 	github.com/googleapis/gax-go/v2 v2.11.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20230810134708-ab21db1af836
-	github.com/jacobsa/gcloud v0.0.0-20230803125757-3196d990d984
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
 	github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff
 	github.com/jacobsa/ogletest v0.0.0-20170503003838-80d50a735a11
-	github.com/jacobsa/reqtrace v0.0.0-20150505043853-245c9e0234cb
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
