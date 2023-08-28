@@ -504,3 +504,25 @@ func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileSucceedsAfterSync() {
 	t.validateObjectContents("bar/gcsFile", "")
 	t.validateObjectNotFoundErr("foo/gcsFile")
 }
+
+func (t *LocalFileTest) ReadLocalFile() {
+	// Create a local file.
+	_, t.f1 = t.createLocalFile(FileName)
+
+	// Write some contents to file.
+	contents := "string1string2string3"
+	_, err := t.f1.Write([]byte(contents))
+	AssertEq(nil, err)
+
+	// File shouldn't get created on GCS.
+	t.validateObjectNotFoundErr(FileName)
+	// Read the local file contents.
+	buf := make([]byte, len(contents))
+	n, err := t.f1.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertEq(len(contents), n)
+	AssertEq(contents, string(buf))
+
+	// Close the file and validate if the file is created on GCS.
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, contents)
+}
