@@ -977,11 +977,14 @@ func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
 	// Do not sync local file if it has been deleted from the localFileInodes map.
+	fs.mu.Lock()
 	_, ok := fs.localFileInodes[f.Name()]
 	if f.IsLocal() && !ok {
-		// Return without any error. This is in sync with POSIX file behaviour.
+		// Do not return any error. This is in sync with non-local file behaviour.
+		fs.mu.Unlock()
 		return
 	}
+	fs.mu.Unlock()
 
 	// Sync the inode.
 	err = f.Sync(ctx)
@@ -2062,6 +2065,16 @@ func (fs *fileSystem) WriteFile(
 
 	in.Lock()
 	defer in.Unlock()
+
+	// If inode is a local file inode and has been unlinked (deleted), do not serve
+	// WriteFile op and return IO error. This is in sync with non-local file behaviour.
+	fs.mu.Lock()
+	_, ok := fs.localFileInodes[in.Name()]
+	if in.IsLocal() && !ok {
+		fs.mu.Unlock()
+		return fmt.Errorf("no such file or directory: %w", syscall.EIO)
+	}
+	fs.mu.Unlock()
 
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
