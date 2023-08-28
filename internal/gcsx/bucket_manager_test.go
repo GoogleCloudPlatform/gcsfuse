@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 

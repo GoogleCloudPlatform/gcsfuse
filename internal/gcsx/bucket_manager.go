@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/reqtrace"
 
 	"github.com/jacobsa/timeutil"

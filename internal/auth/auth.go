@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
