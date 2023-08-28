@@ -54,9 +54,10 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	description := serviceAccount
 	displayName := serviceAccount
 
+	// Delete service account after testing.
 	defer operations.DeleteServiceAccount(serviceAccount)
 
-	// Create service account
+	// Create service account.
 	err = operations.CreateServiceAccount(serviceAccountName, description, displayName)
 	if err != nil {
 		log.Fatalf("Error in creating service account:%v", err)
@@ -67,7 +68,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// Revoke the permission and delete creds after testing.
 	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_creds.sh", serviceAccount, key_file_path)
 
-	// Create credentials
+	// Create credentials.
 	err = operations.CreateKeyFileForServiceAccount(key_file_path, serviceAccount)
 	if err != nil {
 		log.Fatalf("Error in creating key file:%v", err)

@@ -480,21 +480,29 @@ func GenerateRandomString(length int) string {
 	return string(b)
 }
 
+// Create service account.
+// gcloud iam service-accounts create serviceAccount --description=description --display-name=displayName
 func CreateServiceAccount(serviceAccount, description, displayName string) error {
 	_, err := executeGcloudCommandf("iam service-accounts create %s --description=%s --display-name=%s", serviceAccount, description, displayName)
 	return err
 }
 
+// Create key file to from service account.
+// gcloud iam service-accounts keys create key-file-path --iam-account=serviceAccount
 func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
 	_, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s", keyFilePath, serviceAccount)
 	return err
 }
 
+// Provide service account permission to bucket.
+// gcloud iam ch serviceAccount:serviceAccount:permission gs://bucketName
 func ProvidePermissionToServiceAccount(serviceAccount, permission, bucketName string) error {
 	_, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
 	return err
 }
 
+// Delete service account
+// gcloud "iam service-accounts delete serviceAccount
 func DeleteServiceAccount(serviceAccount string) {
 	_, err := executeGcloudCommandf("iam service-accounts delete %s -q", serviceAccount)
 	if err != nil {
