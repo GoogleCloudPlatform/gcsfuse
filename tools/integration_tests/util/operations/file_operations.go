@@ -485,6 +485,9 @@ func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
 // gcloud iam ch serviceAccount:serviceAccount:permission gs://bucketName
 func ProvidePermissionToServiceAccount(serviceAccount, keyIDFile, permission, bucketName string) error {
 	out, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
+	if err != nil {
+		log.Fatalf("Error in providing permission:%v", err)
+	}
 	err = WriteFile(keyIDFile, string(out))
 	if err != nil {
 		log.Fatalf("Error in writing key id:%v", err)
