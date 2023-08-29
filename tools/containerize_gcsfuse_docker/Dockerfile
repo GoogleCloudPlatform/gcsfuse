@@ -49,8 +49,8 @@ RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
 # Branch name for building through a particular branch.
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
+#ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git checkout "upgrade_go_1.21"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
