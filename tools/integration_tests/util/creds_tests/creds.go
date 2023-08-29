@@ -34,9 +34,9 @@ const PrefixServiceAccount = "creds-test-gcsfuse"
 const KeyID = "key.txt"
 const KeyFile = "creds.json"
 
-func setPermission(permission, KeyIDFile, serviceAccount string) error {
+func setPermission(permission, serviceAccount string) error {
 	// Provide permission to the bucket.
-	err := operations.ProvidePermissionToServiceAccount(serviceAccount, KeyIDFile, permission, setup.TestBucket())
+	err := operations.ProvidePermissionToServiceAccount(serviceAccount, permission, setup.TestBucket())
 	// Adding sleep time for new permissions to propagate in GCS.
 	time.Sleep(10 * time.Second)
 	return err
@@ -72,13 +72,13 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	defer operations.RevokePermissionAndDeleteKey(key_id_file_path, key_file_path, serviceAccount)
 
 	// Create credentials.
-	err = operations.CreateKeyFileForServiceAccount(key_file_path, serviceAccount)
+	err = operations.CreateKeyFileForServiceAccount(key_file_path, key_id_file_path, serviceAccount)
 	if err != nil {
 		log.Fatalf("Error in creating key file:%v", err)
 	}
 
 	// Provide permission to service account for testing.
-	err = setPermission(permission, key_id_file_path, serviceAccount)
+	err = setPermission(permission, serviceAccount)
 	if err != nil {
 		log.Fatalf("Error in providing permission:%v", err)
 	}

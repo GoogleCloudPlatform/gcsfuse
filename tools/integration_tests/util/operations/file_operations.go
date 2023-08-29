@@ -476,21 +476,21 @@ func CreateServiceAccount(serviceAccount, description, displayName string) error
 
 // Create key file to from service account.
 // gcloud iam service-accounts keys create key-file-path --iam-account=serviceAccount
-func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
-	_, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s", keyFilePath, serviceAccount)
+func CreateKeyFileForServiceAccount(keyFilePath, keyIDFile, serviceAccount string) error {
+	out, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s", keyFilePath, serviceAccount)
+	err = WriteFile(keyIDFile, string(out))
+	if err != nil {
+		log.Fatalf("Error in writing key id:%v", err)
+	}
 	return err
 }
 
 // Provide service account permission to bucket.
 // gcloud iam ch serviceAccount:serviceAccount:permission gs://bucketName
-func ProvidePermissionToServiceAccount(serviceAccount, keyIDFile, permission, bucketName string) error {
-	out, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
+func ProvidePermissionToServiceAccount(serviceAccount, permission, bucketName string) error {
+	_, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
 	if err != nil {
 		log.Fatalf("Error in providing permission:%v", err)
-	}
-	err = WriteFile(keyIDFile, string(out))
-	if err != nil {
-		log.Fatalf("Error in writing key id:%v", err)
 	}
 	return err
 }
