@@ -514,8 +514,21 @@ func RevokePermissionAndDeleteKey(keyIDFile, keyFile, serviceAccount string) {
 		log.Fatalf("Error in reading key file data:%v", err)
 	}
 
+	// Split the file contents into words
+	words := strings.Fields(string(content))
+
+	// Find the index of the word after two spaces
+	// key_id file content
+	// created key [key_id] of type [json] as [path/to/key/file] for [serviceAccount]
+	// We will retrieve the key id from the file.
+	wordIndex := 2
+	if len(words) < wordIndex {
+		fmt.Println("Could not find word after two spaces")
+		return
+	}
+
 	// Remove the braces from the key ID
-	keyID := strings.Trim(string(content), "{}")
+	keyID := strings.Trim(words[wordIndex], "[]")
 
 	// Get the first 40 characters of the key ID
 	keyID = keyID[:40]
