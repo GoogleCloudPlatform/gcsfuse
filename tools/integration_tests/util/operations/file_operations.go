@@ -134,7 +134,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 }
 
 func WriteFile(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
 		return
@@ -477,11 +477,7 @@ func CreateServiceAccount(serviceAccount, description, displayName string) error
 // Create key file to from service account.
 // gcloud iam service-accounts keys create key-file-path --iam-account=serviceAccount
 func CreateKeyFileForServiceAccount(keyFilePath, keyIDFile, serviceAccount string) error {
-	out, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s", keyFilePath, serviceAccount)
-	err = WriteFile(keyIDFile, string(out))
-	if err != nil {
-		log.Fatalf("Error in writing key id:%v", err)
-	}
+	_, err := executeGcloudCommandf("iam service-accounts keys create %s --iam-account=%s 2>&1 | tee %s", keyFilePath, serviceAccount, keyIDFile)
 	return err
 }
 
@@ -504,6 +500,8 @@ func DeleteServiceAccount(serviceAccount string) {
 	}
 }
 
+// Revoke permission and delete key.
+// gcloud iam service-accounts keys delete keyID --iam-account=serviceAccount
 func RevokePermissionAndDeleteKey(keyIDFile, keyFile, serviceAccount string) {
 	// Check if the key_id.txt file exists
 	if _, err := os.Stat(keyIDFile); err != nil {
