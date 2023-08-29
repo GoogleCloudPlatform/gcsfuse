@@ -24,12 +24,9 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 	"syscall"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -486,10 +483,9 @@ func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
 
 // Provide service account permission to bucket.
 // gcloud iam ch serviceAccount:serviceAccount:permission gs://bucketName
-func ProvidePermissionToServiceAccount(serviceAccount, permission, bucketName string) error {
+func ProvidePermissionToServiceAccount(serviceAccount, keyIDFile, permission, bucketName string) error {
 	out, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
-	keyID := path.Join(os.Getenv("HOME"), creds_tests.KeyID)
-	err = WriteFile(keyID, string(out))
+	err = WriteFile(keyIDFile, string(out))
 	if err != nil {
 		log.Fatalf("Error in writing key id:%v", err)
 	}
