@@ -65,7 +65,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		log.Fatalf("Error in creating service account:%v", err)
 	}
 
-	key_file_path := path.Join(os.Getenv("HOME"))
+	key_file_path := path.Join(os.Getenv("HOME"), KeyFile)
 	key_id_file_path := path.Join(os.Getenv("HOME"), KeyID)
 
 	// Revoke the permission and delete creds after testing.
