@@ -134,7 +134,7 @@ func WriteFileInAppendMode(fileName string, content string) (err error) {
 }
 
 func WriteFile(fileName string, content string) (err error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR|syscall.O_DIRECT, FilePermission_0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
 		return
