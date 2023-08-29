@@ -24,15 +24,13 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 )
-
-const Charset = "abcdefghijklmnopqrstuvwxyz"
-
-var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
 	if !allowOverwrite {
@@ -472,14 +470,6 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	return err
 }
 
-func GenerateRandomString(length int) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = Charset[seededRand.Intn(len(Charset))]
-	}
-	return string(b)
-}
-
 // Create service account.
 // gcloud iam service-accounts create serviceAccount --description=description --display-name=displayName
 func CreateServiceAccount(serviceAccount, description, displayName string) error {
@@ -497,7 +487,12 @@ func CreateKeyFileForServiceAccount(keyFilePath, serviceAccount string) error {
 // Provide service account permission to bucket.
 // gcloud iam ch serviceAccount:serviceAccount:permission gs://bucketName
 func ProvidePermissionToServiceAccount(serviceAccount, permission, bucketName string) error {
-	_, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
+	out, err := executeGsutilCommandf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucketName)
+	keyID := path.Join(os.Getenv("HOME"), creds_tests.KeyID)
+	err = WriteFile(keyID, string(out))
+	if err != nil {
+		log.Fatalf("Error in writing key id:%v", err)
+	}
 	return err
 }
 
@@ -508,4 +503,31 @@ func DeleteServiceAccount(serviceAccount string) {
 	if err != nil {
 		log.Fatalf("Error in deleting service account:%s", err)
 	}
+}
+
+func RevokePermissionAndDeleteKey(keyIDFile, keyFile, serviceAccount string) {
+	// Check if the key_id.txt file exists
+	if _, err := os.Stat(keyIDFile); err != nil {
+		log.Fatalf("file does not exist")
+	}
+
+	// Read the key_id.txt file and get the key ID
+	content, err := os.ReadFile(keyIDFile)
+	if err != nil {
+		log.Fatalf("Error in reading key file data:%v", err)
+	}
+
+	// Remove the braces from the key ID
+	keyID := strings.Trim(string(content), "{}")
+
+	// Get the first 40 characters of the key ID
+	keyID = keyID[:40]
+
+	_, err = executeGcloudCommandf("iam service-accounts keys delete %s --iam-account=%s", keyID, serviceAccount)
+	if err != nil {
+		log.Fatalf("Error in deleting service account:%s", err)
+	}
+
+	RemoveFile(keyIDFile)
+	RemoveFile(keyFile)
 }

@@ -30,7 +30,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NameOfServiceAccount = "creds-test-gcsfuse"
+const PrefixServiceAccount = "creds-test-gcsfuse"
+const KeyID = "key.txt"
+const KeyFile = "creds.json"
 
 func setPermission(permission string, serviceAccount string) error {
 	// Provide permission to the bucket.
@@ -47,7 +49,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	serviceAccountName := NameOfServiceAccount + "-" + operations.GenerateRandomString(10)
+	serviceAccountName := PrefixServiceAccount + "-" + operations.GenerateRandomString(10)
 
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount := serviceAccountName + "@" + id + ".iam.gserviceaccount.com"
@@ -63,10 +65,11 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 		log.Fatalf("Error in creating service account:%v", err)
 	}
 
-	key_file_path := path.Join(os.Getenv("HOME"), "creds.json")
+	key_file_path := path.Join(os.Getenv("HOME"))
+	key_id_file_path := path.Join(os.Getenv("HOME"), KeyID)
 
 	// Revoke the permission and delete creds after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_creds.sh", serviceAccount, key_file_path)
+	defer operations.RevokePermissionAndDeleteKey(key_id_file_path, key_file_path, serviceAccount)
 
 	// Create credentials.
 	err = operations.CreateKeyFileForServiceAccount(key_file_path, serviceAccount)
