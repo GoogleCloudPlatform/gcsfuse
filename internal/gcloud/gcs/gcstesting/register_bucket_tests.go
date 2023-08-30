@@ -117,7 +117,7 @@ func registerTestSuite(
 		// Report the test result.
 		tf.TearDown = func() {
 			report(errors.New(
-				"TODO(jacobsa): Plumb through the test failure status. " +
+				"TODO: Plumb through the test failure status. " +
 					"Or offer tracing in ogletest itself."))
 		}
 
