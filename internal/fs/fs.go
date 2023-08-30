@@ -934,6 +934,12 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 			child.Unlock()
 			continue
 		}
+		// Check if the local file inode has been unlinked?
+		fileInode, ok := child.(*inode.FileInode)
+		if ok && fileInode.IsUnlinked() {
+			child.Unlock()
+			continue
+		}
 
 		return
 	}
@@ -976,15 +982,12 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	// Do not sync local file if it has been deleted from the localFileInodes map.
-	fs.mu.Lock()
-	_, ok := fs.localFileInodes[f.Name()]
-	if f.IsLocal() && !ok {
-		// Do not return any error. This is in sync with non-local file behaviour.
-		fs.mu.Unlock()
+	// syncFile can be triggered for unlinked files if the fileHandle is open by
+	// another user/terminal. Hence, ignoring the syncFile call for local file.
+	if f.IsLocal() && f.IsUnlinked() {
+		// Silently ignore the syncFile call. This is in sync with non-local file behaviour.
 		return
 	}
-	fs.mu.Unlock()
 
 	// Sync the inode.
 	err = f.Sync(ctx)
@@ -997,7 +1000,7 @@ func (fs *fileSystem) syncFile(
 	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
 	fs.mu.Lock()
 	delete(fs.localFileInodes, f.Name())
-	_, ok = fs.generationBackedInodes[f.Name()]
+	_, ok := fs.generationBackedInodes[f.Name()]
 	if !ok {
 		fs.generationBackedInodes[f.Name()] = f
 	}
@@ -1901,18 +1904,22 @@ func (fs *fileSystem) Unlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
-	parent.Lock()
-	defer parent.Unlock()
-
-	inodeName := inode.NewFileName(parent.Name(), op.Name)
-	fs.mu.Lock()
-	_, ok := fs.localFileInodes[inodeName]
+	// if inode is a local file, mark it unlinked.
+	fileName := inode.NewFileName(parent.Name(), op.Name)
+	inode, ok := fs.localFileInodes[fileName]
 	if ok {
-		delete(fs.localFileInodes, inodeName)
+		fs.mu.Lock()
+		file := fs.fileInodeOrDie(inode.ID())
 		fs.mu.Unlock()
+		file.Lock()
+		defer file.Unlock()
+		file.Unlink()
 		return
 	}
-	fs.mu.Unlock()
+
+	// else delete the backing object present on GCS.
+	parent.Lock()
+	defer parent.Unlock()
 
 	// Delete the backing object.
 	err = parent.DeleteChildFile(
@@ -2065,16 +2072,6 @@ func (fs *fileSystem) WriteFile(
 
 	in.Lock()
 	defer in.Unlock()
-
-	// If inode is a local file inode and has been unlinked (deleted), do not serve
-	// WriteFile op and return IO error. This is in sync with non-local file behaviour.
-	fs.mu.Lock()
-	_, ok := fs.localFileInodes[in.Name()]
-	if in.IsLocal() && !ok {
-		fs.mu.Unlock()
-		return fmt.Errorf("no such file or directory: %w", syscall.EIO)
-	}
-	fs.mu.Unlock()
 
 	// Serve the request.
 	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
