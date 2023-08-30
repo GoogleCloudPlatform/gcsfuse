@@ -36,7 +36,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		flags = append(flags, defaultArg[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuse(setup.BinFile(), flags, setup.LogFile())
 
 	return err
 }

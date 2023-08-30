@@ -35,6 +35,7 @@ import (
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
 // the format defined by time.RFC3339Nano.
 const FileMtimeMetadataKey = gcsx.MtimeMetadataKey
+const FileClobberedErrMsg = "file is clobbered i.e, either the file is modified or unlinked remotely"
 
 type FileInode struct {
 	/////////////////////////
@@ -546,8 +547,7 @@ func (f *FileInode) SetMtime(
 }
 
 // Sync writes out contents to GCS. If this fails due to the generation having been
-// clobbered, treat it as a non-error (simulating the inode having been
-// unlinked).
+// clobbered, failure is propagated back to the calling function as an error.
 //
 // After this method succeeds, SourceGeneration will return the new generation
 // by which this inode should be known (which may be the same as before). If it
@@ -570,9 +570,12 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties.
 	latestGcsObj, isClobbered, err := f.clobbered(ctx, true)
 
-	// Clobbered is treated as being unlinked. There's no reason to return an
-	// error in that case. We simply return without syncing the object.
-	if err != nil || isClobbered {
+	if err != nil {
+		return
+	}
+
+	if isClobbered {
+		err = fmt.Errorf(FileClobberedErrMsg)
 		return
 	}
 
@@ -581,11 +584,9 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// the latest object fetched from gcs which has all the properties populated.
 	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
-	// Special case: a precondition error means we were clobbered, which we treat
-	// as being unlinked. There's no reason to return an error in that case.
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
-		err = nil
+		err = fmt.Errorf("SyncObject: %s, %w", FileClobberedErrMsg, err)
 		return
 	}
 
