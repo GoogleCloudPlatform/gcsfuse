@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
-	"github.com/jacobsa/gcloud/gcs/gcstesting"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcstesting"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
