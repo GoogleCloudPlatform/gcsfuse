@@ -807,7 +807,14 @@ func (d *dirInode) DeleteChildDir(
 }
 
 func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
-	for localInodeName := range localFileInodes {
+	for localInodeName, in := range localFileInodes {
+		// It is possible that the local file inode has been unlinked, but
+		// still present in localFileInodes map because of open file handle.
+		// So, if the inode has been unlinked, skip the entry.
+		file, ok := in.(*FileInode)
+		if ok && file.IsUnlinked() {
+			continue
+		}
 		if localInodeName.IsDirectChildOf(d.Name()) {
 			entry := fuseutil.Dirent{
 				Name: path.Base(localInodeName.LocalName()),
