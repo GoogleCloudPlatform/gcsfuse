@@ -901,7 +901,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		if child != nil {
 			child.IncrementLookupCount()
 		}
-		fs.mu.Unlock()
 	}()
 
 	// Trim the suffix assigned to fix conflicting names.
@@ -914,6 +913,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		child = fs.localFileInodes[fileName]
 
 		if child == nil {
+			fs.mu.Unlock()
 			return
 		}
 
@@ -921,6 +921,13 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		// to get the lock. First get inode lock and then fs lock.
 		fs.mu.Unlock()
 		child.Lock()
+		// Check if local file inode has been unlinked?
+		fileInode, ok := child.(*inode.FileInode)
+		if ok && fileInode.IsUnlinked() {
+			child.Unlock()
+			child = nil
+			return
+		}
 		// Filesystem lock will be held till we increment lookUpCount to avoid
 		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
 		fs.mu.Lock()
@@ -934,18 +941,13 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 			child.Unlock()
 			continue
 		}
-		// Check if the local file inode has been unlinked?
-		fileInode, ok := child.(*inode.FileInode)
-		if ok && fileInode.IsUnlinked() {
-			child.Unlock()
-			continue
-		}
-
+		fs.mu.Unlock()
 		return
 	}
 
 	// In case we exhausted the retries, return nil object.
 	child = nil
+	fs.mu.Unlock()
 	return
 }
 
