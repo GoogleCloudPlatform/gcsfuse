@@ -899,3 +899,23 @@ func (t *FileTest) ContentEncodingOther() {
 	AssertEq(contentEncoding, t.in.Source().ContentEncoding)
 	AssertFalse(t.in.Source().HasContentEncodingGzip())
 }
+
+func (t *FileTest) UnlinkLocalFile() {
+	var err error
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	// Create a temp file for the local inode created above.
+	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
+
+	// Unlink.
+	t.in.Unlink()
+
+	// Verify that fileInode is now unlinked
+	AssertTrue(t.in.IsUnlinked())
+	// Data shouldn't be updated to GCS.
+	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	_, err = t.bucket.StatObject(t.ctx, statReq)
+	AssertNe(nil, err)
+	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+}
