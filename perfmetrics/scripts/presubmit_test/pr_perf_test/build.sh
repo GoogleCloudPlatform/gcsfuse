@@ -59,6 +59,7 @@ then
  sudo apt-get install fio -y
 
  # Executing perf tests for master branch
+ git reset --hard
  git checkout master
  # Store results
  touch result.txt
