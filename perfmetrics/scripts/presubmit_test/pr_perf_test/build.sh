@@ -1,102 +1,36 @@
 #!/bin/bash
-# Running test only for when PR contains execute-perf-test or execute-integration-tests label
-readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
-readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
-readonly INTEGRATION_TEST_EXECUTION_TIME=24m
-
-curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
-integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
-rm pr.json
-perfTestStr="$perfTest"
-integrationTestsStr="$integrationTests"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  &&  "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]]
-then
-  echo "No need to execute tests"
-  exit 0
-fi
-
 set -e
 sudo apt-get update
-echo Installing git
+
+echo "Installing git"
 sudo apt-get install git
-echo Installing go-lang  1.20.5
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz -q
+echo "Installing go-lang 1.20.5"
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-$(dpkg --print-architecture).tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
-export CGO_ENABLED=0
+echo "Installing docker "
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
+
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-# Fetch PR branch
-echo '[remote "origin"]
-         fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' >> .git/config
-git fetch origin -q
+# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+# integration tests using code upto that commit.
+commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+git stash
+git checkout $commitId
 
-function execute_perf_test() {
-  mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
-  BUCKET_NAME=presubmit-perf-tests
-  MOUNT_POINT=gcs
-  # The VM will itself exit if the gcsfuse mount fails.
-  go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  # Running FIO test
-  chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
-  sudo umount gcs
-}
+echo "Building and installing gcsfuse"
+# Build the gcsfuse package using the same commands used during release.
+GCSFUSE_VERSION=0.0.0
+sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId --build-arg ARCHITECTURE=arm64
+sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
+ls $HOME/release/packages/
+sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_arm64.deb
 
-# execute perf tests.
-if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
-then
- # Installing requirements
- echo Installing python3-pip
- sudo apt-get -y install python3-pip
- echo Installing libraries to run python script
- pip install google-cloud
- pip install google-cloud-vision
- pip install google-api-python-client
- pip install prettytable
- echo Installing fio
- sudo apt-get install fio -y
-
- # Executing perf tests for master branch
- git checkout master
- # Store results
- touch result.txt
- echo Mounting gcs bucket for master branch and execute tests
- execute_perf_test
-
-
- # Executing perf tests for PR branch
- echo checkout PR branch
- git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
- echo Mounting gcs bucket from pr branch and execute tests
- execute_perf_test
-
- # Show results
- echo showing results...
- python3 ./perfmetrics/scripts/presubmit/print_results.py
-fi
-
-# Execute integration tests.
-if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
-then
-  echo checkout PR branch
-  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
-
-  # Create bucket for integration tests.
-  # The prefix for the random string
-  bucketPrefix="gcsfuse-integration-test-"
-  # The length of the random string
-  length=5
-  # Generate the random string
-  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
-  BUCKET_NAME=$bucketPrefix$random_string
-  echo 'bucket name = '$BUCKET_NAME
-  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
-
-  # Executing integration tests
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout $INTEGRATION_TEST_EXECUTION_TIME
-
-  # Delete bucket after testing.
-  gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
-fi
+echo "Executing integration tests"
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --testInstalledPackage --integrationTest -v --testbucket=integration-test-tulsishah-2 -timeout 24m
