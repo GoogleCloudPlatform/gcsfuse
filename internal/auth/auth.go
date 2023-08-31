@@ -24,8 +24,6 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-const Scope_FullControl = storagev1.DevstorageFullControlScope
-
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(
 	ctx context.Context,
@@ -61,7 +59,7 @@ func GetTokenSource(
 	reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
-	const scope = Scope_FullControl
+	const scope = storagev1.DevstorageFullControlScope
 	var method string
 
 	if keyFile != "" {
