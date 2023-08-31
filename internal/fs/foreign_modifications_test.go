@@ -32,9 +32,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -634,7 +634,7 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 
 	// Opening again should yield the new version.
 	//
-	// NOTE(jacobsa): We must open with a different mode here than above to work
+	// NOTE: We must open with a different mode here than above to work
 	// around the fact that osxfuse will re-use file handles. See the notes on
 	// fuse.FileSystem.OpenFile for more.
 	f2, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)

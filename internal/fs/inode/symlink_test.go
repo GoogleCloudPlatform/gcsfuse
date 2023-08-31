@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 

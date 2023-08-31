@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package gcs
 
-import (
-	"bytes"
+import "fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"golang.org/x/net/context"
-)
+// A *NotFoundError value is an error that indicates an object name or a
+// particular generation for that name were not found.
+type NotFoundError struct {
+	Err error
+}
 
-// Create an object with the supplied contents in the given bucket with the
-// given name.
-func CreateObject(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	name string,
-	contents []byte) (*gcs.Object, error) {
-	req := &gcs.CreateObjectRequest{
-		Name:     name,
-		Contents: bytes.NewReader(contents),
-	}
+func (nfe *NotFoundError) Error() string {
+	return fmt.Sprintf("gcs.NotFoundError: %v", nfe.Err)
+}
 
-	return bucket.CreateObject(ctx, req)
+// A *PreconditionError value is an error that indicates a precondition failed.
+type PreconditionError struct {
+	Err error
+}
+
+// Returns pe.Err.Error().
+func (pe *PreconditionError) Error() string {
+	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
 }
