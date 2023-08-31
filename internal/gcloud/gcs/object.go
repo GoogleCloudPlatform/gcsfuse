@@ -49,7 +49,7 @@ type Object struct {
 	Deleted         time.Time
 	Updated         time.Time
 
-	// NOTE(jacobsa): As of 2015-06-03, the official GCS documentation for this
+	// As of 2015-06-03, the official GCS documentation for this
 	// property (https://goo.gl/GwD5Dq) says this:
 	//
 	//     Newly uploaded objects have a component count of 1, and composing a
