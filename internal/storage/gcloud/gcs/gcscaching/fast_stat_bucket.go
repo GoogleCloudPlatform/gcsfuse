@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -33,7 +33,7 @@ func NewFastStatBucket(
 	ttl time.Duration,
 	cache StatCache,
 	clock timeutil.Clock,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+	wrapped gcs2.Bucket) (b gcs2.Bucket) {
 	fsb := &fastStatBucket{
 		cache:   cache,
 		clock:   clock,
@@ -56,7 +56,7 @@ type fastStatBucket struct {
 	cache StatCache
 
 	clock   timeutil.Clock
-	wrapped gcs.Bucket
+	wrapped gcs2.Bucket
 
 	/////////////////////////
 	// Constant data
@@ -70,7 +70,7 @@ type fastStatBucket struct {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
+func (b *fastStatBucket) insertMultiple(objs []*gcs2.Object) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -81,8 +81,8 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(o *gcs.Object) {
-	b.insertMultiple([]*gcs.Object{o})
+func (b *fastStatBucket) insert(o *gcs2.Object) {
+	b.insertMultiple([]*gcs2.Object{o})
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -103,7 +103,7 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs.Object) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs2.Object) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -121,7 +121,7 @@ func (b *fastStatBucket) Name() string {
 
 func (b *fastStatBucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs2.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	rc, err = b.wrapped.NewReader(ctx, req)
 	return
 }
@@ -129,7 +129,7 @@ func (b *fastStatBucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.CreateObjectRequest) (o *gcs2.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -148,7 +148,7 @@ func (b *fastStatBucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.CopyObjectRequest) (o *gcs2.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -167,7 +167,7 @@ func (b *fastStatBucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs2.ComposeObjectsRequest) (o *gcs2.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -186,7 +186,7 @@ func (b *fastStatBucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.StatObjectRequest) (o *gcs2.Object, err error) {
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
 		return b.StatObjectFromGcs(ctx, req)
@@ -196,7 +196,7 @@ func (b *fastStatBucket) StatObject(
 	if hit, entry := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
-			err = &gcs.NotFoundError{
+			err = &gcs2.NotFoundError{
 				Err: fmt.Errorf("Negative cache entry for %v", req.Name),
 			}
 
@@ -214,7 +214,7 @@ func (b *fastStatBucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	req *gcs2.ListObjectsRequest) (listing *gcs2.Listing, err error) {
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -230,7 +230,7 @@ func (b *fastStatBucket) ListObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.UpdateObjectRequest) (o *gcs2.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -249,17 +249,17 @@ func (b *fastStatBucket) UpdateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+	req *gcs2.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
 }
 
-func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs2.StatObjectRequest) (o *gcs2.Object, err error) {
 	o, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
-		if _, ok := err.(*gcs.NotFoundError); ok {
+		if _, ok := err.(*gcs2.NotFoundError); ok {
 			b.addNegativeEntry(req.Name)
 		}
 

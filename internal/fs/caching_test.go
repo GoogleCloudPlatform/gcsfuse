@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -39,12 +39,12 @@ import (
 const ttl = 10 * time.Minute
 
 var (
-	uncachedBucket gcs.Bucket
+	uncachedBucket gcs2.Bucket
 )
 
 type cachingTestCommon struct {
 	fsTest
-	uncachedBucket gcs.Bucket
+	uncachedBucket gcs2.Bucket
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {
@@ -53,8 +53,8 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	uncachedBucket = gcsfake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
-	statCache := gcscaching.NewStatCache(statCacheCapacity)
-	bucket = gcscaching.NewFastStatBucket(
+	statCache := gcscaching2.NewStatCache(statCacheCapacity)
+	bucket = gcscaching2.NewFastStatBucket(
 		ttl,
 		statCache,
 		&cacheClock,
@@ -181,7 +181,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	// Remove the backing object in GCS.
 	err = uncachedBucket.DeleteObject(
 		ctx,
-		&gcs.DeleteObjectRequest{Name: name + "/"})
+		&gcs2.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
@@ -274,7 +274,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	fmt.Printf("DeleteObject\n")
 	err = bucket.DeleteObject(
 		ctx,
-		&gcs.DeleteObjectRequest{Name: name + "/"})
+		&gcs2.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 

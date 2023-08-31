@@ -26,7 +26,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -35,7 +35,7 @@ import (
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
+func NewFakeBucket(clock timeutil.Clock, name string) gcs2.Bucket {
 	b := &bucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b
@@ -46,7 +46,7 @@ func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
 ////////////////////////////////////////////////////////////////////////
 
 type fakeObject struct {
-	metadata gcs.Object
+	metadata gcs2.Object
 	data     []byte
 }
 
@@ -191,14 +191,14 @@ func (b *bucket) checkInvariants() {
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) mintObject(
-	req *gcs.CreateObjectRequest,
+	req *gcs2.CreateObjectRequest,
 	contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
 	crc32c := crc32.Checksum(contents, crc32cTable)
 
 	// Set up basic info.
 	b.prevGeneration++
-	o.metadata = gcs.Object{
+	o.metadata = gcs2.Object{
 		Name:            req.Name,
 		ContentType:     req.ContentType,
 		ContentLanguage: req.ContentLanguage,
@@ -225,7 +225,7 @@ func (b *bucket) mintObject(
 
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) createObjectLocked(
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.CreateObjectRequest) (o *gcs2.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -276,7 +276,7 @@ func (b *bucket) createObjectLocked(
 	// Check preconditions.
 	if req.GenerationPrecondition != nil {
 		if *req.GenerationPrecondition == 0 && existingRecord != nil {
-			err = &gcs.PreconditionError{
+			err = &gcs2.PreconditionError{
 				Err: errors.New("Precondition failed: object exists"),
 			}
 
@@ -285,7 +285,7 @@ func (b *bucket) createObjectLocked(
 
 		if *req.GenerationPrecondition > 0 {
 			if existingRecord == nil {
-				err = &gcs.PreconditionError{
+				err = &gcs2.PreconditionError{
 					Err: errors.New("Precondition failed: object doesn't exist"),
 				}
 
@@ -294,7 +294,7 @@ func (b *bucket) createObjectLocked(
 
 			existingGen := existingRecord.metadata.Generation
 			if existingGen != *req.GenerationPrecondition {
-				err = &gcs.PreconditionError{
+				err = &gcs2.PreconditionError{
 					Err: fmt.Errorf(
 						"Precondition failed: object has generation %v",
 						existingGen),
@@ -307,7 +307,7 @@ func (b *bucket) createObjectLocked(
 
 	if req.MetaGenerationPrecondition != nil {
 		if existingRecord == nil {
-			err = &gcs.PreconditionError{
+			err = &gcs2.PreconditionError{
 				Err: errors.New("Precondition failed: object doesn't exist"),
 			}
 
@@ -316,7 +316,7 @@ func (b *bucket) createObjectLocked(
 
 		existingMetaGen := existingRecord.metadata.MetaGeneration
 		if existingMetaGen != *req.MetaGenerationPrecondition {
-			err = &gcs.PreconditionError{
+			err = &gcs2.PreconditionError{
 				Err: fmt.Errorf(
 					"Precondition failed: object has meta-generation %v",
 					existingMetaGen),
@@ -346,11 +346,11 @@ func (b *bucket) createObjectLocked(
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) newReaderLocked(
-	req *gcs.ReadObjectRequest) (r io.Reader, index int, err error) {
+	req *gcs2.ReadObjectRequest) (r io.Reader, index int, err error) {
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
@@ -361,7 +361,7 @@ func (b *bucket) newReaderLocked(
 
 	// Does the generation match?
 	if req.Generation != 0 && req.Generation != o.metadata.Generation {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %s generation %v not found", req.Name, req.Generation),
 		}
@@ -420,8 +420,8 @@ func copyMetadata(in map[string]string) (out map[string]string) {
 	return
 }
 
-func copyObject(o *gcs.Object) *gcs.Object {
-	var copy gcs.Object = *o
+func copyObject(o *gcs2.Object) *gcs2.Object {
+	var copy gcs2.Object = *o
 	copy.Metadata = copyMetadata(o.Metadata)
 	return &copy
 }
@@ -437,12 +437,12 @@ func (b *bucket) Name() string {
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ListObjects(
 	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	req *gcs2.ListObjectsRequest) (listing *gcs2.Listing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Set up the result object.
-	listing = new(gcs.Listing)
+	listing = new(gcs2.Listing)
 
 	// Handle defaults.
 	maxResults := req.MaxResults
@@ -535,7 +535,7 @@ func (b *bucket) ListObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs2.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -551,7 +551,7 @@ func (b *bucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.CreateObjectRequest) (o *gcs2.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -562,7 +562,7 @@ func (b *bucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.CopyObjectRequest) (o *gcs2.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -575,7 +575,7 @@ func (b *bucket) CopyObject(
 	// Does the object exist?
 	srcIndex := b.objects.find(req.SrcName)
 	if srcIndex == len(b.objects) {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf("Object %q not found", req.SrcName),
 		}
 
@@ -585,7 +585,7 @@ func (b *bucket) CopyObject(
 	// Does it have the correct generation?
 	if req.SrcGeneration != 0 &&
 		b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %s generation %d not found", req.SrcName, req.SrcGeneration),
 		}
@@ -597,7 +597,7 @@ func (b *bucket) CopyObject(
 	if req.SrcMetaGenerationPrecondition != nil {
 		p := *req.SrcMetaGenerationPrecondition
 		if b.objects[srcIndex].metadata.MetaGeneration != p {
-			err = &gcs.PreconditionError{
+			err = &gcs2.PreconditionError{
 				Err: fmt.Errorf(
 					"Object %q has meta-generation %d",
 					req.SrcName,
@@ -633,7 +633,7 @@ func (b *bucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs2.ComposeObjectsRequest) (o *gcs2.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -643,7 +643,7 @@ func (b *bucket) ComposeObjects(
 		return
 	}
 
-	if len(req.Sources) > gcs.MaxSourcesPerComposeRequest {
+	if len(req.Sources) > gcs2.MaxSourcesPerComposeRequest {
 		err = errors.New("You have provided too many source components")
 		return
 	}
@@ -657,7 +657,7 @@ func (b *bucket) ComposeObjects(
 		var r io.Reader
 		var srcIndex int
 
-		r, srcIndex, err = b.newReaderLocked(&gcs.ReadObjectRequest{
+		r, srcIndex, err = b.newReaderLocked(&gcs2.ReadObjectRequest{
 			Name:       src.Name,
 			Generation: src.Generation,
 		})
@@ -671,13 +671,13 @@ func (b *bucket) ComposeObjects(
 	}
 
 	// GCS doesn't like the component count to go too high.
-	if dstComponentCount > gcs.MaxComponentCount {
+	if dstComponentCount > gcs2.MaxComponentCount {
 		err = errors.New("Result would have too many components")
 		return
 	}
 
 	// Create the new object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &gcs2.CreateObjectRequest{
 		Name:                       req.DstName,
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
@@ -708,14 +708,14 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.StatObjectRequest) (o *gcs2.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Does the object exist?
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
@@ -731,25 +731,25 @@ func (b *bucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs2.UpdateObjectRequest) (o *gcs2.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Does the object exist?
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
 		return
 	}
 
-	var obj *gcs.Object = &b.objects[index].metadata
+	var obj *gcs2.Object = &b.objects[index].metadata
 
 	// Does the generation number match the request?
 	if req.Generation != 0 && obj.Generation != req.Generation {
-		err = &gcs.NotFoundError{
+		err = &gcs2.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %q generation %d not found",
 				req.Name,
@@ -762,7 +762,7 @@ func (b *bucket) UpdateObject(
 	// Does the meta-generation precondition check out?
 	if req.MetaGenerationPrecondition != nil &&
 		obj.MetaGeneration != *req.MetaGenerationPrecondition {
-		err = &gcs.PreconditionError{
+		err = &gcs2.PreconditionError{
 			Err: fmt.Errorf(
 				"Object %q has meta-generation %d",
 				obj.Name,
@@ -818,7 +818,7 @@ func (b *bucket) UpdateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) DeleteObject(
 	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+	req *gcs2.DeleteObjectRequest) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -838,7 +838,7 @@ func (b *bucket) DeleteObject(
 	if req.MetaGenerationPrecondition != nil {
 		p := *req.MetaGenerationPrecondition
 		if b.objects[index].metadata.MetaGeneration != p {
-			err = &gcs.PreconditionError{
+			err = &gcs2.PreconditionError{
 				Err: fmt.Errorf(
 					"Object %q has meta-generation %d",
 					req.Name,

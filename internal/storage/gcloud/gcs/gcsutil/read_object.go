@@ -15,20 +15,43 @@
 package gcsutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"fmt"
+	"io"
+
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Create empty objects with default attributes for all of the supplied names.
-func CreateEmptyObjects(
+// Read the contents of the latest generation of the object with the supplied
+// name.
+func ReadObject(
 	ctx context.Context,
-	bucket gcs.Bucket,
-	names []string) (err error) {
-	m := make(map[string][]byte)
-	for _, name := range names {
-		m[name] = nil
+	bucket gcs2.Bucket,
+	name string) (contents []byte, err error) {
+	// Call the bucket.
+	req := &gcs2.ReadObjectRequest{
+		Name: name,
 	}
 
-	err = CreateObjects(ctx, bucket, m)
+	rc, err := bucket.NewReader(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Don't forget to close.
+	defer func() {
+		closeErr := rc.Close()
+		if closeErr != nil && err == nil {
+			err = fmt.Errorf("Close: %v", closeErr)
+		}
+	}()
+
+	// Read the contents.
+	contents, err = io.ReadAll(rc)
+	if err != nil {
+		err = fmt.Errorf("ReadAll: %v", err)
+		return
+	}
+
 	return
 }

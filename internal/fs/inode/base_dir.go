@@ -18,9 +18,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"github.com/jacobsa/fuse"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"

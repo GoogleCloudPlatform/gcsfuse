@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsfake"
+	gcsutil2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
@@ -50,11 +50,11 @@ const fileMode os.FileMode = 0641
 
 type FileTest struct {
 	ctx    context.Context
-	bucket gcs.Bucket
+	bucket gcs2.Bucket
 	clock  timeutil.SimulatedClock
 
 	initialContents string
-	backingObj      *gcs.Object
+	backingObj      *gcs2.Object
 
 	in *FileInode
 }
@@ -75,7 +75,7 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	var err error
 
 	t.initialContents = "taco"
-	t.backingObj, err = gcsutil.CreateObject(
+	t.backingObj, err = gcsutil2.CreateObject(
 		t.ctx,
 		t.bucket,
 		fileName,
@@ -362,7 +362,7 @@ func (t *FileTest) WriteThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -374,7 +374,7 @@ func (t *FileTest) WriteThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := gcsutil2.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
@@ -409,7 +409,7 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 	// Verify that fileInode is no more local
 	AssertFalse(t.in.IsLocal())
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
@@ -419,7 +419,7 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 		writeTime.UTC().Format(time.RFC3339Nano),
 		o.Metadata["gcsfuse_mtime"])
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := gcsutil2.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
 	ExpectEq("tacos", string(contents))
 	// Check attributes.
@@ -445,7 +445,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	// Verify that fileInode is no more local
 	AssertFalse(t.in.IsLocal())
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
@@ -454,7 +454,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	_, ok := o.Metadata["gcsfuse_mtime"]
 	AssertFalse(ok)
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := gcsutil2.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 	// Check attributes.
@@ -486,7 +486,7 @@ func (t *FileTest) AppendThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -498,7 +498,7 @@ func (t *FileTest) AppendThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := gcsutil2.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -532,7 +532,7 @@ func (t *FileTest) TruncateDownwardThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -574,7 +574,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 	ExpectLt(t.backingObj.Generation, t.in.SourceGeneration().Object)
 
 	// Stat the current object in the bucket.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 	ExpectEq(
 		truncateTime.UTC().Format(time.RFC3339Nano),
@@ -613,7 +613,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	AssertEq(nil, err)
 	AssertEq(6, attrs.Size)
 	// Data shouldn't be updated to GCS.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
@@ -642,7 +642,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	AssertEq(nil, err)
 	AssertEq(2, attrs.Size)
 	// Data shouldn't be updated to GCS.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
@@ -656,7 +656,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(
+	newObj, err := gcsutil2.CreateObject(
 		t.ctx,
 		t.bucket,
 		t.in.Name().GcsObjectName(),
@@ -672,7 +672,7 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq(t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -697,7 +697,7 @@ func (t *FileTest) SetMtime_ContentNotFaultedIn() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 
 	// The inode should have added the mtime to the backing object's metadata.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -727,7 +727,7 @@ func (t *FileTest) SetMtime_ContentClean() {
 	ExpectThat(attrs.Mtime, timeutil.TimeEq(mtime))
 
 	// The inode should have added the mtime to the backing object's metadata.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -761,7 +761,7 @@ func (t *FileTest) SetMtime_ContentDirty() {
 	AssertEq(nil, err)
 
 	// Now the object in the bucket should have the appropriate mtime.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -774,7 +774,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	var err error
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(
+	newObj, err := gcsutil2.CreateObject(
 		t.ctx,
 		t.bucket,
 		t.in.Name().GcsObjectName(),
@@ -788,7 +788,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	AssertEq(nil, err)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -803,7 +803,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	lang := "fr"
 	newObj, err := t.bucket.UpdateObject(
 		t.ctx,
-		&gcs.UpdateObjectRequest{
+		&gcs2.UpdateObjectRequest{
 			Name:            t.in.Name().GcsObjectName(),
 			ContentLanguage: &lang,
 		})
@@ -816,7 +816,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 	AssertEq(nil, err)
 
 	// The object in the bucket should not have been changed.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	o, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
@@ -844,7 +844,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	ExpectThat(attrs.Ctime, timeutil.TimeEq(mtime))
 	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
 	// Data shouldn't be updated to GCS.
-	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
+	statReq := &gcs2.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())

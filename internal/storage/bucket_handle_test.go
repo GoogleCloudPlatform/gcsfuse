@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -68,9 +68,9 @@ func (t *BucketHandleTest) TearDown() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompleteRead() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -89,9 +89,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 	limit := uint64(8)
 
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: start,
 				Limit: limit,
 			},
@@ -107,7 +107,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithRangeRead() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name:  TestObjectName,
 			Range: nil,
 		})
@@ -122,9 +122,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithNilRange() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: missingObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -136,9 +136,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInValidObject() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -155,9 +155,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithValidGeneration() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -170,9 +170,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithInvalidGeneration() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestGzipObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestGzipObjectCompressed)),
 			},
@@ -189,9 +189,9 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompressionEnabled() {
 
 func (t *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
 	rc, err := t.bucketHandle.NewReader(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestGzipObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestGzipObjectCompressed)),
 			},
@@ -208,7 +208,7 @@ func (t *BucketHandleTest) TestNewReaderMethodWithCompressionDisabled() {
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 	err := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
+		&gcs2.DeleteObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
@@ -219,7 +219,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithValidObject() {
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 	err := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
+		&gcs2.DeleteObjectRequest{
 			Name:                       missingObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
@@ -230,7 +230,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingObject() {
 
 func (t *BucketHandleTest) TestDeleteObjectMethodWithMissingGeneration() {
 	err := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
+		&gcs2.DeleteObjectRequest{
 			Name:                       TestObjectName,
 			MetaGenerationPrecondition: nil,
 		})
@@ -243,7 +243,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
 	// delete operations. This unit test will be helpful when fake-gcs-server
 	// start respecting these conditions, or we move to other testing framework.
 	err := t.bucketHandle.DeleteObject(context.Background(),
-		&gcs.DeleteObjectRequest{
+		&gcs2.DeleteObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 0,
 			MetaGenerationPrecondition: nil,
@@ -254,7 +254,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
 
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
@@ -262,10 +262,10 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: missingObjectName,
 		})
 
@@ -274,7 +274,7 @@ func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 
 func (t *BucketHandleTest) TestCopyObjectMethodWithValidObject() {
 	_, err := t.bucketHandle.CopyObject(context.Background(),
-		&gcs.CopyObjectRequest{
+		&gcs2.CopyObjectRequest{
 			SrcName:                       TestObjectName,
 			DstName:                       dstObjectName,
 			SrcGeneration:                 TestObjectGeneration,
@@ -285,10 +285,10 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 
 	_, err := t.bucketHandle.CopyObject(context.Background(),
-		&gcs.CopyObjectRequest{
+		&gcs2.CopyObjectRequest{
 			SrcName:                       missingObjectName,
 			DstName:                       dstObjectName,
 			SrcGeneration:                 TestObjectGeneration,
@@ -299,10 +299,10 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 
 	_, err := t.bucketHandle.CopyObject(context.Background(),
-		&gcs.CopyObjectRequest{
+		&gcs2.CopyObjectRequest{
 			SrcName:                       TestObjectName,
 			DstName:                       dstObjectName,
 			SrcGeneration:                 222, // Other than testObjectGeneration, no other generation exists.
@@ -315,7 +315,7 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
 func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 	content := "Creating a new object"
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
-		&gcs.CreateObjectRequest{
+		&gcs2.CreateObjectRequest{
 			Name:     "test_object",
 			Contents: strings.NewReader(content),
 		})
@@ -329,7 +329,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
 	content := "Creating a new object"
 	var generation int64 = 0
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
-		&gcs.CreateObjectRequest{
+		&gcs2.CreateObjectRequest{
 			Name:                   "test_object",
 			Contents:               strings.NewReader(content),
 			GenerationPrecondition: &generation,
@@ -343,9 +343,9 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
 func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectAlreadyExists() {
 	content := "Creating a new object"
 	var generation int64 = 0
-	var precondition *gcs.PreconditionError
+	var precondition *gcs2.PreconditionError
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
-		&gcs.CreateObjectRequest{
+		&gcs2.CreateObjectRequest{
 			Name:                   "test_object",
 			Contents:               strings.NewReader(content),
 			GenerationPrecondition: &generation,
@@ -356,7 +356,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 	AssertEq(nil, err)
 
 	obj, err = t.bucketHandle.CreateObject(context.Background(),
-		&gcs.CreateObjectRequest{
+		&gcs2.CreateObjectRequest{
 			Name:                   "test_object",
 			Contents:               strings.NewReader(content),
 			GenerationPrecondition: &generation,
@@ -367,13 +367,13 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
-	var precondition *gcs.PreconditionError
+	var precondition *gcs2.PreconditionError
 	content := "Creating a new object"
 	var crc32 uint32 = 45
 	var generation int64 = 786
 
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
-		&gcs.CreateObjectRequest{
+		&gcs2.CreateObjectRequest{
 			Name:                   "test_object",
 			Contents:               strings.NewReader(content),
 			CRC32C:                 &crc32,
@@ -385,13 +385,13 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 }
 
 func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsNoAcl() {
-	proj := getProjectionValue(gcs.NoAcl)
+	proj := getProjectionValue(gcs2.NoAcl)
 
 	AssertEq(storage.ProjectionNoACL, proj)
 }
 
 func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsFull() {
-	proj := getProjectionValue(gcs.Full)
+	proj := getProjectionValue(gcs2.Full)
 
 	AssertEq(storage.ProjectionFull, proj)
 }
@@ -404,7 +404,7 @@ func (t *BucketHandleTest) TestGetProjectValueWhenGcloudProjectionIsDefault() {
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: true,
@@ -425,7 +425,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectExist() {
 
 func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "PrefixObjectDoesNotExist",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: true,
@@ -441,7 +441,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithPrefixObjectDoesNotExist() {
 
 func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: false,
@@ -462,7 +462,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithIncludeTrailingDelimiterFalse
 // If Delimiter is empty, all the objects will appear with same prefix.
 func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 	obj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
@@ -485,7 +485,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 // We have 5 objects in fakeserver.
 func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	fiveObj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: false,
@@ -495,7 +495,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 		})
 
 	threeObj, err2 := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "gcsfuse/",
 			Delimiter:                "/",
 			IncludeTrailingDelimiter: false,
@@ -531,7 +531,7 @@ func (t *BucketHandleTest) TestListObjectMethodForMaxResult() {
 func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 	// Validate that ee have 5 objects in fakeserver
 	fiveObjWithMaxResults, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
@@ -543,7 +543,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 	AssertEq(5, len(fiveObjWithMaxResults.Objects))
 
 	fiveObjWithoutMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
@@ -565,7 +565,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	// Validate that we have 5 objects in fakeserver
 	fiveObj, err := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
@@ -577,7 +577,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	AssertEq(5, len(fiveObj.Objects))
 
 	fiveObjWithZeroMaxResults, err2 := t.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
+		&gcs2.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
 			IncludeTrailingDelimiter: true,
@@ -604,7 +604,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	// Metadata value before updating object
 	obj, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
@@ -617,7 +617,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	}
 
 	updatedObj, err := t.bucketHandle.UpdateObject(context.Background(),
-		&gcs.UpdateObjectRequest{
+		&gcs2.UpdateObjectRequest{
 			Name:                       TestObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
@@ -637,10 +637,10 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 
 	_, err := t.bucketHandle.UpdateObject(context.Background(),
-		&gcs.UpdateObjectRequest{
+		&gcs2.UpdateObjectRequest{
 			Name:                       missingObjectName,
 			Generation:                 TestObjectGeneration,
 			MetaGenerationPrecondition: nil,
@@ -655,8 +655,8 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
 }
 
 // Read content of an object and return
-func (t *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadObjectRequest) (buffer string) {
-	rc, err := t.bucketHandle.NewReader(ctx, &gcs.ReadObjectRequest{
+func (t *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs2.ReadObjectRequest) (buffer string) {
+	rc, err := t.bucketHandle.NewReader(ctx, &gcs2.ReadObjectRequest{
 		Name:  req.Name,
 		Range: req.Range})
 
@@ -671,9 +671,9 @@ func (t *BucketHandleTest) readObjectContent(ctx context.Context, req *gcs.ReadO
 func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	// Reading content before composing it
 	buffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -681,7 +681,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	ExpectEq(ContentInTestObject, buffer)
 	// Checking if srcObject exists or not
 	srcObj, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
@@ -689,11 +689,11 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 
 	// Composing the object
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: TestSubObjectName,
 				},
@@ -715,9 +715,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	AssertEq(nil, err)
 	// Validation of srcObject to ensure that it is not effected.
 	srcBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestSubObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
@@ -725,9 +725,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	ExpectEq(ContentInTestSubObject, srcBuffer)
 	// Reading content of destination object
 	dstBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},
@@ -739,26 +739,26 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 	// Checking that dstObject does not exist
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
 	srcObj, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: TestObjectName,
 				},
@@ -780,18 +780,18 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	AssertEq(nil, err)
 	// Validation of srcObject to ensure that it is not effected.
 	srcBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},
 		})
 	// Reading content of dstObject
 	dstBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: dstObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},
@@ -802,31 +802,31 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
 	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj1)
 	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj2)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: TestObjectName,
 				},
@@ -851,27 +851,27 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	AssertEq(nil, err)
 	// Validation of srcObject1 to ensure that it is not effected.
 	srcBuffer1 := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
 		})
 	// Validation of srcObject2 to ensure that it is not effected.
 	srcBuffer2 := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestSubObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
 		})
 	// Reading content of dstObject
 	dstBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: dstObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},
@@ -883,20 +883,20 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: missingObjectName,
 		})
 	// SrcObject does not exist
 	AssertTrue(errors.As(err, &notfound))
 
 	_, err = t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: missingObjectName,
 				},
@@ -921,7 +921,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenSourceIsNil() {
 	_, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       TestObjectName,
 			DstGenerationPrecondition:     nil,
 			DstMetaGenerationPrecondition: nil,
@@ -972,20 +972,20 @@ func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
-	var notfound *gcs.NotFoundError
+	var notfound *gcs2.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
 	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcObj1)
 	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
@@ -997,11 +997,11 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 	// shift to different testing storage.
 	var zeroPreCond int64 = 0
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       dstObjectName,
 			DstGenerationPrecondition:     &zeroPreCond,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: TestObjectName,
 				},
@@ -1026,9 +1026,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 
 	// Validation of srcObject1 to ensure that it is not effected.
 	srcBuffer1 := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -1037,9 +1037,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 
 	// Validation of srcObject2 to ensure that it is not effected.
 	srcBuffer2 := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestSubObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
@@ -1048,9 +1048,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 
 	// Reading content of dstObject
 	dstBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: dstObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},
@@ -1064,7 +1064,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
 	// Checking source object 1 exists. This will also be the destination object.
 	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
@@ -1072,9 +1072,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 
 	// Reading source object 1 content before composing it
 	srcObj1Buffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestObject)),
 			},
@@ -1083,7 +1083,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 
 	// Checking source object 2 exists.
 	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
-		&gcs.StatObjectRequest{
+		&gcs2.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
@@ -1091,9 +1091,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 
 	// Reading source object 2 content before composing it
 	srcObj2Buffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestSubObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
@@ -1106,11 +1106,11 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 	var preCond int64 = srcObj1.Generation
 	// Compose srcObj1 and srcObj2 back into srcObj1
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
-		&gcs.ComposeObjectsRequest{
+		&gcs2.ComposeObjectsRequest{
 			DstName:                       srcObj1.Name,
 			DstGenerationPrecondition:     &preCond,
 			DstMetaGenerationPrecondition: nil,
-			Sources: []gcs.ComposeSource{
+			Sources: []gcs2.ComposeSource{
 				{
 					Name: srcObj1.Name,
 				},
@@ -1135,9 +1135,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 	AssertEq(nil, err)
 	// Validation of src object 2 to ensure that it is not effected.
 	srcObj2BufferAfterCompose := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestSubObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(len(ContentInTestSubObject)),
 			},
@@ -1146,9 +1146,9 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 
 	// Reading content of dstObject (composed back into src object 1)
 	dstBuffer := t.readObjectContent(context.Background(),
-		&gcs.ReadObjectRequest{
+		&gcs2.ReadObjectRequest{
 			Name: TestObjectName,
-			Range: &gcs.ByteRange{
+			Range: &gcs2.ByteRange{
 				Start: uint64(0),
 				Limit: uint64(composedObj.Size),
 			},

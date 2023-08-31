@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching/mock_gcscaching"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching/mock_gcscaching"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -40,9 +40,9 @@ const ttl = time.Second
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
 	clock   timeutil.SimulatedClock
-	wrapped gcs.MockBucket
+	wrapped gcs2.MockBucket
 
-	bucket gcs.Bucket
+	bucket gcs2.Bucket
 }
 
 func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
@@ -51,7 +51,7 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	t.cache = mock_gcscaching.NewMockStatCache(ti.MockController, "cache")
-	t.wrapped = gcs.NewMockBucket(ti.MockController, "wrapped")
+	t.wrapped = gcs2.NewMockBucket(ti.MockController, "wrapped")
 
 	t.bucket = gcscaching.NewFastStatBucket(
 		ttl,
@@ -77,12 +77,12 @@ func (t *CreateObjectTest) CallsEraseAndWrapped() {
 	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
-	var wrappedReq *gcs.CreateObjectRequest
+	var wrappedReq *gcs2.CreateObjectRequest
 	ExpectCall(t.wrapped, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
 
 	// Call
-	req := &gcs.CreateObjectRequest{
+	req := &gcs2.CreateObjectRequest{
 		Name: name,
 	}
 
@@ -103,7 +103,7 @@ func (t *CreateObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
+	_, err = t.bucket.CreateObject(context.TODO(), &gcs2.CreateObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -116,7 +116,7 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name:       name,
 		Generation: 1234,
 	}
@@ -128,7 +128,7 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
+	o, err := t.bucket.CreateObject(context.TODO(), &gcs2.CreateObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -152,12 +152,12 @@ func (t *CopyObjectTest) CallsEraseAndWrapped() {
 	ExpectCall(t.cache, "Erase")(dstName)
 
 	// Wrapped
-	var wrappedReq *gcs.CopyObjectRequest
+	var wrappedReq *gcs2.CopyObjectRequest
 	ExpectCall(t.wrapped, "CopyObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
 
 	// Call
-	req := &gcs.CopyObjectRequest{
+	req := &gcs2.CopyObjectRequest{
 		SrcName: srcName,
 		DstName: dstName,
 	}
@@ -179,7 +179,7 @@ func (t *CopyObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
+	_, err = t.bucket.CopyObject(context.TODO(), &gcs2.CopyObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -192,7 +192,7 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
@@ -204,7 +204,7 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
+	o, err := t.bucket.CopyObject(context.TODO(), &gcs2.CopyObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -228,14 +228,14 @@ func (t *ComposeObjectsTest) CallsEraseAndWrapped() {
 	ExpectCall(t.cache, "Erase")(dstName)
 
 	// Wrapped
-	var wrappedReq *gcs.ComposeObjectsRequest
+	var wrappedReq *gcs2.ComposeObjectsRequest
 	ExpectCall(t.wrapped, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
 
 	// Call
-	req := &gcs.ComposeObjectsRequest{
+	req := &gcs2.ComposeObjectsRequest{
 		DstName: dstName,
-		Sources: []gcs.ComposeSource{
+		Sources: []gcs2.ComposeSource{
 			{Name: srcName},
 		},
 	}
@@ -257,7 +257,7 @@ func (t *ComposeObjectsTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
+	_, err = t.bucket.ComposeObjects(context.TODO(), &gcs2.ComposeObjectsRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -270,7 +270,7 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
@@ -282,7 +282,7 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
+	o, err := t.bucket.ComposeObjects(context.TODO(), &gcs2.ComposeObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -303,10 +303,10 @@ func (t *StatObjectTest) CallsCache() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.Object{}))
+		WillOnce(Return(true, &gcs2.Object{}))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
@@ -317,7 +317,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 	const name = "taco"
 
 	// LookUp
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name: name,
 	}
 
@@ -325,7 +325,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 		WillOnce(Return(true, obj))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
@@ -342,12 +342,12 @@ func (t *StatObjectTest) CacheHit_Negative() {
 		WillOnce(Return(true, nil))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
 	_, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&gcs2.NotFoundError{}))
 }
 
 func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
@@ -357,13 +357,13 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
 
 	// Request
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name:              name,
 		ForceFetchFromGcs: true,
 	}
 
 	// Wrapped
-	objFromGcs := &gcs.Object{
+	objFromGcs := &gcs2.Object{
 		Name:         name,
 		CacheControl: "testControl",
 	}
@@ -381,7 +381,7 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 
 func (t *StatObjectTest) CallsWrapped() {
 	const name = ""
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
@@ -409,7 +409,7 @@ func (t *StatObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
@@ -426,7 +426,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
+		WillOnce(Return(nil, &gcs2.NotFoundError{Err: errors.New("burrito")}))
 
 	// AddNegativeEntry
 	ExpectCall(t.cache, "AddNegativeEntry")(
@@ -434,12 +434,12 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 		timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
 	_, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&gcs2.NotFoundError{}))
 	ExpectThat(err, Error(HasSubstr("burrito")))
 }
 
@@ -451,7 +451,7 @@ func (t *StatObjectTest) WrappedSucceeds() {
 		WillOnce(Return(false, nil))
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name: name,
 	}
 
@@ -462,7 +462,7 @@ func (t *StatObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	req := &gcs.StatObjectRequest{
+	req := &gcs2.StatObjectRequest{
 		Name: name,
 	}
 
@@ -487,19 +487,19 @@ func (t *ListObjectsTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	_, err := t.bucket.ListObjects(context.TODO(), &gcs2.ListObjectsRequest{})
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
 func (t *ListObjectsTest) EmptyListing() {
 	// Wrapped
-	expected := &gcs.Listing{}
+	expected := &gcs2.Listing{}
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
 
 	// Call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs2.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(expected, listing)
@@ -507,11 +507,11 @@ func (t *ListObjectsTest) EmptyListing() {
 
 func (t *ListObjectsTest) NonEmptyListing() {
 	// Wrapped
-	o0 := &gcs.Object{Name: "taco"}
-	o1 := &gcs.Object{Name: "burrito"}
+	o0 := &gcs2.Object{Name: "taco"}
+	o1 := &gcs2.Object{Name: "burrito"}
 
-	expected := &gcs.Listing{
-		Objects: []*gcs.Object{o0, o1},
+	expected := &gcs2.Listing{
+		Objects: []*gcs2.Object{o0, o1},
 	}
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
@@ -522,7 +522,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 	ExpectCall(t.cache, "Insert")(o1, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs2.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(expected, listing)
@@ -545,12 +545,12 @@ func (t *UpdateObjectTest) CallsEraseAndWrapped() {
 	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
-	var wrappedReq *gcs.UpdateObjectRequest
+	var wrappedReq *gcs2.UpdateObjectRequest
 	ExpectCall(t.wrapped, "UpdateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
 
 	// Call
-	req := &gcs.UpdateObjectRequest{
+	req := &gcs2.UpdateObjectRequest{
 		Name: name,
 	}
 
@@ -571,7 +571,7 @@ func (t *UpdateObjectTest) WrappedFails() {
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
+	_, err = t.bucket.UpdateObject(context.TODO(), &gcs2.UpdateObjectRequest{})
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -584,7 +584,7 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &gcs2.Object{
 		Name:       name,
 		Generation: 1234,
 	}
@@ -596,7 +596,7 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
-	o, err := t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})
+	o, err := t.bucket.UpdateObject(context.TODO(), &gcs2.UpdateObjectRequest{})
 
 	AssertEq(nil, err)
 	ExpectEq(obj, o)
@@ -613,7 +613,7 @@ type DeleteObjectTest struct {
 func init() { RegisterTestSuite(&DeleteObjectTest{}) }
 
 func (t *DeleteObjectTest) deleteObject(name string) (err error) {
-	err = t.bucket.DeleteObject(context.TODO(), &gcs.DeleteObjectRequest{Name: name})
+	err = t.bucket.DeleteObject(context.TODO(), &gcs2.DeleteObjectRequest{Name: name})
 	return
 }
 
@@ -624,7 +624,7 @@ func (t *DeleteObjectTest) CallsEraseAndWrapped() {
 	ExpectCall(t.cache, "Erase")(name)
 
 	// Wrapped
-	var wrappedReq *gcs.DeleteObjectRequest
+	var wrappedReq *gcs2.DeleteObjectRequest
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(errors.New(""))))
 

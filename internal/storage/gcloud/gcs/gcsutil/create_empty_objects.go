@@ -15,23 +15,20 @@
 package gcsutil
 
 import (
-	"bytes"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Create an object with the supplied contents in the given bucket with the
-// given name.
-func CreateObject(
+// Create empty objects with default attributes for all of the supplied names.
+func CreateEmptyObjects(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	name string,
-	contents []byte) (*gcs.Object, error) {
-	req := &gcs.CreateObjectRequest{
-		Name:     name,
-		Contents: bytes.NewReader(contents),
+	names []string) (err error) {
+	m := make(map[string][]byte)
+	for _, name := range names {
+		m[name] = nil
 	}
 
-	return bucket.CreateObject(ctx, req)
+	err = CreateObjects(ctx, bucket, m)
+	return
 }

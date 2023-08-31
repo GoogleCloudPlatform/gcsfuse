@@ -15,31 +15,44 @@
 package gcsutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"fmt"
+
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Repeatedly call bucket.ListObjects until there is nothing further to list,
-// returning all objects and collapsed runs encountered.
-//
-// May modify *req.
-func ListAll(
+// List objects in the supplied bucket whose name starts with the given prefix.
+// Write them into the supplied channel in an undefined order.
+func ListPrefix(
 	ctx context.Context,
-	bucket gcs.Bucket,
-	req *gcs.ListObjectsRequest) (
-	objects []*gcs.Object,
-	runs []string,
-	err error) {
+	bucket gcs2.Bucket,
+	prefix string,
+	objects chan<- *gcs2.Object) (err error) {
+	req := &gcs2.ListObjectsRequest{
+		Prefix: prefix,
+	}
+
+	// List until we run out.
 	for {
-		// Grab one set of results.
-		var listing *gcs.Listing
-		if listing, err = bucket.ListObjects(ctx, req); err != nil {
+		// Fetch the next batch.
+		var listing *gcs2.Listing
+		listing, err = bucket.ListObjects(ctx, req)
+		if err != nil {
+			err = fmt.Errorf("ListObjects: %v", err)
 			return
 		}
 
-		// Accumulate the results.
-		objects = append(objects, listing.Objects...)
-		runs = append(runs, listing.CollapsedRuns...)
+		// Pass on each object.
+		for _, o := range listing.Objects {
+			select {
+			case objects <- o:
+
+				// Cancelled?
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			}
+		}
 
 		// Are we done?
 		if listing.ContinuationToken == "" {

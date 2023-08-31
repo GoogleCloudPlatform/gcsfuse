@@ -12,8 +12,8 @@ import (
 	time "time"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	gcscaching "github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching"
 	oglemock "github.com/jacobsa/oglemock"
 )
 

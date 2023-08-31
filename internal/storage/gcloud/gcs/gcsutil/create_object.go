@@ -15,43 +15,23 @@
 package gcsutil
 
 import (
-	"fmt"
-	"io"
+	"bytes"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Read the contents of the latest generation of the object with the supplied
-// name.
-func ReadObject(
+// Create an object with the supplied contents in the given bucket with the
+// given name.
+func CreateObject(
 	ctx context.Context,
-	bucket gcs.Bucket,
-	name string) (contents []byte, err error) {
-	// Call the bucket.
-	req := &gcs.ReadObjectRequest{
-		Name: name,
+	bucket gcs2.Bucket,
+	name string,
+	contents []byte) (*gcs2.Object, error) {
+	req := &gcs2.CreateObjectRequest{
+		Name:     name,
+		Contents: bytes.NewReader(contents),
 	}
 
-	rc, err := bucket.NewReader(ctx, req)
-	if err != nil {
-		return
-	}
-
-	// Don't forget to close.
-	defer func() {
-		closeErr := rc.Close()
-		if closeErr != nil && err == nil {
-			err = fmt.Errorf("Close: %v", closeErr)
-		}
-	}()
-
-	// Read the contents.
-	contents, err = io.ReadAll(rc)
-	if err != nil {
-		err = fmt.Errorf("ReadAll: %v", err)
-		return
-	}
-
-	return
+	return bucket.CreateObject(ctx, req)
 }
