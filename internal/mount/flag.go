@@ -48,7 +48,7 @@ func (cp ClientProtocol) IsValid() bool {
 //	"foo": "bar=baz",
 //	"qux": "",
 func ParseOptions(m map[string]string, s string) {
-	// NOTE(jacobsa): The man pages don't define how escaping works, and as far
+	// NOTE: The man pages don't define how escaping works, and as far
 	// as I can tell there is no way to properly escape or quote a comma in the
 	// options list for an fstab entry. So put our fingers in our ears and hope
 	// that nobody needs a comma.

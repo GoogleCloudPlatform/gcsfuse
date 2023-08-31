@@ -634,7 +634,7 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 
 	// Opening again should yield the new version.
 	//
-	// NOTE(jacobsa): We must open with a different mode here than above to work
+	// NOTE: We must open with a different mode here than above to work
 	// around the fact that osxfuse will re-use file handles. See the notes on
 	// fuse.FileSystem.OpenFile for more.
 	f2, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)

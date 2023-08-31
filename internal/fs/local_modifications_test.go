@@ -54,7 +54,7 @@ func init() {
 		// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of
 		// a name that readdir needs to process (cf. https://goo.gl/eega7V).
 		//
-		// NOTE(jacobsa): I can't find where this is defined, but this appears to
+		// NOTE: I can't find where this is defined, but this appears to
 		// be its value.
 		fuseMaxNameLen = 255
 
