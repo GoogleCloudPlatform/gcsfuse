@@ -26,11 +26,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )

@@ -31,6 +31,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -39,7 +40,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
