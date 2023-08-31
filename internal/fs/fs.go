@@ -921,9 +921,18 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		// to get the lock. First get inode lock and then fs lock.
 		fs.mu.Unlock()
 		child.Lock()
+		// Acquiring fs lock early to use common defer function even though it is
+		// not required to check if local file inode has been unlinked.
 		// Filesystem lock will be held till we increment lookUpCount to avoid
 		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
 		fs.mu.Lock()
+		// Check if local file inode has been unlinked?
+		fileInode, ok := child.(*inode.FileInode)
+		if ok && fileInode.IsUnlinked() {
+			child.Unlock()
+			child = nil
+			return
+		}
 		// Once we get fs lock, validate if the inode is still valid. If not
 		// try to fetch it again. Eg: If the inode is deleted by other thread after
 		// we fetched it from fs.localFileInodes map, then any call to perform
@@ -976,6 +985,13 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
+	// syncFile can be triggered for unlinked files if the fileHandle is open by
+	// another user/terminal. Hence, ignoring the syncFile call for local file.
+	if f.IsLocal() && f.IsUnlinked() {
+		// Silently ignore the syncFile call. This is in sync with non-local file behaviour.
+		return
+	}
+
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
@@ -1629,6 +1645,16 @@ func (fs *fileSystem) RmDir(
 	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
 	//
 	//
+
+	// Check for local file entries.
+	localFileEntries := childDir.LocalFileEntries(fs.localFileInodes)
+	// Are there any local entries?
+	if len(localFileEntries) != 0 {
+		err = fuse.ENOTEMPTY
+		return
+	}
+
+	// Check for entries on GCS.
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
@@ -1881,6 +1907,20 @@ func (fs *fileSystem) Unlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	// if inode is a local file, mark it unlinked.
+	fileName := inode.NewFileName(parent.Name(), op.Name)
+	inode, ok := fs.localFileInodes[fileName]
+	if ok {
+		fs.mu.Lock()
+		file := fs.fileInodeOrDie(inode.ID())
+		fs.mu.Unlock()
+		file.Lock()
+		defer file.Unlock()
+		file.Unlink()
+		return
+	}
+
+	// else delete the backing object present on GCS.
 	parent.Lock()
 	defer parent.Unlock()
 

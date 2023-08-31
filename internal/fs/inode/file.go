@@ -85,6 +85,9 @@ type FileInode struct {
 
 	// Represents a local file which is not yet synced to GCS.
 	local bool
+
+	// Represents if local file has been unlinked.
+	unlinked bool
 }
 
 var _ Inode = &FileInode{}
@@ -118,6 +121,7 @@ func NewFileInode(
 		contentCache:   contentCache,
 		src:            convertObjToMinObject(o),
 		local:          localFile,
+		unlinked:       false,
 	}
 
 	f.lc.Init(id)
@@ -286,6 +290,14 @@ func (f *FileInode) Name() Name {
 
 func (f *FileInode) IsLocal() bool {
 	return f.local
+}
+
+func (f *FileInode) IsUnlinked() bool {
+	return f.unlinked
+}
+
+func (f *FileInode) Unlink() {
+	f.unlinked = true
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The

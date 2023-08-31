@@ -1269,3 +1269,25 @@ func (t *DirTest) LocalFileEntriesWithNoLocalChildFiles() {
 
 	AssertEq(0, len(entries))
 }
+
+func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
+	// Create 2 local child inodes and 1 non child inode.
+	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
+	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
+	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
+	// Unlink local file inode 2.
+	filein2, _ := in2.(*FileInode)
+	filein2.Unlink()
+	// Create local file inodes map.
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+		in3.Name(): in3,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	// Validate entries contains only linked child files.
+	AssertEq(1, len(entries))
+	AssertEq(entries[0].Name, "1_localChildInode")
+}
