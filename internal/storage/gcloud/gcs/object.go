@@ -21,10 +21,6 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-const (
-	Scope_FullControl = storagev1.DevstorageFullControlScope
-)
-
 // Object is a record representing a particular generation of a particular
 // object name in GCS.
 //
