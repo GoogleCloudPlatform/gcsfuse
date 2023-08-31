@@ -217,7 +217,7 @@ func readAllEntries(
 
 	// Return a bogus inode ID for each entry, but not the root inode ID.
 	//
-	// NOTE(jacobsa): As far as I can tell this is harmless. Minting and
+	// NOTE: As far as I can tell this is harmless. Minting and
 	// returning a real inode ID is difficult because fuse does not count
 	// readdir as an operation that increases the inode ID's lookup count, and
 	// we therefore don't get a forget for it later, but we would like to not

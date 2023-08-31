@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 )
 
 // NewPrefixBucket creates a view on the wrapped bucket that pretends as if only

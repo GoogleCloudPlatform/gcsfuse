@@ -15,22 +15,20 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/reqtrace"
-
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 type BucketConfig struct {
@@ -152,9 +150,6 @@ func setUpRateLimiting(
 func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
-	if reqtrace.Enabled() {
-		b = gcs.GetWrappedWithReqtraceBucket(b)
-	}
 	if bm.config.DebugGCS {
 		b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
 	}
