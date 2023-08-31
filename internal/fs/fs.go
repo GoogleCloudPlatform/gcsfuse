@@ -901,6 +901,7 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		if child != nil {
 			child.IncrementLookupCount()
 		}
+		fs.mu.Unlock()
 	}()
 
 	// Trim the suffix assigned to fix conflicting names.
@@ -913,7 +914,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		child = fs.localFileInodes[fileName]
 
 		if child == nil {
-			fs.mu.Unlock()
 			return
 		}
 
@@ -921,6 +921,11 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 		// to get the lock. First get inode lock and then fs lock.
 		fs.mu.Unlock()
 		child.Lock()
+		// Acquiring fs lock early to use common defer function even though it is
+		// not required to check if local file inode has been unlinked.
+		// Filesystem lock will be held till we increment lookUpCount to avoid
+		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
+		fs.mu.Lock()
 		// Check if local file inode has been unlinked?
 		fileInode, ok := child.(*inode.FileInode)
 		if ok && fileInode.IsUnlinked() {
@@ -928,9 +933,6 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 			child = nil
 			return
 		}
-		// Filesystem lock will be held till we increment lookUpCount to avoid
-		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
-		fs.mu.Lock()
 		// Once we get fs lock, validate if the inode is still valid. If not
 		// try to fetch it again. Eg: If the inode is deleted by other thread after
 		// we fetched it from fs.localFileInodes map, then any call to perform
@@ -941,13 +943,12 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 			child.Unlock()
 			continue
 		}
-		fs.mu.Unlock()
+
 		return
 	}
 
 	// In case we exhausted the retries, return nil object.
 	child = nil
-	fs.mu.Unlock()
 	return
 }
 
