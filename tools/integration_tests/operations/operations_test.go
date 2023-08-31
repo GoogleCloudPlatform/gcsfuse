@@ -86,10 +86,6 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
-
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
@@ -101,7 +97,16 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
+	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
+	// Set up config file with create-empty-file: false.
+	configFile := setup.YAMLConfig(false)
+	// Set up flags to run tests on.
+	flags := [][]string{
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
+		{"--config-file=" + configFile}}
 
 	successCode := static_mounting.RunTests(flags, m)
 

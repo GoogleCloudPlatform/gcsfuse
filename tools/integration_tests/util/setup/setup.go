@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
+	"gopkg.in/yaml.v2"
 )
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
@@ -44,6 +45,14 @@ var (
 	mntDir   string
 	sbinFile string
 )
+
+type Config struct {
+	Write Write `yaml:"write"`
+}
+
+type Write struct {
+	CreateEmptyFile bool `yaml:"create-empty-file"`
+}
 
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
@@ -230,6 +239,25 @@ func ParseSetUpFlags() {
 		log.Print("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
 	}
+}
+
+func YAMLConfig(createEmptyFile bool) (filepath string) {
+	config := Config{
+		Write: Write{CreateEmptyFile: createEmptyFile},
+	}
+
+	yamlData, err := yaml.Marshal(&config)
+	if err != nil {
+		LogAndExit(fmt.Sprintf("Error while marshaling config file: %v", err))
+	}
+
+	fileName := "config.yaml"
+	filepath = path.Join(TestDir(), fileName)
+	err = os.WriteFile(filepath, yamlData, 0644)
+	if err != nil {
+		LogAndExit("Unable to write data into config file.")
+	}
+	return
 }
 
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
