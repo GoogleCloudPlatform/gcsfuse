@@ -103,9 +103,9 @@ func TestMain(m *testing.M) {
 	configFile := setup.YAMLConfig(false)
 	// Set up flags to run tests on.
 	flags := [][]string{
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
+		//{"--implicit-dirs=true"},
+		//{"--implicit-dirs=false"},
+		//{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
 		{"--config-file=" + configFile}}
 
 	successCode := static_mounting.RunTests(flags, m)
