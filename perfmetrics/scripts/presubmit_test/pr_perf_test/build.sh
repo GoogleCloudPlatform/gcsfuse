@@ -39,6 +39,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 # integration tests using code upto that commit.
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+git stash
 git checkout $commitId
 
 echo "Building and installing gcsfuse"
