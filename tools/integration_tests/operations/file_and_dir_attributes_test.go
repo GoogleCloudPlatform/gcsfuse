@@ -16,6 +16,7 @@
 package operations_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -41,7 +42,12 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
 	statModTime := oStat.ModTime().Round(time.Second)
+	fmt.Println(preCreateTime.String(), "+++", statModTime.String(), "+++", postCreateTime.String())
+	fmt.Println(preCreateTime.UnixNano(), "+++", statModTime.UnixNano(), "+++", postCreateTime.UnixNano())
+	fmt.Println("diff: ", postCreateTime.Sub(preCreateTime), " or ", postCreateTime.UnixNano()-preCreateTime.UnixNano())
 	if (preCreateTime.After(statModTime)) || (postCreateTime.Before(statModTime)) {
+		fmt.Println("preCreateTime.After(oStat.ModTime())) = ", preCreateTime.After(statModTime))
+		fmt.Println("postCreateTime.Before(oStat.ModTime()) = ", postCreateTime.Before(statModTime))
 		t.Errorf("File modification time not in the expected time-range")
 	}
 
