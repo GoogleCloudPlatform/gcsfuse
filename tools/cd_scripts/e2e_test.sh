@@ -58,8 +58,9 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_$(dpkg --print-architecture).deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_$(dpkg --print-architecture).deb |& tee -a ~/logs.txt
+    architecture=$(dpkg --print-architecture)
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_$(architecture).deb .
+    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_$(architecture).deb |& tee -a ~/logs.txt
 
     # install wget
     sudo apt install -y wget
@@ -78,8 +79,9 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.$(uname -i).rpm .
-    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.$(uname -i).rpm
+    uname=$(uname -i)
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.$(uname).rpm .
+    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.$(uname).rpm
 
     #install wget
     sudo yum -y install wget
@@ -92,7 +94,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-$(dpkg --print-architecture).tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-$(architecture).tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 
