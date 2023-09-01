@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Provide a helper functions.
+// Provide helper functions related to file.
 package operations
 
 import (
@@ -362,37 +362,13 @@ func DiffFiles(filepath1, filepath2 string) (int, error) {
 	return 0, nil
 }
 
-// Executes any given tool (e.g. gsutil/gcloud) with given args.
-func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
-	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
-	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmdArgs, err, stderr.String())
-	}
-
-	return stdout.Bytes(), nil
-}
-
-// Executes any given gsutil command with given args.
-func executeGsutilCommandf(format string, args ...any) ([]byte, error) {
-	return executeToolCommandf("gsutil", format, args...)
-}
-
 // Returns size of a give GCS object with path (without 'gs://').
 // Fails if the object doesn't exist or permission to read object's metadata is not
 // available.
 // Uses 'gsutil du -s gs://gcsObjPath'.
 // Alternative 'gcloud storage du -s gs://gcsObjPath', but it doesn't work on kokoro VM.
 func GetGcsObjectSize(gcsObjPath string) (int, error) {
-	stdout, err := executeGsutilCommandf("du -s gs://%s", gcsObjPath)
+	stdout, err := ExecuteGsutilCommandf("du -s gs://%s", gcsObjPath)
 	if err != nil {
 		return 0, err
 	}
@@ -414,7 +390,7 @@ func GetGcsObjectSize(gcsObjPath string) (int, error) {
 // Uses 'gsutil cp gs://gcsObjPath localPath'
 // Alternative 'gcloud storage cp gs://gcsObjPath localPath' but it doesn't work on kokoro VM.
 func DownloadGcsObject(gcsObjPath, localPath string) error {
-	_, err := executeGsutilCommandf("cp gs://%s %s", gcsObjPath, localPath)
+	_, err := ExecuteGsutilCommandf("cp gs://%s %s", gcsObjPath, localPath)
 	if err != nil {
 		return err
 	}
@@ -432,9 +408,9 @@ func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error
 	if uploadGzipEncoded {
 		// Using gsutil instead of `gcloud alpha` here as `gcloud alpha`
 		// option `-Z` isn't supported on the kokoro VM.
-		_, err = executeGsutilCommandf("cp -Z %s gs://%s", localPath, gcsObjPath)
+		_, err = ExecuteGsutilCommandf("cp -Z %s gs://%s", localPath, gcsObjPath)
 	} else {
-		_, err = executeGsutilCommandf("cp %s gs://%s", localPath, gcsObjPath)
+		_, err = ExecuteGsutilCommandf("cp %s gs://%s", localPath, gcsObjPath)
 	}
 
 	return err
@@ -446,7 +422,7 @@ func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error
 // Uses 'gsutil rm gs://gcsObjPath'
 // Alternative 'gcloud storage rm gs://gcsObjPath' but it doesn't work on kokoro VM.
 func DeleteGcsObject(gcsObjPath string) error {
-	_, err := executeGsutilCommandf("rm gs://%s", gcsObjPath)
+	_, err := ExecuteGsutilCommandf("rm gs://%s", gcsObjPath)
 	return err
 }
 
@@ -458,6 +434,6 @@ func DeleteGcsObject(gcsObjPath string) error {
 func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	// Using gsutil instead of `gcloud alpha` here as `gcloud alpha`
 	// implementation for updating object metadata is missing on the kokoro VM.
-	_, err := executeGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
+	_, err := ExecuteGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
 }
