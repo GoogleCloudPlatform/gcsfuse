@@ -27,8 +27,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
