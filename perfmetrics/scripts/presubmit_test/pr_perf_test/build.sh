@@ -45,7 +45,7 @@ git checkout $commitId
 echo "Building and installing gcsfuse"
 # Build the gcsfuse package using the same commands used during release.
 GCSFUSE_VERSION=1.1.0
-sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse-release:$commitId --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION -build-arg BRANCH_NAME=$commitId --platform=linux/${architecture}
+sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse-release:$commitId --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId --platform=linux/${architecture}
 sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
 
