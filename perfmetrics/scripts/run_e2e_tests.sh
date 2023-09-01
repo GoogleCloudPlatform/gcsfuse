@@ -44,8 +44,17 @@ echo 'bucket name = '$BUCKET_NAME
 # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
 gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
 
+set +e
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout $INTEGRATION_TEST_EXECUTION_TIME
+exit_code=$?
 
+set -e
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
+
+if [ $exit_code != 0 ];
+then
+  echo "The tests failed."
+  exit $exit_code
+fi
