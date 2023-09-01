@@ -40,7 +40,8 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if objName != statObjName {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
-	if (preCreateTime.After(oStat.ModTime())) || (postCreateTime.Before(oStat.ModTime())) {
+	statModTime := oStat.ModTime().Round(time.Second)
+	if (preCreateTime.After(statModTime)) || (postCreateTime.Before(statModTime)) {
 		t.Errorf("File modification time not in the expected time-range")
 	}
 
@@ -53,9 +54,11 @@ func TestFileAttributes(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	preCreateTime := time.Now()
+	// kernel time can be slightly out of sync of time.Now(), so rounding off
+	// times to seconds. Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Round(time.Second)
 	fileName := setup.CreateTempFile()
-	postCreateTime := time.Now()
+	postCreateTime := time.Now().Round(time.Second)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
