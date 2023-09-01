@@ -75,10 +75,12 @@ func TestEmptyDirAttributes(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	preCreateTime := time.Now()
+	// kernel time can be slightly out of sync of time.Now(), so rounding off
+	// times to seconds. Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Round(time.Second)
 	dirName := path.Join(setup.MntDir(), DirAttrTest)
 	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
-	postCreateTime := time.Now()
+	postCreateTime := time.Now().Round(time.Second)
 
 	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
 }
@@ -87,10 +89,12 @@ func TestNonEmptyDirAttributes(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
-	preCreateTime := time.Now()
+	// kernel time can be slightly out of sync of time.Now(), so rounding off
+	// times to seconds. Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Round(time.Second)
 	dirName := path.Join(setup.MntDir(), DirAttrTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
-	postCreateTime := time.Now()
+	postCreateTime := time.Now().Round(time.Second)
 
 	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
 }
