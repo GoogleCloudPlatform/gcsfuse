@@ -29,7 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -108,7 +108,7 @@ func (t *LocalFileTest) readDirectory(dirPath string) (entries []os.DirEntry) {
 
 func (t *LocalFileTest) validateObjectNotFoundErr(fileName string) {
 	var notFoundErr *gcs.NotFoundError
-	_, err := gcsutil.ReadObject(ctx, bucket, fileName)
+	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
@@ -126,7 +126,7 @@ func (t *LocalFileTest) closeFileAndValidateObjectContents(f **os.File, fileName
 }
 
 func (t *LocalFileTest) validateObjectContents(fileName string, contents string) {
-	contentBytes, err := gcsutil.ReadObject(ctx, bucket, fileName)
+	contentBytes, err := storageutil.ReadObject(ctx, bucket, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
 }

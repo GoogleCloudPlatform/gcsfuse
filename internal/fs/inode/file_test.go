@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
@@ -69,13 +69,13 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	syncutil.EnableInvariantChecking()
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up the backing object.
 	var err error
 
 	t.initialContents = "taco"
-	t.backingObj, err = gcsutil.CreateObject(
+	t.backingObj, err = storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		fileName,
@@ -374,7 +374,7 @@ func (t *FileTest) WriteThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
@@ -419,7 +419,7 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 		writeTime.UTC().Format(time.RFC3339Nano),
 		o.Metadata["gcsfuse_mtime"])
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
 	ExpectEq("tacos", string(contents))
 	// Check attributes.
@@ -454,7 +454,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	_, ok := o.Metadata["gcsfuse_mtime"]
 	AssertFalse(ok)
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 	// Check attributes.
@@ -498,7 +498,7 @@ func (t *FileTest) AppendThenSync() {
 		o.Metadata["gcsfuse_mtime"])
 
 	// Read the object's contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -656,7 +656,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(nil, err)
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(
+	newObj, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		t.in.Name().GcsObjectName(),
@@ -774,7 +774,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 	var err error
 
 	// Clobber the backing object.
-	newObj, err := gcsutil.CreateObject(
+	newObj, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		t.in.Name().GcsObjectName(),

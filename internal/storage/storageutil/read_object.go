@@ -12,41 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Repeatedly call bucket.ListObjects until there is nothing further to list,
-// returning all objects and collapsed runs encountered.
-//
-// May modify *req.
-func ListAll(
+// Read the contents of the latest generation of the object with the supplied
+// name.
+func ReadObject(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	req *gcs.ListObjectsRequest) (
-	objects []*gcs.Object,
-	runs []string,
-	err error) {
-	for {
-		// Grab one set of results.
-		var listing *gcs.Listing
-		if listing, err = bucket.ListObjects(ctx, req); err != nil {
-			return
+	name string) (contents []byte, err error) {
+	// Call the bucket.
+	req := &gcs.ReadObjectRequest{
+		Name: name,
+	}
+
+	rc, err := bucket.NewReader(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Don't forget to close.
+	defer func() {
+		closeErr := rc.Close()
+		if closeErr != nil && err == nil {
+			err = fmt.Errorf("Close: %v", closeErr)
 		}
+	}()
 
-		// Accumulate the results.
-		objects = append(objects, listing.Objects...)
-		runs = append(runs, listing.CollapsedRuns...)
-
-		// Are we done?
-		if listing.ContinuationToken == "" {
-			break
-		}
-
-		req.ContinuationToken = listing.ContinuationToken
+	// Read the contents.
+	contents, err = io.ReadAll(rc)
+	if err != nil {
+		err = fmt.Errorf("ReadAll: %v", err)
+		return
 	}
 
 	return

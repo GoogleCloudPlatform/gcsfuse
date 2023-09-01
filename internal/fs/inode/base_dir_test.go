@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
@@ -58,12 +58,12 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketA"),
+		fake.NewFakeBucket(&t.clock, "bucketA"),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketB"),
+		fake.NewFakeBucket(&t.clock, "bucketB"),
 	)
 
 	// Create the inode. No implicit dirs by default.

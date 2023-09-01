@@ -12,26 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
-import (
-	"bytes"
+import "crypto/md5"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"golang.org/x/net/context"
-)
-
-// Create an object with the supplied contents in the given bucket with the
-// given name.
-func CreateObject(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	name string,
-	contents []byte) (*gcs.Object, error) {
-	req := &gcs.CreateObjectRequest{
-		Name:     name,
-		Contents: bytes.NewReader(contents),
-	}
-
-	return bucket.CreateObject(ctx, req)
+// Return a value appropriate for placing in CreateObjectRequest.MD5 for the
+// given object contents.
+func MD5(contents []byte) *[md5.Size]byte {
+	sum := md5.Sum(contents)
+	return &sum
 }

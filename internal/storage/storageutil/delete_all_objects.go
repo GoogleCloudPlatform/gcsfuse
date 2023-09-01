@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"

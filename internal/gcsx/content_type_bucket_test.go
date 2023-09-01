@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -83,7 +83,7 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), ""))
 
 		// Create the object.
 		req := &gcs.CreateObjectRequest{
@@ -111,7 +111,7 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), ""))
 
 		// Create a source object.
 		const srcName = "some_src"

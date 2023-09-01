@@ -12,23 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
-// Create empty objects with default attributes for all of the supplied names.
-func CreateEmptyObjects(
+// Repeatedly call bucket.ListObjects until there is nothing further to list,
+// returning all objects and collapsed runs encountered.
+//
+// May modify *req.
+func ListAll(
 	ctx context.Context,
 	bucket gcs.Bucket,
-	names []string) (err error) {
-	m := make(map[string][]byte)
-	for _, name := range names {
-		m[name] = nil
+	req *gcs.ListObjectsRequest) (
+	objects []*gcs.Object,
+	runs []string,
+	err error) {
+	for {
+		// Grab one set of results.
+		var listing *gcs.Listing
+		if listing, err = bucket.ListObjects(ctx, req); err != nil {
+			return
+		}
+
+		// Accumulate the results.
+		objects = append(objects, listing.Objects...)
+		runs = append(runs, listing.CollapsedRuns...)
+
+		// Are we done?
+		if listing.ContinuationToken == "" {
+			break
+		}
+
+		req.ContinuationToken = listing.ContinuationToken
 	}
 
-	err = CreateObjects(ctx, bucket, m)
 	return
 }
