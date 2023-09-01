@@ -23,7 +23,7 @@ architecture=$(dpkg --print-architecture)
 echo "Installing git"
 sudo apt-get install git
 echo "Installing go-lang 1.20.5"
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-$(architecture).tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo "Installing docker "
@@ -46,7 +46,7 @@ echo "Building and installing gcsfuse"
 GCSFUSE_VERSION=0.0.0
 sudo docker buildx build --load . -t gcsfuse-release:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --platform=linux/${architecture}
 sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
-sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${arch}.deb
+sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
 
 echo "Executing integration tests"
 GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --testInstalledPackage --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 24m
