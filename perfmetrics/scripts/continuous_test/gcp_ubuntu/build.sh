@@ -2,12 +2,14 @@
 set -e
 sudo apt-get update
 
+architecture=$(dpkg --print-architecture)
+# e.g. architecture=arm64 or amd64
 echo "Installing git"
 sudo apt-get install git
 echo "Installing pip"
 sudo apt-get install pip -y
 echo "Installing go-lang 1.21.0"
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 echo "Installing fio"
@@ -16,7 +18,7 @@ echo "Installing docker "
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "deb [arch=${architecture} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
@@ -32,9 +34,9 @@ git checkout master
 echo "Building and installing gcsfuse"
 # Build the gcsfuse package using the same commands used during release.
 GCSFUSE_VERSION=0.0.0
-sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
-sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
-sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_amd64.deb
+sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse-release:$commitId --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId --platform=linux/${architecture}
+sudo docker run -v $HOME/release:/release gcsfuse-release:$commitId cp -r /packages /release/
+sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
 
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
