@@ -61,7 +61,7 @@ type Inode interface {
 type BucketOwnedInode interface {
 	Inode
 
-	// Return the gcs.Bucket which the dir or file belongs to.
+	// Return the gcsBucket which the dir or file belongs to.
 	Bucket() *gcsx.SyncerBucket
 }
 

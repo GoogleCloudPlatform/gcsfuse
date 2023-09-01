@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcscaching_test
+package caching_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -30,7 +30,7 @@ func TestStatCache(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type invariantsCache struct {
-	wrapped gcscaching.StatCache
+	wrapped caching.StatCache
 }
 
 func (c *invariantsCache) Insert(
@@ -106,7 +106,7 @@ type StatCacheTest struct {
 func init() { RegisterTestSuite(&StatCacheTest{}) }
 
 func (t *StatCacheTest) SetUp(ti *TestInfo) {
-	t.cache.wrapped = gcscaching.NewStatCache(capacity)
+	t.cache.wrapped = caching.NewStatCache(capacity)
 }
 
 ////////////////////////////////////////////////////////////////////////

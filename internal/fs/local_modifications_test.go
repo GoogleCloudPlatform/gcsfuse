@@ -33,12 +33,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	gcsutil2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsutil"
-	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
+gcs"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+"github.com/jacobsa/fuse/fusetesting"
+."github.com/jacobsa/oglematchers"
+."github.com/jacobsa/ogletest"
+"github.com/jacobsa/timeutil"
 )
 
 // The radius we use for "expect mtime is within"-style assertions. We can't
@@ -119,7 +119,7 @@ func interestingLegalNames() (names []string) {
 		case 0, '/':
 			continue
 
-		// U+000A and U+000D are not legal in GCS.
+		// U+000A and U+000D are not legal in gcs
 		case '\u000a', '\u000d':
 			continue
 		}
@@ -183,9 +183,9 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// No object should have been created.
-	_, err = gcsutil2.ReadObject(ctx, bucket, "foo")
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 
-	var notFoundErr *gcs2.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -201,7 +201,7 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	AssertEq(nil, err)
 
 	// The object should now be present in the bucket, with empty contents.
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 
@@ -1377,8 +1377,9 @@ func (t *DirectoryTest) ContentTypes() {
 		err := os.Mkdir(p, 0700)
 		AssertEq(nil, err)
 
-		// There should be no content type set in GCS.
-		o, err := bucket.StatObject(ctx, &gcs2.StatObjectRequest{Name: name})
+		// There should be no content type set in gcs
+		o, err := bucket.StatObject(ctx, &gcs.
+		StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq("", o.ContentType, "name: %q", name)
 	}
@@ -1836,7 +1837,8 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 		nil,
 		bucket.DeleteObject(
 			ctx,
-			&gcs2.DeleteObjectRequest{Name: "foo"}))
+			&gcs.
+	DeleteObjectRequest{Name: "foo"}))
 
 	AssertEq(nil, err)
 
@@ -2029,7 +2031,7 @@ func (t *FileTest) Sync_Dirty() {
 
 	// The contents should now be in the bucket, even though we haven't closed
 	// the file.
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2043,7 +2045,8 @@ func (t *FileTest) Sync_NotDirty() {
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
-	statReq := &gcs2.StatObjectRequest{
+	statReq := &gcs.
+	StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -2075,7 +2078,7 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
-	_, err = gcsutil2.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
@@ -2090,7 +2093,7 @@ func (t *FileTest) Sync_Clobbered() {
 		ExpectThat(err, Error(HasSubstr("input/output error")))
 	}
 
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2114,7 +2117,7 @@ func (t *FileTest) Close_Dirty() {
 	AssertEq(nil, err)
 
 	// The contents should now be in the bucket.
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2128,7 +2131,8 @@ func (t *FileTest) Close_NotDirty() {
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
-	statReq := &gcs2.StatObjectRequest{
+	statReq := &gcs.
+	StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -2162,7 +2166,7 @@ func (t *FileTest) Close_Clobbered() {
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
-	_, err = gcsutil2.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
@@ -2174,7 +2178,7 @@ func (t *FileTest) Close_Clobbered() {
 	// generation should not be replaced.
 	f.Close()
 
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2216,7 +2220,8 @@ func (t *FileTest) ContentTypes() {
 		defer f.Close()
 
 		// Check the GCS content type.
-		o, err := bucket.StatObject(ctx, &gcs2.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &gcs.
+		StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 
@@ -2228,7 +2233,8 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		o, err = bucket.StatObject(ctx, &gcs2.StatObjectRequest{Name: name})
+		o, err = bucket.StatObject(ctx, &gcs.
+		StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 	}
@@ -2267,7 +2273,8 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 
 	// Check the object in the bucket.
-	o, err := bucket.StatObject(ctx, &gcs2.StatObjectRequest{Name: "bar"})
+	o, err := bucket.StatObject(ctx, &gcs.
+	StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectEq(0, o.Size)
@@ -2348,8 +2355,8 @@ func (t *SymlinkTest) RemoveLink() {
 	AssertEq(nil, err)
 
 	// It should be gone from the bucket.
-	_, err = gcsutil2.ReadObject(ctx, bucket, "foo")
-	var notFoundErr *gcs2.NotFoundError
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
+	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 

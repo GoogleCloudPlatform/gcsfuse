@@ -21,8 +21,8 @@ import (
 	"log"
 	"strings"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -56,8 +56,8 @@ const (
 
 // Create a fake bucket with canned contents as described in the comments for
 // FakeBucketName.
-func MakeFakeBucket(ctx context.Context) (b gcs2.Bucket) {
-	b = gcsfake.NewFakeBucket(timeutil.RealClock(), FakeBucketName)
+func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
+	b = fake.NewFakeBucket(timeutil.RealClock(), FakeBucketName)
 
 	// Set up contents.
 	contents := map[string]string{
@@ -70,7 +70,8 @@ func MakeFakeBucket(ctx context.Context) (b gcs2.Bucket) {
 	for k, v := range contents {
 		_, err := b.CreateObject(
 			ctx,
-			&gcs2.CreateObjectRequest{
+			&gcs.
+				CreateObjectRequest{
 				Name:     k,
 				Contents: strings.NewReader(v),
 			})

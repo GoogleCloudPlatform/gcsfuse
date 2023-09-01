@@ -26,8 +26,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -90,9 +90,9 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 }
 
 func setUpRateLimiting(
-	in gcs2.Bucket,
+	in gcs.Bucket,
 	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs2.Bucket, err error) {
+	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
 	// If no rate limiting has been requested, just return the bucket.
 	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
 		out = in
@@ -147,11 +147,12 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs2.Bucket, err error) {
+func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
 	if bm.config.DebugGCS {
-		b = gcs2.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		b = gcs.
+			NewDebugBucket(b, logger.NewDebug("gcs: "))
 	}
 	return
 }
@@ -159,7 +160,7 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs2.Bucket, err error) 
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb SyncerBucket, err error) {
-	var b gcs2.Bucket
+	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
@@ -194,9 +195,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable cached StatObject results, if appropriate.
 	if bm.config.StatCacheTTL != 0 {
 		cacheCapacity := bm.config.StatCacheCapacity
-		b = gcscaching2.NewFastStatBucket(
+		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			gcscaching2.NewStatCache(cacheCapacity),
+			caching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
 	}
@@ -222,7 +223,8 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err = b.ListObjects(ctx, &gcs2.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &gcs.
+			ListObjectsRequest{MaxResults: 1})
 		if err != nil {
 			return
 		}

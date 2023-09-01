@@ -19,7 +19,7 @@ import (
 	"os"
 	"path"
 
-	gcsutil2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -52,7 +52,7 @@ func (t *ReadOnlyTest) CreateFile() {
 
 func (t *ReadOnlyTest) ModifyFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil2.CreateObject(ctx, bucket, "foo", []byte("taco"))
+	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Opening it for writing should fail.
@@ -64,7 +64,7 @@ func (t *ReadOnlyTest) ModifyFile() {
 
 func (t *ReadOnlyTest) DeleteFile() {
 	// Create an object in the bucket.
-	_, err := gcsutil2.CreateObject(ctx, bucket, "foo", []byte("taco"))
+	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Attempt to delete it via the file system.
@@ -72,7 +72,7 @@ func (t *ReadOnlyTest) DeleteFile() {
 	ExpectThat(err, Error(HasSubstr("read-only")))
 
 	// the bucket should not have been modified.
-	contents, err := gcsutil2.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
 	"bytes"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -25,10 +25,10 @@ import (
 // given name.
 func CreateObject(
 	ctx context.Context,
-	bucket gcs2.Bucket,
+	bucket gcs.Bucket,
 	name string,
-	contents []byte) (*gcs2.Object, error) {
-	req := &gcs2.CreateObjectRequest{
+	contents []byte) (*gcs.Object, error) {
+	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: bytes.NewReader(contents),
 	}

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
 	"fmt"
 	"io"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -26,10 +26,11 @@ import (
 // name.
 func ReadObject(
 	ctx context.Context,
-	bucket gcs2.Bucket,
+	bucket gcs.Bucket,
 	name string) (contents []byte, err error) {
 	// Call the bucket.
-	req := &gcs2.ReadObjectRequest{
+	req := &gcs.
+		ReadObjectRequest{
 		Name: name,
 	}
 

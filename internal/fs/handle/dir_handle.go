@@ -162,7 +162,7 @@ func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
 	localFileInodes map[inode.Name]inode.Inode) (entries []fuseutil.Dirent, err error) {
-	// Read entries from GCS.
+	// Read entries from gcs
 	// Read one batch at a time.
 	var tok string
 	for {

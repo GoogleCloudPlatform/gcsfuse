@@ -21,7 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -107,7 +107,7 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *storage.MinObject, bucket gcs2.Bucket, sequentialReadSizeMb int32) RandomReader {
+func NewRandomReader(o *storage.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
 	return &randomReader{
 		object:               o,
 		bucket:               bucket,
@@ -121,7 +121,7 @@ func NewRandomReader(o *storage.MinObject, bucket gcs2.Bucket, sequentialReadSiz
 
 type randomReader struct {
 	object *storage.MinObject
-	bucket gcs2.Bucket
+	bucket gcs.Bucket
 
 	// If non-nil, an in-flight read request and a function for cancelling it.
 	//
@@ -365,10 +365,11 @@ func (rr *randomReader) startRead(
 	ctx, cancel := context.WithCancel(context.Background())
 	rc, err := rr.bucket.NewReader(
 		ctx,
-		&gcs2.ReadObjectRequest{
+		&gcs.
+			ReadObjectRequest{
 			Name:       rr.object.Name,
 			Generation: rr.object.Generation,
-			Range: &gcs2.ByteRange{
+			Range: &gcs.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},

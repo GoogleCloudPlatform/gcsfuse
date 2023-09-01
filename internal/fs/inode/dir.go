@@ -23,12 +23,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/syncutil"
-	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
+gcs"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+"github.com/jacobsa/fuse/fuseops"
+"github.com/jacobsa/fuse/fuseutil"
+"github.com/jacobsa/syncutil"
+"github.com/jacobsa/timeutil"
+"golang.org/x/net/context"
 )
 
 // ListObjects call supports fetching upto 5000 results when projection is noAcl
@@ -79,32 +79,32 @@ type DirInode interface {
 	// The contents of the Offset and Inode fields for returned entries is
 	// undefined.
 	ReadEntries(
-		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+			ctx context.Context,
+			tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
-	// *gcs.PreconditionError if a backing object already exists in GCS.
+	// *gcsPreconditionError if a backing object already exists in gcs
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
 	// Create an empty local child file with the supplied (relative) name. Local
-	// file means the object is not yet created in GCS.
+	// file means the object is not yet created in gcs
 	CreateLocalChildFile(name string) (*Core, error)
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
-	CloneToChildFile(ctx context.Context, name string, src *gcs2.Object) (*Core, error)
+	CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
-	// target, failing with *gcs.PreconditionError if a backing object already
-	// exists in GCS.
+	// target, failing with *gcsPreconditionError if a backing object already
+	// exists in gcs
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error)
 
 	// Create a backing object for a child directory with the supplied (relative)
-	// name, failing with *gcs.PreconditionError if a backing object already
-	// exists in GCS.
+	// name, failing with *gcsPreconditionError if a backing object already
+	// exists in gcs
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildDir(ctx context.Context, name string) (*Core, error)
 
@@ -115,20 +115,20 @@ type DirInode interface {
 	// metaGeneration may be set to a non-nil pointer giving a meta-generation
 	// precondition, but need not be.
 	DeleteChildFile(
-		ctx context.Context,
-		name string,
-		generation int64,
-		metaGeneration *int64) (err error)
+			ctx context.Context,
+			name string,
+			generation int64,
+			metaGeneration *int64) (err error)
 
 	// Delete the backing object for the child directory with the given
 	// (relative) name if it is not an Implicit Directory.
 	DeleteChildDir(
-		ctx context.Context,
-		name string,
-		isImplicitDir bool) (err error)
+			ctx context.Context,
+			name string,
+			isImplicitDir bool) (err error)
 
 	// localFileEntries lists the local files present in the directory.
-	// Local means that the file is not yet present on GCS.
+	// Local means that the file is not yet present on gcs
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 
@@ -200,15 +200,15 @@ var _ DirInode = &dirInode{}
 //
 // REQUIRES: name.IsDir()
 func NewDirInode(
-	id fuseops.InodeID,
-	name Name,
-	attrs fuseops.InodeAttributes,
-	implicitDirs bool,
-	enableNonexistentTypeCache bool,
-	typeCacheTTL time.Duration,
-	bucket *gcsx.SyncerBucket,
-	mtimeClock timeutil.Clock,
-	cacheClock timeutil.Clock) (d DirInode) {
+		id fuseops.InodeID,
+		name Name,
+		attrs fuseops.InodeAttributes,
+		implicitDirs bool,
+		enableNonexistentTypeCache bool,
+		typeCacheTTL time.Duration,
+		bucket *gcsx.SyncerBucket,
+		mtimeClock timeutil.Clock,
+		cacheClock timeutil.Clock) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
@@ -296,14 +296,15 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 // object in GCS with the given name. Return nil if such object does not exist.
 func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
-	req := &gcs2.StatObjectRequest{
+	req := &gcs.
+	StatObjectRequest{
 		Name: name.GcsObjectName(),
 	}
 
 	o, err := bucket.StatObject(ctx, req)
 
 	// Suppress "not found" errors.
-	var gcsErr *gcs2.NotFoundError
+	var gcsErr *gcs.NotFoundError
 	if errors.As(err, &gcsErr) {
 		return nil, nil
 	}
@@ -327,7 +328,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
 
-	req := &gcs2.ListObjectsRequest{
+	req := &gcs.
+	ListObjectsRequest{
 		Prefix:     name.GcsObjectName(),
 		MaxResults: 1,
 	}
@@ -352,13 +354,14 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 
 // Fail if the name already exists. Pass on errors directly.
 func (d *dirInode) createNewObject(
-	ctx context.Context,
-	name Name,
-	metadata map[string]string) (o *gcs2.Object, err error) {
+		ctx context.Context,
+		name Name,
+		metadata map[string]string) (o *gcs.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
-	createReq := &gcs2.CreateObjectRequest{
+	createReq := &gcs.
+	CreateObjectRequest{
 		Name:                   name.GcsObjectName(),
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
@@ -412,7 +415,7 @@ func (d *dirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1
@@ -504,7 +507,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	var tok string
 	descendants := make(map[Name]*Core)
 	for {
-		listing, err := d.bucket.ListObjects(ctx, &gcs2.ListObjectsRequest{
+		listing, err := d.bucket.ListObjects(ctx, &gcs.
+		ListObjectsRequest{
 			Delimiter:         "", // recursively
 			Prefix:            d.Name().GcsObjectName(),
 			ContinuationToken: tok,
@@ -540,10 +544,11 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
-	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+		ctx context.Context,
+		tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
-	req := &gcs2.ListObjectsRequest{
+	req := &gcs.
+	ListObjectsRequest{
 		Delimiter:                "/",
 		IncludeTrailingDelimiter: true,
 		Prefix:                   d.Name().GcsObjectName(),
@@ -551,7 +556,7 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal: gcs2.NoAcl,
+		ProjectionVal: gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -624,8 +629,8 @@ func (d *dirInode) readObjects(
 }
 
 func (d *dirInode) ReadEntries(
-	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+		ctx context.Context,
+		tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
@@ -683,7 +688,7 @@ func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs2.Object) (*Core, error) {
+func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
 	fullName := NewFileName(d.Name(), name)
@@ -691,12 +696,13 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs2.
 	// Clone over anything that might already exist for the name.
 	o, err := d.bucket.CopyObject(
 		ctx,
-		&gcs2.CopyObjectRequest{
-			SrcName:                       src.Name,
-			SrcGeneration:                 src.Generation,
-			SrcMetaGenerationPrecondition: &src.MetaGeneration,
-			DstName:                       fullName.GcsObjectName(),
-		})
+		&gcs.
+	CopyObjectRequest{
+		SrcName:                       src.Name,
+		SrcGeneration:                 src.Generation,
+		SrcMetaGenerationPrecondition: &src.MetaGeneration,
+		DstName:                       fullName.GcsObjectName(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -750,20 +756,21 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildFile(
-	ctx context.Context,
-	name string,
-	generation int64,
-	metaGeneration *int64) (err error) {
+		ctx context.Context,
+		name string,
+		generation int64,
+		metaGeneration *int64) (err error) {
 	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
 		ctx,
-		&gcs2.DeleteObjectRequest{
-			Name:                       childName.GcsObjectName(),
-			Generation:                 generation,
-			MetaGenerationPrecondition: metaGeneration,
-		})
+		&gcs.
+	DeleteObjectRequest{
+		Name:                       childName.GcsObjectName(),
+		Generation:                 generation,
+		MetaGenerationPrecondition: metaGeneration,
+	})
 
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %w", err)
@@ -776,9 +783,9 @@ func (d *dirInode) DeleteChildFile(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildDir(
-	ctx context.Context,
-	name string,
-	isImplicitDir bool) (err error) {
+		ctx context.Context,
+		name string,
+		isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
 
 	// if the directory is an implicit directory, then no backing object
@@ -792,10 +799,11 @@ func (d *dirInode) DeleteChildDir(
 	// this on the directory being empty.
 	err = d.bucket.DeleteObject(
 		ctx,
-		&gcs2.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
+		&gcs.
+	DeleteObjectRequest{
+		Name:       childName.GcsObjectName(),
+		Generation: 0, // Delete the latest version of object named after dir.
+	})
 
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %w", err)

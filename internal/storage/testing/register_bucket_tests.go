@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcstesting
+package testing
 
 import (
 	"errors"
 	"reflect"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

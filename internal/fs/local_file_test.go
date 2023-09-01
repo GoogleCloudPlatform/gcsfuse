@@ -28,8 +28,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -76,7 +75,7 @@ func (t *LocalFileTest) TearDown() {
 // Helpers
 // //////////////////////////////////////////////////////////////////////
 func (t *LocalFileTest) createLocalFile(fileName string) (filePath string, f *os.File) {
-	// Creating a file shouldn't create file on GCS.
+	// Creating a file shouldn't create file on gcs
 	filePath = path.Join(mntDir, fileName)
 	f, err := os.Create(filePath)
 
@@ -107,8 +106,8 @@ func (t *LocalFileTest) readDirectory(dirPath string) (entries []os.DirEntry) {
 }
 
 func (t *LocalFileTest) validateObjectNotFoundErr(fileName string) {
-	var notFoundErr *gcs.NotFoundError
-	_, err := gcsutil.ReadObject(ctx, bucket, fileName)
+	var notFoundErr *gcsNotFoundError
+	_, err := storageutil.ReadObject(ctx, bucket, fileName)
 
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
@@ -122,7 +121,7 @@ func (t *LocalFileTest) closeFileAndValidateObjectContents(f **os.File, fileName
 }
 
 func (t *LocalFileTest) validateObjectContents(fileName string, contents string) {
-	contentBytes, err := gcsutil.ReadObject(ctx, bucket, fileName)
+	contentBytes, err := storageutil.ReadObject(ctx, bucket, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
 }
@@ -130,12 +129,12 @@ func (t *LocalFileTest) validateObjectContents(fileName string, contents string)
 func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 	// Create a local file.
 	_, t.f1 = t.createLocalFile(fileName)
-	// Writing contents to local file shouldn't create file on GCS.
+	// Writing contents to local file shouldn't create file on gcs
 	_, err := t.f1.Write([]byte(FileContents))
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(fileName)
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, fileName, FileContents)
 }
 
@@ -178,7 +177,7 @@ func (t *LocalFileTest) StatOnLocalFile() {
 	ExpectEq(0, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
-	// Writing contents to local file shouldn't create file on GCS.
+	// Writing contents to local file shouldn't create file on gcs
 	_, err = t.f1.Write([]byte(FileContents))
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
@@ -190,7 +189,7 @@ func (t *LocalFileTest) StatOnLocalFile() {
 	ExpectEq(10, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents)
 }
 
@@ -205,7 +204,7 @@ func (t *LocalFileTest) StatOnLocalFileWithConflictingFileNameSuffix() {
 	ExpectEq(0, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, "")
 }
 
@@ -236,7 +235,7 @@ func (t *LocalFileTest) TruncateLocalFile() {
 	ExpectEq(5, fi.Size())
 	ExpectEq(filePerms, fi.Mode())
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, "tests")
 }
 
@@ -251,10 +250,10 @@ func (t *LocalFileTest) MultipleWritesToLocalFile() {
 	AssertEq(nil, err)
 	_, err = t.f1.Write([]byte("string3"))
 	AssertEq(nil, err)
-	// File shouldn't get created on GCS.
+	// File shouldn't get created on gcs
 	t.validateObjectNotFoundErr(FileName)
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, "string1string2string3")
 }
 
@@ -271,7 +270,7 @@ func (t *LocalFileTest) RandomWritesToLocalFile() {
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName)
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, "stsstring3")
 }
 
@@ -514,7 +513,7 @@ func (t *LocalFileTest) ReadLocalFile() {
 	_, err := t.f1.Write([]byte(contents))
 	AssertEq(nil, err)
 
-	// File shouldn't get created on GCS.
+	// File shouldn't get created on gcs
 	t.validateObjectNotFoundErr(FileName)
 	// Read the local file contents.
 	buf := make([]byte, len(contents))
@@ -523,6 +522,6 @@ func (t *LocalFileTest) ReadLocalFile() {
 	AssertEq(len(contents), n)
 	AssertEq(contents, string(buf))
 
-	// Close the file and validate if the file is created on GCS.
+	// Close the file and validate if the file is created on gcs
 	t.closeFileAndValidateObjectContents(&t.f1, FileName, contents)
 }

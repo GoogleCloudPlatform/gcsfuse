@@ -12,34 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package storageutil
 
 import (
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"fmt"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
-// Repeatedly call bucket.ListObjects until there is nothing further to list,
-// returning all objects and collapsed runs encountered.
-//
-// May modify *req.
-func ListAll(
+// List objects in the supplied bucket whose name starts with the given prefix.
+// Write them into the supplied channel in an undefined order.
+func ListPrefix(
 	ctx context.Context,
-	bucket gcs2.Bucket,
-	req *gcs2.ListObjectsRequest) (
-	objects []*gcs2.Object,
-	runs []string,
-	err error) {
+	bucket gcs.Bucket,
+	prefix string,
+	objects chan<- *gcs.Object) (err error) {
+	req := &gcs.
+		ListObjectsRequest{
+		Prefix: prefix,
+	}
+
+	// List until we run out.
 	for {
-		// Grab one set of results.
-		var listing *gcs2.Listing
-		if listing, err = bucket.ListObjects(ctx, req); err != nil {
+		// Fetch the next batch.
+		var listing *gcs.Listing
+		listing, err = bucket.ListObjects(ctx, req)
+		if err != nil {
+			err = fmt.Errorf("ListObjects: %v", err)
 			return
 		}
 
-		// Accumulate the results.
-		objects = append(objects, listing.Objects...)
-		runs = append(runs, listing.CollapsedRuns...)
+		// Pass on each object.
+		for _, o := range listing.Objects {
+			select {
+			case objects <- o:
+
+				// Cancelled?
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			}
+		}
 
 		// Are we done?
 		if listing.ContinuationToken == "" {

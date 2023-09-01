@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -44,7 +43,7 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
 	metadata := map[string]string{
 		inode.SymlinkMetadataKey: "target",
 	}
-	o := gcs.Object{
+	o := gcsObject{
 		Name:     "test",
 		Metadata: metadata,
 	}
@@ -53,7 +52,7 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
 }
 
 func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
-	o := gcs.Object{
+	o := gcsObject{
 		Name: "test",
 	}
 

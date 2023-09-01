@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -39,10 +39,10 @@ func TestSyncer(t *testing.T) { RunTests(t) }
 
 type FullObjectCreatorTest struct {
 	ctx     context.Context
-	bucket  gcs2.MockBucket
+	bucket  gcs.MockBucket
 	creator objectCreator
 
-	srcObject   gcs2.Object
+	srcObject   gcs.Object
 	srcContents string
 	mtime       time.Time
 }
@@ -53,7 +53,8 @@ func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
-	t.bucket = gcs2.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = gcs.
+		NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
 	t.creator = &fullObjectCreator{
@@ -61,7 +62,7 @@ func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
 	}
 }
 
-func (t *FullObjectCreatorTest) call() (o *gcs2.Object, err error) {
+func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		t.srcObject.Name,
@@ -80,7 +81,7 @@ func (t *FullObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
-	var req *gcs2.CreateObjectRequest
+	var req *gcs.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -114,12 +115,13 @@ func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs2.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &gcs.
+			PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs2.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -141,7 +143,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 	}
 	t.mtime = time.Now().Add(123 * time.Second).UTC()
 
-	var req *gcs2.CreateObjectRequest
+	var req *gcs.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -165,7 +167,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 	t.srcContents = "taco"
 	// CreateObject
-	var req *gcs2.CreateObjectRequest
+	var req *gcs.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -184,7 +186,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 	t.srcContents = "taco"
 	// CreateObject
-	var req *gcs2.CreateObjectRequest
+	var req *gcs.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -201,7 +203,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 	AssertFalse(ok)
 }
 
-func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs2.CreateObjectRequest) {
+func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectRequest) {
 	AssertNe(nil, req)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 	// All the properties should be empty/nil.
@@ -229,21 +231,21 @@ type fakeObjectCreator struct {
 	called bool
 
 	// Supplied arguments
-	srcObject *gcs2.Object
+	srcObject *gcs.Object
 	mtime     time.Time
 	contents  []byte
 
 	// Canned results
-	o   *gcs2.Object
+	o   *gcs.Object
 	err error
 }
 
 func (oc *fakeObjectCreator) Create(
 	ctx context.Context,
 	fileName string,
-	srcObject *gcs2.Object,
+	srcObject *gcs.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs2.Object, err error) {
+	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
 	oc.called = true
@@ -274,11 +276,11 @@ type SyncerTest struct {
 	fullCreator   fakeObjectCreator
 	appendCreator fakeObjectCreator
 
-	bucket gcs2.Bucket
+	bucket gcs.Bucket
 	syncer Syncer
 	clock  timeutil.SimulatedClock
 
-	srcObject *gcs2.Object
+	srcObject *gcs.Object
 	content   TempFile
 }
 
@@ -291,7 +293,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket")
 	t.syncer = newSyncer(
 		appendThreshold,
 		&t.fullCreator,
@@ -302,7 +304,8 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	// Set up a source object.
 	t.srcObject, err = t.bucket.CreateObject(
 		t.ctx,
-		&gcs2.CreateObjectRequest{
+		&gcs.
+			CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader(srcObjectContents),
 		})
@@ -322,7 +325,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.appendCreator.err = errors.New("Fake error")
 }
 
-func (t *SyncerTest) call() (o *gcs2.Object, err error) {
+func (t *SyncerTest) call() (o *gcs.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, t.srcObject.Name, t.srcObject, t.content)
 	return
 }
@@ -431,7 +434,8 @@ func (t *SyncerTest) SourceComponentCountTooHigh() {
 	var err error
 
 	// Simulate a large component count.
-	t.srcObject.ComponentCount = gcs2.MaxComponentCount
+	t.srcObject.ComponentCount = gcs.
+		MaxComponentCount
 
 	// Extend the length of the content.
 	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
@@ -495,7 +499,8 @@ func (t *SyncerTest) FullCreatorFails() {
 
 func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	var err error
-	t.fullCreator.err = &gcs2.PreconditionError{}
+	t.fullCreator.err = &gcs.
+		PreconditionError{}
 
 	// Truncate downward.
 	err = t.content.Truncate(2)
@@ -504,13 +509,14 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs2.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) FullCreatorSucceeds() {
 	var err error
-	t.fullCreator.o = &gcs2.Object{}
+	t.fullCreator.o = &gcs.
+		Object{}
 	t.fullCreator.err = nil
 
 	// Truncate downward.
@@ -561,7 +567,8 @@ func (t *SyncerTest) AppendCreatorFails() {
 
 func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	var err error
-	t.appendCreator.err = &gcs2.PreconditionError{}
+	t.appendCreator.err = &gcs.
+		PreconditionError{}
 
 	// Append some data.
 	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
@@ -570,13 +577,14 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs2.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) AppendCreatorSucceeds() {
 	var err error
-	t.appendCreator.o = &gcs2.Object{}
+	t.appendCreator.o = &gcs.
+		Object{}
 	t.appendCreator.err = nil
 
 	// Append some data.

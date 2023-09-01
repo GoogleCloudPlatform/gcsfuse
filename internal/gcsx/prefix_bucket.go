@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +32,7 @@ import (
 // must be valid UTF-8.
 func NewPrefixBucket(
 	prefix string,
-	wrapped gcs2.Bucket) (b gcs2.Bucket, err error) {
+	wrapped gcs.Bucket) (b gcs.Bucket, err error) {
 	if !utf8.ValidString(prefix) {
 		err = errors.New("prefix is not valid UTF-8")
 		return
@@ -48,7 +48,7 @@ func NewPrefixBucket(
 
 type prefixBucket struct {
 	prefix  string
-	wrapped gcs2.Bucket
+	wrapped gcs.Bucket
 }
 
 func (b *prefixBucket) wrappedName(n string) string {
@@ -65,9 +65,10 @@ func (b *prefixBucket) Name() string {
 
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
-	req *gcs2.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.ReadObjectRequest)
+	mReq := new(gcs.
+		ReadObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -77,9 +78,10 @@ func (b *prefixBucket) NewReader(
 
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
-	req *gcs2.CreateObjectRequest) (o *gcs2.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.CreateObjectRequest)
+	mReq := new(gcs.
+		CreateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -95,9 +97,10 @@ func (b *prefixBucket) CreateObject(
 
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
-	req *gcs2.CopyObjectRequest) (o *gcs2.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.CopyObjectRequest)
+	mReq := new(gcs.
+		CopyObjectRequest)
 	*mReq = *req
 	mReq.SrcName = b.wrappedName(req.SrcName)
 	mReq.DstName = b.wrappedName(req.DstName)
@@ -114,9 +117,10 @@ func (b *prefixBucket) CopyObject(
 
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs2.ComposeObjectsRequest) (o *gcs2.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.ComposeObjectsRequest)
+	mReq := new(gcs.
+		ComposeObjectsRequest)
 	*mReq = *req
 	mReq.DstName = b.wrappedName(req.DstName)
 
@@ -138,9 +142,10 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs2.StatObjectRequest) (o *gcs2.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.StatObjectRequest)
+	mReq := new(gcs.
+		StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -156,9 +161,10 @@ func (b *prefixBucket) StatObject(
 
 func (b *prefixBucket) ListObjects(
 	ctx context.Context,
-	req *gcs2.ListObjectsRequest) (l *gcs2.Listing, err error) {
+	req *gcs.ListObjectsRequest) (l *gcs.Listing, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.ListObjectsRequest)
+	mReq := new(gcs.
+		ListObjectsRequest)
 	*mReq = *req
 	mReq.Prefix = b.prefix + mReq.Prefix
 
@@ -180,9 +186,10 @@ func (b *prefixBucket) ListObjects(
 
 func (b *prefixBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs2.UpdateObjectRequest) (o *gcs2.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.UpdateObjectRequest)
+	mReq := new(gcs.
+		UpdateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -198,9 +205,10 @@ func (b *prefixBucket) UpdateObject(
 
 func (b *prefixBucket) DeleteObject(
 	ctx context.Context,
-	req *gcs2.DeleteObjectRequest) (err error) {
+	req *gcs.DeleteObjectRequest) (err error) {
 	// Modify the request and call through.
-	mReq := new(gcs2.DeleteObjectRequest)
+	mReq := new(gcs.
+		DeleteObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 

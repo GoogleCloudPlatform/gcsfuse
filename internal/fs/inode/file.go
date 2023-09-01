@@ -25,11 +25,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	gcs2 "github.com/googlecloudplatform/gcsfuse/internal/storage/gcloud/gcs"
-	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/syncutil"
-	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
+gcs"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+"github.com/jacobsa/fuse/fuseops"
+"github.com/jacobsa/syncutil"
+"github.com/jacobsa/timeutil"
+"golang.org/x/net/context"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -83,13 +83,13 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	destroyed bool
 
-	// Represents a local file which is not yet synced to GCS.
+	// Represents a local file which is not yet synced to gcs
 	local bool
 }
 
 var _ Inode = &FileInode{}
 
-// Create a file inode for the given object in GCS. The initial lookup count is
+// Create a file inode for the given object in gcs The initial lookup count is
 // zero.
 //
 // REQUIRES: o != nil
@@ -98,15 +98,15 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
-	id fuseops.InodeID,
-	name Name,
-	o *gcs2.Object,
-	attrs fuseops.InodeAttributes,
-	bucket *gcsx.SyncerBucket,
-	localFileCache bool,
-	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock,
-	localFile bool) (f *FileInode) {
+		id fuseops.InodeID,
+		name Name,
+		o *gcs.Object,
+		attrs fuseops.InodeAttributes,
+		bucket *gcsx.SyncerBucket,
+		localFileCache bool,
+		contentCache *contentcache.ContentCache,
+		mtimeClock timeutil.Clock,
+		localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -160,21 +160,22 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs2.Object, b bool, err error) {
-	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
+	// Stat the object in gcs ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
-	req := &gcs2.StatObjectRequest{
+	req := &gcs.
+	StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
 	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
-	var notFoundErr *gcs2.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
 		if f.IsLocal() {
-			// For localFile, it is expected that object doesn't exist in GCS.
+			// For localFile, it is expected that object doesn't exist in gcs
 			return
 		}
 
@@ -199,11 +200,12 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
-		&gcs2.ReadObjectRequest{
-			Name:           f.src.Name,
-			Generation:     f.src.Generation,
-			ReadCompressed: f.src.HasContentEncodingGzip(),
-		})
+		&gcs.
+	ReadObjectRequest{
+		Name:           f.src.Name,
+		Generation:     f.src.Generation,
+		ReadCompressed: f.src.HasContentEncodingGzip(),
+	})
 	if err != nil {
 		err = fmt.Errorf("NewReader: %w", err)
 	}
@@ -342,7 +344,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
 	// Obtain default information from the source object.
@@ -386,7 +388,7 @@ func (f *FileInode) Attributes(
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
 
-	// Clobbered check makes a stat call to GCS. Avoiding stat calls to GCS for
+	// Clobbered check makes a stat call to gcs Avoiding stat calls to GCS for
 	// local files when fetching attributes. Any validations will be done during
 	// sync call.
 	if f.IsLocal() {
@@ -419,9 +421,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+		ctx context.Context,
+		dst []byte,
+		offset int64) (n int, err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -447,9 +449,9 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	ctx context.Context,
-	data []byte,
-	offset int64) (err error) {
+		ctx context.Context,
+		data []byte,
+		offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -464,12 +466,12 @@ func (f *FileInode) Write(
 	return
 }
 
-// Set the mtime for this file. May involve a round trip to GCS.
+// Set the mtime for this file. May involve a round trip to gcs
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-	ctx context.Context,
-	mtime time.Time) (err error) {
+		ctx context.Context,
+		mtime time.Time) (err error) {
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -487,8 +489,8 @@ func (f *FileInode) SetMtime(
 	// round trip to GCS for the common case of Linux writeback caching, where we
 	// always receive a setattr request just before a flush of a dirty file.
 	//
-	// 2. If the file is local, that means its not yet synced to GCS. Just update
-	// the mtime locally, it will be synced when the object is created on GCS.
+	// 2. If the file is local, that means its not yet synced to gcs Just update
+	// the mtime locally, it will be synced when the object is created on gcs
 	if sr.Mtime != nil || f.IsLocal() {
 		f.content.SetMtime(mtime)
 		return
@@ -498,7 +500,8 @@ func (f *FileInode) SetMtime(
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
 	srcGen := f.SourceGeneration()
 
-	req := &gcs2.UpdateObjectRequest{
+	req := &gcs.
+	UpdateObjectRequest{
 		Name:                       f.src.Name,
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
@@ -513,7 +516,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var notFoundErr *gcs2.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
@@ -521,7 +524,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var preconditionErr *gcs2.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		// Special case: silently ignore precondition errors, which we also take to
 		// mean the file has been unlinked.
@@ -533,7 +536,7 @@ func (f *FileInode) SetMtime(
 	return
 }
 
-// Sync writes out contents to GCS. If this fails due to the generation having been
+// Sync writes out contents to gcs If this fails due to the generation having been
 // clobbered, treat it as a non-error (simulating the inode having been
 // unlinked).
 //
@@ -571,7 +574,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
-	var preconditionErr *gcs2.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = nil
 		return
@@ -586,7 +589,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		f.src = convertObjToMinObject(newObj)
-		// Convert localFile to nonLocalFile after it is synced to GCS.
+		// Convert localFile to nonLocalFile after it is synced to gcs
 		if f.IsLocal() {
 			f.local = false
 		}
@@ -601,8 +604,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-	ctx context.Context,
-	size int64) (err error) {
+		ctx context.Context,
+		size int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -632,7 +635,7 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs2.Object) storage.MinObject {
+func convertObjToMinObject(o *gcs.Object) storage.MinObject {
 	var min storage.MinObject
 	if o == nil {
 		return min
