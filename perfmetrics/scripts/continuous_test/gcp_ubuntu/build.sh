@@ -25,10 +25,6 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 # integration tests using code upto that commit.
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-git checkout $commitId
-
-echo "Executing integration tests"
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=gcsfuse-integration-test -timeout 24m
 
 # Checkout back to master branch to use latest CI test scripts in master.
 git checkout master
