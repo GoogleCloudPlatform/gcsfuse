@@ -49,6 +49,12 @@ echo User: $USER &>> ~/logs.txt
 echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 
 # Based on the os type in detail.txt, run the following commands for setup
+
+architecture=$(dpkg --print-architecture)
+# architecture can be amd64 or arm64
+uname=$(uname -i)
+# uname can be aarch or x86_64
+
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
@@ -58,7 +64,6 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    architecture=$(dpkg --print-architecture)
     gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_$(architecture).deb .
     sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_$(architecture).deb |& tee -a ~/logs.txt
 
@@ -79,7 +84,6 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    uname=$(uname -i)
     gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.$(uname).rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.$(uname).rpm
 
