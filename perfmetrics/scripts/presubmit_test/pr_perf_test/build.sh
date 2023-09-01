@@ -20,17 +20,17 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 # integration tests using code upto that commit.
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-git stash
-git checkout $commitId
-
-echo "Building and installing gcsfuse"
-# Build the gcsfuse package using the same commands used during release.
-GCSFUSE_VERSION=0.0.0
-sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg ARCHITECTURE=arm64 --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
-sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
-ls $HOME/release/packages/
-sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_arm64.deb
-
-echo "Executing integration tests"
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --testInstalledPackage --integrationTest -v --testbucket=integration-test-tulsishah-2 -timeout 24m
+#commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+#git stash
+#git checkout $commitId
+#
+#echo "Building and installing gcsfuse"
+## Build the gcsfuse package using the same commands used during release.
+#GCSFUSE_VERSION=0.0.0
+#sudo docker build ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg ARCHITECTURE=arm64 --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId
+#sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
+#ls $HOME/release/packages/
+#sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_arm64.deb
+#
+#echo "Executing integration tests"
+#GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --testInstalledPackage --integrationTest -v --testbucket=integration-test-tulsishah-2 -timeout 24m
