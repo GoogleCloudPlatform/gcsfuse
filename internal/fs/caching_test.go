@@ -23,10 +23,10 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -94,7 +94,7 @@ func (t *CachingTest) FileCreatedRemotely() {
 	var fi os.FileInfo
 
 	// Create an object in GCS.
-	_, err := bucketutil.CreateObject(
+	_, err := storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		name,
@@ -142,7 +142,7 @@ func (t *CachingTest) FileChangedRemotely() {
 	AssertEq(nil, err)
 
 	// Overwrite the object in GCS.
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		name,
@@ -181,7 +181,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	// Remove the backing object in GCS.
 	err = uncachedBucket.DeleteObject(
 		ctx,
-		&object.DeleteObjectRequest{Name: name + "/"})
+		&requests.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
@@ -207,7 +207,7 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS.
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		name,
@@ -274,13 +274,13 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	fmt.Printf("DeleteObject\n")
 	err = bucket.DeleteObject(
 		ctx,
-		&object.DeleteObjectRequest{Name: name + "/"})
+		&requests.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
 	fmt.Printf("CreateObject\n")
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		name,
@@ -323,7 +323,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	var err error
 
 	// Set up a file object implicitly defining a directory in GCS.
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		"foo/bar",
@@ -344,7 +344,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	var err error
 
 	// Set up a directory object implicitly defining a directory in GCS.
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		"foo/bar/",
@@ -403,7 +403,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	AssertEq(nil, err)
 
 	// Create a directory object out of band, so the root inode doesn't notice.
-	_, err = bucketutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		uncachedBucket,
 		"foo/",

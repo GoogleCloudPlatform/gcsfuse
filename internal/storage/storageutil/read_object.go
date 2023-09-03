@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketutil
+package storageutil
 
 import (
 	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"golang.org/x/net/context"
 )
 
@@ -30,7 +30,7 @@ func ReadObject(
 	bucket bucket.Bucket,
 	name string) (contents []byte, err error) {
 	// Call the bucket.
-	req := &object.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: name,
 	}
 

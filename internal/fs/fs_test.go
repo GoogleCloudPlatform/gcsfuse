@@ -36,8 +36,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
@@ -245,12 +245,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := bucketutil.CreateObjects(ctx, bucket, b)
+	err := storageutil.CreateObjects(ctx, bucket, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := bucketutil.CreateEmptyObjects(ctx, bucket, names)
+	err := storageutil.CreateEmptyObjects(ctx, bucket, names)
 	return err
 }
 

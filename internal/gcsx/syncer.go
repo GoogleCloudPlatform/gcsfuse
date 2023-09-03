@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 )
 
 // MtimeMetadataKey objects are created by Syncer.SyncObject and contain a
@@ -89,10 +90,10 @@ func (oc *fullObjectCreator) Create(
 	r io.Reader) (o *object.Object, err error) {
 	metadataMap := make(map[string]string)
 
-	var req *object.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	if srcObject == nil {
 		var precond int64
-		req = &object.CreateObjectRequest{
+		req = &requests.CreateObjectRequest{
 			Name:                   objectName,
 			Contents:               r,
 			GenerationPrecondition: &precond,
@@ -103,7 +104,7 @@ func (oc *fullObjectCreator) Create(
 			metadataMap[key] = value
 		}
 
-		req = &object.CreateObjectRequest{
+		req = &requests.CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,
@@ -234,7 +235,7 @@ func (os *syncer) SyncObject(
 	// then we can make the optimization of not rewriting its contents.
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
-		srcObject.ComponentCount < object.MaxComponentCount {
+		srcObject.ComponentCount < requests.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %w", err)

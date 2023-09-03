@@ -20,7 +20,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -40,7 +40,7 @@ func mountWithStorageHandle(
 	mountPoint string,
 	flags *flagStorage,
 	mountConfig *config.MountConfig,
-	storageHandle bucket.StorageHandle,
+	storageHandle storage.StorageHandle,
 	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO

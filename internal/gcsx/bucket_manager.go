@@ -25,9 +25,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -73,14 +74,14 @@ type BucketManager interface {
 
 type bucketManager struct {
 	config        BucketConfig
-	storageHandle bucket.StorageHandle
+	storageHandle storage.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, storageHandle bucket.StorageHandle) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:        config,
 		storageHandle: storageHandle,
@@ -222,7 +223,7 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err = b.ListObjects(ctx, &object.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &requests.ListObjectsRequest{MaxResults: 1})
 		if err != nil {
 			return
 		}

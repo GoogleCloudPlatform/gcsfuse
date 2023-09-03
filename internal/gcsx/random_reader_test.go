@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -89,7 +90,7 @@ func (br *blockingReader) Read(p []byte) (n int, err error) {
 
 func rangeStartIs(expected uint64) (m Matcher) {
 	pred := func(c interface{}) (err error) {
-		req := c.(*object.ReadObjectRequest)
+		req := c.(*requests.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
 			return
@@ -109,7 +110,7 @@ func rangeStartIs(expected uint64) (m Matcher) {
 
 func rangeLimitIs(expected uint64) (m Matcher) {
 	pred := func(c interface{}) (err error) {
-		req := c.(*object.ReadObjectRequest)
+		req := c.(*requests.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
 			return

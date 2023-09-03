@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,10 +27,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 // A GCS object metadata key for file mtimes. mtimes are UTC, and are stored in
@@ -101,15 +102,15 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
-		id fuseops.InodeID,
-		name Name,
-		o *object.Object,
-		attrs fuseops.InodeAttributes,
-		bucket *gcsx.SyncerBucket,
-		localFileCache bool,
-		contentCache *contentcache.ContentCache,
-		mtimeClock timeutil.Clock,
-		localFile bool) (f *FileInode) {
+	id fuseops.InodeID,
+	name Name,
+	o *object.Object,
+	attrs fuseops.InodeAttributes,
+	bucket *gcsx.SyncerBucket,
+	localFileCache bool,
+	contentCache *contentcache.ContentCache,
+	mtimeClock timeutil.Clock,
+	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -167,7 +168,7 @@ func (f *FileInode) checkInvariants() {
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *object.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
-	req := &object.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
@@ -203,7 +204,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *o
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
-		&object.ReadObjectRequest{
+		&requests.ReadObjectRequest{
 			Name:           f.src.Name,
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
@@ -354,7 +355,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
 	// Obtain default information from the source object.
@@ -431,9 +432,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-		ctx context.Context,
-		dst []byte,
-		offset int64) (n int, err error) {
+	ctx context.Context,
+	dst []byte,
+	offset int64) (n int, err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -459,9 +460,9 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-		ctx context.Context,
-		data []byte,
-		offset int64) (err error) {
+	ctx context.Context,
+	data []byte,
+	offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -480,8 +481,8 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-		ctx context.Context,
-		mtime time.Time) (err error) {
+	ctx context.Context,
+	mtime time.Time) (err error) {
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -510,7 +511,7 @@ func (f *FileInode) SetMtime(
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
 	srcGen := f.SourceGeneration()
 
-	req := &object.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:                       f.src.Name,
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
@@ -613,8 +614,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-		ctx context.Context,
-		size int64) (err error) {
+	ctx context.Context,
+	size int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {

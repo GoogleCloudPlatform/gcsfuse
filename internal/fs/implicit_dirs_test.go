@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"

@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -82,7 +83,7 @@ func (t *FullObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
-	var req *object.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -143,7 +144,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 	}
 	t.mtime = time.Now().Add(123 * time.Second).UTC()
 
-	var req *object.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -167,7 +168,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 	t.srcContents = "taco"
 	// CreateObject
-	var req *object.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -186,7 +187,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
 func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 	t.srcContents = "taco"
 	// CreateObject
-	var req *object.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -203,7 +204,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
 	AssertFalse(ok)
 }
 
-func (t *FullObjectCreatorTest) validateEmptyProperties(req *object.CreateObjectRequest) {
+func (t *FullObjectCreatorTest) validateEmptyProperties(req *requests.CreateObjectRequest) {
 	AssertNe(nil, req)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 	// All the properties should be empty/nil.
@@ -304,7 +305,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	// Set up a source object.
 	t.srcObject, err = t.bucket.CreateObject(
 		t.ctx,
-		&object.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader(srcObjectContents),
 		})
@@ -433,7 +434,7 @@ func (t *SyncerTest) SourceComponentCountTooHigh() {
 	var err error
 
 	// Simulate a large component count.
-	t.srcObject.ComponentCount = object.MaxComponentCount
+	t.srcObject.ComponentCount = requests.MaxComponentCount
 
 	// Extend the length of the content.
 	err = t.content.Truncate(int64(len(srcObjectContents) + 1))

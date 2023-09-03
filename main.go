@@ -33,7 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
@@ -80,7 +80,7 @@ func getUserAgent(appName string) string {
 	}
 }
 
-func createStorageHandle(flags *flagStorage) (storageHandle bucket.StorageHandle, err error) {
+func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -96,7 +96,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle bucket.StorageHandle
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
 
-	storageHandle, err = bucket.NewStorageHandle(context.Background(), storageClientConfig)
+	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
 
@@ -123,7 +123,7 @@ func mountWithArgs(
 	//
 	// Special case: if we're mounting the fake bucket, we don't need an actual
 	// connection.
-	var storageHandle bucket.StorageHandle
+	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
 		mountStatus.Println("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(flags)

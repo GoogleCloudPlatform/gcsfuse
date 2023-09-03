@@ -20,8 +20,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
@@ -39,7 +40,7 @@ func garbageCollectOnce(
 	objects := make(chan *object.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
-		err = bucketutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return
@@ -75,7 +76,7 @@ func garbageCollectOnce(
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
-				&object.DeleteObjectRequest{
+				&requests.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.
 				})

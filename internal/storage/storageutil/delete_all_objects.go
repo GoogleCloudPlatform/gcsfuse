@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketutil
+package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -59,7 +60,7 @@ func DeleteAllObjects(
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
 					ctx,
-					&object.DeleteObjectRequest{
+					&requests.DeleteObjectRequest{
 						Name: objectName,
 					})
 

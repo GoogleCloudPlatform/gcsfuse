@@ -12,23 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketutil
+package storageutil
 
 import (
+	"bytes"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"golang.org/x/net/context"
 )
 
-// Create empty objects with default attributes for all of the supplied names.
-func CreateEmptyObjects(
+// Create an object with the supplied contents in the given bucket with the
+// given name.
+func CreateObject(
 	ctx context.Context,
 	bucket bucket.Bucket,
-	names []string) (err error) {
-	m := make(map[string][]byte)
-	for _, name := range names {
-		m[name] = nil
+	name string,
+	contents []byte) (*object.Object, error) {
+	req := &requests.CreateObjectRequest{
+		Name:     name,
+		Contents: bytes.NewReader(contents),
 	}
 
-	err = CreateObjects(ctx, bucket, m)
-	return
+	return bucket.CreateObject(ctx, req)
 }

@@ -23,8 +23,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	. "github.com/jacobsa/ogletest"
@@ -116,9 +116,9 @@ func (t *DirHandleTest) EnsureEntriesWithLocalAndGCSFiles() {
 	var err error
 	// Set up empty GCS objects.
 	// DirHandle holds a DirInode pointing to "testDir".
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
 	AssertEq(nil, err)
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
 	AssertEq(nil, err)
 	// Set up local file inodes.
 	localIn1 := t.createLocalFileInode("localFile1", 10)
@@ -145,9 +145,9 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyLocalFiles() {
 	var err error
 	// Set up empty GCS objects.
 	// DirHandle holds a DirInode pointing to "testDir".
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject1", nil)
 	AssertEq(nil, err)
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/gcsObject2", nil)
 	AssertEq(nil, err)
 	// Setup empty localFileInodes Map.
 	localFileInodes := map[inode.Name]inode.Inode{}
@@ -187,7 +187,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalAndGCSFile() {
 	var err error
 	// Set up empty GCS objects.
 	// DirHandle holds a DirInode pointing to "testDir".
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/file1", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/file1", nil)
 	AssertEq(nil, err)
 	// Set up local file inodes.
 	localIn := t.createLocalFileInode("file1", 10)
@@ -208,7 +208,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalFileAndGCSDirectory() {
 	var err error
 	// Set up empty GCS objects.
 	// DirHandle holds a DirInode pointing to "testDir".
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, "testDir/file1/", nil)
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "testDir/file1/", nil)
 	AssertEq(nil, err)
 	// Set up local file inodes.
 	localIn := t.createLocalFileInode("file1", 10)

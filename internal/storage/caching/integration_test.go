@@ -20,10 +20,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -67,7 +68,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 }
 
 func (t *IntegrationTest) stat(name string) (o *object.Object, err error) {
-	req := &object.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name: name,
 	}
 
@@ -84,11 +85,11 @@ func (t *IntegrationTest) CreateInsertsIntoCache() {
 	var err error
 
 	// Create an object.
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &requests.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -102,7 +103,7 @@ func (t *IntegrationTest) StatInsertsIntoCache() {
 	var err error
 
 	// Create an object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// Stat it so that it's in cache.
@@ -110,7 +111,7 @@ func (t *IntegrationTest) StatInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &requests.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -124,15 +125,15 @@ func (t *IntegrationTest) ListInsertsIntoCache() {
 	var err error
 
 	// Create an object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// List so that it's in cache.
-	_, err = t.bucket.ListObjects(t.ctx, &object.ListObjectsRequest{})
+	_, err = t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &requests.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -146,11 +147,11 @@ func (t *IntegrationTest) UpdateUpdatesCache() {
 	var err error
 
 	// Create an object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// Update it, putting the new version in cache.
-	updateReq := &object.UpdateObjectRequest{
+	updateReq := &requests.UpdateObjectRequest{
 		Name: name,
 	}
 
@@ -158,7 +159,7 @@ func (t *IntegrationTest) UpdateUpdatesCache() {
 	AssertEq(nil, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &requests.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -172,11 +173,11 @@ func (t *IntegrationTest) PositiveCacheExpiration() {
 	var err error
 
 	// Create an object.
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &requests.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// Advance time.
@@ -196,7 +197,7 @@ func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
 	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Create the object.
-	_, err = bucketutil.CreateObject(t.ctx, t.bucket, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
@@ -214,7 +215,7 @@ func (t *IntegrationTest) StatAddsToNegativeCache() {
 	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Create the object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// StatObject should still not see it yet.
@@ -231,11 +232,11 @@ func (t *IntegrationTest) ListInvalidatesNegativeCache() {
 	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Create the object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// List the bucket.
-	_, err = t.bucket.ListObjects(t.ctx, &object.ListObjectsRequest{})
+	_, err = t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
@@ -253,11 +254,11 @@ func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
 	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Create the object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// Update the object.
-	updateReq := &object.UpdateObjectRequest{
+	updateReq := &requests.UpdateObjectRequest{
 		Name: name,
 	}
 
@@ -279,7 +280,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Create the object through the back door.
-	_, err = bucketutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
 	AssertEq(nil, err)
 
 	// Advance time.

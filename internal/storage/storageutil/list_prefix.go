@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucketutil
+package storageutil
 
 import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"golang.org/x/net/context"
 )
 
@@ -29,14 +30,14 @@ func ListPrefix(
 	bucket bucket.Bucket,
 	prefix string,
 	objects chan<- *object.Object) (err error) {
-	req := &object.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Prefix: prefix,
 	}
 
 	// List until we run out.
 	for {
 		// Fetch the next batch.
-		var listing *object.Listing
+		var listing *requests.Listing
 		listing, err = bucket.ListObjects(ctx, req)
 		if err != nil {
 			err = fmt.Errorf("ListObjects: %v", err)

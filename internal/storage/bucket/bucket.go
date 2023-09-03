@@ -18,6 +18,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"golang.org/x/net/context"
 )
 
@@ -43,7 +44,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
 	NewReader(
 		ctx context.Context,
-		req *object.ReadObjectRequest) (io.ReadCloser, error)
+		req *requests.ReadObjectRequest) (io.ReadCloser, error)
 
 	// Create or overwrite an object according to the supplied request. The new
 	// object is guaranteed to exist immediately for the purposes of reading (and
@@ -55,7 +56,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
 	CreateObject(
 		ctx context.Context,
-		req *object.CreateObjectRequest) (*object.Object, error)
+		req *requests.CreateObjectRequest) (*object.Object, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
@@ -66,7 +67,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/copy
 	CopyObject(
 		ctx context.Context,
-		req *object.CopyObjectRequest) (*object.Object, error)
+		req *requests.CopyObjectRequest) (*object.Object, error)
 
 	// Compose one or more source objects into a single destination object by
 	// concatenating. Any existing generation of the destination name will be
@@ -78,7 +79,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/compose
 	ComposeObjects(
 		ctx context.Context,
-		req *object.ComposeObjectsRequest) (*object.Object, error)
+		req *requests.ComposeObjectsRequest) (*object.Object, error)
 
 	// Return current information about the object with the given name.
 	//
@@ -86,7 +87,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
 	StatObject(
 		ctx context.Context,
-		req *object.StatObjectRequest) (*object.Object, error)
+		req *requests.StatObjectRequest) (*object.Object, error)
 
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and
@@ -97,7 +98,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/list
 	ListObjects(
 		ctx context.Context,
-		req *object.ListObjectsRequest) (*object.Listing, error)
+		req *requests.ListObjectsRequest) (*requests.Listing, error)
 
 	// Update the object specified by newAttrs.Name, patching using the non-zero
 	// fields of newAttrs.
@@ -106,7 +107,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/patch
 	UpdateObject(
 		ctx context.Context,
-		req *object.UpdateObjectRequest) (*object.Object, error)
+		req *requests.UpdateObjectRequest) (*object.Object, error)
 
 	// Delete an object. Non-existence of the object is not treated as an error.
 	//
@@ -114,5 +115,5 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/delete
 	DeleteObject(
 		ctx context.Context,
-		req *object.DeleteObjectRequest) error
+		req *requests.DeleteObjectRequest) error
 }
