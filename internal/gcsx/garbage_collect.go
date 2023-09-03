@@ -21,9 +21,9 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/syncutil"
 )
@@ -36,7 +36,7 @@ func garbageCollectOnce(
 	b := syncutil.NewBundle(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *object.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
 		err = bucketutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
@@ -75,7 +75,7 @@ func garbageCollectOnce(
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
-				&bucket.DeleteObjectRequest{
+				&object.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.
 				})

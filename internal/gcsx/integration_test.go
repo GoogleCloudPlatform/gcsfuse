@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -104,7 +103,7 @@ func (t *IntegrationTest) TearDown() {
 	}
 }
 
-func (t *IntegrationTest) create(o *gcs.Object) {
+func (t *IntegrationTest) create(o *object.Object) {
 	// Set up a reader.
 	rc, err := t.bucket.NewReader(
 		t.ctx,
@@ -149,7 +148,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	return
 }
 
-func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
+func (t *IntegrationTest) sync(src *object.Object) (o *object.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, src.Name, src, t.tf)
 	if err == nil && o != nil {
 		t.tf = nil

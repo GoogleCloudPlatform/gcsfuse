@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
@@ -102,15 +101,15 @@ var _ Inode = &FileInode{}
 // REQUIRES: len(o.Name) > 0
 // REQUIRES: o.Name[len(o.Name)-1] != '/'
 func NewFileInode(
-	id fuseops.InodeID,
-	name Name,
-	o *gcs.Object,
-	attrs fuseops.InodeAttributes,
-	bucket *gcsx.SyncerBucket,
-	localFileCache bool,
-	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock,
-	localFile bool) (f *FileInode) {
+		id fuseops.InodeID,
+		name Name,
+		o *object.Object,
+		attrs fuseops.InodeAttributes,
+		bucket *gcsx.SyncerBucket,
+		localFileCache bool,
+		contentCache *contentcache.ContentCache,
+		mtimeClock timeutil.Clock,
+		localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -165,7 +164,7 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *object.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &object.StatObjectRequest{
@@ -355,7 +354,7 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	attrs = f.attrs
 
 	// Obtain default information from the source object.
@@ -432,9 +431,9 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Read(
-	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+		ctx context.Context,
+		dst []byte,
+		offset int64) (n int, err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -460,9 +459,9 @@ func (f *FileInode) Read(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Write(
-	ctx context.Context,
-	data []byte,
-	offset int64) (err error) {
+		ctx context.Context,
+		data []byte,
+		offset int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -481,8 +480,8 @@ func (f *FileInode) Write(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SetMtime(
-	ctx context.Context,
-	mtime time.Time) (err error) {
+		ctx context.Context,
+		mtime time.Time) (err error) {
 	// If we have a local temp file, stat it.
 	var sr gcsx.StatResult
 	if f.content != nil {
@@ -614,8 +613,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
-	ctx context.Context,
-	size int64) (err error) {
+		ctx context.Context,
+		size int64) (err error) {
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -645,7 +644,7 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) object.MinObject {
+func convertObjToMinObject(o *object.Object) object.MinObject {
 	var min object.MinObject
 	if o == nil {
 		return min

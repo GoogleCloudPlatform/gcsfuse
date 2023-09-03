@@ -30,7 +30,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
@@ -56,7 +55,7 @@ type FileTest struct {
 	clock  timeutil.SimulatedClock
 
 	initialContents string
-	backingObj      *gcs.Object
+	backingObj      *object.Object
 
 	in *FileInode
 }

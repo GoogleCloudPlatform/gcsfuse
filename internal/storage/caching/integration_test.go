@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
@@ -67,7 +66,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		t.wrapped)
 }
 
-func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
+func (t *IntegrationTest) stat(name string) (o *object.Object, err error) {
 	req := &object.StatObjectRequest{
 		Name: name,
 	}

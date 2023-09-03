@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -96,7 +95,7 @@ type DirInode interface {
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
-	CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error)
+	CloneToChildFile(ctx context.Context, name string, src *object.Object) (*Core, error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
@@ -298,7 +297,7 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 // object in GCS with the given name. Return nil if such object does not exist.
 func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
-	req := &bucket.StatObjectRequest{
+	req := &object.StatObjectRequest{
 		Name: name.GcsObjectName(),
 	}
 
@@ -329,7 +328,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
 
-	req := &bucket.ListObjectsRequest{
+	req := &object.ListObjectsRequest{
 		Prefix:     name.GcsObjectName(),
 		MaxResults: 1,
 	}
@@ -356,7 +355,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 func (d *dirInode) createNewObject(
 	ctx context.Context,
 	name Name,
-	metadata map[string]string) (o *gcs.Object, err error) {
+	metadata map[string]string) (o *object.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -685,7 +684,7 @@ func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *object.Object) (*Core, error) {
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
 	fullName := NewFileName(d.Name(), name)

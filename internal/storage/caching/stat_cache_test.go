@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	. "github.com/jacobsa/ogletest"
 )
@@ -34,8 +33,8 @@ type invariantsCache struct {
 }
 
 func (c *invariantsCache) Insert(
-	o *gcs.Object,
-	expiration time.Time) {
+		o *object.Object,
+		expiration time.Time) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -43,8 +42,8 @@ func (c *invariantsCache) Insert(
 }
 
 func (c *invariantsCache) AddNegativeEntry(
-	name string,
-	expiration time.Time) {
+		name string,
+		expiration time.Time) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -59,8 +58,8 @@ func (c *invariantsCache) Erase(name string) {
 }
 
 func (c *invariantsCache) LookUp(
-	name string,
-	now time.Time) (hit bool, o *gcs.Object) {
+		name string,
+		now time.Time) (hit bool, o *object.Object) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -69,22 +68,22 @@ func (c *invariantsCache) LookUp(
 }
 
 func (c *invariantsCache) LookUpOrNil(
-	name string,
-	now time.Time) (o *gcs.Object) {
+		name string,
+		now time.Time) (o *object.Object) {
 	_, o = c.LookUp(name, now)
 	return
 }
 
 func (c *invariantsCache) Hit(
-	name string,
-	now time.Time) (hit bool) {
+		name string,
+		now time.Time) (hit bool) {
 	hit, _ = c.LookUp(name, now)
 	return
 }
 
 func (c *invariantsCache) NegativeEntry(
-	name string,
-	now time.Time) (negative bool) {
+		name string,
+		now time.Time) (negative bool) {
 	hit, o := c.LookUp(name, now)
 	negative = hit && o == nil
 	return
@@ -119,8 +118,8 @@ func (t *StatCacheTest) LookUpInEmptyCache() {
 }
 
 func (t *StatCacheTest) LookUpUnknownKey() {
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &object.Object{Name: "burrito"}
+	o1 := &object.Object{Name: "taco"}
 
 	t.cache.Insert(o0, someTime.Add(time.Second))
 	t.cache.Insert(o1, someTime.Add(time.Second))
@@ -130,8 +129,8 @@ func (t *StatCacheTest) LookUpUnknownKey() {
 }
 
 func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &object.Object{Name: "burrito"}
+	o1 := &object.Object{Name: "taco"}
 
 	t.cache.Insert(o0, someTime.Add(-time.Second))
 	t.cache.Insert(o1, someTime.Add(-time.Second))
@@ -143,8 +142,8 @@ func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
 func (t *StatCacheTest) FillUpToCapacity() {
 	AssertEq(3, capacity)
 
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &object.Object{Name: "burrito"}
+	o1 := &object.Object{Name: "taco"}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -171,8 +170,8 @@ func (t *StatCacheTest) FillUpToCapacity() {
 func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(3, capacity)
 
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &object.Object{Name: "burrito"}
+	o1 := &object.Object{Name: "taco"}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)                         // Least recent
@@ -180,7 +179,7 @@ func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
 
 	// Insert another.
-	o3 := &gcs.Object{Name: "queso"}
+	o3 := &object.Object{Name: "queso"}
 	t.cache.Insert(o3, expiration)
 
 	// See what's left.
@@ -191,8 +190,8 @@ func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 }
 
 func (t *StatCacheTest) Overwrite_NewerGeneration() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 19, MetaGeneration: 1}
+	o0 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &object.Object{Name: "taco", Generation: 19, MetaGeneration: 1}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -202,8 +201,8 @@ func (t *StatCacheTest) Overwrite_NewerGeneration() {
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
 
-	t.cache.Insert(&gcs.Object{Name: "burrito"}, expiration)
-	t.cache.Insert(&gcs.Object{Name: "enchilada"}, expiration)
+	t.cache.Insert(&object.Object{Name: "burrito"}, expiration)
+	t.cache.Insert(&object.Object{Name: "enchilada"}, expiration)
 
 	ExpectNe(nil, t.cache.LookUpOrNil("taco", someTime))
 	ExpectNe(nil, t.cache.LookUpOrNil("burrito", someTime))
@@ -211,8 +210,8 @@ func (t *StatCacheTest) Overwrite_NewerGeneration() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 7}
+	o0 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -222,8 +221,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
 
-	t.cache.Insert(&gcs.Object{Name: "burrito"}, expiration)
-	t.cache.Insert(&gcs.Object{Name: "enchilada"}, expiration)
+	t.cache.Insert(&object.Object{Name: "burrito"}, expiration)
+	t.cache.Insert(&object.Object{Name: "enchilada"}, expiration)
 
 	ExpectNe(nil, t.cache.LookUpOrNil("taco", someTime))
 	ExpectNe(nil, t.cache.LookUpOrNil("burrito", someTime))
@@ -231,8 +230,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_SameMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o0 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -241,8 +240,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_SameMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_OlderMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 3}
+	o0 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 3}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -251,8 +250,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_OlderMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_OlderGeneration() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 13, MetaGeneration: 7}
+	o0 := &object.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &object.Object{Name: "taco", Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -262,7 +261,7 @@ func (t *StatCacheTest) Overwrite_OlderGeneration() {
 
 func (t *StatCacheTest) Overwrite_NegativeWithPositive() {
 	const name = "taco"
-	o1 := &gcs.Object{Name: name, Generation: 13, MetaGeneration: 7}
+	o1 := &object.Object{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.AddNegativeEntry(name, expiration)
 	t.cache.Insert(o1, expiration)
@@ -272,7 +271,7 @@ func (t *StatCacheTest) Overwrite_NegativeWithPositive() {
 
 func (t *StatCacheTest) Overwrite_PositiveWithNegative() {
 	const name = "taco"
-	o0 := &gcs.Object{Name: name, Generation: 13, MetaGeneration: 7}
+	o0 := &object.Object{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.AddNegativeEntry(name, expiration)

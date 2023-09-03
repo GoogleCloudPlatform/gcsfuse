@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
@@ -70,7 +69,7 @@ type AppendObjectCreatorTest struct {
 	bucket  bucket.MockBucket
 	creator objectCreator
 
-	srcObject   gcs.Object
+	srcObject   object.Object
 	srcContents string
 	mtime       time.Time
 }
@@ -89,7 +88,7 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.creator = newAppendObjectCreator(prefix, t.bucket)
 }
 
-func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
+func (t *AppendObjectCreatorTest) call() (o *object.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		t.srcObject.Name,
@@ -161,7 +160,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name:       "bar",
 		Generation: 19,
 	}
@@ -222,7 +221,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name:       "bar",
 		Generation: 19,
 	}
@@ -275,7 +274,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -299,7 +298,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -325,7 +324,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -351,7 +350,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -359,7 +358,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 
@@ -373,7 +372,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 
 func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -381,7 +380,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 
@@ -398,7 +397,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 
 func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -406,7 +405,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 
