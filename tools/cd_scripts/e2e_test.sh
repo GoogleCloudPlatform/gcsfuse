@@ -79,7 +79,6 @@ else
     # uname can be aarch or x86_64
     uname=$(uname -i)
 
-    # dpkg command is not supporting arm64 machines.
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
     else if [[ $uname == "aarch64" ]]; then
