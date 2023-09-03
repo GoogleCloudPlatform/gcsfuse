@@ -45,7 +45,6 @@ var (
 
 type cachingTestCommon struct {
 	fsTest
-	uncachedBucket bucket2.Bucket
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {

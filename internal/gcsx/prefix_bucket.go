@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -22,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"golang.org/x/net/context"
 )
 
 // NewPrefixBucket creates a view on the wrapped bucket that pretends as if only
@@ -32,8 +32,8 @@ import (
 // In order to preserve the invariant that object names are valid UTF-8, prefix
 // must be valid UTF-8.
 func NewPrefixBucket(
-		prefix string,
-		wrapped bucket.Bucket) (b bucket.Bucket, err error) {
+	prefix string,
+	wrapped bucket.Bucket) (b bucket.Bucket, err error) {
 	if !utf8.ValidString(prefix) {
 		err = errors.New("prefix is not valid UTF-8")
 		return
@@ -65,8 +65,8 @@ func (b *prefixBucket) Name() string {
 }
 
 func (b *prefixBucket) NewReader(
-		ctx context.Context,
-		req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	ctx context.Context,
+	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Modify the request and call through.
 	mReq := new(object.ReadObjectRequest)
 	*mReq = *req
@@ -77,8 +77,8 @@ func (b *prefixBucket) NewReader(
 }
 
 func (b *prefixBucket) CreateObject(
-		ctx context.Context,
-		req *object.CreateObjectRequest) (o *object.Object, err error) {
+	ctx context.Context,
+	req *object.CreateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(object.CreateObjectRequest)
 	*mReq = *req
@@ -95,8 +95,8 @@ func (b *prefixBucket) CreateObject(
 }
 
 func (b *prefixBucket) CopyObject(
-		ctx context.Context,
-		req *object.CopyObjectRequest) (o *object.Object, err error) {
+	ctx context.Context,
+	req *object.CopyObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(object.CopyObjectRequest)
 	*mReq = *req
@@ -114,8 +114,8 @@ func (b *prefixBucket) CopyObject(
 }
 
 func (b *prefixBucket) ComposeObjects(
-		ctx context.Context,
-		req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+	ctx context.Context,
+	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(object.ComposeObjectsRequest)
 	*mReq = *req
@@ -138,8 +138,8 @@ func (b *prefixBucket) ComposeObjects(
 }
 
 func (b *prefixBucket) StatObject(
-		ctx context.Context,
-		req *object.StatObjectRequest) (o *object.Object, err error) {
+	ctx context.Context,
+	req *object.StatObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(object.StatObjectRequest)
 	*mReq = *req
@@ -156,8 +156,8 @@ func (b *prefixBucket) StatObject(
 }
 
 func (b *prefixBucket) ListObjects(
-		ctx context.Context,
-		req *object.ListObjectsRequest) (l *object.Listing, err error) {
+	ctx context.Context,
+	req *object.ListObjectsRequest) (l *object.Listing, err error) {
 	// Modify the request and call through.
 	mReq := new(object.ListObjectsRequest)
 	*mReq = *req
@@ -180,8 +180,8 @@ func (b *prefixBucket) ListObjects(
 }
 
 func (b *prefixBucket) UpdateObject(
-		ctx context.Context,
-		req *object.UpdateObjectRequest) (o *object.Object, err error) {
+	ctx context.Context,
+	req *object.UpdateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(object.UpdateObjectRequest)
 	*mReq = *req
@@ -198,8 +198,8 @@ func (b *prefixBucket) UpdateObject(
 }
 
 func (b *prefixBucket) DeleteObject(
-		ctx context.Context,
-		req *object.DeleteObjectRequest) (err error) {
+	ctx context.Context,
+	req *object.DeleteObjectRequest) (err error) {
 	// Modify the request and call through.
 	mReq := new(object.DeleteObjectRequest)
 	*mReq = *req
