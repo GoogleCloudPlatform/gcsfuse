@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -38,7 +41,7 @@ func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
 func deleteReqName(expected string) (m Matcher) {
 	m = NewMatcher(
 		func(c interface{}) (err error) {
-			req, ok := c.(*gcs.DeleteObjectRequest)
+			req, ok := c.(*object.DeleteObjectRequest)
 			if !ok {
 				err = fmt.Errorf("which has type %T", c)
 				return
@@ -64,7 +67,7 @@ const prefix = ".gcsfuse_tmp/"
 
 type AppendObjectCreatorTest struct {
 	ctx     context.Context
-	bucket  gcs.MockBucket
+	bucket  bucket.MockBucket
 	creator objectCreator
 
 	srcObject   gcs.Object
@@ -80,7 +83,7 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
-	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = bucket.NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
 	t.creator = newAppendObjectCreator(prefix, t.bucket)
@@ -105,7 +108,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
-	var req *gcs.CreateObjectRequest
+	var req *object.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -140,12 +143,12 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -167,7 +170,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *object.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -191,7 +194,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src object.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)
@@ -228,7 +231,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *object.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -259,7 +262,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	ExpectEq("test_value", req.Metadata["test_key"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src object.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)
@@ -305,7 +308,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -314,7 +317,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -331,7 +334,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.NotFoundError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -340,7 +343,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))

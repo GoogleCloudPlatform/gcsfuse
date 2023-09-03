@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package bucketutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -24,11 +25,11 @@ import (
 // bucket is being concurrently updated.
 func DeleteAllObjects(
 	ctx context.Context,
-	bucket gcs.Bucket) error {
+	bucket bucket.Bucket) error {
 	bundle := syncutil.NewBundle(ctx)
 
 	// List all of the objects in the bucket.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *object.Object, 100)
 	bundle.Add(func(ctx context.Context) error {
 		defer close(objects)
 		return ListPrefix(ctx, bucket, "", objects)
@@ -58,7 +59,7 @@ func DeleteAllObjects(
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
 					ctx,
-					&gcs.DeleteObjectRequest{
+					&bucket.DeleteObjectRequest{
 						Name: objectName,
 					})
 

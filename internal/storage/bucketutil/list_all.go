@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package bucketutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -25,14 +26,14 @@ import (
 // May modify *req.
 func ListAll(
 	ctx context.Context,
-	bucket gcs.Bucket,
-	req *gcs.ListObjectsRequest) (
-	objects []*gcs.Object,
+	bucket bucket.Bucket,
+	req *object.ListObjectsRequest) (
+	objects []*object.Object,
 	runs []string,
 	err error) {
 	for {
 		// Grab one set of results.
-		var listing *gcs.Listing
+		var listing *bucket.Listing
 		if listing, err = bucket.ListObjects(ctx, req); err != nil {
 			return
 		}

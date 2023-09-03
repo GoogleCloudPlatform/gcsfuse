@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -73,14 +73,14 @@ type BucketManager interface {
 
 type bucketManager struct {
 	config        BucketConfig
-	storageHandle storage.StorageHandle
+	storageHandle bucket.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle bucket.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:        config,
 		storageHandle: storageHandle,
@@ -90,9 +90,9 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 }
 
 func setUpRateLimiting(
-	in gcs.Bucket,
+	in bucket.Bucket,
 	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
+	egressBandwidthLimit float64) (out bucket.Bucket, err error) {
 	// If no rate limiting has been requested, just return the bucket.
 	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
 		out = in
@@ -147,11 +147,11 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
+func (bm *bucketManager) SetUpGcsBucket(name string) (b bucket.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
 	if bm.config.DebugGCS {
-		b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		b = bucket.NewDebugBucket(b, logger.NewDebug("gcs: "))
 	}
 	return
 }
@@ -159,7 +159,7 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb SyncerBucket, err error) {
-	var b gcs.Bucket
+	var b bucket.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
@@ -222,7 +222,7 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &object.ListObjectsRequest{MaxResults: 1})
 		if err != nil {
 			return
 		}

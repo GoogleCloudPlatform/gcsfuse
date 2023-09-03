@@ -20,6 +20,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
@@ -33,7 +35,7 @@ import (
 // must be valid UTF-8.
 func NewPrefixBucket(
 	prefix string,
-	wrapped gcs.Bucket) (b gcs.Bucket, err error) {
+	wrapped bucket.Bucket) (b bucket.Bucket, err error) {
 	if !utf8.ValidString(prefix) {
 		err = errors.New("prefix is not valid UTF-8")
 		return
@@ -49,7 +51,7 @@ func NewPrefixBucket(
 
 type prefixBucket struct {
 	prefix  string
-	wrapped gcs.Bucket
+	wrapped bucket.Bucket
 }
 
 func (b *prefixBucket) wrappedName(n string) string {
@@ -66,9 +68,9 @@ func (b *prefixBucket) Name() string {
 
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.ReadObjectRequest)
+	mReq := new(object.ReadObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -78,9 +80,9 @@ func (b *prefixBucket) NewReader(
 
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *object.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.CreateObjectRequest)
+	mReq := new(object.CreateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -96,9 +98,9 @@ func (b *prefixBucket) CreateObject(
 
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *object.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.CopyObjectRequest)
+	mReq := new(object.CopyObjectRequest)
 	*mReq = *req
 	mReq.SrcName = b.wrappedName(req.SrcName)
 	mReq.DstName = b.wrappedName(req.DstName)
@@ -115,9 +117,9 @@ func (b *prefixBucket) CopyObject(
 
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *object.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.ComposeObjectsRequest)
+	mReq := new(object.ComposeObjectsRequest)
 	*mReq = *req
 	mReq.DstName = b.wrappedName(req.DstName)
 
@@ -139,9 +141,9 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *object.StatObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.StatObjectRequest)
+	mReq := new(object.StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -157,9 +159,9 @@ func (b *prefixBucket) StatObject(
 
 func (b *prefixBucket) ListObjects(
 	ctx context.Context,
-	req *gcs.ListObjectsRequest) (l *gcs.Listing, err error) {
+	req *object.ListObjectsRequest) (l *object.Listing, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.ListObjectsRequest)
+	mReq := new(object.ListObjectsRequest)
 	*mReq = *req
 	mReq.Prefix = b.prefix + mReq.Prefix
 
@@ -181,9 +183,9 @@ func (b *prefixBucket) ListObjects(
 
 func (b *prefixBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *object.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.UpdateObjectRequest)
+	mReq := new(object.UpdateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -199,9 +201,9 @@ func (b *prefixBucket) UpdateObject(
 
 func (b *prefixBucket) DeleteObject(
 	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+	req *object.DeleteObjectRequest) (err error) {
 	// Modify the request and call through.
-	mReq := new(gcs.DeleteObjectRequest)
+	mReq := new(object.DeleteObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 

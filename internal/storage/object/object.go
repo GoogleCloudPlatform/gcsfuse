@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcs
+package object
 
 import (
 	"crypto/md5"
@@ -20,6 +20,8 @@ import (
 
 	storagev1 "google.golang.org/api/storage/v1"
 )
+
+const ContentEncodingGzip = "gzip"
 
 // Object is a record representing a particular generation of a particular
 // object name in GCS.
@@ -70,4 +72,24 @@ type Object struct {
 	CustomTime         string
 	EventBasedHold     bool
 	Acl                []*storagev1.ObjectAccessControl
+}
+
+// MinObject is a record representing subset of properties of a particular
+// generation object in GCS.
+//
+// See here for more information about its fields:
+//
+//	https://cloud.google.com/storage/docs/json_api/v1/objects#resource
+type MinObject struct {
+	Name            string
+	Size            uint64
+	Generation      int64
+	MetaGeneration  int64
+	Updated         time.Time
+	Metadata        map[string]string
+	ContentEncoding string
+}
+
+func (mo MinObject) HasContentEncodingGzip() bool {
+	return mo.ContentEncoding == ContentEncodingGzip
 }

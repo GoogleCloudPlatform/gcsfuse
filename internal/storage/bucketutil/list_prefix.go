@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package bucketutil
 
 import (
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -25,17 +26,17 @@ import (
 // Write them into the supplied channel in an undefined order.
 func ListPrefix(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 	prefix string,
-	objects chan<- *gcs.Object) (err error) {
-	req := &gcs.ListObjectsRequest{
+	objects chan<- *object.Object) (err error) {
+	req := &bucket.ListObjectsRequest{
 		Prefix: prefix,
 	}
 
 	// List until we run out.
 	for {
 		// Fetch the next batch.
-		var listing *gcs.Listing
+		var listing *bucket.Listing
 		listing, err = bucket.ListObjects(ctx, req)
 		if err != nil {
 			err = fmt.Errorf("ListObjects: %v", err)

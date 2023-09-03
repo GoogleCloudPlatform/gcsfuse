@@ -18,11 +18,11 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/ogletest/srcutil"
 	"github.com/jacobsa/reqtrace"
@@ -35,7 +35,7 @@ type BucketTestDeps struct {
 	ctx context.Context
 
 	// An initialized, empty bucket.
-	Bucket gcs.Bucket
+	Bucket bucket.Bucket
 
 	// A clock matching the bucket's notion of time.
 	Clock timeutil.Clock

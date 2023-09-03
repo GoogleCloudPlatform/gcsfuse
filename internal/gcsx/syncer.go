@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -56,7 +58,7 @@ type Syncer interface {
 func NewSyncer(
 	appendThreshold int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os Syncer) {
+	bucket bucket.Bucket) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -77,7 +79,7 @@ func NewSyncer(
 ////////////////////////////////////////////////////////////////////////
 
 type fullObjectCreator struct {
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func (oc *fullObjectCreator) Create(
@@ -88,10 +90,10 @@ func (oc *fullObjectCreator) Create(
 	r io.Reader) (o *gcs.Object, err error) {
 	metadataMap := make(map[string]string)
 
-	var req *gcs.CreateObjectRequest
+	var req *object.CreateObjectRequest
 	if srcObject == nil {
 		var precond int64
-		req = &gcs.CreateObjectRequest{
+		req = &object.CreateObjectRequest{
 			Name:                   objectName,
 			Contents:               r,
 			GenerationPrecondition: &precond,
@@ -102,7 +104,7 @@ func (oc *fullObjectCreator) Create(
 			metadataMap[key] = value
 		}
 
-		req = &gcs.CreateObjectRequest{
+		req = &object.CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,
@@ -233,7 +235,7 @@ func (os *syncer) SyncObject(
 	// then we can make the optimization of not rewriting its contents.
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
-		srcObject.ComponentCount < gcs.MaxComponentCount {
+		srcObject.ComponentCount < object.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %w", err)

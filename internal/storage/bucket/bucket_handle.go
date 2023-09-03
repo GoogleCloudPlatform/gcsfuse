@@ -17,7 +17,7 @@
 // Although API is exposed to enable the object versioning for a bucket,
 // but it returns "method not allowed" when we call it.
 
-package storage
+package bucket
 
 import (
 	"errors"
@@ -26,15 +26,15 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	storage2 "github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
 
 type bucketHandle struct {
-	gcs.Bucket
+	Bucket
 	bucket     *storage.BucketHandle
 	bucketName string
 }
@@ -45,7 +45,7 @@ func (bh *bucketHandle) Name() string {
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	req *object.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -71,7 +71,7 @@ func (bh *bucketHandle) NewReader(
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	return obj.NewRangeReader(ctx, start, length)
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *object.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
@@ -92,11 +92,11 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &storage2.PreconditionError{Err: ee}
 			}
 		default:
 			if err == storage.ErrObjectNotExist {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &storage2.NotFoundError{Err: storage.ErrObjectNotExist}
 			} else {
 				err = fmt.Errorf("Error in deleting object: %w", err)
 			}
@@ -106,14 +106,14 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context, req *object.StatObjectRequest) (o *object.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
 
 	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
-		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		err = &storage2.NotFoundError{Err: err} // Special case error that object not found in the bucket.
 		return
 	}
 	if err != nil {
@@ -122,12 +122,12 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	}
 
 	// Converting attrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = object.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *object.CreateObjectRequest) (o *object.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -159,7 +159,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc = object.SetAttrsInWriter(wc, req)
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -173,7 +173,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: err}
+				err = &storage2.PreconditionError{Err: err}
 				return
 			}
 		}
@@ -183,11 +183,11 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = object.ObjectAttrsToBucketObject(attrs)
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) CopyObject(ctx context.Context, req *object.CopyObjectRequest) (o *object.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
@@ -207,10 +207,10 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &storage2.PreconditionError{Err: ee}
 			}
 			if ee.Code == http.StatusNotFound {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &storage2.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
 			err = fmt.Errorf("Error in copying object: %w", err)
@@ -218,11 +218,11 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		return
 	}
 	// Converting objAttrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	o = object.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
 
-func getProjectionValue(req gcs.Projection) storage.Projection {
+func getProjectionValue(req object.Projection) storage.Projection {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
 	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
 	switch int(req) {
@@ -239,7 +239,7 @@ func getProjectionValue(req gcs.Projection) storage.Projection {
 	return convertedProjection
 }
 
-func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+func (b *bucketHandle) ListObjects(ctx context.Context, req *object.ListObjectsRequest) (listing *object.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
@@ -252,7 +252,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
-	var list gcs.Listing
+	var list object.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
@@ -275,7 +275,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			currObject := object.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
 
@@ -296,7 +296,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *object.UpdateObjectRequest) (o *object.Object, err error) {
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -338,7 +338,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	if err == nil {
 		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		o = object.ObjectAttrsToBucketObject(attrs)
 		return
 	}
 
@@ -347,11 +347,11 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	switch ee := err.(type) {
 	case *googleapi.Error:
 		if ee.Code == http.StatusPreconditionFailed {
-			err = &gcs.PreconditionError{Err: ee}
+			err = &storage2.PreconditionError{Err: ee}
 		}
 	default:
 		if err == storage.ErrObjectNotExist {
-			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			err = &storage2.NotFoundError{Err: storage.ErrObjectNotExist}
 		} else {
 			err = fmt.Errorf("Error in updating object: %w", err)
 		}
@@ -360,7 +360,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *object.ComposeObjectsRequest) (o *object.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
@@ -402,10 +402,10 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &storage2.PreconditionError{Err: ee}
 			}
 			if ee.Code == http.StatusNotFound {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &storage2.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
 			err = fmt.Errorf("Error in composing object: %w", err)
@@ -414,7 +414,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = object.ObjectAttrsToBucketObject(attrs)
 
 	return
 }

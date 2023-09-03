@@ -12,23 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package bucketutil
 
-import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"golang.org/x/net/context"
-)
+import "crypto/md5"
 
-// Create empty objects with default attributes for all of the supplied names.
-func CreateEmptyObjects(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	names []string) (err error) {
-	m := make(map[string][]byte)
-	for _, name := range names {
-		m[name] = nil
-	}
-
-	err = CreateObjects(ctx, bucket, m)
-	return
+// Return a value appropriate for placing in CreateObjectRequest.MD5 for the
+// given object contents.
+func MD5(contents []byte) *[md5.Size]byte {
+	sum := md5.Sum(contents)
+	return &sum
 }

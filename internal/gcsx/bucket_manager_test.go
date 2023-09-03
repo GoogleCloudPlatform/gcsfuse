@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -20,9 +19,9 @@ const invalidBucketName string = "will-not-be-present-in-fake-server"
 ////////////////////////////////////////////////////////////////////////
 
 type BucketManagerTest struct {
-	bucket        gcs.Bucket
-	storageHandle storage.StorageHandle
-	fakeStorage   storage.FakeStorage
+	bucket        bucket.Bucket
+	storageHandle bucket.StorageHandle
+	fakeStorage   bucket.FakeStorage
 }
 
 var _ SetUpInterface = &BucketManagerTest{}
@@ -31,7 +30,7 @@ var _ TearDownInterface = &BucketManagerTest{}
 func init() { RegisterTestSuite(&BucketManagerTest{}) }
 
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
-	t.fakeStorage = storage.NewFakeStorage()
+	t.fakeStorage = bucket.NewFakeStorage()
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
 	t.bucket = t.storageHandle.BucketHandle(TestBucketName, "")
 

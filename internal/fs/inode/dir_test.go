@@ -23,11 +23,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -134,7 +135,7 @@ func (t *DirTest) setSymlinkTarget(
 	target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
-		&gcs.UpdateObjectRequest{
+		&object.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
 				SymlinkMetadataKey: &target,
@@ -207,7 +208,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	createObj, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -234,7 +235,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	createObj, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -260,7 +261,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name shouldn't work.
@@ -285,7 +286,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name should work.
@@ -311,10 +312,10 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := bucketutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -348,13 +349,13 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	var err error
 
 	// Create backing objects.
-	linkObj, err := storageutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
+	linkObj, err := bucketutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	err = t.setSymlinkTarget(linkObjName, "blah")
 	AssertEq(nil, err)
 
-	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -388,15 +389,15 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := bucketutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -433,15 +434,15 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	t.resetInode(true, false)
 
 	// Create backing objects.
-	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := bucketutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -475,7 +476,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up; we should get the file.
@@ -487,7 +488,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	ExpectEq(fileObjName, result.Object.Name)
 
 	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up again. Even though the directory should shadow the file, because
@@ -524,7 +525,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	AssertEq(nil, result)
 
 	// Create a backing object.
-	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	createObj, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up again, should still return nil due to cache
@@ -563,7 +564,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up again, should still return nil due to cache
@@ -611,7 +612,7 @@ func (t *DirTest) ReadDescendants_NonEmpty() {
 		dirInodeName + "symlink",
 	}
 
-	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = bucketutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	descendants, err := t.in.ReadDescendants(t.ctx, 10)
@@ -644,7 +645,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 		dirInodeName + "symlink",
 	}
 
-	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = bucketutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
@@ -691,7 +692,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 		dirInodeName + "symlink",
 	}
 
-	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = bucketutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
@@ -733,7 +734,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Read the directory, priming the type cache.
@@ -741,7 +742,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -792,7 +793,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -813,7 +814,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -843,18 +844,18 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	var err error
 
 	// Create and then delete the source.
-	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
+	src, err := bucketutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{Name: srcName})
+		&object.DeleteObjectRequest{Name: srcName})
 
 	AssertEq(nil, err)
 
 	// Call the inode.
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -863,7 +864,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	dstName := path.Join(dirInodeName, "qux")
 
 	// Create the source.
-	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
+	src, err := bucketutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -878,7 +879,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	ExpectFalse(IsSymlink(result.Object))
 
 	// Check resulting contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
+	contents, err := bucketutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -888,11 +889,11 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	dstName := path.Join(dirInodeName, "qux")
 
 	// Create the source.
-	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
+	src, err := bucketutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// And a destination object that will be overwritten.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -908,7 +909,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	ExpectEq(len("taco"), result.Object.Size)
 
 	// Check resulting contents.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
+	contents, err := bucketutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -920,7 +921,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	var err error
 
 	// Create the source.
-	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
+	src, err := bucketutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	// Clone to the destination.
@@ -929,7 +930,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	// Create a backing object for a directory.
 	dirObjName := dstName + "/"
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -977,7 +978,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -998,7 +999,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the symlink,
@@ -1045,7 +1046,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1068,7 +1069,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong generation. No error should be returned.
@@ -1076,7 +1077,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	AssertEq(nil, err)
 
 	// The original generation should still be there.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
+	contents, err := bucketutil.ReadObject(t.ctx, t.bucket, objName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -1088,7 +1089,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong meta-generation. No error should be
@@ -1100,7 +1101,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	ExpectThat(err, Error(HasSubstr("meta-generation")))
 
 	// The original generation should still be there.
-	contents, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
+	contents, err := bucketutil.ReadObject(t.ctx, t.bucket, objName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -1112,7 +1113,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	var err error
 
 	// Create a backing object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1120,8 +1121,8 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	_, err = bucketutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -1132,7 +1133,7 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1140,8 +1141,8 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	_, err = bucketutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -1158,7 +1159,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// Create a backing object for a directory. It should be shadowed by the
 	// file.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -1194,7 +1195,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	var err error
 
 	// Create a backing object.
-	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = bucketutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1202,8 +1203,8 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	_, err = bucketutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 

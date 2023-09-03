@@ -20,8 +20,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -58,7 +58,7 @@ func (t *CoreTest) TearDown() {}
 ////////////////////////////////////////////////////////////////////////
 
 func (t *CoreTest) File() {
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	name := inode.NewFileName(inode.NewRootName(t.bucket.Name()), o.Name)
@@ -84,7 +84,7 @@ func (t *CoreTest) LocalFile() {
 }
 
 func (t *CoreTest) ExplicitDir() {
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, "bar/", []byte(""))
 	AssertEq(nil, err)
 
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), o.Name)
@@ -126,7 +126,7 @@ func (t *CoreTest) Nonexistent() {
 
 func (t *CoreTest) SanityCheck() {
 	root := inode.NewRootName(t.bucket.Name())
-	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
+	o, err := bucketutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
 	AssertEq(nil, err)
 
 	c := &inode.Core{

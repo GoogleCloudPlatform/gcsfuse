@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package object
 
 import (
 	"crypto/md5"
@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	. "github.com/jacobsa/ogletest"
 	storagev1 "google.golang.org/api/storage/v1"
 )
@@ -181,7 +180,7 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 	var metaGenerationPrecondition int64 = 33
 	md5Hash := md5.Sum([]byte("testing"))
 	timeInRFC3339 := "2006-01-02T15:04:05Z07:00"
-	createObjectRequest := gcs.CreateObjectRequest{
+	createObjectRequest := CreateObjectRequest{
 		Name:                       "test_object",
 		ContentType:                "json",
 		ContentEncoding:            "universal",

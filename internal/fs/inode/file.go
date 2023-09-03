@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -72,7 +73,7 @@ type FileInode struct {
 	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src storage.MinObject
+	src object.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -167,14 +168,14 @@ func (f *FileInode) checkInvariants() {
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
-	req := &gcs.StatObjectRequest{
+	req := &object.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
 	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
 		if f.IsLocal() {
@@ -203,7 +204,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
-		&gcs.ReadObjectRequest{
+		&object.ReadObjectRequest{
 			Name:           f.src.Name,
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
@@ -304,7 +305,7 @@ func (f *FileInode) Unlink() {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *storage.MinObject {
+func (f *FileInode) Source() *object.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -510,7 +511,7 @@ func (f *FileInode) SetMtime(
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
 	srcGen := f.SourceGeneration()
 
-	req := &gcs.UpdateObjectRequest{
+	req := &object.UpdateObjectRequest{
 		Name:                       f.src.Name,
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
@@ -525,7 +526,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
@@ -533,7 +534,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		// Special case: silently ignore precondition errors, which we also take to
 		// mean the file has been unlinked.
@@ -583,7 +584,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = nil
 		return
@@ -644,13 +645,13 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) storage.MinObject {
-	var min storage.MinObject
+func convertObjToMinObject(o *gcs.Object) object.MinObject {
+	var min object.MinObject
 	if o == nil {
 		return min
 	}
 
-	return storage.MinObject{
+	return object.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,

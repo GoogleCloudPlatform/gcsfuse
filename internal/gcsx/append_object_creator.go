@@ -22,6 +22,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -36,7 +39,7 @@ import (
 // has been clobbered.
 func newAppendObjectCreator(
 	prefix string,
-	bucket gcs.Bucket) (oc objectCreator) {
+	bucket bucket.Bucket) (oc objectCreator) {
 	oc = &appendObjectCreator{
 		prefix: prefix,
 		bucket: bucket,
@@ -51,7 +54,7 @@ func newAppendObjectCreator(
 
 type appendObjectCreator struct {
 	prefix string
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func (oc *appendObjectCreator) chooseName() (name string, err error) {
@@ -98,7 +101,7 @@ func (oc *appendObjectCreator) Create(
 	var zero int64
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
-		&gcs.CreateObjectRequest{
+		&object.CreateObjectRequest{
 			Name:                   tmpName,
 			GenerationPrecondition: &zero,
 			Contents:               r,
@@ -112,7 +115,7 @@ func (oc *appendObjectCreator) Create(
 	defer func() {
 		deleteErr := oc.bucket.DeleteObject(
 			ctx,
-			&gcs.DeleteObjectRequest{
+			&object.DeleteObjectRequest{
 				Name:       tmp.Name,
 				Generation: 0, // Delete the latest generation of temporary object.
 			})
@@ -136,17 +139,17 @@ func (oc *appendObjectCreator) Create(
 	// Compose the old contents plus the new over the old.
 	o, err = oc.bucket.ComposeObjects(
 		ctx,
-		&gcs.ComposeObjectsRequest{
+		&object.ComposeObjectsRequest{
 			DstName:                       srcObject.Name,
 			DstGenerationPrecondition:     &srcObject.Generation,
 			DstMetaGenerationPrecondition: &srcObject.MetaGeneration,
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []object.ComposeSource{
+				object.ComposeSource{
 					Name:       srcObject.Name,
 					Generation: srcObject.Generation,
 				},
 
-				gcs.ComposeSource{
+				object.ComposeSource{
 					Name:       tmp.Name,
 					Generation: tmp.Generation,
 				},
@@ -164,9 +167,9 @@ func (oc *appendObjectCreator) Create(
 		// A not found error means that either the source object was clobbered or the
 		// temporary object was. The latter is unlikely, so we signal a precondition
 		// error.
-		var notFoundErr *gcs.NotFoundError
+		var notFoundErr *storage.NotFoundError
 		if errors.As(err, &notFoundErr) {
-			err = &gcs.PreconditionError{
+			err = &storage.PreconditionError{
 				Err: err,
 			}
 		}

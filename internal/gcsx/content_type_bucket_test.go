@@ -18,7 +18,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/jacobsa/timeutil"
@@ -86,7 +85,7 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 			fake.NewFakeBucket(timeutil.RealClock(), ""))
 
 		// Create the object.
-		req := &gcs.CreateObjectRequest{
+		req := &bucket.CreateObjectRequest{
 			Name:        tc.name,
 			ContentType: tc.request,
 			Contents:    strings.NewReader(""),
@@ -115,7 +114,7 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 
 		// Create a source object.
 		const srcName = "some_src"
-		_, err = bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
+		_, err = bucket.CreateObject(ctx, &bucket.CreateObjectRequest{
 			Name:     srcName,
 			Contents: strings.NewReader(""),
 		})
@@ -125,10 +124,10 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 		}
 
 		// Compose.
-		req := &gcs.ComposeObjectsRequest{
+		req := &bucket.ComposeObjectsRequest{
 			DstName:     tc.name,
 			ContentType: tc.request,
-			Sources:     []gcs.ComposeSource{{Name: srcName}},
+			Sources:     []bucket.ComposeSource{{Name: srcName}},
 		}
 
 		o, err := bucket.ComposeObjects(ctx, req)
