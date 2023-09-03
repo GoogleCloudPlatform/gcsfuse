@@ -29,14 +29,14 @@ func ListPrefix(
 	bucket bucket.Bucket,
 	prefix string,
 	objects chan<- *object.Object) (err error) {
-	req := &bucket.ListObjectsRequest{
+	req := &object.ListObjectsRequest{
 		Prefix: prefix,
 	}
 
 	// List until we run out.
 	for {
 		// Fetch the next batch.
-		var listing *bucket.Listing
+		var listing *object.Listing
 		listing, err = bucket.ListObjects(ctx, req)
 		if err != nil {
 			err = fmt.Errorf("ListObjects: %v", err)

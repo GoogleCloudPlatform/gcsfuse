@@ -33,7 +33,7 @@ func ListAll(
 	err error) {
 	for {
 		// Grab one set of results.
-		var listing *bucket.Listing
+		var listing *object.Listing
 		if listing, err = bucket.ListObjects(ctx, req); err != nil {
 			return
 		}

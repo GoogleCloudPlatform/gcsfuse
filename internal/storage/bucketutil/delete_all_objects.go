@@ -59,7 +59,7 @@ func DeleteAllObjects(
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
 					ctx,
-					&bucket.DeleteObjectRequest{
+					&object.DeleteObjectRequest{
 						Name: objectName,
 					})
 
