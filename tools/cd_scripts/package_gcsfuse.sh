@@ -50,12 +50,12 @@ function fetch_meta_data_value() {
 function check_docker_build_failure() {
     if [[ $? -ne 0 ]]; then
       echo "docker build fails."
-      exitCode=1
+      exit_code=1
     fi
 }
 
 function exit_in_failure() {
-    if [[ $exitCode == 1 ]]; then
+    if [[ $exit_code == 1 ]]; then
        exit 1
     fi
 }
@@ -85,7 +85,7 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 
 # Setting set +e to capture error output in log file and send it on the bucket.
 set +e
-exitCode=0
+exit_code=0
 echo "Building docker for amd64 ..."
 sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --platform=linux/amd64 &> docker_amd64.log &
 pid1=$!
