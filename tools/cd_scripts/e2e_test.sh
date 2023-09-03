@@ -75,7 +75,6 @@ then
     sudo apt install -y build-essential
 else
 #  For rhel and centos
-
     # uname can be aarch or x86_64
     uname=$(uname -i)
 
