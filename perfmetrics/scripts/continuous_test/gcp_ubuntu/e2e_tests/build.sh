@@ -18,8 +18,8 @@
 set -e
 sudo apt-get update
 
-architecture=$(dpkg --print-architecture)
 # e.g. architecture=arm64 or amd64
+architecture=$(dpkg --print-architecture)
 echo "Installing git"
 sudo apt-get install git
 echo "Installing go-lang 1.20.5"
