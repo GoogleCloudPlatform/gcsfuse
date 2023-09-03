@@ -47,7 +47,7 @@ function fetch_meta_data_value() {
 }
 
 # Function to check docker build failure.
-function check_docket_build_failure() {
+function check_docker_build_failure() {
     if [[ $? -ne 0 ]]; then
       echo "docker build fails."
       exitCode=1
@@ -84,6 +84,7 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 
 # Setting set +e to capture error output in log file and send it on the bucket.
 set +e
+exitCode=0
 echo "Building docker for amd64 ..."
 sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --platform=linux/amd64 &> docker_amd64.log &
 pid1=$!
@@ -95,13 +96,13 @@ sudo docker buildx build --load . -t gcsfuse-release-arm64:"$RELEASE_VERSION" --
 pid2=$!
 echo "Waiting for both builds to complete ..."
 wait $pid1
-check_docket_build_failure
+check_docker_build_failure
 gsutil cp docker_amd64.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
 # Exit if any of the build fails.
 exit_in_failure
 
 wait $pid2
-check_docket_build_failure
+check_docker_build_failure
 gsutil cp docker_arm64.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
 # Exit if any of the build fails.
 exit_in_failure
