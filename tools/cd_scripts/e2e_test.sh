@@ -50,14 +50,12 @@ echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 
 # Based on the os type in detail.txt, run the following commands for setup
 
-# architecture can be amd64 or arm64
-architecture=$(dpkg --print-architecture)
-# uname can be aarch or x86_64
-uname=$(uname -i)
-
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
+    # architecture can be amd64 or arm64
+    architecture=$(dpkg --print-architecture)
+
     sudo apt update
 
     #Install fuse
@@ -77,6 +75,17 @@ then
     sudo apt install -y build-essential
 else
 #  For rhel and centos
+
+    # uname can be aarch or x86_64
+    uname=$(uname -i)
+
+    # dpkg command is not supporting arm64 machines.
+    if [[ $uname == "x86_64" ]]; then
+      architecture="amd64"
+    else if [[ $uname == "aarch64" ]]; then
+      architecture="arm64"
+    fi
+
     sudo yum makecache
     sudo yum -y update
 
