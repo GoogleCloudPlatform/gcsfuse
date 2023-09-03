@@ -80,7 +80,7 @@ else
 
     if [[ $uname == "x86_64" ]]; then
       architecture="amd64"
-    else if [[ $uname == "aarch64" ]]; then
+    elif [[ $uname == "aarch64" ]]; then
       architecture="arm64"
     fi
 
