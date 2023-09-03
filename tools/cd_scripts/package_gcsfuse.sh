@@ -59,6 +59,7 @@ function exit_in_failure() {
        exit 1
     fi
 }
+
 # Fetch metadata value of the key "RELEASE_VERSION"
 RELEASE_VERSION=$(fetch_meta_data_value "RELEASE_VERSION")
 echo RELEASE_VERSION="$RELEASE_VERSION"
