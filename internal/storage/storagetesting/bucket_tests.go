@@ -32,7 +32,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucketutil"
@@ -1636,8 +1635,8 @@ type composeTest struct {
 }
 
 func (t *composeTest) createSources(
-	contents []string) (objs []*gcs.Object, err error) {
-	objs = make([]*gcs.Object, len(contents))
+	contents []string) (objs []*object.Object, err error) {
+	objs = make([]*object.Object, len(contents))
 
 	// Write indices into a channel.
 	indices := make(chan int, len(contents))
@@ -3824,7 +3823,7 @@ func (t *listTest) NewlyCreatedObject() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	var o *gcs.Object
+	var o *object.Object
 	AssertEq(1, len(listing.Objects))
 
 	// a
@@ -3847,7 +3846,7 @@ func (t *listTest) TrivialQuery() {
 	AssertThat(listing.CollapsedRuns, ElementsAre())
 	AssertEq("", listing.ContinuationToken)
 
-	var o *gcs.Object
+	var o *object.Object
 	AssertEq(3, len(listing.Objects))
 
 	// a
