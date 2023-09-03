@@ -13,6 +13,7 @@ import (
 	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	oglemock "github.com/jacobsa/oglemock"
 )
 
@@ -27,8 +28,8 @@ type mockStatCache struct {
 }
 
 func NewMockStatCache(
-		c oglemock.Controller,
-		desc string) MockStatCache {
+	c oglemock.Controller,
+	desc string) MockStatCache {
 	return &mockStatCache{
 		controller:  c,
 		description: desc,

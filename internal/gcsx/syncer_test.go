@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -30,7 +31,6 @@ import (
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 func TestSyncer(t *testing.T) { RunTests(t) }
@@ -241,11 +241,11 @@ type fakeObjectCreator struct {
 }
 
 func (oc *fakeObjectCreator) Create(
-		ctx context.Context,
-		fileName string,
-		srcObject *object.Object,
-		mtime *time.Time,
-		r io.Reader) (o *object.Object, err error) {
+	ctx context.Context,
+	fileName string,
+	srcObject *object.Object,
+	mtime *time.Time,
+	r io.Reader) (o *object.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
 	oc.called = true

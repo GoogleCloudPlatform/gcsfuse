@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -33,8 +34,8 @@ type invariantsCache struct {
 }
 
 func (c *invariantsCache) Insert(
-		o *object.Object,
-		expiration time.Time) {
+	o *object.Object,
+	expiration time.Time) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -42,8 +43,8 @@ func (c *invariantsCache) Insert(
 }
 
 func (c *invariantsCache) AddNegativeEntry(
-		name string,
-		expiration time.Time) {
+	name string,
+	expiration time.Time) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -58,8 +59,8 @@ func (c *invariantsCache) Erase(name string) {
 }
 
 func (c *invariantsCache) LookUp(
-		name string,
-		now time.Time) (hit bool, o *object.Object) {
+	name string,
+	now time.Time) (hit bool, o *object.Object) {
 	c.wrapped.CheckInvariants()
 	defer c.wrapped.CheckInvariants()
 
@@ -68,22 +69,22 @@ func (c *invariantsCache) LookUp(
 }
 
 func (c *invariantsCache) LookUpOrNil(
-		name string,
-		now time.Time) (o *object.Object) {
+	name string,
+	now time.Time) (o *object.Object) {
 	_, o = c.LookUp(name, now)
 	return
 }
 
 func (c *invariantsCache) Hit(
-		name string,
-		now time.Time) (hit bool) {
+	name string,
+	now time.Time) (hit bool) {
 	hit, _ = c.LookUp(name, now)
 	return
 }
 
 func (c *invariantsCache) NegativeEntry(
-		name string,
-		now time.Time) (negative bool) {
+	name string,
+	now time.Time) (negative bool) {
 	hit, o := c.LookUp(name, now)
 	negative = hit && o == nil
 	return

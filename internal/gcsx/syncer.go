@@ -15,13 +15,13 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"golang.org/x/net/context"
 )
 
 // MtimeMetadataKey objects are created by Syncer.SyncObject and contain a
@@ -39,10 +39,10 @@ type Syncer interface {
 	// *   Otherwise, write out a new generation in the bucket (failing with
 	//     *gcs.PreconditionError if the source generation is no longer current).
 	SyncObject(
-			ctx context.Context,
-			fileName string,
-			srcObject *object.Object,
-			content TempFile) (o *object.Object, err error)
+		ctx context.Context,
+		fileName string,
+		srcObject *object.Object,
+		content TempFile) (o *object.Object, err error)
 }
 
 // NewSyncer creates a syncer that syncs into the supplied bucket.
@@ -55,9 +55,9 @@ type Syncer interface {
 // to delete them, but if we are interrupted for some reason we may not be able
 // to do so. Therefore the user should arrange for garbage collection.
 func NewSyncer(
-		appendThreshold int64,
-		tmpObjectPrefix string,
-		bucket bucket.Bucket) (os Syncer) {
+	appendThreshold int64,
+	tmpObjectPrefix string,
+	bucket bucket.Bucket) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -82,11 +82,11 @@ type fullObjectCreator struct {
 }
 
 func (oc *fullObjectCreator) Create(
-		ctx context.Context,
-		objectName string,
-		srcObject *object.Object,
-		mtime *time.Time,
-		r io.Reader) (o *object.Object, err error) {
+	ctx context.Context,
+	objectName string,
+	srcObject *object.Object,
+	mtime *time.Time,
+	r io.Reader) (o *object.Object, err error) {
 	metadataMap := make(map[string]string)
 
 	var req *object.CreateObjectRequest
@@ -140,11 +140,11 @@ func (oc *fullObjectCreator) Create(
 // An implementation detail of syncer. See notes on newSyncer.
 type objectCreator interface {
 	Create(
-			ctx context.Context,
-			objectName string,
-			srcObject *object.Object,
-			mtime *time.Time,
-			r io.Reader) (o *object.Object, err error)
+		ctx context.Context,
+		objectName string,
+		srcObject *object.Object,
+		mtime *time.Time,
+		r io.Reader) (o *object.Object, err error)
 }
 
 // Create a syncer that stats the mutable content to see if it's dirty before
@@ -161,9 +161,9 @@ type objectCreator interface {
 // the order of the bandwidth to GCS times three times the round trip latency
 // to GCS (for a small create, a compose, and a delete).
 func newSyncer(
-		appendThreshold int64,
-		fullCreator objectCreator,
-		appendCreator objectCreator) (os Syncer) {
+	appendThreshold int64,
+	fullCreator objectCreator,
+	appendCreator objectCreator) (os Syncer) {
 	os = &syncer{
 		appendThreshold: appendThreshold,
 		fullCreator:     fullCreator,
@@ -180,10 +180,10 @@ type syncer struct {
 }
 
 func (os *syncer) SyncObject(
-		ctx context.Context,
-		objectName string,
-		srcObject *object.Object,
-		content TempFile) (o *object.Object, err error) {
+	ctx context.Context,
+	objectName string,
+	srcObject *object.Object,
+	content TempFile) (o *object.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
@@ -233,8 +233,8 @@ func (os *syncer) SyncObject(
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
 	if srcSize >= os.appendThreshold &&
-			sr.DirtyThreshold == srcSize &&
-			srcObject.ComponentCount < object.MaxComponentCount {
+		sr.DirtyThreshold == srcSize &&
+		srcObject.ComponentCount < object.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %w", err)
