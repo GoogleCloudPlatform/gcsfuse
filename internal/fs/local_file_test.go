@@ -20,7 +20,6 @@ package fs_test
 
 import (
 	"errors"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"io/fs"
 	"os"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
