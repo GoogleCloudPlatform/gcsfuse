@@ -1,5 +1,9 @@
 #!/bin/bash
 set -e
+echo "Installing fio"
+sudo apt-get install fio -y
+echo "Installing pip"
+sudo apt-get install pip -y
 echo Print the time when FIO tests start
 date
 echo Running fio test..

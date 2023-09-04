@@ -16,18 +16,12 @@
 set -e
 sudo apt-get update
 
-# e.g. architecture=arm64 or amd64
-architecture=$(dpkg --print-architecture)
 echo "Installing git"
 sudo apt-get install git
-echo "Installing pip"
-sudo apt-get install pip -y
 echo "Installing go-lang 1.21.0"
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
-echo "Installing fio"
-sudo apt-get install fio -y
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
@@ -35,8 +29,10 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 git checkout master
 
 echo "Building and installing gcsfuse"
-chmod +x perfmetrics/scripts/build_and_install_package.sh
-./perfmetrics/scripts/build_and_install_package.sh
+# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
+./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"

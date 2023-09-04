@@ -18,7 +18,10 @@
 set -e
 sudo apt-get update
 
-readonly INTEGRATION_TEST_EXECUTION_TIME=24m
+readonly INTEGRATION_TEST_TIMEOUT=24m
+readonly PROJECT_ID="gcs-fuse-test-ml"
+readonly BUCKET_LOCATION="us-west1"
+
 # true or false to run e2e tests on installedPackage
 run_e2e_tests_on_package=$1
 
@@ -38,10 +41,10 @@ length=5
 random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
 BUCKET_NAME=$bucketPrefix$random_string
 echo 'bucket name = '$BUCKET_NAME
-gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
+gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
 
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_EXECUTION_TIME
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
 
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME/

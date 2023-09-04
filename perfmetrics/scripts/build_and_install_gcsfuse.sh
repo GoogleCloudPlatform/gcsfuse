@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This script will build gcsfuse package and install it on the machine.
 # This will stop execution when any command will have non-zero status.
-
 set -e
-
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
 echo "Installing docker..."
@@ -29,10 +28,10 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y
 
 echo "Building and installing gcsfuse..."
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+# $1 refers to branch or commit-id on which we want to build package.
+branch=$1
 # Build the gcsfuse package using the same commands used during release.
 GCSFUSE_VERSION=0.0.0
-sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse:$commitId --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$commitId --platform=linux/${architecture}
+sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse:$branch --build-arg ARCHITECTURE=${architecture} --build-arg GCSFUSE_VERSION=$GCSFUSE_VERSION --build-arg BRANCH_NAME=$branch --platform=linux/${architecture}
 sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
