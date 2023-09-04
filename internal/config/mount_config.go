@@ -24,7 +24,7 @@ type LogConfig struct {
 
 type MountConfig struct {
 	WriteConfig `yaml:"write"`
-	LogConfig   `yaml:"log"`
+	LogConfig   `yaml:"logging"`
 }
 
 func NewMountConfig() *MountConfig {
