@@ -37,7 +37,7 @@ ARG DEBFULLNAME="GCSFuse Team"
 # Build Arg for building through a particular branch/commit. By default, it uses
 # the tag corresponding to passed GCSFUSE VERSION
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
+# RUN git checkout "${BRANCH_NAME}"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
@@ -60,6 +60,10 @@ RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
 # Update gcsfuse version in changelog and control file
 RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
     sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
+
+# Update ARCHITECTURE in control file.
+RUN sed -i "6s/.*/Architecture: ${ARCHITECTURE}/" ${GCSFUSE_BIN}/DEBIAN/control
+
 # Compress changelog as required by lintian
 RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
 # Strip unneeded from binaries as required by lintian
