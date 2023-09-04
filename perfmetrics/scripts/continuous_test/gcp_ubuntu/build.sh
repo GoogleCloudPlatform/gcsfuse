@@ -25,9 +25,6 @@ export PATH=$PATH:/usr/local/go/bin
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-# Checkout back to master branch to use latest CI test scripts in master.
-git checkout master
-
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
