@@ -12,8 +12,8 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
 )
@@ -45,7 +45,7 @@ func (m *mockBucket) Oglemock_Description() string {
 	return m.description
 }
 
-func (m *mockBucket) ComposeObjects(p0 context.Context, p1 *gcs.ComposeObjectsRequest) (o0 *object.Object, o1 error) {
+func (m *mockBucket) ComposeObjects(p0 context.Context, p1 *requests.ComposeObjectsRequest) (o0 *object.Object, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -74,7 +74,7 @@ func (m *mockBucket) ComposeObjects(p0 context.Context, p1 *gcs.ComposeObjectsRe
 	return
 }
 
-func (m *mockBucket) CopyObject(p0 context.Context, p1 *gcs.CopyObjectRequest) (o0 *object.Object, o1 error) {
+func (m *mockBucket) CopyObject(p0 context.Context, p1 *requests.CopyObjectRequest) (o0 *object.Object, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -103,7 +103,7 @@ func (m *mockBucket) CopyObject(p0 context.Context, p1 *gcs.CopyObjectRequest) (
 	return
 }
 
-func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectRequest) (o0 *object.Object, o1 error) {
+func (m *mockBucket) CreateObject(p0 context.Context, p1 *requests.CreateObjectRequest) (o0 *object.Object, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -132,7 +132,7 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 	return
 }
 
-func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {
+func (m *mockBucket) DeleteObject(p0 context.Context, p1 *requests.DeleteObjectRequest) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -156,7 +156,7 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectReques
 	return
 }
 
-func (m *mockBucket) ListObjects(p0 context.Context, p1 *gcs.ListObjectsRequest) (o0 *gcs.Listing, o1 error) {
+func (m *mockBucket) ListObjects(p0 context.Context, p1 *requests.ListObjectsRequest) (o0 *requests.Listing, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -174,7 +174,7 @@ func (m *mockBucket) ListObjects(p0 context.Context, p1 *gcs.ListObjectsRequest)
 
 	// o0 *Listing
 	if retVals[0] != nil {
-		o0 = retVals[0].(*gcs.Listing)
+		o0 = retVals[0].(*requests.Listing)
 	}
 
 	// o1 error
@@ -209,7 +209,7 @@ func (m *mockBucket) Name() (o0 string) {
 	return
 }
 
-func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 io.ReadCloser, o1 error) {
+func (m *mockBucket) NewReader(p0 context.Context, p1 *requests.ReadObjectRequest) (o0 io.ReadCloser, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -238,7 +238,7 @@ func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o
 	return
 }
 
-func (m *mockBucket) StatObject(p0 context.Context, p1 *gcs.StatObjectRequest) (o0 *object.Object, o1 error) {
+func (m *mockBucket) StatObject(p0 context.Context, p1 *requests.StatObjectRequest) (o0 *object.Object, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -267,7 +267,7 @@ func (m *mockBucket) StatObject(p0 context.Context, p1 *gcs.StatObjectRequest) (
 	return
 }
 
-func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectRequest) (o0 *object.Object, o1 error) {
+func (m *mockBucket) UpdateObject(p0 context.Context, p1 *requests.UpdateObjectRequest) (o0 *object.Object, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 

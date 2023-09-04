@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -104,7 +104,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *object.Object {
 
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
 // These attributes will be assigned to the newly created or old object.
-func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {
+func SetAttrsInWriter(wc *storage.Writer, req *requests.CreateObjectRequest) *storage.Writer {
 	wc.Name = req.Name
 	wc.ContentType = req.ContentType
 	wc.ContentLanguage = req.ContentLanguage

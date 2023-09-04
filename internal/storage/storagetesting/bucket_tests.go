@@ -32,10 +32,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -250,7 +250,7 @@ func listDifference(a []string, b []string) (res []string) {
 func readMultiple(
 	ctx context.Context,
 	bucket bucket.Bucket,
-	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
+	reqs []*requests.ReadObjectRequest) (contents [][]byte, errs []error) {
 	b := syncutil.NewBundle(ctx)
 
 	// Feed indices into a channel.
@@ -377,7 +377,7 @@ func (t *bucketTest) createObject(name string, contents string) error {
 
 func (t *bucketTest) readObject(objectName string) (contents string, err error) {
 	// Open a reader.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: objectName,
 	}
 
@@ -441,7 +441,7 @@ func (t *createTest) EmptyObject() {
 	AssertEq(nil, t.createObject("foo", ""))
 
 	// Ensure it shows up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -459,7 +459,7 @@ func (t *createTest) NonEmptyObject() {
 	AssertEq(nil, t.createObject("foo", "taco"))
 
 	// Ensure it shows up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -478,7 +478,7 @@ func (t *createTest) Overwrite() {
 	// Create a first version of an object, with some custom metadata.
 	_, err = t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name: "foo",
 			Metadata: map[string]string{
 				"foo": "bar",
@@ -491,7 +491,7 @@ func (t *createTest) Overwrite() {
 	// Overwrite it with another version.
 	_, err = t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader("burrito"),
 		})
@@ -499,7 +499,7 @@ func (t *createTest) Overwrite() {
 	AssertEq(nil, err)
 
 	// The second version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -547,7 +547,7 @@ func (t *createTest) ObjectAttributes_Default() {
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
 	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -560,7 +560,7 @@ func (t *createTest) ObjectAttributes_Default() {
 func (t *createTest) ObjectAttributes_Explicit() {
 	// Create an object with explicit attributes set.
 	createTime := t.clock.Now()
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:            "foo",
 		ContentType:     "image/png",
 		ContentLanguage: "fr",
@@ -601,7 +601,7 @@ func (t *createTest) ObjectAttributes_Explicit() {
 	ExpectThat(o.Updated, t.matchesStartTime(createTime))
 
 	// Make sure it matches what is in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -615,7 +615,7 @@ func (t *createTest) ErrorAfterPartialContents() {
 	const contents = "tacoburritoenchilada"
 
 	// Set up a reader that will return some successful data, then an error.
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name: "foo",
 		Contents: iotest.TimeoutReader(
 			iotest.OneByteReader(
@@ -629,7 +629,7 @@ func (t *createTest) ErrorAfterPartialContents() {
 	ExpectThat(err, Error(HasSubstr("timeout")))
 
 	// The object should not show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -688,7 +688,7 @@ func (t *createTest) InterestingNames() {
 	AssertEq(nil, err)
 
 	// Grab a listing and extract the names.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -760,7 +760,7 @@ func (t *createTest) IllegalNames() {
 	AssertEq(nil, err)
 
 	// No objects should have been created.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -777,7 +777,7 @@ func (t *createTest) IncorrectCRC32C() {
 	crc32c := storageutil.CRC32C([]byte(contents))
 	*crc32c++
 
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
 		CRC32C:   crc32c,
@@ -788,7 +788,7 @@ func (t *createTest) IncorrectCRC32C() {
 	AssertThat(err, Error(HasSubstr("match")))
 
 	// It should not have been created.
-	statReq := &gcs.StatObjectRequest{
+	statReq := &requests.StatObjectRequest{
 		Name: name,
 	}
 
@@ -802,7 +802,7 @@ func (t *createTest) CorrectCRC32C() {
 	var err error
 
 	// Create
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
 		CRC32C:   storageutil.CRC32C([]byte(contents)),
@@ -822,7 +822,7 @@ func (t *createTest) IncorrectMD5() {
 	md5 := storageutil.MD5([]byte(contents))
 	(*md5)[13]++
 
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
 		MD5:      md5,
@@ -833,7 +833,7 @@ func (t *createTest) IncorrectMD5() {
 	AssertThat(err, Error(HasSubstr("match")))
 
 	// It should not have been created.
-	statReq := &gcs.StatObjectRequest{
+	statReq := &requests.StatObjectRequest{
 		Name: name,
 	}
 
@@ -847,7 +847,7 @@ func (t *createTest) CorrectMD5() {
 	var err error
 
 	// Create
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
 		MD5:      storageutil.MD5([]byte(contents)),
@@ -864,7 +864,7 @@ func (t *createTest) CorrectCRC32CAndMD5() {
 	var err error
 
 	// Create
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
 		CRC32C:   storageutil.CRC32C([]byte(contents)),
@@ -889,7 +889,7 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 	// Request to create another version of the object, with a precondition
 	// saying it shouldn't exist. The request should fail.
 	var gen int64 = 0
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                   "foo",
 		Contents:               strings.NewReader("burrito"),
 		GenerationPrecondition: &gen,
@@ -901,7 +901,7 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 	ExpectThat(err, Error(MatchesRegexp("object exists|googleapi.*412")))
 
 	// The old version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -922,7 +922,7 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 	// Request to create an object with a precondition saying it shouldn't exist.
 	// The request should succeed.
 	var gen int64 = 0
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                   "foo",
 		Contents:               strings.NewReader("burrito"),
 		GenerationPrecondition: &gen,
@@ -935,7 +935,7 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 	ExpectNe(0, o.Generation)
 
 	// The object should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -956,7 +956,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 	// Request to create a non-existent object with a precondition saying it
 	// should already exist with some generation number. The request should fail.
 	var gen int64 = 17
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                   "foo",
 		Contents:               strings.NewReader("burrito"),
 		GenerationPrecondition: &gen,
@@ -968,7 +968,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 	ExpectThat(err, Error(MatchesRegexp("object doesn't exist|googleapi.*412")))
 
 	// Nothing should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -989,7 +989,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 	// Request to create another version of the object, with a precondition for
 	// the wrong generation. The request should fail.
 	var gen int64 = o.Generation + 1
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                   "foo",
 		Contents:               strings.NewReader("burrito"),
 		GenerationPrecondition: &gen,
@@ -1001,7 +1001,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 	ExpectThat(err, Error(MatchesRegexp("generation|googleapi.*412")))
 
 	// The old version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -1032,7 +1032,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	// saying it should exist with the appropriate generation number. The request
 	// should succeed.
 	var gen int64 = orig.Generation
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                   "foo",
 		Contents:               strings.NewReader("burrito"),
 		GenerationPrecondition: &gen,
@@ -1045,7 +1045,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	ExpectNe(orig.Generation, o.Generation)
 
 	// The new version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -1068,7 +1068,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 	// Request to create a missing object, with a precondition for
 	// meta-generation. The request should fail.
 	var metagen int64 = 1
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                       "foo",
 		Contents:                   strings.NewReader("burrito"),
 		MetaGenerationPrecondition: &metagen,
@@ -1080,7 +1080,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 	ExpectThat(err, Error(MatchesRegexp("doesn't exist|googleapi.*412")))
 
 	// Nothing should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -1101,7 +1101,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	// Request to create another version of the object, with a precondition for
 	// the wrong meta-generation. The request should fail.
 	var metagen int64 = o.MetaGeneration + 1
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                       "foo",
 		Contents:                   strings.NewReader("burrito"),
 		MetaGenerationPrecondition: &metagen,
@@ -1113,7 +1113,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	ExpectThat(err, Error(MatchesRegexp("meta-generation|googleapi.*412")))
 
 	// The old version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -1142,7 +1142,7 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 
 	// Request to create another version of the object, with a satisfied
 	// precondition.
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name:                       "foo",
 		Contents:                   strings.NewReader("burrito"),
 		MetaGenerationPrecondition: &orig.MetaGeneration,
@@ -1156,7 +1156,7 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 	ExpectEq(1, o.MetaGeneration)
 
 	// The new version should show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -1186,7 +1186,7 @@ func (t *copyTest) SourceDoesntExist() {
 	var err error
 
 	// Copy
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName: "foo",
 		DstName: "bar",
 	}
@@ -1198,7 +1198,7 @@ func (t *copyTest) SourceDoesntExist() {
 	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
-		&gcs.ListObjectsRequest{})
+		&requests.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	ExpectThat(objects, ElementsAre())
@@ -1212,7 +1212,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	createTime := t.clock.Now()
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:            "foo",
 			ContentType:     "text/plain",
 			ContentLanguage: "fr",
@@ -1232,7 +1232,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	t.advanceTime()
 
 	// Copy to a destination object.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName: "foo",
 		DstName: "bar",
 	}
@@ -1267,7 +1267,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	// And stattable.
 	statO, err := t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "bar"})
+		&requests.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectThat(statO, Pointee(DeepEquals(*dst)))
@@ -1280,7 +1280,7 @@ func (t *copyTest) DestinationExists() {
 	createTime := t.clock.Now()
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:            "foo",
 			ContentType:     "text/plain",
 			ContentLanguage: "fr",
@@ -1303,7 +1303,7 @@ func (t *copyTest) DestinationExists() {
 	// attributes set.
 	orig, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:            "bar",
 			ContentType:     "application/octet-stream",
 			ContentLanguage: "de",
@@ -1317,7 +1317,7 @@ func (t *copyTest) DestinationExists() {
 	AssertEq(nil, err)
 
 	// Copy over the existing object.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName: "foo",
 		DstName: "bar",
 	}
@@ -1352,7 +1352,7 @@ func (t *copyTest) DestinationExists() {
 	// And stattable.
 	statO, err := t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "bar"})
+		&requests.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectThat(statO, Pointee(DeepEquals(*dst)))
@@ -1365,7 +1365,7 @@ func (t *copyTest) DestinationIsSameName() {
 	createTime := t.clock.Now()
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:            "foo",
 			ContentType:     "text/plain",
 			ContentLanguage: "fr",
@@ -1385,7 +1385,7 @@ func (t *copyTest) DestinationIsSameName() {
 	t.advanceTime()
 
 	// Copy over itself.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName: "foo",
 		DstName: "foo",
 	}
@@ -1420,7 +1420,7 @@ func (t *copyTest) DestinationIsSameName() {
 	// And stattable.
 	statO, err := t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "foo"})
+		&requests.StatObjectRequest{Name: "foo"})
 
 	AssertEq(nil, err)
 	ExpectThat(statO, Pointee(DeepEquals(*dst)))
@@ -1441,7 +1441,7 @@ func (t *copyTest) InterestingNames() {
 		func(ctx context.Context, name string) (err error) {
 			_, err = t.bucket.CopyObject(
 				ctx,
-				&gcs.CopyObjectRequest{
+				&requests.CopyObjectRequest{
 					SrcName: srcName,
 					DstName: name,
 				})
@@ -1472,7 +1472,7 @@ func (t *copyTest) IllegalNames() {
 		func(ctx context.Context, name string) (err error) {
 			_, err = t.bucket.CopyObject(
 				ctx,
-				&gcs.CopyObjectRequest{
+				&requests.CopyObjectRequest{
 					SrcName: srcName,
 					DstName: name,
 				})
@@ -1506,7 +1506,7 @@ func (t *copyTest) ParticularSourceGeneration_NameDoesntExist() {
 	var err error
 
 	// Copy
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName:       "foo",
 		SrcGeneration: 17,
 		DstName:       "bar",
@@ -1522,7 +1522,7 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 	// Create a source object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader("taco"),
 		})
@@ -1530,7 +1530,7 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 	AssertEq(nil, err)
 
 	// Send a copy request for the wrong generation number.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName:       src.Name,
 		SrcGeneration: src.Generation + 1,
 		DstName:       "bar",
@@ -1546,7 +1546,7 @@ func (t *copyTest) ParticularSourceGeneration_Exists() {
 	// Create a source object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader("taco"),
 		})
@@ -1554,7 +1554,7 @@ func (t *copyTest) ParticularSourceGeneration_Exists() {
 	AssertEq(nil, err)
 
 	// Send a copy request for the right generation number.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName:       src.Name,
 		SrcGeneration: src.Generation,
 		DstName:       "bar",
@@ -1570,7 +1570,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	// Create a source object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader(""),
 		})
@@ -1579,7 +1579,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 
 	// Attempt to copy, with a precondition.
 	precond := src.MetaGeneration + 1
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName:                       "foo",
 		DstName:                       "bar",
 		SrcMetaGenerationPrecondition: &precond,
@@ -1591,7 +1591,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	// The object should not have been created.
 	_, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "bar"})
+		&requests.StatObjectRequest{Name: "bar"})
 
 	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
@@ -1602,7 +1602,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	// Create a source object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "foo",
 			Contents: strings.NewReader(""),
 		})
@@ -1610,7 +1610,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	AssertEq(nil, err)
 
 	// Copy, with a precondition.
-	req := &gcs.CopyObjectRequest{
+	req := &requests.CopyObjectRequest{
 		SrcName:                       "foo",
 		DstName:                       "bar",
 		SrcMetaGenerationPrecondition: &src.MetaGeneration,
@@ -1622,7 +1622,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	// The object should have been created.
 	_, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "bar"})
+		&requests.StatObjectRequest{Name: "bar"})
 
 	ExpectEq(nil, err)
 }
@@ -1657,7 +1657,7 @@ func (t *composeTest) createSources(
 				// ComposeObjects.
 				objs[i], err = t.bucket.CreateObject(
 					ctx,
-					&gcs.CreateObjectRequest{
+					&requests.CreateObjectRequest{
 						Name:            fmt.Sprint(i),
 						Contents:        strings.NewReader(contents[i]),
 						ContentType:     "application/json",
@@ -1696,10 +1696,10 @@ func (t *composeTest) OneSimpleSource() {
 
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 			},
@@ -1750,14 +1750,14 @@ func (t *composeTest) TwoSimpleSources() {
 
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -1808,12 +1808,12 @@ func (t *composeTest) ManySimpleSources() {
 	AssertEq(nil, err)
 
 	// Compose them.
-	req := &gcs.ComposeObjectsRequest{
+	req := &requests.ComposeObjectsRequest{
 		DstName: "foo",
 	}
 
 	for _, src := range sources {
-		req.Sources = append(req.Sources, gcs.ComposeSource{Name: src.Name})
+		req.Sources = append(req.Sources, requests.ComposeSource{Name: src.Name})
 	}
 
 	t.advanceTime()
@@ -1869,22 +1869,22 @@ func (t *composeTest) RepeatedSources() {
 
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -1934,14 +1934,14 @@ func (t *composeTest) CompositeSources() {
 	sources = append(sources, nil)
 	sources[2], err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "2",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -1955,18 +1955,18 @@ func (t *composeTest) CompositeSources() {
 
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[2].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[2].Name,
 				},
 			},
@@ -2015,14 +2015,14 @@ func (t *composeTest) Metadata() {
 	// Compose them, including metadata.
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2058,14 +2058,14 @@ func (t *composeTest) DestinationNameMatchesSource() {
 	// Compose on top of the first's name.
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: sources[0].Name,
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2099,18 +2099,18 @@ func (t *composeTest) OneSourceDoesntExist() {
 	// Attempt to compose them with a name that doesn't exist.
 	_, err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: "blah",
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2121,7 +2121,7 @@ func (t *composeTest) OneSourceDoesntExist() {
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "foo"})
+		&requests.StatObjectRequest{Name: "foo"})
 
 	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
@@ -2138,15 +2138,15 @@ func (t *composeTest) ExplicitGenerations_Exist() {
 	// Compose them.
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name:       sources[0].Name,
 					Generation: sources[0].Generation,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name:       sources[1].Name,
 					Generation: sources[1].Generation,
 				},
@@ -2173,20 +2173,20 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 	// Attempt to compose them, with the wrong generation for one of them.
 	_, err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: "foo",
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name:       sources[0].Name,
 					Generation: sources[0].Generation,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name:       sources[1].Name,
 					Generation: sources[1].Generation + 1,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name:       sources[2].Name,
 					Generation: sources[2].Generation,
 				},
@@ -2198,7 +2198,7 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "foo"})
+		&requests.StatObjectRequest{Name: "foo"})
 
 	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
@@ -2215,14 +2215,14 @@ func (t *composeTest) DestinationExists_NoPreconditions() {
 	// Attempt to compose them on top of the first.
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName: sources[0].Name,
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2257,16 +2257,16 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 	precond := sources[0].Generation + 1
 	_, err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName:                   sources[0].Name,
 			DstGenerationPrecondition: &precond,
 
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2277,7 +2277,7 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 	// Make sure the object wasn't overwritten.
 	o, err := t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: sources[0].Name})
+		&requests.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
 	ExpectEq(sources[0].Generation, o.Generation)
@@ -2297,16 +2297,16 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 	precond := sources[0].MetaGeneration + 1
 	_, err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName:                       sources[0].Name,
 			DstMetaGenerationPrecondition: &precond,
 
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2317,7 +2317,7 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 	// Make sure the object wasn't overwritten.
 	o, err := t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: sources[0].Name})
+		&requests.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
 	ExpectEq(sources[0].Generation, o.Generation)
@@ -2337,17 +2337,17 @@ func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
 	// Attempt to compose them on top of the first.
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName:                       sources[0].Name,
 			DstGenerationPrecondition:     &sources[0].Generation,
 			DstMetaGenerationPrecondition: &sources[0].MetaGeneration,
 
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2382,16 +2382,16 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 	var precond int64 = 1
 	_, err = t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName:                   "foo",
 			DstGenerationPrecondition: &precond,
 
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2402,7 +2402,7 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: "foo"})
+		&requests.StatObjectRequest{Name: "foo"})
 
 	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
@@ -2420,16 +2420,16 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 	var precond int64 = 0
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&gcs.ComposeObjectsRequest{
+		&requests.ComposeObjectsRequest{
 			DstName:                   "foo",
 			DstGenerationPrecondition: &precond,
 
-			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+			Sources: []requests.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[0].Name,
 				},
 
-				gcs.ComposeSource{
+				requests.ComposeSource{
 					Name: sources[1].Name,
 				},
 			},
@@ -2453,7 +2453,7 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 
 func (t *composeTest) ZeroSources() {
 	// GCS doesn't like zero-source requests (and so neither should our fake).
-	req := &gcs.ComposeObjectsRequest{
+	req := &requests.ComposeObjectsRequest{
 		DstName: "foo",
 	}
 
@@ -2465,7 +2465,7 @@ func (t *composeTest) TooManySources() {
 	// Create an original object.
 	src, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "src",
 			Contents: strings.NewReader(""),
 		})
@@ -2473,12 +2473,12 @@ func (t *composeTest) TooManySources() {
 	AssertEq(nil, err)
 
 	// Attempt to compose too many copies of it.
-	req := &gcs.ComposeObjectsRequest{
+	req := &requests.ComposeObjectsRequest{
 		DstName: "foo",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest+1; i++ {
-		req.Sources = append(req.Sources, gcs.ComposeSource{Name: src.Name})
+	for i := 0; i < requests.MaxSourcesPerComposeRequest+1; i++ {
+		req.Sources = append(req.Sources, requests.ComposeSource{Name: src.Name})
 	}
 
 	_, err = t.bucket.ComposeObjects(t.ctx, req)
@@ -2490,13 +2490,13 @@ func (t *composeTest) ComponentCountLimits() {
 	// The tests below assume that we can hit the max component count with two
 	// rounds of composing.
 	AssertEq(
-		gcs.MaxComponentCount,
-		gcs.MaxSourcesPerComposeRequest*gcs.MaxSourcesPerComposeRequest)
+		requests.MaxComponentCount,
+		requests.MaxSourcesPerComposeRequest*requests.MaxSourcesPerComposeRequest)
 
 	// Create a single original object.
 	small, err := t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     "small",
 			Contents: strings.NewReader("a"),
 		})
@@ -2504,42 +2504,42 @@ func (t *composeTest) ComponentCountLimits() {
 	AssertEq(nil, err)
 
 	// Compose as many copies of it as possible.
-	req := &gcs.ComposeObjectsRequest{
+	req := &requests.ComposeObjectsRequest{
 		DstName: "medium",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest; i++ {
-		req.Sources = append(req.Sources, gcs.ComposeSource{Name: small.Name})
+	for i := 0; i < requests.MaxSourcesPerComposeRequest; i++ {
+		req.Sources = append(req.Sources, requests.ComposeSource{Name: small.Name})
 	}
 
 	medium, err := t.bucket.ComposeObjects(t.ctx, req)
 
 	AssertEq(nil, err)
-	AssertEq(gcs.MaxSourcesPerComposeRequest, medium.ComponentCount)
-	AssertEq(gcs.MaxSourcesPerComposeRequest, medium.Size)
+	AssertEq(requests.MaxSourcesPerComposeRequest, medium.ComponentCount)
+	AssertEq(requests.MaxSourcesPerComposeRequest, medium.Size)
 
 	// Compose that many copies over again to hit the maximum component count
 	// limit.
-	req = &gcs.ComposeObjectsRequest{
+	req = &requests.ComposeObjectsRequest{
 		DstName: "large",
 	}
 
-	for i := 0; i < gcs.MaxSourcesPerComposeRequest; i++ {
-		req.Sources = append(req.Sources, gcs.ComposeSource{Name: medium.Name})
+	for i := 0; i < requests.MaxSourcesPerComposeRequest; i++ {
+		req.Sources = append(req.Sources, requests.ComposeSource{Name: medium.Name})
 	}
 
 	large, err := t.bucket.ComposeObjects(t.ctx, req)
 
 	AssertEq(nil, err)
-	AssertEq(gcs.MaxComponentCount, large.ComponentCount)
-	AssertEq(gcs.MaxComponentCount, large.Size)
+	AssertEq(requests.MaxComponentCount, large.ComponentCount)
+	AssertEq(requests.MaxComponentCount, large.Size)
 
 	// Attempting to add one more component should fail.
-	req = &gcs.ComposeObjectsRequest{
+	req = &requests.ComposeObjectsRequest{
 		DstName: "foo",
-		Sources: []gcs.ComposeSource{
-			gcs.ComposeSource{Name: large.Name},
-			gcs.ComposeSource{Name: small.Name},
+		Sources: []requests.ComposeSource{
+			requests.ComposeSource{Name: large.Name},
+			requests.ComposeSource{Name: small.Name},
 		},
 	}
 
@@ -2563,11 +2563,11 @@ func (t *composeTest) InterestingNames() {
 		func(ctx context.Context, name string) (err error) {
 			_, err = t.bucket.ComposeObjects(
 				ctx,
-				&gcs.ComposeObjectsRequest{
+				&requests.ComposeObjectsRequest{
 					DstName: name,
-					Sources: []gcs.ComposeSource{
-						gcs.ComposeSource{Name: srcName},
-						gcs.ComposeSource{Name: srcName},
+					Sources: []requests.ComposeSource{
+						requests.ComposeSource{Name: srcName},
+						requests.ComposeSource{Name: srcName},
 					},
 				})
 
@@ -2597,11 +2597,11 @@ func (t *composeTest) IllegalNames() {
 		func(ctx context.Context, name string) (err error) {
 			_, err = t.bucket.ComposeObjects(
 				ctx,
-				&gcs.ComposeObjectsRequest{
+				&requests.ComposeObjectsRequest{
 					DstName: name,
-					Sources: []gcs.ComposeSource{
-						gcs.ComposeSource{Name: srcName},
-						gcs.ComposeSource{Name: srcName},
+					Sources: []requests.ComposeSource{
+						requests.ComposeSource{Name: srcName},
+						requests.ComposeSource{Name: srcName},
 					},
 				})
 
@@ -2639,7 +2639,7 @@ type readTest struct {
 }
 
 func (t *readTest) ObjectNameDoesntExist() {
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: "foobar",
 	}
 
@@ -2658,7 +2658,7 @@ func (t *readTest) EmptyObject() {
 	AssertEq(nil, t.createObject("foo", ""))
 
 	// Read
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: "foo",
 	}
 
@@ -2678,7 +2678,7 @@ func (t *readTest) NonEmptyObject() {
 	AssertEq(nil, t.createObject("foo", "taco"))
 
 	// Read
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: "foo",
 	}
 
@@ -2705,7 +2705,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 	AssertGt(o.Generation, 0)
 
 	// Attempt to read a different generation.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name:       "foo",
 		Generation: o.Generation + 1,
 	}
@@ -2734,14 +2734,14 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 	// Delete it.
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name: "foo",
 		})
 
 	AssertEq(nil, err)
 
 	// Attempt to read by that generation.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name:       "foo",
 		Generation: o.Generation,
 	}
@@ -2768,7 +2768,7 @@ func (t *readTest) ParticularGeneration_Exists() {
 	AssertGt(o.Generation, 0)
 
 	// Attempt to read the correct generation.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name:       "foo",
 		Generation: o.Generation,
 	}
@@ -2807,7 +2807,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	AssertNe(o.Generation, o2.Generation)
 
 	// Reading by the old generation should fail.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name:       "foo",
 		Generation: o.Generation,
 	}
@@ -2841,54 +2841,54 @@ func (t *readTest) Ranges_EmptyObject() {
 
 	// Test cases.
 	testCases := []struct {
-		br gcs.ByteRange
+		br requests.ByteRange
 	}{
 		// Empty without knowing object length
-		{gcs.ByteRange{Start: 0, Limit: 0}},
+		{requests.ByteRange{Start: 0, Limit: 0}},
 
-		{gcs.ByteRange{Start: 1, Limit: 1}},
-		{gcs.ByteRange{Start: 1, Limit: 0}},
+		{requests.ByteRange{Start: 1, Limit: 1}},
+		{requests.ByteRange{Start: 1, Limit: 0}},
 
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64}},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 17}},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64}},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 17}},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 0}},
 
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: 17}},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: 0}},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: 17}},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: 0}},
 
 		// Not empty without knowing object length
-		{gcs.ByteRange{Start: 0, Limit: 1}},
-		{gcs.ByteRange{Start: 0, Limit: 17}},
-		{gcs.ByteRange{Start: 0, Limit: math.MaxInt64}},
-		{gcs.ByteRange{Start: 0, Limit: math.MaxUint64}},
+		{requests.ByteRange{Start: 0, Limit: 1}},
+		{requests.ByteRange{Start: 0, Limit: 17}},
+		{requests.ByteRange{Start: 0, Limit: math.MaxInt64}},
+		{requests.ByteRange{Start: 0, Limit: math.MaxUint64}},
 
-		{gcs.ByteRange{Start: 1, Limit: 2}},
-		{gcs.ByteRange{Start: 1, Limit: 17}},
-		{gcs.ByteRange{Start: 1, Limit: math.MaxInt64}},
-		{gcs.ByteRange{Start: 1, Limit: math.MaxUint64}},
+		{requests.ByteRange{Start: 1, Limit: 2}},
+		{requests.ByteRange{Start: 1, Limit: 17}},
+		{requests.ByteRange{Start: 1, Limit: math.MaxInt64}},
+		{requests.ByteRange{Start: 1, Limit: math.MaxUint64}},
 
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}},
 	}
 
 	// Turn test cases into read requests.
-	var requests []*gcs.ReadObjectRequest
+	var reqs []*requests.ReadObjectRequest
 	for _, tc := range testCases {
 		br := tc.br
-		req := &gcs.ReadObjectRequest{
+		req := &requests.ReadObjectRequest{
 			Name:  "foo",
 			Range: &br,
 		}
 
-		requests = append(requests, req)
+		reqs = append(reqs, req)
 	}
 
 	// Make each request.
 	contents, errs := readMultiple(
 		t.ctx,
 		t.bucket,
-		requests)
+		reqs)
 
 	AssertEq(len(testCases), len(contents))
 	AssertEq(len(testCases), len(errs))
@@ -2905,82 +2905,82 @@ func (t *readTest) Ranges_NonEmptyObject() {
 
 	// Test cases.
 	testCases := []struct {
-		br               gcs.ByteRange
+		br               requests.ByteRange
 		expectedContents string
 	}{
 		// Left anchored
-		{gcs.ByteRange{Start: 0, Limit: math.MaxUint64}, "taco"},
-		{gcs.ByteRange{Start: 0, Limit: 5}, "taco"},
-		{gcs.ByteRange{Start: 0, Limit: 4}, "taco"},
-		{gcs.ByteRange{Start: 0, Limit: 3}, "tac"},
-		{gcs.ByteRange{Start: 0, Limit: 1}, "t"},
-		{gcs.ByteRange{Start: 0, Limit: 0}, ""},
+		{requests.ByteRange{Start: 0, Limit: math.MaxUint64}, "taco"},
+		{requests.ByteRange{Start: 0, Limit: 5}, "taco"},
+		{requests.ByteRange{Start: 0, Limit: 4}, "taco"},
+		{requests.ByteRange{Start: 0, Limit: 3}, "tac"},
+		{requests.ByteRange{Start: 0, Limit: 1}, "t"},
+		{requests.ByteRange{Start: 0, Limit: 0}, ""},
 
 		// Floating left edge
-		{gcs.ByteRange{Start: 1, Limit: math.MaxUint64}, "aco"},
-		{gcs.ByteRange{Start: 1, Limit: 5}, "aco"},
-		{gcs.ByteRange{Start: 1, Limit: 4}, "aco"},
-		{gcs.ByteRange{Start: 1, Limit: 2}, "a"},
-		{gcs.ByteRange{Start: 1, Limit: 1}, ""},
-		{gcs.ByteRange{Start: 1, Limit: 0}, ""},
+		{requests.ByteRange{Start: 1, Limit: math.MaxUint64}, "aco"},
+		{requests.ByteRange{Start: 1, Limit: 5}, "aco"},
+		{requests.ByteRange{Start: 1, Limit: 4}, "aco"},
+		{requests.ByteRange{Start: 1, Limit: 2}, "a"},
+		{requests.ByteRange{Start: 1, Limit: 1}, ""},
+		{requests.ByteRange{Start: 1, Limit: 0}, ""},
 
 		// Left edge at right edge of object
-		{gcs.ByteRange{Start: 4, Limit: math.MaxUint64}, ""},
-		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 + 0}, ""},
-		{gcs.ByteRange{Start: 4, Limit: math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{Start: 4, Limit: 17}, ""},
-		{gcs.ByteRange{Start: 4, Limit: 5}, ""},
-		{gcs.ByteRange{Start: 4, Limit: 4}, ""},
-		{gcs.ByteRange{Start: 4, Limit: 1}, ""},
-		{gcs.ByteRange{Start: 4, Limit: 0}, ""},
+		{requests.ByteRange{Start: 4, Limit: math.MaxUint64}, ""},
+		{requests.ByteRange{Start: 4, Limit: math.MaxInt64 + 1}, ""},
+		{requests.ByteRange{Start: 4, Limit: math.MaxInt64 + 0}, ""},
+		{requests.ByteRange{Start: 4, Limit: math.MaxInt64 - 1}, ""},
+		{requests.ByteRange{Start: 4, Limit: 17}, ""},
+		{requests.ByteRange{Start: 4, Limit: 5}, ""},
+		{requests.ByteRange{Start: 4, Limit: 4}, ""},
+		{requests.ByteRange{Start: 4, Limit: 1}, ""},
+		{requests.ByteRange{Start: 4, Limit: 0}, ""},
 
 		// Left edge past right edge of object
-		{gcs.ByteRange{Start: 5, Limit: math.MaxUint64}, ""},
-		{gcs.ByteRange{Start: 5, Limit: 17}, ""},
-		{gcs.ByteRange{Start: 5, Limit: 5}, ""},
-		{gcs.ByteRange{Start: 5, Limit: 4}, ""},
-		{gcs.ByteRange{Start: 5, Limit: 1}, ""},
-		{gcs.ByteRange{Start: 5, Limit: 0}, ""},
+		{requests.ByteRange{Start: 5, Limit: math.MaxUint64}, ""},
+		{requests.ByteRange{Start: 5, Limit: 17}, ""},
+		{requests.ByteRange{Start: 5, Limit: 5}, ""},
+		{requests.ByteRange{Start: 5, Limit: 4}, ""},
+		{requests.ByteRange{Start: 5, Limit: 1}, ""},
+		{requests.ByteRange{Start: 5, Limit: 0}, ""},
 
 		// Left edge is 2^63 - 1
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 0}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 5}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxUint64}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 1}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 + 0}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: math.MaxInt64 - 1}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 5}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
 
 		// Left edge is 2^64 - 1
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}, ""},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 + 1}, ""},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64}, ""},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 - 1}, ""},
-		{gcs.ByteRange{Start: math.MaxUint64, Limit: 5}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
-		{gcs.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: math.MaxUint64}, ""},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 + 1}, ""},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64}, ""},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: math.MaxInt64 - 1}, ""},
+		{requests.ByteRange{Start: math.MaxUint64, Limit: 5}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 4}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 1}, ""},
+		{requests.ByteRange{Start: math.MaxInt64, Limit: 0}, ""},
 	}
 
 	// Turn test cases into read requests.
-	var requests []*gcs.ReadObjectRequest
+	var reqs []*requests.ReadObjectRequest
 	for _, tc := range testCases {
 		br := tc.br
-		req := &gcs.ReadObjectRequest{
+		req := &requests.ReadObjectRequest{
 			Name:  "foo",
 			Range: &br,
 		}
 
-		requests = append(requests, req)
+		reqs = append(reqs, req)
 	}
 
 	// Make each request.
 	contents, errs := readMultiple(
 		t.ctx,
 		t.bucket,
-		requests)
+		reqs)
 
 	AssertEq(len(testCases), len(contents))
 	AssertEq(len(testCases), len(errs))
@@ -3000,7 +3000,7 @@ type statTest struct {
 }
 
 func (t *statTest) NonExistentObject() {
-	req := &gcs.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -3021,7 +3021,7 @@ func (t *statTest) StatAfterCreating() {
 	t.advanceTime()
 
 	// Stat it.
-	req := &gcs.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -3054,7 +3054,7 @@ func (t *statTest) StatAfterOverwriting() {
 	t.advanceTime()
 
 	// Stat it.
-	req := &gcs.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -3080,7 +3080,7 @@ func (t *statTest) StatAfterUpdating() {
 	t.advanceTime()
 
 	// Update the object.
-	ureq := &gcs.UpdateObjectRequest{
+	ureq := &requests.UpdateObjectRequest{
 		Name:        "foo",
 		ContentType: makeStringPtr("image/png"),
 	}
@@ -3103,7 +3103,7 @@ func (t *statTest) StatAfterUpdating() {
 	t.advanceTime()
 
 	// Stat the object.
-	req := &gcs.StatObjectRequest{
+	req := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -3128,7 +3128,7 @@ type updateTest struct {
 }
 
 func (t *updateTest) NonExistentObject() {
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:        "foo",
 		ContentType: makeStringPtr("image/png"),
 	}
@@ -3141,7 +3141,7 @@ func (t *updateTest) NonExistentObject() {
 
 func (t *updateTest) RemoveAllFields() {
 	// Create an object with explicit attributes set.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:            "foo",
 		ContentType:     "image/png",
 		ContentEncoding: "gzip",
@@ -3158,7 +3158,7 @@ func (t *updateTest) RemoveAllFields() {
 	AssertEq(nil, err)
 
 	// Remove all of the fields that were set, aside from user metadata.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:            "foo",
 		ContentEncoding: makeStringPtr(""),
 		ContentLanguage: makeStringPtr(""),
@@ -3182,7 +3182,7 @@ func (t *updateTest) RemoveAllFields() {
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
 	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -3194,7 +3194,7 @@ func (t *updateTest) RemoveAllFields() {
 
 func (t *updateTest) ModifyAllFields() {
 	// Create an object with explicit attributes set.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:            "foo",
 		ContentType:     "image/png",
 		ContentEncoding: "gzip",
@@ -3211,7 +3211,7 @@ func (t *updateTest) ModifyAllFields() {
 	AssertEq(nil, err)
 
 	// Modify all of the fields that were set, aside from user metadata.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:            "foo",
 		ContentType:     makeStringPtr("image/jpeg"),
 		ContentEncoding: makeStringPtr("bzip2"),
@@ -3235,7 +3235,7 @@ func (t *updateTest) ModifyAllFields() {
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
 	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -3247,7 +3247,7 @@ func (t *updateTest) ModifyAllFields() {
 
 func (t *updateTest) MixedModificationsToFields() {
 	// Create an object with some explicit attributes set.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:            "foo",
 		ContentType:     "image/png",
 		ContentEncoding: "gzip",
@@ -3264,7 +3264,7 @@ func (t *updateTest) MixedModificationsToFields() {
 
 	// Leave one field unmodified, delete one field, modify an existing field,
 	// and add a new field.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:            "foo",
 		ContentType:     nil,
 		ContentEncoding: makeStringPtr(""),
@@ -3288,7 +3288,7 @@ func (t *updateTest) MixedModificationsToFields() {
 	ExpectThat(o.Metadata, DeepEquals(createReq.Metadata))
 
 	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -3306,7 +3306,7 @@ func (t *updateTest) AddUserMetadata() {
 	AssertEq(nil, orig.Metadata)
 
 	// Add some metadata.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]*string{
 			"0": makeStringPtr("taco"),
@@ -3331,7 +3331,7 @@ func (t *updateTest) AddUserMetadata() {
 			}))
 
 	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -3343,7 +3343,7 @@ func (t *updateTest) AddUserMetadata() {
 
 func (t *updateTest) MixedModificationsToUserMetadata() {
 	// Create an object with some user metadata.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
 			"0": "taco",
@@ -3361,7 +3361,7 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 
 	// Leave an existing field untouched, add a new field, remove an existing
 	// field, and modify an existing field.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]*string{
 			"1": makeStringPtr("burrito"),
@@ -3388,7 +3388,7 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 			}))
 
 	// Check that a listing agrees.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertThat(listing.CollapsedRuns, ElementsAre())
@@ -3409,7 +3409,7 @@ func (t *updateTest) UpdateTime() {
 	t.advanceTime()
 
 	// Modify a field.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:        "foo",
 		ContentType: makeStringPtr("image/jpeg"),
 	}
@@ -3429,7 +3429,7 @@ func (t *updateTest) UpdateTime() {
 }
 
 func (t *updateTest) ParticularGeneration_NameDoesntExist() {
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:        "foo",
 		Generation:  17,
 		ContentType: makeStringPtr("image/png"),
@@ -3443,7 +3443,7 @@ func (t *updateTest) ParticularGeneration_NameDoesntExist() {
 
 func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 	// Create an object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:     "foo",
 		Contents: strings.NewReader(""),
 	}
@@ -3453,7 +3453,7 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 
 	// Attempt to update the wrong generation by giving it a new content
 	// language.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:            o.Name,
 		Generation:      o.Generation + 1,
 		ContentLanguage: makeStringPtr("fr"),
@@ -3467,7 +3467,7 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 	// The original object should be unaffected.
 	o, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: o.Name})
+		&requests.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
 	ExpectEq("", o.ContentLanguage)
@@ -3475,7 +3475,7 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 
 func (t *updateTest) ParticularGeneration_Successful() {
 	// Create an object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:     "foo",
 		Contents: strings.NewReader(""),
 	}
@@ -3484,7 +3484,7 @@ func (t *updateTest) ParticularGeneration_Successful() {
 	AssertEq(nil, err)
 
 	// Update it with an explicit generation.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:            o.Name,
 		Generation:      o.Generation,
 		ContentLanguage: makeStringPtr("fr"),
@@ -3498,7 +3498,7 @@ func (t *updateTest) ParticularGeneration_Successful() {
 	// Stat and make sure it took effect.
 	o, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: o.Name})
+		&requests.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
 	ExpectEq("fr", o.ContentLanguage)
@@ -3506,7 +3506,7 @@ func (t *updateTest) ParticularGeneration_Successful() {
 
 func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	// Create an object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:     "foo",
 		Contents: strings.NewReader(""),
 	}
@@ -3516,7 +3516,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 
 	// Attempt to update with a bad precondition.
 	precond := o.MetaGeneration + 1
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:                       o.Name,
 		MetaGenerationPrecondition: &precond,
 		ContentLanguage:            makeStringPtr("fr"),
@@ -3528,7 +3528,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	// The original object should be unaffected.
 	o, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: o.Name})
+		&requests.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
 	ExpectEq("", o.ContentLanguage)
@@ -3536,7 +3536,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 
 func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	// Create an object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:     "foo",
 		Contents: strings.NewReader(""),
 	}
@@ -3545,7 +3545,7 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	AssertEq(nil, err)
 
 	// Update with a good precondition.
-	req := &gcs.UpdateObjectRequest{
+	req := &requests.UpdateObjectRequest{
 		Name:                       o.Name,
 		MetaGenerationPrecondition: &o.MetaGeneration,
 		ContentLanguage:            makeStringPtr("fr"),
@@ -3557,7 +3557,7 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	// The object should have been updated.
 	o, err = t.bucket.StatObject(
 		t.ctx,
-		&gcs.StatObjectRequest{Name: o.Name})
+		&requests.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
 	ExpectEq("fr", o.ContentLanguage)
@@ -3575,7 +3575,7 @@ func (t *deleteTest) NoParticularGeneration_NameDoesntExist() {
 	// No error should be returned.
 	err := t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name: "foobar",
 		})
 
@@ -3591,12 +3591,12 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		nil,
 		t.bucket.DeleteObject(
 			t.ctx,
-			&gcs.DeleteObjectRequest{
+			&requests.DeleteObjectRequest{
 				Name: "a",
 			}))
 
 	// It shouldn't show up in a listing.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertNe(nil, listing)
@@ -3605,7 +3605,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 	ExpectThat(listing.Objects, ElementsAre())
 
 	// It shouldn't be readable.
-	req := &gcs.ReadObjectRequest{
+	req := &requests.ReadObjectRequest{
 		Name: "a",
 	}
 
@@ -3622,7 +3622,7 @@ func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
 	// No error should be returned.
 	err := t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:       "foobar",
 			Generation: 17,
 		})
@@ -3647,7 +3647,7 @@ func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
 	// error should be returned.
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:       name,
 			Generation: o.Generation + 1,
 		})
@@ -3677,7 +3677,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 	// Delete that particular generation.
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:       name,
 			Generation: o.Generation,
 		})
@@ -3706,7 +3706,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	precond := o.MetaGeneration + 1
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:                       name,
 			MetaGenerationPrecondition: &precond,
 		})
@@ -3726,7 +3726,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 	var precond int64 = 1
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:                       name,
 			MetaGenerationPrecondition: &precond,
 		})
@@ -3752,7 +3752,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 	precond := o.MetaGeneration + 1
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:                       name,
 			Generation:                 o.Generation + 1,
 			MetaGenerationPrecondition: &precond,
@@ -3782,7 +3782,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 	precond := o.MetaGeneration
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&gcs.DeleteObjectRequest{
+		&requests.DeleteObjectRequest{
 			Name:                       name,
 			MetaGenerationPrecondition: &precond,
 		})
@@ -3803,7 +3803,7 @@ type listTest struct {
 }
 
 func (t *listTest) EmptyBucket() {
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertNe(nil, listing)
@@ -3817,7 +3817,7 @@ func (t *listTest) NewlyCreatedObject() {
 	AssertEq(nil, t.createObject("a", "taco"))
 
 	// List all objects in the bucket.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertNe(nil, listing)
@@ -3840,7 +3840,7 @@ func (t *listTest) TrivialQuery() {
 	AssertEq(nil, t.createObject("c", "enchilada"))
 
 	// List all objects in the bucket.
-	listing, err := t.bucket.ListObjects(t.ctx, &gcs.ListObjectsRequest{})
+	listing, err := t.bucket.ListObjects(t.ctx, &requests.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	AssertNe(nil, listing)
@@ -3887,7 +3887,7 @@ func (t *listTest) Delimiter_SingleRune() {
 			}))
 
 	// List with the delimiter "!".
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Delimiter: "!",
 	}
 
@@ -3937,7 +3937,7 @@ func (t *listTest) Delimiter_MultiRune() {
 			}))
 
 	// List with the delimiter "!!".
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Delimiter: "!!",
 	}
 
@@ -3978,7 +3978,7 @@ func (t *listTest) Prefix() {
 			}))
 
 	// List with the prefix "b".
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Prefix: "b",
 	}
 
@@ -4029,7 +4029,7 @@ func (t *listTest) PrefixAndDelimiter_SingleRune() {
 			}))
 
 	// List with the prefix "blah!b" and the delimiter "!".
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Prefix:    "blah!b",
 		Delimiter: "!",
 	}
@@ -4094,7 +4094,7 @@ func (t *listTest) PrefixAndDelimiter_MultiRune() {
 			}))
 
 	// List with the prefix "blah!b" and the delimiter "!".
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Prefix:    "blah!!b",
 		Delimiter: "!!",
 	}
@@ -4154,7 +4154,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfIndividualObjects() {
 
 	// List repeatedly with a small value for MaxResults. Keep track of all of
 	// the objects and runs we find.
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Delimiter:  "!",
 		MaxResults: 2,
 	}
@@ -4225,7 +4225,7 @@ func (t *listTest) Cursor_BucketEndsWithRunOfObjectsGroupedByDelimiter() {
 
 	// List repeatedly with a small value for MaxResults. Keep track of all of
 	// the objects and runs we find.
-	req := &gcs.ListObjectsRequest{
+	req := &requests.ListObjectsRequest{
 		Delimiter:  "!",
 		MaxResults: 2,
 	}
@@ -4328,7 +4328,7 @@ func (t *cancellationTest) CreateObject() {
 
 	errChan := make(chan error)
 	go func() {
-		req := &gcs.CreateObjectRequest{
+		req := &requests.CreateObjectRequest{
 			Name:     name,
 			Contents: rc,
 		}
@@ -4363,7 +4363,7 @@ func (t *cancellationTest) CreateObject() {
 				HasSubstr("request canceled"))))
 
 	// The object should not have been created.
-	statReq := &gcs.StatObjectRequest{
+	statReq := &requests.StatObjectRequest{
 		Name: name,
 	}
 
@@ -4385,7 +4385,7 @@ func (t *cancellationTest) ReadObject() {
 	const size = 1 << 20
 	_, err = t.bucket.CreateObject(
 		t.ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name:     name,
 			Contents: io.LimitReader(rand.Reader, size),
 		})
@@ -4396,7 +4396,7 @@ func (t *cancellationTest) ReadObject() {
 	ctx, cancel := context.WithCancel(t.ctx)
 	rc, err := t.bucket.NewReader(
 		ctx,
-		&gcs.ReadObjectRequest{
+		&requests.ReadObjectRequest{
 			Name: name,
 		})
 

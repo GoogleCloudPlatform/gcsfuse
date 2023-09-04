@@ -22,10 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -41,7 +41,7 @@ func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
 func deleteReqName(expected string) (m Matcher) {
 	m = NewMatcher(
 		func(c interface{}) (err error) {
-			req, ok := c.(*gcs.DeleteObjectRequest)
+			req, ok := c.(*requests.DeleteObjectRequest)
 			if !ok {
 				err = fmt.Errorf("which has type %T", c)
 				return
@@ -108,7 +108,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
-	var req *gcs.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -170,7 +170,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *requests.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -194,7 +194,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src requests.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)
@@ -231,7 +231,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *requests.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -262,7 +262,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	ExpectEq("test_value", req.Metadata["test_key"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src requests.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)

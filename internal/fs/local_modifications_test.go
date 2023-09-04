@@ -33,8 +33,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -1379,7 +1379,7 @@ func (t *DirectoryTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// There should be no content type set in GCS.
-		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &requests.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq("", o.ContentType, "name: %q", name)
 	}
@@ -1837,7 +1837,7 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 		nil,
 		bucket.DeleteObject(
 			ctx,
-			&gcs.DeleteObjectRequest{Name: "foo"}))
+			&requests.DeleteObjectRequest{Name: "foo"}))
 
 	AssertEq(nil, err)
 
@@ -2044,7 +2044,7 @@ func (t *FileTest) Sync_NotDirty() {
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
-	statReq := &gcs.StatObjectRequest{
+	statReq := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -2131,7 +2131,7 @@ func (t *FileTest) Close_NotDirty() {
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
-	statReq := &gcs.StatObjectRequest{
+	statReq := &requests.StatObjectRequest{
 		Name: "foo",
 	}
 
@@ -2221,7 +2221,7 @@ func (t *FileTest) ContentTypes() {
 		defer f.Close()
 
 		// Check the GCS content type.
-		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &requests.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 
@@ -2233,7 +2233,7 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		o, err = bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err = bucket.StatObject(ctx, &requests.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 	}
@@ -2272,7 +2272,7 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 
 	// Check the object in the bucket.
-	o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
+	o, err := bucket.StatObject(ctx, &requests.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectEq(0, o.Size)

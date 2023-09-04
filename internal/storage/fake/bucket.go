@@ -26,10 +26,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -194,7 +194,7 @@ func (b *bucket) checkInvariants() {
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) mintObject(
-	req *gcs.CreateObjectRequest,
+	req *requests.CreateObjectRequest,
 	contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
 	crc32c := crc32.Checksum(contents, crc32cTable)
@@ -228,7 +228,7 @@ func (b *bucket) mintObject(
 
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) createObjectLocked(
-	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
+	req *requests.CreateObjectRequest) (o *object.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -349,7 +349,7 @@ func (b *bucket) createObjectLocked(
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) newReaderLocked(
-	req *gcs.ReadObjectRequest) (r io.Reader, index int, err error) {
+	req *requests.ReadObjectRequest) (r io.Reader, index int, err error) {
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
@@ -440,12 +440,12 @@ func (b *bucket) Name() string {
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ListObjects(
 	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	req *requests.ListObjectsRequest) (listing *requests.Listing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Set up the result object.
-	listing = new(gcs.Listing)
+	listing = new(requests.Listing)
 
 	// Handle defaults.
 	maxResults := req.MaxResults
@@ -538,7 +538,7 @@ func (b *bucket) ListObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) NewReader(
 	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *requests.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -554,7 +554,7 @@ func (b *bucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
+	req *requests.CreateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -565,7 +565,7 @@ func (b *bucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *object.Object, err error) {
+	req *requests.CopyObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -636,7 +636,7 @@ func (b *bucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *requests.ComposeObjectsRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -646,7 +646,7 @@ func (b *bucket) ComposeObjects(
 		return
 	}
 
-	if len(req.Sources) > gcs.MaxSourcesPerComposeRequest {
+	if len(req.Sources) > requests.MaxSourcesPerComposeRequest {
 		err = errors.New("You have provided too many source components")
 		return
 	}
@@ -660,7 +660,7 @@ func (b *bucket) ComposeObjects(
 		var r io.Reader
 		var srcIndex int
 
-		r, srcIndex, err = b.newReaderLocked(&gcs.ReadObjectRequest{
+		r, srcIndex, err = b.newReaderLocked(&requests.ReadObjectRequest{
 			Name:       src.Name,
 			Generation: src.Generation,
 		})
@@ -674,13 +674,13 @@ func (b *bucket) ComposeObjects(
 	}
 
 	// GCS doesn't like the component count to go too high.
-	if dstComponentCount > gcs.MaxComponentCount {
+	if dstComponentCount > requests.MaxComponentCount {
 		err = errors.New("Result would have too many components")
 		return
 	}
 
 	// Create the new object.
-	createReq := &gcs.CreateObjectRequest{
+	createReq := &requests.CreateObjectRequest{
 		Name:                       req.DstName,
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
@@ -711,7 +711,7 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *object.Object, err error) {
+	req *requests.StatObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -734,7 +734,7 @@ func (b *bucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *object.Object, err error) {
+	req *requests.UpdateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -821,7 +821,7 @@ func (b *bucket) UpdateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) DeleteObject(
 	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+	req *requests.DeleteObjectRequest) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
