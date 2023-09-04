@@ -24,7 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -151,7 +150,7 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
 	if bm.config.DebugGCS {
-		b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		b = gcs.NewDebugBucket(b)
 	}
 	return
 }
