@@ -17,6 +17,9 @@
 
 sudo apt-get update
 
+# true or false to run e2e tests on installedPackage
+run_e2e_tests_on_package=$1
+
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
 echo "Installing git..."
@@ -38,7 +41,7 @@ echo 'bucket name = '$BUCKET_NAME
 gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
 
 # Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout $INTEGRATION_TEST_EXECUTION_TIME
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_EXECUTION_TIME
 
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME/

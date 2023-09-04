@@ -72,6 +72,7 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+  echo "Running e2e tests...."
   chmod +x perfmetrics/scripts/run_e2e_tests.sh
-  ./perfmetrics/scripts/run_e2e_tests.sh
+  ./perfmetrics/scripts/run_e2e_tests.sh false
 fi
