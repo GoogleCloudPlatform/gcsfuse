@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -44,7 +45,7 @@ type FullObjectCreatorTest struct {
 	bucket  bucket.MockBucket
 	creator objectCreator
 
-	srcObject   gcs.Object
+	srcObject   object.Object
 	srcContents string
 	mtime       time.Time
 }
@@ -63,7 +64,7 @@ func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
 	}
 }
 
-func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
+func (t *FullObjectCreatorTest) call() (o *object.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		t.srcObject.Name,
@@ -231,21 +232,21 @@ type fakeObjectCreator struct {
 	called bool
 
 	// Supplied arguments
-	srcObject *gcs.Object
+	srcObject *object.Object
 	mtime     time.Time
 	contents  []byte
 
 	// Canned results
-	o   *gcs.Object
+	o   *object.Object
 	err error
 }
 
 func (oc *fakeObjectCreator) Create(
 	ctx context.Context,
 	fileName string,
-	srcObject *gcs.Object,
+	srcObject *object.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *object.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
 	oc.called = true
@@ -280,7 +281,7 @@ type SyncerTest struct {
 	syncer Syncer
 	clock  timeutil.SimulatedClock
 
-	srcObject *gcs.Object
+	srcObject *object.Object
 	content   TempFile
 }
 
@@ -324,7 +325,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.appendCreator.err = errors.New("Fake error")
 }
 
-func (t *SyncerTest) call() (o *gcs.Object, err error) {
+func (t *SyncerTest) call() (o *object.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, t.srcObject.Name, t.srcObject, t.content)
 	return
 }
@@ -512,7 +513,7 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 
 func (t *SyncerTest) FullCreatorSucceeds() {
 	var err error
-	t.fullCreator.o = &gcs.Object{}
+	t.fullCreator.o = &object.Object{}
 	t.fullCreator.err = nil
 
 	// Truncate downward.
@@ -578,7 +579,7 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 
 func (t *SyncerTest) AppendCreatorSucceeds() {
 	var err error
-	t.appendCreator.o = &gcs.Object{}
+	t.appendCreator.o = &object.Object{}
 	t.appendCreator.err = nil
 
 	// Append some data.

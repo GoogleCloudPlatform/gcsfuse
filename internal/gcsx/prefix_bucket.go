@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
@@ -79,7 +80,7 @@ func (b *prefixBucket) NewReader(
 
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CreateObjectRequest)
 	*mReq = *req
@@ -97,7 +98,7 @@ func (b *prefixBucket) CreateObject(
 
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CopyObjectRequest)
 	*mReq = *req
@@ -116,7 +117,7 @@ func (b *prefixBucket) CopyObject(
 
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.ComposeObjectsRequest)
 	*mReq = *req
@@ -140,7 +141,7 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.StatObjectRequest)
 	*mReq = *req
@@ -182,7 +183,7 @@ func (b *prefixBucket) ListObjects(
 
 func (b *prefixBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.UpdateObjectRequest)
 	*mReq = *req

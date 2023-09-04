@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -154,7 +155,7 @@ func (b *debugBucket) NewReader(
 
 func (b *debugBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -164,7 +165,7 @@ func (b *debugBucket) CreateObject(
 
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *object.Object, err error) {
 	id, desc, start := b.startRequest(
 		"CopyObject(%q, %q)",
 		req.SrcName,
@@ -178,7 +179,7 @@ func (b *debugBucket) CopyObject(
 
 func (b *debugBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *object.Object, err error) {
 	id, desc, start := b.startRequest(
 		"ComposeObjects(%q)",
 		req.DstName)
@@ -191,7 +192,7 @@ func (b *debugBucket) ComposeObjects(
 
 func (b *debugBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *object.Object, err error) {
 	id, desc, start := b.startRequest("StatObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -211,7 +212,7 @@ func (b *debugBucket) ListObjects(
 
 func (b *debugBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *object.Object, err error) {
 	id, desc, start := b.startRequest("UpdateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 

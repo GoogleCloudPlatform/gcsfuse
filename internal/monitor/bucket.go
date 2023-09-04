@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -130,7 +131,7 @@ func (mb *monitoringBucket) NewReader(
 
 func (mb *monitoringBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (*gcs.Object, error) {
+	req *gcs.CreateObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CreateObject(ctx, req)
 	recordRequest(ctx, "CreateObject", startTime)
@@ -139,7 +140,7 @@ func (mb *monitoringBucket) CreateObject(
 
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
+	req *gcs.CopyObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CopyObject(ctx, req)
 	recordRequest(ctx, "CopyObject", startTime)
@@ -148,7 +149,7 @@ func (mb *monitoringBucket) CopyObject(
 
 func (mb *monitoringBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (*gcs.Object, error) {
+	req *gcs.ComposeObjectsRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.ComposeObjects(ctx, req)
 	recordRequest(ctx, "ComposeObjects", startTime)
@@ -157,7 +158,7 @@ func (mb *monitoringBucket) ComposeObjects(
 
 func (mb *monitoringBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (*gcs.Object, error) {
+	req *gcs.StatObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.StatObject(ctx, req)
 	recordRequest(ctx, "StatObject", startTime)
@@ -175,7 +176,7 @@ func (mb *monitoringBucket) ListObjects(
 
 func (mb *monitoringBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (*gcs.Object, error) {
+	req *gcs.UpdateObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.UpdateObject(ctx, req)
 	recordRequest(ctx, "UpdateObject", startTime)

@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching/mock_gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -118,7 +119,7 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name:       name,
 		Generation: 1234,
 	}
@@ -194,7 +195,7 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
@@ -272,7 +273,7 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name:       dstName,
 		Generation: 1234,
 	}
@@ -305,7 +306,7 @@ func (t *StatObjectTest) CallsCache() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.Object{}))
+		WillOnce(Return(true, &object.Object{}))
 
 	// Call
 	req := &gcs.StatObjectRequest{
@@ -319,7 +320,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 	const name = "taco"
 
 	// LookUp
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name: name,
 	}
 
@@ -365,7 +366,7 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	}
 
 	// Wrapped
-	objFromGcs := &gcs.Object{
+	objFromGcs := &object.Object{
 		Name:         name,
 		CacheControl: "testControl",
 	}
@@ -453,7 +454,7 @@ func (t *StatObjectTest) WrappedSucceeds() {
 		WillOnce(Return(false, nil))
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name: name,
 	}
 
@@ -509,11 +510,11 @@ func (t *ListObjectsTest) EmptyListing() {
 
 func (t *ListObjectsTest) NonEmptyListing() {
 	// Wrapped
-	o0 := &gcs.Object{Name: "taco"}
-	o1 := &gcs.Object{Name: "burrito"}
+	o0 := &object.Object{Name: "taco"}
+	o1 := &object.Object{Name: "burrito"}
 
 	expected := &gcs.Listing{
-		Objects: []*gcs.Object{o0, o1},
+		Objects: []*object.Object{o0, o1},
 	}
 
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
@@ -586,7 +587,7 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
-	obj := &gcs.Object{
+	obj := &object.Object{
 		Name:       name,
 		Generation: 1234,
 	}

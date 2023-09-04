@@ -20,6 +20,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -61,7 +62,7 @@ func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.Obj
 	return obj
 }
 
-func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
+func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *object.Object {
 	// gcs.Object accepts []*storagev1.ObjectAccessControl instead of []ACLRule.
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
@@ -76,7 +77,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	crc := attrs.CRC32C
 
 	// Setting the parameters in Object and doing conversions as necessary.
-	return &gcs.Object{
+	return &object.Object{
 		Name:               attrs.Name,
 		ContentType:        attrs.ContentType,
 		ContentLanguage:    attrs.ContentLanguage,

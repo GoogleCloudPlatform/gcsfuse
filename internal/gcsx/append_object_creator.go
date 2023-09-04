@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -86,9 +87,9 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
 	objectName string,
-	srcObject *gcs.Object,
+	srcObject *object.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *object.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
 	if err != nil {

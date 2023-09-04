@@ -24,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
@@ -55,7 +56,7 @@ type FileTest struct {
 	clock  timeutil.SimulatedClock
 
 	initialContents string
-	backingObj      *gcs.Object
+	backingObj      *object.Object
 
 	in *FileInode
 }

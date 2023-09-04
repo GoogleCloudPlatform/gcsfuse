@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -103,7 +104,7 @@ func (t *IntegrationTest) TearDown() {
 	}
 }
 
-func (t *IntegrationTest) create(o *gcs.Object) {
+func (t *IntegrationTest) create(o *object.Object) {
 	// Set up a reader.
 	rc, err := t.bucket.NewReader(
 		t.ctx,
@@ -148,7 +149,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	return
 }
 
-func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
+func (t *IntegrationTest) sync(src *object.Object) (o *object.Object, err error) {
 	o, err = t.syncer.SyncObject(t.ctx, src.Name, src, t.tf)
 	if err == nil && o != nil {
 		t.tf = nil

@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -66,7 +67,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		t.wrapped)
 }
 
-func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
+func (t *IntegrationTest) stat(name string) (o *object.Object, err error) {
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}

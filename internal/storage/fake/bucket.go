@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -48,7 +49,7 @@ func NewFakeBucket(clock timeutil.Clock, name string) bucket2.Bucket {
 ////////////////////////////////////////////////////////////////////////
 
 type fakeObject struct {
-	metadata gcs.Object
+	metadata object.Object
 	data     []byte
 }
 
@@ -200,7 +201,7 @@ func (b *bucket) mintObject(
 
 	// Set up basic info.
 	b.prevGeneration++
-	o.metadata = gcs.Object{
+	o.metadata = object.Object{
 		Name:            req.Name,
 		ContentType:     req.ContentType,
 		ContentLanguage: req.ContentLanguage,
@@ -227,7 +228,7 @@ func (b *bucket) mintObject(
 
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) createObjectLocked(
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -422,8 +423,8 @@ func copyMetadata(in map[string]string) (out map[string]string) {
 	return
 }
 
-func copyObject(o *gcs.Object) *gcs.Object {
-	var copy gcs.Object = *o
+func copyObject(o *object.Object) *object.Object {
+	var copy object.Object = *o
 	copy.Metadata = copyMetadata(o.Metadata)
 	return &copy
 }
@@ -553,7 +554,7 @@ func (b *bucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -564,7 +565,7 @@ func (b *bucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -635,7 +636,7 @@ func (b *bucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -710,7 +711,7 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -733,7 +734,7 @@ func (b *bucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -747,7 +748,7 @@ func (b *bucket) UpdateObject(
 		return
 	}
 
-	var obj *gcs.Object = &b.objects[index].metadata
+	var obj *object.Object = &b.objects[index].metadata
 
 	// Does the generation number match the request?
 	if req.Generation != 0 && obj.Generation != req.Generation {

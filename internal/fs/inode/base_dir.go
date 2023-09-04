@@ -18,9 +18,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/fuse"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -180,7 +180,7 @@ func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *object.Object) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 

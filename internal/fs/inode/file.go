@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -104,7 +105,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.Object,
+	o *object.Object,
 	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
@@ -165,7 +166,7 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *object.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
@@ -647,7 +648,7 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) storage.MinObject {
+func convertObjToMinObject(o *object.Object) storage.MinObject {
 	var min storage.MinObject
 	if o == nil {
 		return min

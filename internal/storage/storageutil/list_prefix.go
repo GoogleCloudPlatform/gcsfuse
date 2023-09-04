@@ -19,6 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -28,7 +29,7 @@ func ListPrefix(
 	ctx context.Context,
 	bucket bucket.Bucket,
 	prefix string,
-	objects chan<- *gcs.Object) (err error) {
+	objects chan<- *object.Object) (err error) {
 	req := &gcs.ListObjectsRequest{
 		Prefix: prefix,
 	}

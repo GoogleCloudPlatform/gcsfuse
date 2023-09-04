@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"golang.org/x/net/context"
 )
 
@@ -41,8 +42,8 @@ type Syncer interface {
 	SyncObject(
 		ctx context.Context,
 		fileName string,
-		srcObject *gcs.Object,
-		content TempFile) (o *gcs.Object, err error)
+		srcObject *object.Object,
+		content TempFile) (o *object.Object, err error)
 }
 
 // NewSyncer creates a syncer that syncs into the supplied bucket.
@@ -84,9 +85,9 @@ type fullObjectCreator struct {
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
 	objectName string,
-	srcObject *gcs.Object,
+	srcObject *object.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *object.Object, err error) {
 	metadataMap := make(map[string]string)
 
 	var req *gcs.CreateObjectRequest
@@ -142,9 +143,9 @@ type objectCreator interface {
 	Create(
 		ctx context.Context,
 		objectName string,
-		srcObject *gcs.Object,
+		srcObject *object.Object,
 		mtime *time.Time,
-		r io.Reader) (o *gcs.Object, err error)
+		r io.Reader) (o *object.Object, err error)
 }
 
 // Create a syncer that stats the mutable content to see if it's dirty before
@@ -182,8 +183,8 @@ type syncer struct {
 func (os *syncer) SyncObject(
 	ctx context.Context,
 	objectName string,
-	srcObject *gcs.Object,
-	content TempFile) (o *gcs.Object, err error) {
+	srcObject *object.Object,
+	content TempFile) (o *object.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -284,7 +285,7 @@ type Listing struct {
 	//
 	// Guaranteed to be strictly increasing under a lexicographical comparison on
 	// (name, generation) pairs.
-	Objects []*Object
+	Objects []*object.Object
 
 	// Collapsed entries for runs of names sharing a prefix followed by a
 	// delimiter. See notes on ListObjectsRequest.Delimiter.

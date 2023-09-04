@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -107,7 +108,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *object.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -128,7 +129,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *object.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -188,7 +189,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *object.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
@@ -297,7 +298,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *object.Object, err error) {
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -361,7 +362,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *object.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}

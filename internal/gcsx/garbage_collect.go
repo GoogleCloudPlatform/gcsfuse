@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -36,7 +37,7 @@ func garbageCollectOnce(
 	b := syncutil.NewBundle(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *object.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
 		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
