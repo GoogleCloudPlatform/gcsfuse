@@ -13,12 +13,12 @@ import (
 	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	gcscaching "github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	oglemock "github.com/jacobsa/oglemock"
 )
 
 type MockStatCache interface {
-	gcscaching.StatCache
+	caching.StatCache
 	oglemock.MockObject
 }
 

@@ -19,10 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/syncutil"
 )
@@ -38,7 +38,7 @@ func garbageCollectOnce(
 	objects := make(chan *gcs.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
-		err = gcsutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return

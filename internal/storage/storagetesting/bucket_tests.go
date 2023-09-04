@@ -14,7 +14,7 @@
 
 // Tests registered by RegisterBucketTests.
 
-package gcstesting
+package storagetesting
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
@@ -76,7 +76,7 @@ func createEmpty(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	objectNames []string) error {
-	err := gcsutil.CreateEmptyObjects(ctx, bucket, objectNames)
+	err := storageutil.CreateEmptyObjects(ctx, bucket, objectNames)
 	return err
 }
 
@@ -363,7 +363,7 @@ func (t *bucketTest) setUpBucketTest(deps BucketTestDeps) {
 }
 
 func (t *bucketTest) createObject(name string, contents string) error {
-	_, err := gcsutil.CreateObject(
+	_, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -518,7 +518,7 @@ func (t *createTest) Overwrite() {
 func (t *createTest) ObjectAttributes_Default() {
 	// Create an object with default attributes aside from the name.
 	createTime := t.clock.Now()
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Ensure the time below doesn't match exactly.
@@ -771,7 +771,7 @@ func (t *createTest) IncorrectCRC32C() {
 	var err error
 
 	// Attempt to create with the wrong checksum.
-	crc32c := gcsutil.CRC32C([]byte(contents))
+	crc32c := storageutil.CRC32C([]byte(contents))
 	*crc32c++
 
 	req := &gcs.CreateObjectRequest{
@@ -802,7 +802,7 @@ func (t *createTest) CorrectCRC32C() {
 	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
-		CRC32C:   gcsutil.CRC32C([]byte(contents)),
+		CRC32C:   storageutil.CRC32C([]byte(contents)),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -816,7 +816,7 @@ func (t *createTest) IncorrectMD5() {
 	var err error
 
 	// Attempt to create with the wrong checksum.
-	md5 := gcsutil.MD5([]byte(contents))
+	md5 := storageutil.MD5([]byte(contents))
 	(*md5)[13]++
 
 	req := &gcs.CreateObjectRequest{
@@ -847,7 +847,7 @@ func (t *createTest) CorrectMD5() {
 	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
-		MD5:      gcsutil.MD5([]byte(contents)),
+		MD5:      storageutil.MD5([]byte(contents)),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -864,8 +864,8 @@ func (t *createTest) CorrectCRC32CAndMD5() {
 	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: strings.NewReader(contents),
-		CRC32C:   gcsutil.CRC32C([]byte(contents)),
-		MD5:      gcsutil.MD5([]byte(contents)),
+		CRC32C:   storageutil.CRC32C([]byte(contents)),
+		MD5:      storageutil.MD5([]byte(contents)),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -875,7 +875,7 @@ func (t *createTest) CorrectCRC32CAndMD5() {
 
 func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 	// Create an existing object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -975,7 +975,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 
 func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 	// Create an existing object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -1017,7 +1017,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 
 func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	// Create an existing object.
-	orig, err := gcsutil.CreateObject(
+	orig, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -1088,7 +1088,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 
 func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	// Create an existing object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -1130,7 +1130,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 
 func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 	// Create an existing object.
-	orig, err := gcsutil.CreateObject(
+	orig, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -1192,7 +1192,7 @@ func (t *copyTest) SourceDoesntExist() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// List
-	objects, runs, err := gcsutil.ListAll(
+	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
 		&gcs.ListObjectsRequest{})
@@ -1256,7 +1256,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
 
 	// The object should be readable.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "bar")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
@@ -1341,7 +1341,7 @@ func (t *copyTest) DestinationExists() {
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
 
 	// The object should be readable.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "bar")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "bar")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
@@ -1409,7 +1409,7 @@ func (t *copyTest) DestinationIsSameName() {
 	ExpectThat(dst.Updated, t.matchesStartTime(createTime))
 
 	// The object should be readable.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
@@ -1428,7 +1428,7 @@ func (t *copyTest) InterestingNames() {
 
 	// Create a source object.
 	const srcName = "foo"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
 	AssertEq(nil, err)
 
 	// Make sure we can use each interesting name as a copy destination.
@@ -1459,7 +1459,7 @@ func (t *copyTest) IllegalNames() {
 
 	// Create a source object.
 	const srcName = "foo"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
 	AssertEq(nil, err)
 
 	// Make sure we can't use any illegal name as a copy destination.
@@ -1726,7 +1726,7 @@ func (t *composeTest) OneSimpleSource() {
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
@@ -1785,7 +1785,7 @@ func (t *composeTest) TwoSimpleSources() {
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -1845,7 +1845,7 @@ func (t *composeTest) ManySimpleSources() {
 	}
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburritoenchiladaqueso", string(contents))
@@ -1912,7 +1912,7 @@ func (t *composeTest) RepeatedSources() {
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburritotacoburrito", string(contents))
@@ -1994,7 +1994,7 @@ func (t *composeTest) CompositeSources() {
 	ExpectThat(o.Updated, t.matchesStartTime(composeTime))
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburritotacotacoburrito", string(contents))
@@ -2078,7 +2078,7 @@ func (t *composeTest) DestinationNameMatchesSource() {
 	ExpectLt(sources[1].Generation, o.Generation)
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -2235,7 +2235,7 @@ func (t *composeTest) DestinationExists_NoPreconditions() {
 	ExpectLt(sources[1].Generation, o.Generation)
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -2360,7 +2360,7 @@ func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
 	ExpectLt(sources[1].Generation, o.Generation)
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -2442,7 +2442,7 @@ func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
 	ExpectLt(sources[1].Generation, o.Generation)
 
 	// Check contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
@@ -2550,7 +2550,7 @@ func (t *composeTest) InterestingNames() {
 
 	// Create a source object.
 	const srcName = "foo"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
 	AssertEq(nil, err)
 
 	// Make sure we can use each interesting name as a compose destination.
@@ -2584,7 +2584,7 @@ func (t *composeTest) IllegalNames() {
 
 	// Create a source object.
 	const srcName = "foo"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte{})
 	AssertEq(nil, err)
 
 	// Make sure we can't use any illegal name as a compose destination.
@@ -2692,7 +2692,7 @@ func (t *readTest) NonEmptyObject() {
 
 func (t *readTest) ParticularGeneration_NeverExisted() {
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -2719,7 +2719,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 
 func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -2755,7 +2755,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 
 func (t *readTest) ParticularGeneration_Exists() {
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -2783,7 +2783,7 @@ func (t *readTest) ParticularGeneration_Exists() {
 
 func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -2793,7 +2793,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 	AssertGt(o.Generation, 0)
 
 	// Overwrite with a new generation.
-	o2, err := gcsutil.CreateObject(
+	o2, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		"foo",
@@ -3010,7 +3010,7 @@ func (t *statTest) NonExistentObject() {
 func (t *statTest) StatAfterCreating() {
 	// Create an object.
 	createTime := t.clock.Now()
-	orig, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 	AssertThat(orig.Updated, t.matchesStartTime(createTime))
 
@@ -3035,7 +3035,7 @@ func (t *statTest) StatAfterCreating() {
 
 func (t *statTest) StatAfterOverwriting() {
 	// Create an object.
-	_, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Ensure the time below doesn't match exactly.
@@ -3043,7 +3043,7 @@ func (t *statTest) StatAfterOverwriting() {
 
 	// Overwrite it.
 	overwriteTime := t.clock.Now()
-	o2, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
+	o2, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
 	AssertEq(nil, err)
 	AssertThat(o2.Updated, t.matchesStartTime(overwriteTime))
 
@@ -3069,7 +3069,7 @@ func (t *statTest) StatAfterOverwriting() {
 func (t *statTest) StatAfterUpdating() {
 	// Create an object.
 	createTime := t.clock.Now()
-	orig, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 	AssertThat(orig.Updated, t.matchesStartTime(createTime))
 
@@ -3297,7 +3297,7 @@ func (t *updateTest) MixedModificationsToFields() {
 
 func (t *updateTest) AddUserMetadata() {
 	// Create an object with no user metadata.
-	orig, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	orig, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	AssertEq(nil, orig.Metadata)
@@ -3398,7 +3398,7 @@ func (t *updateTest) MixedModificationsToUserMetadata() {
 func (t *updateTest) UpdateTime() {
 	// Create an object.
 	createTime := t.clock.Now()
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte{})
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte{})
 	AssertEq(nil, err)
 	AssertThat(o.Updated, t.matchesStartTime(createTime))
 
@@ -3632,7 +3632,7 @@ func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
 	var err error
 
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -3652,7 +3652,7 @@ func (t *deleteTest) ParticularGeneration_GenerationDoesntExist() {
 	AssertEq(nil, err)
 
 	// The original generation should still exist.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, name)
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
@@ -3663,7 +3663,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 	var err error
 
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -3682,7 +3682,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 	AssertEq(nil, err)
 
 	// The object should no longer exist.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, name)
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -3691,7 +3691,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	var err error
 
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -3711,7 +3711,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// The object should still exist.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, name)
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
 	ExpectEq(nil, err)
 }
 
@@ -3736,7 +3736,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 	var err error
 
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -3758,7 +3758,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_WrongGeneration() {
 	ExpectEq(nil, err)
 
 	// The object should still exist.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, name)
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
 	ExpectEq(nil, err)
 }
 
@@ -3767,7 +3767,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 	var err error
 
 	// Create an object.
-	o, err := gcsutil.CreateObject(
+	o, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		name,
@@ -3787,7 +3787,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 	AssertEq(nil, err)
 
 	// The object should no longer exist.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, name)
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
