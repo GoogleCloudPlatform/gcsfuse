@@ -1,0 +1,4 @@
+write:
+  create-empty-file: true
+log:
+  severity: error

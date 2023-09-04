@@ -31,6 +31,7 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	AssertEq(true, mountConfig.CreateEmptyFile)
+	AssertEq("INFO", mountConfig.LogConfig.Severity)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -67,4 +68,20 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
 	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_ValidLogConfig() {
+	mountConfig, err := ParseConfigFile("testdata/valid_log_config.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
+	AssertEq("ERROR", mountConfig.LogConfig.Severity)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
+	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
 }
