@@ -19,7 +19,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -61,8 +62,8 @@ func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.Obj
 	return obj
 }
 
-func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
-	// gcs.Object accepts []*storagev1.ObjectAccessControl instead of []ACLRule.
+func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *object.Object {
+	// object.Object accepts []*storagev1.ObjectAccessControl instead of []ACLRule.
 	var acl []*storagev1.ObjectAccessControl
 	for _, element := range attrs.ACL {
 		acl = append(acl, convertACLRuleToObjectAccessControl(element))
@@ -76,7 +77,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	crc := attrs.CRC32C
 
 	// Setting the parameters in Object and doing conversions as necessary.
-	return &gcs.Object{
+	return &object.Object{
 		Name:               attrs.Name,
 		ContentType:        attrs.ContentType,
 		ContentLanguage:    attrs.ContentLanguage,
@@ -103,7 +104,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
 // These attributes will be assigned to the newly created or old object.
-func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {
+func SetAttrsInWriter(wc *storage.Writer, req *requests.CreateObjectRequest) *storage.Writer {
 	wc.Name = req.Name
 	wc.ContentType = req.ContentType
 	wc.ContentLanguage = req.ContentLanguage

@@ -15,11 +15,11 @@
 package gcsx
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 )
 
 type SyncerBucket struct {
-	gcs.Bucket
+	bucket.Bucket
 	Syncer
 }
 
@@ -28,7 +28,7 @@ type SyncerBucket struct {
 func NewSyncerBucket(
 	appendThreshold int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 ) SyncerBucket {
 	syncer := NewSyncer(appendThreshold, tmpObjectPrefix, bucket)
 	return SyncerBucket{bucket, syncer}

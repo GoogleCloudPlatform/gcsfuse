@@ -22,7 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -38,7 +40,7 @@ func TestAppendObjectCreator(t *testing.T) { RunTests(t) }
 func deleteReqName(expected string) (m Matcher) {
 	m = NewMatcher(
 		func(c interface{}) (err error) {
-			req, ok := c.(*gcs.DeleteObjectRequest)
+			req, ok := c.(*requests.DeleteObjectRequest)
 			if !ok {
 				err = fmt.Errorf("which has type %T", c)
 				return
@@ -64,10 +66,10 @@ const prefix = ".gcsfuse_tmp/"
 
 type AppendObjectCreatorTest struct {
 	ctx     context.Context
-	bucket  gcs.MockBucket
+	bucket  bucket.MockBucket
 	creator objectCreator
 
-	srcObject   gcs.Object
+	srcObject   object.Object
 	srcContents string
 	mtime       time.Time
 }
@@ -80,13 +82,13 @@ func (t *AppendObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
-	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = bucket.NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
 	t.creator = newAppendObjectCreator(prefix, t.bucket)
 }
 
-func (t *AppendObjectCreatorTest) call() (o *gcs.Object, err error) {
+func (t *AppendObjectCreatorTest) call() (o *object.Object, err error) {
 	o, err = t.creator.Create(
 		t.ctx,
 		t.srcObject.Name,
@@ -105,7 +107,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 	t.srcContents = "taco"
 
 	// CreateObject
-	var req *gcs.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -140,12 +142,12 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -158,7 +160,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name:       "bar",
 		Generation: 19,
 	}
@@ -167,7 +169,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *requests.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -191,7 +193,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src requests.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)
@@ -219,7 +221,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	t.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name:       "bar",
 		Generation: 19,
 	}
@@ -228,7 +230,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	var req *gcs.ComposeObjectsRequest
+	var req *requests.ComposeObjectsRequest
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
@@ -259,7 +261,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 	ExpectEq("test_value", req.Metadata["test_key"])
 
 	AssertEq(2, len(req.Sources))
-	var src gcs.ComposeSource
+	var src requests.ComposeSource
 
 	src = req.Sources[0]
 	ExpectEq(t.srcObject.Name, src.Name)
@@ -272,7 +274,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -296,7 +298,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsFails() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -305,7 +307,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -314,7 +316,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -322,7 +324,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 
 func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -331,7 +333,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.NotFoundError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -340,7 +342,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -348,7 +350,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -356,7 +358,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 
@@ -370,7 +372,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 
 func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -378,7 +380,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 
@@ -395,7 +397,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectFails() {
 
 func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 	// CreateObject
-	tmpObject := &gcs.Object{
+	tmpObject := &object.Object{
 		Name: "bar",
 	}
 
@@ -403,7 +405,7 @@ func (t *AppendObjectCreatorTest) DeleteObjectSucceeds() {
 		WillOnce(Return(tmpObject, nil))
 
 	// ComposeObjects
-	composed := &gcs.Object{}
+	composed := &object.Object{}
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
 		WillOnce(Return(composed, nil))
 

@@ -20,8 +20,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -41,10 +41,10 @@ func init() {
 
 func (t *AllBucketsTest) SetUpTestSuite() {
 	mtimeClock = timeutil.RealClock()
-	buckets = map[string]gcs.Bucket{
-		"bucket-0": gcsfake.NewFakeBucket(mtimeClock, "bucket-0"),
-		"bucket-1": gcsfake.NewFakeBucket(mtimeClock, "bucket-1"),
-		"bucket-2": gcsfake.NewFakeBucket(mtimeClock, "bucket-2"),
+	buckets = map[string]bucket2.Bucket{
+		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0"),
+		"bucket-1": fake.NewFakeBucket(mtimeClock, "bucket-1"),
+		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2"),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
 	t.fsTest.SetUpTestSuite()

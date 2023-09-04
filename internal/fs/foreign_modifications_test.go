@@ -29,11 +29,12 @@ import (
 	"syscall"
 	"time"
 
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -46,12 +47,12 @@ import (
 
 func setSymlinkTarget(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket2.Bucket,
 	objName string,
 	target string) (err error) {
 	_, err = bucket.UpdateObject(
 		ctx,
-		&gcs.UpdateObjectRequest{
+		&requests.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
 				inode.SymlinkMetadataKey: &target,
@@ -244,7 +245,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
 	// is no directory placeholder object. We don't have implicit directories
 	// enabled, so these should be unreachable.
-	err = gcsutil.CreateEmptyObjects(
+	err = storageutil.CreateEmptyObjects(
 		ctx,
 		bucket,
 		[]string{
@@ -284,7 +285,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// These unreachable objects (test/0, test/1, bar/0) start showing up in
 	// other tests as soon as directory with similar name is created. Hence
 	// cleaning them.
-	err = gcsutil.DeleteAllObjects(ctx, bucket)
+	err = storageutil.DeleteAllObjects(ctx, bucket)
 	AssertEq(nil, err)
 }
 
@@ -536,7 +537,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 	var buf [contentLen]byte
 	runOnce := func() {
 		// Create an object.
-		_, err := gcsutil.CreateObject(
+		_, err := storageutil.CreateObject(
 			ctx,
 			bucket,
 			"foo",
@@ -698,7 +699,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_File() {
 	lang := "fr"
 	_, err = bucket.UpdateObject(
 		ctx,
-		&gcs.UpdateObjectRequest{
+		&requests.UpdateObjectRequest{
 			Name:            "foo",
 			ContentLanguage: &lang,
 		})
@@ -727,7 +728,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
 	lang := "fr"
 	_, err = bucket.UpdateObject(
 		ctx,
-		&gcs.UpdateObjectRequest{
+		&requests.UpdateObjectRequest{
 			Name:            "dir/",
 			ContentLanguage: &lang,
 		})
@@ -761,7 +762,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 		nil,
 		bucket.DeleteObject(
 			ctx,
-			&gcs.DeleteObjectRequest{Name: "foo"}))
+			&requests.DeleteObjectRequest{Name: "foo"}))
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
@@ -797,7 +798,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 		nil,
 		bucket.DeleteObject(
 			ctx,
-			&gcs.DeleteObjectRequest{Name: "dir/"}))
+			&requests.DeleteObjectRequest{Name: "dir/"}))
 
 	// The inode should still be fstat'able.
 	fi, err := t.f1.Stat()
@@ -816,7 +817,7 @@ func (t *ForeignModsTest) Mtime() {
 
 	// Create an object that has an mtime set.
 	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
 			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
@@ -840,7 +841,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 	// Create an object that has an mtime set.
 	_, err = bucket.CreateObject(
 		ctx,
-		&gcs.CreateObjectRequest{
+		&requests.CreateObjectRequest{
 			Name: "foo",
 			Metadata: map[string]string{
 				"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
@@ -860,7 +861,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 
 	_, err = bucket.UpdateObject(
 		ctx,
-		&gcs.UpdateObjectRequest{
+		&requests.UpdateObjectRequest{
 			Name: "foo",
 			Metadata: map[string]*string{
 				"gcsfuse_mtime": &formatted,
@@ -880,7 +881,7 @@ func (t *ForeignModsTest) Symlink() {
 	var err error
 
 	// Create an object that looks like a symlink.
-	req := &gcs.CreateObjectRequest{
+	req := &requests.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
 			"gcsfuse_symlink_target": "bar/baz",

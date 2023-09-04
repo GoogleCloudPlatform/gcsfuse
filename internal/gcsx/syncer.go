@@ -19,7 +19,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"golang.org/x/net/context"
 )
 
@@ -40,8 +42,8 @@ type Syncer interface {
 	SyncObject(
 		ctx context.Context,
 		fileName string,
-		srcObject *gcs.Object,
-		content TempFile) (o *gcs.Object, err error)
+		srcObject *object.Object,
+		content TempFile) (o *object.Object, err error)
 }
 
 // NewSyncer creates a syncer that syncs into the supplied bucket.
@@ -56,7 +58,7 @@ type Syncer interface {
 func NewSyncer(
 	appendThreshold int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os Syncer) {
+	bucket bucket.Bucket) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -77,21 +79,21 @@ func NewSyncer(
 ////////////////////////////////////////////////////////////////////////
 
 type fullObjectCreator struct {
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
 	objectName string,
-	srcObject *gcs.Object,
+	srcObject *object.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *object.Object, err error) {
 	metadataMap := make(map[string]string)
 
-	var req *gcs.CreateObjectRequest
+	var req *requests.CreateObjectRequest
 	if srcObject == nil {
 		var precond int64
-		req = &gcs.CreateObjectRequest{
+		req = &requests.CreateObjectRequest{
 			Name:                   objectName,
 			Contents:               r,
 			GenerationPrecondition: &precond,
@@ -102,7 +104,7 @@ func (oc *fullObjectCreator) Create(
 			metadataMap[key] = value
 		}
 
-		req = &gcs.CreateObjectRequest{
+		req = &requests.CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,
@@ -141,9 +143,9 @@ type objectCreator interface {
 	Create(
 		ctx context.Context,
 		objectName string,
-		srcObject *gcs.Object,
+		srcObject *object.Object,
 		mtime *time.Time,
-		r io.Reader) (o *gcs.Object, err error)
+		r io.Reader) (o *object.Object, err error)
 }
 
 // Create a syncer that stats the mutable content to see if it's dirty before
@@ -181,8 +183,8 @@ type syncer struct {
 func (os *syncer) SyncObject(
 	ctx context.Context,
 	objectName string,
-	srcObject *gcs.Object,
-	content TempFile) (o *gcs.Object, err error) {
+	srcObject *object.Object,
+	content TempFile) (o *object.Object, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {
@@ -233,7 +235,7 @@ func (os *syncer) SyncObject(
 	// then we can make the optimization of not rewriting its contents.
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
-		srcObject.ComponentCount < gcs.MaxComponentCount {
+		srcObject.ComponentCount < requests.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %w", err)

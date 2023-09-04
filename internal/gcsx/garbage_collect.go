@@ -19,10 +19,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/syncutil"
 )
@@ -30,15 +32,15 @@ import (
 func garbageCollectOnce(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
+	bucket bucket.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
 	b := syncutil.NewBundle(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *object.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
-		err = gcsutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
+		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
 		if err != nil {
 			err = fmt.Errorf("ListPrefix: %w", err)
 			return
@@ -74,7 +76,7 @@ func garbageCollectOnce(
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
-				&gcs.DeleteObjectRequest{
+				&requests.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.
 				})
@@ -99,7 +101,7 @@ func garbageCollectOnce(
 func garbageCollect(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) {
+	bucket bucket.Bucket) {
 	const period = 10 * time.Minute
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()

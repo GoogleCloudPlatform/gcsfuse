@@ -17,7 +17,7 @@ package inode
 import (
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -28,7 +28,7 @@ import (
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 
 // IsSymlink Does the supplied object represent a symlink inode?
-func IsSymlink(o *gcs.Object) bool {
+func IsSymlink(o *object.Object) bool {
 	if o == nil {
 		return false
 	}
@@ -66,7 +66,7 @@ var _ Inode = &SymlinkInode{}
 func NewSymlinkInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.Object,
+	o *object.Object,
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{

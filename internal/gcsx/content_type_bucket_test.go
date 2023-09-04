@@ -18,9 +18,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -83,10 +83,10 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), ""))
 
 		// Create the object.
-		req := &gcs.CreateObjectRequest{
+		req := &requests.CreateObjectRequest{
 			Name:        tc.name,
 			ContentType: tc.request,
 			Contents:    strings.NewReader(""),
@@ -111,11 +111,11 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 	for i, tc := range contentTypeBucketTestCases {
 		// Set up a bucket.
 		bucket := gcsx.NewContentTypeBucket(
-			gcsfake.NewFakeBucket(timeutil.RealClock(), ""))
+			fake.NewFakeBucket(timeutil.RealClock(), ""))
 
 		// Create a source object.
 		const srcName = "some_src"
-		_, err = bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
+		_, err = bucket.CreateObject(ctx, &requests.CreateObjectRequest{
 			Name:     srcName,
 			Contents: strings.NewReader(""),
 		})
@@ -125,10 +125,10 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 		}
 
 		// Compose.
-		req := &gcs.ComposeObjectsRequest{
+		req := &requests.ComposeObjectsRequest{
 			DstName:     tc.name,
 			ContentType: tc.request,
-			Sources:     []gcs.ComposeSource{{Name: srcName}},
+			Sources:     []requests.ComposeSource{{Name: srcName}},
 		}
 
 		o, err := bucket.ComposeObjects(ctx, req)
