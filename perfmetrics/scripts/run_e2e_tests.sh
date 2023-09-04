@@ -15,8 +15,10 @@
 
 # This will stop execution when any command will have non-zero status.
 
+set -e
 sudo apt-get update
 
+readonly INTEGRATION_TEST_EXECUTION_TIME=24m
 # true or false to run e2e tests on installedPackage
 run_e2e_tests_on_package=$1
 
