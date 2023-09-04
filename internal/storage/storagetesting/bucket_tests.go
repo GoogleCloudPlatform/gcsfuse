@@ -2873,7 +2873,7 @@ func (t *readTest) Ranges_EmptyObject() {
 	}
 
 	// Turn test cases into read requests.
-	var requests []*requests.ReadObjectRequest
+	var reqs []*requests.ReadObjectRequest
 	for _, tc := range testCases {
 		br := tc.br
 		req := &requests.ReadObjectRequest{
@@ -2881,14 +2881,14 @@ func (t *readTest) Ranges_EmptyObject() {
 			Range: &br,
 		}
 
-		requests = append(requests, req)
+		reqs = append(reqs, req)
 	}
 
 	// Make each request.
 	contents, errs := readMultiple(
 		t.ctx,
 		t.bucket,
-		requests)
+		reqs)
 
 	AssertEq(len(testCases), len(contents))
 	AssertEq(len(testCases), len(errs))
@@ -2965,7 +2965,7 @@ func (t *readTest) Ranges_NonEmptyObject() {
 	}
 
 	// Turn test cases into read requests.
-	var requests []*requests.ReadObjectRequest
+	var reqs []*requests.ReadObjectRequest
 	for _, tc := range testCases {
 		br := tc.br
 		req := &requests.ReadObjectRequest{
@@ -2973,14 +2973,14 @@ func (t *readTest) Ranges_NonEmptyObject() {
 			Range: &br,
 		}
 
-		requests = append(requests, req)
+		reqs = append(reqs, req)
 	}
 
 	// Make each request.
 	contents, errs := readMultiple(
 		t.ctx,
 		t.bucket,
-		requests)
+		reqs)
 
 	AssertEq(len(testCases), len(contents))
 	AssertEq(len(testCases), len(errs))
