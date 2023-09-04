@@ -20,6 +20,7 @@ package fs_test
 
 import (
 	"errors"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"io/fs"
 	"os"
 	"path"
@@ -27,7 +28,6 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
@@ -391,15 +391,14 @@ func (t *LocalFileTest) TestReadDirForImplicitDirWithLocalFile() {
 }
 
 func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
-	/* Structure
-	mntDir/
-		- baseLocalFile 			--- file
-	  - explicitFoo/				--- directory
-			- explicitLocalFile --- file
-		- implicitFoo/ 				--- directory
-			- bar								--- file
-			- implicitLocalFile --- file
-	*/
+	// Structure
+	// mntDir/
+	//	   - baseLocalFile 			--- file
+	//     - explicitFoo/		    --- directory
+	//		   - explicitLocalFile  --- file
+	//	   - implicitFoo/ 			--- directory
+	//		   - bar				--- file
+	//		   - implicitLocalFile  --- file
 
 	// Create implicit dir with 1 local file1 and 1 synced file.
 	AssertEq(
@@ -742,4 +741,57 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingOnlyGCSFiles() {
 	t.validateObjectNotFoundErr("explicit/")
 	t.validateObjectNotFoundErr("explicit/foo")
 	t.validateObjectNotFoundErr("explicit/bar")
+}
+
+func (t *LocalFileTest) TestCreateSymlinkForLocalFile() {
+	var filePath string
+	// Create a local file.
+	filePath, t.f1 = t.createLocalFile(FileName)
+	// Writing contents to local file shouldn't create file on GCS.
+	_, err := t.f1.Write([]byte(FileContents))
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+
+	// Create the symlink.
+	symlinkName := path.Join(mntDir, "bar")
+	err = os.Symlink(filePath, symlinkName)
+	AssertEq(nil, err)
+
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(filePath, target)
+	contents, err := os.ReadFile(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(FileContents, string(contents))
+}
+
+func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
+	var filePath string
+	// Create a local file.
+	filePath, t.f1 = t.createLocalFile(FileName)
+	// Writing contents to local file shouldn't create file on GCS.
+	_, err := t.f1.Write([]byte(FileContents))
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+	// Create the symlink.
+	symlinkName := path.Join(mntDir, "bar")
+	err = os.Symlink(filePath, symlinkName)
+	AssertEq(nil, err)
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(filePath, target)
+
+	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+
+	// Reading symlink should fail.
+	_, err = os.Stat(symlinkName)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
