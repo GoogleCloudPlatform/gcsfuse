@@ -15,12 +15,12 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"log/syslog"
 	"os"
-
-	"github.com/jacobsa/daemonize"
 )
 
 // Syslog file contains logs from all different programmes running on the VM.
@@ -32,8 +32,7 @@ const GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
 
 var (
 	defaultLoggerFactory *loggerFactory
-	defaultInfoLogger    *log.Logger
-	defaultErrorLogger   *log.Logger
+	defaultLogger        *slog.Logger
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -43,7 +42,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string) error {
+func InitLogFile(filename string, format string, level string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var err error
@@ -76,9 +75,9 @@ func InitLogFile(filename string, format string) error {
 		sysWriter: sysWriter,
 		flag:      0,
 		format:    format,
+		level:     level,
 	}
-	defaultInfoLogger = NewInfo("")
-	defaultErrorLogger = NewError("")
+	defaultLogger = defaultLoggerFactory.newLogger(level)
 
 	return nil
 }
@@ -86,11 +85,12 @@ func InitLogFile(filename string, format string) error {
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
-		file: nil,
-		flag: log.Ldate | log.Ltime | log.Lmicroseconds,
+		file:  nil,
+		flag:  log.Ldate | log.Lmicroseconds,
+		level: "INFO",
 	}
-	defaultInfoLogger = NewInfo("")
-	defaultErrorLogger = NewError("")
+	// setting log level to INFO by default
+	defaultLogger = defaultLoggerFactory.newLogger("INFO")
 }
 
 // Close closes the log file when necessary.
@@ -101,50 +101,26 @@ func Close() {
 	}
 }
 
-// NewNotice returns a new logger for logging notice with given prefix to
-// the log file or the status writer which forwards the notices to the invoker
-// from the daemon.
-func NewNotice(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("NOTICE", prefix)
-}
-
-// NewDebug returns a new logger for logging debug messages with given prefix
-// to the log file or stdout.
-func NewDebug(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("DEBUG", prefix)
-}
-
-// NewInfo returns a new logger for logging info with given prefix to the log
-// file or stdout.
-func NewInfo(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("INFO", prefix)
-}
-
-// NewError returns a new logger for logging errors with given prefix to the log
-// file or stderr.
-func NewError(prefix string) *log.Logger {
-	return defaultLoggerFactory.newLogger("ERROR", prefix)
-}
-
 // Errorf calls the default error logger to print the message using Printf.
 func Errorf(format string, v ...interface{}) {
-	defaultErrorLogger.Printf(format, v...)
+	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
 // Info calls the default info logger to print the message using Printf.
 func Infof(format string, v ...interface{}) {
-	defaultInfoLogger.Printf(format, v...)
+	defaultLogger.Info(fmt.Sprintf(format, v...))
 }
 
 // Info calls the default info logger to print the message using Println.
 func Info(v ...interface{}) {
-	defaultInfoLogger.Println(v...)
+	defaultLogger.Info(fmt.Sprintln(v...))
 }
 
 // Fatal calls the default info logger to call the Fatal function of go-src-logs.
 // https://github.com/golang/go/blob/master/src/log/log.go#L282
 func Fatal(v ...interface{}) {
-	defaultInfoLogger.Fatal(v...)
+	Info(v...)
+	os.Exit(1)
 }
 
 type loggerFactory struct {
@@ -153,41 +129,34 @@ type loggerFactory struct {
 	sysWriter *syslog.Writer
 	flag      int
 	format    string
+	level     string
 }
 
-func (f *loggerFactory) newLogger(level, prefix string) *log.Logger {
-	return log.New(f.writer(level), prefix, f.flag)
+func (f *loggerFactory) newLogger(level string) *slog.Logger {
+	// create a new logger
+	var programLevel = new(slog.LevelVar)
+	logger := slog.New(f.handler(programLevel))
+
+	slog.SetDefault(logger)
+	setLoggingLevel(level, programLevel)
+	return logger
 }
 
-func (f *loggerFactory) createJsonOrTextWriter(level string, writer io.Writer) io.Writer {
+func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar) slog.Handler {
 	if f.format == "json" {
-		return &jsonWriter{
-			w:     writer,
-			level: level,
-		}
+		return slog.NewJSONHandler(writer, &slog.HandlerOptions{Level: levelVar})
 	}
-
-	return &textWriter{
-		w:     writer,
-		level: level,
-	}
+	return slog.NewTextHandler(writer, &slog.HandlerOptions{Level: levelVar})
 }
 
-func (f *loggerFactory) writer(level string) io.Writer {
+func (f *loggerFactory) handler(levelVar *slog.LevelVar) slog.Handler {
 	if f.file != nil {
-		return f.createJsonOrTextWriter(level, f.file)
+		return f.createJsonOrTextHandler(f.file, levelVar)
 	}
 
 	if f.sysWriter != nil {
-		return f.createJsonOrTextWriter(level, f.sysWriter)
+		return f.createJsonOrTextHandler(f.sysWriter, levelVar)
 	}
 
-	switch level {
-	case "NOTICE":
-		return f.createJsonOrTextWriter(level, daemonize.StatusWriter)
-	case "ERROR":
-		return f.createJsonOrTextWriter(level, os.Stderr)
-	default:
-		return f.createJsonOrTextWriter(level, os.Stdout)
-	}
+	return f.createJsonOrTextHandler(os.Stdout, levelVar)
 }
