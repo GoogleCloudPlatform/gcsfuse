@@ -29,6 +29,7 @@ import (
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -123,7 +124,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *requests.StatObjectR
 	}
 
 	// Converting attrs to type *Object
-	o = object.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
@@ -160,7 +161,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *requests.CreateOb
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
-	wc = object.SetAttrsInWriter(wc, req)
+	wc = storageutil.SetAttrsInWriter(wc, req)
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -184,7 +185,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *requests.CreateOb
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
-	o = object.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
 
@@ -219,7 +220,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *requests.CopyObjectR
 		return
 	}
 	// Converting objAttrs to type *Object
-	o = object.ObjectAttrsToBucketObject(objAttrs)
+	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
 
@@ -276,7 +277,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *requests.ListObject
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := object.ObjectAttrsToBucketObject(attrs)
+			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
 
@@ -339,7 +340,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *requests.UpdateObj
 
 	if err == nil {
 		// Converting objAttrs to type *Object
-		o = object.ObjectAttrsToBucketObject(attrs)
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
 		return
 	}
 
@@ -415,7 +416,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *requests.Compose
 	}
 
 	// Converting attrs to type *Object.
-	o = object.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
