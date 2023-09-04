@@ -16,16 +16,7 @@
 # This will stop execution when any command will have non-zero status.
 
 set -e
-sudo apt-get update
 
-# e.g. architecture=arm64 or amd64
-architecture=$(dpkg --print-architecture)
-echo "Installing git..."
-sudo apt-get install git
-echo "Installing go-lang 1.20.5..."
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.5.linux-${architecture}.tar.gz -q
-sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-export PATH=$PATH:/usr/local/go/bin
 echo "Installing docker..."
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg

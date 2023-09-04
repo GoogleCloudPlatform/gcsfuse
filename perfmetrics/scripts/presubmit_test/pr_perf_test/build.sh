@@ -47,17 +47,6 @@ function execute_perf_test() {
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
- # Installing requirements
- echo Installing python3-pip
- sudo apt-get -y install python3-pip
- echo Installing libraries to run python script
- pip install google-cloud
- pip install google-cloud-vision
- pip install google-api-python-client
- pip install prettytable
- echo Installing fio
- sudo apt-get install fio -y
-
  # Executing perf tests for master branch
  git checkout master
  # Store results
