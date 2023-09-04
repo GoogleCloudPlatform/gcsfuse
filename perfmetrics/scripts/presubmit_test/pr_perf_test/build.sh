@@ -87,5 +87,6 @@ then
 
   echo "Running e2e tests...."
   chmod +x perfmetrics/scripts/run_e2e_tests.sh
+  # $1 argument is refering to value of testInstalledPackage.
   ./perfmetrics/scripts/run_e2e_tests.sh false
 fi

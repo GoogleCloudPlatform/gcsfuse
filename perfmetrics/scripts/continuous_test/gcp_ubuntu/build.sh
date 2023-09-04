@@ -35,8 +35,8 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 git checkout master
 
 echo "Building and installing gcsfuse"
-chmod +x perfmetrics/scripts/build_and_install_packge.sh
-./perfmetrics/scripts/build_and_install_packge.sh
+chmod +x perfmetrics/scripts/build_and_install_package.sh
+./perfmetrics/scripts/build_and_install_package.sh
 
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"

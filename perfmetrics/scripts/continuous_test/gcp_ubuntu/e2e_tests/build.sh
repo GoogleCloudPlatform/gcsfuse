@@ -20,10 +20,10 @@ set -e
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 echo "Building and installing gcsfuse..."
-chmod +x perfmetrics/scripts/build_and_install_packge.sh
-./perfmetrics/scripts/build_and_install_packge.sh
+chmod +x perfmetrics/scripts/build_and_install_package.sh
+./perfmetrics/scripts/build_and_install_package.sh
 
-echo "Running e2e tests...."
+echo "Running e2e tests on installed package...."
 chmod +x perfmetrics/scripts/run_e2e_tests.sh
+# $1 argument is refering to value of testInstalledPackage
 ./perfmetrics/scripts/run_e2e_tests.sh true
-
