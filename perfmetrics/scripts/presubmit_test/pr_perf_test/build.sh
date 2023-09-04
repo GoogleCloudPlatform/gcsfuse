@@ -4,17 +4,17 @@ readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly INTEGRATION_TEST_EXECUTION_TIME=24m
 
-curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
-perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
-integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
-rm pr.json
-perfTestStr="$perfTest"
-integrationTestsStr="$integrationTests"
-if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  &&  "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]]
-then
-  echo "No need to execute tests"
-  exit 0
-fi
+#curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
+#perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
+#integrationTests=$(grep "$EXECUTE_INTEGRATION_TEST_LABEL" pr.json)
+#rm pr.json
+#perfTestStr="$perfTest"
+#integrationTestsStr="$integrationTests"
+#if [[ "$perfTestStr" != *"$EXECUTE_PERF_TEST_LABEL"*  &&  "$integrationTestsStr" != *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]]
+#then
+#  echo "No need to execute tests"
+#  exit 0
+#fi
 
 set -e
 sudo apt-get update

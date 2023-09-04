@@ -24,9 +24,6 @@ echo "Building and installing gcsfuse"
 chmod +x perfmetrics/scripts/build_and_install_packge.sh
 ./perfmetrics/scripts/build_and_install_packge.sh
 
-chmod +x perfmetrics/scripts/build_and_install_packge.sh
-./perfmetrics/scripts/build_and_install_packge.sh
-
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 echo "Mounting gcs bucket"

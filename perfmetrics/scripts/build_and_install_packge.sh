@@ -17,6 +17,8 @@
 
 set -e
 
+# e.g. architecture=arm64 or amd64
+architecture=$(dpkg --print-architecture)
 echo "Installing docker..."
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
