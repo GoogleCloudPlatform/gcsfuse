@@ -123,6 +123,11 @@ func Fatal(v ...interface{}) {
 	os.Exit(1)
 }
 
+// Debugf calls the default info logger to print the message using Printf.
+func Debugf(format string, v ...interface{}) {
+	defaultLogger.Debug(fmt.Sprintf(format, v...))
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file      *os.File
