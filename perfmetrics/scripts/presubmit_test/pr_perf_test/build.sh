@@ -83,20 +83,6 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  # Create bucket for integration tests.
-  # The prefix for the random string
-  bucketPrefix="gcsfuse-integration-test-"
-  # The length of the random string
-  length=5
-  # Generate the random string
-  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
-  BUCKET_NAME=$bucketPrefix$random_string
-  echo 'bucket name = '$BUCKET_NAME
-  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
-
-  # Executing integration tests
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout $INTEGRATION_TEST_EXECUTION_TIME
-
-  # Delete bucket after testing.
-  gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
+  chmod +x perfmetrics/scripts/run_e2e_tests.sh
+  ./perfmetrics/scripts/run_e2e_tests.sh
 fi

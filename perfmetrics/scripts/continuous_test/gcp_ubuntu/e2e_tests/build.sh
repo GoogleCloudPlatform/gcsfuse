@@ -48,11 +48,5 @@ sudo docker buildx build --load ./tools/package_gcsfuse_docker/ -t gcsfuse:$comm
 sudo docker run -v $HOME/release:/release gcsfuse:$commitId cp -r /packages /release/
 sudo dpkg -i $HOME/release/packages/gcsfuse_${GCSFUSE_VERSION}_${architecture}.deb
 
-x=$((RANDOM % 10 + 1))
-bucket_name=gcs-fuse-e2e-test-kokoro-${architecture}-${x}
-echo "Creating buket for e2e tests..."
-gcloud storage buckets create gs://${bucket_name} --project="gcs-fuse-test-ml" --location=us-west1 --uniform-bucket-level-access
-echo "Executing integration tests..."
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 --testInstalledPackage --integrationTest -v --testbucket=${bucket_name} -timeout 24m
-echo "Deleting bucket after testing..."
-gcloud storage rm --recursive gs://${bucket_name}/
+chmod +x perfmetrics/scripts/run_e2e_tests.sh
+./perfmetrics/scripts/run_e2e_tests.sh
