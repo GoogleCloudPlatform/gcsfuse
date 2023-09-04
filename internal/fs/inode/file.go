@@ -74,7 +74,7 @@ type FileInode struct {
 	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src storage.MinObject
+	src object.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -306,7 +306,7 @@ func (f *FileInode) Unlink() {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *storage.MinObject {
+func (f *FileInode) Source() *object.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -648,13 +648,13 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *object.Object) storage.MinObject {
-	var min storage.MinObject
+func convertObjToMinObject(o *object.Object) object.MinObject {
+	var min object.MinObject
 	if o == nil {
 		return min
 	}
 
-	return storage.MinObject{
+	return object.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,
