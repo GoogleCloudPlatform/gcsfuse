@@ -19,7 +19,7 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity string `yaml:"severity"`
+	Severity LogSeverity `yaml:"severity"`
 }
 
 type MountConfig struct {
@@ -35,7 +35,7 @@ func NewMountConfig() *MountConfig {
 		},
 		LogConfig{
 			// Making the default value as INFO
-			Severity: "INFO",
+			Severity: INFO,
 		},
 	}
 }
