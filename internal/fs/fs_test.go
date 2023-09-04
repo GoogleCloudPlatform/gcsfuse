@@ -31,11 +31,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
@@ -100,8 +100,8 @@ var (
 	// To mount a special bucket, override `bucket`;
 	// To mount multiple buckets, override `buckets`;
 	// Otherwise, a default bucket will be used.
-	bucket  gcs.Bucket
-	buckets map[string]gcs.Bucket
+	bucket  bucket2.Bucket
+	buckets map[string]bucket2.Bucket
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -126,7 +126,7 @@ func (t *fsTest) SetUpTestSuite() {
 			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
 		t.serverCfg.BucketName = bucket.Name()
-		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
+		buckets = map[string]bucket2.Bucket{bucket.Name(): bucket}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
@@ -319,7 +319,7 @@ func currentGid() uint32 {
 }
 
 type fakeBucketManager struct {
-	buckets         map[string]gcs.Bucket
+	buckets         map[string]bucket2.Bucket
 	appendThreshold int64
 	tmpObjectPrefix string
 }

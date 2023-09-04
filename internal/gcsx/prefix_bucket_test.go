@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -40,8 +41,8 @@ func TestPrefixBucket(t *testing.T) { RunTests(t) }
 type PrefixBucketTest struct {
 	ctx     context.Context
 	prefix  string
-	wrapped gcs.Bucket
-	bucket  gcs.Bucket
+	wrapped bucket.Bucket
+	bucket  bucket.Bucket
 }
 
 var _ SetUpInterface = &PrefixBucketTest{}

@@ -27,6 +27,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -35,7 +36,7 @@ import (
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
+func NewFakeBucket(clock timeutil.Clock, name string) bucket2.Bucket {
 	b := &bucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b

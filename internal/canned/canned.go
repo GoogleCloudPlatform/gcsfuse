@@ -21,6 +21,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"golang.org/x/net/context"
 
@@ -56,7 +57,7 @@ const (
 
 // Create a fake bucket with canned contents as described in the comments for
 // FakeBucketName.
-func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
+func MakeFakeBucket(ctx context.Context) (b bucket.Bucket) {
 	b = fake.NewFakeBucket(timeutil.RealClock(), FakeBucketName)
 
 	// Set up contents.

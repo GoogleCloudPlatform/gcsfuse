@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
 
@@ -25,7 +26,7 @@ import (
 // Write them into the supplied channel in an undefined order.
 func ListPrefix(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 	prefix string,
 	objects chan<- *gcs.Object) (err error) {
 	req := &gcs.ListObjectsRequest{

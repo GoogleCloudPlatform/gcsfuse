@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
 
@@ -36,7 +37,7 @@ import (
 // has been clobbered.
 func newAppendObjectCreator(
 	prefix string,
-	bucket gcs.Bucket) (oc objectCreator) {
+	bucket bucket.Bucket) (oc objectCreator) {
 	oc = &appendObjectCreator{
 		prefix: prefix,
 		bucket: bucket,
@@ -51,7 +52,7 @@ func newAppendObjectCreator(
 
 type appendObjectCreator struct {
 	prefix string
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func (oc *appendObjectCreator) chooseName() (name string, err error) {

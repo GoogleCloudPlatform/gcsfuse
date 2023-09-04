@@ -18,6 +18,7 @@ import (
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
 
@@ -27,7 +28,7 @@ import (
 func NewThrottledBucket(
 	opThrottle Throttle,
 	egressThrottle Throttle,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+	wrapped bucket.Bucket) (b bucket.Bucket) {
 	b = &throttledBucket{
 		opThrottle:     opThrottle,
 		egressThrottle: egressThrottle,
@@ -43,7 +44,7 @@ func NewThrottledBucket(
 type throttledBucket struct {
 	opThrottle     Throttle
 	egressThrottle Throttle
-	wrapped        gcs.Bucket
+	wrapped        bucket.Bucket
 }
 
 func (b *throttledBucket) Name() string {

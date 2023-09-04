@@ -26,6 +26,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -136,7 +137,7 @@ const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
 
 type RandomReaderTest struct {
 	object *storage.MinObject
-	bucket gcs.MockBucket
+	bucket bucket.MockBucket
 	rr     checkingRandomReader
 }
 
@@ -156,7 +157,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	}
 
 	// Create the bucket.
-	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = bucket.NewMockBucket(ti.MockController, "bucket")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb)

@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -30,7 +31,7 @@ import (
 func garbageCollectOnce(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
+	bucket bucket.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
 	b := syncutil.NewBundle(ctx)
 
@@ -99,7 +100,7 @@ func garbageCollectOnce(
 func garbageCollect(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) {
+	bucket bucket.Bucket) {
 	const period = 10 * time.Minute
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()

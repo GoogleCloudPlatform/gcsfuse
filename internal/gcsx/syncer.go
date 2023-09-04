@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
 
@@ -56,7 +57,7 @@ type Syncer interface {
 func NewSyncer(
 	appendThreshold int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os Syncer) {
+	bucket bucket.Bucket) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -77,7 +78,7 @@ func NewSyncer(
 ////////////////////////////////////////////////////////////////////////
 
 type fullObjectCreator struct {
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func (oc *fullObjectCreator) Create(

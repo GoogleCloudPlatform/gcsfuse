@@ -20,6 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
@@ -33,7 +34,7 @@ import (
 // must be valid UTF-8.
 func NewPrefixBucket(
 	prefix string,
-	wrapped gcs.Bucket) (b gcs.Bucket, err error) {
+	wrapped bucket.Bucket) (b bucket.Bucket, err error) {
 	if !utf8.ValidString(prefix) {
 		err = errors.New("prefix is not valid UTF-8")
 		return
@@ -49,7 +50,7 @@ func NewPrefixBucket(
 
 type prefixBucket struct {
 	prefix  string
-	wrapped gcs.Bucket
+	wrapped bucket.Bucket
 }
 
 func (b *prefixBucket) wrappedName(n string) string {

@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -50,7 +51,7 @@ const fileMode os.FileMode = 0641
 
 type FileTest struct {
 	ctx    context.Context
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 	clock  timeutil.SimulatedClock
 
 	initialContents string

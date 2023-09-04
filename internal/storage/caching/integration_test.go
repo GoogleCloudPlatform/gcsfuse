@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -39,9 +40,9 @@ type IntegrationTest struct {
 
 	cache   gcscaching2.StatCache
 	clock   timeutil.SimulatedClock
-	wrapped gcs.Bucket
+	wrapped bucket.Bucket
 
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 }
 
 func init() { RegisterTestSuite(&IntegrationTest{}) }

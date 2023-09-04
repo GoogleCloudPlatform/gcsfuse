@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -46,7 +47,7 @@ import (
 
 func setSymlinkTarget(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket2.Bucket,
 	objName string,
 	target string) (err error) {
 	_, err = bucket.UpdateObject(

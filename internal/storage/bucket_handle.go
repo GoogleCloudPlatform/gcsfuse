@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -34,7 +35,7 @@ import (
 )
 
 type bucketHandle struct {
-	gcs.Bucket
+	bucket.Bucket
 	bucket     *storage.BucketHandle
 	bucketName string
 }

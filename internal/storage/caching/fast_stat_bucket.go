@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -33,7 +34,7 @@ func NewFastStatBucket(
 	ttl time.Duration,
 	cache StatCache,
 	clock timeutil.Clock,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+	wrapped bucket.Bucket) (b bucket.Bucket) {
 	fsb := &fastStatBucket{
 		cache:   cache,
 		clock:   clock,
@@ -56,7 +57,7 @@ type fastStatBucket struct {
 	cache StatCache
 
 	clock   timeutil.Clock
-	wrapped gcs.Bucket
+	wrapped bucket.Bucket
 
 	/////////////////////////
 	// Constant data

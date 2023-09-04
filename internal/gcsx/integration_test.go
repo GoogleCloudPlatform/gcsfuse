@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -66,7 +67,7 @@ func randBytes(n int) (b []byte) {
 
 type IntegrationTest struct {
 	ctx    context.Context
-	bucket gcs.Bucket
+	bucket bucket.Bucket
 	clock  timeutil.SimulatedClock
 	syncer gcsx.Syncer
 

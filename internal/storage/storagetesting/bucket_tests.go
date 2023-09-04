@@ -33,6 +33,7 @@ import (
 	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -74,7 +75,7 @@ func init() {
 
 func createEmpty(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 	objectNames []string) error {
 	err := storageutil.CreateEmptyObjects(ctx, bucket, objectNames)
 	return err
@@ -246,7 +247,7 @@ func listDifference(a []string, b []string) (res []string) {
 // Issue all of the supplied read requests with some degree of parallelism.
 func readMultiple(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 	reqs []*gcs.ReadObjectRequest) (contents [][]byte, errs []error) {
 	b := syncutil.NewBundle(ctx)
 
@@ -346,7 +347,7 @@ func forEachString(
 
 type bucketTest struct {
 	ctx                            context.Context
-	bucket                         gcs.Bucket
+	bucket                         bucket.Bucket
 	clock                          timeutil.Clock
 	supportsCancellation           bool
 	buffersEntireContentsForCreate bool

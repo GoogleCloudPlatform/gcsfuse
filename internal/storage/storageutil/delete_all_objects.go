@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -24,7 +25,7 @@ import (
 // bucket is being concurrently updated.
 func DeleteAllObjects(
 	ctx context.Context,
-	bucket gcs.Bucket) error {
+	bucket bucket.Bucket) error {
 	bundle := syncutil.NewBundle(ctx)
 
 	// List all of the objects in the bucket.

@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -99,14 +100,14 @@ func recordRequest(ctx context.Context, method string, start time.Time) {
 }
 
 // NewMonitoringBucket returns a gcs.Bucket that exports metrics for monitoring
-func NewMonitoringBucket(b gcs.Bucket) gcs.Bucket {
+func NewMonitoringBucket(b bucket.Bucket) bucket.Bucket {
 	return &monitoringBucket{
 		wrapped: b,
 	}
 }
 
 type monitoringBucket struct {
-	wrapped gcs.Bucket
+	wrapped bucket.Bucket
 }
 
 func (mb *monitoringBucket) Name() string {

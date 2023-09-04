@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -39,12 +40,12 @@ import (
 const ttl = 10 * time.Minute
 
 var (
-	uncachedBucket gcs.Bucket
+	uncachedBucket bucket2.Bucket
 )
 
 type cachingTestCommon struct {
 	fsTest
-	uncachedBucket gcs.Bucket
+	uncachedBucket bucket2.Bucket
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {

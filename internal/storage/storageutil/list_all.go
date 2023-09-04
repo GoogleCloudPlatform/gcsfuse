@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
 
@@ -25,7 +26,7 @@ import (
 // May modify *req.
 func ListAll(
 	ctx context.Context,
-	bucket gcs.Bucket,
+	bucket bucket.Bucket,
 	req *gcs.ListObjectsRequest) (
 	objects []*gcs.Object,
 	runs []string,
