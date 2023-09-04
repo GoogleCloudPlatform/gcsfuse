@@ -2081,6 +2081,8 @@ func (t *FileTest) Sync_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
+	AssertEq(nil, err)
+
 	// Attempt to sync the file. This may result in an error if the OS has
 	// decided to hold back the writes from above until now (in which case the
 	// inode will fail to load the source object), or it may fail silently.
@@ -2167,6 +2169,8 @@ func (t *FileTest) Close_Clobbered() {
 		bucket,
 		"foo",
 		[]byte("foobar"))
+
+	AssertEq(nil, err)
 
 	// Close the file. This may result in a "generation not found" error when
 	// faulting in the object's contents on Linux where close may cause cached
