@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 # Installing requirements
+echo "Installing fio"
+sudo apt-get install fio -y
 echo Installing python3-pip
 sudo apt-get -y install python3-pip
 echo Installing libraries to run python script
