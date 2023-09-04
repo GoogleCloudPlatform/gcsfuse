@@ -106,14 +106,14 @@ func Errorf(format string, v ...interface{}) {
 	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
-// Info calls the default info logger to print the message using Printf.
+// Infof calls the default info logger to print the message with format.
 func Infof(format string, v ...interface{}) {
 	defaultLogger.Info(fmt.Sprintf(format, v...))
 }
 
-// Info calls the default info logger to print the message using Println.
+// Info calls the default info logger to print the message.
 func Info(v ...interface{}) {
-	defaultLogger.Info(fmt.Sprintln(v...))
+	defaultLogger.Info(fmt.Sprint(v...))
 }
 
 // Fatal calls the default info logger to call the Fatal function of go-src-logs.
