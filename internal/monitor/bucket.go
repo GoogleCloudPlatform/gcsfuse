@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
@@ -81,7 +82,7 @@ func recordRequest(ctx context.Context, method string, start time.Time) {
 		requestCount.M(1),
 	); err != nil {
 		// The error should be caused by a bad tag
-		errorLogger.Printf("Cannot record request count: %v", err)
+		logger.Errorf("Cannot record request count: %v", err)
 	}
 
 	latencyUs := time.Since(start).Microseconds()
@@ -94,7 +95,7 @@ func recordRequest(ctx context.Context, method string, start time.Time) {
 		requestLatency.M(latencyMs),
 	); err != nil {
 		// The error should be caused by a bad tag
-		errorLogger.Printf("Cannot record request latency: %v", err)
+		logger.Errorf("Cannot record request latency: %v", err)
 	}
 }
 
@@ -199,7 +200,7 @@ func recordReader(ctx context.Context, ioMethod string) {
 		},
 		readerCount.M(1),
 	); err != nil {
-		errorLogger.Printf("Cannot record a reader %v: %v", ioMethod, err)
+		logger.Errorf("Cannot record a reader %v: %v", ioMethod, err)
 	}
 }
 
