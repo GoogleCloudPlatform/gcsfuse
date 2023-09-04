@@ -16,6 +16,7 @@
 # Running test only for when PR contains execute-perf-test or execute-integration-tests label
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
+readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
@@ -88,5 +89,5 @@ then
   echo "Running e2e tests...."
   chmod +x perfmetrics/scripts/run_e2e_tests.sh
   # $1 argument is refering to value of testInstalledPackage.
-  ./perfmetrics/scripts/run_e2e_tests.sh false
+  ./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
 fi
