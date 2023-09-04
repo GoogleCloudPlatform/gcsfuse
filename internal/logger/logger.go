@@ -118,8 +118,8 @@ func Info(v ...interface{}) {
 
 // Fatal calls the default info logger to call the Fatal function of go-src-logs.
 // https://github.com/golang/go/blob/master/src/log/log.go#L282
-func Fatal(v ...interface{}) {
-	Info(v...)
+func Fatal(format string, v ...interface{}) {
+	Errorf(format, v...)
 	os.Exit(1)
 }
 

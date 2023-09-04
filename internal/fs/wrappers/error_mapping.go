@@ -17,7 +17,6 @@ package wrappers
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"strings"
 	"syscall"
@@ -81,27 +80,25 @@ func errno(err error) error {
 func WithErrorMapping(wrapped fuseutil.FileSystem) fuseutil.FileSystem {
 	return &errorMapping{
 		wrapped: wrapped,
-		logger:  logger.NewError(""),
 	}
 }
 
 type errorMapping struct {
 	wrapped fuseutil.FileSystem
-	logger  *log.Logger
 }
 
 func (em *errorMapping) handlePanic() {
 	// detect if panic occurred or not
 	a := recover()
 	if a != nil {
-		em.logger.Fatal("Panic: ", a)
+		logger.Fatal("Panic: ", a)
 	}
 }
 
 func (em *errorMapping) mapError(op string, err error) error {
 	fsErr := errno(err)
 	if err != nil && fsErr != nil && err != fsErr {
-		em.logger.Printf("%s: %v, %v", op, fsErr, err)
+		logger.Errorf("%s: %v, %v", op, fsErr, err)
 	}
 	return fsErr
 }
