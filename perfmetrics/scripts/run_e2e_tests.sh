@@ -41,7 +41,7 @@ length=5
 random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
 BUCKET_NAME=$bucketPrefix$random_string
 echo 'bucket name = '$BUCKET_NAME
-# We are using gcloud alpha because it gcloud is giving issues running on Kokoro
+# We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
 gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
 
 # Executing integration tests
