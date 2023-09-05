@@ -65,7 +65,10 @@ RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUS
 RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
 # Strip unneeded from binaries as required by lintian
 RUN strip --strip-unneeded ${GCSFUSE_BIN}/usr/bin/gcsfuse && \
-    strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse
+    strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse \
+
+# Update ARCHITECTURE in control file.
+RUN sed -i "6s/.*/Architecture: ${ARCHITECTURE}/" ${GCSFUSE_BIN}/DEBIAN/control
 
 ARG GCSFUSE_PKG="/packages"
 RUN mkdir -p ${GCSFUSE_PKG}
