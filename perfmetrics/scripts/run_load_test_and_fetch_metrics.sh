@@ -37,4 +37,3 @@ then
 else
   python3 fetch_metrics.py fio-output.json --upload
 fi
-

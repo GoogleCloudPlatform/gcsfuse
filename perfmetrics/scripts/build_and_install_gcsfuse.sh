@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will build gcsfuse package and install it on the machine.
+# This script will build gcsfuse package on given commitId or branch and install it on the machine.
 # This will stop execution when any command will have non-zero status.
 set -e
 # e.g. architecture=arm64 or amd64
