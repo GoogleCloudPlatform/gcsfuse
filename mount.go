@@ -85,11 +85,6 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	// if debug_fuse or debug_gcsfuse flags are set, override log severity to TRACE
-	if flags.DebugFuse || flags.DebugGCS {
-		mountConfig.LogConfig.Severity = "TRACE"
-	}
-
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
