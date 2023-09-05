@@ -1,63 +1,87 @@
 package logger
 
 import (
-	"context"
 	"log/slog"
-	"runtime"
-	"time"
+	"strings"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 )
 
-func setLoggingLevel(level string, programLevel *slog.LevelVar) {
+const (
+	LevelTrace = slog.Level(-8)
+	LevelDebug = slog.LevelDebug
+	LevelInfo  = slog.LevelInfo
+	LevelWarn  = slog.LevelWarn
+	LevelError = slog.LevelError
+	LevelOff   = slog.Level(12)
+)
+
+func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	switch level {
 	// logs having severity >= the configured value will be logged.
-	case "TRACE":
+	case config.TRACE:
 		// Setting severity to -8, so that all the other levels are logged.
-		programLevel.Set(-8)
+		programLevel.Set(LevelTrace)
 		break
-	case "DEBUG":
-		programLevel.Set(slog.LevelDebug)
+	case config.DEBUG:
+		programLevel.Set(LevelDebug)
 		break
-	case "INFO":
-		programLevel.Set(slog.LevelInfo)
+	case config.INFO:
+		programLevel.Set(LevelInfo)
 		break
-	case "WARNING":
-		programLevel.Set(slog.LevelWarn)
+	case config.WARNING:
+		programLevel.Set(LevelWarn)
 		break
-	case "ERROR":
-		programLevel.Set(slog.LevelError)
+	case config.ERROR:
+		programLevel.Set(LevelError)
 		break
-	case "OFF":
+	case config.OFF:
 		// Setting severity to 12, so that nothing is logged.
-		programLevel.Set(12)
+		programLevel.Set(LevelOff)
 		break
 	}
 }
 
-// this code has been copied from https://github.com/golang/go/blob/master/src/log/slog/logger.go#L46
-// inorder to provide support for appending prefix string to new loggers.
-type handlerWriter struct {
-	h         slog.Handler
-	level     slog.Level
-	capturePC bool
-}
+func GetHandlerOptions(levelVar *slog.LevelVar, prefix string) *slog.HandlerOptions {
+	return &slog.HandlerOptions{
+		// Set log level to configured value.
+		Level: levelVar,
 
-func (w *handlerWriter) Write(buf []byte) (int, error) {
-	if !w.h.Enabled(context.Background(), w.level) {
-		return 0, nil
-	}
-	var pc uintptr
-	if w.capturePC {
-		// skip [runtime.Callers, w.Write, Logger.Output, log.Print]
-		var pcs [1]uintptr
-		runtime.Callers(4, pcs[:])
-		pc = pcs[0]
-	}
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// Customize the name of the level key and the output string, including
+			// custom level values.
+			if a.Key == slog.LevelKey {
+				// Rename the level key from "level" to "sev".
+				a.Key = "severity"
 
-	// Remove final newline.
-	origLen := len(buf) // Report that the entire buf was written.
-	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
-		buf = buf[:len(buf)-1]
+				// Handle custom level values.
+				level := a.Value.Any().(slog.Level)
+				switch {
+				case level == LevelTrace:
+					a.Value = slog.StringValue(string(config.TRACE))
+				case level == LevelDebug:
+					a.Value = slog.StringValue(string(config.DEBUG))
+				case level == LevelInfo:
+					a.Value = slog.StringValue(string(config.INFO))
+				case level == LevelWarn:
+					a.Value = slog.StringValue(string(config.WARNING))
+				case level == LevelError:
+					a.Value = slog.StringValue(string(config.ERROR))
+				case level == LevelOff:
+					a.Value = slog.StringValue(string(config.OFF))
+				default:
+					a.Value = slog.StringValue(string(config.INFO))
+				}
+			}
+
+			if a.Key == slog.MessageKey {
+				message := a.Value.Any().(string)
+				var sb strings.Builder
+				sb.WriteString(prefix)
+				sb.WriteString(message)
+				a.Value = slog.StringValue(sb.String())
+			}
+			return a
+		},
 	}
-	r := slog.NewRecord(time.Now(), w.level, string(buf), pc)
-	return origLen, w.h.Handle(context.Background(), r)
 }

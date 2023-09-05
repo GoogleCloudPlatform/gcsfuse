@@ -15,12 +15,15 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 )
 
 // Syslog file contains logs from all different programmes running on the VM.
@@ -42,7 +45,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string, level string) error {
+func InitLogFile(filename string, format string, level config.LogSeverity) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var err error
@@ -128,40 +131,44 @@ func Debugf(format string, v ...interface{}) {
 	defaultLogger.Debug(fmt.Sprintf(format, v...))
 }
 
+func Tracef(format string, v ...interface{}) {
+	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file      *os.File
 	sysWriter *syslog.Writer
 	flag      int
 	format    string
-	level     string
+	level     config.LogSeverity
 }
 
-func (f *loggerFactory) newLogger(level string) *slog.Logger {
+func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
-	logger := slog.New(f.handler(programLevel))
+	logger := slog.New(f.handler(programLevel, ""))
 
 	slog.SetDefault(logger)
 	setLoggingLevel(level, programLevel)
 	return logger
 }
 
-func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar) slog.Handler {
+func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.format == "json" {
-		return slog.NewJSONHandler(writer, &slog.HandlerOptions{Level: levelVar})
+		return slog.NewJSONHandler(writer, GetHandlerOptions(levelVar, prefix))
 	}
-	return slog.NewTextHandler(writer, &slog.HandlerOptions{Level: levelVar})
+	return slog.NewTextHandler(writer, GetHandlerOptions(levelVar, prefix))
 }
 
-func (f *loggerFactory) handler(levelVar *slog.LevelVar) slog.Handler {
+func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.file != nil {
-		return f.createJsonOrTextHandler(f.file, levelVar)
+		return f.createJsonOrTextHandler(f.file, levelVar, prefix)
 	}
 
 	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar)
+		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
 	}
 
-	return f.createJsonOrTextHandler(os.Stdout, levelVar)
+	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 }

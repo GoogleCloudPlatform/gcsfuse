@@ -5,16 +5,9 @@ import (
 	"log/slog"
 )
 
-func (f *loggerFactory) NewDebugLogger(prefix string) *log.Logger {
+func (f *loggerFactory) NewLogger(prefix string, level slog.Level) *log.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := log.New(&handlerWriter{f.handler(programLevel), slog.LevelDebug, true}, prefix, 0)
-	setLoggingLevel(f.level, programLevel)
-	return logger
-}
-
-func (f *loggerFactory) NewErrorLogger(prefix string) *log.Logger {
-	var programLevel = new(slog.LevelVar)
-	logger := log.New(&handlerWriter{f.handler(programLevel), slog.LevelError, true}, prefix, 0)
+	logger := slog.NewLogLogger(f.handler(programLevel, prefix), level)
 	setLoggingLevel(f.level, programLevel)
 	return logger
 }
