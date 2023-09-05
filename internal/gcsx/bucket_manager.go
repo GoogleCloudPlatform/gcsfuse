@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/timeutil"
 )
@@ -195,9 +194,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable cached StatObject results, if appropriate.
 	if bm.config.StatCacheTTL != 0 {
 		cacheCapacity := bm.config.StatCacheCapacity
-		b = gcscaching2.NewFastStatBucket(
+		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			gcscaching2.NewStatCache(cacheCapacity),
+			caching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
 	}

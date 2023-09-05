@@ -20,7 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
@@ -40,7 +40,7 @@ func TestIntegration(t *testing.T) { RunTests(t) }
 type IntegrationTest struct {
 	ctx context.Context
 
-	cache   gcscaching2.StatCache
+	cache   caching.StatCache
 	clock   timeutil.SimulatedClock
 	wrapped bucket.Bucket
 
@@ -57,10 +57,10 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	const cacheCapacity = 100
-	t.cache = gcscaching2.NewStatCache(cacheCapacity)
+	t.cache = caching.NewStatCache(cacheCapacity)
 	t.wrapped = fake.NewFakeBucket(&t.clock, "some_bucket")
 
-	t.bucket = gcscaching2.NewFastStatBucket(
+	t.bucket = caching.NewFastStatBucket(
 		ttl,
 		t.cache,
 		&t.clock,

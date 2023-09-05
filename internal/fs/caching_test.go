@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	gcscaching2 "github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -53,8 +52,8 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
-	statCache := gcscaching2.NewStatCache(statCacheCapacity)
-	bucket = gcscaching2.NewFastStatBucket(
+	statCache := caching.NewStatCache(statCacheCapacity)
+	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
 		&cacheClock,
