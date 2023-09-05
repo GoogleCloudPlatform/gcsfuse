@@ -22,12 +22,19 @@ gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 touch ~/logs.txt
 
+uname=$(uname -m)
+if [[ $uname == "x86_64" ]]; then
+  architecture="amd64"
+elif [[ $uname == "aarch64" ]]; then
+  architecture="arm64"
+fi
+
 # Based on the os type(from vm instance name) in detail.txt, run the following commands to install apt-transport-artifact-registry
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For ubuntu and debian os
     curl https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | sudo apt-key add - && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-    echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-stable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
+    echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-unstable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
     sudo apt update
     sudo apt install apt-transport-artifact-registry
     echo "deb ar+https://us-apt.pkg.dev/projects/gcs-fuse-prod gcsfuse-$(lsb_release -cs) main" | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
@@ -62,39 +69,41 @@ else
     echo "Failure detected in latest gcsfuse version installation." &>> ~/logs.txt
 fi
 
-# Uninstall gcsfuse latest version and install old version
-if grep -q ubuntu details.txt || grep -q debian details.txt;
-then
-    sudo apt remove -y gcsfuse
-    sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
-else
-    sudo yum -y remove gcsfuse
-    sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
-fi
+if [[ $architecture == amd64 ]]
+  # Uninstall gcsfuse latest version and install old version
+  if grep -q ubuntu details.txt || grep -q debian details.txt;
+  then
+      sudo apt remove -y gcsfuse
+      sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
+  else
+      sudo yum -y remove gcsfuse
+      sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+  fi
 
-# verify old version installation
-gcsfuse --version |& tee version.txt
-installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-if [ $installed_version == "0.42.5" ]; then
-    echo "GCSFuse old version (0.42.5) installed successfully" &>> ~/logs.txt
-else
-    echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
-fi
+  # verify old version installation
+  gcsfuse --version |& tee version.txt
+  installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
+  if [ $installed_version == "0.42.5" ]; then
+      echo "GCSFuse old version (0.42.5) installed successfully" &>> ~/logs.txt
+  else
+      echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
+  fi
 
-# Upgrade gcsfuse to latest version
-if grep -q ubuntu details.txt || grep -q debian details.txt;
-then
-    sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
-else
-    sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
-fi
+  # Upgrade gcsfuse to latest version
+  if grep -q ubuntu details.txt || grep -q debian details.txt;
+  then
+      sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
+  else
+      sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+  fi
 
-gcsfuse --version |& tee version.txt
-installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-if grep -q $installed_version details.txt; then
-    echo "GCSFuse successfully upgraded to latest version $installed_version." &>> ~/logs.txt
-else
-    echo "Failure detected in upgrading to latest gcsfuse version." &>> ~/logs.txt
+  gcsfuse --version |& tee version.txt
+  installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
+  if grep -q $installed_version details.txt; then
+      echo "GCSFuse successfully upgraded to latest version $installed_version." &>> ~/logs.txt
+  else
+      echo "Failure detected in upgrading to latest gcsfuse version." &>> ~/logs.txt
+  fi
 fi
 
 if grep -q Failure ~/logs.txt; then
