@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -25,6 +26,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	. "github.com/jacobsa/ogletest"
 )
+
+const TwoHundredMiB = 1024 * 1024 * 200
+const InputOutputErrorMsg = "input/output error"
 
 func getMountPath1() string {
 	return path.Join(setup.MntDir(), MountName1)
@@ -122,6 +126,8 @@ func TestW1OpensW2OpensW1WritesFlushesW2WritesFlushes(t *testing.T) {
 	compareGCSObjContent(t, dataToWrite1)
 }
 
+// This tests the case of clobbered error when two writers try to flush to same
+// object concurrently.
 func TestW1OpensWritesW2OpensWritesW1FlushesW2Flushes(t *testing.T) {
 	cleanAndCreateCommonFileInTestBucket(t)
 	//w1 opens
@@ -143,9 +149,56 @@ func TestW1OpensWritesW2OpensWritesW1FlushesW2Flushes(t *testing.T) {
 	// has been clobbered by w1.
 	err := w2File.Sync()
 
-	ExpectEq(true, strings.Contains(err.Error(), "input/output error"))
+	ExpectEq(true, strings.Contains(err.Error(), InputOutputErrorMsg))
 	// check the GCS object still has the contents written by w1.
 	compareGCSObjContent(t, dataToWrite1)
+}
+
+// This tests the case of precondition error when two writers concurrently flush
+// to same object.
+func TestW1OpensWritesW2OpensWritesW1W2Flushes(t *testing.T) {
+	cleanAndCreateCommonFileInTestBucket(t)
+	//w1 opens
+	w1File := openFile(t, getFilePathInMount1())
+	defer operations.CloseFile(w1File)
+	// w1 writes (writing large file so that it takes some time to flush to GCS)
+	dataToWrite1 := strings.Repeat("1", TwoHundredMiB)
+	writeToFile(t, w1File, dataToWrite1)
+	//w2 opens
+	w2File := openFile(t, getFilePathInMount2())
+	defer operations.CloseFile(w2File)
+	// w2 writes
+	dataToWrite2 := strings.Repeat("2", TwoHundredMiB)
+	writeToFile(t, w2File, dataToWrite2)
+	// Go routines for W1 and W2 for concurrent flushing.
+	var err1, err2 error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	syncW1 := func() {
+		err1 = w1File.Sync()
+		wg.Done()
+	}
+	syncW2 := func() {
+		err2 = w2File.Sync()
+		wg.Done()
+	}
+
+	// Both W1 and W2 tries to flush concurrently but one of them should fail with
+	// I/O error. Because the file size they are flushing is large, it is expected
+	// that both will pass clobbered check and the I/O will come because of
+	// precondition error
+	go syncW1()
+	go syncW2()
+	wg.Wait()
+
+	// if W1 syncs successfully, the other one should fail and vice-versa
+	if err1 == nil {
+		ExpectEq(true, strings.Contains(err2.Error(), InputOutputErrorMsg))
+		compareGCSObjContent(t, dataToWrite1)
+	} else {
+		ExpectEq(true, strings.Contains(err1.Error(), InputOutputErrorMsg))
+		compareGCSObjContent(t, dataToWrite2)
+	}
 }
 
 func TestW1OpensWritesFlushesW2OpensWritesFlushes(t *testing.T) {
