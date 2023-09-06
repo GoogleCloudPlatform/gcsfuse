@@ -109,8 +109,7 @@ func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	mountConfig *config.MountConfig,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	mountConfig *config.MountConfig) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -125,7 +124,7 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		mountStatus.Println("Creating Storage handle...")
+		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
@@ -141,8 +140,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		mountConfig,
-		storageHandle,
-		mountStatus)
+		storageHandle)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -313,17 +311,16 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
 		if err == nil {
-			mountStatus.Println("File system has been successfully mounted.")
+			logger.Info("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
+			logger.Errorf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
