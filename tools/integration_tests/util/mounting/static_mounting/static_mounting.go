@@ -54,6 +54,8 @@ func executeTestsForStaticMounting(flags [][]string, m *testing.M) (successCode 
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running static mounting tests...")
+
 	successCode = executeTestsForStaticMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
