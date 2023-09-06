@@ -371,7 +371,7 @@ func handlePanicWhileMounting() {
 	// Detect if panic happens in main go routine.
 	a := recover()
 	if a != nil {
-		logger.Fatal("Panic: ", a)
+		logger.Fatal("Panic: %v", a)
 	}
 }
 
