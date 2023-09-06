@@ -45,7 +45,7 @@ then
 else
 #  For rhel and centos
     sudo yum makecache
-    sudo yum -y install yum-plugin-artifact-registry
+    sudo yum -y install dnf-plugin-artifact-registry
 sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
 [gcsfuse-el7-x86-64]
 name=gcsfuse-el7-x86-64
@@ -69,7 +69,7 @@ else
     echo "Failure detected in latest gcsfuse version installation." &>> ~/logs.txt
 fi
 
-if [[ $architecture == amd64 ]]
+if [[ $architecture == amd64 ]]; then
   # Uninstall gcsfuse latest version and install old version
   if grep -q ubuntu details.txt || grep -q debian details.txt;
   then
