@@ -17,9 +17,35 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+type LogSeverity string
+
+const (
+	TRACE   LogSeverity = "TRACE"
+	DEBUG   LogSeverity = "DEBUG"
+	INFO    LogSeverity = "INFO"
+	WARNING LogSeverity = "WARNING"
+	ERROR   LogSeverity = "ERROR"
+	OFF     LogSeverity = "OFF"
+)
+
+func IsValidLogSeverity(severity LogSeverity) bool {
+	switch severity {
+	case
+		TRACE,
+		DEBUG,
+		INFO,
+		WARNING,
+		ERROR,
+		OFF:
+		return true
+	}
+	return false
+}
 
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig = NewMountConfig()
@@ -37,6 +63,12 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	err = yaml.Unmarshal(buf, mountConfig)
 	if err != nil {
 		err = fmt.Errorf("error parsing config file: %w", err)
+		return
+	}
+	// convert log severity to upper-case
+	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
+	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
+		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
 		return
 	}
 

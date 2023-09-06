@@ -1,5 +1,4 @@
 write:
   create-empty-file: true
 logging:
-  severity: error
-
+  severity: critical
