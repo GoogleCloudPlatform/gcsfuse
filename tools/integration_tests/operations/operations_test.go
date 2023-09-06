@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -100,7 +101,12 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 	// Set up config file with create-empty-file: false.
-	configFile := setup.YAMLConfig(false)
+	mountConfig := config.MountConfig{
+		WriteConfig: config.WriteConfig{
+			CreateEmptyFile: false,
+		},
+	}
+	configFile := setup.YAMLConfigFile(mountConfig)
 	// Set up flags to run tests on.
 	flags := [][]string{
 		{"--implicit-dirs=true"},
