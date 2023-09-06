@@ -68,7 +68,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
 	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
-	AssertEq("ERROR", mountConfig.LogConfig.Severity)
+	AssertEq(ERROR, mountConfig.LogConfig.Severity)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
