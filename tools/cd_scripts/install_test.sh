@@ -22,6 +22,7 @@ gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 touch ~/logs.txt
 
+# uname can be x_86_64 or aarch64
 uname=$(uname -m)
 if [[ $uname == "x86_64" ]]; then
   architecture="amd64"
