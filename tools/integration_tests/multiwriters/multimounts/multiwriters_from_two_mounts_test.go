@@ -196,6 +196,7 @@ func TestW1OpensWritesW2OpensWritesW1W2Flushes(t *testing.T) {
 		ExpectEq(true, strings.Contains(err2.Error(), InputOutputErrorMsg))
 		compareGCSObjContent(t, dataToWrite1)
 	} else {
+		ExpectEq(nil, err2)
 		ExpectEq(true, strings.Contains(err1.Error(), InputOutputErrorMsg))
 		compareGCSObjContent(t, dataToWrite2)
 	}
