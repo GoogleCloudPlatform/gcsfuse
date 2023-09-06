@@ -22,7 +22,6 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"regexp"
@@ -46,7 +45,6 @@ type CacheObjectKey struct {
 // fileMap is an in memory map to represent cache contents on disk
 type ContentCache struct {
 	mu         sync.Mutex
-	debug      *log.Logger
 	tempDir    string
 	fileMap    map[CacheObjectKey]*CacheObject
 	mtimeClock timeutil.Clock
@@ -115,12 +113,12 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	metadataAbsolutePath := path.Join(c.tempDir, metadataFile.Name())
 	contents, err := ioutil.ReadFile(metadataAbsolutePath)
 	if err != nil {
-		c.debug.Printf("Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
 		return
 	}
 	err = json.Unmarshal(contents, &metadata)
 	if err != nil {
-		c.debug.Printf("Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
 		return
 	}
 	cacheObjectKey := &CacheObjectKey{
@@ -132,12 +130,12 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	// so this is probably not scalable, we should figure out if this is an actual issue or not
 	file, err := os.Open(fileName)
 	if err != nil {
-		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 		return
 	}
 	cacheFile, err := c.recoverCacheFile(file)
 	if err != nil {
-		c.debug.Printf("Skip cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 	}
 	cacheObject := &CacheObject{
 		MetadataFileName:        metadataAbsolutePath,
@@ -177,7 +175,6 @@ func matchPattern(fileName string) bool {
 // New creates a ContentCache.
 func New(tempDir string, mtimeClock timeutil.Clock) *ContentCache {
 	return &ContentCache{
-		debug:      logger.NewDebug("content cache: "),
 		tempDir:    tempDir,
 		fileMap:    make(map[CacheObjectKey]*CacheObject),
 		mtimeClock: mtimeClock,
