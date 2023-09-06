@@ -101,6 +101,8 @@ func generateRandomString(length int) string {
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running dynamic mounting tests...")
+
 	project_id, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)

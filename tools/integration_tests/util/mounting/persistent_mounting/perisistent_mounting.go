@@ -82,6 +82,8 @@ func executeTestsForPersistentMounting(flags [][]string, m *testing.M) (successC
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running persistent mounting tests...")
+
 	successCode = executeTestsForPersistentMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
