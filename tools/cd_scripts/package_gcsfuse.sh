@@ -99,12 +99,10 @@ echo "Waiting for both builds to complete ..."
 wait $pid1
 check_docker_build_failure
 gsutil cp docker_amd64.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
-# Exit if any of the build fails.
-exit_in_failure
-
 wait $pid2
 check_docker_build_failure
 gsutil cp docker_arm64.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
+
 # Exit if any of the build fails.
 exit_in_failure
 
