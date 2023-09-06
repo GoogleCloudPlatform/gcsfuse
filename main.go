@@ -59,7 +59,7 @@ func registerSIGINTHandler(mountPoint string) {
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				logger.Infof("Failed to unmount in response to SIGINT: %v", err)
+				logger.Errorf("Failed to unmount in response to SIGINT: %v", err)
 			} else {
 				logger.Infof("Successfully unmounted in response to SIGINT.")
 				return
