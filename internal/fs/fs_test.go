@@ -35,7 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
-	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
@@ -97,11 +97,11 @@ var (
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.SimulatedClock
 
-	// To mount a special bucket, override `bucket`;
+	// To mount a special bucketObj, override `bucketObj`;
 	// To mount multiple buckets, override `buckets`;
-	// Otherwise, a default bucket will be used.
-	bucket  bucket2.Bucket
-	buckets map[string]bucket2.Bucket
+	// Otherwise, a default bucketObj will be used.
+	bucketObj bucket.Bucket
+	buckets   map[string]bucket.Bucket
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -118,19 +118,19 @@ func (t *fsTest) SetUpTestSuite() {
 
 	if buckets != nil {
 		// mount all buckets
-		bucket = nil
+		bucketObj = nil
 		t.serverCfg.BucketName = ""
 	} else {
-		// mount a single bucket
-		if bucket == nil {
-			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket")
+		// mount a single bucketObj
+		if bucketObj == nil {
+			bucketObj = fake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
-		t.serverCfg.BucketName = bucket.Name()
-		buckets = map[string]bucket2.Bucket{bucket.Name(): bucket}
+		t.serverCfg.BucketName = bucketObj.Name()
+		buckets = map[string]bucket.Bucket{bucketObj.Name(): bucketObj}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
-		// This bucket manager is allowed to open these buckets
+		// This bucketObj manager is allowed to open these buckets
 		buckets: buckets,
 		// Configs for the syncer when setting up buckets
 		appendThreshold: 0,
@@ -205,10 +205,10 @@ func (t *fsTest) TearDownTestSuite() {
 		return
 	}
 
-	// Setting nil ensures bucket/buckets variables are clean for next test suite
+	// Setting nil ensures bucketObj/buckets variables are clean for next test suite
 	// run.
 	buckets = nil
-	bucket = nil
+	bucketObj = nil
 }
 
 func (t *fsTest) TearDown() {
@@ -225,7 +225,7 @@ func (t *fsTest) TearDown() {
 	// for next test run.
 
 	// ReadDirPicky throws error incase of allbuckets_test. That is expected since
-	// we can't list buckets when bucket-name is not specified during mount.
+	// we can't list buckets when bucketObj-name is not specified during mount.
 	// os.RemoveAll throws error incase of readonly mount.
 	// Ignoring any errors we get while deleting the mntDir contents.
 	entries, _ := fusetesting.ReadDirPicky(mntDir)
@@ -245,12 +245,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := storageutil.CreateObjects(ctx, bucket, b)
+	err := storageutil.CreateObjects(ctx, bucketObj, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := storageutil.CreateEmptyObjects(ctx, bucket, names)
+	err := storageutil.CreateEmptyObjects(ctx, bucketObj, names)
 	return err
 }
 
@@ -319,7 +319,7 @@ func currentGid() uint32 {
 }
 
 type fakeBucketManager struct {
-	buckets         map[string]bucket2.Bucket
+	buckets         map[string]bucket.Bucket
 	appendThreshold int64
 	tmpObjectPrefix string
 }
@@ -329,12 +329,12 @@ func (bm *fakeBucketManager) ShutDown() {}
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb gcsx.SyncerBucket, err error) {
-	bucket, ok := bm.buckets[name]
+	bucketObj, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(
 			bm.appendThreshold,
 			bm.tmpObjectPrefix,
-			gcsx.NewContentTypeBucket(bucket),
+			gcsx.NewContentTypeBucket(bucketObj),
 		)
 		return
 	}

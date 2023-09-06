@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // A collection of tests for a file system where we do not attempt to write to
-// the file system at all. Rather we set up contents in a GCS bucket out of
+// the file system at all. Rather we set up contents in a GCS bucketObj out of
 // band, wait for them to be available, and then read them via the file system.
 
 package fs_test
@@ -108,7 +108,7 @@ func (t *LocalFileTest) readDirectory(dirPath string) (entries []os.DirEntry) {
 
 func (t *LocalFileTest) validateObjectNotFoundErr(fileName string) {
 	var notFoundErr *storage.NotFoundError
-	_, err := storageutil.ReadObject(ctx, bucket, fileName)
+	_, err := storageutil.ReadObject(ctx, bucketObj, fileName)
 
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
@@ -126,7 +126,7 @@ func (t *LocalFileTest) closeFileAndValidateObjectContents(f **os.File, fileName
 }
 
 func (t *LocalFileTest) validateObjectContents(fileName string, contents string) {
-	contentBytes, err := storageutil.ReadObject(ctx, bucket, fileName)
+	contentBytes, err := storageutil.ReadObject(ctx, bucketObj, fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(contentBytes))
 }

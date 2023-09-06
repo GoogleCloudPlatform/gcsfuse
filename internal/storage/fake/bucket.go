@@ -27,7 +27,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
 	"github.com/jacobsa/syncutil"
@@ -38,8 +38,8 @@ import (
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(clock timeutil.Clock, name string) bucket2.Bucket {
-	b := &bucket{clock: clock, name: name}
+func NewFakeBucket(clock timeutil.Clock, name string) bucket.Bucket {
+	b := &fakebucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b
 }
@@ -125,7 +125,7 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-type bucket struct {
+type fakebucket struct {
 	clock timeutil.Clock
 	name  string
 	mu    syncutil.InvariantMutex
@@ -164,7 +164,7 @@ func checkName(name string) (err error) {
 }
 
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) checkInvariants() {
+func (b *fakebucket) checkInvariants() {
 	// Make sure 'objects' is strictly increasing.
 	for i := 1; i < len(b.objects); i++ {
 		objA := b.objects[i-1]
@@ -193,7 +193,7 @@ func (b *bucket) checkInvariants() {
 // Create an object struct for the given attributes and contents.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) mintObject(
+func (b *fakebucket) mintObject(
 	req *requests.CreateObjectRequest,
 	contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
@@ -227,7 +227,7 @@ func (b *bucket) mintObject(
 }
 
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) createObjectLocked(
+func (b *fakebucket) createObjectLocked(
 	req *requests.CreateObjectRequest) (o *object.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
@@ -348,7 +348,7 @@ func (b *bucket) createObjectLocked(
 // within b.objects of the entry for the requested generation.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) newReaderLocked(
+func (b *fakebucket) newReaderLocked(
 	req *requests.ReadObjectRequest) (r io.Reader, index int, err error) {
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
@@ -433,12 +433,12 @@ func copyObject(o *object.Object) *object.Object {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (b *bucket) Name() string {
+func (b *fakebucket) Name() string {
 	return b.name
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) ListObjects(
+func (b *fakebucket) ListObjects(
 	ctx context.Context,
 	req *requests.ListObjectsRequest) (listing *requests.Listing, err error) {
 	b.mu.Lock()
@@ -536,7 +536,7 @@ func (b *bucket) ListObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) NewReader(
+func (b *fakebucket) NewReader(
 	ctx context.Context,
 	req *requests.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
@@ -552,7 +552,7 @@ func (b *bucket) NewReader(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) CreateObject(
+func (b *fakebucket) CreateObject(
 	ctx context.Context,
 	req *requests.CreateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
@@ -563,7 +563,7 @@ func (b *bucket) CreateObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) CopyObject(
+func (b *fakebucket) CopyObject(
 	ctx context.Context,
 	req *requests.CopyObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
@@ -634,7 +634,7 @@ func (b *bucket) CopyObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) ComposeObjects(
+func (b *fakebucket) ComposeObjects(
 	ctx context.Context,
 	req *requests.ComposeObjectsRequest) (o *object.Object, err error) {
 	b.mu.Lock()
@@ -709,7 +709,7 @@ func (b *bucket) ComposeObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) StatObject(
+func (b *fakebucket) StatObject(
 	ctx context.Context,
 	req *requests.StatObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
@@ -732,7 +732,7 @@ func (b *bucket) StatObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) UpdateObject(
+func (b *fakebucket) UpdateObject(
 	ctx context.Context,
 	req *requests.UpdateObjectRequest) (o *object.Object, err error) {
 	b.mu.Lock()
@@ -819,7 +819,7 @@ func (b *bucket) UpdateObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) DeleteObject(
+func (b *fakebucket) DeleteObject(
 	ctx context.Context,
 	req *requests.DeleteObjectRequest) (err error) {
 	b.mu.Lock()

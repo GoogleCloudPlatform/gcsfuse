@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	bucket2 "github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
@@ -40,7 +40,7 @@ import (
 const ttl = 10 * time.Minute
 
 var (
-	uncachedBucket bucket2.Bucket
+	uncachedBucket bucket.Bucket
 )
 
 type cachingTestCommon struct {
@@ -48,13 +48,13 @@ type cachingTestCommon struct {
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {
-	// Wrap the bucket in a stat caching layer for the purposes of the file
+	// Wrap the bucketObj in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := caching.NewStatCache(statCacheCapacity)
-	bucket = caching.NewFastStatBucket(
+	bucketObj = caching.NewFastStatBucket(
 		ttl,
 		statCache,
 		&cacheClock,
@@ -269,20 +269,20 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
-	// Remove the backing object in GCS, updating the bucket cache (but not the
+	// Remove the backing object in GCS, updating the bucketObj cache (but not the
 	// file system type cache)
 	fmt.Printf("DeleteObject\n")
-	err = bucket.DeleteObject(
+	err = bucketObj.DeleteObject(
 		ctx,
 		&requests.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
-	// Create a file with the same name via GCS, again updating the bucket cache.
+	// Create a file with the same name via GCS, again updating the bucketObj cache.
 	fmt.Printf("CreateObject\n")
 	_, err = storageutil.CreateObject(
 		ctx,
-		bucket,
+		bucketObj,
 		name,
 		[]byte("taco"))
 
