@@ -36,23 +36,17 @@ func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	case config.TRACE:
 		// Setting severity to -8, so that all the other levels are logged.
 		programLevel.Set(LevelTrace)
-		break
 	case config.DEBUG:
 		programLevel.Set(LevelDebug)
-		break
 	case config.INFO:
 		programLevel.Set(LevelInfo)
-		break
 	case config.WARNING:
 		programLevel.Set(LevelWarn)
-		break
 	case config.ERROR:
 		programLevel.Set(LevelError)
-		break
 	case config.OFF:
 		// Setting severity to 12, so that nothing is logged.
 		programLevel.Set(LevelOff)
-		break
 	}
 }
 

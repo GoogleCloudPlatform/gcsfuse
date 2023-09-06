@@ -76,7 +76,7 @@ func getTestFunctions() []func() {
 }
 
 func validateOutput(expected []string, output []string) {
-	for i, _ := range output {
+	for i := range output {
 		if expected[i] == "" {
 			AssertEq(expected[i], output[i])
 		} else {
