@@ -1,22 +1,8 @@
 #!/bin/bash
-# Copyright 2023 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http:#www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 # Running test only for when PR contains execute-perf-test or execute-integration-tests label
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
-readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
+readonly INTEGRATION_TEST_EXECUTION_TIME=24m
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
@@ -47,7 +33,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file=/tmp/log.txt"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
@@ -61,7 +47,19 @@ function execute_perf_test() {
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
+ # Installing requirements
+ echo Installing python3-pip
+ sudo apt-get -y install python3-pip
+ echo Installing libraries to run python script
+ pip install google-cloud
+ pip install google-cloud-vision
+ pip install google-api-python-client
+ pip install prettytable
+ echo Installing fio
+ sudo apt-get install fio -y
+
  # Executing perf tests for master branch
+ git reset --hard
  git checkout master
  # Store results
  touch result.txt
@@ -70,6 +68,7 @@ then
 
 
  # Executing perf tests for PR branch
+  git reset --hard
  echo checkout PR branch
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  echo Mounting gcs bucket from pr branch and execute tests
@@ -86,8 +85,20 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
-  echo "Running e2e tests...."
-  chmod +x perfmetrics/scripts/run_e2e_tests.sh
-  # $1 argument is refering to value of testInstalledPackage.
-  ./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
+  # Create bucket for integration tests.
+  # The prefix for the random string
+  bucketPrefix="gcsfuse-integration-test-"
+  # The length of the random string
+  length=5
+  # Generate the random string
+  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
+  BUCKET_NAME=$bucketPrefix$random_string
+  echo 'bucket name = '$BUCKET_NAME
+  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=gcs-fuse-test-ml --location=us-west1 --uniform-bucket-level-access
+
+  # Executing integration tests
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME -timeout $INTEGRATION_TEST_EXECUTION_TIME
+
+  # Delete bucket after testing.
+  gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
 fi
