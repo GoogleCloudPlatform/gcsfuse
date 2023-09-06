@@ -208,7 +208,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
+		err = logger.InitLogFile(flags.LogFile, flags.LogFormat, mountConfig.Severity)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
