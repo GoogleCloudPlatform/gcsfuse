@@ -78,8 +78,8 @@ if [[ $architecture == amd64 ]]; then
       sudo apt remove -y gcsfuse
       sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
   else
-      sudo yum -y remove gcsfuse
-      sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      sudo dnf -y remove gcsfuse
+      sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
   fi
 
   # verify old version installation
@@ -96,7 +96,7 @@ if [[ $architecture == amd64 ]]; then
   then
       sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
   else
-      sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+      sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
   fi
 
   gcsfuse --version |& tee version.txt
