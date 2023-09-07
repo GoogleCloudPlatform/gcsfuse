@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
@@ -298,7 +297,7 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 // object in GCS with the given name. Return nil if such object does not exist.
 func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
-	req := &request.StatObjectRequest{
+	req := &object.StatObjectRequest{
 		Name: name.GcsObjectName(),
 	}
 
@@ -329,7 +328,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
 
-	req := &request.ListObjectsRequest{
+	req := &object.ListObjectsRequest{
 		Prefix:     name.GcsObjectName(),
 		MaxResults: 1,
 	}
@@ -360,7 +359,7 @@ func (d *dirInode) createNewObject(
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
-	createReq := &request.CreateObjectRequest{
+	createReq := &object.CreateObjectRequest{
 		Name:                   name.GcsObjectName(),
 		Contents:               strings.NewReader(""),
 		GenerationPrecondition: &precond,
@@ -506,7 +505,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	var tok string
 	descendants := make(map[Name]*Core)
 	for {
-		listing, err := d.bucket.ListObjects(ctx, &request.ListObjectsRequest{
+		listing, err := d.bucket.ListObjects(ctx, &object.ListObjectsRequest{
 			Delimiter:         "", // recursively
 			Prefix:            d.Name().GcsObjectName(),
 			ContinuationToken: tok,
@@ -545,7 +544,7 @@ func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
-	req := &request.ListObjectsRequest{
+	req := &object.ListObjectsRequest{
 		Delimiter:                "/",
 		IncludeTrailingDelimiter: true,
 		Prefix:                   d.Name().GcsObjectName(),
@@ -553,7 +552,7 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal: request.NoAcl,
+		ProjectionVal: object.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -693,7 +692,7 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *objec
 	// Clone over anything that might already exist for the name.
 	o, err := d.bucket.CopyObject(
 		ctx,
-		&request.CopyObjectRequest{
+		&object.CopyObjectRequest{
 			SrcName:                       src.Name,
 			SrcGeneration:                 src.Generation,
 			SrcMetaGenerationPrecondition: &src.MetaGeneration,
@@ -761,7 +760,7 @@ func (d *dirInode) DeleteChildFile(
 
 	err = d.bucket.DeleteObject(
 		ctx,
-		&request.DeleteObjectRequest{
+		&object.DeleteObjectRequest{
 			Name:                       childName.GcsObjectName(),
 			Generation:                 generation,
 			MetaGenerationPrecondition: metaGeneration,
@@ -794,7 +793,7 @@ func (d *dirInode) DeleteChildDir(
 	// this on the directory being empty.
 	err = d.bucket.DeleteObject(
 		ctx,
-		&request.DeleteObjectRequest{
+		&object.DeleteObjectRequest{
 			Name:       childName.GcsObjectName(),
 			Generation: 0, // Delete the latest version of object named after dir.
 		})

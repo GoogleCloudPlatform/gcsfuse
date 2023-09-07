@@ -22,7 +22,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -366,10 +365,10 @@ func (rr *randomReader) startRead(
 	ctx, cancel := context.WithCancel(context.Background())
 	rc, err := rr.bucket.NewReader(
 		ctx,
-		&request.ReadObjectRequest{
+		&object.ReadObjectRequest{
 			Name:       rr.object.Name,
 			Generation: rr.object.Generation,
-			Range: &request.ByteRange{
+			Range: &object.ByteRange{
 				Start: uint64(start),
 				Limit: uint64(end),
 			},

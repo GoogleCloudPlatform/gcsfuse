@@ -23,7 +23,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -68,7 +67,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 }
 
 func (t *IntegrationTest) stat(name string) (o *object.Object, err error) {
-	req := &request.StatObjectRequest{
+	req := &object.StatObjectRequest{
 		Name: name,
 	}
 
@@ -89,7 +88,7 @@ func (t *IntegrationTest) CreateInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -111,7 +110,7 @@ func (t *IntegrationTest) StatInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -129,11 +128,11 @@ func (t *IntegrationTest) ListInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// List so that it's in cache.
-	_, err = t.bucket.ListObjects(t.ctx, &request.ListObjectsRequest{})
+	_, err = t.bucket.ListObjects(t.ctx, &object.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -151,7 +150,7 @@ func (t *IntegrationTest) UpdateUpdatesCache() {
 	AssertEq(nil, err)
 
 	// Update it, putting the new version in cache.
-	updateReq := &request.UpdateObjectRequest{
+	updateReq := &object.UpdateObjectRequest{
 		Name: name,
 	}
 
@@ -159,7 +158,7 @@ func (t *IntegrationTest) UpdateUpdatesCache() {
 	AssertEq(nil, err)
 
 	// Delete the object through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
@@ -177,7 +176,7 @@ func (t *IntegrationTest) PositiveCacheExpiration() {
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
-	err = t.wrapped.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: name})
+	err = t.wrapped.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: name})
 	AssertEq(nil, err)
 
 	// Advance time.
@@ -236,7 +235,7 @@ func (t *IntegrationTest) ListInvalidatesNegativeCache() {
 	AssertEq(nil, err)
 
 	// List the bucket.
-	_, err = t.bucket.ListObjects(t.ctx, &request.ListObjectsRequest{})
+	_, err = t.bucket.ListObjects(t.ctx, &object.ListObjectsRequest{})
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
@@ -258,7 +257,7 @@ func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
 	AssertEq(nil, err)
 
 	// Update the object.
-	updateReq := &request.UpdateObjectRequest{
+	updateReq := &object.UpdateObjectRequest{
 		Name: name,
 	}
 

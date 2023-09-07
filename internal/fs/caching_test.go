@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -181,7 +181,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	// Remove the backing object in GCS.
 	err = uncachedBucket.DeleteObject(
 		ctx,
-		&request.DeleteObjectRequest{Name: name + "/"})
+		&object.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
@@ -274,7 +274,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	fmt.Printf("DeleteObject\n")
 	err = bucketObj.DeleteObject(
 		ctx,
-		&request.DeleteObjectRequest{Name: name + "/"})
+		&object.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 

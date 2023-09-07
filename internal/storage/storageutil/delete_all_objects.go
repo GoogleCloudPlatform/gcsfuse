@@ -17,7 +17,6 @@ package storageutil
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -60,7 +59,7 @@ func DeleteAllObjects(
 			for objectName := range objectNames {
 				err := bucket.DeleteObject(
 					ctx,
-					&request.DeleteObjectRequest{
+					&object.DeleteObjectRequest{
 						Name: objectName,
 					})
 

@@ -17,7 +17,6 @@ package storageutil
 import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -28,13 +27,13 @@ import (
 func ListAll(
 	ctx context.Context,
 	bucket bucket.Bucket,
-	req *request.ListObjectsRequest) (
+	req *object.ListObjectsRequest) (
 	objects []*object.Object,
 	runs []string,
 	err error) {
 	for {
 		// Grab one set of results.
-		var listing *request.Listing
+		var listing *object.Listing
 		if listing, err = bucket.ListObjects(ctx, req); err != nil {
 			return
 		}

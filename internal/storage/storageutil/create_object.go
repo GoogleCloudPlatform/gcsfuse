@@ -19,7 +19,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -30,7 +29,7 @@ func CreateObject(
 	bucket bucket.Bucket,
 	name string,
 	contents []byte) (*object.Object, error) {
-	req := &request.CreateObjectRequest{
+	req := &object.CreateObjectRequest{
 		Name:     name,
 		Contents: bytes.NewReader(contents),
 	}

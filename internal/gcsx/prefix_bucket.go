@@ -22,7 +22,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -67,9 +66,9 @@ func (b *prefixBucket) Name() string {
 
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
-	req *request.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Modify the request and call through.
-	mReq := new(request.ReadObjectRequest)
+	mReq := new(object.ReadObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -79,9 +78,9 @@ func (b *prefixBucket) NewReader(
 
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
-	req *request.CreateObjectRequest) (o *object.Object, err error) {
+	req *object.CreateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(request.CreateObjectRequest)
+	mReq := new(object.CreateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -97,9 +96,9 @@ func (b *prefixBucket) CreateObject(
 
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
-	req *request.CopyObjectRequest) (o *object.Object, err error) {
+	req *object.CopyObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(request.CopyObjectRequest)
+	mReq := new(object.CopyObjectRequest)
 	*mReq = *req
 	mReq.SrcName = b.wrappedName(req.SrcName)
 	mReq.DstName = b.wrappedName(req.DstName)
@@ -116,9 +115,9 @@ func (b *prefixBucket) CopyObject(
 
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
-	req *request.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(request.ComposeObjectsRequest)
+	mReq := new(object.ComposeObjectsRequest)
 	*mReq = *req
 	mReq.DstName = b.wrappedName(req.DstName)
 
@@ -140,9 +139,9 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *request.StatObjectRequest) (o *object.Object, err error) {
+	req *object.StatObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(request.StatObjectRequest)
+	mReq := new(object.StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -158,9 +157,9 @@ func (b *prefixBucket) StatObject(
 
 func (b *prefixBucket) ListObjects(
 	ctx context.Context,
-	req *request.ListObjectsRequest) (l *request.Listing, err error) {
+	req *object.ListObjectsRequest) (l *object.Listing, err error) {
 	// Modify the request and call through.
-	mReq := new(request.ListObjectsRequest)
+	mReq := new(object.ListObjectsRequest)
 	*mReq = *req
 	mReq.Prefix = b.prefix + mReq.Prefix
 
@@ -182,9 +181,9 @@ func (b *prefixBucket) ListObjects(
 
 func (b *prefixBucket) UpdateObject(
 	ctx context.Context,
-	req *request.UpdateObjectRequest) (o *object.Object, err error) {
+	req *object.UpdateObjectRequest) (o *object.Object, err error) {
 	// Modify the request and call through.
-	mReq := new(request.UpdateObjectRequest)
+	mReq := new(object.UpdateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
@@ -200,9 +199,9 @@ func (b *prefixBucket) UpdateObject(
 
 func (b *prefixBucket) DeleteObject(
 	ctx context.Context,
-	req *request.DeleteObjectRequest) (err error) {
+	req *object.DeleteObjectRequest) (err error) {
 	// Modify the request and call through.
-	mReq := new(request.DeleteObjectRequest)
+	mReq := new(object.DeleteObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 

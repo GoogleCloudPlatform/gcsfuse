@@ -29,7 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -108,7 +107,7 @@ func (t *IntegrationTest) create(o *object.Object) {
 	// Set up a reader.
 	rc, err := t.bucket.NewReader(
 		t.ctx,
-		&request.ReadObjectRequest{
+		&object.ReadObjectRequest{
 			Name:       o.Name,
 			Generation: o.Generation,
 		})
@@ -127,7 +126,7 @@ func (t *IntegrationTest) create(o *object.Object) {
 // Return the object generation, or -1 if non-existent. Panic on error.
 func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	// Stat.
-	req := &request.StatObjectRequest{Name: name}
+	req := &object.StatObjectRequest{Name: name}
 	o, err := t.bucket.StatObject(t.ctx, req)
 
 	var notFoundErr *storage.NotFoundError
@@ -205,7 +204,7 @@ func (t *IntegrationTest) SyncEmptyLocalFile() {
 	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
-		&request.ListObjectsRequest{})
+		&object.ListObjectsRequest{})
 	AssertEq(nil, err)
 	AssertEq(1, len(objects))
 	AssertEq(0, len(runs))
@@ -240,7 +239,7 @@ func (t *IntegrationTest) SyncNonEmptyLocalFile() {
 	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
-		&request.ListObjectsRequest{})
+		&object.ListObjectsRequest{})
 	AssertEq(nil, err)
 	AssertEq(1, len(objects))
 	AssertEq(0, len(runs))
@@ -283,7 +282,7 @@ func (t *IntegrationTest) WriteThenSync() {
 	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
-		&request.ListObjectsRequest{})
+		&object.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	AssertEq(1, len(objects))
@@ -328,7 +327,7 @@ func (t *IntegrationTest) AppendThenSync() {
 	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
-		&request.ListObjectsRequest{})
+		&object.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	AssertEq(1, len(objects))
@@ -420,7 +419,7 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	AssertEq(nil, err)
 
 	// Delete the backing object.
-	err = t.bucket.DeleteObject(t.ctx, &request.DeleteObjectRequest{Name: o.Name})
+	err = t.bucket.DeleteObject(t.ctx, &object.DeleteObjectRequest{Name: o.Name})
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.

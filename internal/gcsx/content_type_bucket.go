@@ -20,7 +20,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -36,7 +35,7 @@ type contentTypeBucket struct {
 
 func (b contentTypeBucket) CreateObject(
 	ctx context.Context,
-	req *request.CreateObjectRequest) (o *object.Object, err error) {
+	req *object.CreateObjectRequest) (o *object.Object, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
@@ -49,7 +48,7 @@ func (b contentTypeBucket) CreateObject(
 
 func (b contentTypeBucket) ComposeObjects(
 	ctx context.Context,
-	req *request.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.DstName))
