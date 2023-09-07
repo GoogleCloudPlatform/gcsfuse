@@ -64,7 +64,7 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg)
+	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg, setup.LogFile())
 
 	return err
 }
