@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -854,7 +855,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 
 	// Call the inode.
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -1121,7 +1122,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 
 	// Check the bucket.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -1141,7 +1142,7 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 
 	// Check the bucket.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -1203,7 +1204,7 @@ func (t *DirTest) DeleteChildDir_Exists() {
 
 	// Check the bucket.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 

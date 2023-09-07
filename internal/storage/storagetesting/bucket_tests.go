@@ -33,6 +33,7 @@ import (
 	"unicode"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
@@ -791,7 +792,7 @@ func (t *createTest) IncorrectCRC32C() {
 	}
 
 	_, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *createTest) CorrectCRC32C() {
@@ -836,7 +837,7 @@ func (t *createTest) IncorrectMD5() {
 	}
 
 	_, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *createTest) CorrectMD5() {
@@ -895,7 +896,7 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 	ExpectThat(err, Error(MatchesRegexp("object exists|googleapi.*412")))
 
 	// The old version should show up in a listing.
@@ -962,7 +963,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 
 	_, err := t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 	ExpectThat(err, Error(MatchesRegexp("object doesn't exist|googleapi.*412")))
 
 	// Nothing should show up in a listing.
@@ -995,7 +996,7 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 	ExpectThat(err, Error(MatchesRegexp("generation|googleapi.*412")))
 
 	// The old version should show up in a listing.
@@ -1074,7 +1075,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 	ExpectThat(err, Error(MatchesRegexp("doesn't exist|googleapi.*412")))
 
 	// Nothing should show up in a listing.
@@ -1107,7 +1108,7 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 	ExpectThat(err, Error(MatchesRegexp("meta-generation|googleapi.*412")))
 
 	// The old version should show up in a listing.
@@ -1190,7 +1191,7 @@ func (t *copyTest) SourceDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// List
 	objects, runs, err := storageutil.ListAll(
@@ -1511,7 +1512,7 @@ func (t *copyTest) ParticularSourceGeneration_NameDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
@@ -1535,7 +1536,7 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *copyTest) ParticularSourceGeneration_Exists() {
@@ -1584,14 +1585,14 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	}
 
 	_, err = t.bucket.CopyObject(t.ctx, req)
-	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	AssertThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// The object should not have been created.
 	_, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
@@ -2114,14 +2115,14 @@ func (t *composeTest) OneSourceDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *composeTest) ExplicitGenerations_Exist() {
@@ -2191,14 +2192,14 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *composeTest) DestinationExists_NoPreconditions() {
@@ -2270,7 +2271,7 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// Make sure the object wasn't overwritten.
 	o, err := t.bucket.StatObject(
@@ -2310,7 +2311,7 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// Make sure the object wasn't overwritten.
 	o, err := t.bucket.StatObject(
@@ -2395,14 +2396,14 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 			},
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// Make sure the destination object doesn't exist.
 	_, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *composeTest) DestinationDoesntExist_PreconditionSatisfied() {
@@ -2647,7 +2648,7 @@ func (t *readTest) ObjectNameDoesntExist() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 }
 
@@ -2714,7 +2715,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 }
 
@@ -2750,7 +2751,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 }
 
@@ -2816,7 +2817,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("(?i)not found|404")))
 
 	// Reading by the new generation should work.
@@ -3004,7 +3005,7 @@ func (t *statTest) NonExistentObject() {
 
 	_, err := t.bucket.StatObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
 }
 
@@ -3133,7 +3134,7 @@ func (t *updateTest) NonExistentObject() {
 
 	_, err := t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
 }
 
@@ -3435,7 +3436,7 @@ func (t *updateTest) ParticularGeneration_NameDoesntExist() {
 
 	_, err := t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
 }
 
@@ -3459,7 +3460,7 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 
 	_, err = t.bucket.UpdateObject(t.ctx, req)
 
-	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
 
 	// The original object should be unaffected.
@@ -3521,7 +3522,7 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	}
 
 	_, err = t.bucket.UpdateObject(t.ctx, req)
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// The original object should be unaffected.
 	o, err = t.bucket.StatObject(
@@ -3613,7 +3614,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 		_, err = rc.Read(make([]byte, 1))
 	}
 
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *deleteTest) ParticularGeneration_NameDoesntExist() {
@@ -3684,7 +3685,7 @@ func (t *deleteTest) ParticularGeneration_Successful() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
@@ -3709,7 +3710,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 			MetaGenerationPrecondition: &precond,
 		})
 
-	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.PreconditionError{}))
 
 	// The object should still exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
@@ -3789,7 +3790,7 @@ func (t *deleteTest) MetaGenerationPrecondition_Satisfied() {
 
 	// The object should no longer exist.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, name)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -4366,7 +4367,7 @@ func (t *cancellationTest) CreateObject() {
 	}
 
 	_, err = t.bucket.StatObject(t.ctx, statReq)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *cancellationTest) ReadObject() {

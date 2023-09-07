@@ -175,7 +175,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
 		if f.IsLocal() {
@@ -526,7 +526,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		// Special case: silently ignore not found errors, which mean the file has
 		// been unlinked.
@@ -534,7 +534,7 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		// Special case: silently ignore precondition errors, which we also take to
 		// mean the file has been unlinked.
@@ -584,7 +584,9 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// the latest object fetched from gcs which has all the properties populated.
 	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
-	var preconditionErr *gcs.PreconditionError
+	// Special case: a precondition error means we were clobbered, which we treat
+	// as being unlinked. There's no reason to return an error in that case.
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fmt.Errorf("SyncObject: %s, %w", FileClobberedErrMsg, err)
 		return

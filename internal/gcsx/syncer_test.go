@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	. "github.com/jacobsa/oglematchers"
@@ -115,12 +116,12 @@ func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -496,7 +497,7 @@ func (t *SyncerTest) FullCreatorFails() {
 
 func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	var err error
-	t.fullCreator.err = &gcs.PreconditionError{}
+	t.fullCreator.err = &storage.PreconditionError{}
 
 	// Truncate downward.
 	err = t.content.Truncate(2)
@@ -505,7 +506,7 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
@@ -562,7 +563,7 @@ func (t *SyncerTest) AppendCreatorFails() {
 
 func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	var err error
-	t.appendCreator.err = &gcs.PreconditionError{}
+	t.appendCreator.err = &storage.PreconditionError{}
 
 	// Append some data.
 	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
@@ -571,7 +572,7 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"golang.org/x/net/context"
 )
@@ -165,9 +166,9 @@ func (oc *appendObjectCreator) Create(
 		// A not found error means that either the source object was clobbered or the
 		// temporary object was. The latter is unlikely, so we signal a precondition
 		// error.
-		var notFoundErr *gcs.NotFoundError
+		var notFoundErr *storage.NotFoundError
 		if errors.As(err, &notFoundErr) {
-			err = &gcs.PreconditionError{
+			err = &storage.PreconditionError{
 				Err: err,
 			}
 		}

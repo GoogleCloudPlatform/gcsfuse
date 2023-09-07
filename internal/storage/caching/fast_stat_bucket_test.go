@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching/mock_gcscaching"
@@ -348,7 +349,7 @@ func (t *StatObjectTest) CacheHit_Negative() {
 	}
 
 	_, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 }
 
 func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
@@ -427,7 +428,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
+		WillOnce(Return(nil, &storage.NotFoundError{Err: errors.New("burrito")}))
 
 	// AddNegativeEntry
 	ExpectCall(t.cache, "AddNegativeEntry")(
@@ -440,7 +441,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 	}
 
 	_, err := t.bucket.StatObject(context.TODO(), req)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
 	ExpectThat(err, Error(HasSubstr("burrito")))
 }
 

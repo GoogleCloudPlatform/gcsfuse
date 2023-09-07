@@ -93,11 +93,11 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &PreconditionError{Err: ee}
 			}
 		default:
 			if err == storage.ErrObjectNotExist {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &NotFoundError{Err: storage.ErrObjectNotExist}
 			} else {
 				err = fmt.Errorf("Error in deleting object: %w", err)
 			}
@@ -114,7 +114,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 
 	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
-		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		err = &NotFoundError{Err: err} // Special case error that object not found in the bucket.
 		return
 	}
 	if err != nil {
@@ -174,7 +174,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: err}
+				err = &PreconditionError{Err: err}
 				return
 			}
 		}
@@ -208,10 +208,10 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &PreconditionError{Err: ee}
 			}
 			if ee.Code == http.StatusNotFound {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
 			err = fmt.Errorf("Error in copying object: %w", err)
@@ -348,11 +348,11 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	switch ee := err.(type) {
 	case *googleapi.Error:
 		if ee.Code == http.StatusPreconditionFailed {
-			err = &gcs.PreconditionError{Err: ee}
+			err = &PreconditionError{Err: ee}
 		}
 	default:
 		if err == storage.ErrObjectNotExist {
-			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			err = &NotFoundError{Err: storage.ErrObjectNotExist}
 		} else {
 			err = fmt.Errorf("Error in updating object: %w", err)
 		}
@@ -403,10 +403,10 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 		switch ee := err.(type) {
 		case *googleapi.Error:
 			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+				err = &PreconditionError{Err: ee}
 			}
 			if ee.Code == http.StatusNotFound {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				err = &NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		default:
 			err = fmt.Errorf("Error in composing object: %w", err)

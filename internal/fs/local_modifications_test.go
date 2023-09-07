@@ -34,6 +34,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -185,7 +186,7 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	// No object should have been created.
 	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -2353,7 +2354,7 @@ func (t *SymlinkTest) RemoveLink() {
 
 	// It should be gone from the bucket.
 	_, err = storageutil.ReadObject(ctx, bucket, "foo")
-	var notFoundErr *gcs.NotFoundError
+	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 

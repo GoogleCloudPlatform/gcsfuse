@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -1338,7 +1339,7 @@ func (fs *fileSystem) MkDir(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
@@ -1425,7 +1426,7 @@ func (fs *fileSystem) createFile(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
@@ -1554,7 +1555,7 @@ func (fs *fileSystem) CreateSymlink(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	var preconditionErr *gcs.PreconditionError
+	var preconditionErr *storage.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
@@ -1838,7 +1839,7 @@ func (fs *fileSystem) renameDir(
 	_, err = newParent.CreateChildDir(ctx, newName)
 	newParent.Unlock()
 	if err != nil {
-		var preconditionErr *gcs.PreconditionError
+		var preconditionErr *storage.PreconditionError
 		if errors.As(err, &preconditionErr) {
 			// This means the new directory already exists, which is OK if
 			// it is empty (checked below).
