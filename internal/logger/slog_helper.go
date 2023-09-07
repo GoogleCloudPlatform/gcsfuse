@@ -17,6 +17,7 @@ package logger
 import (
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 )
@@ -82,12 +83,18 @@ func getHandlerOptions(levelVar *slog.LevelVar, prefix string) *slog.HandlerOpti
 				}
 			}
 
+			// Add prefix to the message key.
 			if a.Key == slog.MessageKey {
 				message := a.Value.Any().(string)
 				var sb strings.Builder
 				sb.WriteString(prefix)
 				sb.WriteString(message)
 				a.Value = slog.StringValue(sb.String())
+			}
+
+			if a.Key == slog.TimeKey {
+				currTime := a.Value.Any().(time.Time)
+				a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
 			}
 			return a
 		},
