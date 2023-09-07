@@ -989,6 +989,7 @@ func (fs *fileSystem) syncFile(
 	// another user/terminal. Hence, ignoring the syncFile call for local file.
 	if f.IsLocal() && f.IsUnlinked() {
 		// Silently ignore the syncFile call. This is in sync with non-local file behaviour.
+		err = fmt.Errorf("file is unlinked")
 		return
 	}
 
