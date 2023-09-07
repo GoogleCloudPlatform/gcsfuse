@@ -764,6 +764,7 @@ func (t *LocalFileTest) TestCreateSymlinkForLocalFile() {
 	contents, err := os.ReadFile(symlinkName)
 	AssertEq(nil, err)
 	ExpectEq(FileContents, string(contents))
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents)
 }
 
 func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
