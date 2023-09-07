@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
@@ -215,15 +216,8 @@ func RemoveBinFileCopiedForTesting() {
 }
 
 func UnMount() error {
-	fusermount, err := exec.LookPath("fusermount")
-	if err != nil {
-		return fmt.Errorf("cannot find fusermount: %w", err)
-	}
-	cmd := exec.Command(fusermount, "-uz", mntDir)
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("fusermount error: %w", err)
-	}
-	return nil
+	err := mounting.UnMountGcsfuse(mntDir)
+	return err
 }
 
 func ExecuteTest(m *testing.M) (successCode int) {

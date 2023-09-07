@@ -143,3 +143,18 @@ func CreateDirectory(dirPath string, t *testing.T) {
 		t.Fatalf("Error while creating directory, err: %v", err)
 	}
 }
+
+func EmptyDir(dirPath string) (err error) {
+	dir, err := os.ReadDir(dirPath)
+	if err != nil {
+		return
+	}
+
+	for _, d := range dir {
+		err = os.RemoveAll(path.Join([]string{dirPath, d.Name()}...))
+		if err != nil {
+			return
+		}
+	}
+	return nil
+}

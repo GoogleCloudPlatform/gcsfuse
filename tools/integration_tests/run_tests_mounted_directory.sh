@@ -250,3 +250,20 @@ sudo umount $MOUNT_DIR
 gcsfuse --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
+
+# package multiwriters/multimounts
+# Run tests with multiple mounting. (flags: --implicit-dirs=false --stat-cache-capacity=0)
+mkdir -p $MOUNT_DIR/mnt1 $MOUNT_DIR/mnt2
+gcsfuse --implicit-dirs=false --stat-cache-capacity 0 $TEST_BUCKET_NAME $MOUNT_DIR/mnt1
+gcsfuse --implicit-dirs=false --stat-cache-capacity 0 $TEST_BUCKET_NAME $MOUNT_DIR/mnt2
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/multiwriters/multimounts/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR/mnt1
+sudo umount $MOUNT_DIR/mnt2
+
+# Run tests with multiple mounting. (flags: --implicit-dirs=true --stat-cache-capacity=0)
+mkdir -p $MOUNT_DIR/mnt1 $MOUNT_DIR/mnt2
+gcsfuse --implicit-dirs --stat-cache-capacity 0 $TEST_BUCKET_NAME $MOUNT_DIR/mnt1
+gcsfuse --implicit-dirs --stat-cache-capacity 0 $TEST_BUCKET_NAME $MOUNT_DIR/mnt2
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/multiwriters/multimounts/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR/mnt1
+sudo umount $MOUNT_DIR/mnt2
