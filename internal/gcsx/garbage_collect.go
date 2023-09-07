@@ -21,7 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -76,7 +76,7 @@ func garbageCollectOnce(
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
-				&requests.DeleteObjectRequest{
+				&request.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.
 				})

@@ -19,7 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -30,14 +30,14 @@ func ListPrefix(
 	bucket bucket.Bucket,
 	prefix string,
 	objects chan<- *object.Object) (err error) {
-	req := &requests.ListObjectsRequest{
+	req := &request.ListObjectsRequest{
 		Prefix: prefix,
 	}
 
 	// List until we run out.
 	for {
 		// Fetch the next batch.
-		var listing *requests.Listing
+		var listing *request.Listing
 		listing, err = bucket.ListObjects(ctx, req)
 		if err != nil {
 			err = fmt.Errorf("ListObjects: %v", err)

@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
@@ -117,7 +117,7 @@ func (mb *monitoringBucket) Name() string {
 
 func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
-	req *requests.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *request.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	startTime := time.Now()
 
 	rc, err = mb.wrapped.NewReader(ctx, req)
@@ -131,7 +131,7 @@ func (mb *monitoringBucket) NewReader(
 
 func (mb *monitoringBucket) CreateObject(
 	ctx context.Context,
-	req *requests.CreateObjectRequest) (*object.Object, error) {
+	req *request.CreateObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CreateObject(ctx, req)
 	recordRequest(ctx, "CreateObject", startTime)
@@ -140,7 +140,7 @@ func (mb *monitoringBucket) CreateObject(
 
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
-	req *requests.CopyObjectRequest) (*object.Object, error) {
+	req *request.CopyObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.CopyObject(ctx, req)
 	recordRequest(ctx, "CopyObject", startTime)
@@ -149,7 +149,7 @@ func (mb *monitoringBucket) CopyObject(
 
 func (mb *monitoringBucket) ComposeObjects(
 	ctx context.Context,
-	req *requests.ComposeObjectsRequest) (*object.Object, error) {
+	req *request.ComposeObjectsRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.ComposeObjects(ctx, req)
 	recordRequest(ctx, "ComposeObjects", startTime)
@@ -158,7 +158,7 @@ func (mb *monitoringBucket) ComposeObjects(
 
 func (mb *monitoringBucket) StatObject(
 	ctx context.Context,
-	req *requests.StatObjectRequest) (*object.Object, error) {
+	req *request.StatObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.StatObject(ctx, req)
 	recordRequest(ctx, "StatObject", startTime)
@@ -167,7 +167,7 @@ func (mb *monitoringBucket) StatObject(
 
 func (mb *monitoringBucket) ListObjects(
 	ctx context.Context,
-	req *requests.ListObjectsRequest) (*requests.Listing, error) {
+	req *request.ListObjectsRequest) (*request.Listing, error) {
 	startTime := time.Now()
 	listing, err := mb.wrapped.ListObjects(ctx, req)
 	recordRequest(ctx, "ListObjects", startTime)
@@ -176,7 +176,7 @@ func (mb *monitoringBucket) ListObjects(
 
 func (mb *monitoringBucket) UpdateObject(
 	ctx context.Context,
-	req *requests.UpdateObjectRequest) (*object.Object, error) {
+	req *request.UpdateObjectRequest) (*object.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.UpdateObject(ctx, req)
 	recordRequest(ctx, "UpdateObject", startTime)
@@ -185,7 +185,7 @@ func (mb *monitoringBucket) UpdateObject(
 
 func (mb *monitoringBucket) DeleteObject(
 	ctx context.Context,
-	req *requests.DeleteObjectRequest) error {
+	req *request.DeleteObjectRequest) error {
 	startTime := time.Now()
 	err := mb.wrapped.DeleteObject(ctx, req)
 	recordRequest(ctx, "DeleteObject", startTime)

@@ -24,7 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -101,7 +101,7 @@ func (oc *appendObjectCreator) Create(
 	var zero int64
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
-		&requests.CreateObjectRequest{
+		&request.CreateObjectRequest{
 			Name:                   tmpName,
 			GenerationPrecondition: &zero,
 			Contents:               r,
@@ -115,7 +115,7 @@ func (oc *appendObjectCreator) Create(
 	defer func() {
 		deleteErr := oc.bucket.DeleteObject(
 			ctx,
-			&requests.DeleteObjectRequest{
+			&request.DeleteObjectRequest{
 				Name:       tmp.Name,
 				Generation: 0, // Delete the latest generation of temporary object.
 			})
@@ -139,17 +139,17 @@ func (oc *appendObjectCreator) Create(
 	// Compose the old contents plus the new over the old.
 	o, err = oc.bucket.ComposeObjects(
 		ctx,
-		&requests.ComposeObjectsRequest{
+		&request.ComposeObjectsRequest{
 			DstName:                       srcObject.Name,
 			DstGenerationPrecondition:     &srcObject.Generation,
 			DstMetaGenerationPrecondition: &srcObject.MetaGeneration,
-			Sources: []requests.ComposeSource{
-				requests.ComposeSource{
+			Sources: []request.ComposeSource{
+				request.ComposeSource{
 					Name:       srcObject.Name,
 					Generation: srcObject.Generation,
 				},
 
-				requests.ComposeSource{
+				request.ComposeSource{
 					Name:       tmp.Name,
 					Generation: tmp.Generation,
 				},

@@ -28,7 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -223,7 +223,7 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err = b.ListObjects(ctx, &requests.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &request.ListObjectsRequest{MaxResults: 1})
 		if err != nil {
 			return
 		}

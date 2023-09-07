@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -169,7 +169,7 @@ func (f *FileInode) checkInvariants() {
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *object.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
-	req := &requests.StatObjectRequest{
+	req := &request.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
@@ -205,7 +205,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *o
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
-		&requests.ReadObjectRequest{
+		&request.ReadObjectRequest{
 			Name:           f.src.Name,
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
@@ -512,7 +512,7 @@ func (f *FileInode) SetMtime(
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
 	srcGen := f.SourceGeneration()
 
-	req := &requests.UpdateObjectRequest{
+	req := &request.UpdateObjectRequest{
 		Name:                       f.src.Name,
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,

@@ -21,7 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -90,10 +90,10 @@ func (oc *fullObjectCreator) Create(
 	r io.Reader) (o *object.Object, err error) {
 	metadataMap := make(map[string]string)
 
-	var req *requests.CreateObjectRequest
+	var req *request.CreateObjectRequest
 	if srcObject == nil {
 		var precond int64
-		req = &requests.CreateObjectRequest{
+		req = &request.CreateObjectRequest{
 			Name:                   objectName,
 			Contents:               r,
 			GenerationPrecondition: &precond,
@@ -104,7 +104,7 @@ func (oc *fullObjectCreator) Create(
 			metadataMap[key] = value
 		}
 
-		req = &requests.CreateObjectRequest{
+		req = &request.CreateObjectRequest{
 			Name:                       srcObject.Name,
 			GenerationPrecondition:     &srcObject.Generation,
 			MetaGenerationPrecondition: &srcObject.MetaGeneration,
@@ -235,7 +235,7 @@ func (os *syncer) SyncObject(
 	// then we can make the optimization of not rewriting its contents.
 	if srcSize >= os.appendThreshold &&
 		sr.DirtyThreshold == srcSize &&
-		srcObject.ComponentCount < requests.MaxComponentCount {
+		srcObject.ComponentCount < request.MaxComponentCount {
 		_, err = content.Seek(srcSize, 0)
 		if err != nil {
 			err = fmt.Errorf("Seek: %w", err)

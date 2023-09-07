@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -135,7 +135,7 @@ func (t *DirTest) setSymlinkTarget(
 	target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
-		&requests.UpdateObjectRequest{
+		&request.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
 				SymlinkMetadataKey: &target,
@@ -849,7 +849,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&requests.DeleteObjectRequest{Name: srcName})
+		&request.DeleteObjectRequest{Name: srcName})
 
 	AssertEq(nil, err)
 

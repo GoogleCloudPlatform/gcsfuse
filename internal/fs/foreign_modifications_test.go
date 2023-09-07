@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -52,7 +52,7 @@ func setSymlinkTarget(
 	target string) (err error) {
 	_, err = bucketObj.UpdateObject(
 		ctx,
-		&requests.UpdateObjectRequest{
+		&request.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
 				inode.SymlinkMetadataKey: &target,
@@ -699,7 +699,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_File() {
 	lang := "fr"
 	_, err = bucketObj.UpdateObject(
 		ctx,
-		&requests.UpdateObjectRequest{
+		&request.UpdateObjectRequest{
 			Name:            "foo",
 			ContentLanguage: &lang,
 		})
@@ -728,7 +728,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
 	lang := "fr"
 	_, err = bucketObj.UpdateObject(
 		ctx,
-		&requests.UpdateObjectRequest{
+		&request.UpdateObjectRequest{
 			Name:            "dir/",
 			ContentLanguage: &lang,
 		})
@@ -762,7 +762,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 		nil,
 		bucketObj.DeleteObject(
 			ctx,
-			&requests.DeleteObjectRequest{Name: "foo"}))
+			&request.DeleteObjectRequest{Name: "foo"}))
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
@@ -798,7 +798,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 		nil,
 		bucketObj.DeleteObject(
 			ctx,
-			&requests.DeleteObjectRequest{Name: "dir/"}))
+			&request.DeleteObjectRequest{Name: "dir/"}))
 
 	// The inode should still be fstat'able.
 	fi, err := t.f1.Stat()
@@ -817,7 +817,7 @@ func (t *ForeignModsTest) Mtime() {
 
 	// Create an object that has an mtime set.
 	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
-	req := &requests.CreateObjectRequest{
+	req := &request.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
 			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
@@ -841,7 +841,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 	// Create an object that has an mtime set.
 	_, err = bucketObj.CreateObject(
 		ctx,
-		&requests.CreateObjectRequest{
+		&request.CreateObjectRequest{
 			Name: "foo",
 			Metadata: map[string]string{
 				"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
@@ -861,7 +861,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 
 	_, err = bucketObj.UpdateObject(
 		ctx,
-		&requests.UpdateObjectRequest{
+		&request.UpdateObjectRequest{
 			Name: "foo",
 			Metadata: map[string]*string{
 				"gcsfuse_mtime": &formatted,
@@ -881,7 +881,7 @@ func (t *ForeignModsTest) Symlink() {
 	var err error
 
 	// Create an object that looks like a symlink.
-	req := &requests.CreateObjectRequest{
+	req := &request.CreateObjectRequest{
 		Name: "foo",
 		Metadata: map[string]string{
 			"gcsfuse_symlink_target": "bar/baz",

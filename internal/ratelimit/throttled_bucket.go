@@ -19,7 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 )
 
@@ -54,7 +54,7 @@ func (b *throttledBucket) Name() string {
 
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
-	req *requests.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *request.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Wait for permission to call through.
 
 	err = b.opThrottle.Wait(ctx, 1)
@@ -79,7 +79,7 @@ func (b *throttledBucket) NewReader(
 
 func (b *throttledBucket) CreateObject(
 	ctx context.Context,
-	req *requests.CreateObjectRequest) (o *object.Object, err error) {
+	req *request.CreateObjectRequest) (o *object.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -94,7 +94,7 @@ func (b *throttledBucket) CreateObject(
 
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
-	req *requests.CopyObjectRequest) (o *object.Object, err error) {
+	req *request.CopyObjectRequest) (o *object.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -109,7 +109,7 @@ func (b *throttledBucket) CopyObject(
 
 func (b *throttledBucket) ComposeObjects(
 	ctx context.Context,
-	req *requests.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *request.ComposeObjectsRequest) (o *object.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -124,7 +124,7 @@ func (b *throttledBucket) ComposeObjects(
 
 func (b *throttledBucket) StatObject(
 	ctx context.Context,
-	req *requests.StatObjectRequest) (o *object.Object, err error) {
+	req *request.StatObjectRequest) (o *object.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -139,7 +139,7 @@ func (b *throttledBucket) StatObject(
 
 func (b *throttledBucket) ListObjects(
 	ctx context.Context,
-	req *requests.ListObjectsRequest) (listing *requests.Listing, err error) {
+	req *request.ListObjectsRequest) (listing *request.Listing, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -154,7 +154,7 @@ func (b *throttledBucket) ListObjects(
 
 func (b *throttledBucket) UpdateObject(
 	ctx context.Context,
-	req *requests.UpdateObjectRequest) (o *object.Object, err error) {
+	req *request.UpdateObjectRequest) (o *object.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -169,7 +169,7 @@ func (b *throttledBucket) UpdateObject(
 
 func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
-	req *requests.DeleteObjectRequest) (err error) {
+	req *request.DeleteObjectRequest) (err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {

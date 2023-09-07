@@ -23,7 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -71,7 +71,7 @@ func MakeFakeBucket(ctx context.Context) (b bucket.Bucket) {
 	for k, v := range contents {
 		_, err := b.CreateObject(
 			ctx,
-			&requests.CreateObjectRequest{
+			&request.CreateObjectRequest{
 				Name:     k,
 				Contents: strings.NewReader(v),
 			})

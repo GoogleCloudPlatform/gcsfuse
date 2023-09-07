@@ -28,7 +28,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/requests"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/request"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -47,7 +47,7 @@ func (bh *bucketHandle) Name() string {
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
-	req *requests.ReadObjectRequest) (io.ReadCloser, error) {
+	req *request.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -73,7 +73,7 @@ func (bh *bucketHandle) NewReader(
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	return obj.NewRangeReader(ctx, start, length)
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *requests.DeleteObjectRequest) error {
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *request.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
@@ -108,7 +108,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *requests.DeleteObj
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *requests.StatObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context, req *request.StatObjectRequest) (o *object.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -129,7 +129,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *requests.StatObjectR
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *requests.CreateObjectRequest) (o *object.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *request.CreateObjectRequest) (o *object.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -189,7 +189,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *requests.CreateOb
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *requests.CopyObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) CopyObject(ctx context.Context, req *request.CopyObjectRequest) (o *object.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
@@ -224,7 +224,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *requests.CopyObjectR
 	return
 }
 
-func getProjectionValue(req requests.Projection) storage.Projection {
+func getProjectionValue(req request.Projection) storage.Projection {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
 	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
 	switch int(req) {
@@ -241,7 +241,7 @@ func getProjectionValue(req requests.Projection) storage.Projection {
 	return convertedProjection
 }
 
-func (b *bucketHandle) ListObjects(ctx context.Context, req *requests.ListObjectsRequest) (listing *requests.Listing, err error) {
+func (b *bucketHandle) ListObjects(ctx context.Context, req *request.ListObjectsRequest) (listing *request.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
@@ -254,7 +254,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *requests.ListObject
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
-	var list requests.Listing
+	var list request.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
@@ -298,7 +298,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *requests.ListObject
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *requests.UpdateObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *request.UpdateObjectRequest) (o *object.Object, err error) {
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -362,7 +362,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *requests.UpdateObj
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *requests.ComposeObjectsRequest) (o *object.Object, err error) {
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *request.ComposeObjectsRequest) (o *object.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
