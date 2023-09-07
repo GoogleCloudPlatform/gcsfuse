@@ -20,6 +20,7 @@ package fs_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
-	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -45,10 +45,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func setSymlinkTarget(
-		ctx context.Context,
-		bucket gcs.Bucket,
-		objName string,
-		target string) (err error) {
+	ctx context.Context,
+	bucket gcs.Bucket,
+	objName string,
+	target string) (err error) {
 	_, err = bucket.UpdateObject(
 		ctx,
 		&gcs.UpdateObjectRequest{
@@ -563,8 +563,8 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
 			"offset: %d\n"+
-					"size:   %d\n"+
-					"n:      %d",
+				"size:   %d\n"+
+				"n:      %d",
 			offset,
 			size,
 			n)

@@ -20,6 +20,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +29,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
-	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -44,8 +44,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
