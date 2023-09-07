@@ -45,7 +45,8 @@ then
     sudo apt install -y gcsfuse=$(sed -n 1p details.txt) -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
 else
 #  For rhel and centos
-    sudo yum makecache
+    sudo yum install -y dnf
+    sudo dnf makecache
     sudo yum -y install dnf-plugin-artifact-registry
 sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
 [gcsfuse-el7-x86-64]
@@ -57,8 +58,8 @@ gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
     https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-    sudo yum makecache
-    sudo yum -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    sudo dnf makecache
+    sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
