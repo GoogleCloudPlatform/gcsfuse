@@ -45,6 +45,7 @@ then
     sudo apt install -y gcsfuse=$(sed -n 1p details.txt) -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
 else
 #  For rhel and centos
+    # arm64 machines only supports dnf
     sudo yum -y install dnf
     sudo dnf makecache
     sudo yum -y install dnf-plugin-artifact-registry
