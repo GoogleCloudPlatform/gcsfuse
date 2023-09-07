@@ -37,7 +37,7 @@ var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
 func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
-	b := &fakebucket{clock: clock, name: name}
+	b := &bucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b
 }
@@ -123,7 +123,7 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-type fakebucket struct {
+type bucket struct {
 	clock timeutil.Clock
 	name  string
 	mu    syncutil.InvariantMutex
@@ -162,7 +162,7 @@ func checkName(name string) (err error) {
 }
 
 // LOCKS_REQUIRED(b.mu)
-func (b *fakebucket) checkInvariants() {
+func (b *bucket) checkInvariants() {
 	// Make sure 'objects' is strictly increasing.
 	for i := 1; i < len(b.objects); i++ {
 		objA := b.objects[i-1]
@@ -191,9 +191,9 @@ func (b *fakebucket) checkInvariants() {
 // Create an object struct for the given attributes and contents.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *fakebucket) mintObject(
-	req *gcs.CreateObjectRequest,
-	contents []byte) (o fakeObject) {
+func (b *bucket) mintObject(
+		req *gcs.CreateObjectRequest,
+		contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
 	crc32c := crc32.Checksum(contents, crc32cTable)
 
@@ -225,8 +225,8 @@ func (b *fakebucket) mintObject(
 }
 
 // LOCKS_REQUIRED(b.mu)
-func (b *fakebucket) createObjectLocked(
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) createObjectLocked(
+		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -346,8 +346,8 @@ func (b *fakebucket) createObjectLocked(
 // within b.objects of the entry for the requested generation.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *fakebucket) newReaderLocked(
-	req *gcs.ReadObjectRequest) (r io.Reader, index int, err error) {
+func (b *bucket) newReaderLocked(
+		req *gcs.ReadObjectRequest) (r io.Reader, index int, err error) {
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
@@ -431,14 +431,14 @@ func copyObject(o *gcs.Object) *gcs.Object {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-func (b *fakebucket) Name() string {
+func (b *bucket) Name() string {
 	return b.name
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) ListObjects(
-	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+func (b *bucket) ListObjects(
+		ctx context.Context,
+		req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -486,7 +486,7 @@ func (b *fakebucket) ListObjects(
 				// Save the result, but only if it's not a duplicate.
 				resultPrefix := name[:resultPrefixLimit]
 				if len(listing.CollapsedRuns) == 0 ||
-					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
+						listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
 
@@ -534,9 +534,9 @@ func (b *fakebucket) ListObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+func (b *bucket) NewReader(
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -550,9 +550,9 @@ func (b *fakebucket) NewReader(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) CreateObject(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) CreateObject(
+		ctx context.Context,
+		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -561,9 +561,9 @@ func (b *fakebucket) CreateObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) CopyObject(
-	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) CopyObject(
+		ctx context.Context,
+		req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -585,7 +585,7 @@ func (b *fakebucket) CopyObject(
 
 	// Does it have the correct generation?
 	if req.SrcGeneration != 0 &&
-		b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
+			b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
 		err = &storage.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %s generation %d not found", req.SrcName, req.SrcGeneration),
@@ -632,9 +632,9 @@ func (b *fakebucket) CopyObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) ComposeObjects(
-	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+func (b *bucket) ComposeObjects(
+		ctx context.Context,
+		req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -707,9 +707,9 @@ func (b *fakebucket) ComposeObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) StatObject(
-	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) StatObject(
+		ctx context.Context,
+		req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -730,9 +730,9 @@ func (b *fakebucket) StatObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) UpdateObject(
-	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) UpdateObject(
+		ctx context.Context,
+		req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -762,7 +762,7 @@ func (b *fakebucket) UpdateObject(
 
 	// Does the meta-generation precondition check out?
 	if req.MetaGenerationPrecondition != nil &&
-		obj.MetaGeneration != *req.MetaGenerationPrecondition {
+			obj.MetaGeneration != *req.MetaGenerationPrecondition {
 		err = &storage.PreconditionError{
 			Err: fmt.Errorf(
 				"Object %q has meta-generation %d",
@@ -817,9 +817,9 @@ func (b *fakebucket) UpdateObject(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fakebucket) DeleteObject(
-	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+func (b *bucket) DeleteObject(
+		ctx context.Context,
+		req *gcs.DeleteObjectRequest) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -831,7 +831,7 @@ func (b *fakebucket) DeleteObject(
 
 	// Don't do anything if the generation is wrong.
 	if req.Generation != 0 &&
-		b.objects[index].metadata.Generation != req.Generation {
+			b.objects[index].metadata.Generation != req.Generation {
 		return
 	}
 
