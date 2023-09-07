@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,19 +22,20 @@ import (
 )
 
 const (
+	// LevelTrace value is set to -8, so that all the other log levels are logged.
 	LevelTrace = slog.Level(-8)
 	LevelDebug = slog.LevelDebug
 	LevelInfo  = slog.LevelInfo
 	LevelWarn  = slog.LevelWarn
 	LevelError = slog.LevelError
-	LevelOff   = slog.Level(12)
+	// LevelOff value is set to 12, so that nothing is logged.
+	LevelOff = slog.Level(12)
 )
 
 func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	switch level {
 	// logs having severity >= the configured value will be logged.
 	case config.TRACE:
-		// Setting severity to -8, so that all the other levels are logged.
 		programLevel.Set(LevelTrace)
 	case config.DEBUG:
 		programLevel.Set(LevelDebug)
@@ -45,7 +46,6 @@ func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	case config.ERROR:
 		programLevel.Set(LevelError)
 	case config.OFF:
-		// Setting severity to 12, so that nothing is logged.
 		programLevel.Set(LevelOff)
 	}
 }

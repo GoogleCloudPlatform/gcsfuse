@@ -76,7 +76,6 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 	defaultLoggerFactory = &loggerFactory{
 		file:      f,
 		sysWriter: sysWriter,
-		flag:      0,
 		format:    format,
 		level:     level,
 	}
@@ -89,7 +88,6 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 func init() {
 	defaultLoggerFactory = &loggerFactory{
 		file:  nil,
-		flag:  log.Ldate | log.Lmicroseconds,
 		level: config.INFO, // setting log level to INFO by default
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
@@ -106,32 +104,35 @@ func Close() {
 // NewDebug returns a new logger for logging debug messages with given prefix
 // to the log file or stdout.
 func NewDebug(prefix string) *log.Logger {
-	return defaultLoggerFactory.NewLogger(LevelDebug, prefix)
+	// TODO: delete this method after all slog changed are merged.
+	return NewLogger(LevelDebug, prefix)
 }
 
 // NewInfo returns a new logger for logging info with given prefix to the log
 // file or stdout.
 func NewInfo(prefix string) *log.Logger {
-	return defaultLoggerFactory.NewLogger(LevelInfo, prefix)
+	// TODO: delete this method after all slog changed are merged.
+	return NewLogger(LevelInfo, prefix)
 }
 
 // NewError returns a new logger for logging errors with given prefix to the log
 // file or stderr.
 func NewError(prefix string) *log.Logger {
-	return defaultLoggerFactory.NewLogger(LevelError, prefix)
+	// TODO: delete this method after all slog changed are merged.
+	return NewLogger(LevelError, prefix)
 }
 
-// Errorf calls the default error logger to print the message using Printf.
+// Errorf prints the message with ERROR severity in the specified format.
 func Errorf(format string, v ...interface{}) {
 	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
-// Infof calls the default info logger to print the message with format.
+// Infof prints the message with INFO severity in the specified format.
 func Infof(format string, v ...interface{}) {
 	defaultLogger.Info(fmt.Sprintf(format, v...))
 }
 
-// Info calls the default info logger to print the message.
+// Info prints the message with info severity.
 func Info(v ...interface{}) {
 	defaultLogger.Info(fmt.Sprint(v...))
 }
@@ -141,17 +142,17 @@ func Debugf(format string, v ...interface{}) {
 	defaultLogger.Debug(fmt.Sprintf(format, v...))
 }
 
-// Tracef prints the message with DEBUG severity in the specified format.
+// Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
 }
 
+// Warnf prints the message with WARNING severity in the specified format.
 func Warnf(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelWarn, fmt.Sprintf(format, v...))
 }
 
-// Fatal calls the default info logger to call the Fatal function of go-src-logs.
-// https://github.com/golang/go/blob/master/src/log/log.go#L282
+// Fatal prints an error log and exits with non-zero exit code.
 func Fatal(format string, v ...interface{}) {
 	Errorf(format, v...)
 	os.Exit(1)
@@ -161,7 +162,6 @@ type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file      *os.File
 	sysWriter *syslog.Writer
-	flag      int
 	format    string
 	level     config.LogSeverity
 }

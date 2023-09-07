@@ -1,4 +1,4 @@
-// Copyright 2020 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: remove these methods/file after slog support is added to jacobsa/fuse.
+
 package logger
 
 import (
@@ -19,18 +21,13 @@ import (
 	"log/slog"
 )
 
-// NewLogger creates a new logger. Avoid using this logger wherever possible and
-// prioritise using the default logger methods like Info(), Warn(), Errorf(), etc
+// NewLogger creates a new legacy logger. Avoid using this logger wherever possible and
+// prioritise using the default logger methods like Infof(), Warnf(), Errorf(), etc
 // present in logger package as this does not provide control to set log level for
 // individual log messages.
-func (f *loggerFactory) NewLogger(level slog.Level, prefix string) *log.Logger {
+func NewLogger(level slog.Level, prefix string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
-	logger := slog.NewLogLogger(f.handler(programLevel, prefix), level)
-	setLoggingLevel(f.level, programLevel)
+	logger := slog.NewLogLogger(defaultLoggerFactory.handler(programLevel, prefix), level)
+	setLoggingLevel(defaultLoggerFactory.level, programLevel)
 	return logger
-}
-
-// DefaultLoggerFactory returns the defaultLoggerFactory of the logger package.
-func DefaultLoggerFactory() *loggerFactory {
-	return defaultLoggerFactory
 }
