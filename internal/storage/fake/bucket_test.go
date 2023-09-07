@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storagetesting"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -28,7 +27,7 @@ import (
 func TestBucket(t *testing.T) { ogletest.RunTests(t) }
 
 func init() {
-	makeDeps := func(ctx context.Context) (deps storagetesting.BucketTestDeps) {
+	makeDeps := func(ctx context.Context) (deps fake.BucketTestDeps) {
 		// Set up a fixed, non-zero time.
 		clock := &timeutil.SimulatedClock{}
 		clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
@@ -40,5 +39,5 @@ func init() {
 		return
 	}
 
-	storagetesting.RegisterBucketTests(makeDeps)
+	fake.RegisterBucketTests(makeDeps)
 }

@@ -14,7 +14,7 @@
 
 // Tests registered by RegisterBucketTests.
 
-package storagetesting
+package fake
 
 import (
 	"context"
