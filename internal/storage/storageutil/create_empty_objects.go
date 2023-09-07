@@ -15,14 +15,14 @@
 package storageutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
 // Create empty objects with default attributes for all of the supplied names.
 func CreateEmptyObjects(
 	ctx context.Context,
-	bucket bucket.Bucket,
+	bucket gcs.Bucket,
 	names []string) (err error) {
 	m := make(map[string][]byte)
 	for _, name := range names {

@@ -26,8 +26,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
@@ -35,7 +34,7 @@ import (
 )
 
 type bucketHandle struct {
-	bucket.Bucket
+	gcs.Bucket
 	bucket     *storage.BucketHandle
 	bucketName string
 }
@@ -46,7 +45,7 @@ func (bh *bucketHandle) Name() string {
 
 func (bh *bucketHandle) NewReader(
 	ctx context.Context,
-	req *object.ReadObjectRequest) (io.ReadCloser, error) {
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -72,7 +71,7 @@ func (bh *bucketHandle) NewReader(
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	return obj.NewRangeReader(ctx, start, length)
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *object.DeleteObjectRequest) error {
+func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
 	obj := b.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
@@ -107,7 +106,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *object.DeleteObjec
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *object.StatObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -128,7 +127,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *object.StatObjectReq
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *object.CreateObjectRequest) (o *object.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -188,7 +187,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *object.CreateObje
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *object.CopyObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
@@ -223,7 +222,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *object.CopyObjectReq
 	return
 }
 
-func getProjectionValue(req object.Projection) storage.Projection {
+func getProjectionValue(req gcs.Projection) storage.Projection {
 	// Explicitly converting Projection Value because the ProjectionVal interface of jacobsa/gcloud and Go Client API are not coupled correctly.
 	var convertedProjection storage.Projection // Stores the Projection Value according to the Go Client API Interface.
 	switch int(req) {
@@ -240,7 +239,7 @@ func getProjectionValue(req object.Projection) storage.Projection {
 	return convertedProjection
 }
 
-func (b *bucketHandle) ListObjects(ctx context.Context, req *object.ListObjectsRequest) (listing *object.Listing, err error) {
+func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
@@ -253,7 +252,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *object.ListObjectsR
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
-	var list object.Listing
+	var list gcs.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
 	for {
@@ -297,7 +296,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *object.ListObjectsR
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *object.UpdateObjectRequest) (o *object.Object, err error) {
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -361,7 +360,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *object.UpdateObjec
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}

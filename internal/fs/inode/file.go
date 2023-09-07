@@ -25,7 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -73,7 +73,7 @@ type FileInode struct {
 	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src object.MinObject
+	src gcs.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -104,7 +104,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
-	o *object.Object,
+	o *gcs.Object,
 	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
@@ -165,10 +165,10 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *object.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
-	req := &object.StatObjectRequest{
+	req := &gcs.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
@@ -204,7 +204,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *o
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReader(
 		ctx,
-		&object.ReadObjectRequest{
+		&gcs.ReadObjectRequest{
 			Name:           f.src.Name,
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
@@ -305,7 +305,7 @@ func (f *FileInode) Unlink() {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *object.MinObject {
+func (f *FileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -511,7 +511,7 @@ func (f *FileInode) SetMtime(
 	formatted := mtime.UTC().Format(time.RFC3339Nano)
 	srcGen := f.SourceGeneration()
 
-	req := &object.UpdateObjectRequest{
+	req := &gcs.UpdateObjectRequest{
 		Name:                       f.src.Name,
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
@@ -647,13 +647,13 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *object.Object) object.MinObject {
-	var min object.MinObject
+func convertObjToMinObject(o *gcs.Object) gcs.MinObject {
+	var min gcs.MinObject
 	if o == nil {
 		return min
 	}
 
-	return object.MinObject{
+	return gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,

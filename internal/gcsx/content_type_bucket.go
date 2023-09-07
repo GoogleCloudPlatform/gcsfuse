@@ -18,24 +18,23 @@ import (
 	"mime"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
 // NewContentTypeBucket creates a wrapper bucket that guesses MIME types for
 // newly created or composed objects when an explicit type is not already set.
-func NewContentTypeBucket(b bucket.Bucket) bucket.Bucket {
+func NewContentTypeBucket(b gcs.Bucket) gcs.Bucket {
 	return contentTypeBucket{b}
 }
 
 type contentTypeBucket struct {
-	bucket.Bucket
+	gcs.Bucket
 }
 
 func (b contentTypeBucket) CreateObject(
 	ctx context.Context,
-	req *object.CreateObjectRequest) (o *object.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
@@ -48,7 +47,7 @@ func (b contentTypeBucket) CreateObject(
 
 func (b contentTypeBucket) ComposeObjects(
 	ctx context.Context,
-	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.DstName))

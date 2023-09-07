@@ -27,8 +27,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -37,7 +36,7 @@ import (
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(clock timeutil.Clock, name string) bucket.Bucket {
+func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
 	b := &fakebucket{clock: clock, name: name}
 	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
 	return b
@@ -48,7 +47,7 @@ func NewFakeBucket(clock timeutil.Clock, name string) bucket.Bucket {
 ////////////////////////////////////////////////////////////////////////
 
 type fakeObject struct {
-	metadata object.Object
+	metadata gcs.Object
 	data     []byte
 }
 
@@ -193,14 +192,14 @@ func (b *fakebucket) checkInvariants() {
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *fakebucket) mintObject(
-	req *object.CreateObjectRequest,
+	req *gcs.CreateObjectRequest,
 	contents []byte) (o fakeObject) {
 	md5Sum := md5.Sum(contents)
 	crc32c := crc32.Checksum(contents, crc32cTable)
 
 	// Set up basic info.
 	b.prevGeneration++
-	o.metadata = object.Object{
+	o.metadata = gcs.Object{
 		Name:            req.Name,
 		ContentType:     req.ContentType,
 		ContentLanguage: req.ContentLanguage,
@@ -227,7 +226,7 @@ func (b *fakebucket) mintObject(
 
 // LOCKS_REQUIRED(b.mu)
 func (b *fakebucket) createObjectLocked(
-	req *object.CreateObjectRequest) (o *object.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {
@@ -348,7 +347,7 @@ func (b *fakebucket) createObjectLocked(
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *fakebucket) newReaderLocked(
-	req *object.ReadObjectRequest) (r io.Reader, index int, err error) {
+	req *gcs.ReadObjectRequest) (r io.Reader, index int, err error) {
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
@@ -422,8 +421,8 @@ func copyMetadata(in map[string]string) (out map[string]string) {
 	return
 }
 
-func copyObject(o *object.Object) *object.Object {
-	var copy object.Object = *o
+func copyObject(o *gcs.Object) *gcs.Object {
+	var copy gcs.Object = *o
 	copy.Metadata = copyMetadata(o.Metadata)
 	return &copy
 }
@@ -439,12 +438,12 @@ func (b *fakebucket) Name() string {
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) ListObjects(
 	ctx context.Context,
-	req *object.ListObjectsRequest) (listing *object.Listing, err error) {
+	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Set up the result object.
-	listing = new(object.Listing)
+	listing = new(gcs.Listing)
 
 	// Handle defaults.
 	maxResults := req.MaxResults
@@ -537,7 +536,7 @@ func (b *fakebucket) ListObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) NewReader(
 	ctx context.Context,
-	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -553,7 +552,7 @@ func (b *fakebucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) CreateObject(
 	ctx context.Context,
-	req *object.CreateObjectRequest) (o *object.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -564,7 +563,7 @@ func (b *fakebucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) CopyObject(
 	ctx context.Context,
-	req *object.CopyObjectRequest) (o *object.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -635,7 +634,7 @@ func (b *fakebucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) ComposeObjects(
 	ctx context.Context,
-	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -645,7 +644,7 @@ func (b *fakebucket) ComposeObjects(
 		return
 	}
 
-	if len(req.Sources) > object.MaxSourcesPerComposeRequest {
+	if len(req.Sources) > gcs.MaxSourcesPerComposeRequest {
 		err = errors.New("You have provided too many source components")
 		return
 	}
@@ -659,7 +658,7 @@ func (b *fakebucket) ComposeObjects(
 		var r io.Reader
 		var srcIndex int
 
-		r, srcIndex, err = b.newReaderLocked(&object.ReadObjectRequest{
+		r, srcIndex, err = b.newReaderLocked(&gcs.ReadObjectRequest{
 			Name:       src.Name,
 			Generation: src.Generation,
 		})
@@ -673,13 +672,13 @@ func (b *fakebucket) ComposeObjects(
 	}
 
 	// GCS doesn't like the component count to go too high.
-	if dstComponentCount > object.MaxComponentCount {
+	if dstComponentCount > gcs.MaxComponentCount {
 		err = errors.New("Result would have too many components")
 		return
 	}
 
 	// Create the new object.
-	createReq := &object.CreateObjectRequest{
+	createReq := &gcs.CreateObjectRequest{
 		Name:                       req.DstName,
 		GenerationPrecondition:     req.DstGenerationPrecondition,
 		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
@@ -710,7 +709,7 @@ func (b *fakebucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) StatObject(
 	ctx context.Context,
-	req *object.StatObjectRequest) (o *object.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -733,7 +732,7 @@ func (b *fakebucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) UpdateObject(
 	ctx context.Context,
-	req *object.UpdateObjectRequest) (o *object.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -747,7 +746,7 @@ func (b *fakebucket) UpdateObject(
 		return
 	}
 
-	var obj *object.Object = &b.objects[index].metadata
+	var obj *gcs.Object = &b.objects[index].metadata
 
 	// Does the generation number match the request?
 	if req.Generation != 0 && obj.Generation != req.Generation {
@@ -820,7 +819,7 @@ func (b *fakebucket) UpdateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fakebucket) DeleteObject(
 	ctx context.Context,
-	req *object.DeleteObjectRequest) (err error) {
+	req *gcs.DeleteObjectRequest) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

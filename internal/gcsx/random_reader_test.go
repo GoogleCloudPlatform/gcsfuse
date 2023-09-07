@@ -24,8 +24,8 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -89,7 +89,7 @@ func (br *blockingReader) Read(p []byte) (n int, err error) {
 
 func rangeStartIs(expected uint64) (m Matcher) {
 	pred := func(c interface{}) (err error) {
-		req := c.(*object.ReadObjectRequest)
+		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
 			return
@@ -109,7 +109,7 @@ func rangeStartIs(expected uint64) (m Matcher) {
 
 func rangeLimitIs(expected uint64) (m Matcher) {
 	pred := func(c interface{}) (err error) {
-		req := c.(*object.ReadObjectRequest)
+		req := c.(*gcs.ReadObjectRequest)
 		if req.Range == nil {
 			err = errors.New("which has a nil range")
 			return
@@ -135,8 +135,8 @@ const sequentialReadSizeInMb = 10
 const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
 
 type RandomReaderTest struct {
-	object *object.MinObject
-	bucket bucket.MockBucket
+	object *gcs.MinObject
+	bucket storage.MockBucket
 	rr     checkingRandomReader
 }
 
@@ -149,14 +149,14 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.rr.ctx = ti.Ctx
 
 	// Manufacture an object record.
-	t.object = &object.MinObject{
+	t.object = &gcs.MinObject{
 		Name:       "foo",
 		Size:       17,
 		Generation: 1234,
 	}
 
 	// Create the bucket.
-	t.bucket = bucket.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb)

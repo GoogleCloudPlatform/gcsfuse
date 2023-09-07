@@ -17,8 +17,7 @@ package storageutil
 import (
 	"bytes"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -26,10 +25,10 @@ import (
 // given name.
 func CreateObject(
 	ctx context.Context,
-	bucket bucket.Bucket,
+	bucket gcs.Bucket,
 	name string,
-	contents []byte) (*object.Object, error) {
-	req := &object.CreateObjectRequest{
+	contents []byte) (*gcs.Object, error) {
+	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: bytes.NewReader(contents),
 	}

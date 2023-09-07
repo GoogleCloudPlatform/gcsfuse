@@ -15,7 +15,7 @@
 package storageutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -24,7 +24,7 @@ import (
 // the supplied map from name to contents.
 func CreateObjects(
 	ctx context.Context,
-	bucket bucket.Bucket,
+	bucket gcs.Bucket,
 	input map[string][]byte) (err error) {
 	bundle := syncutil.NewBundle(ctx)
 

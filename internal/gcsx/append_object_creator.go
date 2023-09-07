@@ -22,8 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -38,7 +37,7 @@ import (
 // has been clobbered.
 func newAppendObjectCreator(
 	prefix string,
-	bucket bucket.Bucket) (oc objectCreator) {
+	bucket gcs.Bucket) (oc objectCreator) {
 	oc = &appendObjectCreator{
 		prefix: prefix,
 		bucket: bucket,
@@ -53,7 +52,7 @@ func newAppendObjectCreator(
 
 type appendObjectCreator struct {
 	prefix string
-	bucket bucket.Bucket
+	bucket gcs.Bucket
 }
 
 func (oc *appendObjectCreator) chooseName() (name string, err error) {
@@ -86,9 +85,9 @@ func (oc *appendObjectCreator) chooseName() (name string, err error) {
 func (oc *appendObjectCreator) Create(
 	ctx context.Context,
 	objectName string,
-	srcObject *object.Object,
+	srcObject *gcs.Object,
 	mtime *time.Time,
-	r io.Reader) (o *object.Object, err error) {
+	r io.Reader) (o *gcs.Object, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
 	if err != nil {
@@ -100,7 +99,7 @@ func (oc *appendObjectCreator) Create(
 	var zero int64
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
-		&object.CreateObjectRequest{
+		&gcs.CreateObjectRequest{
 			Name:                   tmpName,
 			GenerationPrecondition: &zero,
 			Contents:               r,
@@ -114,7 +113,7 @@ func (oc *appendObjectCreator) Create(
 	defer func() {
 		deleteErr := oc.bucket.DeleteObject(
 			ctx,
-			&object.DeleteObjectRequest{
+			&gcs.DeleteObjectRequest{
 				Name:       tmp.Name,
 				Generation: 0, // Delete the latest generation of temporary object.
 			})
@@ -138,17 +137,17 @@ func (oc *appendObjectCreator) Create(
 	// Compose the old contents plus the new over the old.
 	o, err = oc.bucket.ComposeObjects(
 		ctx,
-		&object.ComposeObjectsRequest{
+		&gcs.ComposeObjectsRequest{
 			DstName:                       srcObject.Name,
 			DstGenerationPrecondition:     &srcObject.Generation,
 			DstMetaGenerationPrecondition: &srcObject.MetaGeneration,
-			Sources: []object.ComposeSource{
-				object.ComposeSource{
+			Sources: []gcs.ComposeSource{
+				gcs.ComposeSource{
 					Name:       srcObject.Name,
 					Generation: srcObject.Generation,
 				},
 
-				object.ComposeSource{
+				gcs.ComposeSource{
 					Name:       tmp.Name,
 					Generation: tmp.Generation,
 				},

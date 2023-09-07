@@ -35,8 +35,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -100,8 +100,8 @@ var (
 	// To mount a special bucketObj, override `bucketObj`;
 	// To mount multiple buckets, override `buckets`;
 	// Otherwise, a default bucketObj will be used.
-	bucketObj bucket.Bucket
-	buckets   map[string]bucket.Bucket
+	bucketObj gcs.Bucket
+	buckets   map[string]gcs.Bucket
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -126,7 +126,7 @@ func (t *fsTest) SetUpTestSuite() {
 			bucketObj = fake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
 		t.serverCfg.BucketName = bucketObj.Name()
-		buckets = map[string]bucket.Bucket{bucketObj.Name(): bucketObj}
+		buckets = map[string]gcs.Bucket{bucketObj.Name(): bucketObj}
 	}
 
 	t.serverCfg.BucketManager = &fakeBucketManager{
@@ -319,7 +319,7 @@ func currentGid() uint32 {
 }
 
 type fakeBucketManager struct {
-	buckets         map[string]bucket.Bucket
+	buckets         map[string]gcs.Bucket
 	appendThreshold int64
 	tmpObjectPrefix string
 }

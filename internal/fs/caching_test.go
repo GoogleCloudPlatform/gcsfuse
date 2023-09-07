@@ -22,10 +22,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -40,7 +39,7 @@ import (
 const ttl = 10 * time.Minute
 
 var (
-	uncachedBucket bucket.Bucket
+	uncachedBucket gcs.Bucket
 )
 
 type cachingTestCommon struct {
@@ -181,7 +180,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	// Remove the backing object in GCS.
 	err = uncachedBucket.DeleteObject(
 		ctx,
-		&object.DeleteObjectRequest{Name: name + "/"})
+		&gcs.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
@@ -274,7 +273,7 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	fmt.Printf("DeleteObject\n")
 	err = bucketObj.DeleteObject(
 		ctx,
-		&object.DeleteObjectRequest{Name: name + "/"})
+		&gcs.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -20,7 +20,7 @@ const invalidBucketName string = "will-not-be-present-in-fake-server"
 ////////////////////////////////////////////////////////////////////////
 
 type BucketManagerTest struct {
-	bucket        bucket.Bucket
+	bucket        gcs.Bucket
 	storageHandle storage.StorageHandle
 	fakeStorage   storage.FakeStorage
 }

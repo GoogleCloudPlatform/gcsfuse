@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 	storagev1 "google.golang.org/api/storage/v1"
 )
@@ -181,7 +181,7 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 	var metaGenerationPrecondition int64 = 33
 	md5Hash := md5.Sum([]byte("testing"))
 	timeInRFC3339 := "2006-01-02T15:04:05Z07:00"
-	createObjectRequest := object.CreateObjectRequest{
+	createObjectRequest := gcs.CreateObjectRequest{
 		Name:                       "test_object",
 		ContentType:                "json",
 		ContentEncoding:            "universal",

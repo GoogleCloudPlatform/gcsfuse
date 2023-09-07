@@ -19,8 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -31,12 +30,12 @@ import (
 func garbageCollectOnce(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket bucket.Bucket) (objectsDeleted uint64, err error) {
+	bucket gcs.Bucket) (objectsDeleted uint64, err error) {
 	const stalenessThreshold = 30 * time.Minute
 	b := syncutil.NewBundle(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *object.Object, 100)
+	objects := make(chan *gcs.Object, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
 		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)
@@ -75,7 +74,7 @@ func garbageCollectOnce(
 		for name := range staleNames {
 			err = bucket.DeleteObject(
 				ctx,
-				&object.DeleteObjectRequest{
+				&gcs.DeleteObjectRequest{
 					Name:       name,
 					Generation: 0, // Latest generation of stale object.
 				})
@@ -100,7 +99,7 @@ func garbageCollectOnce(
 func garbageCollect(
 	ctx context.Context,
 	tmpObjectPrefix string,
-	bucket bucket.Bucket) {
+	bucket gcs.Bucket) {
 	const period = 10 * time.Minute
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()

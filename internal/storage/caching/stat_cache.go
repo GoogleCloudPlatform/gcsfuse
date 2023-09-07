@@ -17,7 +17,7 @@ package caching
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/util/lrucache"
 )
 
@@ -33,7 +33,7 @@ type StatCache interface {
 	// replace negative entries.
 	//
 	// The entry will expire after the supplied time.
-	Insert(o *object.Object, expiration time.Time)
+	Insert(o *gcs.Object, expiration time.Time)
 
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -46,7 +46,7 @@ type StatCache interface {
 	// Return the current entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUp(name string, now time.Time) (hit bool, o *object.Object)
+	LookUp(name string, now time.Time) (hit bool, o *gcs.Object)
 
 	// Panic if any internal invariants have been violated. The careful user can
 	// arrange to call this at crucial moments.
@@ -70,13 +70,13 @@ type statCache struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	o          *object.Object
+	o          *gcs.Object
 	expiration time.Time
 }
 
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
-func shouldReplace(o *object.Object, existing entry) bool {
+func shouldReplace(o *gcs.Object, existing entry) bool {
 	// Negative entries should always be replaced with positive entries.
 	if existing.o == nil {
 		return true
@@ -96,7 +96,7 @@ func shouldReplace(o *object.Object, existing entry) bool {
 	return true
 }
 
-func (sc *statCache) Insert(o *object.Object, expiration time.Time) {
+func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
 	// Is there already a better entry?
 	if existing := sc.c.LookUp(o.Name); existing != nil {
 		if !shouldReplace(o, existing.(entry)) {
@@ -129,7 +129,7 @@ func (sc *statCache) Erase(name string) {
 
 func (sc *statCache) LookUp(
 	name string,
-	now time.Time) (hit bool, o *object.Object) {
+	now time.Time) (hit bool, o *gcs.Object) {
 	// Look up in the LRU cache.
 	value := sc.c.LookUp(name)
 	if value == nil {

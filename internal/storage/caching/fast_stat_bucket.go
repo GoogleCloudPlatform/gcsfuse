@@ -21,8 +21,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -35,7 +34,7 @@ func NewFastStatBucket(
 	ttl time.Duration,
 	cache StatCache,
 	clock timeutil.Clock,
-	wrapped bucket.Bucket) (b bucket.Bucket) {
+	wrapped gcs.Bucket) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
 		cache:   cache,
 		clock:   clock,
@@ -58,7 +57,7 @@ type fastStatBucket struct {
 	cache StatCache
 
 	clock   timeutil.Clock
-	wrapped bucket.Bucket
+	wrapped gcs.Bucket
 
 	/////////////////////////
 	// Constant data
@@ -72,7 +71,7 @@ type fastStatBucket struct {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insertMultiple(objs []*object.Object) {
+func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -83,8 +82,8 @@ func (b *fastStatBucket) insertMultiple(objs []*object.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(o *object.Object) {
-	b.insertMultiple([]*object.Object{o})
+func (b *fastStatBucket) insert(o *gcs.Object) {
+	b.insertMultiple([]*gcs.Object{o})
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -105,7 +104,7 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, o *object.Object) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs.Object) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -123,7 +122,7 @@ func (b *fastStatBucket) Name() string {
 
 func (b *fastStatBucket) NewReader(
 	ctx context.Context,
-	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	rc, err = b.wrapped.NewReader(ctx, req)
 	return
 }
@@ -131,7 +130,7 @@ func (b *fastStatBucket) NewReader(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateObject(
 	ctx context.Context,
-	req *object.CreateObjectRequest) (o *object.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -150,7 +149,7 @@ func (b *fastStatBucket) CreateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,
-	req *object.CopyObjectRequest) (o *object.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -169,7 +168,7 @@ func (b *fastStatBucket) CopyObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ComposeObjects(
 	ctx context.Context,
-	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -188,7 +187,7 @@ func (b *fastStatBucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
-	req *object.StatObjectRequest) (o *object.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
 		return b.StatObjectFromGcs(ctx, req)
@@ -216,7 +215,7 @@ func (b *fastStatBucket) StatObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ListObjects(
 	ctx context.Context,
-	req *object.ListObjectsRequest) (listing *object.Listing, err error) {
+	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -232,7 +231,7 @@ func (b *fastStatBucket) ListObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) UpdateObject(
 	ctx context.Context,
-	req *object.UpdateObjectRequest) (o *object.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -251,13 +250,13 @@ func (b *fastStatBucket) UpdateObject(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
-	req *object.DeleteObjectRequest) (err error) {
+	req *gcs.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
 }
 
-func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *object.StatObjectRequest) (o *object.Object, err error) {
+func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	o, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.

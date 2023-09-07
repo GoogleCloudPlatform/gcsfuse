@@ -21,9 +21,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
@@ -42,8 +41,8 @@ func TestPrefixBucket(t *testing.T) { RunTests(t) }
 type PrefixBucketTest struct {
 	ctx     context.Context
 	prefix  string
-	wrapped bucket.Bucket
-	bucket  bucket.Bucket
+	wrapped gcs.Bucket
+	bucket  gcs.Bucket
 }
 
 var _ SetUpInterface = &PrefixBucketTest{}
@@ -82,7 +81,7 @@ func (t *PrefixBucketTest) NewReader() {
 	// Read it through the prefix bucket.
 	rc, err := t.bucket.NewReader(
 		t.ctx,
-		&object.ReadObjectRequest{
+		&gcs.ReadObjectRequest{
 			Name: suffix,
 		})
 
@@ -102,7 +101,7 @@ func (t *PrefixBucketTest) CreateObject() {
 	// Create the object.
 	o, err := t.bucket.CreateObject(
 		t.ctx,
-		&object.CreateObjectRequest{
+		&gcs.CreateObjectRequest{
 			Name:            suffix,
 			ContentLanguage: "en-GB",
 			Contents:        strings.NewReader(contents),
@@ -132,7 +131,7 @@ func (t *PrefixBucketTest) CopyObject() {
 	newSuffix := "burrito"
 	o, err := t.bucket.CopyObject(
 		t.ctx,
-		&object.CopyObjectRequest{
+		&gcs.CopyObjectRequest{
 			SrcName: suffix,
 			DstName: newSuffix,
 		})
@@ -170,9 +169,9 @@ func (t *PrefixBucketTest) ComposeObjects() {
 	newSuffix := "enchilada"
 	o, err := t.bucket.ComposeObjects(
 		t.ctx,
-		&object.ComposeObjectsRequest{
+		&gcs.ComposeObjectsRequest{
 			DstName: newSuffix,
-			Sources: []object.ComposeSource{
+			Sources: []gcs.ComposeSource{
 				{Name: suffix0},
 				{Name: suffix1},
 			},
@@ -200,7 +199,7 @@ func (t *PrefixBucketTest) StatObject() {
 	// Stat it.
 	o, err := t.bucket.StatObject(
 		t.ctx,
-		&object.StatObjectRequest{
+		&gcs.StatObjectRequest{
 			Name: suffix,
 		})
 
@@ -228,7 +227,7 @@ func (t *PrefixBucketTest) ListObjects_NoOptions() {
 	// List.
 	l, err := t.bucket.ListObjects(
 		t.ctx,
-		&object.ListObjectsRequest{})
+		&gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)
 	AssertEq("", l.ContinuationToken)
@@ -260,7 +259,7 @@ func (t *PrefixBucketTest) ListObjects_Prefix() {
 	// List, with a prefix.
 	l, err := t.bucket.ListObjects(
 		t.ctx,
-		&object.ListObjectsRequest{
+		&gcs.ListObjectsRequest{
 			Prefix: "burrito",
 		})
 
@@ -295,7 +294,7 @@ func (t *PrefixBucketTest) ListObjects_Delimeter() {
 	AssertNe(-1, strings.IndexByte(t.prefix, '_'))
 	l, err := t.bucket.ListObjects(
 		t.ctx,
-		&object.ListObjectsRequest{
+		&gcs.ListObjectsRequest{
 			Delimiter: "_",
 		})
 
@@ -330,7 +329,7 @@ func (t *PrefixBucketTest) ListObjects_PrefixAndDelimeter() {
 	AssertNe(-1, strings.IndexByte(t.prefix, '_'))
 	l, err := t.bucket.ListObjects(
 		t.ctx,
-		&object.ListObjectsRequest{
+		&gcs.ListObjectsRequest{
 			Delimiter: "_",
 			Prefix:    "burrito",
 		})
@@ -358,7 +357,7 @@ func (t *PrefixBucketTest) UpdateObject() {
 	newContentLanguage := "en-GB"
 	o, err := t.bucket.UpdateObject(
 		t.ctx,
-		&object.UpdateObjectRequest{
+		&gcs.UpdateObjectRequest{
 			Name:            suffix,
 			ContentLanguage: &newContentLanguage,
 		})
@@ -381,7 +380,7 @@ func (t *PrefixBucketTest) DeleteObject() {
 	// Delete it.
 	err = t.bucket.DeleteObject(
 		t.ctx,
-		&object.DeleteObjectRequest{
+		&gcs.DeleteObjectRequest{
 			Name: suffix,
 		})
 
@@ -390,7 +389,7 @@ func (t *PrefixBucketTest) DeleteObject() {
 	// It should be gone.
 	_, err = t.wrapped.StatObject(
 		t.ctx,
-		&object.StatObjectRequest{
+		&gcs.StatObjectRequest{
 			Name: name,
 		})
 

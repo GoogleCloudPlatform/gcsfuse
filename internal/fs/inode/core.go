@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
 type Type int
@@ -43,7 +43,7 @@ type Core struct {
 
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
-	Object *object.Object
+	Object *gcs.Object
 
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool

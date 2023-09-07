@@ -17,8 +17,7 @@ package ratelimit
 import (
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -28,7 +27,7 @@ import (
 func NewThrottledBucket(
 	opThrottle Throttle,
 	egressThrottle Throttle,
-	wrapped bucket.Bucket) (b bucket.Bucket) {
+	wrapped gcs.Bucket) (b gcs.Bucket) {
 	b = &throttledBucket{
 		opThrottle:     opThrottle,
 		egressThrottle: egressThrottle,
@@ -44,7 +43,7 @@ func NewThrottledBucket(
 type throttledBucket struct {
 	opThrottle     Throttle
 	egressThrottle Throttle
-	wrapped        bucket.Bucket
+	wrapped        gcs.Bucket
 }
 
 func (b *throttledBucket) Name() string {
@@ -53,7 +52,7 @@ func (b *throttledBucket) Name() string {
 
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
-	req *object.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	// Wait for permission to call through.
 
 	err = b.opThrottle.Wait(ctx, 1)
@@ -78,7 +77,7 @@ func (b *throttledBucket) NewReader(
 
 func (b *throttledBucket) CreateObject(
 	ctx context.Context,
-	req *object.CreateObjectRequest) (o *object.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -93,7 +92,7 @@ func (b *throttledBucket) CreateObject(
 
 func (b *throttledBucket) CopyObject(
 	ctx context.Context,
-	req *object.CopyObjectRequest) (o *object.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -108,7 +107,7 @@ func (b *throttledBucket) CopyObject(
 
 func (b *throttledBucket) ComposeObjects(
 	ctx context.Context,
-	req *object.ComposeObjectsRequest) (o *object.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -123,7 +122,7 @@ func (b *throttledBucket) ComposeObjects(
 
 func (b *throttledBucket) StatObject(
 	ctx context.Context,
-	req *object.StatObjectRequest) (o *object.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -138,7 +137,7 @@ func (b *throttledBucket) StatObject(
 
 func (b *throttledBucket) ListObjects(
 	ctx context.Context,
-	req *object.ListObjectsRequest) (listing *object.Listing, err error) {
+	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -153,7 +152,7 @@ func (b *throttledBucket) ListObjects(
 
 func (b *throttledBucket) UpdateObject(
 	ctx context.Context,
-	req *object.UpdateObjectRequest) (o *object.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -168,7 +167,7 @@ func (b *throttledBucket) UpdateObject(
 
 func (b *throttledBucket) DeleteObject(
 	ctx context.Context,
-	req *object.DeleteObjectRequest) (err error) {
+	req *gcs.DeleteObjectRequest) (err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {

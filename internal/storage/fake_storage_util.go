@@ -16,7 +16,7 @@ package storage
 
 import (
 	"github.com/fsouza/fake-gcs-server/fakestorage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
 const port uint16 = 8081
@@ -122,7 +122,7 @@ func getTestFakeStorageObject() []fakestorage.Object {
 			Name:            TestGzipObjectName,
 			Generation:      TestGzipObjectGeneration,
 			Metadata:        map[string]string{MetaDataKey: MetaDataValue},
-			ContentEncoding: object.ContentEncodingGzip,
+			ContentEncoding: gcs.ContentEncodingGzip,
 		},
 		Content: []byte(ContentInTestGzipObjectCompressed),
 	}

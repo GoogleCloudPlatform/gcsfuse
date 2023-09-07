@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -448,7 +448,7 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 		nil,
 		bucketObj.DeleteObject(
 			ctx,
-			&object.DeleteObjectRequest{Name: "foo/"}))
+			&gcs.DeleteObjectRequest{Name: "foo/"}))
 
 	// Stat the directory again.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))

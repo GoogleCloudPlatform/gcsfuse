@@ -17,8 +17,7 @@ package storageutil
 import (
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -26,17 +25,17 @@ import (
 // Write them into the supplied channel in an undefined order.
 func ListPrefix(
 	ctx context.Context,
-	bucket bucket.Bucket,
+	bucket gcs.Bucket,
 	prefix string,
-	objects chan<- *object.Object) (err error) {
-	req := &object.ListObjectsRequest{
+	objects chan<- *gcs.Object) (err error) {
+	req := &gcs.ListObjectsRequest{
 		Prefix: prefix,
 	}
 
 	// List until we run out.
 	for {
 		// Fetch the next batch.
-		var listing *object.Listing
+		var listing *gcs.Listing
 		listing, err = bucket.ListObjects(ctx, req)
 		if err != nil {
 			err = fmt.Errorf("ListObjects: %v", err)

@@ -33,7 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -1754,7 +1754,7 @@ func (fs *fileSystem) renameFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
-	oldObject *object.Object,
+	oldObject *gcs.Object,
 	newParent inode.DirInode,
 	newFileName string) error {
 	// Clone into the new location.

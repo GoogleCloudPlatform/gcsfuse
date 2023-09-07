@@ -18,8 +18,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/bucket"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/object"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -27,10 +26,10 @@ import (
 // name.
 func ReadObject(
 	ctx context.Context,
-	bucket bucket.Bucket,
+	bucket gcs.Bucket,
 	name string) (contents []byte, err error) {
 	// Call the bucket.
-	req := &object.ReadObjectRequest{
+	req := &gcs.ReadObjectRequest{
 		Name: name,
 	}
 
