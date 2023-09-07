@@ -105,6 +105,9 @@ func TestMain(m *testing.M) {
 		WriteConfig: config.WriteConfig{
 			CreateEmptyFile: false,
 		},
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
 	}
 	configFile := setup.YAMLConfigFile(mountConfig)
 	// Set up flags to run tests on.
