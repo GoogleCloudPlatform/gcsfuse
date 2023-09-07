@@ -20,7 +20,6 @@ package fs_test
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -152,7 +151,6 @@ func (t *LocalFileTest) validateNoFileOrDirError(filename string) {
 
 func (t *LocalFileTest) validateIOError(err error) {
 	AssertNe(nil, err)
-	fmt.Println(err.Error())
 	AssertTrue(strings.Contains(err.Error(), "input/output error"))
 }
 
