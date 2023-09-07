@@ -440,7 +440,7 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 
 // GetGCSObject gets content of a given GCS object as string (using GCS path without 'gs://')
 func GetGCSObject(gcsObjPath string) (objContent string, err error) {
-	byteContent, err := executeGsutilCommandf("cat gs://%s", gcsObjPath)
+	byteContent, err := ExecuteGsutilCommandf("cat gs://%s", gcsObjPath)
 	objContent = string(byteContent)
 	return
 }
