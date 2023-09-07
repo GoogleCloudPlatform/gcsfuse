@@ -47,13 +47,13 @@ type cachingTestCommon struct {
 }
 
 func (t *cachingTestCommon) SetUpTestSuite() {
-	// Wrap the bucketObj in a stat caching layer for the purposes of the file
+	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
 	statCache := caching.NewStatCache(statCacheCapacity)
-	bucketObj = caching.NewFastStatBucket(
+	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
 		&cacheClock,
@@ -268,20 +268,20 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
-	// Remove the backing object in GCS, updating the bucketObj cache (but not the
+	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
 	fmt.Printf("DeleteObject\n")
-	err = bucketObj.DeleteObject(
+	err = bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
 
 	AssertEq(nil, err)
 
-	// Create a file with the same name via GCS, again updating the bucketObj cache.
+	// Create a file with the same name via GCS, again updating the bucket cache.
 	fmt.Printf("CreateObject\n")
 	_, err = storageutil.CreateObject(
 		ctx,
-		bucketObj,
+		bucket,
 		name,
 		[]byte("taco"))
 

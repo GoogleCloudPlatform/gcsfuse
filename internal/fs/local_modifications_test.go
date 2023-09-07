@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A collection of tests for a file system backed by a GCS bucketObj, where we
+// A collection of tests for a file system backed by a GCS bucket, where we
 // interact with the file system directly for creating and modifying files
-// (rather than through the side channel of the GCS bucketObj itself).
+// (rather than through the side channel of the GCS bucket itself).
 
 package fs_test
 
@@ -184,7 +184,7 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// No object should have been created.
-	_, err = storageutil.ReadObject(ctx, bucketObj, "foo")
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 
 	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
@@ -201,8 +201,8 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 
 	AssertEq(nil, err)
 
-	// The object should now be present in the bucketObj, with empty contents.
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	// The object should now be present in the bucket, with empty contents.
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 
@@ -1379,7 +1379,7 @@ func (t *DirectoryTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// There should be no content type set in GCS.
-		o, err := bucketObj.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq("", o.ContentType, "name: %q", name)
 	}
@@ -1832,10 +1832,10 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
-	// Delete it from the bucketObj through the back door.
+	// Delete it from the bucket through the back door.
 	AssertEq(
 		nil,
-		bucketObj.DeleteObject(
+		bucket.DeleteObject(
 			ctx,
 			&gcs.DeleteObjectRequest{Name: "foo"}))
 
@@ -2028,9 +2028,9 @@ func (t *FileTest) Sync_Dirty() {
 	err = t.f1.Sync()
 	AssertEq(nil, err)
 
-	// The contents should now be in the bucketObj, even though we haven't closed
+	// The contents should now be in the bucket, even though we haven't closed
 	// the file.
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2048,7 +2048,7 @@ func (t *FileTest) Sync_NotDirty() {
 		Name: "foo",
 	}
 
-	o1, err := bucketObj.StatObject(ctx, statReq)
+	o1, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
 	// Sync the file.
@@ -2056,7 +2056,7 @@ func (t *FileTest) Sync_NotDirty() {
 	AssertEq(nil, err)
 
 	// A new generation need not have been written.
-	o2, err := bucketObj.StatObject(ctx, statReq)
+	o2, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
 	ExpectEq(o1.Generation, o2.Generation)
@@ -2078,7 +2078,7 @@ func (t *FileTest) Sync_Clobbered() {
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
-		bucketObj,
+		bucket,
 		"foo",
 		[]byte("foobar"))
 
@@ -2093,7 +2093,7 @@ func (t *FileTest) Sync_Clobbered() {
 		ExpectThat(err, Error(HasSubstr("input/output error")))
 	}
 
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2116,8 +2116,8 @@ func (t *FileTest) Close_Dirty() {
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	// The contents should now be in the bucketObj.
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	// The contents should now be in the bucket.
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2135,7 +2135,7 @@ func (t *FileTest) Close_NotDirty() {
 		Name: "foo",
 	}
 
-	o1, err := bucketObj.StatObject(ctx, statReq)
+	o1, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
 	// Close the file.
@@ -2144,7 +2144,7 @@ func (t *FileTest) Close_NotDirty() {
 	AssertEq(nil, err)
 
 	// A new generation need not have been written.
-	o2, err := bucketObj.StatObject(ctx, statReq)
+	o2, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
 	ExpectEq(o1.Generation, o2.Generation)
@@ -2167,7 +2167,7 @@ func (t *FileTest) Close_Clobbered() {
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
 		ctx,
-		bucketObj,
+		bucket,
 		"foo",
 		[]byte("foobar"))
 
@@ -2179,7 +2179,7 @@ func (t *FileTest) Close_Clobbered() {
 	// generation should not be replaced.
 	f.Close()
 
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2221,7 +2221,7 @@ func (t *FileTest) ContentTypes() {
 		defer f.Close()
 
 		// Check the GCS content type.
-		o, err := bucketObj.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 
@@ -2233,7 +2233,7 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		o, err = bucketObj.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err = bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 	}
@@ -2271,8 +2271,8 @@ func (t *SymlinkTest) CreateLink() {
 	err = os.Symlink("foo", symlinkName)
 	AssertEq(nil, err)
 
-	// Check the object in the bucketObj.
-	o, err := bucketObj.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
+	// Check the object in the bucket.
+	o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectEq(0, o.Size)
@@ -2352,8 +2352,8 @@ func (t *SymlinkTest) RemoveLink() {
 	err = os.Remove(symlinkName)
 	AssertEq(nil, err)
 
-	// It should be gone from the bucketObj.
-	_, err = storageutil.ReadObject(ctx, bucketObj, "foo")
+	// It should be gone from the bucket.
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 	var notFoundErr *storage.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }

@@ -70,7 +70,7 @@ func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethodWhenProjec
 	ExpectEq(nil, objectAccessControl.ProjectTeam)
 }
 
-func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
+func (t objectAttrsTest) TestObjectAttrsTobucketectMethod() {
 	var attrMd5 []byte
 	timeAttr := time.Now()
 	attrs := storage.ObjectAttrs{
@@ -115,7 +115,7 @@ func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 		acl = append(acl, convertACLRuleToObjectAccessControl(element))
 	}
 
-	object := ObjectAttrsToBucketObject(&attrs)
+	object := ObjectAttrsTobucketect(&attrs)
 
 	ExpectEq(object.Name, attrs.Name)
 	ExpectEq(object.ContentType, attrs.ContentType)

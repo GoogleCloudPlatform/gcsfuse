@@ -51,8 +51,8 @@ func (t *ReadOnlyTest) CreateFile() {
 }
 
 func (t *ReadOnlyTest) ModifyFile() {
-	// Create an object in the bucketObj.
-	_, err := storageutil.CreateObject(ctx, bucketObj, "foo", []byte("taco"))
+	// Create an object in the bucket.
+	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Opening it for writing should fail.
@@ -63,16 +63,16 @@ func (t *ReadOnlyTest) ModifyFile() {
 }
 
 func (t *ReadOnlyTest) DeleteFile() {
-	// Create an object in the bucketObj.
-	_, err := storageutil.CreateObject(ctx, bucketObj, "foo", []byte("taco"))
+	// Create an object in the bucket.
+	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	// Attempt to delete it via the file system.
 	err = os.Remove(path.Join(mntDir, "foo"))
 	ExpectThat(err, Error(HasSubstr("read-only")))
 
-	// the bucketObj should not have been modified.
-	contents, err := storageutil.ReadObject(ctx, bucketObj, "foo")
+	// the bucket should not have been modified.
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))

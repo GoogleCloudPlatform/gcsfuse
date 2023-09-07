@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // A collection of tests for a file system where we do not attempt to write to
-// the file system at all. Rather we set up contents in a GCS bucketObj out of
+// the file system at all. Rather we set up contents in a GCS bucket out of
 // band, wait for them to be available, and then read them via the file system.
 
 package fs_test
@@ -308,7 +308,7 @@ func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 			}))
 
 	// Cause "foo" to look like a symlink.
-	err = setSymlinkTarget(ctx, bucketObj, "foo", "")
+	err = setSymlinkTarget(ctx, bucket, "foo", "")
 	AssertEq(nil, err)
 
 	// A listing of the parent should contain a directory named "foo" and a
@@ -446,7 +446,7 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	// Remove the explicit placeholder.
 	AssertEq(
 		nil,
-		bucketObj.DeleteObject(
+		bucket.DeleteObject(
 			ctx,
 			&gcs.DeleteObjectRequest{Name: "foo/"}))
 

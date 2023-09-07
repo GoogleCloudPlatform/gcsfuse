@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // A collection of tests for a file system where we do not attempt to write to
-// the file system at all. Rather we set up contents in a GCS bucketObj out of
+// the file system at all. Rather we set up contents in a GCS bucket out of
 // band, wait for them to be available, and then read them via the file system.
 
 package fs_test
@@ -45,11 +45,11 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 func setSymlinkTarget(
-	ctx context.Context,
-	bucketObj gcs.Bucket,
-	objName string,
-	target string) (err error) {
-	_, err = bucketObj.UpdateObject(
+		ctx context.Context,
+		bucket gcs.Bucket,
+		objName string,
+		target string) (err error) {
+	_, err = bucket.UpdateObject(
 		ctx,
 		&gcs.UpdateObjectRequest{
 			Name: objName,
@@ -246,7 +246,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// enabled, so these should be unreachable.
 	err = storageutil.CreateEmptyObjects(
 		ctx,
-		bucketObj,
+		bucket,
 		[]string{
 			// Implicit directory contents, conflicting file name.
 			"test",
@@ -284,7 +284,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// These unreachable objects (test/0, test/1, bar/0) start showing up in
 	// other tests as soon as directory with similar name is created. Hence
 	// cleaning them.
-	err = storageutil.DeleteAllObjects(ctx, bucketObj)
+	err = storageutil.DeleteAllObjects(ctx, bucket)
 	AssertEq(nil, err)
 }
 
@@ -378,7 +378,7 @@ func (t *ForeignModsTest) SymlinkAndDirectoryWithConflictingName() {
 				"foo/bar": "burrito",
 			}))
 
-	err = setSymlinkTarget(ctx, bucketObj, "foo", "")
+	err = setSymlinkTarget(ctx, bucket, "foo", "")
 	AssertEq(nil, err)
 
 	// A listing of the parent should contain a directory named "foo" and a
@@ -538,7 +538,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		// Create an object.
 		_, err := storageutil.CreateObject(
 			ctx,
-			bucketObj,
+			bucket,
 			"foo",
 			contents)
 
@@ -563,8 +563,8 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
 			"offset: %d\n"+
-				"size:   %d\n"+
-				"n:      %d",
+					"size:   %d\n"+
+					"n:      %d",
 			offset,
 			size,
 			n)
@@ -696,7 +696,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_File() {
 
 	// Change the object's metadata, causing a new generation.
 	lang := "fr"
-	_, err = bucketObj.UpdateObject(
+	_, err = bucket.UpdateObject(
 		ctx,
 		&gcs.UpdateObjectRequest{
 			Name:            "foo",
@@ -725,7 +725,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
 
 	// Change the object's metadata, causing a new generation.
 	lang := "fr"
-	_, err = bucketObj.UpdateObject(
+	_, err = bucket.UpdateObject(
 		ctx,
 		&gcs.UpdateObjectRequest{
 			Name:            "dir/",
@@ -759,7 +759,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 	// Delete the object.
 	AssertEq(
 		nil,
-		bucketObj.DeleteObject(
+		bucket.DeleteObject(
 			ctx,
 			&gcs.DeleteObjectRequest{Name: "foo"}))
 
@@ -795,7 +795,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 	// Delete the object.
 	AssertEq(
 		nil,
-		bucketObj.DeleteObject(
+		bucket.DeleteObject(
 			ctx,
 			&gcs.DeleteObjectRequest{Name: "dir/"}))
 
@@ -824,7 +824,7 @@ func (t *ForeignModsTest) Mtime() {
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}
 
-	_, err = bucketObj.CreateObject(ctx, req)
+	_, err = bucket.CreateObject(ctx, req)
 	AssertEq(nil, err)
 
 	// Stat the file.
@@ -838,7 +838,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 	var err error
 
 	// Create an object that has an mtime set.
-	_, err = bucketObj.CreateObject(
+	_, err = bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
 			Name: "foo",
@@ -858,7 +858,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
 	formatted := expected.UTC().Format(time.RFC3339Nano)
 
-	_, err = bucketObj.UpdateObject(
+	_, err = bucket.UpdateObject(
 		ctx,
 		&gcs.UpdateObjectRequest{
 			Name: "foo",
@@ -888,7 +888,7 @@ func (t *ForeignModsTest) Symlink() {
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}
 
-	_, err = bucketObj.CreateObject(ctx, req)
+	_, err = bucket.CreateObject(ctx, req)
 	AssertEq(nil, err)
 
 	// Stat the link.

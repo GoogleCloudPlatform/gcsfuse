@@ -44,8 +44,8 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -122,7 +122,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	}
 
 	// Converting attrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsTobucketect(attrs)
 
 	return
 }
@@ -183,7 +183,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsTobucketect(attrs)
 	return
 }
 
@@ -218,7 +218,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		return
 	}
 	// Converting objAttrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	o = storageutil.ObjectAttrsTobucketect(objAttrs)
 	return
 }
 
@@ -275,7 +275,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			currObject := storageutil.ObjectAttrsTobucketect(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
 
@@ -338,7 +338,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	if err == nil {
 		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		o = storageutil.ObjectAttrsTobucketect(attrs)
 		return
 	}
 
@@ -414,7 +414,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsTobucketect(attrs)
 
 	return
 }
