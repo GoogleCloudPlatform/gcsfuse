@@ -47,7 +47,11 @@ func init() { RegisterTestSuite(&LoggerTest{}) }
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
-func testLogger(level config.LogSeverity, functions []func()) []string {
+
+// fetchLogOutputForSpecifiedSeverityLevel takes configured severity and
+// functions that write logs as parameter and returns string array containing
+// output from each function call.
+func fetchLogOutputForSpecifiedSeverityLevel(level config.LogSeverity, functions []func()) []string {
 	// create a logger that writes to buffer at configured level.
 	var buf bytes.Buffer
 	var programLevel = new(slog.LevelVar)
@@ -69,7 +73,7 @@ func testLogger(level config.LogSeverity, functions []func()) []string {
 	return output
 }
 
-func getTestFunctions() []func() {
+func getTestLoggingFunctions() []func() {
 	return []func(){
 		func() {
 			Tracef("www.traceExample.com")
@@ -105,7 +109,8 @@ func validateOutput(expected []string, output []string) {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	outputs := testLogger(config.OFF, getTestFunctions())
+
+	outputs := fetchLogOutputForSpecifiedSeverityLevel(config.OFF, getTestLoggingFunctions())
 
 	// Assert that nothing is logged when log level is OFF.
 	for _, output := range outputs {
@@ -116,7 +121,8 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	output := testLogger(config.ERROR, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.ERROR, getTestLoggingFunctions())
 
 	// Assert only error logs are logged when log level is ERROR.
 	var expected = []string{
@@ -128,7 +134,8 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	output := testLogger(config.WARNING, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.WARNING, getTestLoggingFunctions())
 
 	// Assert warning and error logs are logged when log level is WARNING.
 	var expected = []string{
@@ -140,7 +147,8 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	output := testLogger(config.INFO, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.INFO, getTestLoggingFunctions())
 
 	// Assert info, warning & error logs are logged when log level is INFO.
 	var expected = []string{
@@ -152,9 +160,10 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	output := testLogger(config.DEBUG, getTestFunctions())
 
-	// Assert only error logs are logged when log level is ERROR.
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.DEBUG, getTestLoggingFunctions())
+
+	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
 	var expected = []string{
 		"", textDebugString, textInfoString, textWarningString, textErrorString,
 	}
@@ -164,9 +173,10 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
 	// set log format to text
 	defaultLoggerFactory.format = "text"
-	output := testLogger(config.TRACE, getTestFunctions())
 
-	// Assert only error logs are logged when log level is ERROR.
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.TRACE, getTestLoggingFunctions())
+
+	// Assert all logs are logged when log level is TRACE.
 	var expected = []string{
 		textTraceString, textDebugString, textInfoString, textWarningString, textErrorString,
 	}
@@ -174,9 +184,10 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	outputs := testLogger(config.OFF, getTestFunctions())
+
+	outputs := fetchLogOutputForSpecifiedSeverityLevel(config.OFF, getTestLoggingFunctions())
 
 	// Assert that nothing is logged when log level is OFF.
 	for _, output := range outputs {
@@ -185,9 +196,10 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	output := testLogger(config.ERROR, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.ERROR, getTestLoggingFunctions())
 
 	// Assert only error logs are logged when log level is ERROR.
 	var expected = []string{
@@ -197,9 +209,10 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	output := testLogger(config.WARNING, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.WARNING, getTestLoggingFunctions())
 
 	// Assert warning and error logs are logged when log level is WARNING.
 	var expected = []string{
@@ -209,9 +222,10 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	output := testLogger(config.INFO, getTestFunctions())
+
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.INFO, getTestLoggingFunctions())
 
 	// Assert info, warning & error logs are logged when log level is INFO.
 	var expected = []string{
@@ -221,11 +235,12 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	output := testLogger(config.DEBUG, getTestFunctions())
 
-	// Assert only error logs are logged when log level is ERROR.
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.DEBUG, getTestLoggingFunctions())
+
+	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
 	var expected = []string{
 		"", jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
 	}
@@ -233,11 +248,12 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
-	// set log format to text
+	// set log format to json
 	defaultLoggerFactory.format = "json"
-	output := testLogger(config.TRACE, getTestFunctions())
 
-	// Assert only error logs are logged when log level is ERROR.
+	output := fetchLogOutputForSpecifiedSeverityLevel(config.TRACE, getTestLoggingFunctions())
+
+	// Assert all logs are logged when log level is TRACE.
 	var expected = []string{
 		jsonTraceString, jsonDebugString, jsonInfoString, jsonWarningString, jsonErrorString,
 	}
@@ -276,6 +292,7 @@ func (t *LoggerTest) TestSetLoggingLevel() {
 			LevelOff,
 		},
 	}
+
 	for _, test := range testData {
 		setLoggingLevel(test.inputLevel, test.programLevel)
 		AssertEq(test.programLevel.Level(), test.expectedProgramLevel)
