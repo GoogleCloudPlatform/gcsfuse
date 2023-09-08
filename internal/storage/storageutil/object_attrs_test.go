@@ -115,7 +115,7 @@ func (t objectAttrsTest) TestObjectAttrsTobucketectMethod() {
 		acl = append(acl, convertACLRuleToObjectAccessControl(element))
 	}
 
-	object := ObjectAttrsTobucketect(&attrs)
+	object := ObjectAttrsToBucketObject(&attrs)
 
 	ExpectEq(object.Name, attrs.Name)
 	ExpectEq(object.ContentType, attrs.ContentType)

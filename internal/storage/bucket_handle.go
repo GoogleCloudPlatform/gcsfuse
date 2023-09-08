@@ -122,7 +122,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	}
 
 	// Converting attrs to type *Object
-	o = storageutil.ObjectAttrsTobucketect(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
@@ -183,7 +183,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsTobucketect(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 	return
 }
 
@@ -218,7 +218,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		return
 	}
 	// Converting objAttrs to type *Object
-	o = storageutil.ObjectAttrsTobucketect(objAttrs)
+	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
 	return
 }
 
@@ -275,7 +275,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsTobucketect(attrs)
+			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
 
@@ -338,7 +338,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	if err == nil {
 		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsTobucketect(attrs)
+		o = storageutil.ObjectAttrsToBucketObject(attrs)
 		return
 	}
 
@@ -414,7 +414,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsTobucketect(attrs)
+	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
 }
