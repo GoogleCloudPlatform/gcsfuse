@@ -131,5 +131,6 @@ func (t *MainTest) TestResolveConfigFilePaths() {
 
 	AssertEq(nil, err)
 	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogFile)
 }
