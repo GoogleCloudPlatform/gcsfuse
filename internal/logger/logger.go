@@ -122,9 +122,14 @@ func NewError(prefix string) *log.Logger {
 	return NewLogger(LevelError, prefix)
 }
 
-// Errorf prints the message with ERROR severity in the specified format.
-func Errorf(format string, v ...interface{}) {
-	defaultLogger.Error(fmt.Sprintf(format, v...))
+// Tracef prints the message with TRACE severity in the specified format.
+func Tracef(format string, v ...interface{}) {
+	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+}
+
+// Debugf prints the message with DEBUG severity in the specified format.
+func Debugf(format string, v ...interface{}) {
+	defaultLogger.Debug(fmt.Sprintf(format, v...))
 }
 
 // Infof prints the message with INFO severity in the specified format.
@@ -137,19 +142,14 @@ func Info(v ...interface{}) {
 	defaultLogger.Info(fmt.Sprint(v...))
 }
 
-// Debugf prints the message with DEBUG severity in the specified format.
-func Debugf(format string, v ...interface{}) {
-	defaultLogger.Debug(fmt.Sprintf(format, v...))
-}
-
-// Tracef prints the message with TRACE severity in the specified format.
-func Tracef(format string, v ...interface{}) {
-	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
-}
-
 // Warnf prints the message with WARNING severity in the specified format.
 func Warnf(format string, v ...interface{}) {
-	defaultLogger.Log(context.Background(), LevelWarn, fmt.Sprintf(format, v...))
+	defaultLogger.Warn(fmt.Sprintf(format, v...))
+}
+
+// Errorf prints the message with ERROR severity in the specified format.
+func Errorf(format string, v ...interface{}) {
+	defaultLogger.Error(fmt.Sprintf(format, v...))
 }
 
 // Fatal prints an error log and exits with non-zero exit code.

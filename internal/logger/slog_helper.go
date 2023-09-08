@@ -66,7 +66,7 @@ func customiseLevels(a *slog.Attr) {
 	case level == LevelTrace:
 		a.Value = slog.StringValue(string(config.TRACE))
 	case level == LevelDebug:
-		a.Value = slog.StringValue("hello")
+		a.Value = slog.StringValue(string(config.DEBUG))
 	case level == LevelInfo:
 		a.Value = slog.StringValue(string(config.INFO))
 	case level == LevelWarn:
