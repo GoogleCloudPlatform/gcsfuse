@@ -177,9 +177,9 @@ func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
 
 func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.format == "json" {
-		return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix))
+		return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
 	}
-	return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix))
+	return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {

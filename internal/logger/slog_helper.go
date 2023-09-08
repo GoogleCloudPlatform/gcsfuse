@@ -31,6 +31,9 @@ const (
 	LevelError = slog.LevelError
 	// LevelOff value is set to 12, so that nothing is logged.
 	LevelOff = slog.Level(12)
+
+	timestampSecondsKey = "timestampSeconds"
+	timestampNanosKey   = "timestampNanos"
 )
 
 func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
@@ -51,50 +54,72 @@ func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	}
 }
 
-func getHandlerOptions(levelVar *slog.LevelVar, prefix string) *slog.HandlerOptions {
+// customiseLevels changes the name of the level key to "severity" and the value to
+// it's corresponding level like DEBUG, INFO, ERROR, etc.
+func customiseLevels(a *slog.Attr) {
+	// Rename the level key from "level" to "sev".
+	a.Key = "severity"
+
+	// Handle custom level values.
+	level := a.Value.Any().(slog.Level)
+	switch {
+	case level == LevelTrace:
+		a.Value = slog.StringValue(string(config.TRACE))
+	case level == LevelDebug:
+		a.Value = slog.StringValue("hello")
+	case level == LevelInfo:
+		a.Value = slog.StringValue(string(config.INFO))
+	case level == LevelWarn:
+		a.Value = slog.StringValue(string(config.WARNING))
+	case level == LevelError:
+		a.Value = slog.StringValue(string(config.ERROR))
+	case level == LevelOff:
+		a.Value = slog.StringValue(string(config.OFF))
+	default:
+		a.Value = slog.StringValue(string(config.INFO))
+	}
+}
+
+// addPrefixToMessage adds the prefix to the log message.
+func addPrefixToMessage(a *slog.Attr, prefix string) {
+	message := a.Value.Any().(string)
+	var sb strings.Builder
+	sb.WriteString(prefix)
+	sb.WriteString(message)
+	a.Value = slog.StringValue(sb.String())
+}
+
+// customiseTimeFormat converts the time to below specified format:
+// 1. for json logs:
+// "time":{"timestampSeconds":1694164762,"timestampNanos":1694164762084862036}
+// 2. for text logs:
+// time="08/09/2023 09:24:54.437193"
+func customiseTimeFormat(a *slog.Attr, format string) {
+	currTime := a.Value.Any().(time.Time).Round(0)
+	if format == "json" {
+		*a = slog.Group(slog.TimeKey, timestampSecondsKey, currTime.Unix(), timestampNanosKey, currTime.UnixNano())
+	} else {
+		a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
+	}
+}
+
+func getHandlerOptions(levelVar *slog.LevelVar, prefix string, format string) *slog.HandlerOptions {
 	return &slog.HandlerOptions{
 		// Set log level to configured value.
 		Level: levelVar,
 
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			// Customize the name of the level key and the output string, including
-			// custom level values.
 			if a.Key == slog.LevelKey {
-				// Rename the level key from "level" to "sev".
-				a.Key = "severity"
-
-				// Handle custom level values.
-				level := a.Value.Any().(slog.Level)
-				switch {
-				case level == LevelTrace:
-					a.Value = slog.StringValue(string(config.TRACE))
-				case level == LevelDebug:
-					a.Value = slog.StringValue(string(config.DEBUG))
-				case level == LevelInfo:
-					a.Value = slog.StringValue(string(config.INFO))
-				case level == LevelWarn:
-					a.Value = slog.StringValue(string(config.WARNING))
-				case level == LevelError:
-					a.Value = slog.StringValue(string(config.ERROR))
-				case level == LevelOff:
-					a.Value = slog.StringValue(string(config.OFF))
-				default:
-					a.Value = slog.StringValue(string(config.INFO))
-				}
+				customiseLevels(&a)
 			}
 
-			// Add prefix to the message key.
+			// Add prefix to the message value.
 			if a.Key == slog.MessageKey {
-				message := a.Value.Any().(string)
-				var sb strings.Builder
-				sb.WriteString(prefix)
-				sb.WriteString(message)
-				a.Value = slog.StringValue(sb.String())
+				addPrefixToMessage(&a, prefix)
 			}
 
 			if a.Key == slog.TimeKey {
-				currTime := a.Value.Any().(time.Time)
-				a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
+				customiseTimeFormat(&a, format)
 			}
 			return a
 		},
