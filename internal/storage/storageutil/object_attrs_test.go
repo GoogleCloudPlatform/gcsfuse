@@ -70,7 +70,7 @@ func (t objectAttrsTest) TestConvertACLRuleToObjectAccessControlMethodWhenProjec
 	ExpectEq(nil, objectAccessControl.ProjectTeam)
 }
 
-func (t objectAttrsTest) TestObjectAttrsTobucketectMethod() {
+func (t objectAttrsTest) TestObjectAttrsToBucketObjectMethod() {
 	var attrMd5 []byte
 	timeAttr := time.Now()
 	attrs := storage.ObjectAttrs{
