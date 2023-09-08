@@ -43,6 +43,10 @@ RUN git checkout "${BRANCH_NAME}"
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
 ARG ARCHITECTURE="amd64"
+RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
+    echo "Architecture should be amd64 or arm64"; \
+    exit 1; \
+fi
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GOPATH}
@@ -60,6 +64,10 @@ RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
 # Update gcsfuse version in changelog and control file
 RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
     sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
+
+# Update ARCHITECTURE in control file.
+RUN sed -i "6s/.*/Architecture: ${ARCHITECTURE}/" ${GCSFUSE_BIN}/DEBIAN/control
+
 # Compress changelog as required by lintian
 RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
 # Strip unneeded from binaries as required by lintian
