@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/ogletest"
 )
@@ -71,4 +72,28 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestOverrideLoggingFlags() {
+	flags := &flagStorage{
+		LogFile:   "a.txt",
+		LogFormat: "json",
+		DebugFuse: true,
+		DebugGCS:  false,
+	}
+	mountConfig := &config.MountConfig{}
+	mountConfig.LogConfig = config.LogConfig{
+		Severity: config.ERROR,
+		File:     "/tmp/hello.txt",
+		Format:   "text",
+	}
+	mountConfig.WriteConfig = config.WriteConfig{
+		CreateEmptyFile: true,
+	}
+
+	overrideLoggingFlags(mountConfig, flags)
+
+	AssertEq(flags.LogFormat, "text")
+	AssertEq(flags.LogFile, "/tmp/hello.txt")
+	AssertEq(mountConfig.LogConfig.Severity, config.TRACE)
 }

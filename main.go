@@ -200,10 +200,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	// if debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log severity to TRACE
-	if flags.DebugFuse || flags.DebugGCS || flags.DebugMutex {
-		mountConfig.LogConfig.Severity = config.TRACE
-	}
+	overrideLoggingFlags(mountConfig, flags)
 
 	if flags.Foreground {
 		err = logger.InitLogFile(flags.LogFile, flags.LogFormat, mountConfig.Severity)
