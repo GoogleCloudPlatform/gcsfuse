@@ -94,22 +94,22 @@ then
   else
       echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
   fi
+fi
 
-  # Upgrade gcsfuse to latest version
-  if grep -q ubuntu details.txt || grep -q debian details.txt;
-  then
-      sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
-  else
-      sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
-  fi
+# Upgrade gcsfuse to latest version
+if grep -q ubuntu details.txt || grep -q debian details.txt;
+then
+    sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
+else
+    sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
+fi
 
-  gcsfuse --version |& tee version.txt
-  installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-  if grep -q $installed_version details.txt; then
-      echo "GCSFuse successfully upgraded to latest version $installed_version." &>> ~/logs.txt
-  else
-      echo "Failure detected in upgrading to latest gcsfuse version." &>> ~/logs.txt
-  fi
+gcsfuse --version |& tee version.txt
+installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
+if grep -q $installed_version details.txt; then
+    echo "GCSFuse successfully upgraded to latest version $installed_version." &>> ~/logs.txt
+else
+    echo "Failure detected in upgrading to latest gcsfuse version." &>> ~/logs.txt
 fi
 
 if grep -q Failure ~/logs.txt; then
