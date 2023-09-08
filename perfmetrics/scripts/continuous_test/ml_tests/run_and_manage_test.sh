@@ -52,8 +52,8 @@ function delete_existing_vm_and_create_new () {
     fi
   )
 
-#  echo "Wait for 30 seconds for old VM to be deleted"
-#  sleep 30s
+  echo "Wait for 30 seconds for old VM to be deleted"
+  sleep 30s
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
@@ -74,7 +74,7 @@ function delete_existing_vm_and_create_new () {
            --shielded-integrity-monitoring \
            --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
            --reservation-affinity=specific \
-           --reservation=projects/$GCP_PROJECT/reservations/test-ashmeen
+           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
