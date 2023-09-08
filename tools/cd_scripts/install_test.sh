@@ -35,6 +35,7 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For ubuntu and debian os
     curl https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | sudo apt-key add - && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+    # Here we used apt-transport-artifact-registry-unstable main as stable one does not supports arm64, will switch back to stable once they support.
     echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-unstable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
     sudo apt update
     sudo apt install apt-transport-artifact-registry
@@ -72,7 +73,9 @@ else
     echo "Failure detected in latest gcsfuse version installation." &>> ~/logs.txt
 fi
 
-if [[ $architecture == amd64 ]]; then
+# This will execute only for amd64 machines, as we have not had any previous releases for arm64.
+if [[ $architecture == amd64 ]];
+then
   # Uninstall gcsfuse latest version and install old version
   if grep -q ubuntu details.txt || grep -q debian details.txt;
   then
