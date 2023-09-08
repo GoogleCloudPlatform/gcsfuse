@@ -140,7 +140,8 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		mountConfig,
-		storageHandle)
+		storageHandle,
+		mountStatus)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -184,6 +185,40 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
+func overrideWithLoggingFlags(mountConfig *config.MountConfig, flags *flagStorage) {
+	// if log file is not set in config file, override it with flag value.
+	if mountConfig.LogFile == "" {
+		mountConfig.LogFile = flags.LogFile
+	}
+	// if log format is not set in config file, override it with flag value.
+	if mountConfig.LogFormat == "" {
+		mountConfig.LogFormat = flags.LogFormat
+	}
+	// if debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
+	// severity to TRACE.
+	if flags.DebugFuse || flags.DebugGCS || flags.DebugMutex {
+		mountConfig.LogConfig.Severity = config.TRACE
+	}
+}
+
+func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
+	resolvedPath, err = getResolvedPath(filePath)
+	if filePath == resolvedPath || err != nil {
+		return
+	}
+
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
+	return resolvedPath, nil
+}
+
+func resolveConfigFilePaths(config *config.MountConfig) (err error) {
+	config.LogFile, err = resolveFilePath(config.LogFile, "logging: file")
+	if err != nil {
+		return
+	}
+	return
+}
+
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -200,10 +235,15 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	overrideLoggingFlags(mountConfig, flags)
+	overrideWithLoggingFlags(mountConfig, flags)
+
+	err = resolveConfigFilePaths(mountConfig)
+	if err != nil {
+		return fmt.Errorf("Resolving path: %w", err)
+	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(flags.LogFile, flags.LogFormat, mountConfig.Severity)
+		err = logger.InitLogFile(mountConfig.LogFile, mountConfig.LogFormat, mountConfig.Severity)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -308,16 +348,17 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
+		mountStatus := logger.NewInfo("")
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, mountStatus)
 
 		if err == nil {
-			logger.Info("File system has been successfully mounted.")
+			mountStatus.Println("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			logger.Errorf("Error while mounting gcsfuse: %v\n", err)
+			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
