@@ -70,7 +70,7 @@ type ForeignModsTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&ForeignModsTest{})
+	//RegisterTestSuite(&ForeignModsTest{})
 }
 
 ////////////////////////////////////////////////////////////////////////

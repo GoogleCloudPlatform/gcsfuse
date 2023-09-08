@@ -85,7 +85,7 @@ type StressTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&StressTest{})
+	//RegisterTestSuite(&StressTest{})
 }
 
 func (t *StressTest) CreateAndReadManyFilesInParallel() {

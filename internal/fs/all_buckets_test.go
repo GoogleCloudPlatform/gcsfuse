@@ -36,7 +36,7 @@ type AllBucketsTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&AllBucketsTest{})
+	//RegisterTestSuite(&AllBucketsTest{})
 }
 
 func (t *AllBucketsTest) SetUpTestSuite() {

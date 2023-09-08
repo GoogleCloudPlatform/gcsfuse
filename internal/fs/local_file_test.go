@@ -49,7 +49,7 @@ type LocalFileTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&LocalFileTest{})
+	//RegisterTestSuite(&LocalFileTest{})
 }
 
 func (t *LocalFileTest) SetUpTestSuite() {

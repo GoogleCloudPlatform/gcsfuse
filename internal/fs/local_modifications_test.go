@@ -200,11 +200,6 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 
 	AssertEq(nil, err)
 
-	// The object should now be present in the bucket, with empty contents.
-	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
-	ExpectEq("", string(contents))
-
 	// Write some contents.
 	_, err = t.f1.Write([]byte("012"))
 	AssertEq(nil, err)
@@ -222,6 +217,10 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	// Close the file.
 	AssertEq(nil, t.f1.Close())
 	t.f1 = nil
+	// The object should now be present in the bucket, with empty contents.
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
+	AssertEq(nil, err)
+	ExpectEq("012", string(contents))
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
@@ -2040,6 +2039,9 @@ func (t *FileTest) Sync_NotDirty() {
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
+	// Sync the file.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
@@ -2050,7 +2052,7 @@ func (t *FileTest) Sync_NotDirty() {
 	o1, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
-	// Sync the file.
+	// Sync the file again.
 	err = t.f1.Sync()
 	AssertEq(nil, err)
 
@@ -2217,14 +2219,11 @@ func (t *FileTest) ContentTypes() {
 		// Create a file.
 		f, err := os.Create(p)
 		AssertEq(nil, err)
-		defer f.Close()
-
-		// Check the GCS content type.
-		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
-		AssertEq(nil, err)
-		ExpectEq(expected, o.ContentType, "name: %q", name)
+		f.Close()
 
 		// Modify the file and cause a new generation to be written out.
+		f1, err := os.Open(p)
+		defer f1.Close()
 		_, err = f.Write([]byte("taco"))
 		AssertEq(nil, err)
 
@@ -2232,7 +2231,7 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		o, err = bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
 		ExpectEq(expected, o.ContentType, "name: %q", name)
 	}

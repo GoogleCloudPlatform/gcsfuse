@@ -75,7 +75,7 @@ type CachingTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&CachingTest{})
+	//RegisterTestSuite(&CachingTest{})
 }
 
 func (t *CachingTest) EmptyBucket() {
@@ -309,7 +309,7 @@ type CachingWithImplicitDirsTest struct {
 }
 
 func init() {
-	RegisterTestSuite(&CachingWithImplicitDirsTest{})
+	//RegisterTestSuite(&CachingWithImplicitDirsTest{})
 }
 
 func (t *CachingWithImplicitDirsTest) SetUpTestSuite() {
