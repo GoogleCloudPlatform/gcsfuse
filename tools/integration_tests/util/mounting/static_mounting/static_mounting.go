@@ -36,7 +36,7 @@ func mountGcsfuseWithStaticMounting(flags []string) (err error) {
 		flags = append(flags, defaultArg[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuse(setup.BinFile(), flags, setup.LogFile())
 
 	return err
 }
@@ -54,6 +54,8 @@ func executeTestsForStaticMounting(flags [][]string, m *testing.M) (successCode 
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running static mounting tests...")
+
 	successCode = executeTestsForStaticMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())

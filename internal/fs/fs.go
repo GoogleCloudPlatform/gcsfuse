@@ -985,10 +985,10 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	// syncFile can be triggered for unlinked files if the fileHandle is open by
-	// another user/terminal. Hence, ignoring the syncFile call for local file.
+	// syncFile can be triggered for unlinked files if the fileHandle is open by same
+	// or another user. Hence, returning an error when syncFile is called for local file.
 	if f.IsLocal() && f.IsUnlinked() {
-		// Silently ignore the syncFile call. This is in sync with non-local file behaviour.
+		err = fmt.Errorf("file is unlinked")
 		return
 	}
 
@@ -1009,15 +1009,15 @@ func (fs *fileSystem) syncFile(
 	}
 	fs.mu.Unlock()
 
-	// We need not update fileIndex:
+	// We need not update fs.inodes:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
 	// inode could have been booted from the index. Therefore if it's not in the
 	// index at the moment, it must not have been in there when we started. That
-	// is, it must have been clobbered remotely, which we treat as unlinking.
+	// is, it must have been clobbered remotely.
 	//
 	// In other words, either this inode is still in the index or it has been
-	// unlinked and *should* be anonymous.
+	// clobbered and *should* be anonymous.
 
 	return
 }

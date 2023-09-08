@@ -13,38 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This script will run e2e tests.
+# This will stop execution when any command will have non-zero status.
 set -e
-sudo apt-get update
 
-echo "Installing git"
-sudo apt-get install git
+readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-
-echo "Building and installing gcsfuse"
+echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-# Mounting gcs bucket
-cd "./perfmetrics/scripts/"
-echo "Mounting gcs bucket"
-mkdir -p gcs
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
-BUCKET_NAME=periodic-perf-tests
-MOUNT_POINT=gcs
-# The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-
-# Executing perf tests
-chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh
-
-sudo umount $MOUNT_POINT
-
-# ls_metrics test. This test does gcsfuse mount first and then do the testing.
-cd "./ls_metrics"
-chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh
+echo "Running e2e tests on installed package...."
+chmod +x perfmetrics/scripts/run_e2e_tests.sh
+# $1 argument is refering to value of testInstalledPackage
+./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE

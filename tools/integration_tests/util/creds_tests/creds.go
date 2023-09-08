@@ -18,53 +18,87 @@ package creds_tests
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const NameOfServiceAccount = "creds-test-gcsfuse"
+const NameOfServiceAccount = "creds-integration-tests"
+const CredentialsSecretName = "gcsfuse-integration-tests"
 
-func setPermission(permission string, serviceAccount string) {
-	// Provide permission to the bucket.
-	setup.RunScriptForTestData("../util/creds_tests/testdata/provide_permission.sh", setup.TestBucket(), serviceAccount, permission)
-}
+var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
+	log.Println("Running credentials tests...")
+
 	// Fetching project-id to get service account id.
 	id, err := metadata.ProjectID()
 	if err != nil {
-		log.Printf("Error in fetching project id: %v", err)
+		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
+	}
+	// return if active GCP project is not in whitelisted gcp projects
+	if !slices.Contains(WhitelistedGcpProjects, id) {
+		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
+		return 0
 	}
 
 	// Service account id format is name@project-id.iam.gserviceaccount.com
 	serviceAccount := NameOfServiceAccount + "@" + id + ".iam.gserviceaccount.com"
 
-	// Create service account
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_service_account.sh", NameOfServiceAccount)
+	localKeyFilePath := path.Join(os.Getenv("HOME"), "creds.json")
 
-	key_file_path := path.Join(os.Getenv("HOME"), "creds.json")
+	// Download credentials
+	gcloudSecretAccessCmd := fmt.Sprintf("secrets versions access latest --secret %s", CredentialsSecretName)
+	creds, err := operations.ExecuteGcloudCommandf(gcloudSecretAccessCmd)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
+	}
 
-	// Create credentials
-	setup.RunScriptForTestData("../util/creds_tests/testdata/create_key_file.sh", key_file_path, serviceAccount)
+	// Create and write creds to local file.
+	file, err := os.Create(localKeyFilePath)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
+	}
+	_, err = io.WriteString(file, string(creds))
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
+	}
+	operations.CloseFile(file)
 
 	// Provide permission to service account for testing.
-	setPermission(permission, serviceAccount)
+	_, err = operations.ExecuteGsutilCommandf(fmt.Sprintf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
+	}
+	// Waiting for 2 minutes as it usually takes within 2 minutes for policy
+	// changes to propagate: https://cloud.google.com/iam/docs/access-change-propagation
+	time.Sleep(120 * time.Second)
 
-	// Revoke the permission and delete creds after testing.
-	defer setup.RunScriptForTestData("../util/creds_tests/testdata/revoke_permission_and_creds.sh", serviceAccount, key_file_path)
+	// Revoke the permission after testing.
+	revokeFunc := func(gcloudArg string) {
+		_, err := operations.ExecuteGsutilCommandf(gcloudArg)
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
+		}
+	}
+	defer revokeFunc(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
 	// https://github.com/golang/oauth2/blob/master/google/default.go#L160
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", key_file_path)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
 	}
@@ -76,7 +110,7 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
-	keyFileFlag := "--key-file=" + key_file_path
+	keyFileFlag := "--key-file=" + localKeyFilePath
 
 	for i := 0; i < len(testFlagSet); i++ {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)

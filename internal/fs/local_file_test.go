@@ -149,6 +149,11 @@ func (t *LocalFileTest) validateNoFileOrDirError(filename string) {
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
+func (t *LocalFileTest) validateIOError(err error) {
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "input/output error"))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -230,9 +235,11 @@ func (t *LocalFileTest) StatOnUnlinkedLocalFile() {
 	// Stat the local file and validate error.
 	t.validateNoFileOrDirError(FileName)
 
-	// Close the file and validate that file is not created on GCS.
+	// Close the file and validate that
+	// 1. flush file throws IO error
+	// 2. file is not created on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -384,15 +391,14 @@ func (t *LocalFileTest) TestReadDirForImplicitDirWithLocalFile() {
 }
 
 func (t *LocalFileTest) TestRecursiveListingWithLocalFiles() {
-	/* Structure
-	mntDir/
-		- baseLocalFile 			--- file
-	  - explicitFoo/				--- directory
-			- explicitLocalFile --- file
-		- implicitFoo/ 				--- directory
-			- bar								--- file
-			- implicitLocalFile --- file
-	*/
+	// Structure
+	// mntDir/
+	//	   - baseLocalFile 			--- file
+	//     - explicitFoo/		    --- directory
+	//		   - explicitLocalFile  --- file
+	//	   - implicitFoo/ 			--- directory
+	//		   - bar				--- file
+	//		   - implicitLocalFile  --- file
 
 	// Create implicit dir with 1 local file1 and 1 synced file.
 	AssertEq(
@@ -576,7 +582,7 @@ func (t *LocalFileTest) TestReadDirContainingUnlinkedLocalFiles() {
 	t.closeFileAndValidateObjectContents(&t.f2, FileName+"2", "")
 	// Verify unlinked file is not written to GCS
 	err = t.closeLocalFile(&t.f3)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr(FileName + "3")
 }
 
@@ -592,7 +598,7 @@ func (t *LocalFileTest) TestUnlinkOfLocalFile() {
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
 	err = t.closeLocalFile(&t.f1)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	// Validate file it is not present on GCS.
 	t.validateObjectNotFoundErr(FileName)
 }
@@ -611,13 +617,13 @@ func (t *LocalFileTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 	AssertEq(nil, err)
 	err = t.closeLocalFile(&t.f1)
 
-	// Validate flush file does not throw error.
-	AssertEq(nil, err)
+	// Validate flush file throws IO error.
+	t.validateIOError(err)
 	// Validate unlinked file is not written to GCS
 	t.validateObjectNotFoundErr(FileName)
 }
 
-func (t *LocalFileTest) TestSyncOnUnlinkedLocalFile() {
+func (t *LocalFileTest) TestSyncOnUnlinkedLocalFileThrowsIOError() {
 	// Create local file.
 	var filepath string
 	filepath, t.f1 = t.createLocalFile(FileName)
@@ -628,13 +634,13 @@ func (t *LocalFileTest) TestSyncOnUnlinkedLocalFile() {
 	// Verify unlink operation succeeds.
 	AssertEq(nil, err)
 	t.validateNoFileOrDirError(FileName)
-	// Validate sync operation does not write to GCS after unlink.
+	// Validate sync operation does not write to GCS after unlink and throws IO error.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr(FileName)
 	// Close the local file and validate it is not present on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr(FileName)
 }
 
@@ -676,9 +682,9 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	// Validate writing content to unlinked local file does not throw error
 	_, err = t.f1.WriteString(FileContents)
 	AssertEq(nil, err)
-	// Validate flush file does not create object on GCS
+	// Validate flush file throws IO error and does not create object on GCS
 	err = t.closeLocalFile(&t.f1)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr("explicit/" + explicitLocalFileName)
 	// Validate synced files are also deleted.
 	t.validateObjectNotFoundErr("explicit/foo")
@@ -702,10 +708,10 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingOnlyLocalFiles() {
 	t.validateNoFileOrDirError("explicit")
 	// Close the local files and validate they are not present on GCS.
 	err = t.closeLocalFile(&t.f1)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr("explicit/" + explicitLocalFileName)
 	err = t.closeLocalFile(&t.f2)
-	AssertEq(nil, err)
+	t.validateIOError(err)
 	t.validateObjectNotFoundErr("explicit/" + FileName)
 	// Validate directory is also deleted.
 	t.validateObjectNotFoundErr("explicit/")
@@ -735,4 +741,57 @@ func (t *LocalFileTest) TestRmDirOfDirectoryContainingOnlyGCSFiles() {
 	t.validateObjectNotFoundErr("explicit/")
 	t.validateObjectNotFoundErr("explicit/foo")
 	t.validateObjectNotFoundErr("explicit/bar")
+}
+
+func (t *LocalFileTest) TestCreateSymlinkForLocalFile() {
+	var filePath string
+	// Create a local file.
+	filePath, t.f1 = t.createLocalFile(FileName)
+	// Writing contents to local file shouldn't create file on GCS.
+	_, err := t.f1.Write([]byte(FileContents))
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+
+	// Create the symlink.
+	symlinkName := path.Join(mntDir, "bar")
+	err = os.Symlink(filePath, symlinkName)
+	AssertEq(nil, err)
+
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(filePath, target)
+	contents, err := os.ReadFile(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(FileContents, string(contents))
+	t.closeFileAndValidateObjectContents(&t.f1, FileName, FileContents)
+}
+
+func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
+	var filePath string
+	// Create a local file.
+	filePath, t.f1 = t.createLocalFile(FileName)
+	// Writing contents to local file shouldn't create file on GCS.
+	_, err := t.f1.Write([]byte(FileContents))
+	AssertEq(nil, err)
+	t.validateObjectNotFoundErr(FileName)
+	// Create the symlink.
+	symlinkName := path.Join(mntDir, "bar")
+	err = os.Symlink(filePath, symlinkName)
+	AssertEq(nil, err)
+	// Read the link.
+	target, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(filePath, target)
+
+	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	err = t.closeLocalFile(&t.f1)
+	t.validateIOError(err)
+	t.validateObjectNotFoundErr(FileName)
+
+	// Reading symlink should fail.
+	_, err = os.Stat(symlinkName)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
