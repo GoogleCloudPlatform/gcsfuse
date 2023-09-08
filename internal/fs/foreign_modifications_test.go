@@ -20,6 +20,7 @@ package fs_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -29,11 +30,10 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -244,7 +244,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// Set up objects that appear to be directory contents, but for which there
 	// is no directory placeholder object. We don't have implicit directories
 	// enabled, so these should be unreachable.
-	err = gcsutil.CreateEmptyObjects(
+	err = storageutil.CreateEmptyObjects(
 		ctx,
 		bucket,
 		[]string{
@@ -284,7 +284,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// These unreachable objects (test/0, test/1, bar/0) start showing up in
 	// other tests as soon as directory with similar name is created. Hence
 	// cleaning them.
-	err = gcsutil.DeleteAllObjects(ctx, bucket)
+	err = storageutil.DeleteAllObjects(ctx, bucket)
 	AssertEq(nil, err)
 }
 
@@ -536,7 +536,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 	var buf [contentLen]byte
 	runOnce := func() {
 		// Create an object.
-		_, err := gcsutil.CreateObject(
+		_, err := storageutil.CreateObject(
 			ctx,
 			bucket,
 			"foo",

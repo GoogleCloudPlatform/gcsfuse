@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -151,7 +151,7 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
 	if bm.config.DebugGCS {
-		b = gcs.NewDebugBucket(b, logger.NewDebug("gcs: "))
+		b = storage.NewDebugBucket(b, logger.NewDebug("gcs: "))
 	}
 	return
 }
@@ -194,9 +194,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable cached StatObject results, if appropriate.
 	if bm.config.StatCacheTTL != 0 {
 		cacheCapacity := bm.config.StatCacheCapacity
-		b = gcscaching.NewFastStatBucket(
+		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			gcscaching.NewStatCache(cacheCapacity),
+			caching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
 	}

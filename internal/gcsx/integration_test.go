@@ -25,11 +25,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -80,7 +80,7 @@ func init() { RegisterTestSuite(&IntegrationTest{}) }
 
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket")
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
@@ -161,7 +161,7 @@ func (t *IntegrationTest) sync(src *gcs.Object) (o *gcs.Object, err error) {
 
 func (t *IntegrationTest) ReadThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -194,12 +194,12 @@ func (t *IntegrationTest) SyncEmptyLocalFile() {
 	_, ok := newObj.Metadata["gcsfuse_mtime"]
 	AssertFalse(ok)
 	// Read via the bucket.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "test")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "test")
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 	// There should be no junk left over in the bucket besides the object of
 	// interest.
-	objects, runs, err := gcsutil.ListAll(
+	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
 		&gcs.ListObjectsRequest{})
@@ -229,12 +229,12 @@ func (t *IntegrationTest) SyncNonEmptyLocalFile() {
 		writeTime.UTC().Format(time.RFC3339Nano),
 		newObj.Metadata["gcsfuse_mtime"])
 	// Read via the bucket.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "test")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "test")
 	AssertEq(nil, err)
 	ExpectEq("tacobell", string(contents))
 	// There should be no junk left over in the bucket besides the object of
 	// interest.
-	objects, runs, err := gcsutil.ListAll(
+	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
 		&gcs.ListObjectsRequest{})
@@ -246,7 +246,7 @@ func (t *IntegrationTest) SyncNonEmptyLocalFile() {
 
 func (t *IntegrationTest) WriteThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -271,13 +271,13 @@ func (t *IntegrationTest) WriteThenSync() {
 		newObj.Metadata["gcsfuse_mtime"])
 
 	// Read via the bucket.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("paco", string(contents))
 
 	// There should be no junk left over in the bucket besides the object of
 	// interest.
-	objects, runs, err := gcsutil.ListAll(
+	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
 		&gcs.ListObjectsRequest{})
@@ -291,7 +291,7 @@ func (t *IntegrationTest) WriteThenSync() {
 
 func (t *IntegrationTest) AppendThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -316,13 +316,13 @@ func (t *IntegrationTest) AppendThenSync() {
 		newObj.Metadata["gcsfuse_mtime"])
 
 	// Read via the bucket.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("tacoburrito", string(contents))
 
 	// There should be no junk left over in the bucket besides the object of
 	// interest.
-	objects, runs, err := gcsutil.ListAll(
+	objects, runs, err := storageutil.ListAll(
 		t.ctx,
 		t.bucket,
 		&gcs.ListObjectsRequest{})
@@ -336,7 +336,7 @@ func (t *IntegrationTest) AppendThenSync() {
 
 func (t *IntegrationTest) TruncateThenSync() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -359,14 +359,14 @@ func (t *IntegrationTest) TruncateThenSync() {
 		truncateTime.UTC().Format(time.RFC3339Nano),
 		newObj.Metadata["gcsfuse_mtime"])
 
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, "foo")
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
 }
 
 func (t *IntegrationTest) Stat_InitialState() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -382,7 +382,7 @@ func (t *IntegrationTest) Stat_InitialState() {
 
 func (t *IntegrationTest) Stat_Dirty() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -407,7 +407,7 @@ func (t *IntegrationTest) Stat_Dirty() {
 
 func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -446,14 +446,14 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 	ExpectTrue(errors.As(err, &preconditionErr))
 
 	// Nothing should have been created.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, o.Name)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	// Create.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("taco"))
 	AssertEq(nil, err)
 
 	t.create(o)
@@ -463,7 +463,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	AssertEq(nil, err)
 
 	// Overwrite the backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, "foo", []byte("burrito"))
 	AssertEq(nil, err)
 
 	// Reading and modications should still work.
@@ -492,7 +492,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 	ExpectTrue(errors.As(err, &preconditionErr))
 
 	// The newer version should still be present.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, o.Name)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, o.Name)
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(contents))
 }
@@ -529,7 +529,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		expectedContents := make([]byte, size)
 		copy(expectedContents, randData)
 
-		o, err := gcsutil.CreateObject(
+		o, err := storageutil.CreateObject(
 			t.ctx,
 			t.bucket,
 			name,
@@ -583,7 +583,7 @@ func (t *IntegrationTest) MultipleInteractions() {
 		}
 
 		// Check the new backing object's contents.
-		objContents, err := gcsutil.ReadObject(t.ctx, t.bucket, name)
+		objContents, err := storageutil.ReadObject(t.ctx, t.bucket, name)
 		AssertEq(nil, err)
 		if !bytes.Equal(objContents, expectedContents) {
 			AddFailure("Contents mismatch for %s", desc)

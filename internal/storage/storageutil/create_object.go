@@ -12,30 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package storageutil
 
 import (
-	"time"
+	"bytes"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"golang.org/x/net/context"
 )
 
-const ContentEncodingGzip = "gzip"
+// Create an object with the supplied contents in the given bucket with the
+// given name.
+func CreateObject(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	name string,
+	contents []byte) (*gcs.Object, error) {
+	req := &gcs.CreateObjectRequest{
+		Name:     name,
+		Contents: bytes.NewReader(contents),
+	}
 
-// MinObject is a record representing subset of properties of a particular
-// generation object in GCS.
-//
-// See here for more information about its fields:
-//
-//	https://cloud.google.com/storage/docs/json_api/v1/objects#resource
-type MinObject struct {
-	Name            string
-	Size            uint64
-	Generation      int64
-	MetaGeneration  int64
-	Updated         time.Time
-	Metadata        map[string]string
-	ContentEncoding string
-}
-
-func (mo MinObject) HasContentEncodingGzip() bool {
-	return mo.ContentEncoding == ContentEncodingGzip
+	return bucket.CreateObject(ctx, req)
 }

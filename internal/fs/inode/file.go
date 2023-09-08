@@ -23,9 +23,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -73,7 +72,7 @@ type FileInode struct {
 	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src storage.MinObject
+	src gcs.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -305,7 +304,7 @@ func (f *FileInode) Unlink() {
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *storage.MinObject {
+func (f *FileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -584,6 +583,8 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// the latest object fetched from gcs which has all the properties populated.
 	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
+	// Special case: a precondition error means we were clobbered, which we treat
+	// as being unlinked. There's no reason to return an error in that case.
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		err = fmt.Errorf("SyncObject: %s, %w", FileClobberedErrMsg, err)
@@ -645,13 +646,13 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) storage.MinObject {
-	var min storage.MinObject
+func convertObjToMinObject(o *gcs.Object) gcs.MinObject {
+	var min gcs.MinObject
 	if o == nil {
 		return min
 	}
 
-	return storage.MinObject{
+	return gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,
