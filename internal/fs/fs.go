@@ -985,8 +985,8 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
-	// syncFile can be triggered for unlinked files if the fileHandle is open by
-	// another user/terminal. Hence, returning an error when syncFile is called for local file.
+	// syncFile can be triggered for unlinked files if the fileHandle is open by same
+	// or another user. Hence, returning an error when syncFile is called for local file.
 	if f.IsLocal() && f.IsUnlinked() {
 		err = fmt.Errorf("file is unlinked")
 		return
