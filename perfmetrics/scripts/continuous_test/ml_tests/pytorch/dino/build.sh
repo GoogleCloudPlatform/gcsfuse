@@ -4,7 +4,7 @@
 set -e
 
 VM_NAME="test-pytorch-dino-7d"
-ZONE_NAME="us-west1-b"
+ZONE_NAME="asia-northeast1-c"
 ARTIFACTS_BUCKET_PATH="gs://ashmeen-test-ml/ci_artifacts/pytorch/dino"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/dino/setup_host_and_run_model.sh"
 
