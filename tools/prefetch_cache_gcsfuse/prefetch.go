@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,10 +39,10 @@ func downloadFile(ctx context.Context, client *storage.Client, object *storage.O
 	// and either resuming the download or discarding and redownloading the file
 	// We may also want to do cleanup if files are created on disk but aren't populated in time
 
-	f, err := ioutil.TempFile(cacheDir, contentcache.CacheFilePrefix)
+	f, err := os.CreateTemp(cacheDir, contentcache.CacheFilePrefix)
 
 	if err != nil {
-		err = fmt.Errorf("ioutil.TempFile: %w", err)
+		err = fmt.Errorf("os.CreateTemp: %w", err)
 		return
 	}
 	defer f.Close()
@@ -67,7 +67,7 @@ func downloadFile(ctx context.Context, client *storage.Client, object *storage.O
 	}
 
 	file, err := json.MarshalIndent(*metadata, "", " ")
-	err = ioutil.WriteFile(fmt.Sprintf("%s.json", f.Name()), file, 0644)
+	err = os.WriteFile(fmt.Sprintf("%s.json", f.Name()), file, 0644)
 	if err != nil {
 		err = fmt.Errorf("downloadFile failed to write metadata: %w", err)
 	}

@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -75,7 +74,7 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot load body: %w", err)
 		return

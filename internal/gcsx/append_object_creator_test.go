@@ -17,7 +17,7 @@ package gcsx
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -115,7 +115,7 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 	ExpectTrue(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 
-	b, err := ioutil.ReadAll(req.Contents)
+	b, err := io.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))
 }

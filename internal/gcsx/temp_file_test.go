@@ -17,7 +17,6 @@ package gcsx_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +41,7 @@ func readAll(rs io.ReadSeeker) (content []byte, err error) {
 		return
 	}
 
-	content, err = ioutil.ReadAll(rs)
+	content, err = io.ReadAll(rs)
 	if err != nil {
 		err = fmt.Errorf("ReadFull: %w", err)
 		return

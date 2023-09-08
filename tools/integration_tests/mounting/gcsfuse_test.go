@@ -17,7 +17,6 @@ package integration_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -156,7 +155,7 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 
 	// Write a file into the mount point.
 	p := path.Join(t.dir, "foo")
-	err = ioutil.WriteFile(p, nil, 0600)
+	err = os.WriteFile(p, nil, 0600)
 	AssertEq(nil, err)
 
 	defer os.Remove(p)
@@ -175,7 +174,7 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	// Write a file.
 	p := path.Join(t.dir, "foo")
 
-	err = ioutil.WriteFile(p, []byte{}, 0500)
+	err = os.WriteFile(p, []byte{}, 0500)
 	AssertEq(nil, err)
 	defer os.Remove(p)
 
@@ -240,7 +239,7 @@ func (t *GcsfuseTest) CannedContents() {
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
 
-	contents, err := ioutil.ReadFile(path.Join(t.dir, canned.TopLevelFile))
+	contents, err := os.ReadFile(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(canned.TopLevelFile_Contents, string(contents))
 
@@ -265,7 +264,7 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 	defer util.Unmount(t.dir)
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
@@ -282,10 +281,10 @@ func (t *GcsfuseTest) ReadWriteMode() {
 	// Overwrite the canned file.
 	p := path.Join(t.dir, canned.TopLevelFile)
 
-	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
+	err = os.WriteFile(p, []byte("enchilada"), 0400)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadFile(p)
+	contents, err := os.ReadFile(p)
 	AssertEq(nil, err)
 	ExpectEq("enchilada", string(contents))
 }

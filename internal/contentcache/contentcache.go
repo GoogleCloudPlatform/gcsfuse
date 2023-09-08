@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -85,7 +83,7 @@ func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFi
 		return
 	}
 	metadataFileName = fmt.Sprintf("%s.json", cacheFileName)
-	err = ioutil.WriteFile(metadataFileName, file, 0644)
+	err = os.WriteFile(metadataFileName, file, 0644)
 	if err != nil {
 		err = fmt.Errorf("WriteFile for JSON metadata: %w", err)
 		return
@@ -103,7 +101,7 @@ func (c *CacheObject) Destroy() {
 }
 
 // recoverFileFromCache recovers a file from the cache via metadata
-func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
+func (c *ContentCache) recoverFileFromCache(metadataFile os.DirEntry) {
 	// validate not a directory and matches gcsfuse pattern
 	if metadataFile.IsDir() {
 		return
@@ -113,7 +111,7 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	}
 	var metadata CacheFileObjectMetadata
 	metadataAbsolutePath := path.Join(c.tempDir, metadataFile.Name())
-	contents, err := ioutil.ReadFile(metadataAbsolutePath)
+	contents, err := os.ReadFile(metadataAbsolutePath)
 	if err != nil {
 		c.debug.Printf("Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
 		return
@@ -154,7 +152,7 @@ func (c *ContentCache) RecoverCache() error {
 		c.tempDir = "/tmp"
 	}
 	logger.Infof("Recovering cache:\n")
-	files, err := ioutil.ReadDir(c.tempDir)
+	files, err := os.ReadDir(c.tempDir)
 	if err != nil {
 		// if we fail to read the specified directory, log and return error
 		return fmt.Errorf("recover cache: %w", err)
@@ -199,7 +197,7 @@ func (c *ContentCache) AddOrReplace(cacheObjectKey *CacheObjectKey, generation i
 		cacheObject.Destroy()
 	}
 	// Create a temporary cache file on disk
-	f, err := ioutil.TempFile(c.tempDir, CacheFilePrefix)
+	f, err := os.CreateTemp(c.tempDir, CacheFilePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("TempFile: %w", err)
 	}
