@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -39,7 +40,7 @@ func TestSyncer(t *testing.T) { RunTests(t) }
 
 type FullObjectCreatorTest struct {
 	ctx     context.Context
-	bucket  gcs.MockBucket
+	bucket  storage.MockBucket
 	creator objectCreator
 
 	srcObject   gcs.Object
@@ -53,7 +54,7 @@ func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Create the bucket.
-	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	// Create the creator.
 	t.creator = &fullObjectCreator{
@@ -291,7 +292,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket")
 	t.syncer = newSyncer(
 		appendThreshold,
 		&t.fullCreator,

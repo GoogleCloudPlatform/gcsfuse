@@ -33,8 +33,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcsutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -183,7 +183,7 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// No object should have been created.
-	_, err = gcsutil.ReadObject(ctx, bucket, "foo")
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
@@ -201,7 +201,7 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	AssertEq(nil, err)
 
 	// The object should now be present in the bucket, with empty contents.
-	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("", string(contents))
 
@@ -2029,7 +2029,7 @@ func (t *FileTest) Sync_Dirty() {
 
 	// The contents should now be in the bucket, even though we haven't closed
 	// the file.
-	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2075,11 +2075,13 @@ func (t *FileTest) Sync_Clobbered() {
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
-	_, err = gcsutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
 		[]byte("foobar"))
+
+	AssertEq(nil, err)
 
 	// Attempt to sync the file. This may result in an error if the OS has
 	// decided to hold back the writes from above until now (in which case the
@@ -2090,7 +2092,7 @@ func (t *FileTest) Sync_Clobbered() {
 		ExpectThat(err, Error(HasSubstr("input/output error")))
 	}
 
-	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2114,7 +2116,7 @@ func (t *FileTest) Close_Dirty() {
 	AssertEq(nil, err)
 
 	// The contents should now be in the bucket.
-	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -2162,11 +2164,13 @@ func (t *FileTest) Close_Clobbered() {
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
-	_, err = gcsutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
 		"foo",
 		[]byte("foobar"))
+
+	AssertEq(nil, err)
 
 	// Close the file. This may result in a "generation not found" error when
 	// faulting in the object's contents on Linux where close may cause cached
@@ -2174,7 +2178,7 @@ func (t *FileTest) Close_Clobbered() {
 	// generation should not be replaced.
 	f.Close()
 
-	contents, err := gcsutil.ReadObject(ctx, bucket, "foo")
+	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
 }
@@ -2348,7 +2352,7 @@ func (t *SymlinkTest) RemoveLink() {
 	AssertEq(nil, err)
 
 	// It should be gone from the bucket.
-	_, err = gcsutil.ReadObject(ctx, bucket, "foo")
+	_, err = storageutil.ReadObject(ctx, bucket, "foo")
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }

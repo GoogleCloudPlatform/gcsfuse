@@ -20,9 +20,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
 )
 
 // NewPrefixBucket creates a view on the wrapped bucket that pretends as if only

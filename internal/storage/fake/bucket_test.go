@@ -12,26 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsutil
+package fake
 
 import (
-	"bytes"
+	"testing"
+	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	gcstesting "github.com/googlecloudplatform/gcsfuse/internal/storage/fake/testing"
+	"github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 
-// Create an object with the supplied contents in the given bucket with the
-// given name.
-func CreateObject(
-	ctx context.Context,
-	bucket gcs.Bucket,
-	name string,
-	contents []byte) (*gcs.Object, error) {
-	req := &gcs.CreateObjectRequest{
-		Name:     name,
-		Contents: bytes.NewReader(contents),
+func TestBucket(t *testing.T) { ogletest.RunTests(t) }
+
+func init() {
+	makeDeps := func(ctx context.Context) (deps gcstesting.BucketTestDeps) {
+		// Set up a fixed, non-zero time.
+		clock := &timeutil.SimulatedClock{}
+		clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+		deps.Clock = clock
+
+		// Set up the bucket.
+		deps.Bucket = NewFakeBucket(clock, "some_bucket")
+
+		return
 	}
 
-	return bucket.CreateObject(ctx, req)
+	gcstesting.RegisterBucketTests(makeDeps)
 }

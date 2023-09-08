@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsfake
+package fake
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
@@ -26,10 +27,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)

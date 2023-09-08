@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcscaching_test
+package caching_test
 
 import (
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcloud/gcs/gcscaching/mock_gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching/mock_gcscaching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -40,7 +41,7 @@ const ttl = time.Second
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
 	clock   timeutil.SimulatedClock
-	wrapped gcs.MockBucket
+	wrapped storage.MockBucket
 
 	bucket gcs.Bucket
 }
@@ -51,9 +52,9 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	t.cache = mock_gcscaching.NewMockStatCache(ti.MockController, "cache")
-	t.wrapped = gcs.NewMockBucket(ti.MockController, "wrapped")
+	t.wrapped = storage.NewMockBucket(ti.MockController, "wrapped")
 
-	t.bucket = gcscaching.NewFastStatBucket(
+	t.bucket = caching.NewFastStatBucket(
 		ttl,
 		t.cache,
 		&t.clock,
