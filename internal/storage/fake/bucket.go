@@ -27,7 +27,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -277,7 +276,7 @@ func (b *bucket) createObjectLocked(
 	// Check preconditions.
 	if req.GenerationPrecondition != nil {
 		if *req.GenerationPrecondition == 0 && existingRecord != nil {
-			err = &storage.PreconditionError{
+			err = &gcs.PreconditionError{
 				Err: errors.New("Precondition failed: object exists"),
 			}
 
@@ -286,7 +285,7 @@ func (b *bucket) createObjectLocked(
 
 		if *req.GenerationPrecondition > 0 {
 			if existingRecord == nil {
-				err = &storage.PreconditionError{
+				err = &gcs.PreconditionError{
 					Err: errors.New("Precondition failed: object doesn't exist"),
 				}
 
@@ -295,7 +294,7 @@ func (b *bucket) createObjectLocked(
 
 			existingGen := existingRecord.metadata.Generation
 			if existingGen != *req.GenerationPrecondition {
-				err = &storage.PreconditionError{
+				err = &gcs.PreconditionError{
 					Err: fmt.Errorf(
 						"Precondition failed: object has generation %v",
 						existingGen),
@@ -308,7 +307,7 @@ func (b *bucket) createObjectLocked(
 
 	if req.MetaGenerationPrecondition != nil {
 		if existingRecord == nil {
-			err = &storage.PreconditionError{
+			err = &gcs.PreconditionError{
 				Err: errors.New("Precondition failed: object doesn't exist"),
 			}
 
@@ -317,7 +316,7 @@ func (b *bucket) createObjectLocked(
 
 		existingMetaGen := existingRecord.metadata.MetaGeneration
 		if existingMetaGen != *req.MetaGenerationPrecondition {
-			err = &storage.PreconditionError{
+			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
 					"Precondition failed: object has meta-generation %v",
 					existingMetaGen),
@@ -351,7 +350,7 @@ func (b *bucket) newReaderLocked(
 	// Find the object with the requested name.
 	index = b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
@@ -362,7 +361,7 @@ func (b *bucket) newReaderLocked(
 
 	// Does the generation match?
 	if req.Generation != 0 && req.Generation != o.metadata.Generation {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %s generation %v not found", req.Name, req.Generation),
 		}
@@ -576,7 +575,7 @@ func (b *bucket) CopyObject(
 	// Does the object exist?
 	srcIndex := b.objects.find(req.SrcName)
 	if srcIndex == len(b.objects) {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %q not found", req.SrcName),
 		}
 
@@ -586,7 +585,7 @@ func (b *bucket) CopyObject(
 	// Does it have the correct generation?
 	if req.SrcGeneration != 0 &&
 		b.objects[srcIndex].metadata.Generation != req.SrcGeneration {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %s generation %d not found", req.SrcName, req.SrcGeneration),
 		}
@@ -598,7 +597,7 @@ func (b *bucket) CopyObject(
 	if req.SrcMetaGenerationPrecondition != nil {
 		p := *req.SrcMetaGenerationPrecondition
 		if b.objects[srcIndex].metadata.MetaGeneration != p {
-			err = &storage.PreconditionError{
+			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
 					"Object %q has meta-generation %d",
 					req.SrcName,
@@ -716,7 +715,7 @@ func (b *bucket) StatObject(
 	// Does the object exist?
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
@@ -739,7 +738,7 @@ func (b *bucket) UpdateObject(
 	// Does the object exist?
 	index := b.objects.find(req.Name)
 	if index == len(b.objects) {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", req.Name),
 		}
 
@@ -750,7 +749,7 @@ func (b *bucket) UpdateObject(
 
 	// Does the generation number match the request?
 	if req.Generation != 0 && obj.Generation != req.Generation {
-		err = &storage.NotFoundError{
+		err = &gcs.NotFoundError{
 			Err: fmt.Errorf(
 				"Object %q generation %d not found",
 				req.Name,
@@ -763,7 +762,7 @@ func (b *bucket) UpdateObject(
 	// Does the meta-generation precondition check out?
 	if req.MetaGenerationPrecondition != nil &&
 		obj.MetaGeneration != *req.MetaGenerationPrecondition {
-		err = &storage.PreconditionError{
+		err = &gcs.PreconditionError{
 			Err: fmt.Errorf(
 				"Object %q has meta-generation %d",
 				obj.Name,
@@ -839,7 +838,7 @@ func (b *bucket) DeleteObject(
 	if req.MetaGenerationPrecondition != nil {
 		p := *req.MetaGenerationPrecondition
 		if b.objects[index].metadata.MetaGeneration != p {
-			err = &storage.PreconditionError{
+			err = &gcs.PreconditionError{
 				Err: fmt.Errorf(
 					"Object %q has meta-generation %d",
 					req.Name,

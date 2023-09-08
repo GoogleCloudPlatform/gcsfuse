@@ -141,12 +141,12 @@ func (t *AppendObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -306,7 +306,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -315,7 +315,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -332,7 +332,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 
 	// ComposeObjects
 	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &storage.NotFoundError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
 
 	// DeleteObject
 	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
@@ -341,7 +341,7 @@ func (t *AppendObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
 	// Call
 	_, err := t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
 	ExpectThat(err, Error(HasSubstr("taco")))

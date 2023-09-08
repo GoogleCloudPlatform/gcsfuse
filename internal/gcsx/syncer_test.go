@@ -115,12 +115,12 @@ func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
 
 	// CreateObject
 	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &storage.PreconditionError{Err: errors.New("taco")}))
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
 
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 	ExpectThat(err, Error(HasSubstr("CreateObject")))
 	ExpectThat(err, Error(HasSubstr("taco")))
@@ -496,7 +496,7 @@ func (t *SyncerTest) FullCreatorFails() {
 
 func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	var err error
-	t.fullCreator.err = &storage.PreconditionError{}
+	t.fullCreator.err = &gcs.PreconditionError{}
 
 	// Truncate downward.
 	err = t.content.Truncate(2)
@@ -505,7 +505,7 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
@@ -562,7 +562,7 @@ func (t *SyncerTest) AppendCreatorFails() {
 
 func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	var err error
-	t.appendCreator.err = &storage.PreconditionError{}
+	t.appendCreator.err = &gcs.PreconditionError{}
 
 	// Append some data.
 	_, err = t.content.WriteAt([]byte("burrito"), int64(t.srcObject.Size))
@@ -571,7 +571,7 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 }
 

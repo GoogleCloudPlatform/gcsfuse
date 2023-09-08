@@ -262,7 +262,7 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -285,7 +285,7 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 
 	_, err := t.bucketHandle.CopyObject(context.Background(),
 		&gcs.CopyObjectRequest{
@@ -299,7 +299,7 @@ func (t *BucketHandleTest) TestCopyObjectMethodWithMissingObject() {
 }
 
 func (t *BucketHandleTest) TestCopyObjectMethodWithInvalidGeneration() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 
 	_, err := t.bucketHandle.CopyObject(context.Background(),
 		&gcs.CopyObjectRequest{
@@ -343,7 +343,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
 func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectAlreadyExists() {
 	content := "Creating a new object"
 	var generation int64 = 0
-	var precondition *PreconditionError
+	var precondition *gcs.PreconditionError
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
 			Name:                   "test_object",
@@ -367,7 +367,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
-	var precondition *PreconditionError
+	var precondition *gcs.PreconditionError
 	content := "Creating a new object"
 	var crc32 uint32 = 45
 	var generation int64 = 786
@@ -637,7 +637,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 }
 
 func (t *BucketHandleTest) TestUpdateObjectMethodWithMissingObject() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 
 	_, err := t.bucketHandle.UpdateObject(context.Background(),
 		&gcs.UpdateObjectRequest{
@@ -739,7 +739,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 	// Checking that dstObject does not exist
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
@@ -802,7 +802,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,
@@ -883,7 +883,7 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
@@ -972,7 +972,7 @@ func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
-	var notfound *NotFoundError
+	var notfound *gcs.NotFoundError
 	_, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,

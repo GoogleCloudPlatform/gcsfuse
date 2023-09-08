@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -128,7 +127,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	req := &gcs.StatObjectRequest{Name: name}
 	o, err := t.bucket.StatObject(t.ctx, req)
 
-	var notFoundErr *storage.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		gen = -1
 		return
@@ -443,12 +442,12 @@ func (t *IntegrationTest) BackingObjectHasBeenDeleted() {
 
 	// Sync should fail with a precondition error.
 	_, err = t.sync(o)
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 
 	// Nothing should have been created.
 	_, err = storageutil.ReadObject(t.ctx, t.bucket, o.Name)
-	var notFoundErr *storage.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
@@ -489,7 +488,7 @@ func (t *IntegrationTest) BackingObjectHasBeenOverwritten() {
 
 	// Sync should fail with a precondition error.
 	_, err = t.sync(o)
-	var preconditionErr *storage.PreconditionError
+	var preconditionErr *gcs.PreconditionError
 	ExpectTrue(errors.As(err, &preconditionErr))
 
 	// The newer version should still be present.

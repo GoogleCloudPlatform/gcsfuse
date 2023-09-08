@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -393,6 +392,6 @@ func (t *PrefixBucketTest) DeleteObject() {
 			Name: name,
 		})
 
-	var notFoundErr *storage.NotFoundError
+	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }

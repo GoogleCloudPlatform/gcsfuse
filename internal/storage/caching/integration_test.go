@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -183,7 +182,7 @@ func (t *IntegrationTest) PositiveCacheExpiration() {
 
 	// StatObject should no longer see it.
 	_, err = t.stat(name)
-	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
@@ -192,7 +191,7 @@ func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
 
 	// Stat an unknown object, getting it into the negative cache.
 	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object.
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, name, []byte{})
@@ -210,7 +209,7 @@ func (t *IntegrationTest) StatAddsToNegativeCache() {
 
 	// Stat an unknown object, getting it into the negative cache.
 	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
@@ -218,7 +217,7 @@ func (t *IntegrationTest) StatAddsToNegativeCache() {
 
 	// StatObject should still not see it yet.
 	_, err = t.stat(name)
-	ExpectThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
 func (t *IntegrationTest) ListInvalidatesNegativeCache() {
@@ -227,7 +226,7 @@ func (t *IntegrationTest) ListInvalidatesNegativeCache() {
 
 	// Stat an unknown object, getting it into the negative cache.
 	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
@@ -249,7 +248,7 @@ func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
 
 	// Stat an unknown object, getting it into the negative cache.
 	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})
@@ -275,7 +274,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 
 	// Stat an unknown object, getting it into the negative cache.
 	_, err = t.stat(name)
-	AssertThat(err, HasSameTypeAs(&storage.NotFoundError{}))
+	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
 	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte{})

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fake_test
+package fake
 
 import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	gcstesting "github.com/googlecloudplatform/gcsfuse/internal/storage/fake/testing"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -27,17 +27,17 @@ import (
 func TestBucket(t *testing.T) { ogletest.RunTests(t) }
 
 func init() {
-	makeDeps := func(ctx context.Context) (deps fake.BucketTestDeps) {
+	makeDeps := func(ctx context.Context) (deps gcstesting.BucketTestDeps) {
 		// Set up a fixed, non-zero time.
 		clock := &timeutil.SimulatedClock{}
 		clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 		deps.Clock = clock
 
 		// Set up the bucket.
-		deps.Bucket = fake.NewFakeBucket(clock, "some_bucket")
+		deps.Bucket = NewFakeBucket(clock, "some_bucket")
 
 		return
 	}
 
-	fake.RegisterBucketTests(makeDeps)
+	gcstesting.RegisterBucketTests(makeDeps)
 }

@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 
@@ -197,7 +196,7 @@ func (b *fastStatBucket) StatObject(
 	if hit, entry := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
-			err = &storage.NotFoundError{
+			err = &gcs.NotFoundError{
 				Err: fmt.Errorf("Negative cache entry for %v", req.Name),
 			}
 
@@ -260,7 +259,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObj
 	o, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
-		if _, ok := err.(*storage.NotFoundError); ok {
+		if _, ok := err.(*gcs.NotFoundError); ok {
 			b.addNegativeEntry(req.Name)
 		}
 
