@@ -2177,13 +2177,17 @@ func (t *FileTest) Close_Clobbered() {
 	ExpectEq("foobar", string(contents))
 }
 
-/*func (t *FileTest) AtimeAndCtime() {
+func (t *FileTest) AtimeAndCtime() {
 	var err error
 
 	// Create a file.
 	p := path.Join(mntDir, "foo")
 	createTime := mtimeClock.Now()
-	err = ioutil.WriteFile(p, []byte{}, 0400)
+	f, err := os.Create(p)
+	AssertEq(nil, err)
+	_, err = f.Write([]byte("test contents"))
+	AssertEq(nil, err)
+	err = f.Close()
 	AssertEq(nil, err)
 
 	// Stat it.
@@ -2196,7 +2200,7 @@ func (t *FileTest) Close_Clobbered() {
 
 	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
 	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
-}*/
+}
 
 func (t *FileTest) ContentTypes() {
 	testCases := map[string]string{
