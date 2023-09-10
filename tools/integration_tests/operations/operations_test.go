@@ -103,7 +103,7 @@ func TestMain(m *testing.M) {
 	// Set up config file with create-empty-file: false.
 	mountConfig := config.MountConfig{
 		WriteConfig: config.WriteConfig{
-			CreateEmptyFile: false,
+			CreateEmptyFile: true,
 		},
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,

@@ -29,9 +29,6 @@ type MountConfig struct {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
-	mountConfig.WriteConfig = WriteConfig{
-		CreateEmptyFile: false,
-	}
 	mountConfig.LogConfig = LogConfig{
 		// Making the default value as INFO
 		Severity: INFO,
