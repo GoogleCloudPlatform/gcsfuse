@@ -2211,15 +2211,16 @@ func (t *FileTest) ContentTypes() {
 		// Create a file.
 		f, err := os.Create(p)
 		AssertEq(nil, err)
-		f.Close()
-
-		// Modify the file and cause a new generation to be written out.
-		f1, err := os.Open(p)
-		defer f1.Close()
-		_, err = f.Write([]byte("taco"))
+		err = f.Close()
 		AssertEq(nil, err)
 
-		err = f.Sync()
+		// Modify the file and cause a new generation to be written out.
+		f1, err := os.OpenFile(p, os.O_WRONLY, 0)
+		defer f1.Close()
+		_, err = f1.Write([]byte("taco"))
+		AssertEq(nil, err)
+
+		err = f1.Sync()
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
