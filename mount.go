@@ -140,8 +140,8 @@ be interacting with the file system.`)
 		Options:    flags.MountOptions,
 	}
 
-	mountCfg.ErrorLogger = logger.DefaultLoggerFactory().NewLogger(logger.LevelError, "fuse: ")
-	mountCfg.DebugLogger = logger.DefaultLoggerFactory().NewLogger(logger.LevelTrace, "fuse_debug: ")
+	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
