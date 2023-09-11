@@ -21,16 +21,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
 // Wrap the supplied bucket in a layer that prints debug messages.
 func NewDebugBucket(
-	wrapped gcs.Bucket,
-	logger *log.Logger) (b gcs.Bucket) {
+	wrapped gcs.Bucket) (b gcs.Bucket) {
 	b = &debugBucket{
-		logger:  logger,
 		wrapped: wrapped,
 	}
 
@@ -57,7 +56,7 @@ func (b *debugBucket) requestLogf(
 	id uint64,
 	format string,
 	v ...interface{}) {
-	b.logger.Printf("Req %#16x: %s", id, fmt.Sprintf(format, v...))
+	logger.Tracef("gcs: Req %#16x: %s", id, fmt.Sprintf(format, v...))
 }
 
 func (b *debugBucket) startRequest(
