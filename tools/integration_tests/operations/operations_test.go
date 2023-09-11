@@ -112,6 +112,7 @@ func TestMain(m *testing.M) {
 	configFile := setup.YAMLConfigFile(mountConfig)
 	// Set up flags to run tests on.
 	flags := [][]string{
+		// By default, creating emptyFile is disabled.
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},

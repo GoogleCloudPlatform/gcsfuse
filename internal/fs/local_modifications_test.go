@@ -2220,7 +2220,11 @@ func (t *FileTest) ContentTypes() {
 
 		// Modify the file and cause a new generation to be written out.
 		f1, err := os.OpenFile(p, os.O_WRONLY, 0)
-		defer f1.Close()
+		AssertEq(nil, err)
+		defer func() {
+			err := f1.Close()
+			AssertEq(nil, err)
+		}()
 		_, err = f1.Write([]byte("taco"))
 		AssertEq(nil, err)
 
