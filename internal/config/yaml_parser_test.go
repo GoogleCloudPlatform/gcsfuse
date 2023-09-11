@@ -32,8 +32,8 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	AssertEq(false, mountConfig.CreateEmptyFile)
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
-	AssertEq("json", mountConfig.LogFormat)
-	AssertEq("", mountConfig.LogFile)
+	AssertEq("json", mountConfig.LogConfig.Format)
+	AssertEq("", mountConfig.LogConfig.File)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -71,8 +71,8 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	AssertNe(nil, mountConfig)
 	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
 	AssertEq(ERROR, mountConfig.LogConfig.Severity)
-	AssertEq("/tmp/logfile.json", mountConfig.LogFile)
-	AssertEq("text", mountConfig.LogFormat)
+	AssertEq("/tmp/logfile.json", mountConfig.LogConfig.File)
+	AssertEq("text", mountConfig.LogConfig.Format)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {

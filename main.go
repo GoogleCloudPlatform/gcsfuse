@@ -185,40 +185,6 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
-func overrideWithLoggingFlags(mountConfig *config.MountConfig, flags *flagStorage) {
-	// if log file is not set in config file, override it with flag value.
-	if mountConfig.LogFile == "" {
-		mountConfig.LogFile = flags.LogFile
-	}
-	// if log format is not set in config file, override it with flag value.
-	if mountConfig.LogFormat == "" {
-		mountConfig.LogFormat = flags.LogFormat
-	}
-	// if debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
-	// severity to TRACE.
-	if flags.DebugFuse || flags.DebugGCS || flags.DebugMutex {
-		mountConfig.LogConfig.Severity = config.TRACE
-	}
-}
-
-func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
-	resolvedPath, err = getResolvedPath(filePath)
-	if filePath == resolvedPath || err != nil {
-		return
-	}
-
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
-	return resolvedPath, nil
-}
-
-func resolveConfigFilePaths(config *config.MountConfig) (err error) {
-	config.LogFile, err = resolveFilePath(config.LogFile, "logging: file")
-	if err != nil {
-		return
-	}
-	return
-}
-
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -243,7 +209,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(mountConfig.LogFile, mountConfig.LogFormat, mountConfig.Severity)
+		err = logger.InitLogFile(mountConfig.LogConfig.File, mountConfig.LogConfig.Format, mountConfig.LogConfig.Severity)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
