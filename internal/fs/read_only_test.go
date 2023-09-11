@@ -33,7 +33,7 @@ type ReadOnlyTest struct {
 }
 
 func init() {
-	//RegisterTestSuite(&ReadOnlyTest{})
+	RegisterTestSuite(&ReadOnlyTest{})
 }
 
 func (t *ReadOnlyTest) SetUpTestSuite() {

@@ -40,7 +40,7 @@ type ImplicitDirsTest struct {
 }
 
 func init() {
-	//RegisterTestSuite(&ImplicitDirsTest{})
+	RegisterTestSuite(&ImplicitDirsTest{})
 }
 
 func (t *ImplicitDirsTest) SetUpTestSuite() {

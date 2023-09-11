@@ -37,7 +37,7 @@ type ImplicitDirsWithCacheTest struct {
 }
 
 func init() {
-	//RegisterTestSuite(&ImplicitDirsWithCacheTest{})
+	RegisterTestSuite(&ImplicitDirsWithCacheTest{})
 }
 
 func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
