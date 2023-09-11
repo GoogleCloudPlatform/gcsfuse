@@ -988,7 +988,7 @@ func (fs *fileSystem) syncFile(
 	// syncFile can be triggered for unlinked files if the fileHandle is open by same
 	// or another user. Hence, returning an error when syncFile is called for local file.
 	if f.IsLocal() && f.IsUnlinked() {
-		err = fmt.Errorf("file is unlinked")
+		// Silently ignore the syncFile call. This is in sync with non-local file behaviour.
 		return
 	}
 
