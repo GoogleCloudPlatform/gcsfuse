@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -40,8 +39,7 @@ func mountWithStorageHandle(
 	mountPoint string,
 	flags *flagStorage,
 	mountConfig *config.MountConfig,
-	storageHandle storage.StorageHandle,
-	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -134,7 +132,7 @@ be interacting with the file system.`)
 	}
 
 	// Mount the file system.
-	status.Printf("Mounting file system %q...", fsName)
+	logger.Infof("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
 		Subtype:    "gcsfuse",
@@ -142,13 +140,8 @@ be interacting with the file system.`)
 		Options:    flags.MountOptions,
 	}
 
-	if flags.DebugFuseErrors {
-		mountCfg.ErrorLogger = logger.NewError("fuse: ")
-	}
-
-	if flags.DebugFuse {
-		mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
-	}
+	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {
