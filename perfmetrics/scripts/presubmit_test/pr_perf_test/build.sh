@@ -58,17 +58,36 @@ function execute_perf_test() {
   sudo umount gcs
 }
 
+function install_requirements() {
+  echo Installing python3-pip
+  sudo apt-get -y install python3-pip
+  echo Installing libraries to run python script
+  pip install google-cloud
+  pip install google-cloud-vision
+  pip install google-api-python-client
+  pip install prettytable
+  echo Installing fio
+  sudo apt-get install fio -y
+}
+
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
+  install_requirements
+
+  # To allow 'git checkout' to pass
+  git reset --hard HEAD
+
  # Executing perf tests for master branch
  git checkout master
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
  execute_perf_test
-
-
+ 
+# To allow 'git checkout' to pass
+  git reset --hard HEAD
+  
  # Executing perf tests for PR branch
  echo checkout PR branch
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
@@ -83,6 +102,9 @@ fi
 # Execute integration tests.
 if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
+  # To allow 'git checkout' to pass
+  git reset --hard HEAD
+
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
