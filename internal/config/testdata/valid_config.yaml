@@ -1,5 +1,7 @@
 write:
   create-empty-file: true
 logging:
+  file-path: /tmp/logfile.json
+  format: text
   severity: error
 

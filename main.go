@@ -35,6 +35,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
@@ -176,7 +177,7 @@ func populateArgs(c *cli.Context) (
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
 	// before running this code again.
-	mountPoint, err = getResolvedPath(mountPoint)
+	mountPoint, err = util.GetResolvedPath(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %w", err)
 		return
@@ -200,13 +201,16 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	// if debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log severity to TRACE
-	if flags.DebugFuse || flags.DebugGCS || flags.DebugMutex {
-		mountConfig.LogConfig.Severity = config.TRACE
+	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
+		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+
+	err = util.ResolveConfigFilePaths(mountConfig)
+	if err != nil {
+		return fmt.Errorf("Resolving path: %w", err)
 	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(flags.LogFile, flags.LogFormat, mountConfig.Severity)
+		err = logger.InitLogFile(mountConfig.LogConfig.FilePath, mountConfig.LogConfig.Format, mountConfig.LogConfig.Severity)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -278,7 +282,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Pass the parent process working directory to child process via
 		// environment variable. This variable will be used to resolve relative paths.
 		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
-			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR,
+			env = append(env, fmt.Sprintf("%s=%s", util.GCSFUSE_PARENT_PROCESS_DIR,
 				parentProcessExecutionDir))
 		}
 

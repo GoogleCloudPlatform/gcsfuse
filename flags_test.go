@@ -28,8 +28,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const gcsFuseParentProcessDir = "/var/generic/google"
-
 func TestFlags(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
@@ -250,110 +248,6 @@ func (t *FlagsTest) Maps() {
 	ExpectEq("", f.MountOptions["nodev"])
 	ExpectEq("", f.MountOptions["rw"])
 	ExpectEq("jacobsa", f.MountOptions["user"])
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda() {
-	resolvedPath, err := getResolvedPath("~/test.txt")
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() {
-	resolvedPath, err := getResolvedPath("./test.txt")
-
-	AssertEq(nil, err)
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(currentWorkingDir, "./test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDoubleDot() {
-	resolvedPath, err := getResolvedPath("../test.txt")
-
-	AssertEq(nil, err)
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(currentWorkingDir, "../test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndRelativePath() {
-	resolvedPath, err := getResolvedPath("test.txt")
-
-	AssertEq(nil, err)
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(currentWorkingDir, "test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvNotSetAndAbsoluteFilePath() {
-	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
-
-	AssertEq(nil, err)
-	ExpectEq("/var/dir/test.txt", resolvedPath)
-}
-
-func (t *FlagsTest) ResolveEmptyFilePath() {
-	resolvedPath, err := getResolvedPath("")
-
-	AssertEq(nil, err)
-	ExpectEq("", resolvedPath)
-}
-
-// Below all tests when GCSFUSE_PARENT_PROCESS_DIR env variable is set.
-// By setting this environment variable, resolve will work for child process.
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	resolvedPath, err := getResolvedPath("~/test.txt")
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	resolvedPath, err := getResolvedPath("./test.txt")
-
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "./test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	resolvedPath, err := getResolvedPath("../test.txt")
-
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "../test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	resolvedPath, err := getResolvedPath("test.txt")
-
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(gcsFuseParentProcessDir, "test.txt"), resolvedPath)
-}
-
-func (t *FlagsTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
-	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
-	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
-
-	resolvedPath, err := getResolvedPath("/var/dir/test.txt")
-
-	AssertEq(nil, err)
-	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
