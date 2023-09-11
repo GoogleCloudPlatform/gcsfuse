@@ -19,8 +19,8 @@ package config
 func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
 	debugFuse bool, debugGCS bool, debugMutex bool) {
 	// If log file is not set in config file, override it with flag value.
-	if mountConfig.LogConfig.File == "" {
-		mountConfig.LogConfig.File = logFile
+	if mountConfig.LogConfig.FilePath == "" {
+		mountConfig.LogConfig.FilePath = logFile
 	}
 	// If log format is not set in config file, override it with flag value.
 	if mountConfig.LogConfig.Format == "" {

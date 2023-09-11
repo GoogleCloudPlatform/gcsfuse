@@ -147,7 +147,7 @@ func (t *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 func (t *UtilTest) TestResolveConfigFilePaths() {
 	mountConfig := &config.MountConfig{}
 	mountConfig.LogConfig = config.LogConfig{
-		File: "~/test.txt",
+		FilePath: "~/test.txt",
 	}
 
 	err := ResolveConfigFilePaths(mountConfig)
@@ -155,5 +155,5 @@ func (t *UtilTest) TestResolveConfigFilePaths() {
 	AssertEq(nil, err)
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.File)
+	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
 }

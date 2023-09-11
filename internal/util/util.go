@@ -70,7 +70,7 @@ func ResolveFilePath(filePath string, configKey string) (resolvedPath string, er
 
 // ResolveConfigFilePaths resolved the config file paths specified in the config file.
 func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
-	config.LogConfig.File, err = ResolveFilePath(config.LogConfig.File, "logging: file")
+	config.LogConfig.FilePath, err = ResolveFilePath(config.LogConfig.FilePath, "logging: file")
 	if err != nil {
 		return
 	}
