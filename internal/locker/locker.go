@@ -91,7 +91,7 @@ func (d *debugger) Lock() {
 	d.holder = string(buf)
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		logger.Debugf("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
 	})
 }
 
