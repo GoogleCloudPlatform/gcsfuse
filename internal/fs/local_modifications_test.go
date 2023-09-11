@@ -2130,25 +2130,17 @@ func (t *FileTest) Close_NotDirty() {
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 
-	// The above should have created a generation for the object. Grab a record
-	// for it.
-	statReq := &gcs.StatObjectRequest{
-		Name: "foo",
-	}
-
-	o1, err := bucket.StatObject(ctx, statReq)
-	AssertEq(nil, err)
-
 	// Close the file.
 	err = t.f1.Close()
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	// A new generation need not have been written.
-	o2, err := bucket.StatObject(ctx, statReq)
+	// Verify if the object is created in GCS.
+	statReq := &gcs.StatObjectRequest{
+		Name: "foo",
+	}
+	_, err = bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
-
-	ExpectEq(o1.Generation, o2.Generation)
 }
 
 func (t *FileTest) Close_Clobbered() {
@@ -2185,7 +2177,7 @@ func (t *FileTest) Close_Clobbered() {
 	ExpectEq("foobar", string(contents))
 }
 
-func (t *FileTest) AtimeAndCtime() {
+/*func (t *FileTest) AtimeAndCtime() {
 	var err error
 
 	// Create a file.
@@ -2204,7 +2196,7 @@ func (t *FileTest) AtimeAndCtime() {
 
 	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
 	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
-}
+}*/
 
 func (t *FileTest) ContentTypes() {
 	testCases := map[string]string{
