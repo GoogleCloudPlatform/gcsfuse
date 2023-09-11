@@ -2049,7 +2049,6 @@ func (t *FileTest) Sync_NotDirty() {
 	statReq := &gcs.StatObjectRequest{
 		Name: "foo",
 	}
-
 	o1, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
@@ -2060,7 +2059,6 @@ func (t *FileTest) Sync_NotDirty() {
 	// A new generation need not have been written.
 	o2, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
-
 	ExpectEq(o1.Generation, o2.Generation)
 }
 
