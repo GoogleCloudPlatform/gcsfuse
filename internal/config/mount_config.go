@@ -20,6 +20,8 @@ type WriteConfig struct {
 
 type LogConfig struct {
 	Severity LogSeverity `yaml:"severity"`
+	Format   string      `yaml:"format"`
+	FilePath string      `yaml:"file-path"`
 }
 
 type MountConfig struct {
@@ -30,8 +32,9 @@ type MountConfig struct {
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
-		// Making the default value as INFO
+		// Making the default severity as INFO and format as json.
 		Severity: INFO,
+		Format:   "json",
 	}
 	return mountConfig
 }
