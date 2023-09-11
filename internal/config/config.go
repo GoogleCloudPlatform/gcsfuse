@@ -4,15 +4,15 @@ package config
 // config values are empty.
 func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
 	debugFuse bool, debugGCS bool, debugMutex bool) {
-	// if log file is not set in config file, override it with flag value.
+	// If log file is not set in config file, override it with flag value.
 	if mountConfig.LogConfig.File == "" {
 		mountConfig.LogConfig.File = logFile
 	}
-	// if log format is not set in config file, override it with flag value.
+	// If log format is not set in config file, override it with flag value.
 	if mountConfig.LogConfig.Format == "" {
 		mountConfig.LogConfig.Format = logFormat
 	}
-	// if debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
+	// If debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
 	// severity to TRACE.
 	if debugFuse || debugGCS || debugMutex {
 		mountConfig.LogConfig.Severity = TRACE
