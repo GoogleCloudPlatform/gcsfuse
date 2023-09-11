@@ -21,7 +21,7 @@ type WriteConfig struct {
 type LogConfig struct {
 	Severity LogSeverity `yaml:"severity"`
 	Format   string      `yaml:"format"`
-	File     string      `yaml:"file"`
+	File     string      `yaml:"file-path"`
 }
 
 type MountConfig struct {
