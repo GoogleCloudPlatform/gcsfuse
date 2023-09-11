@@ -105,21 +105,21 @@ func Close() {
 // to the log file or stdout.
 func NewDebug(prefix string) *log.Logger {
 	// TODO: delete this method after all slog changed are merged.
-	return NewLogger(LevelDebug, prefix)
+	return LegacyLogger(LevelDebug, prefix)
 }
 
 // NewInfo returns a new logger for logging info with given prefix to the log
 // file or stdout.
 func NewInfo(prefix string) *log.Logger {
 	// TODO: delete this method after all slog changed are merged.
-	return NewLogger(LevelInfo, prefix)
+	return LegacyLogger(LevelInfo, prefix)
 }
 
 // NewError returns a new logger for logging errors with given prefix to the log
 // file or stderr.
 func NewError(prefix string) *log.Logger {
 	// TODO: delete this method after all slog changed are merged.
-	return NewLogger(LevelError, prefix)
+	return LegacyLogger(LevelError, prefix)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.

@@ -54,7 +54,7 @@ func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
 	}
 }
 
-// customiseLevels changes the name of the level key to "severity" and the value to
+// CustomiseLevels changes the name of the level key to "severity" and the value to
 // it's corresponding level like DEBUG, INFO, ERROR, etc.
 func customiseLevels(a *slog.Attr) {
 	// Rename the level key from "level" to "sev".
@@ -80,7 +80,7 @@ func customiseLevels(a *slog.Attr) {
 	}
 }
 
-// addPrefixToMessage adds the prefix to the log message.
+// AddPrefixToMessage adds the prefix to the log message.
 func addPrefixToMessage(a *slog.Attr, prefix string) {
 	message := a.Value.Any().(string)
 	var sb strings.Builder
@@ -89,7 +89,7 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 	a.Value = slog.StringValue(sb.String())
 }
 
-// customiseTimeFormat converts the time to below specified format:
+// CustomiseTimeFormat converts the time to below specified format:
 // 1. for json logs:
 // "time":{"timestampSeconds":1694164762,"timestampNanos":1694164762084862036}
 // 2. for text logs:
