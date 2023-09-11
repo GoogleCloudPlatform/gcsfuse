@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"syscall"
 	"time"
 
@@ -32,8 +31,6 @@ import (
 	"go.opencensus.io/tag"
 )
 
-var errorLogger *log.Logger
-
 var (
 	opsCount      = stats.Int64("fs/ops_count", "The number of ops processed by the file system.", stats.UnitDimensionless)
 	opsLatency    = stats.Float64("fs/ops_latency", "The latency of a file system operation.", stats.UnitMilliseconds)
@@ -42,8 +39,6 @@ var (
 
 // Initialize the metrics.
 func init() {
-
-	errorLogger = logger.NewError("")
 
 	// Register the view.
 	if err := view.Register(
@@ -111,7 +106,7 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 			opsErrorCount.M(1),
 		); err != nil {
 			// Error in recording opErrorCount.
-			errorLogger.Printf("Cannot record error count of the file system failed operations: %v", err)
+			logger.Errorf("Cannot record error count of the file system failed operations: %v", err)
 		}
 	}
 
@@ -125,7 +120,7 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 		opsLatency.M(latencyMs),
 	); err != nil {
 		// Error in opLatency.
-		errorLogger.Printf("Cannot record file system operation latency: %v", err)
+		logger.Errorf("Cannot record file system operation latency: %v", err)
 	}
 }
 
