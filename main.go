@@ -141,8 +141,7 @@ func mountWithArgs(
 		mountPoint,
 		flags,
 		mountConfig,
-		storageHandle,
-		mountStatus)
+		storageHandle)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -317,7 +316,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	var mfs *fuse.MountedFileSystem
 	{
 		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
 		if err == nil {
 			mountStatus.Println("File system has been successfully mounted.")
