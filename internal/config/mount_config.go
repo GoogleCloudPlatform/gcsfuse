@@ -28,14 +28,10 @@ type MountConfig struct {
 }
 
 func NewMountConfig() *MountConfig {
-	return &MountConfig{
-		WriteConfig{
-			// Making the default value as true to keep it inline with current behaviour.
-			CreateEmptyFile: true,
-		},
-		LogConfig{
-			// Making the default value as INFO
-			Severity: INFO,
-		},
+	mountConfig := &MountConfig{}
+	mountConfig.LogConfig = LogConfig{
+		// Making the default value as INFO
+		Severity: INFO,
 	}
+	return mountConfig
 }

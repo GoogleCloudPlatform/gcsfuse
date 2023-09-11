@@ -30,7 +30,7 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
-	AssertEq(true, mountConfig.CreateEmptyFile)
+	AssertEq(false, mountConfig.CreateEmptyFile)
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
 }
 

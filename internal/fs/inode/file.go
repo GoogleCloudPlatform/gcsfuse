@@ -397,13 +397,6 @@ func (f *FileInode) Attributes(
 	attrs.Atime = attrs.Mtime
 	attrs.Ctime = attrs.Mtime
 
-	// Clobbered check makes a stat call to GCS. Avoiding stat calls to GCS for
-	// local files when fetching attributes. Any validations will be done during
-	// sync call.
-	if f.IsLocal() {
-		return
-	}
-
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
 	_, clobbered, err := f.clobbered(ctx, false)
@@ -412,8 +405,11 @@ func (f *FileInode) Attributes(
 		return
 	}
 
-	if !clobbered {
-		attrs.Nlink = 1
+	attrs.Nlink = 1
+
+	// For local files, also checking if file is unlinked locally.
+	if clobbered || (f.IsLocal() && f.IsUnlinked()) {
+		attrs.Nlink = 0
 	}
 
 	return
