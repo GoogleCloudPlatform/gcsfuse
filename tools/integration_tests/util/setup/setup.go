@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
@@ -111,7 +110,7 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	}
 
 	if got := string(content); got != fileContent {
-		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", fileContent, got)
+		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
 	}
 }
 
@@ -185,8 +184,15 @@ func RemoveBinFileCopiedForTesting() {
 }
 
 func UnMount() error {
-	err := mounting.UnMountGcsfuse(mntDir)
-	return err
+	fusermount, err := exec.LookPath("fusermount")
+	if err != nil {
+		return fmt.Errorf("cannot find fusermount: %w", err)
+	}
+	cmd := exec.Command(fusermount, "-uz", mntDir)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("fusermount error: %w", err)
+	}
+	return nil
 }
 
 func ExecuteTest(m *testing.M) (successCode int) {
@@ -258,8 +264,15 @@ func LogAndExit(s string) {
 
 // Clean the mounted directory
 func CleanMntDir() {
-	err := operations.EmptyDir(mntDir)
+	dir, err := os.ReadDir(mntDir)
 	if err != nil {
-		log.Printf("Error in clearning mnt directory: %v", err)
+		log.Printf("Error in reading directory: %v", err)
+	}
+
+	for _, d := range dir {
+		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
+		if err != nil {
+			log.Printf("Error in removing directory: %v", err)
+		}
 	}
 }

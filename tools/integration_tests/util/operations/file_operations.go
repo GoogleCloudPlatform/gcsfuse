@@ -437,10 +437,3 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	_, err := ExecuteGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
 }
-
-// GetGCSObject gets content of a given GCS object as string (using GCS path without 'gs://')
-func GetGCSObject(gcsObjPath string) (objContent string, err error) {
-	byteContent, err := ExecuteGsutilCommandf("cat gs://%s", gcsObjPath)
-	objContent = string(byteContent)
-	return
-}
