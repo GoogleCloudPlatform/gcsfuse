@@ -217,7 +217,8 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	// Close the file.
 	AssertEq(nil, t.f1.Close())
 	t.f1 = nil
-	// The object should now be present in the bucket, with empty contents.
+
+	// The object should now be present in the bucket.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("012", string(contents))
