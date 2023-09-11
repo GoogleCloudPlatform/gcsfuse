@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/flag"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/ogletest"
 )
@@ -22,7 +23,7 @@ type MainTest struct {
 func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandle() {
-	flags := &flagStorage{
+	flags := &flag.FlagStorage{
 		ClientProtocol:      mountpkg.HTTP1,
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,

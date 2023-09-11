@@ -17,6 +17,7 @@ package config
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/flag"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -43,7 +44,7 @@ func init() { RegisterTestSuite(&ConfigTest{}) }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
-	f := &flags{
+	flags := &flag.FlagStorage{
 		LogFile:    "a.txt",
 		LogFormat:  "json",
 		DebugFuse:  true,
@@ -60,7 +61,7 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
 		CreateEmptyFile: true,
 	}
 
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
+	OverrideWithLoggingFlags(mountConfig, flags)
 
 	AssertEq(mountConfig.LogConfig.Format, "text")
 	AssertEq(mountConfig.LogConfig.FilePath, "/tmp/hello.txt")
@@ -68,7 +69,7 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
 }
 
 func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
-	f := &flags{
+	flags := &flag.FlagStorage{
 		LogFile:   "a.txt",
 		LogFormat: "json",
 	}
@@ -82,7 +83,7 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 		CreateEmptyFile: true,
 	}
 
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
+	OverrideWithLoggingFlags(mountConfig, flags)
 
 	AssertEq(mountConfig.LogConfig.Format, "json")
 	AssertEq(mountConfig.LogConfig.FilePath, "a.txt")

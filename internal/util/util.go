@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/urfave/cli"
 )
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -74,5 +75,40 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 	if err != nil {
 		return
 	}
+	return
+}
+
+// This method resolves path in the context dictionary.
+func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
+	flagValue := c.String(flagKey)
+	resolvedPath, err := ResolveFilePath(flagValue, flagKey)
+	if err != nil {
+		return
+	}
+
+	err = c.Set(flagKey, resolvedPath)
+	return
+}
+
+// For parent process: it only resolves the path with respect to home folder.
+// For child process: it resolves the path relative to both home directory and
+// GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
+// is disabled.
+func ResolvePathForTheFlagsInContext(c *cli.Context) (err error) {
+	err = resolvePathForTheFlagInContext("log-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for log-file: %w", err)
+	}
+
+	err = resolvePathForTheFlagInContext("key-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for key-file: %w", err)
+	}
+
+	err = resolvePathForTheFlagInContext("config-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for config-file: %w", err)
+	}
+
 	return
 }

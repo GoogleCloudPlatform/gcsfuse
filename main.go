@@ -29,6 +29,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/flag"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
@@ -81,7 +82,7 @@ func getUserAgent(appName string) string {
 	}
 }
 
-func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(flags *flag.FlagStorage) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -109,7 +110,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 func mountWithArgs(
 	bucketName string,
 	mountPoint string,
-	flags *flagStorage,
+	flags *flag.FlagStorage,
 	mountConfig *config.MountConfig) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
@@ -186,12 +187,12 @@ func populateArgs(c *cli.Context) (
 }
 
 func runCLIApp(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagsInContext(c)
+	err = util.ResolvePathForTheFlagsInContext(c)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	flags, err := populateFlags(c)
+	flags, err := flag.PopulateFlags(c)
 	if err != nil {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
@@ -201,8 +202,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
-		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+	config.OverrideWithLoggingFlags(mountConfig, flags)
 
 	err = util.ResolveConfigFilePaths(mountConfig)
 	if err != nil {
@@ -350,7 +350,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 func run() (err error) {
 	// Set up the app.
-	app := newApp()
+	app := flag.NewApp(getVersion())
 
 	var appErr error
 	app.Action = func(c *cli.Context) {
