@@ -21,13 +21,13 @@ import (
 	"log/slog"
 )
 
-// LegacyLogger creates a new legacy logger. Avoid using this logger wherever possible and
+// NewLegacyLogger creates a new legacy logger. Avoid using this logger wherever possible and
 // prioritise using the default logger methods like Infof(), Warnf(), Errorf(), etc
 // present in logger package as this does not provide control to set log level for
 // individual log messages.
 // This method is created to support jacobsa/fuse loggers and will be removed
 // after slog support is added.
-func LegacyLogger(level slog.Level, prefix string) *log.Logger {
+func NewLegacyLogger(level slog.Level, prefix string) *log.Logger {
 	var programLevel = new(slog.LevelVar)
 	logger := slog.NewLogLogger(defaultLoggerFactory.handler(programLevel, prefix), level)
 	setLoggingLevel(defaultLoggerFactory.level, programLevel)
