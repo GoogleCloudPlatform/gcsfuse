@@ -21,16 +21,17 @@ import (
 	"os/exec"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func MountGcsfuse(binaryFile string, flags []string, logFile string) error {
+func MountGcsfuse(binaryFile string, flags []string) error {
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,
 	)
 
 	// Adding mount command in LogFile
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Could not open logfile")
 	}
@@ -46,18 +47,6 @@ func MountGcsfuse(binaryFile string, flags []string, logFile string) error {
 	if err != nil {
 		log.Println(mountCmd.String())
 		return fmt.Errorf("cannot mount gcsfuse: %w\n", err)
-	}
-	return nil
-}
-
-func UnMountGcsfuse(mountPath string) error {
-	fusermount, err := exec.LookPath("fusermount")
-	if err != nil {
-		return fmt.Errorf("cannot find fusermount: %w", err)
-	}
-	cmd := exec.Command(fusermount, "-uz", mountPath)
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("fusermount error: %w", err)
 	}
 	return nil
 }

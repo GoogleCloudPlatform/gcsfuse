@@ -1009,15 +1009,15 @@ func (fs *fileSystem) syncFile(
 	}
 	fs.mu.Unlock()
 
-	// We need not update fs.inodes:
+	// We need not update fileIndex:
 	//
 	// We've held the inode lock the whole time, so there's no way that this
 	// inode could have been booted from the index. Therefore if it's not in the
 	// index at the moment, it must not have been in there when we started. That
-	// is, it must have been clobbered remotely.
+	// is, it must have been clobbered remotely, which we treat as unlinking.
 	//
 	// In other words, either this inode is still in the index or it has been
-	// clobbered and *should* be anonymous.
+	// unlinked and *should* be anonymous.
 
 	return
 }

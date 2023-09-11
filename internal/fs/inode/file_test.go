@@ -664,10 +664,10 @@ func (t *FileTest) Sync_Clobbered() {
 
 	AssertEq(nil, err)
 
-	// Sync. The call should not succeed to let user know about the error.
+	// Sync. The call should succeed, but nothing should change.
 	err = t.in.Sync(t.ctx)
 
-	AssertEq(FileClobberedErrMsg, err.Error())
+	AssertEq(nil, err)
 	ExpectEq(t.backingObj.Generation, t.in.SourceGeneration().Object)
 	ExpectEq(t.backingObj.MetaGeneration, t.in.SourceGeneration().Metadata)
 
