@@ -23,6 +23,7 @@ import (
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
 )
 
@@ -413,7 +414,7 @@ type flagStorage struct {
 // This method resolves path in the context dictionary.
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
-	resolvedPath, err := resolveFilePath(flagValue, flagKey)
+	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
 	if err != nil {
 		return
 	}
