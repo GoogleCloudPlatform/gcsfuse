@@ -193,7 +193,8 @@ func (t *UtilTest) TestResolvePathForTheFlagsInContext() {
 	currentWorkingDir, err := os.Getwd()
 	AssertEq(nil, err)
 	app.Action = func(appCtx *cli.Context) {
-		ResolvePathForTheFlagsInContext(appCtx)
+		err = ResolvePathForTheFlagsInContext(appCtx)
+		AssertEq(nil, err)
 
 		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
