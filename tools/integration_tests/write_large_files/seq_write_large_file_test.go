@@ -42,7 +42,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	// Clean up.
 	defer operations.RemoveDir(seqWriteDir)
 
-	// Sequentially read the data from file.
+	// Sequentially write the data in file.
 	err = operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
 		t.Fatalf("Error in writing file: %v", err)
