@@ -12,30 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package storageutil
 
-import (
-	"time"
-)
+import "hash/crc32"
 
-const ContentEncodingGzip = "gzip"
+var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
-// MinObject is a record representing subset of properties of a particular
-// generation object in GCS.
-//
-// See here for more information about its fields:
-//
-//	https://cloud.google.com/storage/docs/json_api/v1/objects#resource
-type MinObject struct {
-	Name            string
-	Size            uint64
-	Generation      int64
-	MetaGeneration  int64
-	Updated         time.Time
-	Metadata        map[string]string
-	ContentEncoding string
-}
-
-func (mo MinObject) HasContentEncodingGzip() bool {
-	return mo.ContentEncoding == ContentEncodingGzip
+// Return a value appropriate for placing in CreateObjectRequest.CRC32C for the
+// given object contents.
+func CRC32C(contents []byte) *uint32 {
+	checksum := crc32.Checksum(contents, crc32cTable)
+	return &checksum
 }

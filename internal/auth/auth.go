@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 // Create token source from the JSON file at the supplide path.
@@ -59,7 +59,7 @@ func GetTokenSource(
 	reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
-	const scope = gcs.Scope_FullControl
+	const scope = storagev1.DevstorageFullControlScope
 	var method string
 
 	if keyFile != "" {

@@ -1,6 +1,6 @@
 # Current status
 
-Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that it is used within it's documented supported applications, platforms, and limits. Support requests, feature requests, and general questions should be submitted as a support request via Google Cloud support channels or via GitHub [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues).
+Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that it is used within its documented supported applications, platforms, and limits. Support requests, feature requests, and general questions should be submitted as a support request via Google Cloud support channels or via GitHub [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues).
 
 Cloud Storage FUSE is open source software, released under the 
 [Apache license](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/LICENSE).

@@ -110,7 +110,7 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	}
 
 	if got := string(content); got != fileContent {
-		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", got, fileContent)
+		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", fileContent, got)
 	}
 }
 

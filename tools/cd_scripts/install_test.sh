@@ -22,12 +22,21 @@ gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 touch ~/logs.txt
 
+# uname can be x86_64 or aarch64
+uname=$(uname -m)
+if [[ $uname == "x86_64" ]]; then
+  architecture="amd64"
+elif [[ $uname == "aarch64" ]]; then
+  architecture="arm64"
+fi
+
 # Based on the os type(from vm instance name) in detail.txt, run the following commands to install apt-transport-artifact-registry
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For ubuntu and debian os
     curl https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | sudo apt-key add - && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-    echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-stable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
+    # Here we used apt-transport-artifact-registry-unstable main as stable one does not supports arm64, will switch back to stable once they support.
+    echo 'deb http://packages.cloud.google.com/apt apt-transport-artifact-registry-unstable main' | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
     sudo apt update
     sudo apt install apt-transport-artifact-registry
     echo "deb ar+https://us-apt.pkg.dev/projects/gcs-fuse-prod gcsfuse-$(lsb_release -cs) main" | sudo tee -a /etc/apt/sources.list.d/artifact-registry.list
@@ -37,8 +46,10 @@ then
     sudo apt install -y gcsfuse=$(sed -n 1p details.txt) -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
 else
 #  For rhel and centos
-    sudo yum makecache
-    sudo yum -y install yum-plugin-artifact-registry
+    # arm64 machines only supports dnf
+    sudo yum -y install dnf
+    sudo dnf makecache
+    sudo yum -y install dnf-plugin-artifact-registry
 sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
 [gcsfuse-el7-x86-64]
 name=gcsfuse-el7-x86-64
@@ -49,8 +60,8 @@ gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
     https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-    sudo yum makecache
-    sudo yum -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    sudo dnf makecache
+    sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
@@ -62,23 +73,27 @@ else
     echo "Failure detected in latest gcsfuse version installation." &>> ~/logs.txt
 fi
 
-# Uninstall gcsfuse latest version and install old version
-if grep -q ubuntu details.txt || grep -q debian details.txt;
+# This will execute only for amd64 machines, as we have not had any previous releases for arm64.
+if [[ $architecture == amd64 ]];
 then
-    sudo apt remove -y gcsfuse
-    sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
-else
-    sudo yum -y remove gcsfuse
-    sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
-fi
+  # Uninstall gcsfuse latest version and install old version
+  if grep -q ubuntu details.txt || grep -q debian details.txt;
+  then
+      sudo apt remove -y gcsfuse
+      sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
+  else
+      sudo dnf -y remove gcsfuse
+      sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+  fi
 
-# verify old version installation
-gcsfuse --version |& tee version.txt
-installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-if [ $installed_version == "0.42.5" ]; then
-    echo "GCSFuse old version (0.42.5) installed successfully" &>> ~/logs.txt
-else
-    echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
+  # verify old version installation
+  gcsfuse --version |& tee version.txt
+  installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
+  if [ $installed_version == "0.42.5" ]; then
+      echo "GCSFuse old version (0.42.5) installed successfully" &>> ~/logs.txt
+  else
+      echo "Failure detected in GCSFuse old version installation." &>> ~/logs.txt
+  fi
 fi
 
 # Upgrade gcsfuse to latest version
@@ -86,7 +101,7 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
 else
-    sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+    sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
 fi
 
 gcsfuse --version |& tee version.txt

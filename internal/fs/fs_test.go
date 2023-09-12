@@ -29,16 +29,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -122,7 +123,7 @@ func (t *fsTest) SetUpTestSuite() {
 	} else {
 		// mount a single bucket
 		if bucket == nil {
-			bucket = gcsfake.NewFakeBucket(mtimeClock, "some_bucket")
+			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket")
 		}
 		t.serverCfg.BucketName = bucket.Name()
 		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
@@ -137,6 +138,9 @@ func (t *fsTest) SetUpTestSuite() {
 	}
 	t.serverCfg.RenameDirLimit = RenameDirLimit
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
+	if t.serverCfg.MountConfig == nil {
+		t.serverCfg.MountConfig = config.NewMountConfig()
+	}
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
@@ -241,12 +245,12 @@ func (t *fsTest) createObjects(in map[string]string) error {
 		b[k] = []byte(v)
 	}
 
-	err := gcsutil.CreateObjects(ctx, bucket, b)
+	err := storageutil.CreateObjects(ctx, bucket, b)
 	return err
 }
 
 func (t *fsTest) createEmptyObjects(names []string) error {
-	err := gcsutil.CreateEmptyObjects(ctx, bucket, names)
+	err := storageutil.CreateEmptyObjects(ctx, bucket, names)
 	return err
 }
 

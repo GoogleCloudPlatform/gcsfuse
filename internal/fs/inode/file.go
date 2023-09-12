@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -68,10 +68,10 @@ type FileInode struct {
 
 	// The source object from which this inode derives.
 	//
-	// INVARIANT: src.Name == name.GcsObjectName()
+	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
 	//
 	// GUARDED_BY(mu)
-	src storage.MinObject
+	src gcs.MinObject
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -81,6 +81,12 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	destroyed bool
+
+	// Represents a local file which is not yet synced to GCS.
+	local bool
+
+	// Represents if local file has been unlinked.
+	unlinked bool
 }
 
 var _ Inode = &FileInode{}
@@ -101,7 +107,8 @@ func NewFileInode(
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
-	mtimeClock timeutil.Clock) (f *FileInode) {
+	mtimeClock timeutil.Clock,
+	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	f = &FileInode{
 		bucket:         bucket,
@@ -112,6 +119,8 @@ func NewFileInode(
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
 		src:            convertObjToMinObject(o),
+		local:          localFile,
+		unlinked:       false,
 	}
 
 	f.lc.Init(id)
@@ -138,8 +147,8 @@ func (f *FileInode) checkInvariants() {
 		panic("Illegal file name: " + name.String())
 	}
 
-	// INVARIANT: src.Name == name
-	if f.src.Name != name.GcsObjectName() {
+	// INVARIANT: For non-local inodes, src.Name == name
+	if !f.IsLocal() && f.src.Name != name.GcsObjectName() {
 		panic(fmt.Sprintf(
 			"Name mismatch: %q vs. %q",
 			f.src.Name,
@@ -167,6 +176,11 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		err = nil
+		if f.IsLocal() {
+			// For localFile, it is expected that object doesn't exist in GCS.
+			return
+		}
+
 		b = true
 		return
 	}
@@ -273,11 +287,23 @@ func (f *FileInode) Name() Name {
 	return f.name
 }
 
+func (f *FileInode) IsLocal() bool {
+	return f.local
+}
+
+func (f *FileInode) IsUnlinked() bool {
+	return f.unlinked
+}
+
+func (f *FileInode) Unlink() {
+	f.unlinked = true
+}
+
 // Source returns a record for the GCS object from which this inode is branched. The
 // record is guaranteed not to be modified, and users must not modify it.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Source() *storage.MinObject {
+func (f *FileInode) Source() *gcs.MinObject {
 	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
@@ -334,10 +360,6 @@ func (f *FileInode) Attributes(
 	attrs.Mtime = f.src.Updated
 	attrs.Size = uint64(f.src.Size)
 
-	// We require only that atime and ctime be "reasonable".
-	attrs.Atime = attrs.Mtime
-	attrs.Ctime = attrs.Mtime
-
 	// If the source object has an mtime metadata key, use that instead of its
 	// update time.
 	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
@@ -371,6 +393,10 @@ func (f *FileInode) Attributes(
 		}
 	}
 
+	// We require only that atime and ctime be "reasonable".
+	attrs.Atime = attrs.Mtime
+	attrs.Ctime = attrs.Mtime
+
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
 	_, clobbered, err := f.clobbered(ctx, false)
@@ -379,8 +405,11 @@ func (f *FileInode) Attributes(
 		return
 	}
 
-	if !clobbered {
-		attrs.Nlink = 1
+	attrs.Nlink = 1
+
+	// For local files, also checking if file is unlinked locally.
+	if clobbered || (f.IsLocal() && f.IsUnlinked()) {
+		attrs.Nlink = 0
 	}
 
 	return
@@ -458,13 +487,16 @@ func (f *FileInode) SetMtime(
 		}
 	}
 
-	// If the local content is dirty, simply update its mtime and return. This
+	// 1. If the local content is dirty, simply update its mtime and return. This
 	// will cause the object in the bucket to be updated once we sync. If we lose
 	// power or something the mtime update will be lost, but so will the file
 	// data modifications so this doesn't seem so bad. It's worth saving the
 	// round trip to GCS for the common case of Linux writeback caching, where we
 	// always receive a setattr request just before a flush of a dirty file.
-	if sr.Mtime != nil {
+	//
+	// 2. If the file is local, that means its not yet synced to GCS. Just update
+	// the mtime locally, it will be synced when the object is created on GCS.
+	if sr.Mtime != nil || f.IsLocal() {
 		f.content.SetMtime(mtime)
 		return
 	}
@@ -542,7 +574,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// Write out the contents if they are dirty.
 	// Object properties are also synced as part of content sync. Hence, passing
 	// the latest object fetched from gcs which has all the properties populated.
-	newObj, err := f.bucket.SyncObject(ctx, latestGcsObj, f.content)
+	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
 	// Special case: a precondition error means we were clobbered, which we treat
 	// as being unlinked. There's no reason to return an error in that case.
@@ -561,6 +593,10 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
 		f.src = convertObjToMinObject(newObj)
+		// Convert localFile to nonLocalFile after it is synced to GCS.
+		if f.IsLocal() {
+			f.local = false
+		}
 		f.content.Destroy()
 		f.content = nil
 	}
@@ -596,8 +632,20 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	return
 }
 
-func convertObjToMinObject(o *gcs.Object) (mo storage.MinObject) {
-	return storage.MinObject{
+func (f *FileInode) CreateEmptyTempFile() (err error) {
+	// Creating a file with no contents. The contents will be updated with
+	// writeFile operations.
+	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
+	return
+}
+
+func convertObjToMinObject(o *gcs.Object) gcs.MinObject {
+	var min gcs.MinObject
+	if o == nil {
+		return min
+	}
+
+	return gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,

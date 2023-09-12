@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
 type Type int
@@ -44,6 +44,9 @@ type Core struct {
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
 	Object *gcs.Object
+
+	// Specifies a local object which is not yet synced to GCS.
+	Local bool
 }
 
 // Exists returns true iff the back object exists implicitly or explicitly.
@@ -55,7 +58,7 @@ func (c *Core) Type() Type {
 	switch {
 	case c == nil:
 		return UnknownType
-	case c.Object == nil:
+	case c.Object == nil && !c.Local:
 		return ImplicitDirType
 	case c.FullName.IsDir():
 		return ExplicitDirType
@@ -72,8 +75,10 @@ func (c Core) SanityCheck() error {
 	if c.Object != nil && c.FullName.objectName != c.Object.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
 	}
-	if c.Object == nil && !c.FullName.IsDir() {
+
+	if c.Object == nil && !c.Local && !c.FullName.IsDir() {
 		return fmt.Errorf("object missing for %q", c.FullName)
 	}
+
 	return nil
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
 	"fmt"
@@ -20,12 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -40,7 +39,7 @@ type BaseDirTest struct {
 	ctx   context.Context
 	clock timeutil.SimulatedClock
 	bm    *fakeBucketManager
-	in    inode.DirInode
+	in    DirInode
 }
 
 var _ SetUpInterface = &BaseDirTest{}
@@ -59,12 +58,12 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketA"),
+		fake.NewFakeBucket(&t.clock, "bucketA"),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		gcsfake.NewFakeBucket(&t.clock, "bucketB"),
+		fake.NewFakeBucket(&t.clock, "bucketB"),
 	)
 
 	// Create the inode. No implicit dirs by default.
@@ -109,9 +108,9 @@ func (t *BaseDirTest) resetInode() {
 		t.in.Unlock()
 	}
 
-	t.in = inode.NewBaseDirInode(
+	t.in = NewBaseDirInode(
 		dirInodeID,
-		inode.NewRootName(""),
+		NewRootName(""),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
@@ -172,7 +171,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectEq("bucketA/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
 	ExpectEq(nil, result.Object)
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 
 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
 
@@ -184,7 +183,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectEq("bucketB/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
 	ExpectEq(nil, result.Object)
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 }
 
 func (t *BaseDirTest) LookUpChild_BucketCached() {

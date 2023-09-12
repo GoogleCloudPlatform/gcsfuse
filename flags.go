@@ -18,14 +18,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
 )
 
@@ -78,6 +76,12 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name:  "foreground",
 				Usage: "Stay in the foreground after mounting.",
+			},
+
+			cli.StringFlag{
+				Name:  "config-file",
+				Value: "",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
 			},
 
 			/////////////////////////
@@ -135,9 +139,11 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name: "custom-endpoint",
-				Usage: "Alternate endpoint for fetching data. Should be used only for testing purposes. " +
-					"The endpoint should be equivalent to the base endpoint of GCS JSON API (https://storage.googleapis.com/storage/v1). " +
-					"If not specified GCS endpoint will be used. Auth will be skipped for custom endpoint.",
+				Usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. " +
+					"The custom endpoint must support the equivalent resources and operations as the GCS " +
+					"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
+					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1. " +
+					"If a custom endpoint is specified, authentication is disabled on the endpoint.",
 			},
 
 			cli.StringFlag{
@@ -298,8 +304,9 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name:  "experimental-enable-json-read",
-				Usage: "By default read flow uses xml api, this flag will enable the json path for read operation.",
+				Name: "experimental-enable-json-read",
+				Usage: "By default, GCSFuse uses the GCS XML API to get and read objects. " +
+					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
 			},
 
 			/////////////////////////
@@ -350,6 +357,7 @@ func newApp() (app *cli.App) {
 type flagStorage struct {
 	AppName    string
 	Foreground bool
+	ConfigFile string
 
 	// File system
 	MountOptions   map[string]string
@@ -403,51 +411,15 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
-const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
-
-// 1. Returns the same filepath in case of absolute path or empty filename.
-// 2. For child process, it resolves relative path like, ./test.txt, test.txt
-// ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
-// because we execute the child process from different directory and input
-// files are provided with respect to GCSFUSE_PARENT_PROCESS_DIR.
-// 3. For relative path starting with ~, it resolves with respect to home dir.
-func getResolvedPath(filePath string) (resolvedPath string, err error) {
-	if filePath == "" || path.IsAbs(filePath) {
-		resolvedPath = filePath
-		return
-	}
-
-	// Relative path starting with tilda (~)
-	if strings.HasPrefix(filePath, "~/") {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("fetch home dir: %w", err)
-		}
-		return filepath.Join(homeDir, filePath[2:]), err
-	}
-
-	// We reach here, when relative path starts with . or .. or other than (/ or ~)
-	gcsfuseParentProcessDir, _ := os.LookupEnv(GCSFUSE_PARENT_PROCESS_DIR)
-	gcsfuseParentProcessDir = strings.TrimSpace(gcsfuseParentProcessDir)
-	if gcsfuseParentProcessDir == "" {
-		return filepath.Abs(filePath)
-	} else {
-		return filepath.Join(gcsfuseParentProcessDir, filePath), err
-	}
-}
-
 // This method resolves path in the context dictionary.
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
-	resolvedPath, err := getResolvedPath(flagValue)
-	if flagValue == resolvedPath || err != nil {
+	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
+	if err != nil {
 		return
 	}
 
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n",
-		flagKey, flagValue, resolvedPath)
 	err = c.Set(flagKey, resolvedPath)
-
 	return
 }
 
@@ -464,6 +436,11 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagInContext("key-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for key-file: %w", err)
+	}
+
+	err = resolvePathForTheFlagInContext("config-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for config-file: %w", err)
 	}
 
 	return
@@ -490,6 +467,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
+		ConfigFile: c.String("config-file"),
 
 		// File system
 		MountOptions:   make(map[string]string),

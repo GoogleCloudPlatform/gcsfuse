@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2021 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,43 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package inode_test
 
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestObject(t *testing.T) { RunTests(t) }
+func TestSymlink(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type ObjectTest struct {
+type SymlinkTest struct {
 }
 
-func init() { RegisterTestSuite(&ObjectTest{}) }
+var _ SetUpInterface = &CoreTest{}
+var _ TearDownInterface = &CoreTest{}
+
+func init() { RegisterTestSuite(&SymlinkTest{}) }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ObjectTest) HasContentEncodingGzipPositive() {
-	mo := MinObject{}
-	mo.ContentEncoding = "gzip"
+func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
+	metadata := map[string]string{
+		inode.SymlinkMetadataKey: "target",
+	}
+	o := gcs.Object{
+		Name:     "test",
+		Metadata: metadata,
+	}
 
-	AssertTrue(mo.HasContentEncodingGzip())
+	AssertEq(true, inode.IsSymlink(&o))
 }
 
-func (t *ObjectTest) HasContentEncodingGzipNegative() {
-	encodings := []string{"", "GZIP", "xzip", "zip"}
-
-	for _, encoding := range encodings {
-		mo := MinObject{}
-		mo.ContentEncoding = encoding
-
-		AssertFalse(mo.HasContentEncodingGzip())
+func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
+	o := gcs.Object{
+		Name: "test",
 	}
+
+	AssertEq(false, inode.IsSymlink(&o))
+}
+
+func (t *SymlinkTest) TestIsSymLinkForNilObject() {
+	AssertEq(false, inode.IsSymlink(nil))
 }

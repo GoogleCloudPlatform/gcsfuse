@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -86,10 +87,6 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
-
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
@@ -101,7 +98,25 @@ func TestMain(m *testing.M) {
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
+	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
+	// Set up config file with create-empty-file: false.
+	mountConfig := config.MountConfig{
+		WriteConfig: config.WriteConfig{
+			CreateEmptyFile: true,
+		},
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
+	}
+	configFile := setup.YAMLConfigFile(mountConfig)
+	// Set up flags to run tests on.
+	flags := [][]string{
+		// By default, creating emptyFile is disabled.
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
+		{"--config-file=" + configFile}}
 
 	successCode := static_mounting.RunTests(flags, m)
 

@@ -18,12 +18,12 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -176,6 +176,10 @@ func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core,
 	return nil, fuse.ENOSYS
 }
 
+func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
@@ -203,4 +207,9 @@ func (d *baseDirInode) DeleteChildDir(
 	isImplicitDir bool) (err error) {
 	err = fuse.ENOSYS
 	return
+}
+
+func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	// Base directory can not contain local files.
+	return nil
 }

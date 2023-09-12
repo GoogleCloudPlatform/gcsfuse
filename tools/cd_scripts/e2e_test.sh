@@ -49,17 +49,21 @@ echo User: $USER &>> ~/logs.txt
 echo Current Working Directory: $(pwd)  &>> ~/logs.txt
 
 # Based on the os type in detail.txt, run the following commands for setup
+
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
 #  For Debian and Ubuntu os
+    # architecture can be amd64 or arm64
+    architecture=$(dpkg --print-architecture)
+
     sudo apt update
 
     #Install fuse
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_amd64.deb .
-    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_amd64.deb |& tee -a ~/logs.txt
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+    sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/logs.txt
 
     # install wget
     sudo apt install -y wget
@@ -71,6 +75,15 @@ then
     sudo apt install -y build-essential
 else
 #  For rhel and centos
+    # uname can be aarch or x86_64
+    uname=$(uname -i)
+
+    if [[ $uname == "x86_64" ]]; then
+      architecture="amd64"
+    elif [[ $uname == "aarch64" ]]; then
+      architecture="arm64"
+    fi
+
     sudo yum makecache
     sudo yum -y update
 
@@ -78,8 +91,8 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.x86_64.rpm .
-    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.x86_64.rpm
+    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
 
     #install wget
     sudo yum -y install wget
@@ -92,10 +105,9 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.20.4.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
-
 #Write gcsfuse and go version to log file
 gcsfuse --version |& tee -a ~/logs.txt
 go version |& tee -a ~/logs.txt

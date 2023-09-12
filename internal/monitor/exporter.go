@@ -16,7 +16,6 @@ package monitor
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -25,14 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"go.opencensus.io/stats/view"
 )
-
-var infoLogger *log.Logger
-var errorLogger *log.Logger
-
-func init() {
-	infoLogger = logger.NewInfo("")
-	errorLogger = logger.NewError("")
-}
 
 var stackdriverExporter *stackdriver.Exporter
 
@@ -47,7 +38,7 @@ func EnableStackdriverExporter(interval time.Duration) error {
 	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
 		ReportingInterval: interval,
 		OnError: func(err error) {
-			errorLogger.Printf("Fail to send metric: %v", err)
+			logger.Errorf("Fail to send metric: %v", err)
 		},
 
 		// For a local metric "http_sent_bytes", the Stackdriver metric type
@@ -68,7 +59,7 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		return fmt.Errorf("start stackdriver exporter: %w", err)
 	}
 
-	infoLogger.Printf("Stackdriver exporter started")
+	logger.Info("Stackdriver exporter started")
 	return nil
 }
 
@@ -102,7 +93,7 @@ func EnableOpenTelemetryCollectorExporter(address string) error {
 	}
 
 	view.RegisterExporter(ocExporter)
-	infoLogger.Printf("OpenTelemetry collector exporter started")
+	logger.Info("OpenTelemetry collector exporter started")
 	return nil
 }
 
