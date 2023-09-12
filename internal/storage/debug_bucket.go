@@ -17,7 +17,6 @@ package storage
 import (
 	"fmt"
 	"io"
-	"log"
 	"sync/atomic"
 	"time"
 
@@ -37,7 +36,6 @@ func NewDebugBucket(
 }
 
 type debugBucket struct {
-	logger  *log.Logger
 	wrapped gcs.Bucket
 
 	nextRequestID uint64
