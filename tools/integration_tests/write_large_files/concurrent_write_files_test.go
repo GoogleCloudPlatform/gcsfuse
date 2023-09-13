@@ -25,13 +25,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const FileOne = "fileOne.txt"
-const FileTwo = "fileTwo.txt"
-const FileThree = "fileThree.txt"
-const NumberOfFilesInLocalDiskForConcurrentWrite = 3
+const (
+	FileOne                                    = "fileOne.txt"
+	FileTwo                                    = "fileTwo.txt"
+	FileThree                                  = "fileThree.txt"
+	NumberOfFilesInLocalDiskForConcurrentWrite = 3
+	DirForConcurrentWrite                      = "dirForConcurrentWrite"
+)
 
 func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T) {
-	file := path.Join(setup.MntDir(), fileName)
+	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
 
 	// Reduce thread count when it is done.
 	defer wg.Done()
@@ -42,25 +45,26 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T
 		t.Errorf("error while generating random string: %s", err)
 	}
 
-	err = operations.WriteFile(file, string(data))
+	err = operations.WriteFile(filePath, string(data))
 	if err != nil {
 		return
 	}
 
 	// Download the file from a bucket in which we write the content.
-	fileInBucket := path.Join(os.Getenv("HOME"), fileName)
-	setup.RunScriptForTestData("../util/operations/download_file_from_bucket.sh", setup.TestBucket(), fileName, fileInBucket)
-
-	_, err = operations.DiffFiles(file, fileInBucket)
+	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
+	localFilePath := path.Join(TmpDir, fileName)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		t.Errorf("Error in writing files concurrently.")
+		t.Fatalf("Error:%v", err)
 	}
 }
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
+	concurrentWriteDir := path.Join(setup.MntDir(), DirForConcurrentWrite)
+	err := os.Mkdir(concurrentWriteDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Fatalf("Error in creating directory:%v", err)
+	}
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
