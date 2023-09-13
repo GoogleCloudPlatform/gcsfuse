@@ -42,12 +42,12 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T
 	data := make([]byte, fileSize)
 	_, err := rand.Read(data)
 	if err != nil {
-		t.Errorf("error while generating random string: %s", err)
+		t.Fatalf("Error while generating random string: %s", err)
 	}
 
 	err = operations.WriteFile(filePath, string(data))
 	if err != nil {
-		t.Fatalf("Error in writing file:%v", err)
+		t.Fatalf("Error in writing file: %v", err)
 	}
 
 	// Download the file from a bucket in which we write the content.
@@ -55,7 +55,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T
 	localFilePath := path.Join(TmpDir, fileName)
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		t.Fatalf("Error:%v", err)
+		t.Fatalf("Error: %v", err)
 	}
 }
 
