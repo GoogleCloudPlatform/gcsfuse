@@ -67,7 +67,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	}
 
 	// Clean up.
-	// defer operations.RemoveDir(concurrentWriteDir)
+	defer operations.RemoveDir(concurrentWriteDir)
 
 	// For waiting on threads.
 	var wg sync.WaitGroup
