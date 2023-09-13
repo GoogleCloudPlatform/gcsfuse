@@ -52,6 +52,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 	err = WriteChunkSizeInFile(f, filePath, int(fileSize), 0)
 	if err != nil {
 		err = fmt.Errorf("Error:%v", err)
+		return
 	}
 
 	return
