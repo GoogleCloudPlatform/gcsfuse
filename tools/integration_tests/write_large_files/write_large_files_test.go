@@ -53,6 +53,7 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	return
 }
 
+// Write data of chunkSize in file at given offset.
 func WriteChunkSizeInFile(file *os.File, filePath string, chunkSize int, offset int64) (err error) {
 	chunk := make([]byte, chunkSize)
 	_, err = rand.Read(chunk)
