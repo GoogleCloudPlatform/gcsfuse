@@ -16,6 +16,7 @@ package write_large_files
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"sync"
@@ -72,11 +73,14 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 		// Increment the WaitGroup counter.
 		wg.Add(1)
 
+		// Copy the current value of i into a local variable to avoid data races.
+		fileIndex := i
+
 		// Thread to write the current file.
 		go func() {
-			err = writeFile(files[i], FiveHundredMB, &wg)
+			err = writeFile(files[fileIndex], FiveHundredMB, &wg)
 			if err != nil {
-				t.Fatalf("Error:%v", err)
+				log.Fatalf("Error:%v", err)
 			}
 		}()
 	}
