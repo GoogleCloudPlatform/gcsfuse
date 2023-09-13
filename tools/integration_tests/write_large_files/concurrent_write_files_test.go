@@ -65,6 +65,10 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error in creating directory:%v", err)
 	}
+
+	// Clean up.
+	defer operations.RemoveDir(concurrentWriteDir)
+
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
