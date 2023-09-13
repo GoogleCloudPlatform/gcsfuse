@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -79,15 +78,6 @@ func WriteChunkSizeInFile(file *os.File, filePath string, chunkSize int, offset 
 		return
 	}
 
-	// Download the file from a bucket in which we write the content and compare with
-	// the file content we wrote in mntDir.
-	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
-	localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
-	if err != nil {
-		err = fmt.Errorf("Error:%v", err)
-		return
-	}
 	return
 }
 

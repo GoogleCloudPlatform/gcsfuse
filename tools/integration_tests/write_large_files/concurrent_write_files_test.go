@@ -55,6 +55,14 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 		return
 	}
 
+	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
+	localFilePath := path.Join(TmpDir, fileName)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+	if err != nil {
+		err = fmt.Errorf("Error:%v", err)
+		return
+	}
+
 	return
 }
 
