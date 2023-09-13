@@ -56,8 +56,8 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 
 	defer operations.RemoveFile(localCopy)
 
-	diff, err := operations.DiffFiles(localCopy, mountedFilePath)
-	if diff != 0 {
+	identical, err := operations.AreFilesIdentical(localCopy, mountedFilePath)
+	if !identical {
 		t.Fatalf("Tempfile (%s, download of GCS object %s) didn't match the Mounted local file (%s): %v", localCopy, gcsObjectPath, mountedFilePath, err)
 	}
 }
