@@ -20,15 +20,15 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
-	"github.com/jacobsa/gcloud/gcs"
-	"golang.org/x/net/context"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )

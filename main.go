@@ -28,12 +28,14 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
@@ -58,7 +60,7 @@ func registerSIGINTHandler(mountPoint string) {
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				logger.Infof("Failed to unmount in response to SIGINT: %v", err)
+				logger.Errorf("Failed to unmount in response to SIGINT: %v", err)
 			} else {
 				logger.Infof("Successfully unmounted in response to SIGINT.")
 				return
@@ -108,7 +110,7 @@ func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	mountStatus *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	mountConfig *config.MountConfig) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -123,7 +125,7 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		mountStatus.Println("Creating Storage handle...")
+		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(flags)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
@@ -138,8 +140,8 @@ func mountWithArgs(
 		bucketName,
 		mountPoint,
 		flags,
-		storageHandle,
-		mountStatus)
+		mountConfig,
+		storageHandle)
 
 	if err != nil {
 		err = fmt.Errorf("mountWithStorageHandle: %w", err)
@@ -175,7 +177,7 @@ func populateArgs(c *cli.Context) (
 	// Canonicalize the mount point, making it absolute. This is important when
 	// daemonizing below, since the daemon will change its working directory
 	// before running this code again.
-	mountPoint, err = getResolvedPath(mountPoint)
+	mountPoint, err = util.GetResolvedPath(mountPoint)
 	if err != nil {
 		err = fmt.Errorf("canonicalizing mount point: %w", err)
 		return
@@ -194,8 +196,21 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing flags failed: %w", err)
 	}
 
+	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("parsing config file failed: %w", err)
+	}
+
+	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
+		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+
+	err = util.ResolveConfigFilePaths(mountConfig)
+	if err != nil {
+		return fmt.Errorf("Resolving path: %w", err)
+	}
+
 	if flags.Foreground {
-		err = logger.InitLogFile(flags.LogFile, flags.LogFormat)
+		err = logger.InitLogFile(mountConfig.LogConfig.FilePath, mountConfig.LogConfig.Format, mountConfig.LogConfig.Severity)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -267,7 +282,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Pass the parent process working directory to child process via
 		// environment variable. This variable will be used to resolve relative paths.
 		if parentProcessExecutionDir, err := os.Getwd(); err == nil {
-			env = append(env, fmt.Sprintf("%s=%s", GCSFUSE_PARENT_PROCESS_DIR,
+			env = append(env, fmt.Sprintf("%s=%s", util.GCSFUSE_PARENT_PROCESS_DIR,
 				parentProcessExecutionDir))
 		}
 
@@ -300,17 +315,16 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mountStatus := logger.NewInfo("")
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountStatus)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
 		if err == nil {
-			mountStatus.Println("File system has been successfully mounted.")
+			logger.Info("File system has been successfully mounted.")
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			mountStatus.Printf("Error while mounting gcsfuse: %v\n", err)
+			logger.Errorf("Error while mounting gcsfuse: %v\n", err)
 			err = fmt.Errorf("mountWithArgs: %w", err)
 			daemonize.SignalOutcome(err)
 			return
@@ -358,7 +372,7 @@ func handlePanicWhileMounting() {
 	// Detect if panic happens in main go routine.
 	a := recover()
 	if a != nil {
-		logger.Fatal("Panic: ", a)
+		logger.Fatal("Panic: %v", a)
 	}
 }
 

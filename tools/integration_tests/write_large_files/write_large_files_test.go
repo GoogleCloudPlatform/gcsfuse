@@ -16,13 +16,40 @@
 package write_large_files
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+const (
+	TmpDir = "/tmp"
+	OneMiB = 1024 * 1024
+)
+
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {
+	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+	if err != nil {
+		err = fmt.Errorf("Error in downloading object:%w", err)
+		return
+	}
+
+	// Remove file after testing.
+	defer operations.RemoveFile(localFilePathToDownloadGcsFile)
+
+	// DiffFiles loads the entire files into memory. These are both 500 MiB files, hence would have a 1 GiB
+	// requirement just for this step
+	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
+	if diff != 0 {
+		err = fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
+		return
+	}
+	return
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -31,8 +58,8 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
+		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
 

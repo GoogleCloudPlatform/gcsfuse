@@ -23,29 +23,37 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const FiveHundredMB = 500 * 1024 * 1024
-const FiveHundredMBFile = "fiveHundredMBFile.txt"
-const ChunkSize = 20 * 1024 * 1024
+const (
+	FiveHundredMB                             = 500 * OneMiB
+	FiveHundredMBFile                         = "fiveHundredMBFile.txt"
+	ChunkSize                                 = 20 * OneMiB
+	DirForSeqWrite                            = "dirForSeqWrite"
+	FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
+)
 
 func TestWriteLargeFileSequentially(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	seqWriteDir := path.Join(setup.MntDir(), DirForSeqWrite)
+	err := os.Mkdir(seqWriteDir, setup.FilePermission_0600)
+	if err != nil {
+		t.Fatalf("Error in creating directory:%v", err)
+	}
+	filePath := path.Join(seqWriteDir, FiveHundredMBFile)
 
-	filePath := path.Join(setup.MntDir(), FiveHundredMBFile)
+	// Clean up.
+	defer operations.RemoveDir(seqWriteDir)
 
 	// Sequentially write the data in file.
-	err := operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
+	err = operations.WriteFileSequentially(filePath, FiveHundredMB, ChunkSize)
 	if err != nil {
-		t.Errorf("Error in writing file: %v", err)
+		t.Fatalf("Error in writing file: %v", err)
 	}
 
-	// Check if 500MB data written in the file.
-	fStat, err := os.Stat(filePath)
+	// Download the file from a bucket in which we write the content and compare with
+	// the file content we wrote in mntDir.
+	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForSeqWrite, FiveHundredMBFile)
+	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		t.Errorf("Error in stating file:%v", err)
-	}
-
-	if fStat.Size() != FiveHundredMB {
-		t.Errorf("Expecred file size %v found %d", FiveHundredMB, fStat.Size())
+		t.Fatalf("Error:%v", err)
 	}
 }

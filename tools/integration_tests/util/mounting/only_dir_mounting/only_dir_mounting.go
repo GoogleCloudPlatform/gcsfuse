@@ -81,6 +81,8 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running only dir mounting tests...")
+
 	successCode = executeTestsForOnlyDirMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())

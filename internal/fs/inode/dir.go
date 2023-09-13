@@ -23,9 +23,9 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -87,6 +87,10 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
+	// Create an empty local child file with the supplied (relative) name. Local
+	// file means the object is not yet created in GCS.
+	CreateLocalChildFile(name string) (*Core, error)
+
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
@@ -122,6 +126,10 @@ type DirInode interface {
 		ctx context.Context,
 		name string,
 		isImplicitDir bool) (err error)
+
+	// localFileEntries lists the local files present in the directory.
+	// Local means that the file is not yet present on GCS.
+	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -663,6 +671,17 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}, nil
 }
 
+func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
+	fullName := NewFileName(d.Name(), name)
+
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   nil,
+		Local:    true,
+	}, nil
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	// Erase any existing type information for this name.
@@ -784,5 +803,25 @@ func (d *dirInode) DeleteChildDir(
 	}
 	d.cache.Erase(name)
 
+	return
+}
+
+func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	for localInodeName, in := range localFileInodes {
+		// It is possible that the local file inode has been unlinked, but
+		// still present in localFileInodes map because of open file handle.
+		// So, if the inode has been unlinked, skip the entry.
+		file, ok := in.(*FileInode)
+		if ok && file.IsUnlinked() {
+			continue
+		}
+		if localInodeName.IsDirectChildOf(d.Name()) {
+			entry := fuseutil.Dirent{
+				Name: path.Base(localInodeName.LocalName()),
+				Type: fuseutil.DT_File,
+			}
+			localEntries = append(localEntries, entry)
+		}
+	}
 	return
 }
