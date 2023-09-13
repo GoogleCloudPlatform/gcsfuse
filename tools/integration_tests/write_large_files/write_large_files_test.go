@@ -16,9 +16,11 @@
 package write_large_files
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -46,6 +48,43 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		err = fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
+		return
+	}
+	return
+}
+
+func WriteChunkSizeInFile(file *os.File, filePath string, chunkSize int, offset int64) (err error) {
+	chunk := make([]byte, chunkSize)
+	_, err = rand.Read(chunk)
+	if err != nil {
+		err = fmt.Errorf("error while generating random string: %s", err)
+		return
+	}
+
+	// Write data in the file.
+	n, err := file.WriteAt(chunk, offset)
+	if err != nil {
+		err = fmt.Errorf("Error in writing randomly in file:%v", err)
+		return
+	}
+	if n != chunkSize {
+		err = fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
+		return
+	}
+
+	err = file.Sync()
+	if err != nil {
+		err = fmt.Errorf("Error in syncing file:%v", err)
+		return
+	}
+
+	// Download the file from a bucket in which we write the content and compare with
+	// the file content we wrote in mntDir.
+	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
+	localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+	if err != nil {
+		err = fmt.Errorf("Error:%v", err)
 		return
 	}
 	return

@@ -15,7 +15,6 @@
 package write_large_files
 
 import (
-	"crypto/rand"
 	rand2 "math/rand"
 	"os"
 	"path"
@@ -59,31 +58,8 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		if offset+ChunkSize > MaxWritableByteFromFile {
 			chunkSize = int(MaxWritableByteFromFile - offset)
 		}
-		chunk := make([]byte, chunkSize)
-		_, err := rand.Read(chunk)
-		if err != nil {
-			t.Fatalf("error while generating random string: %s", err)
-		}
 
-		// Write data in the file.
-		n, err := f.WriteAt(chunk, offset)
-		if err != nil {
-			t.Fatalf("Error in writing randomly in file:%v", err)
-		}
-		if n != chunkSize {
-			t.Fatalf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-		}
-
-		err = f.Sync()
-		if err != nil {
-			t.Fatalf("Error in syncing file:%v", err)
-		}
-
-		// Download the file from a bucket in which we write the content and compare with
-		// the file content we wrote in mntDir.
-		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
-		localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
-		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+		err := WriteChunkSizeInFile(f, filePath, chunkSize, offset)
 		if err != nil {
 			t.Fatalf("Error:%v", err)
 		}

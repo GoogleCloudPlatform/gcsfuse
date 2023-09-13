@@ -15,10 +15,11 @@
 package write_large_files
 
 import (
-	"crypto/rand"
+	"fmt"
 	"os"
 	"path"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -33,30 +34,23 @@ const (
 	DirForConcurrentWrite                      = "dirForConcurrentWrite"
 )
 
-func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T) {
+func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	if err != nil {
+		err = fmt.Errorf("Open file for write at start: %v", err)
+		return
+	}
 
 	// Reduce thread count when it is done.
 	defer wg.Done()
 
-	data := make([]byte, fileSize)
-	_, err := rand.Read(data)
+	err = WriteChunkSizeInFile(f, filePath, int(fileSize), 0)
 	if err != nil {
-		t.Fatalf("Error while generating random string: %s", err)
+		err = fmt.Errorf("Error:%v", err)
 	}
 
-	err = operations.WriteFile(filePath, string(data))
-	if err != nil {
-		t.Fatalf("Error in writing file: %v", err)
-	}
-
-	// Download the file from a bucket in which we write the content.
-	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
-	localFilePath := path.Join(TmpDir, fileName)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
-	if err != nil {
-		t.Fatalf("Error: %v", err)
-	}
+	return
 }
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
@@ -77,8 +71,14 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentWrite; i++ {
 		// Increment the WaitGroup counter.
 		wg.Add(1)
-		// Thread to write first file.
-		go writeFile(files[i], FiveHundredMB, &wg, t)
+
+		// Thread to write the current file.
+		go func() {
+			err = writeFile(files[i], FiveHundredMB, &wg)
+			if err != nil {
+				t.Fatalf("Error:%v", err)
+			}
+		}()
 	}
 
 	// Wait on threads to end.
