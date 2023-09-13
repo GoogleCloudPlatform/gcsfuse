@@ -18,17 +18,31 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
+	*bucket = setup.TestBucket()
+	if setup.DynamicBucketMounted() != "" {
+		*bucket = setup.DynamicBucketMounted()
+	}
+	if setup.OnlyDirMounted() != "" {
+		*object = path.Join(setup.OnlyDirMounted(), *object)
+	}
+}
+
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
-func ReadObjectFromGCS(bucket, object string) (string, error) {
-	ctx := context.Background()
+func ReadObjectFromGCS(object string) (string, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	// Create new storage client
+	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("storage.NewClient: %w", err)
@@ -58,9 +72,10 @@ func ReadObjectFromGCS(bucket, object string) (string, error) {
 
 // CreateObject creates an object with given name and content on GCS.
 func CreateObject(bucket, object string, content string) error {
-	ctx := context.Background()
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	// Create new storage client
+	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return fmt.Errorf("storage.NewClient: %w", err)

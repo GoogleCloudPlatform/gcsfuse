@@ -83,9 +83,13 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	successCode = runTestsOnGivenMountedTestBucket(setup.TestBucket(), flags, rootMntDir, m)
 
 	// Test on created bucket.
+	// SetDynamicBucketMounted to the mounted bucket.
+	setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
 	if successCode == 0 {
 		successCode = runTestsOnGivenMountedTestBucket(testBucketForDynamicMounting, flags, rootMntDir, m)
 	}
+	// Reset SetDynamicBucketMounted to empty after tests are done.
+	setup.SetDynamicBucketMounted("")
 
 	// Setting back the original mntDir after testing.
 	setup.SetMntDir(rootMntDir)

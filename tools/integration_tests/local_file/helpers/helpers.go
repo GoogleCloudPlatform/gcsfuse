@@ -49,7 +49,7 @@ func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File
 }
 
 func ValidateObjectNotFoundErr(fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(setup.TestBucket(), fileName)
+	_, err := ReadObjectFromGCS(fileName)
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Errorf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
@@ -63,7 +63,7 @@ func CloseLocalFile(f *os.File, fileName string, t *testing.T) {
 }
 
 func ValidateObjectContents(fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(path.Join(setup.TestBucket(), setup.OnlyDirMounted()), fileName)
+	gotContent, err := ReadObjectFromGCS(fileName)
 	if err != nil {
 		t.Errorf("Error while reading synced local file from GCS, Err: %v", err)
 	}

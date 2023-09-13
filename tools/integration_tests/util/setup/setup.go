@@ -38,12 +38,13 @@ const BufferSize = 100
 const FilePermission_0600 = 0600
 
 var (
-	binFile        string
-	logFile        string
-	testDir        string
-	mntDir         string
-	sbinFile       string
-	onlyDirMounted string
+	binFile              string
+	logFile              string
+	testDir              string
+	mntDir               string
+	sbinFile             string
+	onlyDirMounted       string
+	dynamicBucketMounted string
 )
 
 // Run the shell script to prepare the testData in the specified bucket.
@@ -109,6 +110,13 @@ func OnlyDirMounted() string {
 }
 func SetOnlyDirMounted(onlyDirValue string) {
 	onlyDirMounted = onlyDirValue
+}
+
+func DynamicBucketMounted() string {
+	return dynamicBucketMounted
+}
+func SetDynamicBucketMounted(dynamicBucketValue string) {
+	dynamicBucketMounted = dynamicBucketValue
 }
 
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
