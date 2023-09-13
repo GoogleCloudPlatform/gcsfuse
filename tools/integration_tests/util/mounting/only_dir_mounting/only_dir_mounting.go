@@ -57,6 +57,7 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, dir string, m *testin
 }
 
 func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode int) {
+	setup.SetOnlyDirMounted(DirectoryInTestBucket)
 	mountDirInBucket := path.Join(setup.TestBucket(), DirectoryInTestBucket)
 	// Clean the bucket.
 
@@ -76,7 +77,7 @@ func executeTestsForOnlyDirMounting(flags [][]string, m *testing.M) (successCode
 
 	// Clean the bucket after testing.
 	setup.RunScriptForTestData("../util/mounting/only_dir_mounting/testdata/delete_objects.sh", setup.TestBucket())
-
+	setup.SetOnlyDirMounted("")
 	return
 }
 

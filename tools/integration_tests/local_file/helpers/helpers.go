@@ -63,7 +63,7 @@ func CloseLocalFile(f *os.File, fileName string, t *testing.T) {
 }
 
 func ValidateObjectContents(fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(setup.TestBucket(), fileName)
+	gotContent, err := ReadObjectFromGCS(path.Join(setup.TestBucket(), setup.OnlyDirMounted()), fileName)
 	if err != nil {
 		t.Errorf("Error while reading synced local file from GCS, Err: %v", err)
 	}

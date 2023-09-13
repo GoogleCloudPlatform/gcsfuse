@@ -38,11 +38,12 @@ const BufferSize = 100
 const FilePermission_0600 = 0600
 
 var (
-	binFile  string
-	logFile  string
-	testDir  string
-	mntDir   string
-	sbinFile string
+	binFile        string
+	logFile        string
+	testDir        string
+	mntDir         string
+	sbinFile       string
+	onlyDirMounted string
 )
 
 // Run the shell script to prepare the testData in the specified bucket.
@@ -101,6 +102,13 @@ func SetMntDir(mntDirValue string) {
 
 func MntDir() string {
 	return mntDir
+}
+
+func OnlyDirMounted() string {
+	return onlyDirMounted
+}
+func SetOnlyDirMounted(onlyDirValue string) {
+	onlyDirMounted = onlyDirValue
 }
 
 func CompareFileContents(t *testing.T, fileName string, fileContent string) {
