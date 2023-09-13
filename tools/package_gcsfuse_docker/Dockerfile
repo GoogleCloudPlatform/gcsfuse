@@ -13,46 +13,73 @@
 # limitations under the License.
 
 # Build an image with gcsfuse packages:
-#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.38.0
+#   > docker build . -t gcsfuse-release --build-arg GCSFUSE_VERSION=0.39.2
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.17.5 as builder
+FROM golang:1.21.0 as builder
 
-RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document fpm
+RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GO111MODULE=auto
 
-ARG GCSFUSE_VERSION="0.39.2"
+ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
 ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get ${GCSFUSE_REPO}
+RUN go get -d ${GCSFUSE_REPO}
 
 WORKDIR ${GCSFUSE_PATH}
-RUN git checkout "v${GCSFUSE_VERSION}"
+ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
+ARG DEBFULLNAME="GCSFuse Team"
 
-ARG GCSFUSE_BIN="/gcsfuse"
+# Build Arg for building through a particular branch/commit. By default, it uses
+# the tag corresponding to passed GCSFUSE VERSION
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git checkout "${BRANCH_NAME}"
+
+# Install fpm package using bundle
+RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
+
+ARG ARCHITECTURE="amd64"
+RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
+    echo "Architecture should be amd64 or arm64"; \
+    exit 1; \
+fi
+ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
+ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GOPATH}
 RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
 RUN mkdir -p ${GCSFUSE_BIN}
 RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
+# Creating structure for debian package as we are using 'dpkg-deb --build' to create debian package
+RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp $GOPATH/src/$GCSFUSE_REPO/DEBIAN/* ${GCSFUSE_BIN}/DEBIAN/
+RUN mkdir -p ${GCSFUSE_DOC}
+RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
+    mv ${GCSFUSE_BIN}/DEBIAN/changelog ${GCSFUSE_DOC} && \
+    mv ${GCSFUSE_BIN}/DEBIAN/gcsfuse-docs.docs ${GCSFUSE_DOC}
+# Update gcsfuse version in changelog and control file
+RUN sed -i "1s/.*/gcsfuse (${GCSFUSE_VERSION}) stable; urgency=medium/" ${GCSFUSE_DOC}/changelog && \
+    sed -i "1s/.*/Version: ${GCSFUSE_VERSION}/" ${GCSFUSE_BIN}/DEBIAN/control
+
+# Update ARCHITECTURE in control file.
+RUN sed -i "6s/.*/Architecture: ${ARCHITECTURE}/" ${GCSFUSE_BIN}/DEBIAN/control
+
+# Compress changelog as required by lintian
+RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
+# Strip unneeded from binaries as required by lintian
+RUN strip --strip-unneeded ${GCSFUSE_BIN}/usr/bin/gcsfuse && \
+    strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse
+
 ARG GCSFUSE_PKG="/packages"
 RUN mkdir -p ${GCSFUSE_PKG}
 WORKDIR ${GCSFUSE_PKG}
-RUN fpm \
-    -s dir \
-    -t deb \
-    -n gcsfuse \
-    -C ${GCSFUSE_BIN} \
-    -v ${GCSFUSE_VERSION} \
-    -d fuse \
-    --vendor "" \
-    --url "https://$GCSFUSE_REPO" \
-    --description "A user-space file system for Google Cloud Storage."
+# Build the package
+RUN dpkg-deb --build ${GCSFUSE_BIN}
+RUN mv ${GCSFUSE_BIN}.deb .
 RUN fpm \
     -s dir \
     -t rpm \
@@ -60,6 +87,8 @@ RUN fpm \
     -C ${GCSFUSE_BIN} \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
+    --rpm-digest sha256 \
+    --license Apache-2.0 \
     --vendor "" \
     --url "https://$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."

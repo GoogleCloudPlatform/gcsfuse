@@ -19,11 +19,16 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
 )
+
+// Defines the max value supported by sequential-read-size-mb flag.
+const maxSequentialReadSizeMb = 1024
 
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {
@@ -73,13 +78,19 @@ func newApp() (app *cli.App) {
 				Usage: "Stay in the foreground after mounting.",
 			},
 
+			cli.StringFlag{
+				Name:  "config-file",
+				Value: "",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
+			},
+
 			/////////////////////////
 			// File system
 			/////////////////////////
 
 			cli.StringSliceFlag{
 				Name:  "o",
-				Usage: "Additional system-specific mount options. Be careful!",
+				Usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro",
 			},
 
 			cli.GenericFlag{
@@ -107,21 +118,19 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name: "implicit-dirs",
-				Usage: "Implicitly define directories based on content. See " +
-					"docs/semantics.md",
+				Name:  "implicit-dirs",
+				Usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information",
 			},
 
 			cli.StringFlag{
 				Name:  "only-dir",
-				Usage: "Mount only the given directory, relative to the bucket root.",
+				Usage: "Mount only a specific directory within the bucket. See docs/mounting for more information",
 			},
 
 			cli.IntFlag{
 				Name:  "rename-dir-limit",
 				Value: 0,
-				Usage: "Allow rename a directory containing fewer descendants " +
-					"than this limit.",
+				Usage: "Allow rename a directory containing fewer descendants than this limit.",
 			},
 
 			/////////////////////////
@@ -129,43 +138,53 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:  "endpoint",
-				Value: "https://www.googleapis.com:443",
-				Usage: "The endpoint to connect to.",
+				Name: "custom-endpoint",
+				Usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. " +
+					"The custom endpoint must support the equivalent resources and operations as the GCS " +
+					"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
+					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1. " +
+					"If a custom endpoint is specified, authentication is disabled on the endpoint.",
 			},
 
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
-				Usage: "Project to use for billing when accessing requester pays buckets. " +
-					"(default: none)",
+				Usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)",
 			},
 
 			cli.StringFlag{
 				Name:  "key-file",
 				Value: "",
-				Usage: "Absolute path to JSON key file for use with GCS. " +
-					"(default: none, Google application default credentials used)",
+				Usage: "Absolute path to JSON key file for use with GCS. (default: none, Google application default credentials used)",
 			},
 
 			cli.StringFlag{
 				Name:  "token-url",
 				Value: "",
-				Usage: "An url for getting an access token when key-file is absent.",
+				Usage: "A url for getting an access token when the key-file is absent.",
+			},
+
+			cli.BoolTFlag{
+				Name:  "reuse-token-from-url",
+				Usage: "If false, the token acquired from token-url is not reused.",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-bytes-per-sec",
 				Value: -1,
-				Usage: "Bandwidth limit for reading data, measured over a 30-second " +
-					"window. (use -1 for no limit)",
+				Usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)",
 			},
 
 			cli.Float64Flag{
 				Name:  "limit-ops-per-sec",
 				Value: -1,
-				Usage: "Operations per second limit, measured over a 30-second window " +
-					"(use -1 for no limit)",
+				Usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)",
+			},
+
+			cli.IntFlag{
+				Name:  "sequential-read-size-mb",
+				Value: 200,
+				Usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported",
 			},
 
 			/////////////////////////
@@ -175,10 +194,9 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "max-retry-sleep",
 				Value: time.Minute,
-				Usage: "The maximum duration allowed to sleep in a retry loop with " +
-					"exponential backoff for failed requests to GCS backend. Once the " +
-					"backoff duration exceeds this limit, the retry stops. The default " +
-					"is 1 minute. A value of 0 disables retries.",
+				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
+					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
+					" The default is 1 minute. A value of 0 disables retries.",
 			},
 
 			cli.IntFlag{
@@ -196,44 +214,69 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache name -> file/dir mappings in directory " +
-					"inodes.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes.",
+			},
+
+			cli.DurationFlag{
+				Name:  "http-client-timeout",
+				Usage: "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout. ",
+			},
+
+			cli.DurationFlag{
+				Name:  "max-retry-duration",
+				Value: 30 * time.Second,
+				Usage: "The operation will be retried till the value of max-retry-duration.",
+			},
+
+			cli.Float64Flag{
+				Name:  "retry-multiplier",
+				Value: 2,
+				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
 			},
 
 			cli.BoolFlag{
-				Name:  "local-file-cache",
-				Usage: "Cache GCS files on local disk for reads.",
+				Name:  "experimental-local-file-cache",
+				Usage: "Experimental: Cache GCS files on local disk for reads.",
 			},
 
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
-				Usage: "Absolute path to temporary directory for local GCS object " +
-					"copies. (default: system default, likely /tmp)",
+				Usage: "Path to the temporary directory where writes are staged prior to" +
+					" upload to Cloud Storage. (default: system default, likely /tmp)",
 			},
 
-			cli.BoolFlag{
-				Name: "disable-http2",
-				Usage: "Once set, the protocol used for communicating with " +
-					"GCS backend would be HTTP/1.1, instead of the default HTTP/2.",
+			cli.StringFlag{
+				Name:  "client-protocol",
+				Value: string(mountpkg.HTTP1),
+				Usage: "The protocol used for communicating with the GCS backend. " +
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
-				Value: 10,
-				Usage: "The max number of TCP connections allowed per server. " +
-					"This is effective when --disable-http2 is set.",
+				Value: 100,
+				Usage: "The max number of TCP connections allowed per server. This is " +
+					"effective when --client-protocol is set to 'http1'.",
+			},
+
+			cli.IntFlag{
+				Name:  "max-idle-conns-per-host",
+				Value: 100,
+				Usage: "The number of maximum idle connections allowed per server.",
+			},
+
+			cli.BoolFlag{
+				Name: "enable-nonexistent-type-cache",
+				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
+					" will be created. This also means new file/dir created might not be seen. For example, if this" +
+					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
 			/////////////////////////
 			// Monitoring & Logging
 			/////////////////////////
-
-			cli.IntFlag{
-				Name:  "monitoring-port",
-				Value: 0,
-				Usage: "Deprecated.",
-			},
 
 			cli.DurationFlag{
 				Name:  "stackdriver-export-interval",
@@ -242,11 +285,16 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.StringFlag{
+				Name:  "experimental-opentelemetry-collector-address",
+				Value: "",
+				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
+			},
+
+			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
-				Usage: "The file for storing logs that can be parsed by " +
-					"fluentd. When not provided, plain text logs are printed to " +
-					"stdout.",
+				Usage: "The file for storing logs that can be parsed by fluentd. When not provided," +
+					" plain text logs are printed to stdout.",
 			},
 
 			cli.StringFlag{
@@ -255,9 +303,21 @@ func newApp() (app *cli.App) {
 				Usage: "The format of the log file: 'text' or 'json'.",
 			},
 
+			cli.BoolFlag{
+				Name: "experimental-enable-json-read",
+				Usage: "By default, GCSFuse uses the GCS XML API to get and read objects. " +
+					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
+
+			cli.BoolTFlag{
+				Name: "debug_fuse_errors",
+				Usage: "If false, fuse errors will not be logged to the console (in case of --foreground) " +
+					"or the log-file (if specified)",
+			},
 
 			cli.BoolFlag{
 				Name:  "debug_fuse",
@@ -266,7 +326,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name:  "debug_fs",
-				Usage: "Enable file system debugging output.",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
@@ -276,7 +336,7 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name:  "debug_http",
-				Usage: "Dump HTTP requests and responses to/from GCS.",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.BoolFlag{
@@ -297,6 +357,7 @@ func newApp() (app *cli.App) {
 type flagStorage struct {
 	AppName    string
 	Foreground bool
+	ConfigFile string
 
 	// File system
 	MountOptions   map[string]string
@@ -309,28 +370,37 @@ type flagStorage struct {
 	RenameDirLimit int64
 
 	// GCS
-	Endpoint                           *url.URL
+	CustomEndpoint                     *url.URL
 	BillingProject                     string
 	KeyFile                            string
 	TokenUrl                           string
+	ReuseTokenFromUrl                  bool
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
+	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep     time.Duration
-	StatCacheCapacity int
-	StatCacheTTL      time.Duration
-	TypeCacheTTL      time.Duration
-	LocalFileCache    bool
-	TempDir           string
-	DisableHTTP2      bool
-	MaxConnsPerHost   int
+	MaxRetrySleep              time.Duration
+	StatCacheCapacity          int
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
+	HttpClientTimeout          time.Duration
+	MaxRetryDuration           time.Duration
+	RetryMultiplier            float64
+	LocalFileCache             bool
+	TempDir                    string
+	ClientProtocol             mountpkg.ClientProtocol
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	EnableNonexistentTypeCache bool
 
-	// Monitoring
-	MonitoringPort            int
-	StackdriverExportInterval time.Duration
-	LogFile                   string
-	LogFormat                 string
+	// Monitoring & Logging
+	StackdriverExportInterval  time.Duration
+	OtelCollectorAddress       string
+	LogFile                    string
+	LogFormat                  string
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
@@ -341,17 +411,63 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
+// This method resolves path in the context dictionary.
+func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
+	flagValue := c.String(flagKey)
+	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
+	if err != nil {
+		return
+	}
+
+	err = c.Set(flagKey, resolvedPath)
+	return
+}
+
+// For parent process: it only resolves the path with respect to home folder.
+// For child process: it resolves the path relative to both home directory and
+// GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
+// is disabled.
+func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
+	err = resolvePathForTheFlagInContext("log-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for log-file: %w", err)
+	}
+
+	err = resolvePathForTheFlagInContext("key-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for key-file: %w", err)
+	}
+
+	err = resolvePathForTheFlagInContext("config-file", c)
+	if err != nil {
+		return fmt.Errorf("resolving for config-file: %w", err)
+	}
+
+	return
+}
+
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
-func populateFlags(c *cli.Context) (flags *flagStorage) {
-	endpoint, err := url.Parse(c.String("endpoint"))
-	if err != nil {
-		fmt.Printf("Could not parse endpoint")
-		return nil
+func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
+	customEndpointStr := c.String("custom-endpoint")
+	var customEndpoint *url.URL
+
+	if customEndpointStr == "" {
+		customEndpoint = nil
+	} else {
+		customEndpoint, err = url.Parse(customEndpointStr)
+		if err != nil {
+			err = fmt.Errorf("could not parse custom-endpoint: %w", err)
+			return
+		}
 	}
+
+	clientProtocolString := strings.ToLower(c.String("client-protocol"))
+	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
+		ConfigFile: c.String("config-file"),
 
 		// File system
 		MountOptions:   make(map[string]string),
@@ -364,34 +480,43 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		RenameDirLimit: int64(c.Int("rename-dir-limit")),
 
 		// GCS,
-		Endpoint:                           endpoint,
+		CustomEndpoint:                     customEndpoint,
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),
+		ReuseTokenFromUrl:                  c.BoolT("reuse-token-from-url"),
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
+		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		LocalFileCache:    c.Bool("local-file-cache"),
-		TempDir:           c.String("temp-dir"),
-		DisableHTTP2:      c.Bool("disable-http2"),
-		MaxConnsPerHost:   c.Int("max-conns-per-host"),
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		HttpClientTimeout:          c.Duration("http-client-timeout"),
+		MaxRetryDuration:           c.Duration("max-retry-duration"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
+		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		TempDir:                    c.String("temp-dir"),
+		ClientProtocol:             clientProtocol,
+		MaxConnsPerHost:            c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
+		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
-		// Monitoring
-		MonitoringPort:            c.Int("monitoring-port"),
-		StackdriverExportInterval: c.Duration("stackdriver-export-interval"),
-		LogFile:                   c.String("log-file"),
-		LogFormat:                 c.String("log-format"),
+		// Monitoring & Logging
+		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
+		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		LogFile:                    c.String("log-file"),
+		LogFormat:                  c.String("log-format"),
+		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
+		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugHTTP:       c.Bool("debug_http"),
+		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
 	}
@@ -401,6 +526,20 @@ func populateFlags(c *cli.Context) (flags *flagStorage) {
 		mountpkg.ParseOptions(flags.MountOptions, o)
 	}
 
+	err = validateFlags(flags)
+
+	return
+}
+
+func validateFlags(flags *flagStorage) (err error) {
+	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
+		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
+		return
+	}
+
+	if !flags.ClientProtocol.IsValid() {
+		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
+	}
 	return
 }
 

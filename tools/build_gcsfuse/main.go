@@ -17,34 +17,32 @@
 //
 // Usage:
 //
-//     build_gcsfuse src_dir dst_dir version
+//	build_gcsfuse src_dir dst_dir version
 //
 // where src_dir is the root of the gcsfuse git repository (or a tarball
 // thereof).
 //
 // For Linux, writes the following to dst_dir:
 //
-//     bin/gcsfuse
-//     sbin/mount.fuse.gcsfuse
-//     sbin/mount.gcsfuse
+//	bin/gcsfuse
+//	sbin/mount.fuse.gcsfuse
+//	sbin/mount.gcsfuse
 //
 // For OS X:
 //
-//     bin/gcsfuse
-//     sbin/mount_gcsfuse
-//
+//	bin/gcsfuse
+//	sbin/mount_gcsfuse
 package main
 
 import (
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 )
 
 // Build release binaries according to the supplied settings, setting up the
@@ -77,7 +75,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 	}
 
 	// Create a directory to become GOPATH for our build below.
-	gopath, err := ioutil.TempDir("", "build_gcsfuse_gopath")
+	gopath, err := os.MkdirTemp("", "build_gcsfuse_gopath")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -86,7 +84,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 
 	// Create a directory to become GOCACHE for our build below.
 	var gocache string
-	gocache, err = ioutil.TempDir("", "build_gcsfuse_gocache")
+	gocache, err = os.MkdirTemp("", "build_gcsfuse_gocache")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
@@ -136,6 +134,8 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		cmd := exec.Command(
 			"go",
 			"build",
+			"-C",
+			srcDir,
 			"-o",
 			path.Join(dstDir, bin.outputPath))
 
@@ -158,6 +158,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
+			"CGO_ENABLED=0",
 		}
 
 		// Build.
@@ -165,6 +166,9 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			err = fmt.Errorf("%v: %w\nOutput:\n%s", cmd, err, output)
+			if strings.Contains(string(output), "flag provided but not defined: -C") {
+				err = fmt.Errorf("%v: %w\nOutput:\n%s\nPlease upgrade to go version 1.20 or higher", cmd, err, output)
+			}
 			return
 		}
 	}
@@ -179,39 +183,6 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			err = fmt.Errorf("Symlink: %w", err)
 			return
 		}
-	}
-
-	return
-}
-
-func copyFile(dst string, src string, perm os.FileMode) (err error) {
-	// Open the source.
-	s, err := os.Open(src)
-	if err != nil {
-		return
-	}
-
-	defer s.Close()
-
-	// Open the destination.
-	d, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return
-	}
-
-	defer d.Close()
-
-	// Copy contents.
-	_, err = io.Copy(d, s)
-	if err != nil {
-		err = fmt.Errorf("Copy: %w", err)
-		return
-	}
-
-	// Finish up.
-	err = d.Close()
-	if err != nil {
-		return
 	}
 
 	return

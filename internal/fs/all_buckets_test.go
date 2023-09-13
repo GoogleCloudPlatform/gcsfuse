@@ -20,9 +20,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/jacobsa/fuse/fusetesting"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -36,19 +35,20 @@ type AllBucketsTest struct {
 	fsTest
 }
 
-func init() { RegisterTestSuite(&AllBucketsTest{}) }
+func init() {
+	RegisterTestSuite(&AllBucketsTest{})
+}
 
-func (t *AllBucketsTest) SetUp(ti *TestInfo) {
-	t.mtimeClock = timeutil.RealClock()
-	t.buckets = map[string]gcs.Bucket{
-		"bucket-0": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-0"),
-		"bucket-1": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-1"),
-		"bucket-2": gcsfake.NewFakeBucket(t.mtimeClock, "bucket-2"),
+func (t *AllBucketsTest) SetUpTestSuite() {
+	mtimeClock = timeutil.RealClock()
+	buckets = map[string]gcs.Bucket{
+		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0"),
+		"bucket-1": fake.NewFakeBucket(mtimeClock, "bucket-1"),
+		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2"),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
-	t.fsTest.SetUp(ti)
+	t.fsTest.SetUpTestSuite()
 	AssertEq("", t.serverCfg.BucketName)
-	AssertEq(t.Dir, t.mfs.Dir())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -56,48 +56,37 @@ func (t *AllBucketsTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AllBucketsTest) BaseDir_Ls() {
-	entries, err := ioutil.ReadDir(t.Dir)
-	AssertEq(nil, err)
-	AssertEq(3, len(entries))
-	ExpectEq("bucket-0", entries[0].Name())
-	ExpectEq("bucket-1", entries[1].Name())
-	ExpectEq("bucket-2", entries[2].Name())
-
-	entries, err = fusetesting.ReadDirPicky(t.Dir)
-	AssertEq(nil, err)
-	AssertEq(3, len(entries))
-	ExpectEq("bucket-0", entries[0].Name())
-	ExpectEq("bucket-1", entries[1].Name())
-	ExpectEq("bucket-2", entries[2].Name())
+	_, err := ioutil.ReadDir(mntDir)
+	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
 func (t *AllBucketsTest) BaseDir_Write() {
-	filename := path.Join(t.mfs.Dir(), "foo")
+	filename := path.Join(mntDir, "foo")
 	err := ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
 
 func (t *AllBucketsTest) BaseDir_Rename() {
-	err := os.Rename(t.Dir+"/bucket-0", t.Dir+"/bucket-1/foo")
+	err := os.Rename(mntDir+"/bucket-0", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
-	filename := path.Join(t.Dir + "/bucket-0/foo")
+	filename := path.Join(mntDir + "/bucket-0/foo")
 	err = ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	AssertEq(nil, err)
 
-	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-1/foo")
+	err = os.Rename(mntDir+"/bucket-0/foo", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
-	err = os.Rename(t.Dir+"/bucket-0/foo", t.Dir+"/bucket-99")
+	err = os.Rename(mntDir+"/bucket-0/foo", mntDir+"/bucket-99")
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 
 }
 
 func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	var err error
-	filename := path.Join(t.mfs.Dir(), "bucket-1/foo")
+	filename := path.Join(mntDir, "bucket-1/foo")
 
 	// Create a file.
 	const contents = "tacoburritoenchilada"

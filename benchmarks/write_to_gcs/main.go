@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -47,7 +46,7 @@ func run() (err error) {
 	// Create a temporary file.
 	log.Printf("Creating a temporary file in %s.", *fDir)
 
-	f, err := ioutil.TempFile(*fDir, "write_to_gcs")
+	f, err := os.CreateTemp(*fDir, "write_to_gcs")
 	if err != nil {
 		err = fmt.Errorf("TempFile: %w", err)
 		return

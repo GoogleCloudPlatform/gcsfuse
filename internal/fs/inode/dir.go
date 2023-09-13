@@ -23,13 +23,20 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
+
+// ListObjects call supports fetching upto 5000 results when projection is noAcl
+// via maxResults param in one call. When projection is set to full, it returns
+// 2000 results max. In GcsFuse flows we will be setting projection as noAcl.
+// By default 1000 results are returned if maxResults is not set.
+// Defining a constant to set maxResults param.
+const MaxResultsForListObjectsCall = 5000
 
 // An inode representing a directory, with facilities for listing entries,
 // looking up children, and creating and deleting children. Must be locked for
@@ -80,6 +87,10 @@ type DirInode interface {
 	// Return the full name of the child and the GCS object it backs up.
 	CreateChildFile(ctx context.Context, name string) (*Core, error)
 
+	// Create an empty local child file with the supplied (relative) name. Local
+	// file means the object is not yet created in GCS.
+	CreateLocalChildFile(name string) (*Core, error)
+
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
@@ -110,10 +121,15 @@ type DirInode interface {
 		metaGeneration *int64) (err error)
 
 	// Delete the backing object for the child directory with the given
-	// (relative) name.
+	// (relative) name if it is not an Implicit Directory.
 	DeleteChildDir(
 		ctx context.Context,
-		name string) (err error)
+		name string,
+		isImplicitDir bool) (err error)
+
+	// localFileEntries lists the local files present in the directory.
+	// Local means that the file is not yet present on GCS.
+	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -127,7 +143,7 @@ type dirInode struct {
 	// Dependencies
 	/////////////////////////
 
-	bucket     gcsx.SyncerBucket
+	bucket     *gcsx.SyncerBucket
 	mtimeClock timeutil.Clock
 	cacheClock timeutil.Clock
 
@@ -137,6 +153,8 @@ type dirInode struct {
 
 	id           fuseops.InodeID
 	implicitDirs bool
+
+	enableNonexistentTypeCache bool
 
 	// INVARIANT: name.IsDir()
 	name Name
@@ -186,8 +204,9 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
+	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
-	bucket gcsx.SyncerBucket,
+	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock) (d DirInode) {
 
@@ -198,14 +217,15 @@ func NewDirInode(
 	// Set up the struct.
 	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
-		bucket:       bucket,
-		mtimeClock:   mtimeClock,
-		cacheClock:   cacheClock,
-		id:           id,
-		implicitDirs: implicitDirs,
-		name:         name,
-		attrs:        attrs,
-		cache:        newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		bucket:                     bucket,
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cacheClock,
+		id:                         id,
+		implicitDirs:               implicitDirs,
+		enableNonexistentTypeCache: enableNonexistentTypeCache,
+		name:                       name,
+		attrs:                      attrs,
+		cache:                      newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -274,7 +294,7 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name: name.GcsObjectName(),
@@ -302,7 +322,7 @@ func findExplicitInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name)
 
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
-func findDirInode(ctx context.Context, bucket gcsx.SyncerBucket, name Name) (*Core, error) {
+func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	if !name.IsDir() {
 		return nil, fmt.Errorf("%q is not directory", name)
 	}
@@ -400,7 +420,7 @@ func (d *dirInode) Attributes(
 	return
 }
 
-func (d *dirInode) Bucket() gcsx.SyncerBucket {
+func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 	return d.bucket
 }
 
@@ -435,7 +455,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	b := syncutil.NewBundle(ctx)
-	switch cachedType := d.cache.Get(d.cacheClock.Now(), name); cachedType {
+
+	cachedType := d.cache.Get(d.cacheClock.Now(), name)
+	switch cachedType {
 	case ImplicitDirType:
 		dirResult = &Core{
 			Bucket:   d.Bucket(),
@@ -446,6 +468,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		b.Add(lookUpExplicitDir)
 	case RegularFileType, SymlinkType:
 		b.Add(lookUpFile)
+	case NonexistentType:
+		return nil, nil
 	case UnknownType:
 		b.Add(lookUpFile)
 		if d.implicitDirs {
@@ -468,7 +492,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+	} else if d.enableNonexistentTypeCache && cachedType == UnknownType {
+		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
 	}
+
 	return result, nil
 }
 
@@ -521,6 +548,10 @@ func (d *dirInode) readObjects(
 		IncludeTrailingDelimiter: true,
 		Prefix:                   d.Name().GcsObjectName(),
 		ContinuationToken:        tok,
+		MaxResults:               MaxResultsForListObjectsCall,
+		// Setting Projection param to noAcl since fetching owner and acls are not
+		// required.
+		ProjectionVal: gcs.NoAcl,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -640,6 +671,17 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}, nil
 }
 
+func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
+	fullName := NewFileName(d.Name(), name)
+
+	return &Core{
+		Bucket:   d.Bucket(),
+		FullName: fullName,
+		Object:   nil,
+		Local:    true,
+	}, nil
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	// Erase any existing type information for this name.
@@ -735,8 +777,15 @@ func (d *dirInode) DeleteChildFile(
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
+
+	// if the directory is an implicit directory, then no backing object
+	// exists in the gcs bucket, so returning from here.
+	if isImplicitDir {
+		return
+	}
 	childName := NewDirName(d.Name(), name)
 
 	// Delete the backing object. Unfortunately we have no way to precondition
@@ -744,7 +793,8 @@ func (d *dirInode) DeleteChildDir(
 	err = d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
-			Name: childName.GcsObjectName(),
+			Name:       childName.GcsObjectName(),
+			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
 	if err != nil {
@@ -753,5 +803,25 @@ func (d *dirInode) DeleteChildDir(
 	}
 	d.cache.Erase(name)
 
+	return
+}
+
+func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	for localInodeName, in := range localFileInodes {
+		// It is possible that the local file inode has been unlinked, but
+		// still present in localFileInodes map because of open file handle.
+		// So, if the inode has been unlinked, skip the entry.
+		file, ok := in.(*FileInode)
+		if ok && file.IsUnlinked() {
+			continue
+		}
+		if localInodeName.IsDirectChildOf(d.Name()) {
+			entry := fuseutil.Dirent{
+				Name: path.Base(localInodeName.LocalName()),
+				Type: fuseutil.DT_File,
+			}
+			localEntries = append(localEntries, entry)
+		}
+	}
 	return
 }

@@ -36,3 +36,10 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# Editors
+.idea/
+.vscode/
+
+# External folders
+vendor/

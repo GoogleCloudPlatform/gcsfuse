@@ -15,24 +15,27 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	iofs "io/fs"
 	"os"
 	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
@@ -71,6 +74,15 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
+	// By default, if a file/directory does not exist in GCS, this nonexistent state is
+	// not cached in type cache. So the inode lookup request will hit GCS every
+	// time.
+	//
+	// Setting this bool to true enables the nonexistent type cache so if the
+	// inode state is NonexistentType in type cache, the lookup request will
+	// return nil immediately.
+	EnableNonexistentTypeCache bool
+
 	// How long to allow the kernel to cache inode attributes.
 	//
 	// Any given object generation in GCS is immutable, and a new generation
@@ -102,6 +114,12 @@ type ServerConfig struct {
 
 	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
+
+	// File chunk size to read from GCS in one call. Specified in MB.
+	SequentialReadSizeMb int32
+
+	// MountConfig has all the config specified by the user using configFile flag.
+	MountConfig *config.MountConfig
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -119,26 +137,40 @@ func NewFileSystem(
 
 	mtimeClock := timeutil.RealClock()
 
+	contentCache := contentcache.New(cfg.TempDir, mtimeClock)
+
+	if cfg.LocalFileCache {
+		err := contentCache.RecoverCache()
+		if err != nil {
+			fmt.Printf("Encountered error retrieving files from cache directory, disabling local file cache: %v", err)
+			cfg.LocalFileCache = false
+		}
+	}
+
 	// Set up the basic struct.
 	fs := &fileSystem{
-		mtimeClock:             mtimeClock,
-		cacheClock:             cfg.CacheClock,
-		bucketManager:          cfg.BucketManager,
-		localFileCache:         cfg.LocalFileCache,
-		contentCache:           contentcache.New(cfg.TempDir, mtimeClock),
-		implicitDirs:           cfg.ImplicitDirectories,
-		inodeAttributeCacheTTL: cfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:        cfg.DirTypeCacheTTL,
-		renameDirLimit:         cfg.RenameDirLimit,
-		uid:                    cfg.Uid,
-		gid:                    cfg.Gid,
-		fileMode:               cfg.FilePerms,
-		dirMode:                cfg.DirPerms | os.ModeDir,
-		inodes:                 make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:            fuseops.RootInodeID + 1,
-		generationBackedInodes: make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:      make(map[inode.Name]inode.DirInode),
-		handles:                make(map[fuseops.HandleID]interface{}),
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cfg.CacheClock,
+		bucketManager:              cfg.BucketManager,
+		localFileCache:             cfg.LocalFileCache,
+		contentCache:               contentCache,
+		implicitDirs:               cfg.ImplicitDirectories,
+		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
+		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
+		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
+		renameDirLimit:             cfg.RenameDirLimit,
+		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
+		uid:                        cfg.Uid,
+		gid:                        cfg.Gid,
+		fileMode:                   cfg.FilePerms,
+		dirMode:                    cfg.DirPerms | os.ModeDir,
+		inodes:                     make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:                fuseops.RootInodeID + 1,
+		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
+		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		localFileInodes:            make(map[inode.Name]inode.Inode),
+		handles:                    make(map[fuseops.HandleID]interface{}),
+		mountConfig:                cfg.MountConfig,
 	}
 
 	// Set up root bucket
@@ -183,8 +215,9 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
+		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
-		syncerBucket,
+		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
 	)
@@ -249,12 +282,14 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	localFileCache         bool
-	contentCache           *contentcache.ContentCache
-	implicitDirs           bool
-	inodeAttributeCacheTTL time.Duration
-	dirTypeCacheTTL        time.Duration
-	renameDirLimit         int64
+	localFileCache             bool
+	contentCache               *contentcache.ContentCache
+	implicitDirs               bool
+	enableNonexistentTypeCache bool
+	inodeAttributeCacheTTL     time.Duration
+	dirTypeCacheTTL            time.Duration
+	renameDirLimit             int64
+	sequentialReadSizeMb       int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -336,6 +371,19 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
 
+	// A map from object name to the local fileInode that represents
+	// that name. There can be at most one local file inode for a
+	// given name accessible to us at any given time.
+	//
+	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	// INVARIANT: For each value v, v is not fileInode
+	// INVARIANT: For each f in inodes that is local fileInode,
+	//            localFileInodes[f.Name()] == f
+	//
+	// GUARDED_BY(mu)
+	localFileInodes map[inode.Name]inode.Inode
+
 	// The collection of live handles, keyed by handle ID.
 	//
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
@@ -349,61 +397,18 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
+
+	// Config specified by the user using configFile flag.
+	mountConfig *config.MountConfig
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *fileSystem) checkInvariants() {
-	//////////////////////////////////
-	// inodes
-	//////////////////////////////////
-
-	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
-	for id, _ := range fs.inodes {
-		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
-			panic(fmt.Sprintf("Illegal inode ID: %v", id))
-		}
-	}
-
-	// INVARIANT: For all keys k, inodes[k].ID() == k
-	for id, in := range fs.inodes {
-		if in.ID() != id {
-			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
-		}
-	}
-
-	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
-	//
-	// The missing case is when we've received a forget request for the root
-	// inode, while unmounting.
-	switch in := fs.inodes[fuseops.RootInodeID].(type) {
-	case nil:
-	case inode.DirInode:
-	default:
-		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
-	}
-
-	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
-	for _, in := range fs.inodes {
-		if in.Name().IsDir() {
-			_, ok := in.(inode.DirInode)
-			if !ok {
-				panic(fmt.Sprintf(
-					"Unexpected inode type for name \"%s\": %v",
-					in.Name(),
-					reflect.TypeOf(in)))
-			}
-		}
-	}
-
-	//////////////////////////////////
-	// generationBackedInodes
-	//////////////////////////////////
-
+func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	// INVARIANT: For each k/v, v.Name() == k
-	for k, v := range fs.generationBackedInodes {
+	for k, v := range fs.localFileInodes {
 		if !(v.Name() == k) {
 			panic(fmt.Sprintf(
 				"Unexpected name: \"%s\" vs. \"%s\"",
@@ -413,7 +418,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	for _, v := range fs.generationBackedInodes {
+	for _, v := range fs.localFileInodes {
 		if fs.inodes[v.ID()] != v {
 			panic(fmt.Sprintf(
 				"Mismatch for ID %v: %v %v",
@@ -423,10 +428,34 @@ func (fs *fileSystem) checkInvariants() {
 		}
 	}
 
-	//////////////////////////////////
-	// implicitDirInodes
-	//////////////////////////////////
+	// INVARIANT: For each value v, v is not fileInode
+	for _, v := range fs.localFileInodes {
+		if _, ok := v.(*inode.FileInode); !ok {
+			panic(fmt.Sprintf(
+				"Unexpected file inode %d, type %T",
+				v.ID(),
+				v))
+		}
+	}
 
+	// INVARIANT: For each f in inodes that is local fileInode
+	//            localFileInodes[d.Name()] == f
+	for _, in := range fs.inodes {
+		fileInode, ok := in.(*inode.FileInode)
+
+		if ok && fileInode.IsLocal() {
+			if !(fs.localFileInodes[in.Name()] == in) {
+				panic(fmt.Sprintf(
+					"localFileInodes mismatch: %q %v %v",
+					in.Name(),
+					fs.localFileInodes[in.Name()],
+					in))
+			}
+		}
+	}
+}
+
+func (fs *fileSystem) checkInvariantsForImplicitDirs() {
 	// INVARIANT: For each k/v, v.Name() == k
 	for k, v := range fs.implicitDirInodes {
 		if !(v.Name() == k) {
@@ -474,6 +503,77 @@ func (fs *fileSystem) checkInvariants() {
 			}
 		}
 	}
+}
+
+func (fs *fileSystem) checkInvariantsForGenerationBackedInodes() {
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.generationBackedInodes {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.generationBackedInodes {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %v %v",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
+		}
+	}
+}
+
+func (fs *fileSystem) checkInvariantsForInodes() {
+	// INVARIANT: For all keys k, fuseops.RootInodeID <= k < nextInodeID
+	for id := range fs.inodes {
+		if id < fuseops.RootInodeID || id >= fs.nextInodeID {
+			panic(fmt.Sprintf("Illegal inode ID: %v", id))
+		}
+	}
+
+	// INVARIANT: For all keys k, inodes[k].ID() == k
+	for id, in := range fs.inodes {
+		if in.ID() != id {
+			panic(fmt.Sprintf("ID mismatch: %v vs. %v", in.ID(), id))
+		}
+	}
+
+	// INVARIANT: inodes[fuseops.RootInodeID] is missing or of type inode.DirInode
+	//
+	// The missing case is when we've received a forget request for the root
+	// inode, while unmounting.
+	switch in := fs.inodes[fuseops.RootInodeID].(type) {
+	case nil:
+	case inode.DirInode:
+	default:
+		panic(fmt.Sprintf("Unexpected type for root: %v", reflect.TypeOf(in)))
+	}
+
+	// INVARIANT: For all v, if v.Name().IsDir() then v is inode.DirInode
+	for _, in := range fs.inodes {
+		if in.Name().IsDir() {
+			_, ok := in.(inode.DirInode)
+			if !ok {
+				panic(fmt.Sprintf(
+					"Unexpected inode type for name \"%s\": %v",
+					in.Name(),
+					reflect.TypeOf(in)))
+			}
+		}
+	}
+}
+
+func (fs *fileSystem) checkInvariants() {
+	// Check invariants for different type of inodes
+	fs.checkInvariantsForInodes()
+	fs.checkInvariantsForGenerationBackedInodes()
+	fs.checkInvariantsForImplicitDirs()
+	fs.checkInvariantsForLocalFileInodes()
 
 	//////////////////////////////////
 	// handles
@@ -482,7 +582,7 @@ func (fs *fileSystem) checkInvariants() {
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
 	for _, h := range fs.handles {
 		switch h.(type) {
-		case *dirHandle:
+		case *handle.DirHandle:
 		case *handle.FileHandle:
 		default:
 			panic(fmt.Sprintf("Unexpected handle type: %T", h))
@@ -529,6 +629,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
@@ -550,6 +651,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
@@ -579,7 +681,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
-			fs.mtimeClock)
+			fs.mtimeClock,
+			ic.Local)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -625,14 +728,41 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		}
 
 		var ok bool
-		in, ok = fs.implicitDirInodes[ic.FullName]
-		// If we don't have an entry, create one.
-		if !ok {
-			in = fs.mintInode(ic)
-			fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
+		var maxTriesToCreateInode = 3
+		for n := 0; n < maxTriesToCreateInode; n++ {
+			in, ok = fs.implicitDirInodes[ic.FullName]
+			// If we don't have an entry, create one.
+			if !ok {
+				in = fs.mintInode(ic)
+				fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
+				// Since we are creating inode here, there is no chance that something else
+				// is holding the lock for inode. Hence its safe to take lock on inode
+				// without releasing fs.mu.lock.
+				in.Lock()
+				return
+			}
+
+			// If the inode already exists, we need to follow the lock ordering rules
+			// to get the lock. First get inode lock and then fs lock.
+			fs.mu.Unlock()
+			in.Lock()
+			fs.mu.Lock()
+
+			// Check if inode is still valid by the time we got the lock. If not,
+			// its means inode is in the process of getting destroyed. Try creating it
+			// again.
+			if fs.implicitDirInodes[ic.FullName] != in {
+				in.Unlock()
+				continue
+			}
+
+			return
 		}
 
-		in.Lock()
+		// Incase we exhausted the number of tries to createInode, we will return
+		// nil object. Returning nil is handled by callers to throw appropriate
+		// errors back to kernel.
+		in = nil
 		return
 	}
 
@@ -716,6 +846,15 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	// First check if the requested child is a localFileInode.
+	child = fs.lookUpLocalFileInode(parent, childName)
+	if child != nil {
+		return
+	}
+
+	// If the requested child is not a localFileInode, continue with the existing
+	// flow of checking GCS for file/directory.
+
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
@@ -748,6 +887,68 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	}
 
 	err = fmt.Errorf("cannot find %q in %q with %v tries", childName, parent.Name(), maxTries)
+	return
+}
+
+// Look up the localFileInodes to check if a file with given name exists.
+// Return inode if it exists, else return nil.
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(parent)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName string) (child inode.Inode) {
+	defer func() {
+		if child != nil {
+			child.IncrementLookupCount()
+		}
+		fs.mu.Unlock()
+	}()
+
+	// Trim the suffix assigned to fix conflicting names.
+	childName = strings.TrimSuffix(childName, inode.ConflictingFileNameSuffix)
+	fileName := inode.NewFileName(parent.Name(), childName)
+
+	fs.mu.Lock()
+	var maxTriesToLookupInode = 3
+	for n := 0; n < maxTriesToLookupInode; n++ {
+		child = fs.localFileInodes[fileName]
+
+		if child == nil {
+			return
+		}
+
+		// If the inode already exists, we need to follow the lock ordering rules
+		// to get the lock. First get inode lock and then fs lock.
+		fs.mu.Unlock()
+		child.Lock()
+		// Acquiring fs lock early to use common defer function even though it is
+		// not required to check if local file inode has been unlinked.
+		// Filesystem lock will be held till we increment lookUpCount to avoid
+		// deletion of inode from fs.inodes/fs.localFileInodes map by other flows.
+		fs.mu.Lock()
+		// Check if local file inode has been unlinked?
+		fileInode, ok := child.(*inode.FileInode)
+		if ok && fileInode.IsUnlinked() {
+			child.Unlock()
+			child = nil
+			return
+		}
+		// Once we get fs lock, validate if the inode is still valid. If not
+		// try to fetch it again. Eg: If the inode is deleted by other thread after
+		// we fetched it from fs.localFileInodes map, then any call to perform
+		// inode operation will crash GCSFuse since the inode is not valid. Hence
+		// it is important to acquire lock and increment lookUpCount before letting
+		// other threads modify it.
+		if fs.localFileInodes[fileName] != child {
+			child.Unlock()
+			continue
+		}
+
+		return
+	}
+
+	// In case we exhausted the retries, return nil object.
+	child = nil
 	return
 }
 
@@ -784,12 +985,29 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) syncFile(
 	ctx context.Context,
 	f *inode.FileInode) (err error) {
+	// SyncFile can be triggered for unlinked files if the fileHandle is open by
+	// same or another user. Silently ignore the syncFile call.
+	// This is in sync with non-local file behaviour.
+	if f.IsLocal() && f.IsUnlinked() {
+		return
+	}
+
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		return
 	}
+
+	// Once the inode is synced to GCS, it is no longer an localFileInode.
+	// Delete the entry from localFileInodes map and add it to generationBackedInodes.
+	fs.mu.Lock()
+	delete(fs.localFileInodes, f.Name())
+	_, ok := fs.generationBackedInodes[f.Name()]
+	if !ok {
+		fs.generationBackedInodes[f.Name()] = f
+	}
+	fs.mu.Unlock()
 
 	// We need not update fileIndex:
 	//
@@ -833,6 +1051,9 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		if fs.implicitDirInodes[name] == in {
 			delete(fs.implicitDirInodes, name)
 		}
+		if fs.localFileInodes[name] == in {
+			delete(fs.localFileInodes, name)
+		}
 		fs.mu.Unlock()
 	}
 
@@ -855,16 +1076,16 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 //
 // Typical usage:
 //
-//     func (fs *fileSystem) doFoo() (err error) {
-//       in, err := fs.lookUpOrCreateInodeIfNotStale(...)
-//       if err != nil {
-//         return
-//       }
+//	func (fs *fileSystem) doFoo() (err error) {
+//	  in, err := fs.lookUpOrCreateInodeIfNotStale(...)
+//	  if err != nil {
+//	    return
+//	  }
 //
-//       defer fs.unlockAndMaybeDisposeOfInode(in, &err)
+//	  defer fs.unlockAndMaybeDisposeOfInode(in, &err)
 //
-//       ...
-//     }
+//	  ...
+//	}
 //
 // LOCKS_REQUIRED(in)
 // LOCKS_EXCLUDED(fs.mu)
@@ -1117,7 +1338,8 @@ func (fs *fileSystem) MkDir(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
@@ -1156,6 +1378,10 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
+	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
+		return syscall.ENOTSUP
+	}
+
 	// Create the child.
 	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	if err != nil {
@@ -1199,7 +1425,8 @@ func (fs *fileSystem) createFile(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
@@ -1222,12 +1449,66 @@ func (fs *fileSystem) createFile(
 	return
 }
 
+// Creates localFileInode with the given name under the parent inode.
+// LOCKS_EXCLUDED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) createLocalFile(
+	parentID fuseops.InodeID,
+	name string) (child inode.Inode, err error) {
+	// Find the parent.
+	fs.mu.Lock()
+	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
+
+	defer func() {
+		// We need to release the filesystem lock before acquiring the inode lock.
+		fs.mu.Unlock()
+
+		if child != nil {
+			child.Lock()
+			child.IncrementLookupCount()
+			// Unlock is done by the calling method.
+		}
+	}()
+
+	fs.mu.Lock()
+
+	fullName := inode.NewFileName(parent.Name(), name)
+	child, ok := fs.localFileInodes[fullName]
+	if !ok {
+		var result *inode.Core
+		result, err = parent.CreateLocalChildFile(name)
+		if err != nil {
+			return
+		}
+
+		child = fs.mintInode(*result)
+		fs.localFileInodes[child.Name()] = child
+
+		// Empty file is created to be able to set attributes on the file.
+		fileInode := child.(*inode.FileInode)
+		err = fileInode.CreateEmptyTempFile()
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	// Create the child.
-	child, err := fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	var child inode.Inode
+	if fs.mountConfig.CreateEmptyFile {
+		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
+	} else {
+		child, err = fs.createLocalFile(op.Parent, op.Name)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1273,7 +1554,8 @@ func (fs *fileSystem) CreateSymlink(
 	parent.Unlock()
 
 	// Special case: *gcs.PreconditionError means the name already exists.
-	if _, ok := err.(*gcs.PreconditionError); ok {
+	var preconditionErr *gcs.PreconditionError
+	if errors.As(err, &preconditionErr) {
 		err = fuse.EEXIST
 		return
 	}
@@ -1310,6 +1592,18 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
+	// When rm -r or os.RemoveAll call is made, the following calls are made in order
+	//	 1. RmDir (only in the case of os.RemoveAll)
+	//	 2. Unlink all nested files,
+	//	 3. lookupInode call on implicit directory
+	//	 4. Rmdir on the directory.
+	//
+	// When type cache ttl is set, we construct an implicitDir even though one doesn't
+	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+	// and thus, we get rmDir call to GCSFuse.
+	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+	// because object is not present in GCS.
+
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	// Find the parent.
@@ -1351,6 +1645,16 @@ func (fs *fileSystem) RmDir(
 	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
 	//
 	//
+
+	// Check for local file entries.
+	localFileEntries := childDir.LocalFileEntries(fs.localFileInodes)
+	// Are there any local entries?
+	if len(localFileEntries) != 0 {
+		err = fuse.ENOTEMPTY
+		return
+	}
+
+	// Check for entries on GCS.
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
@@ -1376,8 +1680,11 @@ func (fs *fileSystem) RmDir(
 	cleanUpAndUnlockChild()
 
 	// Delete the backing object.
+	fs.mu.Lock()
+	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
+	fs.mu.Unlock()
 	parent.Lock()
-	err = parent.DeleteChildDir(ctx, op.Name)
+	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
 	parent.Unlock()
 
 	if err != nil {
@@ -1411,7 +1718,14 @@ func (fs *fileSystem) Rename(
 		}
 	}
 
-	// Find the object in the old location.
+	// If object to be renamed is a local file inode (un-synced), rename operation is not supported.
+	localChild := fs.lookUpLocalFileInode(oldParent, op.OldName)
+	if localChild != nil {
+		fs.unlockAndDecrementLookupCount(localChild, 1)
+		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
+	}
+
+	// Else find the object in the old location (on GCS).
 	oldParent.Lock()
 	child, err := oldParent.LookUpChild(ctx, op.OldName)
 	oldParent.Unlock()
@@ -1470,7 +1784,8 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
-// Rename an empty directory in a non-atomic way.
+// Rename an old directory to a new directory. If the new directory already
+// exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
@@ -1501,8 +1816,19 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	// Fetch all the descendants of the directory recuirsively
+	// If old directory contains local (un-synced) files, rename operation is not supported.
+	// We are not acquiring any lock here as kernel locks the directory while
+	// performing rename operations.
+	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	if len(entries) != 0 {
+		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
+	}
+
+	// Fetch all the descendants of the old directory recursively
 	descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
+	if err != nil {
+		return fmt.Errorf("read descendants of the old directory %q: %w", oldName, err)
+	}
 	if len(descendants) > int(fs.renameDirLimit) {
 		return fmt.Errorf("too many objects to be renamed: %w", syscall.EMFILE)
 	}
@@ -1512,7 +1838,13 @@ func (fs *fileSystem) renameDir(
 	_, err = newParent.CreateChildDir(ctx, newName)
 	newParent.Unlock()
 	if err != nil {
-		return fmt.Errorf("CreateChildDir: %w", err)
+		var preconditionErr *gcs.PreconditionError
+		if errors.As(err, &preconditionErr) {
+			// This means the new directory already exists, which is OK if
+			// it is empty (checked below).
+		} else {
+			return fmt.Errorf("CreateChildDir: %w", err)
+		}
 	}
 
 	// Get the inode of the new directory
@@ -1521,6 +1853,15 @@ func (fs *fileSystem) renameDir(
 		return fmt.Errorf("lookup new directory: %w", err)
 	}
 	pendingInodes = append(pendingInodes, newDir)
+
+	// Fail the operation if the new directory is non-empty.
+	unexpected, err := newDir.ReadDescendants(ctx, 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
+	}
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
 
 	// Move all the files from the old directory to the new directory, keeping
 	// both directories locked.
@@ -1544,8 +1885,11 @@ func (fs *fileSystem) renameDir(
 	releaseInodes()
 
 	// Delete the backing object of the old directory.
+	fs.mu.Lock()
+	_, isImplicitDir := fs.implicitDirInodes[oldDir.Name()]
+	fs.mu.Unlock()
 	oldParent.Lock()
-	err = oldParent.DeleteChildDir(ctx, oldName)
+	err = oldParent.DeleteChildDir(ctx, oldName, isImplicitDir)
 	oldParent.Unlock()
 	if err != nil {
 		return fmt.Errorf("DeleteChildDir: %w", err)
@@ -1563,6 +1907,20 @@ func (fs *fileSystem) Unlink(
 	parent := fs.dirInodeOrDie(op.Parent)
 	fs.mu.Unlock()
 
+	// if inode is a local file, mark it unlinked.
+	fileName := inode.NewFileName(parent.Name(), op.Name)
+	inode, ok := fs.localFileInodes[fileName]
+	if ok {
+		fs.mu.Lock()
+		file := fs.fileInodeOrDie(inode.ID())
+		fs.mu.Unlock()
+		file.Lock()
+		defer file.Unlock()
+		file.Unlink()
+		return
+	}
+
+	// else delete the backing object present on GCS.
 	parent.Lock()
 	defer parent.Unlock()
 
@@ -1597,7 +1955,7 @@ func (fs *fileSystem) OpenDir(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = newDirHandle(in, fs.implicitDirs)
+	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
 	return
@@ -1609,14 +1967,14 @@ func (fs *fileSystem) ReadDir(
 	op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*dirHandle)
+	dh := fs.handles[op.Handle].(*handle.DirHandle)
 	fs.mu.Unlock()
 
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op); err != nil {
+	if err := dh.ReadDir(ctx, op, fs.localFileInodes); err != nil {
 		return err
 	}
 
@@ -1631,7 +1989,7 @@ func (fs *fileSystem) ReleaseDirHandle(
 	defer fs.mu.Unlock()
 
 	// Sanity check that this handle exists and is of the correct type.
-	_ = fs.handles[op.Handle].(*dirHandle)
+	_ = fs.handles[op.Handle].(*handle.DirHandle)
 
 	// Clear the entry from the map.
 	delete(fs.handles, op.Handle)
@@ -1678,7 +2036,7 @@ func (fs *fileSystem) ReadFile(
 	defer fh.Unlock()
 
 	// Serve the read.
-	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset)
+	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
@@ -1791,11 +2149,11 @@ func (fs *fileSystem) ReleaseFileHandle(
 func (fs *fileSystem) GetXattr(
 	ctx context.Context,
 	op *fuseops.GetXattrOp) (err error) {
-	return syscall.ENODATA
+	return syscall.ENOSYS
 }
 
 func (fs *fileSystem) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
-	return syscall.ENODATA
+	return syscall.ENOSYS
 }

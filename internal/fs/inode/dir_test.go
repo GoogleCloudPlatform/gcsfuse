@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode_test
+package inode
 
 import (
+	"errors"
 	"os"
 	"path"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
-	"github.com/jacobsa/gcloud/gcs/gcsutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
@@ -51,7 +52,7 @@ type DirTest struct {
 	bucket gcsx.SyncerBucket
 	clock  timeutil.SimulatedClock
 
-	in inode.DirInode
+	in DirInode
 }
 
 var _ SetUpInterface = &DirTest{}
@@ -62,13 +63,13 @@ func init() { RegisterTestSuite(&DirTest{}) }
 func (t *DirTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	bucket := gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	bucket := fake.NewFakeBucket(&t.clock, "some_bucket")
 	t.bucket = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
-	t.resetInode(false)
+	t.resetInode(false, false)
 }
 
 func (t *DirTest) TearDown() {
@@ -85,22 +86,23 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs bool) {
+func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
 
-	t.in = inode.NewDirInode(
+	t.in = NewDirInode(
 		dirInodeID,
-		inode.NewDirName(inode.NewRootName(""), dirInodeName),
+		NewDirName(NewRootName(""), dirInodeName),
 		fuseops.InodeAttributes{
 			Uid:  uid,
 			Gid:  gid,
 			Mode: dirMode,
 		},
 		implicitDirs,
+		enableNonexistentTypeCache,
 		typeCacheTTL,
-		t.bucket,
+		&t.bucket,
 		&t.clock,
 		&t.clock)
 
@@ -135,10 +137,28 @@ func (t *DirTest) setSymlinkTarget(
 		&gcs.UpdateObjectRequest{
 			Name: objName,
 			Metadata: map[string]*string{
-				inode.SymlinkMetadataKey: &target,
+				SymlinkMetadataKey: &target,
 			},
 		})
 
+	return
+}
+
+func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.InodeID) (in Inode) {
+	in = NewFileInode(
+		id,
+		NewFileName(parent, name),
+		nil,
+		fuseops.InodeAttributes{
+			Uid:  123,
+			Gid:  456,
+			Mode: 0712,
+		},
+		&t.bucket,
+		false, // localFileCache
+		contentcache.New("", &t.clock),
+		&t.clock,
+		true) //localFile
 	return
 }
 
@@ -187,7 +207,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -202,7 +222,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	ExpectEq(createObj.Size, result.Object.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -214,7 +234,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	var err error
 
 	// Create a backing object.
-	createObj, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -229,7 +249,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	ExpectEq(createObj.Size, result.Object.Size)
 
 	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -240,7 +260,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name shouldn't work.
@@ -249,7 +269,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	ExpectEq(nil, result)
 
 	// Ditto with a conflict marker.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -261,11 +281,11 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Looking up the name should work.
@@ -275,10 +295,10 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	ExpectEq(nil, result.Object)
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(inode.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
@@ -291,10 +311,10 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -309,7 +329,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -328,13 +348,13 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	var err error
 
 	// Create backing objects.
-	linkObj, err := gcsutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
+	linkObj, err := storageutil.CreateObject(t.ctx, t.bucket, linkObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	err = t.setSymlinkTarget(linkObjName, "blah")
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -349,7 +369,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -368,15 +388,15 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	var err error
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -391,7 +411,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -410,18 +430,18 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Create backing objects.
-	fileObj, err := gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
-	dirObj, err := gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(dirInodeName, name) + "/asdf"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up with the proper name.
@@ -436,7 +456,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	ExpectEq(dirObj.Size, result.Object.Size)
 
 	// Look up with the conflict marker name.
-	result, err = t.in.LookUpChild(t.ctx, name+inode.ConflictingFileNameSuffix)
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
@@ -455,7 +475,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up; we should get the file.
@@ -467,7 +487,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	ExpectEq(fileObjName, result.Object.Name)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up again. Even though the directory should shadow the file, because
@@ -488,6 +508,86 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 	AssertNe(nil, result.Object)
 
 	ExpectEq(dirObjName, result.Object.Name)
+}
+
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
+	// Enable enableNonexistentTypeCache for type cache
+	t.resetInode(false, true)
+
+	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
+
+	// Look up nonexistent object, return nil
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// Create a backing object.
+	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up again, should still return nil due to cache
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	// Look up again, should return correct object
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.Object)
+
+	ExpectEq(objName, result.FullName.GcsObjectName())
+	ExpectEq(objName, result.Object.Name)
+	ExpectEq(createObj.Generation, result.Object.Generation)
+	ExpectEq(createObj.Size, result.Object.Size)
+}
+
+func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
+	// Enable implicitDirs and enableNonexistentTypeCache for type cache
+	t.resetInode(true, true)
+
+	const name = "qux"
+	objName := path.Join(dirInodeName, name) + "/"
+
+	// Look up nonexistent object, return nil
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// Create an object that implicitly defines the directory.
+	otherObjName := path.Join(objName, "asdf")
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, otherObjName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up again, should still return nil due to cache
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+
+	// But after the TTL expires, the behavior should flip.
+	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
+
+	// Look up again, should return correct object
+	result, err = t.in.LookUpChild(t.ctx, name)
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result.Object)
+
+	ExpectEq(objName, result.FullName.GcsObjectName())
+	ExpectEq(ImplicitDirType, result.Type())
+
+	// A conflict marker should not work.
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
 }
 
 func (t *DirTest) ReadDescendants_Empty() {
@@ -511,7 +611,7 @@ func (t *DirTest) ReadDescendants_NonEmpty() {
 		dirInodeName + "symlink",
 	}
 
-	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	descendants, err := t.in.ReadDescendants(t.ctx, 10)
@@ -544,7 +644,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 		dirInodeName + "symlink",
 	}
 
-	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
@@ -579,7 +679,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	var entry fuseutil.Dirent
 
 	// Enable implicit dirs.
-	t.resetInode(true)
+	t.resetInode(true, false)
 
 	// Set up contents.
 	objs := []string{
@@ -591,7 +691,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 		dirInodeName + "symlink",
 	}
 
-	err = gcsutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
 	AssertEq(nil, err)
 
 	// Set up the symlink target.
@@ -633,7 +733,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	var err error
 
 	// Create a backing object for a file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Read the directory, priming the type cache.
@@ -641,7 +741,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -677,7 +777,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 
 	ExpectEq(1, len(result.Object.Metadata))
 	ExpectEq(
@@ -692,7 +792,7 @@ func (t *DirTest) CreateChildFile_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -713,7 +813,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -743,7 +843,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	var err error
 
 	// Create and then delete the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
+	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	err = t.bucket.DeleteObject(
@@ -754,7 +854,8 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 
 	// Call the inode.
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
@@ -762,7 +863,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	dstName := path.Join(dirInodeName, "qux")
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
+	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -774,10 +875,10 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(dstName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 
 	// Check resulting contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -787,11 +888,11 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	dstName := path.Join(dirInodeName, "qux")
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
+	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// And a destination object that will be overwritten.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dstName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -803,11 +904,11 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(dstName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 	ExpectEq(len("taco"), result.Object.Size)
 
 	// Check resulting contents.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, dstName)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -819,7 +920,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 	var err error
 
 	// Create the source.
-	src, err := gcsutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
+	src, err := storageutil.CreateObject(t.ctx, t.bucket, srcName, []byte(""))
 	AssertEq(nil, err)
 
 	// Clone to the destination.
@@ -828,7 +929,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	// Create a backing object for a directory.
 	dirObjName := dstName + "/"
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the file,
@@ -865,7 +966,7 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectEq(target, result.Object.Metadata[inode.SymlinkMetadataKey])
+	ExpectEq(target, result.Object.Metadata[SymlinkMetadataKey])
 }
 
 func (t *DirTest) CreateChildSymlink_Exists() {
@@ -876,7 +977,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte(""))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -897,7 +998,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Create a backing object for a directory.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Look up the name. Even though the directory should shadow the symlink,
@@ -934,7 +1035,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
-	ExpectFalse(inode.IsSymlink(result.Object))
+	ExpectFalse(IsSymlink(result.Object))
 }
 
 func (t *DirTest) CreateChildDir_Exists() {
@@ -944,7 +1045,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	var err error
 
 	// Create an existing backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -967,7 +1068,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong generation. No error should be returned.
@@ -975,7 +1076,7 @@ func (t *DirTest) DeleteChildFile_WrongGeneration() {
 	AssertEq(nil, err)
 
 	// The original generation should still be there.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -987,7 +1088,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode with the wrong meta-generation. No error should be
@@ -999,7 +1100,7 @@ func (t *DirTest) DeleteChildFile_WrongMetaGeneration() {
 	ExpectThat(err, Error(HasSubstr("meta-generation")))
 
 	// The original generation should still be there.
-	contents, err := gcsutil.ReadObject(t.ctx, t.bucket, objName)
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, objName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 }
@@ -1011,7 +1112,7 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	var err error
 
 	// Create a backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1019,8 +1120,9 @@ func (t *DirTest) DeleteChildFile_LatestGeneration() {
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
@@ -1030,7 +1132,7 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	var err error
 
 	// Create a backing object.
-	o, err := gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
@@ -1038,8 +1140,9 @@ func (t *DirTest) DeleteChildFile_ParticularGenerationAndMetaGeneration() {
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
 func (t *DirTest) DeleteChildFile_TypeCaching() {
@@ -1055,7 +1158,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	// Create a backing object for a directory. It should be shadowed by the
 	// file.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
 	AssertEq(nil, err)
 
 	result, err := t.in.LookUpChild(t.ctx, name)
@@ -1080,7 +1183,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 func (t *DirTest) DeleteChildDir_DoesntExist() {
 	const name = "qux"
 
-	err := t.in.DeleteChildDir(t.ctx, name)
+	err := t.in.DeleteChildDir(t.ctx, name, false)
 	ExpectEq(nil, err)
 }
 
@@ -1091,14 +1194,100 @@ func (t *DirTest) DeleteChildDir_Exists() {
 	var err error
 
 	// Create a backing object.
-	_, err = gcsutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err = storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
 	AssertEq(nil, err)
 
 	// Call the inode.
-	err = t.in.DeleteChildDir(t.ctx, name)
+	err = t.in.DeleteChildDir(t.ctx, name, false)
 	AssertEq(nil, err)
 
 	// Check the bucket.
-	_, err = gcsutil.ReadObject(t.ctx, t.bucket, objName)
-	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, objName)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
+}
+
+func (t *DirTest) DeleteChildDir_ImplicitDirTrue() {
+	const name = "qux"
+
+	err := t.in.DeleteChildDir(t.ctx, name, true)
+	ExpectEq(nil, err)
+}
+
+func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
+	const name = "qux"
+
+	// Create the local file inode.
+	core, err := t.in.CreateLocalChildFile(name)
+
+	AssertEq(nil, err)
+	AssertEq(true, core.Local)
+	AssertEq(nil, core.Object)
+
+	// Object shouldn't get created in GCS.
+	result, err := t.in.LookUpChild(t.ctx, name)
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+}
+
+func (t *DirTest) LocalFileEntriesEmpty() {
+	localFileInodes := map[Name]Inode{}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(0, len(entries))
+}
+
+func (t *DirTest) LocalFileEntriesWith2LocalChildFiles() {
+	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
+	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
+	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+		in3.Name(): in3,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(2, len(entries))
+	entryNames := []string{entries[0].Name, entries[1].Name}
+	sort.Strings(entryNames)
+	AssertEq(entryNames[0], "1_localChildInode")
+	AssertEq(entryNames[1], "2_localChildInode")
+}
+
+func (t *DirTest) LocalFileEntriesWithNoLocalChildFiles() {
+	in1 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "1_localNonChildInode", 4)
+	in2 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "2_localNonChildInode", 5)
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	AssertEq(0, len(entries))
+}
+
+func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
+	// Create 2 local child inodes and 1 non child inode.
+	in1 := t.createLocalFileInode(t.in.Name(), "1_localChildInode", 1)
+	in2 := t.createLocalFileInode(t.in.Name(), "2_localChildInode", 2)
+	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
+	// Unlink local file inode 2.
+	filein2, _ := in2.(*FileInode)
+	filein2.Unlink()
+	// Create local file inodes map.
+	localFileInodes := map[Name]Inode{
+		in1.Name(): in1,
+		in2.Name(): in2,
+		in3.Name(): in3,
+	}
+
+	entries := t.in.LocalFileEntries(localFileInodes)
+
+	// Validate entries contains only linked child files.
+	AssertEq(1, len(entries))
+	AssertEq(entries[0].Name, "1_localChildInode")
 }

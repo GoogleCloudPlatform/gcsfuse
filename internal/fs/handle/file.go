@@ -74,15 +74,12 @@ func (fh *FileHandle) Unlock() {
 //
 // LOCKS_REQUIRED(fh)
 // LOCKS_EXCLUDED(fh.inode)
-func (fh *FileHandle) Read(
-	ctx context.Context,
-	dst []byte,
-	offset int64) (n int, err error) {
+func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequentialReadSizeMb int32) (n int, err error) {
 	// Lock the inode and attempt to ensure that we have a reader for its current
 	// state, or clear fh.reader if it's not possible to create one (probably
 	// because the inode is dirty).
 	fh.inode.Lock()
-	err = fh.tryEnsureReader()
+	err = fh.tryEnsureReader(ctx, sequentialReadSizeMb)
 	if err != nil {
 		fh.inode.Unlock()
 		err = fmt.Errorf("tryEnsureReader: %w", err)
@@ -133,7 +130,13 @@ func (fh *FileHandle) checkInvariants() {
 //
 // LOCKS_REQUIRED(fh)
 // LOCKS_REQUIRED(fh.inode)
-func (fh *FileHandle) tryEnsureReader() (err error) {
+func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb int32) (err error) {
+	// If content cache enabled, CacheEnsureContent forces the file handler to fall through to the inode
+	// and fh.inode.SourceGenerationIsAuthoritative() will return false
+	err = fh.inode.CacheEnsureContent(ctx)
+	if err != nil {
+		return
+	}
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
@@ -157,11 +160,7 @@ func (fh *FileHandle) tryEnsureReader() (err error) {
 	}
 
 	// Attempt to create an appropriate reader.
-	rr, err := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket())
-	if err != nil {
-		err = fmt.Errorf("NewRandomReader: %w", err)
-		return
-	}
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb)
 
 	fh.reader = rr
 	return

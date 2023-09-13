@@ -24,7 +24,8 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -130,9 +131,12 @@ func rangeLimitIs(expected uint64) (m Matcher) {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+const sequentialReadSizeInMb = 10
+const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
+
 type RandomReaderTest struct {
-	object *gcs.Object
-	bucket gcs.MockBucket
+	object *gcs.MinObject
+	bucket storage.MockBucket
 	rr     checkingRandomReader
 }
 
@@ -145,18 +149,17 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.rr.ctx = ti.Ctx
 
 	// Manufacture an object record.
-	t.object = &gcs.Object{
+	t.object = &gcs.MinObject{
 		Name:       "foo",
 		Size:       17,
 		Generation: 1234,
 	}
 
 	// Create the bucket.
-	t.bucket = gcs.NewMockBucket(ti.MockController, "bucket")
+	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	// Set up the reader.
-	rr, err := NewRandomReader(t.object, t.bucket)
-	AssertEq(nil, err)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -199,7 +202,8 @@ func (t *RandomReaderTest) NoExistingReader() {
 		WillOnce(Return(nil, errors.New("")))
 
 	buf := make([]byte, 1)
-	t.rr.ReadAt(buf, 0)
+	_, err := t.rr.ReadAt(buf, 0)
+	AssertNe(nil, err)
 }
 
 func (t *RandomReaderTest) ExistingReader_WrongOffset() {
@@ -214,7 +218,8 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 		WillOnce(Return(nil, errors.New("")))
 
 	buf := make([]byte, 1)
-	t.rr.ReadAt(buf, 0)
+	_, err := t.rr.ReadAt(buf, 0)
+	AssertNe(nil, err)
 }
 
 func (t *RandomReaderTest) NewReaderReturnsError() {
@@ -432,9 +437,10 @@ func (t *RandomReaderTest) UpgradesReadsToObjectSize() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	ExpectEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
 	ExpectEq(objectSize, t.rr.wrapped.limit)
 }
@@ -470,9 +476,10 @@ func (t *RandomReaderTest) UpgradeReadsToAverageSize() {
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, start)
+	_, err := t.rr.ReadAt(buf, start)
 
 	// Check the state now.
+	AssertEq(nil, err)
 	ExpectEq(start+expectedBytesToRead, t.rr.wrapped.limit)
 }
 
@@ -496,21 +503,26 @@ func (t *RandomReaderTest) UpgradesSequentialReads_ExistingReader() {
 
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(1+existingSize), rangeLimitIs(t.object.Size))).
+		AllOf(rangeStartIs(1+existingSize), rangeLimitIs(1+existingSize+sequentialReadSizeInBytes))).
 		WillOnce(Return(rc, nil))
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	AssertEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
-	ExpectEq(t.object.Size, t.rr.wrapped.limit)
+	// Limit is same as the byteRange of last GCS call made.
+	ExpectEq(1+existingSize+sequentialReadSizeInBytes, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
-	const readSize = 10
+	const readSize = 1 * MB
+	// Set up the custom randomReader.
+	rr := NewRandomReader(t.object, t.bucket, readSize/MB)
+	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which
 	// we read below.
@@ -523,14 +535,116 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(1), rangeLimitIs(t.object.Size))).
+		AllOf(rangeStartIs(1), rangeLimitIs(1+readSize))).
 		WillOnce(Return(rc, nil))
 
 	// Call through.
 	buf := make([]byte, readSize)
-	t.rr.ReadAt(buf, 1)
+	_, err := t.rr.ReadAt(buf, 1)
 
 	// Check the state now.
+	ExpectEq(nil, err)
 	ExpectEq(1+readSize, t.rr.wrapped.start)
-	ExpectEq(t.object.Size, t.rr.wrapped.limit)
+	ExpectEq(1+readSize, t.rr.wrapped.limit)
+}
+
+func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreaterThanChunkSize() {
+	t.object.Size = 1 << 40
+	const chunkSize = 1 * MB
+	const readSize = 3 * MB
+	// Set up the custom randomReader.
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB)
+	t.rr.wrapped = rr.(*randomReader)
+	// Create readers for each chunk.
+	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk1RC := ioutil.NopCloser(chunk1Reader)
+	chunk2Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk2RC := ioutil.NopCloser(chunk2Reader)
+	chunk3Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk3RC := ioutil.NopCloser(chunk3Reader)
+	// Mock the NewReader calls to return chunkReaders created above.
+	// We will make 3 GCS calls to satisfy the requested read size. But since we
+	// already have a reader with 'existingSize' data, we will first read that data
+	// and then make GCS calls. So call sequence is
+	//  [0, chunkSize) -> newReader
+	//  [hunkSize, chunkSize*2) -> newReader
+	//  [chunkSize*2, chunkSize*3) -> newReader
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(chunkSize))).
+		WillOnce(Return(chunk1RC, nil))
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(chunkSize), rangeLimitIs(chunkSize*2))).
+		WillOnce(Return(chunk2RC, nil))
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(chunkSize*2), rangeLimitIs(chunkSize*3))).
+		WillOnce(Return(chunk3RC, nil))
+
+	// Call through.
+	buf := make([]byte, readSize)
+	_, err := t.rr.ReadAt(buf, 0)
+
+	// Check the state now.
+	ExpectEq(nil, err)
+	// Start is the total data read.
+	ExpectEq(readSize, t.rr.wrapped.start)
+	// Limit is same as the byteRange of last GCS call made.
+	ExpectEq(readSize, t.rr.wrapped.limit)
+}
+
+func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterThanChunkSize() {
+	t.object.Size = 1 << 40
+	const chunkSize = 1 * MB
+	const readSize = 3 * MB
+	// Set up the custom randomReader.
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB)
+	t.rr.wrapped = rr.(*randomReader)
+	// Simulate an existing reader at the correct offset, which will be exhausted
+	// by the read below.
+	const existingSize = 3
+	r := strings.NewReader(strings.Repeat("x", existingSize))
+	t.rr.wrapped.reader = ioutil.NopCloser(r)
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 0
+	t.rr.wrapped.limit = existingSize
+	// Create readers for each chunk.
+	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk1RC := ioutil.NopCloser(chunk1Reader)
+	chunk2Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk2RC := ioutil.NopCloser(chunk2Reader)
+	chunk3Reader := strings.NewReader(strings.Repeat("x", chunkSize))
+	chunk3RC := ioutil.NopCloser(chunk3Reader)
+	// Mock the NewReader calls to return chunkReaders created above.
+	// We will make 3 GCS calls to satisfy the requested read size. But since we
+	// already have a reader with 'existingSize' data, we will first read that data
+	// and then make GCS calls. So call sequence is
+	//  [0, existingSize) -> existing reader
+	//  [existingSize, existingSize+chunkSize) -> newReader
+	//  [existingSize+chunkSize, existingSize+chunkSize*2) -> newReader
+	//  [existingSize+chunkSize*2, existingSize+chunkSize*3) -> newReader
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(existingSize), rangeLimitIs(existingSize+chunkSize))).
+		WillOnce(Return(chunk1RC, nil))
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(existingSize+chunkSize), rangeLimitIs(existingSize+chunkSize*2))).
+		WillOnce(Return(chunk2RC, nil))
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(existingSize+chunkSize*2), rangeLimitIs(existingSize+chunkSize*3))).
+		WillOnce(Return(chunk3RC, nil))
+
+	// Call through.
+	buf := make([]byte, readSize)
+	_, err := t.rr.ReadAt(buf, 0)
+
+	// Check the state now.
+	ExpectEq(nil, err)
+	// Start is the total data read.
+	ExpectEq(readSize, t.rr.wrapped.start)
+	// Limit is same as the byteRange of last GCS call made.
+	ExpectEq(existingSize+readSize, t.rr.wrapped.limit)
 }

@@ -22,15 +22,203 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 
 func TestSyncer(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate for FullObjectCreatorTests
+////////////////////////////////////////////////////////////////////////
+
+type FullObjectCreatorTest struct {
+	ctx     context.Context
+	bucket  storage.MockBucket
+	creator objectCreator
+
+	srcObject   gcs.Object
+	srcContents string
+	mtime       time.Time
+}
+
+func init() { RegisterTestSuite(&FullObjectCreatorTest{}) }
+
+func (t *FullObjectCreatorTest) SetUp(ti *TestInfo) {
+	t.ctx = ti.Ctx
+
+	// Create the bucket.
+	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
+
+	// Create the creator.
+	t.creator = &fullObjectCreator{
+		bucket: t.bucket,
+	}
+}
+
+func (t *FullObjectCreatorTest) call() (o *gcs.Object, err error) {
+	o, err = t.creator.Create(
+		t.ctx,
+		t.srcObject.Name,
+		&t.srcObject,
+		&t.mtime,
+		strings.NewReader(t.srcContents))
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *FullObjectCreatorTest) CallsCreateObject() {
+	t.srcContents = "taco"
+
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
+
+	b, err := ioutil.ReadAll(req.Contents)
+	AssertEq(nil, err)
+	ExpectEq(t.srcContents, string(b))
+}
+
+func (t *FullObjectCreatorTest) CreateObjectFails() {
+	var err error
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, errors.New("taco")))
+
+	// Call
+	_, err = t.call()
+
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FullObjectCreatorTest) CreateObjectReturnsPreconditionError() {
+	var err error
+
+	// CreateObject
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+
+	// Call
+	_, err = t.call()
+
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
+	ExpectThat(err, Error(HasSubstr("CreateObject")))
+	ExpectThat(err, Error(HasSubstr("taco")))
+}
+
+func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
+	t.srcObject.Name = "foo"
+	t.srcObject.Generation = 17
+	t.srcObject.MetaGeneration = 23
+	t.srcObject.CacheControl = "testCacheControl"
+	t.srcObject.ContentDisposition = "inline"
+	t.srcObject.ContentEncoding = "gzip"
+	t.srcObject.ContentType = "text/plain"
+	t.srcObject.CustomTime = "2022-04-02T00:30:00Z"
+	t.srcObject.EventBasedHold = true
+	t.srcObject.StorageClass = "STANDARD"
+	t.srcObject.Metadata = map[string]string{
+		"test_key": "test_value",
+	}
+	t.mtime = time.Now().Add(123 * time.Second).UTC()
+
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	t.call()
+
+	AssertNe(nil, req)
+	ExpectEq(t.srcObject.Name, req.Name)
+	ExpectEq(t.srcObject.CacheControl, req.CacheControl)
+	ExpectEq(t.srcObject.ContentDisposition, req.ContentDisposition)
+	ExpectEq(t.srcObject.ContentEncoding, req.ContentEncoding)
+	ExpectEq(t.srcObject.ContentType, req.ContentType)
+	ExpectEq(t.srcObject.CustomTime, req.CustomTime)
+	ExpectEq(t.srcObject.EventBasedHold, req.EventBasedHold)
+
+	ExpectEq(2, len(req.Metadata))
+	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	ExpectEq("test_value", req.Metadata["test_key"])
+}
+
+func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectIsNil() {
+	t.srcContents = "taco"
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	_, _ = t.creator.Create(
+		t.ctx,
+		t.srcObject.Name,
+		nil,
+		&t.mtime,
+		strings.NewReader(t.srcContents))
+
+	t.validateEmptyProperties(req)
+	ExpectEq(t.mtime.Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+}
+
+func (t *FullObjectCreatorTest) CallsCreateObjectWhenSrcObjectAndMtimeAreNil() {
+	t.srcContents = "taco"
+	// CreateObject
+	var req *gcs.CreateObjectRequest
+	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+
+	// Call
+	_, _ = t.creator.Create(
+		t.ctx,
+		t.srcObject.Name,
+		nil,
+		nil,
+		strings.NewReader(t.srcContents))
+
+	t.validateEmptyProperties(req)
+	_, ok := req.Metadata["gcsfuse_mtime"]
+	AssertFalse(ok)
+}
+
+func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectRequest) {
+	AssertNe(nil, req)
+	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
+	// All the properties should be empty/nil.
+	AssertEq(nil, req.MetaGenerationPrecondition)
+	AssertEq("", req.CacheControl)
+	AssertEq("", req.ContentDisposition)
+	AssertEq("", req.ContentEncoding)
+	AssertEq("", req.ContentType)
+	AssertEq("", req.CustomTime)
+	AssertEq(false, req.EventBasedHold)
+	AssertEq("", req.StorageClass)
+	// Validate the object contents.
+	b, err := ioutil.ReadAll(req.Contents)
+	AssertEq(nil, err)
+	ExpectEq(t.srcContents, string(b))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // fakeObjectCreator
@@ -53,8 +241,9 @@ type fakeObjectCreator struct {
 
 func (oc *fakeObjectCreator) Create(
 	ctx context.Context,
+	fileName string,
 	srcObject *gcs.Object,
-	mtime time.Time,
+	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
 	// Have we been called more than once?
 	AssertFalse(oc.called)
@@ -62,7 +251,9 @@ func (oc *fakeObjectCreator) Create(
 
 	// Record args.
 	oc.srcObject = srcObject
-	oc.mtime = mtime
+	if mtime != nil {
+		oc.mtime = *mtime
+	}
 	oc.contents, err = ioutil.ReadAll(r)
 	AssertEq(nil, err)
 
@@ -101,7 +292,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 
 	// Set up dependencies.
-	t.bucket = gcsfake.NewFakeBucket(&t.clock, "some_bucket")
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket")
 	t.syncer = newSyncer(
 		appendThreshold,
 		&t.fullCreator,
@@ -133,7 +324,7 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 }
 
 func (t *SyncerTest) call() (o *gcs.Object, err error) {
-	o, err = t.syncer.SyncObject(t.ctx, t.srcObject, t.content)
+	o, err = t.syncer.SyncObject(t.ctx, t.srcObject.Name, t.srcObject, t.content)
 	return
 }
 
@@ -149,6 +340,14 @@ func (rc dummyReadCloser) Close() error {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
+func (t *SyncerTest) SyncObjectShouldInvokeFullObjectCreatorWhenSrcObjectIsNil() {
+	// It doesn't make sense to validate returned object or error since fake
+	// is not handling them.
+	_, _ = t.syncer.SyncObject(t.ctx, t.srcObject.Name, nil, t.content)
+
+	ExpectTrue(t.fullCreator.called)
+	ExpectFalse(t.appendCreator.called)
+}
 func (t *SyncerTest) NotDirty() {
 	// Call
 	o, err := t.call()
@@ -276,7 +475,7 @@ func (t *SyncerTest) CallsFullCreator() {
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
-	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime.UTC()))
+	ExpectThat(t.fullCreator.mtime, timeutil.TimeEq(mtime))
 	ExpectEq(srcObjectContents[:2], string(t.fullCreator.contents))
 }
 
@@ -306,7 +505,8 @@ func (t *SyncerTest) FullCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	ExpectEq(t.fullCreator.err, err)
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) FullCreatorSucceeds() {
@@ -341,7 +541,7 @@ func (t *SyncerTest) CallsAppendCreator() {
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)
-	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime.UTC()))
+	ExpectThat(t.appendCreator.mtime, timeutil.TimeEq(mtime))
 	ExpectEq("burrito", string(t.appendCreator.contents))
 }
 
@@ -371,7 +571,8 @@ func (t *SyncerTest) AppendCreatorReturnsPreconditionError() {
 	// Call
 	_, err = t.call()
 
-	ExpectEq(t.appendCreator.err, err)
+	var preconditionErr *gcs.PreconditionError
+	ExpectTrue(errors.As(err, &preconditionErr))
 }
 
 func (t *SyncerTest) AppendCreatorSucceeds() {

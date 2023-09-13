@@ -16,18 +16,16 @@ package monitor
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"go.opencensus.io/stats/view"
 )
 
-var exporter *stackdriver.Exporter
-var infoLogger *log.Logger
-var errorLogger *log.Logger
+var stackdriverExporter *stackdriver.Exporter
 
 // EnableStackdriverExporter starts to collect monitoring metrics and exports
 // them to Stackdriver iff the given interval is positive.
@@ -36,14 +34,11 @@ func EnableStackdriverExporter(interval time.Duration) error {
 		return nil
 	}
 
-	infoLogger = logger.NewInfo("")
-	errorLogger = logger.NewError("")
-
 	var err error
-	if exporter, err = stackdriver.NewExporter(stackdriver.Options{
+	if stackdriverExporter, err = stackdriver.NewExporter(stackdriver.Options{
 		ReportingInterval: interval,
 		OnError: func(err error) {
-			errorLogger.Printf("Fail to send metric: %v", err)
+			logger.Errorf("Fail to send metric: %v", err)
 		},
 
 		// For a local metric "http_sent_bytes", the Stackdriver metric type
@@ -58,22 +53,56 @@ func EnableStackdriverExporter(interval time.Duration) error {
 			return name
 		},
 	}); err != nil {
-		return fmt.Errorf("create exporter: %w", err)
+		return fmt.Errorf("create stackdriver exporter: %w", err)
 	}
-	if err = exporter.StartMetricsExporter(); err != nil {
-		return fmt.Errorf("start exporter: %w", err)
+	if err = stackdriverExporter.StartMetricsExporter(); err != nil {
+		return fmt.Errorf("start stackdriver exporter: %w", err)
 	}
 
-	infoLogger.Printf("Stackdriver exporter started")
+	logger.Info("Stackdriver exporter started")
 	return nil
 }
 
 // CloseStackdriverExporter ensures all collected metrics are sent to
-// Stackdriver and closes the exporter.
+// Stackdriver and closes the stackdriverExporter.
 func CloseStackdriverExporter() {
-	if exporter != nil {
-		exporter.StopMetricsExporter()
-		exporter.Flush()
+	if stackdriverExporter != nil {
+		stackdriverExporter.StopMetricsExporter()
+		stackdriverExporter.Flush()
 	}
-	exporter = nil
+	stackdriverExporter = nil
+}
+
+var ocExporter *ocagent.Exporter
+
+// EnableOpenTelemetryCollectorExporter starts exporting monitoring metrics to
+// the OpenTelemetry Collector at the given address.
+// Details: https://opentelemetry.io/docs/collector/
+func EnableOpenTelemetryCollectorExporter(address string) error {
+	if address == "" {
+		return nil
+	}
+
+	var err error
+	if ocExporter, err = ocagent.NewExporter(
+		ocagent.WithAddress(address),
+		ocagent.WithServiceName("gcsfuse"),
+		ocagent.WithReconnectionPeriod(5*time.Second),
+	); err != nil {
+		return fmt.Errorf("create opentelementry collector exporter: %w", err)
+	}
+
+	view.RegisterExporter(ocExporter)
+	logger.Info("OpenTelemetry collector exporter started")
+	return nil
+}
+
+// CloseOpenTelemetryCollectorExporter ensures all collected metrics are sent to
+// the OpenTelemetry Collect and closes the exporter.
+func CloseOpenTelemetryCollectorExporter() {
+	if ocExporter != nil {
+		ocExporter.Stop()
+		ocExporter.Flush()
+	}
+	ocExporter = nil
 }

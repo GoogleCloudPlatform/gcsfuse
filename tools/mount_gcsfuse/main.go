@@ -80,8 +80,16 @@ func makeGcsfuseArgs(
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
 
 		// Special case: support mount-like formatting for gcsfuse bool flags.
-		case "implicit_dirs", "disable_http2":
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1))
+		case "implicit_dirs",
+			"foreground",
+			"experimental_local_file_cache",
+			"reuse_token_from_url",
+			"enable_nonexistent_type_cache",
+			"experimental_enable_json_read":
+			if value == "" {
+				value = "true"
+			}
+			args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
@@ -91,25 +99,34 @@ func makeGcsfuseArgs(
 			"app_name",
 			"only_dir",
 			"billing_project",
+			"client_protocol",
 			"key_file",
 			"token_url",
 			"limit_bytes_per_sec",
 			"limit_ops_per_sec",
 			"rename_dir_limit",
 			"max_retry_sleep",
+			"max_retry_duration",
+			"retry_multiplier",
 			"stat_cache_capacity",
 			"stat_cache_ttl",
 			"type_cache_ttl",
-			"local_file_cache",
+			"http_client_timeout",
+			"sequential_read_size_mb",
 			"temp_dir",
 			"max_conns_per_host",
-			"monitoring_port",
+			"max_idle_conns_per_host",
+			"stackdriver_export_interval",
+			"experimental_opentelemetry_collector_address",
 			"log_format",
-			"log_file":
+			"log_file",
+			"custom_endpoint",
+			"config_file":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
 		case "debug_fuse",
+			"debug_fuse_errors",
 			"debug_fs",
 			"debug_gcs",
 			"debug_http",
@@ -256,6 +273,13 @@ func run(args []string) (err error) {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("https_proxy=%s", p))
 	} else if p, ok := os.LookupEnv("http_proxy"); ok {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("http_proxy=%s", p))
+	}
+	// Pass through the no_proxy enviroment variable. Whenever
+	// using the http(s)_proxy environment variables. This should
+	// also be included to know for which hosts the use of proxies
+	// should be ignored.
+	if p, ok := os.LookupEnv("no_proxy"); ok {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("no_proxy=%s", p))
 	}
 
 	cmd.Stdout = os.Stdout

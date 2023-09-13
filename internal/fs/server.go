@@ -30,9 +30,6 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}
 
-	if cfg.DebugFS {
-		fs = wrappers.WithDebugLogging(fs)
-	}
 	fs = wrappers.WithErrorMapping(fs)
 	fs = wrappers.WithMonitoring(fs)
 	return fuseutil.NewFileSystemServer(fs), nil

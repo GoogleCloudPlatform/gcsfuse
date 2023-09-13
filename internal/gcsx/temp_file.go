@@ -39,6 +39,9 @@ type TempFile interface {
 	io.WriterAt
 	Truncate(n int64) (err error)
 
+	// Retrieve the file name
+	Name() string
+
 	// Return information about the current state of the content. May invalidate
 	// the seek position.
 	Stat() (sr StatResult, err error)
@@ -92,6 +95,48 @@ func NewTempFile(
 		clock:          clock,
 		f:              f,
 		dirtyThreshold: 0,
+	}
+
+	return
+}
+
+// NewCacheFile creates a wrapper temp file whose initial contents are given by the
+// supplied source. dir is a directory on whose file system the file will live,
+// or the system default temporary location if empty.
+func NewCacheFile(
+	source io.ReadCloser,
+	f *os.File,
+	dir string,
+	clock timeutil.Clock) (tf TempFile) {
+
+	tf = &tempFile{
+		source:         source,
+		state:          fileIncomplete,
+		clock:          clock,
+		f:              f,
+		dirtyThreshold: 0,
+	}
+
+	return
+}
+
+func RecoverCacheFile(
+	source *os.File,
+	dir string,
+	clock timeutil.Clock) (tf TempFile, err error) {
+
+	stat, err := source.Stat()
+
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve file stat: %w", err)
+	}
+
+	tf = &tempFile{
+		source:         source,
+		state:          fileComplete,
+		clock:          clock,
+		f:              source,
+		dirtyThreshold: stat.Size(),
 	}
 
 	return
@@ -175,9 +220,9 @@ func (tf *tempFile) CheckInvariants() {
 
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
-
-	// Throw away the file.
+	// Throw away the file (for anonymous files).
 	tf.f.Close()
+
 	tf.f = nil
 }
 
@@ -262,6 +307,10 @@ func (tf *tempFile) Truncate(n int64) error {
 
 func (tf *tempFile) SetMtime(mtime time.Time) {
 	tf.mtime = &mtime
+}
+
+func (tf *tempFile) Name() string {
+	return tf.f.Name()
 }
 
 ////////////////////////////////////////////////////////////////////////

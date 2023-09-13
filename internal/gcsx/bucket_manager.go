@@ -15,20 +15,18 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcscaching"
-	"github.com/jacobsa/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -40,6 +38,7 @@ type BucketConfig struct {
 	StatCacheCapacity                  int
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
+	DebugGCS                           bool
 
 	// Files backed by on object of length at least AppendThreshold that have
 	// only been appended to (i.e. none of the object's contents have been
@@ -63,31 +62,27 @@ type BucketConfig struct {
 
 // BucketManager manages the lifecycle of buckets.
 type BucketManager interface {
-	// Sets up a gcs bucket by its name
 	SetUpBucket(
 		ctx context.Context,
 		name string) (b SyncerBucket, err error)
-
-	// Lists the names of all the buckets in the project.
-	ListBuckets(ctx context.Context) (names []string, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
 }
 
 type bucketManager struct {
-	config BucketConfig
-	conn   *Connection
+	config        BucketConfig
+	storageHandle storage.StorageHandle
 
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, conn *Connection) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
-		config: config,
-		conn:   conn,
+		config:        config,
+		storageHandle: storageHandle,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -116,7 +111,7 @@ func setUpRateLimiting(
 	// window of the given size.
 	const window = 8 * time.Hour
 
-	opCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	opCapacity, err := ratelimit.ChooseLimiterCapacity(
 		opRateLimitHz,
 		window)
 
@@ -125,7 +120,7 @@ func setUpRateLimiting(
 		return
 	}
 
-	egressCapacity, err := ratelimit.ChooseTokenBucketCapacity(
+	egressCapacity, err := ratelimit.ChooseLimiterCapacity(
 		egressBandwidthLimit,
 		window)
 
@@ -151,6 +146,13 @@ func setUpRateLimiting(
 //
 // Special case: if the bucket name is canned.FakeBucketName, set up a fake
 // bucket as described in that package.
+func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
+	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
+
+	b = storage.NewDebugBucket(b)
+	return
+}
+
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string) (sb SyncerBucket, err error) {
@@ -159,14 +161,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		logger.Infof("OpenBucket(%q, %q)\n", name, bm.config.BillingProject)
-		b, err = bm.conn.OpenBucket(
-			ctx,
-			&gcs.OpenBucketOptions{
-				Name:           name,
-				BillingProject: bm.config.BillingProject,
-			},
-		)
+		b, err = bm.SetUpGcsBucket(name)
 		if err != nil {
 			err = fmt.Errorf("OpenBucket: %w", err)
 			return
@@ -196,9 +191,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Enable cached StatObject results, if appropriate.
 	if bm.config.StatCacheTTL != 0 {
 		cacheCapacity := bm.config.StatCacheCapacity
-		b = gcscaching.NewFastStatBucket(
+		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			gcscaching.NewStatCache(cacheCapacity),
+			caching.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
 	}
@@ -224,9 +219,9 @@ func (bm *bucketManager) SetUpBucket(
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.
 	{
-		_, err := b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
+		_, err = b.ListObjects(ctx, &gcs.ListObjectsRequest{MaxResults: 1})
 		if err != nil {
-			fmt.Fprintln(os.Stdout, "WARNING, bucket doesn't appear to work: ", err)
+			return
 		}
 	}
 
@@ -238,11 +233,4 @@ func (bm *bucketManager) SetUpBucket(
 
 func (bm *bucketManager) ShutDown() {
 	bm.stopGarbageCollecting()
-}
-
-func (bm *bucketManager) ListBuckets(ctx context.Context) (
-	names []string,
-	err error) {
-	names, err = bm.conn.ListBuckets(ctx, bm.config.BillingProject)
-	return
 }

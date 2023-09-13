@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package perfmetrics;
+
+message Directory {
+    string name = 1;
+    int32 num_files = 2;
+    string file_name_prefix = 3;
+    string file_size = 4;
+    int32 num_folders = 5;
+    repeated Directory folders = 6;
+}

@@ -16,20 +16,22 @@ package inode
 
 import (
 	"sync"
+	"syscall"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/gcloud/gcs"
 	"golang.org/x/net/context"
 )
 
 // An inode that
-//  (1) represents a base directory which contains a list of
-//      subdirectories as the roots of different GCS buckets;
-//  (2) implements BaseDirInode, allowing read only ops.
+//
+//	(1) represents a base directory which contains a list of
+//	    subdirectories as the roots of different GCS buckets;
+//	(2) implements BaseDirInode, allowing read only ops.
 type baseDirInode struct {
 	/////////////////////////
 	// Constant data
@@ -75,28 +77,6 @@ func NewBaseDirInode(
 	typed.lc.Init(id)
 
 	d = typed
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-// LOCKS_REQUIRED(d)
-func (d *baseDirInode) lookUpOrSetUpBucket(
-	ctx context.Context,
-	name string) (b gcsx.SyncerBucket, err error) {
-	var ok bool
-	b, ok = d.buckets[name]
-	if ok {
-		return
-	}
-
-	b, err = d.bucketManager.SetUpBucket(ctx, name)
-	if err != nil {
-		return
-	}
-	d.buckets[name] = b
 	return
 }
 
@@ -160,7 +140,7 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	}
 
 	return &Core{
-		Bucket:   bucket,
+		Bucket:   &bucket,
 		FullName: NewRootName(bucket.Name()),
 		Object:   nil,
 	}, nil
@@ -175,20 +155,12 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var bucketNames []string
-	bucketNames, err = d.bucketManager.ListBuckets(ctx)
-	if err != nil {
-		return
-	}
-	for _, name := range bucketNames {
-		entry := fuseutil.Dirent{
-			Name: name,
-			Type: fuseutil.DT_Directory,
-		}
-		entries = append(entries, entry)
-	}
 
-	return
+	// The subdirectories of the base directory should be all the accessible
+	// buckets. Although the user is allowed to visit each individual
+	// subdirectory, listing all the subdirectories (i.e. the buckets) can be
+	// very expensive and currently not supported.
+	return nil, "", syscall.ENOTSUP
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -201,6 +173,10 @@ func (d *baseDirInode) ReadEntries(
 // indicating such operation is not supported.
 
 func (d *baseDirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
+	return nil, fuse.ENOSYS
+}
+
+func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
@@ -227,7 +203,13 @@ func (d *baseDirInode) DeleteChildFile(
 
 func (d *baseDirInode) DeleteChildDir(
 	ctx context.Context,
-	name string) (err error) {
+	name string,
+	isImplicitDir bool) (err error) {
 	err = fuse.ENOSYS
 	return
+}
+
+func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+	// Base directory can not contain local files.
+	return nil
 }

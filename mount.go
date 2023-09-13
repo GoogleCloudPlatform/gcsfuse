@@ -16,9 +16,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -32,13 +33,13 @@ import (
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
-func mountWithConn(
+func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	conn *gcsx.Connection,
-	status *log.Logger) (mfs *fuse.MountedFileSystem, err error) {
+	mountConfig *config.MountConfig,
+	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
@@ -92,25 +93,29 @@ be interacting with the file system.`)
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
+		DebugGCS:                           flags.DebugGCS,
 	}
-	bm := gcsx.NewBucketManager(bucketCfg, conn)
+	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
-		CacheClock:             timeutil.RealClock(),
-		BucketManager:          bm,
-		BucketName:             bucketName,
-		LocalFileCache:         flags.LocalFileCache,
-		DebugFS:                flags.DebugFS,
-		TempDir:                flags.TempDir,
-		ImplicitDirectories:    flags.ImplicitDirs,
-		InodeAttributeCacheTTL: flags.StatCacheTTL,
-		DirTypeCacheTTL:        flags.TypeCacheTTL,
-		Uid:                    uid,
-		Gid:                    gid,
-		FilePerms:              os.FileMode(flags.FileMode),
-		DirPerms:               os.FileMode(flags.DirMode),
-		RenameDirLimit:         flags.RenameDirLimit,
+		CacheClock:                 timeutil.RealClock(),
+		BucketManager:              bm,
+		BucketName:                 bucketName,
+		LocalFileCache:             flags.LocalFileCache,
+		DebugFS:                    flags.DebugFS,
+		TempDir:                    flags.TempDir,
+		ImplicitDirectories:        flags.ImplicitDirs,
+		InodeAttributeCacheTTL:     flags.StatCacheTTL,
+		DirTypeCacheTTL:            flags.TypeCacheTTL,
+		Uid:                        uid,
+		Gid:                        gid,
+		FilePerms:                  os.FileMode(flags.FileMode),
+		DirPerms:                   os.FileMode(flags.DirMode),
+		RenameDirLimit:             flags.RenameDirLimit,
+		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
+		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
+		MountConfig:                mountConfig,
 	}
 
 	logger.Infof("Creating a new server...\n")
@@ -122,22 +127,21 @@ be interacting with the file system.`)
 
 	fsName := bucketName
 	if bucketName == "" || bucketName == "_" {
-		// mouting all the buckets at once
+		// mounting all the buckets at once
 		fsName = "gcsfuse"
 	}
 
 	// Mount the file system.
-	status.Printf("Mounting file system %q...", fsName)
+	logger.Infof("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
-		FSName:      fsName,
-		VolumeName:  "gcsfuse",
-		Options:     flags.MountOptions,
-		ErrorLogger: logger.NewError("fuse: "),
+		FSName:     fsName,
+		Subtype:    "gcsfuse",
+		VolumeName: "gcsfuse",
+		Options:    flags.MountOptions,
 	}
 
-	if flags.DebugFuse {
-		mountCfg.DebugLogger = logger.NewDebug("fuse_debug: ")
-	}
+	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
+	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
 
 	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
 	if err != nil {

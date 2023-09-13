@@ -15,14 +15,13 @@
 package integration_test
 
 import (
-	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"runtime"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
 )
 
@@ -35,7 +34,9 @@ var gBuildDir string
 var gFusermountPath string
 
 func TestMain(m *testing.M) {
-	flag.Parse()
+	// Parse flags from the setup.
+	setup.ParseSetUpFlags()
+
 	var err error
 
 	// Find fusermount if we're running on Linux.
@@ -46,8 +47,17 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	if setup.TestInstalledPackage() {
+		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
+		// machine. Hence, here we are overwriting gBuildDir to /.
+		gBuildDir = "/"
+		code := m.Run()
+		os.Exit(code)
+	}
+
+	// To test locally built package
 	// Set up a directory into which we will build.
-	gBuildDir, err = ioutil.TempDir("", "gcsfuse_integration_tests")
+	gBuildDir, err = os.MkdirTemp("", "gcsfuse_integration_tests")
 	if err != nil {
 		log.Fatalf("TempDir: %p", err)
 		return

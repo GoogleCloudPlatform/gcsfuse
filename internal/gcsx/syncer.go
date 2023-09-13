@@ -19,7 +19,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/jacobsa/gcloud/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 
@@ -37,11 +37,9 @@ type Syncer interface {
 	//
 	// *   Otherwise, write out a new generation in the bucket (failing with
 	//     *gcs.PreconditionError if the source generation is no longer current).
-	//
-	// In the second case, the TempFile is destroyed. Otherwise, including when
-	// this function fails, it is guaranteed to still be valid.
 	SyncObject(
 		ctx context.Context,
+		fileName string,
 		srcObject *gcs.Object,
 		content TempFile) (o *gcs.Object, err error)
 }
@@ -84,26 +82,49 @@ type fullObjectCreator struct {
 
 func (oc *fullObjectCreator) Create(
 	ctx context.Context,
+	objectName string,
 	srcObject *gcs.Object,
-	mtime time.Time,
+	mtime *time.Time,
 	r io.Reader) (o *gcs.Object, err error) {
-	req := &gcs.CreateObjectRequest{
-		Name:                       srcObject.Name,
-		GenerationPrecondition:     &srcObject.Generation,
-		MetaGenerationPrecondition: &srcObject.MetaGeneration,
-		Contents:                   r,
-		Metadata: map[string]string{
-			MtimeMetadataKey: mtime.Format(time.RFC3339Nano),
-		},
+	metadataMap := make(map[string]string)
+
+	var req *gcs.CreateObjectRequest
+	if srcObject == nil {
+		var precond int64
+		req = &gcs.CreateObjectRequest{
+			Name:                   objectName,
+			Contents:               r,
+			GenerationPrecondition: &precond,
+			Metadata:               metadataMap,
+		}
+	} else {
+		for key, value := range srcObject.Metadata {
+			metadataMap[key] = value
+		}
+
+		req = &gcs.CreateObjectRequest{
+			Name:                       srcObject.Name,
+			GenerationPrecondition:     &srcObject.Generation,
+			MetaGenerationPrecondition: &srcObject.MetaGeneration,
+			Contents:                   r,
+			Metadata:                   metadataMap,
+			CacheControl:               srcObject.CacheControl,
+			ContentDisposition:         srcObject.ContentDisposition,
+			ContentEncoding:            srcObject.ContentEncoding,
+			ContentType:                srcObject.ContentType,
+			CustomTime:                 srcObject.CustomTime,
+			EventBasedHold:             srcObject.EventBasedHold,
+			StorageClass:               srcObject.StorageClass,
+		}
+	}
+
+	// Any existing mtime value will be overwritten with new value.
+	if mtime != nil {
+		metadataMap[MtimeMetadataKey] = mtime.UTC().Format(time.RFC3339Nano)
 	}
 
 	o, err = oc.bucket.CreateObject(ctx, req)
 	if err != nil {
-		// Don't mangle precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
-
 		err = fmt.Errorf("CreateObject: %w", err)
 		return
 	}
@@ -119,18 +140,19 @@ func (oc *fullObjectCreator) Create(
 type objectCreator interface {
 	Create(
 		ctx context.Context,
+		objectName string,
 		srcObject *gcs.Object,
-		mtime time.Time,
+		mtime *time.Time,
 		r io.Reader) (o *gcs.Object, err error)
 }
 
 // Create a syncer that stats the mutable content to see if it's dirty before
 // calling through to one of two object creators if the content is dirty:
 //
-// *   fullCreator accepts the source object and the full contents with which it
+//   - fullCreator accepts the source object and the full contents with which it
 //     should be overwritten.
 //
-// *   appendCreator accepts the source object and the contents that should be
+//   - appendCreator accepts the source object and the contents that should be
 //     "appended" to it.
 //
 // appendThreshold controls the source object length at which we consider it
@@ -158,6 +180,7 @@ type syncer struct {
 
 func (os *syncer) SyncObject(
 	ctx context.Context,
+	objectName string,
 	srcObject *gcs.Object,
 	content TempFile) (o *gcs.Object, err error) {
 	// Stat the content.
@@ -165,6 +188,19 @@ func (os *syncer) SyncObject(
 	if err != nil {
 		err = fmt.Errorf("Stat: %w", err)
 		return
+	}
+
+	// Local files are not present on GCS, hence only fullCreator is
+	// invoked and append flow is never triggered.
+	if srcObject == nil {
+		// Content.Stat() seeks the current position to end of file. Seek it back
+		// to beginning of the file.
+		_, err = content.Seek(0, 0)
+		if err != nil {
+			err = fmt.Errorf("error in seeking: %w", err)
+			return
+		}
+		return os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	}
 
 	// Make sure the dirty threshold makes sense.
@@ -192,9 +228,6 @@ func (os *syncer) SyncObject(
 		return
 	}
 
-	// Canonicalize to UTC.
-	mtime := sr.Mtime.UTC()
-
 	// Otherwise, we need to create a new generation. If the source object is
 	// long enough, hasn't been dirtied, and has a low enough component count,
 	// then we can make the optimization of not rewriting its contents.
@@ -207,7 +240,7 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.appendCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.appendCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	} else {
 		_, err = content.Seek(0, 0)
 		if err != nil {
@@ -215,22 +248,14 @@ func (os *syncer) SyncObject(
 			return
 		}
 
-		o, err = os.fullCreator.Create(ctx, srcObject, mtime, content)
+		o, err = os.fullCreator.Create(ctx, objectName, srcObject, sr.Mtime, content)
 	}
 
 	// Deal with errors.
 	if err != nil {
-		// Special case: don't mess with precondition errors.
-		if _, ok := err.(*gcs.PreconditionError); ok {
-			return
-		}
-
 		err = fmt.Errorf("Create: %w", err)
 		return
 	}
-
-	// Destroy the temp file.
-	content.Destroy()
 
 	return
 }

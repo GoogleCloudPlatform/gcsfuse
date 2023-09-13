@@ -21,10 +21,10 @@ import (
 	"log"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 
-	"github.com/jacobsa/gcloud/gcs"
-	"github.com/jacobsa/gcloud/gcs/gcsfake"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -34,10 +34,9 @@ import (
 // The initial contents of the bucket are objects with names given by the
 // following constants:
 //
-//     TopLevelFile
-//     TopLevelDir
-//     ImplicitDirFile
-//
+//	TopLevelFile
+//	TopLevelDir
+//	ImplicitDirFile
 const FakeBucketName = "fake@bucket"
 
 // See notes on FakeBucketName.
@@ -58,7 +57,7 @@ const (
 // Create a fake bucket with canned contents as described in the comments for
 // FakeBucketName.
 func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
-	b = gcsfake.NewFakeBucket(timeutil.RealClock(), FakeBucketName)
+	b = fake.NewFakeBucket(timeutil.RealClock(), FakeBucketName)
 
 	// Set up contents.
 	contents := map[string]string{
