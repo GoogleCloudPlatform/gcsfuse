@@ -47,7 +47,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup, t *testing.T
 
 	err = operations.WriteFile(filePath, string(data))
 	if err != nil {
-		return
+		t.Fatalf("Error in writing file:%v", err)
 	}
 
 	// Download the file from a bucket in which we write the content.
@@ -67,7 +67,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	}
 
 	// Clean up.
-	defer operations.RemoveDir(concurrentWriteDir)
+	// defer operations.RemoveDir(concurrentWriteDir)
 
 	// For waiting on threads.
 	var wg sync.WaitGroup
