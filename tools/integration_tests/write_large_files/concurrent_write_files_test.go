@@ -43,6 +43,9 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 		return
 	}
 
+	// Closing file at the end.
+	defer operations.CloseFile(f)
+
 	// Reduce thread count when it is done.
 	defer wg.Done()
 
