@@ -34,6 +34,7 @@ directory=gcs/256kb
 filesize=256k
 rw=write
 numjobs=40
+fsync=16
 
 [3_thread]
 stonewall
@@ -49,6 +50,7 @@ directory=gcs/3mb
 filesize=3M
 rw=write
 numjobs=40
+fsync=3
 
 [5_thread]
 stonewall
@@ -64,6 +66,7 @@ directory=gcs/5mb
 filesize=5M
 rw=write
 numjobs=40
+fsync=5
 
 [7_thread]
 stonewall
@@ -79,6 +82,7 @@ directory=gcs/50mb
 filesize=50M
 rw=write
 numjobs=40
+fsync=50
 
 [9_thread]
 stonewall
