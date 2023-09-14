@@ -28,15 +28,16 @@ import (
 )
 
 const (
-	TmpDir = "/tmp"
-	OneMiB = 1024 * 1024
+	TmpDir          = "/tmp"
+	OneMiB          = 1024 * 1024
+	WritePermission = 0200
 )
 
 func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {
 	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
 		err = fmt.Errorf("Error in downloading object:%w", err)
-		return
+		return err
 	}
 
 	// Remove file after testing.
@@ -47,38 +48,38 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		err = fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
-		return
+		return err
 	}
-	return
+	return err
 }
 
 // Write data of chunkSize in file at given offset.
-func WriteChunkSizeInFile(file *os.File, filePath string, chunkSize int, offset int64) (err error) {
+func WriteChunkSizeInFile(file *os.File, chunkSize int, offset int64) (err error) {
 	chunk := make([]byte, chunkSize)
 	_, err = rand.Read(chunk)
 	if err != nil {
 		err = fmt.Errorf("error while generating random string: %s", err)
-		return
+		return err
 	}
 
 	// Write data in the file.
 	n, err := file.WriteAt(chunk, offset)
 	if err != nil {
 		err = fmt.Errorf("Error in writing randomly in file:%v", err)
-		return
+		return err
 	}
 	if n != chunkSize {
 		err = fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-		return
+		return err
 	}
 
 	err = file.Sync()
 	if err != nil {
 		err = fmt.Errorf("Error in syncing file:%v", err)
-		return
+		return err
 	}
 
-	return
+	return err
 }
 
 func TestMain(m *testing.M) {

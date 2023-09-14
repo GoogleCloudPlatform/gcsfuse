@@ -28,11 +28,10 @@ import (
 )
 
 const (
-	FileOne                                    = "fileOne.txt"
-	FileTwo                                    = "fileTwo.txt"
-	FileThree                                  = "fileThree.txt"
-	NumberOfFilesInLocalDiskForConcurrentWrite = 3
-	DirForConcurrentWrite                      = "dirForConcurrentWrite"
+	FileOne               = "fileOne.txt"
+	FileTwo               = "fileTwo.txt"
+	FileThree             = "fileThree.txt"
+	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
 func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) {
@@ -40,19 +39,19 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 	defer wg.Done()
 
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
-		return
+		return err
 	}
 
 	// Closing file at the end.
 	defer operations.CloseFile(f)
 
-	err = WriteChunkSizeInFile(f, filePath, int(fileSize), 0)
+	err = WriteChunkSizeInFile(f, int(fileSize), 0)
 	if err != nil {
 		err = fmt.Errorf("Error:%v", err)
-		return
+		return err
 	}
 
 	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
@@ -60,7 +59,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
 		err = fmt.Errorf("Error:%v", err)
-		return
+		return err
 	}
 
 	return
@@ -79,10 +78,10 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	// For waiting on threads.
 	var wg sync.WaitGroup
 
-	files := [NumberOfFilesInLocalDiskForConcurrentWrite]string{FileOne, FileTwo, FileThree}
+	files := []string{FileOne, FileTwo, FileThree}
 
 	// Concurrently write three files.
-	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentWrite; i++ {
+	for i := 0; i < len(files); i++ {
 		// Increment the WaitGroup counter.
 		wg.Add(1)
 

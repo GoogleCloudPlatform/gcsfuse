@@ -43,7 +43,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 	// Clean up.
 	defer operations.RemoveDir(randomWriteDir)
 
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, setup.FilePermission_0600)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission)
 	if err != nil {
 		t.Fatalf("Open file for write at start: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			chunkSize = int(MaxWritableByteFromFile - offset)
 		}
 
-		err := WriteChunkSizeInFile(f, filePath, chunkSize, offset)
+		err := WriteChunkSizeInFile(f, chunkSize, offset)
 		if err != nil {
 			t.Fatalf("Error:%v", err)
 		}
