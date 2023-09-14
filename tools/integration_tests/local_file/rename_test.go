@@ -32,7 +32,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Attempt to rename local file.
-	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), "newName"))
+	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), NewFileName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
@@ -54,7 +54,7 @@ func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, path.Join(ExplicitDirName, FileName2), t)
 
 	// Attempt to rename directory containing local file.
-	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), "newName/"))
+	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), NewDirName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
@@ -69,13 +69,13 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 	TestRenameOfLocalFileFails(t)
 
 	// Attempt to Rename synced file.
-	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), "newName"))
+	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), NewFileName))
 
 	// Validate.
 	if err != nil {
 		t.Fatalf("os.Rename() failed on synced file: %v", err)
 	}
-	ValidateObjectContents("newName", FileContents+FileContents, t)
+	ValidateObjectContents(NewFileName, FileContents+FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
@@ -83,14 +83,14 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 	TestRenameOfDirectoryWithLocalFileFails(t)
 
 	// Attempt to rename directory again after sync.
-	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), "newName/"))
+	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), NewDirName))
 
 	// Validate.
 	if err != nil {
 		t.Fatalf("os.Rename() failed on directory containing synced files: %v", err)
 	}
-	ValidateObjectContents(path.Join("newName", FileName1), FileContents, t)
+	ValidateObjectContents(path.Join(NewDirName, FileName1), FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName1), t)
-	ValidateObjectContents(path.Join("newName", FileName2), FileContents+FileContents, t)
+	ValidateObjectContents(path.Join(NewDirName, FileName2), FileContents+FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName2), t)
 }
