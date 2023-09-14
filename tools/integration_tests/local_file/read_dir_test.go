@@ -74,9 +74,9 @@ func TestReadDir(t *testing.T) {
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Structure
 	// mntDir/
-	//	   - foo1 						--- file
-	//     - explicit/		    --- directory
-	//		   - explicitFile1  --- file
+	// mntDir/foo1 						--- file
+	// mntDir/explicit/		    --- directory
+	// mntDir/explicit/explicitFile1  --- file
 
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()

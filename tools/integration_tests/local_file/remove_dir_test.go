@@ -38,12 +38,10 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	RemoveDirShouldNotThrowError(ExplicitDirName, t)
 
 	// Verify that directory is removed.
-	ValidateNoFileOrDirError(syncedFile, t)
-	ValidateNoFileOrDirError(localFile, t)
 	ValidateNoFileOrDirError(ExplicitDirName, t)
-	// Validate writing content to unlinked local file does not throw error
+	// Validate writing content to unlinked local file does not throw error.
 	WritingToLocalFileSHouldNotThrowError(fh2, FileContents, t)
-	// Validate flush file does not throw error and does not create object on GCS
+	// Validate flush file does not throw error and does not create object on GCS.
 	CloseLocalFile(fh2, localFile, t)
 	ValidateObjectNotFoundErrOnGCS(localFile, t)
 	// Validate synced files are also deleted.

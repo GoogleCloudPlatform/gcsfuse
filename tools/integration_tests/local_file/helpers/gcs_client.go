@@ -71,7 +71,7 @@ func ReadObjectFromGCS(object string) (string, error) {
 }
 
 // CreateObject creates an object with given name and content on GCS.
-func CreateObject(object string, content string) error {
+func CreateObject(object, content string) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
