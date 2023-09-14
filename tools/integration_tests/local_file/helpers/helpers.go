@@ -24,19 +24,22 @@ import (
 )
 
 const (
-	FileName1                     = "foo1"
-	FileName2                     = "foo2"
-	FileName3                     = "foo3"
-	ImplicitDirName               = "implicit"
-	ImplicitFileName1             = "implicitFile1"
-	ExplicitDirName               = "explicit"
-	ExplicitFileName1             = "explicitFile1"
-	DirPerms          os.FileMode = 0755
-	FilePerms         os.FileMode = 0644
-	FileContents                  = "teststring"
-	GCSFileContent                = "gcsContent"
-	NewFileName                   = "newName"
-	NewDirName                    = "newDirName"
+	FileName1                      = "foo1"
+	FileName2                      = "foo2"
+	FileName3                      = "foo3"
+	ImplicitDirName                = "implicit"
+	ImplicitFileName1              = "implicitFile1"
+	ExplicitDirName                = "explicit"
+	ExplicitFileName1              = "explicitFile1"
+	DirPerms           os.FileMode = 0755
+	FilePerms          os.FileMode = 0644
+	FileContents                   = "teststring"
+	GCSFileContent                 = "gcsContent"
+	NewFileName                    = "newName"
+	NewDirName                     = "newDirName"
+	SizeOfFileContents             = 10
+	SizeOfGCSContent               = 10
+	SizeTruncate                   = 5
 )
 
 func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File) {

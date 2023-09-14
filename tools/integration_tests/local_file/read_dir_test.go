@@ -59,8 +59,8 @@ func TestReadDir(t *testing.T) {
 	VerifyCountOfEntries(4, len(entriesMnt), t)
 	VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
 	VerifyLocalFileEntry(entriesMnt[1], FileName1, 0, t)
-	VerifyLocalFileEntry(entriesMnt[2], FileName2, 10, t)
-	VerifyLocalFileEntry(entriesMnt[3], FileName3, 10, t)
+	VerifyLocalFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t)
+	VerifyLocalFileEntry(entriesMnt[3], FileName3, SizeOfGCSContent, t)
 	// Verify entriesDir received successfully.
 	VerifyCountOfEntries(1, len(entriesDir), t)
 	VerifyLocalFileEntry(entriesDir[0], ExplicitFileName1, 0, t)

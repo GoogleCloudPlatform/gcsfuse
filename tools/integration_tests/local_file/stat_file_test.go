@@ -37,7 +37,7 @@ func TestStatOnLocalFile(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Stat the local file again to check if new content is written.
-	VerifyStatOnLocalFile(filePath, 10, t)
+	VerifyStatOnLocalFile(filePath, SizeOfFileContents, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, FileContents, t)
@@ -65,17 +65,17 @@ func TestTruncateLocalFile(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Stat the file to validate if new contents are written.
-	VerifyStatOnLocalFile(filePath, 10, t)
+	VerifyStatOnLocalFile(filePath, SizeOfFileContents, t)
 
 	// Truncate the file to update the file size.
-	err := os.Truncate(filePath, 5)
+	err := os.Truncate(filePath, SizeTruncate)
 	if err != nil {
 		t.Fatalf("os.Truncate err: %v", err)
 	}
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Stat the file to validate if file is truncated correctly.
-	VerifyStatOnLocalFile(filePath, 5, t)
+	VerifyStatOnLocalFile(filePath, SizeTruncate, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, "tests", t)
