@@ -44,6 +44,7 @@ const FileName2 = "foo2"
 const implicitLocalFileName = "implicitLocalFile"
 const explicitLocalFileName = "explicitLocalFile"
 const FileContents = "teststring"
+const Delta = 30 * time.Minute
 
 type LocalFileTest struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
@@ -803,8 +804,8 @@ func (t *LocalFileTest) AtimeMtimeAndCtime() {
 
 	// Check if mtime is returned correctly for unsynced file.
 	_, _, mtime := fusetesting.GetTimes(fi)
-	const delta = 30 * time.Minute
-	ExpectThat(mtime, timeutil.TimeNear(createTime, delta))
+
+	ExpectThat(mtime, timeutil.TimeNear(createTime, Delta))
 
 	// Write some contents.
 	_, err = t.f1.Write([]byte("test contents"))
@@ -816,7 +817,7 @@ func (t *LocalFileTest) AtimeMtimeAndCtime() {
 
 	// We require only that atime and ctime be "reasonable".
 	atime, ctime, mtime := fusetesting.GetTimes(fi)
-	ExpectThat(mtime, timeutil.TimeNear(createTime, delta))
-	ExpectThat(atime, timeutil.TimeNear(createTime, delta))
-	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
+	ExpectThat(mtime, timeutil.TimeNear(createTime, Delta))
+	ExpectThat(atime, timeutil.TimeNear(createTime, Delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, Delta))
 }

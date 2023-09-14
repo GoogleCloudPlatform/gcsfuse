@@ -47,6 +47,7 @@ const gid = 456
 const fileInodeID = 17
 const fileName = "foo/bar"
 const fileMode os.FileMode = 0641
+const Delta = 30 * time.Minute
 
 type FileTest struct {
 	ctx    context.Context
@@ -456,7 +457,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	mtimeInBucket, ok := o.Metadata["gcsfuse_mtime"]
 	AssertTrue(ok)
 	mtime, _ := time.Parse(time.RFC3339Nano, mtimeInBucket)
-	ExpectThat(mtime, timeutil.TimeNear(creationTime, 30*time.Minute))
+	ExpectThat(mtime, timeutil.TimeNear(creationTime, Delta))
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
@@ -838,7 +839,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	// Validate the attributes on an empty file.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
-	ExpectThat(attrs.Mtime, timeutil.TimeNear(createTime, 30*time.Minute))
+	ExpectThat(attrs.Mtime, timeutil.TimeNear(createTime, Delta))
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
