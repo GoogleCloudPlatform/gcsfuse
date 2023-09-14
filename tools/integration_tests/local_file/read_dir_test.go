@@ -128,7 +128,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 
 	// Validate and close the files.
 	if err != nil {
-		t.Errorf("filepath.WalkDir() err: %v", err)
+		t.Fatalf("filepath.WalkDir() err: %v", err)
 	}
 	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContents(fh2, path.Join(ExplicitDirName, ExplicitFileName1), "", t)

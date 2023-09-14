@@ -36,10 +36,8 @@ func TestReadLocalFile(t *testing.T) {
 	// Read the local file contents.
 	buf := make([]byte, len(content))
 	n, err := fh.ReadAt(buf, 0)
-	if err != nil ||
-		len(content) != n ||
-		content != string(buf) {
-		t.Errorf("Read file operation failed on local file: %v "+
+	if err != nil || len(content) != n || content != string(buf) {
+		t.Fatalf("Read file operation failed on local file: %v "+
 			"Expected content: %s, Got Content: %s", err, content, string(buf))
 	}
 

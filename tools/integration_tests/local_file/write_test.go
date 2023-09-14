@@ -28,7 +28,7 @@ import (
 
 func assertWriteFileErrorIsNil(err error, t *testing.T) {
 	if err != nil {
-		t.Errorf("Error while writing to local file. err: %v", err)
+		t.Fatalf("Error while writing to local file. err: %v", err)
 	}
 }
 

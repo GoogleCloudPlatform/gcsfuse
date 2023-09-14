@@ -30,25 +30,25 @@ import (
 // //////////////////////////////////////////////////////////////////////
 func assertStatCallErrorIsNil(err error, t *testing.T) {
 	if err != nil {
-		t.Errorf("os.Stat err: %v", err)
+		t.Fatalf("os.Stat err: %v", err)
 	}
 }
 
 func assertStatCallFileName(expected, got string, t *testing.T) {
 	if got != expected {
-		t.Errorf("File name mismatch in stat call. Expected: %s, Got: %s", expected, got)
+		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", expected, got)
 	}
 }
 
 func assertStatCallFileSize(expected, got int64, t *testing.T) {
 	if got != expected {
-		t.Errorf("File size mismatch in stat call. Expected: %d, Got: %d", expected, got)
+		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", expected, got)
 	}
 }
 
 func assertStatCallFileMode(got os.FileMode, t *testing.T) {
 	if got != FilePerms {
-		t.Errorf("File permissions mismatch in stat call. Expected: %v, Got: %v", FilePerms, got)
+		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", FilePerms, got)
 	}
 }
 
@@ -116,7 +116,7 @@ func TestTruncateLocalFile(t *testing.T) {
 	// Truncate the file to update the file size.
 	err = os.Truncate(filePath, 5)
 	if err != nil {
-		t.Errorf("os.Truncate err: %v", err)
+		t.Fatalf("os.Truncate err: %v", err)
 	}
 	ValidateObjectNotFoundErr(FileName1, t)
 

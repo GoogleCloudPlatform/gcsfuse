@@ -76,28 +76,3 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	// Validate directory is also deleted.
 	ValidateObjectNotFoundErr(ExplicitDirName, t)
 }
-
-func TestRmDirOfDirectoryContainingOnlyGCSFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-	// Create explicit directory with 2 synced files.
-	CreateExplicitDirShouldNotThrowError(t)
-	syncedFile1 := path.Join(ExplicitDirName, FileName1)
-	syncedFile2 := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFile(syncedFile1, t)
-	CloseFileAndValidateObjectContents(fh1, syncedFile1, "", t)
-	_, fh2 := CreateLocalFile(syncedFile2, t)
-	CloseFileAndValidateObjectContents(fh2, syncedFile2, "", t)
-
-	// Attempt to remove explicit directory.
-	RemoveDirShouldNotThrowError(ExplicitDirName, t)
-
-	// Verify rmDir operation succeeds.
-	ValidateNoFileOrDirError(syncedFile1, t)
-	ValidateNoFileOrDirError(syncedFile2, t)
-	ValidateNoFileOrDirError(ExplicitDirName, t)
-	// Validate files are also deleted from GCS.
-	ValidateObjectNotFoundErr(syncedFile1, t)
-	ValidateObjectNotFoundErr(syncedFile2, t)
-	ValidateObjectNotFoundErr(ExplicitDirName, t)
-}

@@ -63,6 +63,6 @@ func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
 	// Reading symlink should fail.
 	_, err := os.Stat(symlinkName)
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Errorf("Reading symlink for deleted local file did not fail.")
+		t.Fatalf("Reading symlink for deleted local file did not fail.")
 	}
 }
