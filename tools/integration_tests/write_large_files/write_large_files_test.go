@@ -33,11 +33,10 @@ const (
 	WritePermission_0200 = 0200
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {
-	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
+	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
-		err = fmt.Errorf("Error in downloading object:%w", err)
-		return err
+		return fmt.Errorf("Error in downloading object:%w", err)
 	}
 
 	// Remove file after testing.
@@ -47,41 +46,36 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	// requirement just for this step
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
-		err = fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
-		return err
+		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
 	}
-	return err
+
+	return nil
 }
 
 // Write data of chunkSize in file at given offset.
-func WriteChunkSizeInFile(file *os.File, chunkSize int, offset int64) (err error) {
+func writeChunkSizeInFile(file *os.File, chunkSize int, offset int64) error {
 	chunk := make([]byte, chunkSize)
-	_, err = rand.Read(chunk)
+	_, err := rand.Read(chunk)
 	if err != nil {
-		err = fmt.Errorf("error while generating random string: %s", err)
-		return err
+		return fmt.Errorf("error while generating random string: %s", err)
 	}
 
 	// Write data in the file.
 	n, err := file.WriteAt(chunk, offset)
 	if err != nil {
-		err = fmt.Errorf("Error in writing randomly in file:%v", err)
-		return err
+		return fmt.Errorf("Error in writing randomly in file:%v", err)
 	}
 	if n != chunkSize {
-		err = fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-		return err
+		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
 	}
 
 	err = file.Sync()
 	if err != nil {
-		err = fmt.Errorf("Error in syncing file:%v", err)
-		return err
+		return fmt.Errorf("Error in syncing file:%v", err)
 	}
 
-	return err
+	return nil
 }
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
