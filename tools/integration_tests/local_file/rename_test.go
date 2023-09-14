@@ -26,13 +26,15 @@ import (
 
 func TestRenameOfLocalFileFails(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file with some content.
 	_, fh := CreateLocalFile(FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Attempt to rename local file.
-	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), NewFileName))
+	err := os.Rename(
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, FileName1),
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewFileName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
@@ -44,7 +46,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	//Create directory with 1 synced and 1 local file.
 	CreateExplicitDirShouldNotThrowError(t)
 	// Create synced file.
@@ -54,7 +56,9 @@ func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, path.Join(ExplicitDirName, FileName2), t)
 
 	// Attempt to rename directory containing local file.
-	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), NewDirName))
+	err := os.Rename(
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName),
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewDirName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
@@ -69,7 +73,9 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 	TestRenameOfLocalFileFails(t)
 
 	// Attempt to Rename synced file.
-	err := os.Rename(path.Join(setup.MntDir(), FileName1), path.Join(setup.MntDir(), NewFileName))
+	err := os.Rename(
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, FileName1),
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewFileName))
 
 	// Validate.
 	if err != nil {
@@ -83,7 +89,9 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 	TestRenameOfDirectoryWithLocalFileFails(t)
 
 	// Attempt to rename directory again after sync.
-	err := os.Rename(path.Join(setup.MntDir(), ExplicitDirName), path.Join(setup.MntDir(), NewDirName))
+	err := os.Rename(
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName),
+		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewDirName))
 
 	// Validate.
 	if err != nil {

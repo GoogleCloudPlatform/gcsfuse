@@ -25,7 +25,7 @@ import (
 
 func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(FileName1, t)
@@ -33,7 +33,7 @@ func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 
 func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Make explicit directory.
 	CreateExplicitDirShouldNotThrowError(t)
 
@@ -43,12 +43,12 @@ func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 
 func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	_, fh := CreateLocalFile(FileName1, t)
 
 	// Create a file on GCS with the same name.
-	err := CreateObject(FileName1, GCSFileContent)
+	err := CreateObject(path.Join(LocalFileTestDirInBucket, FileName1), GCSFileContent)
 	if err != nil {
 		t.Fatalf("Create Object on GCS: %v.", err)
 	}

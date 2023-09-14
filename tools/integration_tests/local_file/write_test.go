@@ -37,7 +37,7 @@ func assertWriteFileErrorIsNil(err error, t *testing.T) {
 // //////////////////////////////////////////////////////////////////////
 func TestMultipleWritesToLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	_, fh := CreateLocalFile(FileName1, t)
 
@@ -53,7 +53,7 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 
 func TestRandomWritesToLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	_, fh := CreateLocalFile(FileName1, t)
 

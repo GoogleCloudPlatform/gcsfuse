@@ -27,13 +27,13 @@ import (
 
 func TestCreateSymlinkForLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Create the symlink.
-	symlinkName := path.Join(setup.MntDir(), "bar")
+	symlinkName := path.Join(setup.MntDir(), LocalFileTestDirInBucket, "bar")
 	SymLinkShouldNotThrowError(filePath, symlinkName, t)
 
 	// Read the link.
@@ -44,13 +44,13 @@ func TestCreateSymlinkForLocalFile(t *testing.T) {
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Create the symlink.
-	symlinkName := path.Join(setup.MntDir(), "bar")
+	symlinkName := path.Join(setup.MntDir(), LocalFileTestDirInBucket, "bar")
 	SymLinkShouldNotThrowError(filePath, symlinkName, t)
 
 	// Read the link.

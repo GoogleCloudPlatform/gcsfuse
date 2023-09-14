@@ -16,6 +16,7 @@
 package local_file_test
 
 import (
+	"path"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
@@ -24,7 +25,7 @@ import (
 
 func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 	// unlink the local file.
@@ -40,7 +41,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 
 func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local files.
 	_, fh1 := CreateLocalFile(FileName1, t)
 	_, fh2 := CreateLocalFile(FileName2, t)
@@ -49,7 +50,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	UnlinkShouldNotThrowError(filepath3, t)
 
 	// Attempt to list mntDir.
-	entries := ReadDirectory(setup.MntDir(), t)
+	entries := ReadDirectory(path.Join(setup.MntDir(), LocalFileTestDirInBucket), t)
 
 	// Verify unlinked entries are not listed.
 	VerifyCountOfEntries(2, len(entries), t)
@@ -64,7 +65,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 }
 func TestUnlinkOfLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create empty local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 
@@ -80,7 +81,7 @@ func TestUnlinkOfLocalFile(t *testing.T) {
 
 func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file.
 	filepath, fh := CreateLocalFile(FileName1, t)
 	// Verify unlink operation succeeds.
@@ -98,7 +99,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 
 func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file.
 	filepath, fh := CreateLocalFile(FileName1, t)
 
@@ -117,7 +118,7 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 
 func TestUnlinkOfSyncedLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file and sync to GCS.
 	filePath, fh := CreateLocalFile(FileName1, t)
 	CloseFileAndValidateObjectContents(fh, FileName1, "", t)

@@ -26,7 +26,7 @@ import (
 
 func TestStatOnLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 
@@ -45,7 +45,7 @@ func TestStatOnLocalFile(t *testing.T) {
 
 func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 
@@ -58,7 +58,7 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 
 func TestTruncateLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFile(FileName1, t)
 	// Writing contents to local file .

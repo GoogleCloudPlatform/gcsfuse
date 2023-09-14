@@ -37,7 +37,7 @@ func TestReadDir(t *testing.T) {
 	// mntDir/foo3										--- gcs synced file
 
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create explicit dir with 1 local file.
 	CreateExplicitDirShouldNotThrowError(t)
 	_, fh1 := CreateLocalFile(path.Join(ExplicitDirName, ExplicitFileName1), t)
@@ -47,14 +47,14 @@ func TestReadDir(t *testing.T) {
 	_, fh3 := CreateLocalFile(FileName2, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh3, FileName2, t)
 	// Create GCS synced file.
-	err := CreateObject(FileName3, GCSFileContent)
+	err := CreateObject(path.Join(LocalFileTestDirInBucket, FileName3), GCSFileContent)
 	if err != nil {
 		t.Fatalf("Create Object on GCS: %v.", err)
 	}
 
 	// Attempt to list mnt and explicit directory.
-	entriesMnt := ReadDirectory(setup.MntDir(), t)
-	entriesDir := ReadDirectory(path.Join(setup.MntDir(), ExplicitDirName), t)
+	entriesMnt := ReadDirectory(path.Join(setup.MntDir(), LocalFileTestDirInBucket), t)
+	entriesDir := ReadDirectory(path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName), t)
 
 	// Verify entriesMnt received successfully.
 	VerifyCountOfEntries(4, len(entriesMnt), t)
@@ -80,7 +80,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// mntDir/explicit/explicitFile1  --- file
 
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file in mnt/ dir.
 	_, fh1 := CreateLocalFile(FileName1, t)
 	// Create explicit dir with 1 local file.
@@ -88,7 +88,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	_, fh2 := CreateLocalFile(path.Join(ExplicitDirName, ExplicitFileName1), t)
 
 	// Recursively list mntDir/ directory.
-	err := filepath.WalkDir(setup.MntDir(), func(walkPath string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), LocalFileTestDirInBucket), func(walkPath string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 		objs := ReadDirectory(walkPath, t)
 
 		// Check if mntDir has correct objects.
-		if walkPath == setup.MntDir() {
+		if walkPath == path.Join(setup.MntDir(), LocalFileTestDirInBucket) {
 			// numberOfObjects = 2
 			VerifyCountOfEntries(2, len(objs), t)
 			VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
@@ -127,17 +127,17 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 
 func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file.
 	_, fh1 := CreateLocalFile(FileName1, t)
 	// Create same name gcs file.
-	err := CreateObject(FileName1, GCSFileContent)
+	err := CreateObject(path.Join(LocalFileTestDirInBucket, FileName1), GCSFileContent)
 	if err != nil {
 		t.Fatalf("Create Object on GCS: %v.", err)
 	}
 
 	// Attempt to list mntDir.
-	_, err = os.ReadDir(setup.MntDir())
+	_, err = os.ReadDir(path.Join(setup.MntDir(), LocalFileTestDirInBucket))
 	if err == nil || !strings.Contains(err.Error(), "input/output error") {
 		t.Fatalf("Expected error: %s, Got error: %v", "input/output error", err)
 	}

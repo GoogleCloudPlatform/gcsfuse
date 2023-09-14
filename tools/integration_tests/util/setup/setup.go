@@ -284,17 +284,30 @@ func LogAndExit(s string) {
 	os.Exit(1)
 }
 
-// Clean the mounted directory
-func CleanMntDir() {
-	dir, err := os.ReadDir(mntDir)
+func CleanUpDir(directory string) {
+	dir, err := os.ReadDir(directory)
 	if err != nil {
 		log.Printf("Error in reading directory: %v", err)
 	}
 
 	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{mntDir, d.Name()}...))
+		err := os.RemoveAll(path.Join([]string{directory, d.Name()}...))
 		if err != nil {
 			log.Printf("Error in removing directory: %v", err)
 		}
 	}
+}
+
+// Clean the mounted directory
+func CleanMntDir() {
+	CleanUpDir(mntDir)
+}
+
+func PreTestSetup(testSubDir string) {
+	testDirPath := path.Join(MntDir(), testSubDir)
+	err := os.Mkdir(testDirPath, 0755)
+	if err != nil && !strings.Contains(err.Error(), "file exists") {
+		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
+	}
+	CleanUpDir(testDirPath)
 }

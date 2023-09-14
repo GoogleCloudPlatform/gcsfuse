@@ -24,27 +24,30 @@ import (
 )
 
 const (
-	FileName1                      = "foo1"
-	FileName2                      = "foo2"
-	FileName3                      = "foo3"
-	ImplicitDirName                = "implicit"
-	ImplicitFileName1              = "implicitFile1"
-	ExplicitDirName                = "explicit"
-	ExplicitFileName1              = "explicitFile1"
-	DirPerms           os.FileMode = 0755
-	FilePerms          os.FileMode = 0644
-	FileContents                   = "teststring"
-	GCSFileContent                 = "gcsContent"
-	NewFileName                    = "newName"
-	NewDirName                     = "newDirName"
-	SizeOfFileContents             = 10
-	SizeOfGCSContent               = 10
-	SizeTruncate                   = 5
+	FileName1                            = "foo1"
+	FileName2                            = "foo2"
+	FileName3                            = "foo3"
+	ImplicitDirName                      = "implicit"
+	ImplicitFileName1                    = "implicitFile1"
+	ExplicitDirName                      = "explicit"
+	ExplicitFileName1                    = "explicitFile1"
+	DirPerms                 os.FileMode = 0755
+	FilePerms                os.FileMode = 0644
+	FileContents                         = "teststring"
+	GCSFileContent                       = "gcsContent"
+	NewFileName                          = "newName"
+	NewDirName                           = "newDirName"
+	SizeOfFileContents                   = 10
+	SizeOfGCSContent                     = 10
+	SizeTruncate                         = 5
+	LocalFileTestDirInBucket             = "LocalFileTest"
 )
+
+var MntSubDir = setup.MntDir() + LocalFileTestDirInBucket
 
 func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File) {
 	// Creating a file shouldn't create file on GCS.
-	filePath = path.Join(setup.MntDir(), fileName)
+	filePath = path.Join(setup.MntDir(), LocalFileTestDirInBucket, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, FilePerms)
 	if err != nil {
 		t.Fatalf("CreateLocalFile(%s): %v", fileName, err)
@@ -55,7 +58,7 @@ func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File
 }
 
 func ValidateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(fileName)
+	_, err := ReadObjectFromGCS(path.Join(LocalFileTestDirInBucket, fileName))
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
@@ -69,7 +72,7 @@ func CloseLocalFile(f *os.File, fileName string, t *testing.T) {
 }
 
 func ValidateObjectContents(fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(fileName)
+	gotContent, err := ReadObjectFromGCS(path.Join(LocalFileTestDirInBucket, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
 	}
@@ -108,7 +111,7 @@ func NewFileShouldGetSyncedToGCSAtClose(fileName string, t *testing.T) {
 }
 
 func ValidateNoFileOrDirError(filename string, t *testing.T) {
-	_, err := os.Stat(path.Join(setup.MntDir(), filename))
+	_, err := os.Stat(path.Join(setup.MntDir(), LocalFileTestDirInBucket, filename))
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
 		t.Fatalf("os.Stat on unlinked local file. Expected: %s, Got: %v",
 			"no such file or directory", err)
@@ -167,7 +170,7 @@ func SyncOnLocalFileShouldNotThrowError(fh *os.File, fileName string, t *testing
 }
 
 func CreateExplicitDirShouldNotThrowError(t *testing.T) {
-	err := os.Mkdir(path.Join(setup.MntDir(), ExplicitDirName), DirPerms)
+	err := os.Mkdir(path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName), DirPerms)
 
 	// Verify MkDir operation succeeds.
 	if err != nil {
@@ -176,7 +179,7 @@ func CreateExplicitDirShouldNotThrowError(t *testing.T) {
 }
 
 func RemoveDirShouldNotThrowError(dirName string, t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), dirName)
+	dirPath := path.Join(setup.MntDir(), LocalFileTestDirInBucket, dirName)
 	err := os.RemoveAll(dirPath)
 
 	// Verify rmDir operation succeeds.
