@@ -48,7 +48,7 @@ func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
 	_, fh := CreateLocalFile(FileName1, t)
 
 	// Create a file on GCS with the same name.
-	err := CreateObject(path.Join(LocalFileTestDirInBucket, FileName1), GCSFileContent)
+	err := CreateObjectOnGCS(path.Join(LocalFileTestDirInBucket, FileName1), GCSFileContent)
 	if err != nil {
 		t.Fatalf("Create Object on GCS: %v.", err)
 	}

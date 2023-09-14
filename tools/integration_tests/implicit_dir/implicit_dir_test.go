@@ -18,6 +18,7 @@ package implicit_dir_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
@@ -32,4 +33,5 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs"}}
 
 	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+	setup.CleanMntDir()
 }

@@ -69,6 +69,7 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(flags, m)
 	}
 
+	setup.CleanMntDir()
 	setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)

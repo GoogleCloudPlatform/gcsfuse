@@ -26,9 +26,9 @@ import (
 
 func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create file in implicit directory.
-	err := CreateObject(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), FileContents)
+	err := CreateObjectOnGCS(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), FileContents)
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}
@@ -39,9 +39,9 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 
 func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create implicit dir with 2 local files and 1 synced file.
-	err := CreateObject(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), "")
+	err := CreateObjectOnGCS(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), "")
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	_, fh2 := CreateLocalFile(path.Join(ImplicitDirName, FileName2), t)
 
 	// Attempt to list implicit directory.
-	entries := ReadDirectory(path.Join(setup.MntDir(), ImplicitDirName), t)
+	entries := ReadDirectory(path.Join(setup.MntDir(), LocalFileTestDirInBucket, ImplicitDirName), t)
 
 	// Verify entries received successfully.
 	VerifyCountOfEntries(3, len(entries), t)
@@ -72,56 +72,57 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// mntDir/implicit/implicitFile1	--- file
 
 	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	setup.PreTestSetup(LocalFileTestDirInBucket)
 	// Create local file in mnt/ dir.
 	_, fh1 := CreateLocalFile(FileName1, t)
 	// Create explicit dir with 1 local file.
 	CreateExplicitDirShouldNotThrowError(t)
 	_, fh2 := CreateLocalFile(path.Join(ExplicitDirName, ExplicitFileName1), t)
 	// Create implicit dir with 1 local file1 and 1 synced file.
-	err := CreateObject(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), "")
+	err := CreateObjectOnGCS(path.Join(LocalFileTestDirInBucket, ImplicitDirName, ImplicitFileName1), "")
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}
 	_, fh3 := CreateLocalFile(path.Join(ImplicitDirName, FileName2), t)
 
 	// Recursively list mntDir/ directory.
-	err = filepath.WalkDir(setup.MntDir(), func(walkPath string, dir fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// The object type is not directory.
-		if !dir.IsDir() {
+	err = filepath.WalkDir(path.Join(setup.MntDir(), LocalFileTestDirInBucket),
+		func(walkPath string, dir fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			// The object type is not directory.
+			if !dir.IsDir() {
+				return nil
+			}
+
+			objs := ReadDirectory(walkPath, t)
+
+			// Check if mntDir has correct objects.
+			if walkPath == setup.MntDir() {
+				// numberOfObjects = 3
+				VerifyCountOfEntries(3, len(objs), t)
+				VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
+				VerifyLocalFileEntry(objs[1], FileName1, 0, t)
+				VerifyDirectoryEntry(objs[2], ImplicitDirName, t)
+			}
+
+			// Check if mntDir/explicitFoo/ has correct objects.
+			if walkPath == path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName) {
+				// numberOfObjects = 1
+				VerifyCountOfEntries(1, len(objs), t)
+				VerifyLocalFileEntry(objs[0], ExplicitFileName1, 0, t)
+			}
+
+			// Check if mntDir/implicitFoo/ has correct objects.
+			if walkPath == path.Join(setup.MntDir(), LocalFileTestDirInBucket, ImplicitDirName) {
+				// numberOfObjects = 2
+				VerifyCountOfEntries(2, len(objs), t)
+				VerifyLocalFileEntry(objs[0], FileName2, 0, t)
+				VerifyLocalFileEntry(objs[1], ImplicitFileName1, 0, t)
+			}
 			return nil
-		}
-
-		objs := ReadDirectory(walkPath, t)
-
-		// Check if mntDir has correct objects.
-		if walkPath == setup.MntDir() {
-			// numberOfObjects = 3
-			VerifyCountOfEntries(3, len(objs), t)
-			VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
-			VerifyLocalFileEntry(objs[1], FileName1, 0, t)
-			VerifyDirectoryEntry(objs[2], ImplicitDirName, t)
-		}
-
-		// Check if mntDir/explicitFoo/ has correct objects.
-		if walkPath == path.Join(setup.MntDir(), ExplicitDirName) {
-			// numberOfObjects = 1
-			VerifyCountOfEntries(1, len(objs), t)
-			VerifyLocalFileEntry(objs[0], ExplicitFileName1, 0, t)
-		}
-
-		// Check if mntDir/implicitFoo/ has correct objects.
-		if walkPath == path.Join(setup.MntDir(), ImplicitDirName) {
-			// numberOfObjects = 2
-			VerifyCountOfEntries(2, len(objs), t)
-			VerifyLocalFileEntry(objs[0], FileName2, 0, t)
-			VerifyLocalFileEntry(objs[1], ImplicitFileName1, 0, t)
-		}
-		return nil
-	})
+		})
 
 	// Validate and close the files.
 	if err != nil {

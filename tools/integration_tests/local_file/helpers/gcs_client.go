@@ -70,8 +70,8 @@ func ReadObjectFromGCS(object string) (string, error) {
 	return strings.Trim(string(buf), "\x00"), nil
 }
 
-// CreateObject creates an object with given name and content on GCS.
-func CreateObject(object, content string) error {
+// CreateObjectOnGCS creates an object with given name and content on GCS.
+func CreateObjectOnGCS(object, content string) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
