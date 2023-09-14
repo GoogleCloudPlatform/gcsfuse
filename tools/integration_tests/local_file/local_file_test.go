@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -54,18 +56,18 @@ func TestMain(m *testing.M) {
 	configFile := setup.YAMLConfigFile(mountConfig)
 	// Set up flags to run tests on.
 	flags := [][]string{
-		//{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + configFile},
+		{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + configFile},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--config-file=" + configFile}}
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	//if successCode == 0 {
-	//	successCode = only_dir_mounting.RunTests(flags, m)
-	//}
-	//
-	//if successCode == 0 {
-	//	successCode = dynamic_mounting.RunTests(flags, m)
-	//}
+	if successCode == 0 {
+		successCode = only_dir_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
+		successCode = dynamic_mounting.RunTests(flags, m)
+	}
 
 	setup.RemoveBinFileCopiedForTesting()
 
