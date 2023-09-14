@@ -295,6 +295,31 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []
 	return
 }
 
+// Write data of chunkSize in file at given offset.
+func WriteChunkSizeInFile(file *os.File, chunkSize int, offset int64) error {
+	chunk := make([]byte, chunkSize)
+	_, err := rand.Read(chunk)
+	if err != nil {
+		return fmt.Errorf("error while generating random string: %s", err)
+	}
+
+	// Write data in the file.
+	n, err := file.WriteAt(chunk, offset)
+	if err != nil {
+		return fmt.Errorf("Error in writing randomly in file:%v", err)
+	}
+	if n != chunkSize {
+		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
+	}
+
+	err = file.Sync()
+	if err != nil {
+		return fmt.Errorf("Error in syncing file:%v", err)
+	}
+
+	return nil
+}
+
 // Returns the stats of a file.
 // Fails if the passed input is a directory.
 func StatFile(file string) (*fs.FileInfo, error) {

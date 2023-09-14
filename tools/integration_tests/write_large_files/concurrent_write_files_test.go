@@ -45,7 +45,7 @@ func writeFile(fileName string, fileSize int64) (err error) {
 	// Closing file at the end.
 	defer operations.CloseFile(f)
 
-	err = writeChunkSizeInFile(f, int(fileSize), 0)
+	err = operations.WriteChunkSizeInFile(f, int(fileSize), 0)
 	if err != nil {
 		err = fmt.Errorf("Error:%v", err)
 		return err

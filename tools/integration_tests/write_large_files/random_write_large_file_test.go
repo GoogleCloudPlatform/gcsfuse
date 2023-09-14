@@ -59,7 +59,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			chunkSize = int(MaxWritableByteFromFile - offset)
 		}
 
-		err := writeChunkSizeInFile(f, chunkSize, offset)
+		err := operations.WriteChunkSizeInFile(f, chunkSize, offset)
 		if err != nil {
 			t.Fatalf("Error:%v", err)
 		}

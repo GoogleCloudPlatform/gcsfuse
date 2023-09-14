@@ -16,7 +16,6 @@
 package write_large_files
 
 import (
-	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
@@ -47,31 +46,6 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
 		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
-	}
-
-	return nil
-}
-
-// Write data of chunkSize in file at given offset.
-func writeChunkSizeInFile(file *os.File, chunkSize int, offset int64) error {
-	chunk := make([]byte, chunkSize)
-	_, err := rand.Read(chunk)
-	if err != nil {
-		return fmt.Errorf("error while generating random string: %s", err)
-	}
-
-	// Write data in the file.
-	n, err := file.WriteAt(chunk, offset)
-	if err != nil {
-		return fmt.Errorf("Error in writing randomly in file:%v", err)
-	}
-	if n != chunkSize {
-		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
-	}
-
-	err = file.Sync()
-	if err != nil {
-		return fmt.Errorf("Error in syncing file:%v", err)
 	}
 
 	return nil
