@@ -211,6 +211,14 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	if successCode != 0 {
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
+		data, err := os.ReadFile(LogFile())
+		if err != nil {
+			log.Fatalf("Error in printing logs: %v", err)
+			return
+		}
+
+		// Print the logs of fail tests.
+		log.Println(string(data))
 		return
 	}
 }
