@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"testing"
@@ -309,6 +310,7 @@ func SetUpTestDirForTestBucketFlag() {
 
 func LogAndExit(s string) {
 	log.Print(s)
+	log.Print(string(debug.Stack()))
 	os.Exit(1)
 }
 
