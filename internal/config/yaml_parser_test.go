@@ -32,7 +32,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	AssertEq(false, mountConfig.CreateEmptyFile)
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
-	AssertEq("json", mountConfig.LogConfig.Format)
+	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
 }
 
