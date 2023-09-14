@@ -34,6 +34,7 @@ const (
 	DirPerms          os.FileMode = 0755
 	FilePerms         os.FileMode = 0644
 	FileContents                  = "teststring"
+	GCSFileContent                = "gcsContent"
 )
 
 func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File) {

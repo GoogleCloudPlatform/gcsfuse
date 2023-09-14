@@ -28,7 +28,7 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 	// Create file in implicit directory.
-	err := CreateObject(setup.TestBucket(), path.Join(ImplicitDirName, ImplicitFileName1), FileContents)
+	err := CreateObject(path.Join(ImplicitDirName, ImplicitFileName1), FileContents)
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 	// Create implicit dir with 2 local files and 1 synced file.
-	err := CreateObject(setup.TestBucket(), path.Join(ImplicitDirName, ImplicitFileName1), "")
+	err := CreateObject(path.Join(ImplicitDirName, ImplicitFileName1), "")
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	CreateExplicitDirShouldNotThrowError(t)
 	_, fh2 := CreateLocalFile(path.Join(ExplicitDirName, ExplicitFileName1), t)
 	// Create implicit dir with 1 local file1 and 1 synced file.
-	err := CreateObject(setup.TestBucket(), path.Join(ImplicitDirName, ImplicitFileName1), "")
+	err := CreateObject(path.Join(ImplicitDirName, ImplicitFileName1), "")
 	if err != nil {
 		t.Errorf("Error while creating implicit directory, err: %v", err)
 	}

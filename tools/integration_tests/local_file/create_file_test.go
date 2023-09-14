@@ -40,3 +40,21 @@ func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(path.Join(ExplicitDirName, ExplicitFileName1), t)
 }
+
+func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+	// Create a local file.
+	_, fh := CreateLocalFile(FileName1, t)
+
+	// Create a file on GCS with the same name.
+	err := CreateObject(FileName1, GCSFileContent)
+	if err != nil {
+		t.Fatalf("Create Object on GCS: %v.", err)
+	}
+
+	// Write to local file.
+	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	// Close the local file and ensure that the content on GCS is not overwritten.
+	CloseFileAndValidateObjectContents(fh, FileName1, GCSFileContent, t)
+}
