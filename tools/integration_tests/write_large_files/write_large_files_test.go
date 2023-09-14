@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	TmpDir          = "/tmp"
-	OneMiB          = 1024 * 1024
-	WritePermission = 0200
+	TmpDir               = "/tmp"
+	OneMiB               = 1024 * 1024
+	WritePermission_0200 = 0200
 )
 
 func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {

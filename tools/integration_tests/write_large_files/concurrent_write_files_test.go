@@ -39,7 +39,7 @@ func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) 
 	defer wg.Done()
 
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission)
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
 	if err != nil {
 		err = fmt.Errorf("Open file for write at start: %v", err)
 		return err
