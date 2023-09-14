@@ -25,12 +25,15 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -41,6 +44,7 @@ const FileName2 = "foo2"
 const implicitLocalFileName = "implicitLocalFile"
 const explicitLocalFileName = "explicitLocalFile"
 const FileContents = "teststring"
+const Delta = 30 * time.Minute
 
 type LocalFileTest struct {
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
@@ -787,4 +791,33 @@ func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
 	// Reading symlink should fail.
 	_, err = os.Stat(symlinkName)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (t *LocalFileTest) AtimeMtimeAndCtime() {
+	createTime := mtimeClock.Now()
+	var filePath string
+	// Create a local file.
+	filePath, t.f1 = t.createLocalFile(FileName)
+	var err error
+	fi, err := os.Stat(filePath)
+	AssertEq(nil, err)
+
+	// Check if mtime is returned correctly for unsynced file.
+	_, _, mtime := fusetesting.GetTimes(fi)
+
+	ExpectThat(mtime, timeutil.TimeNear(createTime, Delta))
+
+	// Write some contents.
+	_, err = t.f1.Write([]byte("test contents"))
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err = os.Stat(filePath)
+	AssertEq(nil, err)
+
+	// We require only that atime and ctime be "reasonable".
+	atime, ctime, mtime := fusetesting.GetTimes(fi)
+	ExpectThat(mtime, timeutil.TimeNear(createTime, Delta))
+	ExpectThat(atime, timeutil.TimeNear(createTime, Delta))
+	ExpectThat(ctime, timeutil.TimeNear(createTime, Delta))
 }

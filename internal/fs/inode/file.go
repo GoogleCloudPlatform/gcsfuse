@@ -636,6 +636,8 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	// Creating a file with no contents. The contents will be updated with
 	// writeFile operations.
 	f.content, err = f.contentCache.NewTempFile(io.NopCloser(strings.NewReader("")))
+	// Setting the initial mtime to creation time.
+	f.content.SetMtime(f.mtimeClock.Now())
 	return
 }
 
