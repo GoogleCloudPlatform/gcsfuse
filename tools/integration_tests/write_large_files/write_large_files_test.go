@@ -76,6 +76,7 @@ func writeChunkSizeInFile(file *os.File, chunkSize int, offset int64) error {
 
 	return nil
 }
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

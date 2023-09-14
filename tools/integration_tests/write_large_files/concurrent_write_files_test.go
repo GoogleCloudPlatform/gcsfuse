@@ -34,7 +34,7 @@ const (
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
-func writeFile(fileName string, fileSize int64, wg *sync.WaitGroup) (err error) {
+func writeFile(fileName string, fileSize int64) (err error) {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
 	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
 	if err != nil {
@@ -89,7 +89,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 		go func() {
 			// Reduce thread count when it is done.
 			defer wg.Done()
-			err = writeFile(files[fileIndex], FiveHundredMB, &wg)
+			err = writeFile(files[fileIndex], FiveHundredMB)
 			if err != nil {
 				log.Fatalf("Error:%v", err)
 			}
