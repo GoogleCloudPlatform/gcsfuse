@@ -27,60 +27,48 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func TestReadDirWithEmptyLocalFiles(t *testing.T) {
+func TestReadDir(t *testing.T) {
+	// Structure:
+	// ExplicitDir
+	// - FileInExplicitDir1
+	// Empty Local File
+	// Non Empty Local File
+	// GCS File
+
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
-	// Create local files.
-	_, fh1 := CreateLocalFile(FileName1, t)
-	_, fh2 := CreateLocalFile(FileName2, t)
-
-	// Attempt to list mntDir.
-	entries := ReadDirectory(setup.MntDir(), t)
-
-	// Verify entries received successfully.
-	VerifyCountOfEntries(2, len(entries), t)
-	VerifyLocalFileEntry(entries[0], FileName1, 0, t)
-	VerifyLocalFileEntry(entries[1], FileName2, 0, t)
-	// Close the local files.
-	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
-	CloseFileAndValidateObjectContents(fh2, FileName2, "", t)
-}
-
-func TestReadDirWithNonEmptyLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-	// Create local files.
-	_, fh := CreateLocalFile(FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
-
-	// Attempt to list mntDir.
-	entries := ReadDirectory(setup.MntDir(), t)
-
-	// Verify entries received successfully.
-	VerifyCountOfEntries(1, len(entries), t)
-	VerifyLocalFileEntry(entries[0], FileName1, 10, t)
-	// Close the local files.
-	CloseFileAndValidateObjectContents(fh, FileName1, FileContents, t)
-}
-
-func TestReadDirForExplicitDirWithLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-	// Create explicit dir with 2 local files.
+	// Create explicit dir with 1 local file.
 	CreateExplicitDirShouldNotThrowError(t)
-	_, fh1 := CreateLocalFile(path.Join(ExplicitDirName, FileName1), t)
-	_, fh2 := CreateLocalFile(path.Join(ExplicitDirName, FileName2), t)
+	_, fh1 := CreateLocalFile(path.Join(ExplicitDirName, ExplicitFileName1), t)
+	// Create empty local file.
+	_, fh2 := CreateLocalFile(FileName1, t)
+	// Create non-empty local file.
+	_, fh3 := CreateLocalFile(FileName2, t)
+	WritingToLocalFileShouldNotWriteToGCS(fh3, FileName2, t)
+	// Create GCS synced file.
+	err := CreateObject(FileName3, GCSFileContent)
+	if err != nil {
+		t.Fatalf("Create Object on GCS: %v.", err)
+	}
 
-	// Attempt to list explicit directory.
-	entries := ReadDirectory(path.Join(setup.MntDir(), ExplicitDirName), t)
+	// Attempt to list mnt and explicit directory.
+	entriesMnt := ReadDirectory(setup.MntDir(), t)
+	entriesDir := ReadDirectory(path.Join(setup.MntDir(), ExplicitDirName), t)
 
-	// Verify entries received successfully.
-	VerifyCountOfEntries(2, len(entries), t)
-	VerifyLocalFileEntry(entries[0], FileName1, 0, t)
-	VerifyLocalFileEntry(entries[1], FileName2, 0, t)
+	// Verify entriesMnt received successfully.
+	VerifyCountOfEntries(4, len(entriesMnt), t)
+	VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
+	VerifyLocalFileEntry(entriesMnt[1], FileName1, 0, t)
+	VerifyLocalFileEntry(entriesMnt[2], FileName2, 10, t)
+	VerifyLocalFileEntry(entriesMnt[3], FileName3, 10, t)
+	// Verify entriesDir received successfully.
+	VerifyCountOfEntries(1, len(entriesDir), t)
+	VerifyLocalFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
 	// Close the local files.
-	CloseFileAndValidateObjectContents(fh1, path.Join(ExplicitDirName, FileName1), "", t)
-	CloseFileAndValidateObjectContents(fh2, path.Join(ExplicitDirName, FileName2), "", t)
+	CloseFileAndValidateObjectContents(fh1, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+	CloseFileAndValidateObjectContents(fh2, FileName1, "", t)
+	CloseFileAndValidateObjectContents(fh3, FileName2, FileContents, t)
+	ValidateObjectContents(FileName3, GCSFileContent, t)
 }
 
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
