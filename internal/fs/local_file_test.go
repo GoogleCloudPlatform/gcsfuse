@@ -559,7 +559,7 @@ func (t *LocalFileTest) TestReadDirContainingUnlinkedLocalFiles() {
 	_, t.f1 = t.createLocalFile(FileName + "1")
 	_, t.f2 = t.createLocalFile(FileName + "2")
 	filepath3, t.f3 = t.createLocalFile(FileName + "3")
-	// Unlink local file 3
+	// Unlink local file 3.
 	err := os.Remove(filepath3)
 	AssertEq(nil, err)
 
@@ -573,7 +573,7 @@ func (t *LocalFileTest) TestReadDirContainingUnlinkedLocalFiles() {
 	// Close the local files.
 	t.closeFileAndValidateObjectContents(&t.f1, FileName+"1", "")
 	t.closeFileAndValidateObjectContents(&t.f2, FileName+"2", "")
-	// Verify unlinked file is not written to GCS
+	// Verify unlinked file is not written to GCS.
 	err = t.closeLocalFile(&t.f3)
 	AssertEq(nil, err)
 	t.validateObjectNotFoundErr(FileName + "3")
@@ -612,7 +612,7 @@ func (t *LocalFileTest) TestWriteOnUnlinkedLocalFileSucceeds() {
 
 	// Validate flush file does not throw error.
 	AssertEq(nil, err)
-	// Validate unlinked file is not written to GCS
+	// Validate unlinked file is not written to GCS.
 	t.validateObjectNotFoundErr(FileName)
 }
 

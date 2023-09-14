@@ -28,12 +28,13 @@ import (
 )
 
 func TestReadDir(t *testing.T) {
-	// Structure:
-	// ExplicitDir
-	// - FileInExplicitDir1
-	// Empty Local File
-	// Non Empty Local File
-	// GCS File
+	// Structure
+	// mntDir/
+	// mntDir/explicit/		    				--- directory
+	// mntDir/explicit/explicitFile1  --- file
+	// mntDir/foo1 										--- empty local file
+	// mntDir/foo2  									--- non empty local file
+	// mntDir/foo3										--- gcs synced file
 
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
@@ -74,8 +75,8 @@ func TestReadDir(t *testing.T) {
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Structure
 	// mntDir/
-	// mntDir/foo1 						--- file
-	// mntDir/explicit/		    --- directory
+	// mntDir/foo1 										--- file
+	// mntDir/explicit/		    				--- directory
 	// mntDir/explicit/explicitFile1  --- file
 
 	// Clean the mountedDirectory before running test.

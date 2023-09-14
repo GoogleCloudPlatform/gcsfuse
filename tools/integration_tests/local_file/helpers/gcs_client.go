@@ -41,7 +41,7 @@ func ReadObjectFromGCS(object string) (string, error) {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
-	// Create new storage client
+	// Create new storage client.
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -75,7 +75,7 @@ func CreateObject(object, content string) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
-	// Create new storage client
+	// Create new storage client.
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {

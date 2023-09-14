@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
 
-	// Else run tests for testBucket
+	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 	// Set up config file with create-empty-file: false. (default)

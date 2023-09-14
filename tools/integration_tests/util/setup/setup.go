@@ -120,7 +120,7 @@ func DynamicBucketMounted() string {
 	return dynamicBucketMounted
 }
 
-// SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount
+// SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount.
 func SetDynamicBucketMounted(dynamicBucketValue string) {
 	dynamicBucketMounted = dynamicBucketValue
 }

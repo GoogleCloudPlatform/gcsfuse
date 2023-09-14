@@ -64,10 +64,10 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Structure
 	// mntDir/
-	// mntDir/foo1 						--- file
-	// mntDir/explicit/		    --- directory
+	// mntDir/foo1 										--- file
+	// mntDir/explicit/		    				--- directory
 	// mntDir/explicit/explicitFile1  --- file
-	// mntDir/implicit/ 				--- directory
+	// mntDir/implicit/ 							--- directory
 	// mntDir/implicit/foo2  					--- file
 	// mntDir/implicit/implicitFile1	--- file
 

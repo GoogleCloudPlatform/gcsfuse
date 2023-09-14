@@ -45,7 +45,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	_, fh1 := CreateLocalFile(FileName1, t)
 	_, fh2 := CreateLocalFile(FileName2, t)
 	filepath3, fh3 := CreateLocalFile(FileName3, t)
-	// Unlink local file 3
+	// Unlink local file 3.
 	UnlinkShouldNotThrowError(filepath3, t)
 
 	// Attempt to list mntDir.
@@ -58,7 +58,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	// Close the local files.
 	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContents(fh2, FileName2, "", t)
-	// Verify unlinked file is not written to GCS
+	// Verify unlinked file is not written to GCS.
 	CloseLocalFile(fh3, FileName3, t)
 	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
@@ -92,7 +92,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 
 	// Validate flush file does not throw error.
 	CloseLocalFile(fh, FileName1, t)
-	// Validate unlinked file is not written to GCS
+	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
