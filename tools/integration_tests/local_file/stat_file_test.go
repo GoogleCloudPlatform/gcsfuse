@@ -72,7 +72,7 @@ func TestTruncateLocalFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Truncate err: %v", err)
 	}
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Stat the file to validate if file is truncated correctly.
 	VerifyStatOnLocalFile(filePath, 5, t)

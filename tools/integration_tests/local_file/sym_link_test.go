@@ -58,7 +58,7 @@ func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	UnlinkShouldNotThrowError(filePath, t)
 	CloseLocalFile(fh, FileName1, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Reading symlink should fail.
 	_, err := os.Stat(symlinkName)

@@ -76,7 +76,7 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 		t.Fatalf("os.Rename() failed on synced file: %v", err)
 	}
 	ValidateObjectContents("newName", FileContents+FileContents, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
@@ -90,7 +90,7 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 		t.Fatalf("os.Rename() failed on directory containing synced files: %v", err)
 	}
 	ValidateObjectContents(path.Join("newName", FileName1), FileContents, t)
-	ValidateObjectNotFoundErr(path.Join(ExplicitDirName, FileName1), t)
+	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName1), t)
 	ValidateObjectContents(path.Join("newName", FileName2), FileContents+FileContents, t)
-	ValidateObjectNotFoundErr(path.Join(ExplicitDirName, FileName2), t)
+	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName2), t)
 }

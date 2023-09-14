@@ -45,10 +45,10 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	WritingToLocalFileSHouldNotThrowError(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS
 	CloseLocalFile(fh2, localFile, t)
-	ValidateObjectNotFoundErr(localFile, t)
+	ValidateObjectNotFoundErrOnGCS(localFile, t)
 	// Validate synced files are also deleted.
-	ValidateObjectNotFoundErr(syncedFile, t)
-	ValidateObjectNotFoundErr(ExplicitDirName, t)
+	ValidateObjectNotFoundErrOnGCS(syncedFile, t)
+	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)
 }
 
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
@@ -70,9 +70,9 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	ValidateNoFileOrDirError(ExplicitDirName, t)
 	// Close the local files and validate they are not present on GCS.
 	CloseLocalFile(fh1, localFile1, t)
-	ValidateObjectNotFoundErr(localFile1, t)
+	ValidateObjectNotFoundErrOnGCS(localFile1, t)
 	CloseLocalFile(fh2, localFile2, t)
-	ValidateObjectNotFoundErr(localFile2, t)
+	ValidateObjectNotFoundErrOnGCS(localFile2, t)
 	// Validate directory is also deleted.
-	ValidateObjectNotFoundErr(ExplicitDirName, t)
+	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)
 }

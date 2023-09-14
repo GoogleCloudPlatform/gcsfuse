@@ -45,7 +45,7 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
 	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
 	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, "teststringteststringteststring", t)
@@ -64,7 +64,7 @@ func TestRandomWritesToLocalFile(t *testing.T) {
 	assertWriteFileErrorIsNil(err, t)
 	_, err = fh.WriteAt([]byte("string3"), 3)
 	assertWriteFileErrorIsNil(err, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, "stsstring3", t)

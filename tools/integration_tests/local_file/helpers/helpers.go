@@ -45,11 +45,11 @@ func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File
 		t.Fatalf("CreateLocalFile(%s): %v", fileName, err)
 	}
 
-	ValidateObjectNotFoundErr(fileName, t)
+	ValidateObjectNotFoundErrOnGCS(fileName, t)
 	return
 }
 
-func ValidateObjectNotFoundErr(fileName string, t *testing.T) {
+func ValidateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
 	_, err := ReadObjectFromGCS(fileName)
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
@@ -88,7 +88,7 @@ func WritingToLocalFileSHouldNotThrowError(fh *os.File, content string, t *testi
 
 func WritingToLocalFileShouldNotWriteToGCS(fh *os.File, fileName string, t *testing.T) {
 	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
-	ValidateObjectNotFoundErr(fileName, t)
+	ValidateObjectNotFoundErrOnGCS(fileName, t)
 }
 
 func NewFileShouldGetSyncedToGCSAtClose(fileName string, t *testing.T) {

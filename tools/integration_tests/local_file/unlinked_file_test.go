@@ -35,7 +35,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 
 	// Close the file and validate that file is not created on GCS.
 	CloseLocalFile(fh, FileName1, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
@@ -60,7 +60,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	CloseFileAndValidateObjectContents(fh2, FileName2, "", t)
 	// Verify unlinked file is not written to GCS
 	CloseLocalFile(fh3, FileName3, t)
-	ValidateObjectNotFoundErr(FileName3, t)
+	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
 func TestUnlinkOfLocalFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
@@ -75,7 +75,7 @@ func TestUnlinkOfLocalFile(t *testing.T) {
 	ValidateNoFileOrDirError(FileName1, t)
 	CloseLocalFile(fh, FileName1, t)
 	// Validate file it is not present on GCS.
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
@@ -93,7 +93,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	// Validate flush file does not throw error.
 	CloseLocalFile(fh, FileName1, t)
 	// Validate unlinked file is not written to GCS
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestSyncOnUnlinkedLocalFile(t *testing.T) {
@@ -109,10 +109,10 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	ValidateNoFileOrDirError(FileName1, t)
 	// Validate sync operation does not write to GCS after unlink.
 	SyncOnLocalFileShouldNotThrowError(fh, FileName1, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 	// Close the local file and validate it is not present on GCS.
 	CloseLocalFile(fh, FileName1, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestUnlinkOfSyncedLocalFile(t *testing.T) {
@@ -127,5 +127,5 @@ func TestUnlinkOfSyncedLocalFile(t *testing.T) {
 
 	// Verify unlink operation succeeds.
 	ValidateNoFileOrDirError(FileName1, t)
-	ValidateObjectNotFoundErr(FileName1, t)
+	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
