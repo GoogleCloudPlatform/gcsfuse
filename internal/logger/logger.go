@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"log/syslog"
 	"os"
+	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 )
@@ -155,6 +156,7 @@ func Errorf(format string, v ...interface{}) {
 // Fatal prints an error log and exits with non-zero exit code.
 func Fatal(format string, v ...interface{}) {
 	Errorf(format, v...)
+	Errorf(string(debug.Stack()))
 	os.Exit(1)
 }
 
