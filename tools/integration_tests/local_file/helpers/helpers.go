@@ -224,3 +224,20 @@ func VerifyRenameOperationNotSupported(err error, t *testing.T) {
 			"operation not supported", err)
 	}
 }
+
+func VerifyStatOnLocalFile(filePath string, fileSize int64, t *testing.T) {
+	// Stat the file to validate if file is truncated correctly.
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		t.Fatalf("os.Stat err: %v", err)
+	}
+	if fi.Name() != path.Base(filePath) {
+		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", path.Base(filePath), fi.Name())
+	}
+	if fi.Size() != fileSize {
+		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", fileSize, fi.Size())
+	}
+	if fi.Mode() != FilePerms {
+		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", FilePerms, fi.Mode())
+	}
+}
