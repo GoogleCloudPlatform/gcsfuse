@@ -17,8 +17,10 @@ package local_file_test
 
 import (
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
@@ -132,4 +134,25 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	}
 	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContents(fh2, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+}
+
+func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+	// Create local file.
+	_, fh1 := CreateLocalFile(FileName1, t)
+	// Create same name gcs file.
+	err := CreateObject(FileName1, GCSFileContent)
+	if err != nil {
+		t.Fatalf("Create Object on GCS: %v.", err)
+	}
+
+	// Attempt to list mntDir.
+	_, err = os.ReadDir(setup.MntDir())
+	if err == nil || !strings.Contains(err.Error(), "input/output error") {
+		t.Fatalf("Expected error: %s, Got error: %v", "input/output error", err)
+	}
+
+	// Close the local file.
+	CloseLocalFile(fh1, FileName1, t)
 }
