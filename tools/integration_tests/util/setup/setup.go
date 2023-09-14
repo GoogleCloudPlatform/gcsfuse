@@ -105,16 +105,22 @@ func MntDir() string {
 	return mntDir
 }
 
+// OnlyDirMounted returns the name of the directory mounted in case of only dir mount.
 func OnlyDirMounted() string {
 	return onlyDirMounted
 }
+
+// SetOnlyDirMounted sets the name of the directory mounted in case of only dir mount.
 func SetOnlyDirMounted(onlyDirValue string) {
 	onlyDirMounted = onlyDirValue
 }
 
+// DynamicBucketMounted returns the name of the bucket in case of dynamic mount.
 func DynamicBucketMounted() string {
 	return dynamicBucketMounted
 }
+
+// SetDynamicBucketMounted sets the name of the bucket in case of dynamic mount
 func SetDynamicBucketMounted(dynamicBucketValue string) {
 	dynamicBucketMounted = dynamicBucketValue
 }

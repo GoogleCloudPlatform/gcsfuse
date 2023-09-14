@@ -42,13 +42,13 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 	_, fh := CreateLocalFile(FileName1, t)
 
 	// Write some contents to file sequentially.
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	for i := 0; i < 3; i++ {
+		WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	}
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, "teststringteststringteststring", t)
+	CloseFileAndValidateObjectContents(fh, FileName1, FileContents+FileContents+FileContents, t)
 }
 
 func TestRandomWritesToLocalFile(t *testing.T) {
