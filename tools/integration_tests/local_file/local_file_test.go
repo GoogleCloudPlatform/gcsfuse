@@ -20,6 +20,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -53,8 +54,7 @@ func TestMain(m *testing.M) {
 	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
 	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
 	if err != nil {
-		log.Printf("client.CreateStorageClient: %v", err)
-		os.Exit(1)
+		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
@@ -92,7 +92,7 @@ func TestMain(m *testing.M) {
 	helpers.StorageClient.Close()
 	cancel()
 	// Clean up test directory created.
-	setup.CleanupTestDirectoryOnGCS(helpers.LocalFileTestDirInBucket)
+	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), helpers.LocalFileTestDirInBucket))
 	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }

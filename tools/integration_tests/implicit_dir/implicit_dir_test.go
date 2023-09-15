@@ -19,6 +19,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -45,8 +46,7 @@ func TestMain(m *testing.M) {
 	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
-		log.Printf("client.CreateStorageClient: %v", err)
-		os.Exit(1)
+		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
 	flags := [][]string{{"--implicit-dirs"}}
@@ -57,6 +57,6 @@ func TestMain(m *testing.M) {
 	storageClient.Close()
 	cancel()
 	// Clean up test directory created.
-	setup.CleanupTestDirectoryOnGCS(testDirName)
+	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

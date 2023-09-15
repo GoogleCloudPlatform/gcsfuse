@@ -317,10 +317,10 @@ func SetupTestDirectory(testDirName string) string {
 	return testDirPath
 }
 
-func CleanupTestDirectoryOnGCS(directoryName string) {
-	_, err := operations.ExecuteGsutilCommandf("rm -rf gs://%s/%s", TestBucket(), directoryName)
+func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
+	_, err := operations.ExecuteGsutilCommandf("rm -rf gs://%s", directoryPathOnGCS)
 	if err != nil {
-		log.Printf("Error while cleaning up test directory %s from bucket %s: %v",
-			directoryName, TestBucket(), err)
+		log.Printf("Error while cleaning up directory %s from GCS: %v",
+			directoryPathOnGCS, err)
 	}
 }
