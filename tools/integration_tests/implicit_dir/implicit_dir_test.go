@@ -58,6 +58,5 @@ func TestMain(m *testing.M) {
 	cancel()
 	// Clean up test directory created.
 	setup.CleanupTestDirectoryOnGCS(testDirName)
-	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }

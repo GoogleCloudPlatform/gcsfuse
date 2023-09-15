@@ -30,6 +30,5 @@ func TestMain(m *testing.M) {
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 
-	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }

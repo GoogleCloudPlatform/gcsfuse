@@ -69,7 +69,7 @@ func validateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
 	}
 }
 
-func validateObjectContents(fileName string, expectedContent string, t *testing.T) {
+func validateObjectContentsFromGCS(fileName string, expectedContent string, t *testing.T) {
 	gotContent, err := client.ReadObjectFromGCS(storageClient, path.Join(testDirName, fileName), ReadSize, ctx)
 	if err != nil {
 		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
@@ -80,9 +80,9 @@ func validateObjectContents(fileName string, expectedContent string, t *testing.
 	}
 }
 
-func closeFileAndValidateContent(fh *os.File, fileName, content string, t *testing.T) {
+func closeFileAndValidateContentFromGCS(fh *os.File, fileName, content string, t *testing.T) {
 	operations.CloseFile(fh)
-	validateObjectContents(fileName, content, t)
+	validateObjectContentsFromGCS(fileName, content, t)
 }
 
 func createLocalFile(filePath, fileName string, t *testing.T) (fh *os.File) {
@@ -106,7 +106,7 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 	validateObjectNotFoundErrOnGCS(fileName, t)
 
 	// Validate.
-	closeFileAndValidateContent(fh, fileName, FileContents, t)
+	closeFileAndValidateContentFromGCS(fh, fileName, FileContents, t)
 }
 
 func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
@@ -128,8 +128,8 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
 	operations.VerifyFileEntry(entries[2], ImplicitFileName1, 10, t)
 	// Close the local files.
-	closeFileAndValidateContent(fh1, fileName1, "", t)
-	closeFileAndValidateContent(fh2, fileName2, "", t)
+	closeFileAndValidateContentFromGCS(fh1, fileName1, "", t)
+	closeFileAndValidateContentFromGCS(fh2, fileName2, "", t)
 }
 
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
@@ -202,7 +202,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("filepath.WalkDir() err: %v", err)
 	}
-	closeFileAndValidateContent(fh1, FileName1, "", t)
-	closeFileAndValidateContent(fh2, fileName2, "", t)
-	closeFileAndValidateContent(fh3, fileName3, "", t)
+	closeFileAndValidateContentFromGCS(fh1, FileName1, "", t)
+	closeFileAndValidateContentFromGCS(fh2, fileName2, "", t)
+	closeFileAndValidateContentFromGCS(fh3, fileName3, "", t)
 }
