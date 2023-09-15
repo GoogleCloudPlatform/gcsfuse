@@ -34,8 +34,11 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 
-const BufferSize = 100
-const FilePermission_0600 = 0600
+const (
+	BufferSize          = 100
+	FilePermission_0600 = 0600
+	DirPermission_0755  = 0755
+)
 
 var (
 	binFile              string
@@ -305,7 +308,7 @@ func CleanMntDir() {
 }
 
 func SetupTestDirectory(testDirPath string) {
-	err := os.Mkdir(testDirPath, 0755)
+	err := os.Mkdir(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}

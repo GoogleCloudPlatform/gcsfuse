@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
@@ -62,8 +61,8 @@ func TestMain(m *testing.M) {
 	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 
 	// Close storage client and release resources.
-	helpers.StorageClient.Close()
 	cancel()
+	storageClient.Close()
 	// Clean up test directory created.
 	setup.CleanupTestDirectoryOnGCS(testDirName)
 }
