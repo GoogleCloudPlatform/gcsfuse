@@ -2027,6 +2027,8 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	// The following is purely for testing stack trace dump on fs operations.
+	panic("panic on ReadFile as expected")
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)

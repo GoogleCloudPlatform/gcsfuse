@@ -185,6 +185,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	// This is temporary code for testing https://github.com/GoogleCloudPlatform/gcsfuse/pull/1377.
+	// To test this, run the following command
+	// GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/gzip/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+	setup.LogAndExit("Exited as planned!")
+
 	err := setup_testdata(m)
 	if err != nil {
 		fmt.Printf("Failed to setup test data: %v", err)

@@ -44,6 +44,11 @@ func mountWithStorageHandle(
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if flags.TempDir != "" {
+		// The following is purely for testing https://github.com/GoogleCloudPlatform/gcsfuse/pull/1377...
+		// To test this, pass the option, --temp-dir=<something> to gcsfuse mount command,
+		// and it will print the stack trace of this panic.
+		panic("Error on passing non-empty --temp-dir as planned.")
+
 		logger.Infof("Creating a temporary directory at %q\n", flags.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(flags.TempDir)
