@@ -287,26 +287,28 @@ func LogAndExit(s string) {
 	os.Exit(1)
 }
 
-// CleanUpDir cleans up given directory.
-func CleanUpDir(directory string) {
-	dir, err := os.ReadDir(directory)
+// CleanUpDir cleans up the content in given directory.
+func CleanUpDir(directoryPath string) {
+	dir, err := os.ReadDir(directoryPath)
 	if err != nil {
 		log.Printf("Error in reading directory: %v", err)
 	}
 
 	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{directory, d.Name()}...))
+		err := os.RemoveAll(path.Join([]string{directoryPath, d.Name()}...))
 		if err != nil {
 			log.Printf("Error in removing directory: %v", err)
 		}
 	}
 }
 
-// Clean the mounted directory
+// CleanMntDir cleans the mounted directory.
 func CleanMntDir() {
 	CleanUpDir(mntDir)
 }
 
+// SetupTestDirectory creates a testDirectory in the mounted directory and cleans up
+// any content present in it.
 func SetupTestDirectory(testDirName string) string {
 	testDirPath := path.Join(MntDir(), testDirName)
 	err := os.Mkdir(testDirPath, DirPermission_0755)
@@ -317,6 +319,7 @@ func SetupTestDirectory(testDirName string) string {
 	return testDirPath
 }
 
+// CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
 func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
 	_, err := operations.ExecuteGsutilCommandf("rm -rf gs://%s", directoryPathOnGCS)
 	if err != nil {

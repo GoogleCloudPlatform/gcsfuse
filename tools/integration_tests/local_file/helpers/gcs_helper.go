@@ -74,7 +74,7 @@ func ValidateObjectContentsFromGCS(fileName string, expectedContent string, t *t
 }
 
 func CloseFileAndValidateObjectContentsFromGCS(f *os.File, fileName string, contents string, t *testing.T) {
-	operations.CloseFile(f)
+	operations.CloseFileShouldNotThrowError(f, t)
 	ValidateObjectContentsFromGCS(fileName, contents, t)
 }
 

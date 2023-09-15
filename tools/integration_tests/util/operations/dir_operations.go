@@ -128,13 +128,13 @@ func VerifyDirectoryEntry(entry os.DirEntry, dirName string, t *testing.T) {
 	}
 }
 
-func VerifyCountOfEntries(expected, got int, t *testing.T) {
+func VerifyCountOfDirectoryEntries(expected, got int, t *testing.T) {
 	if expected != got {
-		t.Fatalf("entry count mismatch, expected: %d, got: %d", expected, got)
+		t.Fatalf("directory entry count mismatch, expected: %d, got: %d", expected, got)
 	}
 }
 
-func CreateExplicitDir(dirPath string, t *testing.T) {
+func CreateDirectory(dirPath string, t *testing.T) {
 	err := os.Mkdir(dirPath, DirPermission_0755)
 
 	// Verify MkDir operation succeeds.

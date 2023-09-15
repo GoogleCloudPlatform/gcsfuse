@@ -34,8 +34,8 @@ func separateBucketAndObjectName(bucket, object *string) {
 func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	*bucket = setup.TestBucket()
 	if strings.Contains(setup.TestBucket(), "/") {
-		// This case arises when a particular directory is mounted with
-		// mountedDirectory integration test flag.
+		// This case arises when we run tests on mounted directory and pass
+		// bucket/directory in testbucket flag.
 		separateBucketAndObjectName(bucket, object)
 	}
 	if setup.DynamicBucketMounted() != "" {

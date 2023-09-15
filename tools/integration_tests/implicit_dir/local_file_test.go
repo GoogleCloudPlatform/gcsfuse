@@ -81,7 +81,7 @@ func validateObjectContentsFromGCS(fileName string, expectedContent string, t *t
 }
 
 func closeFileAndValidateContentFromGCS(fh *os.File, fileName, content string, t *testing.T) {
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(fh, t)
 	validateObjectContentsFromGCS(fileName, content, t)
 }
 
@@ -123,7 +123,7 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	entries := operations.ReadDirectory(path.Join(testDirPath, ImplicitDirName), t)
 
 	// Verify entries received successfully.
-	operations.VerifyCountOfEntries(3, len(entries), t)
+	operations.VerifyCountOfDirectoryEntries(3, len(entries), t)
 	operations.VerifyFileEntry(entries[0], FileName1, 0, t)
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
 	operations.VerifyFileEntry(entries[2], ImplicitFileName1, 10, t)
@@ -153,7 +153,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Create local file in mnt/ dir.
 	fh1 := createLocalFile(filePath1, FileName1, t)
 	// Create explicit dir with 1 local file.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	fh2 := createLocalFile(filePath2, fileName2, t)
 	// Create implicit dir with 1 local file1 and 1 synced file.
 	createImplicitDir(t)
@@ -175,7 +175,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 			// Check if mntDir has correct objects.
 			if walkPath == setup.MntDir() {
 				// numberOfObjects = 3
-				operations.VerifyCountOfEntries(3, len(objs), t)
+				operations.VerifyCountOfDirectoryEntries(3, len(objs), t)
 				operations.VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
 				operations.VerifyFileEntry(objs[1], FileName1, 0, t)
 				operations.VerifyDirectoryEntry(objs[2], ImplicitDirName, t)
@@ -184,14 +184,14 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 			// Check if mntDir/explicitFoo/ has correct objects.
 			if walkPath == path.Join(testDirPath, ExplicitDirName) {
 				// numberOfObjects = 1
-				operations.VerifyCountOfEntries(1, len(objs), t)
+				operations.VerifyCountOfDirectoryEntries(1, len(objs), t)
 				operations.VerifyFileEntry(objs[0], ExplicitFileName1, 0, t)
 			}
 
 			// Check if mntDir/implicitFoo/ has correct objects.
 			if walkPath == path.Join(testDirPath, ImplicitDirName) {
 				// numberOfObjects = 2
-				operations.VerifyCountOfEntries(2, len(objs), t)
+				operations.VerifyCountOfDirectoryEntries(2, len(objs), t)
 				operations.VerifyFileEntry(objs[0], FileName2, 0, t)
 				operations.VerifyFileEntry(objs[1], ImplicitFileName1, 10, t)
 			}

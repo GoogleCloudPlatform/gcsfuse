@@ -34,7 +34,7 @@ func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Make explicit directory.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)

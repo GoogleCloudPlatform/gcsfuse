@@ -40,7 +40,7 @@ func TestReadDir(t *testing.T) {
 
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit dir with 1 local file.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
 	// Create empty local file.
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
@@ -55,13 +55,13 @@ func TestReadDir(t *testing.T) {
 	entriesDir := operations.ReadDirectory(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Verify entriesMnt received successfully.
-	operations.VerifyCountOfEntries(4, len(entriesMnt), t)
+	operations.VerifyCountOfDirectoryEntries(4, len(entriesMnt), t)
 	operations.VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
 	operations.VerifyFileEntry(entriesMnt[1], FileName1, 0, t)
 	operations.VerifyFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t)
 	operations.VerifyFileEntry(entriesMnt[3], FileName3, SizeOfGCSContent, t)
 	// Verify entriesDir received successfully.
-	operations.VerifyCountOfEntries(1, len(entriesDir), t)
+	operations.VerifyCountOfDirectoryEntries(1, len(entriesDir), t)
 	operations.VerifyFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
 	// Close the local files.
 	CloseFileAndValidateObjectContentsFromGCS(fh1, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
@@ -81,7 +81,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Create local file in mnt/ dir.
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Create explicit dir with 1 local file.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
 
 	// Recursively list mntDir/ directory.
@@ -99,7 +99,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 		// Check if mntDir has correct objects.
 		if walkPath == testDirPath {
 			// numberOfObjects = 2
-			operations.VerifyCountOfEntries(2, len(objs), t)
+			operations.VerifyCountOfDirectoryEntries(2, len(objs), t)
 			operations.VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
 			operations.VerifyFileEntry(objs[1], FileName1, 0, t)
 		}
@@ -107,7 +107,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 		// Check if mntDir/explicit/ has correct objects.
 		if walkPath == path.Join(setup.MntDir(), ExplicitDirName) {
 			// numberOfObjects = 1
-			operations.VerifyCountOfEntries(1, len(objs), t)
+			operations.VerifyCountOfDirectoryEntries(1, len(objs), t)
 			operations.VerifyFileEntry(objs[0], ExplicitFileName1, 0, t)
 		}
 
@@ -130,12 +130,12 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	CreateObjectInGCSTestDir(FileName1, GCSFileContent, t)
 
-	// Attempt to list mntDir.
+	// Attempt to list testDir.
 	_, err := os.ReadDir(testDirPath)
 	if err == nil || !strings.Contains(err.Error(), "input/output error") {
 		t.Fatalf("Expected error: %s, Got error: %v", "input/output error", err)
 	}
 
 	// Close the local file.
-	operations.CloseFile(fh1)
+	operations.CloseFileShouldNotThrowError(fh1, t)
 }

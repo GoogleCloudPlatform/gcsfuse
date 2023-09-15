@@ -541,3 +541,9 @@ func WriteAt(content string, offset int64, fh *os.File, t *testing.T) {
 		t.Fatalf("%s.WriteAt(%s, %d): %v", fh.Name(), content, offset, err)
 	}
 }
+
+func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
+	if err := file.Close(); err != nil {
+		t.Fatalf("file.Close() for file %s: %v", file.Name(), err)
+	}
+}

@@ -47,7 +47,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	//Create directory with 1 synced and 1 local file.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	// Create synced file.
 	CreateObjectInGCSTestDir(path.Join(ExplicitDirName, FileName1), GCSFileContent, t)
 	// Create local file with some content.

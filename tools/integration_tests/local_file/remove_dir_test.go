@@ -27,7 +27,7 @@ import (
 func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit directory with one synced and one local file.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, syncedFile, t)
@@ -42,7 +42,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
-	operations.CloseFile(fh2)
+	operations.CloseFileShouldNotThrowError(fh2, t)
 	ValidateObjectNotFoundErrOnGCS(localFile, t)
 	// Validate synced files are also deleted.
 	ValidateObjectNotFoundErrOnGCS(syncedFile, t)
@@ -52,7 +52,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a directory with two local files.
-	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	localFile1 := path.Join(ExplicitDirName, FileName1)
 	localFile2 := path.Join(ExplicitDirName, FileName2)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, localFile1, t)
@@ -64,9 +64,9 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	// Verify rmDir operation succeeds.
 	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
-	operations.CloseFile(fh1)
+	operations.CloseFileShouldNotThrowError(fh1, t)
 	ValidateObjectNotFoundErrOnGCS(localFile1, t)
-	operations.CloseFile(fh2)
+	operations.CloseFileShouldNotThrowError(fh2, t)
 	ValidateObjectNotFoundErrOnGCS(localFile2, t)
 	// Validate directory is also deleted.
 	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)

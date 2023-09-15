@@ -28,14 +28,14 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
-	// unlink the local file.
+	// Unlink the local file.
 	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Close the file and validate that file is not created on GCS.
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(fh, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
@@ -48,18 +48,18 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	// Unlink local file 3.
 	operations.RemoveFile(filepath3)
 
-	// Attempt to list mntDir.
+	// Attempt to list testDir.
 	entries := operations.ReadDirectory(testDirPath, t)
 
 	// Verify unlinked entries are not listed.
-	operations.VerifyCountOfEntries(2, len(entries), t)
+	operations.VerifyCountOfDirectoryEntries(2, len(entries), t)
 	operations.VerifyFileEntry(entries[0], FileName1, 0, t)
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
-	// Close the local files.
+	// Close the local files and validate they are written to GCS.
 	CloseFileAndValidateObjectContentsFromGCS(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContentsFromGCS(fh2, FileName2, "", t)
 	// Verify unlinked file is not written to GCS.
-	operations.CloseFile(fh3)
+	operations.CloseFileShouldNotThrowError(fh3, t)
 	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
 
@@ -75,7 +75,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	operations.WriteWithoutClose(fh, FileContents, t)
 
 	// Validate flush file does not throw error.
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(fh, t)
 	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
@@ -94,6 +94,6 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	operations.SyncFile(fh, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 	// Close the local file and validate it is not present on GCS.
-	operations.CloseFile(fh)
+	operations.CloseFileShouldNotThrowError(fh, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
