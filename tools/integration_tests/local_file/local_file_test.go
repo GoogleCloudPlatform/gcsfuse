@@ -18,7 +18,6 @@ package local_file_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -54,7 +53,7 @@ func TestMain(m *testing.M) {
 	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
 	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
 	if err != nil {
-		fmt.Printf("client.CreateStorageClient: %v", err)
+		log.Printf("client.CreateStorageClient: %v", err)
 		os.Exit(1)
 	}
 

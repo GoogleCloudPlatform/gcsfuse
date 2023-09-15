@@ -64,10 +64,10 @@ func TestReadDir(t *testing.T) {
 	operations.VerifyCountOfEntries(1, len(entriesDir), t)
 	operations.VerifyFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
 	// Close the local files.
-	CloseFileAndValidateObjectContents(fh1, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
-	CloseFileAndValidateObjectContents(fh2, FileName1, "", t)
-	CloseFileAndValidateObjectContents(fh3, FileName2, FileContents, t)
-	ValidateObjectContents(FileName3, GCSFileContent, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh1, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh2, FileName1, "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh3, FileName2, FileContents, t)
+	ValidateObjectContentsFromGCS(FileName3, GCSFileContent, t)
 }
 
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
@@ -118,8 +118,8 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filepath.WalkDir() err: %v", err)
 	}
-	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
-	CloseFileAndValidateObjectContents(fh2, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh1, FileName1, "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh2, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
 }
 
 func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {

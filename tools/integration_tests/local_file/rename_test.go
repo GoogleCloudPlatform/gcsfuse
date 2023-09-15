@@ -41,7 +41,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 	// write more content to local file.
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 	// Close the local file.
-	CloseFileAndValidateObjectContents(fh, FileName1, FileContents+FileContents, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents+FileContents, t)
 }
 
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
@@ -64,7 +64,7 @@ func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	// Write more content to local file.
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName2, t)
 	// Close the local file.
-	CloseFileAndValidateObjectContents(fh, path.Join(ExplicitDirName, FileName2),
+	CloseFileAndValidateObjectContentsFromGCS(fh, path.Join(ExplicitDirName, FileName2),
 		FileContents+FileContents, t)
 }
 
@@ -80,7 +80,7 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Rename() failed on synced file: %v", err)
 	}
-	ValidateObjectContents(NewFileName, FileContents+FileContents, t)
+	ValidateObjectContentsFromGCS(NewFileName, FileContents+FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
@@ -96,8 +96,8 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Rename() failed on directory containing synced files: %v", err)
 	}
-	ValidateObjectContents(path.Join(NewDirName, FileName1), GCSFileContent, t)
+	ValidateObjectContentsFromGCS(path.Join(NewDirName, FileName1), GCSFileContent, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName1), t)
-	ValidateObjectContents(path.Join(NewDirName, FileName2), FileContents+FileContents, t)
+	ValidateObjectContentsFromGCS(path.Join(NewDirName, FileName2), FileContents+FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName2), t)
 }

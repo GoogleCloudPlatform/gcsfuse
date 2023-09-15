@@ -40,7 +40,7 @@ func TestStatOnLocalFile(t *testing.T) {
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, FileContents, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents, t)
 }
 
 func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
@@ -52,7 +52,7 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, "", t)
 }
 
 func TestTruncateLocalFile(t *testing.T) {
@@ -76,5 +76,5 @@ func TestTruncateLocalFile(t *testing.T) {
 	operations.VerifyStatFile(filePath, SizeTruncate, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, "tests", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, "tests", t)
 }

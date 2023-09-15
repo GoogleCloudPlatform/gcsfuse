@@ -17,7 +17,7 @@ package implicit_dir_test
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -45,15 +45,9 @@ func TestMain(m *testing.M) {
 	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
-		fmt.Printf("client.CreateStorageClient: %v", err)
+		log.Printf("client.CreateStorageClient: %v", err)
 		os.Exit(1)
 	}
-
-	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Run tests for testBucket only if --testbucket flag is set.
-	setup.SetUpTestDirForTestBucketFlag()
 
 	flags := [][]string{{"--implicit-dirs"}}
 

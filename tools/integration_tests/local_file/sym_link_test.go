@@ -34,12 +34,12 @@ func TestCreateSymlinkForLocalFile(t *testing.T) {
 
 	// Create the symlink.
 	symlink := path.Join(testDirPath, "bar")
-	operations.SymLink(filePath, symlink, t)
+	operations.CreateSymLink(filePath, symlink, t)
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)
 	operations.VerifyReadFile(symlink, FileContents, t)
-	CloseFileAndValidateObjectContents(fh, FileName1, FileContents, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents, t)
 }
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
@@ -50,7 +50,7 @@ func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
 
 	// Create the symlink.
 	symlink := path.Join(testDirPath, "bar")
-	operations.SymLink(filePath, symlink, t)
+	operations.CreateSymLink(filePath, symlink, t)
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)

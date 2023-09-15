@@ -458,10 +458,10 @@ func SyncFile(fh *os.File, t *testing.T) {
 	}
 }
 
-func SymLink(filePath, symlink string, t *testing.T) {
+func CreateSymLink(filePath, symlink string, t *testing.T) {
 	err := os.Symlink(filePath, symlink)
 
-	// Verify os.SymLink operation succeeds.
+	// Verify os.Symlink operation succeeds.
 	if err != nil {
 		t.Fatalf("os.Symlink(%s, %s): %v", filePath, symlink, err)
 	}
@@ -488,12 +488,12 @@ func VerifyStatFile(filePath string, fileSize int64, filePerms os.FileMode, t *t
 	}
 }
 
-func VerifyReadFile(symlinkName, expectedContent string, t *testing.T) {
-	gotContent, err := os.ReadFile(symlinkName)
+func VerifyReadFile(filePath, expectedContent string, t *testing.T) {
+	gotContent, err := os.ReadFile(filePath)
 
 	// Verify os.ReadFile operation succeeds.
 	if err != nil {
-		t.Fatalf("os.ReadFile(%s): %v", symlinkName, err)
+		t.Fatalf("os.ReadFile(%s): %v", filePath, err)
 	}
 	if expectedContent != string(gotContent) {
 		t.Fatalf("Content mismatch. Expected: %s, Got: %s", expectedContent, gotContent)
@@ -516,15 +516,15 @@ func VerifyFileEntry(entry os.DirEntry, fileName string, size int64, t *testing.
 	}
 }
 
-func VerifyReadLink(filePath, symlinkName string, t *testing.T) {
-	target, err := os.Readlink(symlinkName)
+func VerifyReadLink(expectedTarget, symlinkName string, t *testing.T) {
+	gotTarget, err := os.Readlink(symlinkName)
 
 	// Verify os.Readlink operation succeeds.
 	if err != nil {
 		t.Fatalf("os.Readlink(%s): %v", symlinkName, err)
 	}
-	if filePath != target {
-		t.Fatalf("Symlink target mismatch. Expected: %s, Got: %s", filePath, target)
+	if expectedTarget != gotTarget {
+		t.Fatalf("Symlink target mismatch. Expected: %s, Got: %s", expectedTarget, gotTarget)
 	}
 }
 
@@ -532,5 +532,12 @@ func WriteWithoutClose(fh *os.File, content string, t *testing.T) {
 	_, err := fh.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("Error while writing to local file. err: %v", err)
+	}
+}
+
+func WriteAt(content string, offset int64, fh *os.File, t *testing.T) {
+	_, err := fh.WriteAt([]byte(content), offset)
+	if err != nil {
+		t.Fatalf("%s.WriteAt(%s, %d): %v", fh.Name(), content, offset, err)
 	}
 }

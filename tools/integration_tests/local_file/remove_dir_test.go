@@ -31,7 +31,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, syncedFile, t)
-	CloseFileAndValidateObjectContents(fh1, syncedFile, "", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh1, syncedFile, "", t)
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile, t)
 
 	// Attempt to remove explicit directory.

@@ -58,7 +58,7 @@ func ValidateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
 	}
 }
 
-func ValidateObjectContents(fileName string, expectedContent string, t *testing.T) {
+func ValidateObjectContentsFromGCS(fileName string, expectedContent string, t *testing.T) {
 	gotContent, err := client.ReadObjectFromGCS(
 		StorageClient,
 		path.Join(LocalFileTestDirInBucket, fileName),
@@ -73,9 +73,9 @@ func ValidateObjectContents(fileName string, expectedContent string, t *testing.
 	}
 }
 
-func CloseFileAndValidateObjectContents(f *os.File, fileName string, contents string, t *testing.T) {
+func CloseFileAndValidateObjectContentsFromGCS(f *os.File, fileName string, contents string, t *testing.T) {
 	operations.CloseFile(f)
-	ValidateObjectContents(fileName, contents, t)
+	ValidateObjectContentsFromGCS(fileName, contents, t)
 }
 
 func WritingToLocalFileShouldNotWriteToGCS(fh *os.File, fileName string, t *testing.T) {
@@ -91,7 +91,7 @@ func NewFileShouldGetSyncedToGCSAtClose(testDirPath, fileName string, t *testing
 	WritingToLocalFileShouldNotWriteToGCS(fh, fileName, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, fileName, FileContents, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, fileName, FileContents, t)
 }
 
 func ValidateNoFileOrDirError(path string, t *testing.T) {

@@ -41,5 +41,5 @@ func TestReadLocalFile(t *testing.T) {
 	}
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, content, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, content, t)
 }

@@ -23,19 +23,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-// //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-
-func assertWriteFileErrorIsNil(err error, t *testing.T) {
-	if err != nil {
-		t.Fatalf("Error while writing to local file. err: %v", err)
-	}
-}
-
-// //////////////////////////////////////////////////////////////////////
-// Tests
-// //////////////////////////////////////////////////////////////////////
 func TestMultipleWritesToLocalFile(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
@@ -48,7 +35,7 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, FileContents+FileContents+FileContents, t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents+FileContents+FileContents, t)
 }
 
 func TestRandomWritesToLocalFile(t *testing.T) {
@@ -57,14 +44,11 @@ func TestRandomWritesToLocalFile(t *testing.T) {
 	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Write some contents to file randomly.
-	_, err := fh.WriteAt([]byte("string1"), 0)
-	assertWriteFileErrorIsNil(err, t)
-	_, err = fh.WriteAt([]byte("string2"), 2)
-	assertWriteFileErrorIsNil(err, t)
-	_, err = fh.WriteAt([]byte("string3"), 3)
-	assertWriteFileErrorIsNil(err, t)
+	operations.WriteAt("string1", 0, fh, t)
+	operations.WriteAt("string2", 2, fh, t)
+	operations.WriteAt("string3", 3, fh, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContents(fh, FileName1, "stsstring3", t)
+	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, "stsstring3", t)
 }
