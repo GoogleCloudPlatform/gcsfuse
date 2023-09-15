@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -42,14 +41,6 @@ func TestMain(m *testing.M) {
 	var cancel context.CancelFunc
 	var err error
 
-	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Run tests for testBucket only if --testbucket flag is set.
-	setup.SetUpTestDirForTestBucketFlag()
-
-	// Set testDirPath to run tests on, in the MntDir.
-	testDirPath = path.Join(setup.MntDir(), testDirName)
 	// Create storage client before running tests.
 	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
 	storageClient, err = client.CreateStorageClient(ctx)
@@ -57,6 +48,12 @@ func TestMain(m *testing.M) {
 		fmt.Printf("client.CreateStorageClient: %v", err)
 		os.Exit(1)
 	}
+
+	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Run tests for testBucket only if --testbucket flag is set.
+	setup.SetUpTestDirForTestBucketFlag()
 
 	flags := [][]string{{"--implicit-dirs"}}
 

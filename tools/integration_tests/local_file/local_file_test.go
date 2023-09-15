@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -46,8 +45,16 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
+	if setup.MountedDirectory() != "" && setup.TestBucket() == "" {
+		log.Print("Both --testbucket and --mountedDirectory should be specified to run mounted directory tests.")
+		os.Exit(1)
+	}
+
+	// Create storage client before running tests.
+	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
+	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
+	if err != nil {
+		fmt.Printf("client.CreateStorageClient: %v", err)
 		os.Exit(1)
 	}
 
@@ -71,17 +78,6 @@ func TestMain(m *testing.M) {
 	flags := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + configFile},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--config-file=" + configFile}}
-
-	// Set testDirPath to run tests on, in the MntDir.
-	testDirPath = path.Join(setup.MntDir(), helpers.LocalFileTestDirInBucket)
-
-	// Create storage client before running tests.
-	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
-	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
-	if err != nil {
-		fmt.Printf("client.CreateStorageClient: %v", err)
-		os.Exit(1)
-	}
 
 	successCode := static_mounting.RunTests(flags, m)
 

@@ -25,8 +25,19 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+func separateBucketAndObjectName(bucket, object *string) {
+	bucketAndObjectPath := strings.SplitN(*bucket, "/", 2)
+	*bucket = bucketAndObjectPath[0]
+	*object = path.Join(bucketAndObjectPath[1], *object)
+}
+
 func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	*bucket = setup.TestBucket()
+	if strings.Contains(setup.TestBucket(), "/") {
+		// This case arises when a particular directory is mounted with
+		// mountedDirectory flag.
+		separateBucketAndObjectName(bucket, object)
+	}
 	if setup.DynamicBucketMounted() != "" {
 		*bucket = setup.DynamicBucketMounted()
 	}
