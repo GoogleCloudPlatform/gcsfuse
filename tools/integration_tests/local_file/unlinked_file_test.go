@@ -24,33 +24,31 @@ import (
 )
 
 func TestStatOnUnlinkedLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// unlink the local file.
 	UnlinkShouldNotThrowError(filePath, t)
 
 	// Stat the local file and validate error.
-	ValidateNoFileOrDirError(FileName1, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Close the file and validate that file is not created on GCS.
-	CloseLocalFile(fh, FileName1, t)
+	CloseFile(fh, FileName1, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create local files.
-	_, fh1 := CreateLocalFile(FileName1, t)
-	_, fh2 := CreateLocalFile(FileName2, t)
-	filepath3, fh3 := CreateLocalFile(FileName3, t)
+	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
+	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName2, t)
+	filepath3, fh3 := CreateLocalFileInTestDir(testDirPath, FileName3, t)
 	// Unlink local file 3.
 	UnlinkShouldNotThrowError(filepath3, t)
 
 	// Attempt to list mntDir.
-	entries := ReadDirectory(path.Join(setup.MntDir(), LocalFileTestDirInBucket), t)
+	entries := ReadDirectory(testDirPath, t)
 
 	// Verify unlinked entries are not listed.
 	VerifyCountOfEntries(2, len(entries), t)
@@ -60,73 +58,69 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContents(fh2, FileName2, "", t)
 	// Verify unlinked file is not written to GCS.
-	CloseLocalFile(fh3, FileName3, t)
+	CloseFile(fh3, FileName3, t)
 	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
 func TestUnlinkOfLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create empty local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Attempt to unlink local file.
 	UnlinkShouldNotThrowError(filePath, t)
 
 	// Verify unlink operation succeeds.
-	ValidateNoFileOrDirError(FileName1, t)
-	CloseLocalFile(fh, FileName1, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	CloseFile(fh, FileName1, t)
 	// Validate file it is not present on GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create local file.
-	filepath, fh := CreateLocalFile(FileName1, t)
+	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Verify unlink operation succeeds.
 	UnlinkShouldNotThrowError(filepath, t)
-	ValidateNoFileOrDirError(FileName1, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Write to unlinked local file.
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	WritingToFileSHouldNotThrowError(fh, FileContents, t)
 
 	// Validate flush file does not throw error.
-	CloseLocalFile(fh, FileName1, t)
+	CloseFile(fh, FileName1, t)
 	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestSyncOnUnlinkedLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create local file.
-	filepath, fh := CreateLocalFile(FileName1, t)
+	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Attempt to unlink local file.
 	UnlinkShouldNotThrowError(filepath, t)
 
 	// Verify unlink operation succeeds.
-	ValidateNoFileOrDirError(FileName1, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 	// Validate sync operation does not write to GCS after unlink.
 	SyncOnLocalFileShouldNotThrowError(fh, FileName1, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 	// Close the local file and validate it is not present on GCS.
-	CloseLocalFile(fh, FileName1, t)
+	CloseFile(fh, FileName1, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
 func TestUnlinkOfSyncedLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create local file and sync to GCS.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	CloseFileAndValidateObjectContents(fh, FileName1, "", t)
 
 	// Attempt to unlink synced local file.
 	UnlinkShouldNotThrowError(filePath, t)
 
 	// Verify unlink operation succeeds.
-	ValidateNoFileOrDirError(FileName1, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }

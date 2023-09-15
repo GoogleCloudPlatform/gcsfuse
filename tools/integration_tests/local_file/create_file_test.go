@@ -24,37 +24,31 @@ import (
 )
 
 func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 
 	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(FileName1, t)
+	NewFileShouldGetSyncedToGCSAtClose(testDirPath, FileName1, t)
 }
 
 func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Make explicit directory.
-	CreateExplicitDirShouldNotThrowError(t)
+	CreateExplicitDirInTestDir(testDirPath, t)
 
 	// Validate.
-	NewFileShouldGetSyncedToGCSAtClose(path.Join(ExplicitDirName, ExplicitFileName1), t)
+	NewFileShouldGetSyncedToGCSAtClose(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
 }
 
 func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	_, fh := CreateLocalFile(FileName1, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Create a file on GCS with the same name.
-	err := CreateObjectOnGCS(path.Join(LocalFileTestDirInBucket, FileName1), GCSFileContent)
-	if err != nil {
-		t.Fatalf("Create Object on GCS: %v.", err)
-	}
+	CreateObjectInGCSTestDir(FileName1, GCSFileContent, t)
 
 	// Write to local file.
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	WritingToFileSHouldNotThrowError(fh, FileContents, t)
 	// Close the local file and ensure that the content on GCS is not overwritten.
 	CloseFileAndValidateObjectContents(fh, FileName1, GCSFileContent, t)
 }

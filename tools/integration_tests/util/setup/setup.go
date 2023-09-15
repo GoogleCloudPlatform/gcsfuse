@@ -284,6 +284,7 @@ func LogAndExit(s string) {
 	os.Exit(1)
 }
 
+// CleanUpDir cleans up given directory.
 func CleanUpDir(directory string) {
 	dir, err := os.ReadDir(directory)
 	if err != nil {
@@ -303,11 +304,18 @@ func CleanMntDir() {
 	CleanUpDir(mntDir)
 }
 
-func PreTestSetup(testSubDir string) {
-	testDirPath := path.Join(MntDir(), testSubDir)
+func SetupTestDirectory(testDirPath string) {
 	err := os.Mkdir(testDirPath, 0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}
 	CleanUpDir(testDirPath)
+}
+
+func CleanupTestDirectoryOnGCS(directoryName string) {
+	_, err := operations.ExecuteGsutilCommandf("rm -rf gs://%s/%s", TestBucket(), directoryName)
+	if err != nil {
+		log.Printf("Error while cleaning up test directory %s from bucket %s: %v",
+			directoryName, TestBucket(), err)
+	}
 }

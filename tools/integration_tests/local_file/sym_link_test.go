@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 // Provides integration tests for symlink operation on local files.
-package local_file
+package local_file_test
 
 import (
 	"os"
@@ -26,14 +26,13 @@ import (
 )
 
 func TestCreateSymlinkForLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Create the symlink.
-	symlinkName := path.Join(setup.MntDir(), LocalFileTestDirInBucket, "bar")
+	symlinkName := path.Join(testDirPath, "bar")
 	SymLinkShouldNotThrowError(filePath, symlinkName, t)
 
 	// Read the link.
@@ -43,21 +42,20 @@ func TestCreateSymlinkForLocalFile(t *testing.T) {
 }
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Create the symlink.
-	symlinkName := path.Join(setup.MntDir(), LocalFileTestDirInBucket, "bar")
+	symlinkName := path.Join(testDirPath, "bar")
 	SymLinkShouldNotThrowError(filePath, symlinkName, t)
 
 	// Read the link.
 	VerifyReadLink(filePath, symlinkName, t)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	UnlinkShouldNotThrowError(filePath, t)
-	CloseLocalFile(fh, FileName1, t)
+	CloseFile(fh, FileName1, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Reading symlink should fail.

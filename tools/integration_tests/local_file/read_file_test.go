@@ -23,10 +23,9 @@ import (
 )
 
 func TestReadLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	_, fh := CreateLocalFile(FileName1, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Write FileContents twice to local file.
 	content := FileContents + FileContents

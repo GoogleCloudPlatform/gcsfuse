@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package helpers
+package client
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"io"
 	"path"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -36,21 +35,19 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	}
 }
 
-// ReadObjectFromGCS downloads the object from GCS and returns the data.
-func ReadObjectFromGCS(object string) (string, error) {
-	var bucket string
-	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
-
+func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 	// Create new storage client.
-	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("storage.NewClient: %w", err)
+		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
-	defer client.Close()
+	return client, nil
+}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
-	defer cancel()
+// ReadObjectFromGCS downloads the object from GCS and returns the data.
+func ReadObjectFromGCS(client *storage.Client, object string, size int64, ctx context.Context) (string, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
@@ -60,7 +57,7 @@ func ReadObjectFromGCS(object string) (string, error) {
 	defer rc.Close()
 
 	// Variable buf will contain the output from reader.
-	buf := make([]byte, 1024)
+	buf := make([]byte, size)
 	_, err = rc.Read(buf)
 	if err != nil && !strings.Contains(err.Error(), "EOF") {
 		return "", fmt.Errorf("rc.Read: %w", err)
@@ -71,27 +68,16 @@ func ReadObjectFromGCS(object string) (string, error) {
 }
 
 // CreateObjectOnGCS creates an object with given name and content on GCS.
-func CreateObjectOnGCS(object, content string) error {
+func CreateObjectOnGCS(client *storage.Client, object, content string, ctx context.Context) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
-
-	// Create new storage client.
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("storage.NewClient: %w", err)
-	}
-	defer client.Close()
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
-	defer cancel()
 
 	o := client.Bucket(bucket).Object(object)
 	o = o.If(storage.Conditions{DoesNotExist: true})
 
 	// Upload an object with storage.Writer.
 	wc := o.NewWriter(ctx)
-	if _, err = io.WriteString(wc, content); err != nil {
+	if _, err := io.WriteString(wc, content); err != nil {
 		return fmt.Errorf("io.WriteSTring: %w", err)
 	}
 	if err := wc.Close(); err != nil {

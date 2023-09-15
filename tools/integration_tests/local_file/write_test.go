@@ -36,14 +36,13 @@ func assertWriteFileErrorIsNil(err error, t *testing.T) {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 func TestMultipleWritesToLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	_, fh := CreateLocalFile(FileName1, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Write some contents to file sequentially.
 	for i := 0; i < 3; i++ {
-		WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+		WritingToFileSHouldNotThrowError(fh, FileContents, t)
 	}
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
@@ -52,10 +51,9 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 }
 
 func TestRandomWritesToLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	_, fh := CreateLocalFile(FileName1, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Write some contents to file randomly.
 	_, err := fh.WriteAt([]byte("string1"), 0)

@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 // Provides integration tests for removeDir operation on directories containing local files.
-package local_file
+package local_file_test
 
 import (
 	"path"
@@ -24,25 +24,24 @@ import (
 )
 
 func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create explicit directory with one synced and one local file.
-	CreateExplicitDirShouldNotThrowError(t)
+	CreateExplicitDirInTestDir(testDirPath, t)
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFile(syncedFile, t)
+	_, fh1 := CreateLocalFileInTestDir(testDirPath, syncedFile, t)
 	CloseFileAndValidateObjectContents(fh1, syncedFile, "", t)
-	_, fh2 := CreateLocalFile(localFile, t)
+	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile, t)
 
 	// Attempt to remove explicit directory.
-	RemoveDirShouldNotThrowError(ExplicitDirName, t)
+	RemoveDirShouldNotThrowError(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Verify that directory is removed.
-	ValidateNoFileOrDirError(ExplicitDirName, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Validate writing content to unlinked local file does not throw error.
-	WritingToLocalFileSHouldNotThrowError(fh2, FileContents, t)
+	WritingToFileSHouldNotThrowError(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
-	CloseLocalFile(fh2, localFile, t)
+	CloseFile(fh2, localFile, t)
 	ValidateObjectNotFoundErrOnGCS(localFile, t)
 	// Validate synced files are also deleted.
 	ValidateObjectNotFoundErrOnGCS(syncedFile, t)
@@ -50,26 +49,23 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 }
 
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a directory with two local files.
-	CreateExplicitDirShouldNotThrowError(t)
+	CreateExplicitDirInTestDir(testDirPath, t)
 	localFile1 := path.Join(ExplicitDirName, FileName1)
 	localFile2 := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFile(localFile1, t)
-	_, fh2 := CreateLocalFile(localFile2, t)
+	_, fh1 := CreateLocalFileInTestDir(testDirPath, localFile1, t)
+	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile2, t)
 
 	// Attempt to remove explicit directory.
-	RemoveDirShouldNotThrowError(ExplicitDirName, t)
+	RemoveDirShouldNotThrowError(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Verify rmDir operation succeeds.
-	ValidateNoFileOrDirError(localFile1, t)
-	ValidateNoFileOrDirError(localFile2, t)
-	ValidateNoFileOrDirError(ExplicitDirName, t)
+	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
-	CloseLocalFile(fh1, localFile1, t)
+	CloseFile(fh1, localFile1, t)
 	ValidateObjectNotFoundErrOnGCS(localFile1, t)
-	CloseLocalFile(fh2, localFile2, t)
+	CloseFile(fh2, localFile2, t)
 	ValidateObjectNotFoundErrOnGCS(localFile2, t)
 	// Validate directory is also deleted.
 	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)

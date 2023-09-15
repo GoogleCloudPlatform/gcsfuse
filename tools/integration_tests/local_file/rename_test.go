@@ -25,16 +25,15 @@ import (
 )
 
 func TestRenameOfLocalFileFails(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create local file with some content.
-	_, fh := CreateLocalFile(FileName1, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Attempt to rename local file.
 	err := os.Rename(
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, FileName1),
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewFileName))
+		path.Join(testDirPath, FileName1),
+		path.Join(testDirPath, NewFileName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
@@ -45,24 +44,23 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 }
 
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	//Create directory with 1 synced and 1 local file.
-	CreateExplicitDirShouldNotThrowError(t)
+	CreateExplicitDirInTestDir(testDirPath, t)
 	// Create synced file.
-	NewFileShouldGetSyncedToGCSAtClose(path.Join(ExplicitDirName, FileName1), t)
+	CreateObjectInGCSTestDir(path.Join(ExplicitDirName, FileName1), GCSFileContent, t)
 	// Create local file with some content.
-	_, fh := CreateLocalFile(path.Join(ExplicitDirName, FileName2), t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, FileName2), t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, path.Join(ExplicitDirName, FileName2), t)
 
 	// Attempt to rename directory containing local file.
 	err := os.Rename(
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName),
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewDirName))
+		path.Join(testDirPath, ExplicitDirName),
+		path.Join(testDirPath, NewDirName))
 
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
-	// write more content to local file.
+	// Write more content to local file.
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName2, t)
 	// Close the local file.
 	CloseFileAndValidateObjectContents(fh, path.Join(ExplicitDirName, FileName2),
@@ -74,8 +72,8 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 
 	// Attempt to Rename synced file.
 	err := os.Rename(
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, FileName1),
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewFileName))
+		path.Join(testDirPath, FileName1),
+		path.Join(testDirPath, NewFileName))
 
 	// Validate.
 	if err != nil {
@@ -90,14 +88,14 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 
 	// Attempt to rename directory again after sync.
 	err := os.Rename(
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName),
-		path.Join(setup.MntDir(), LocalFileTestDirInBucket, NewDirName))
+		path.Join(testDirPath, ExplicitDirName),
+		path.Join(testDirPath, NewDirName))
 
 	// Validate.
 	if err != nil {
 		t.Fatalf("os.Rename() failed on directory containing synced files: %v", err)
 	}
-	ValidateObjectContents(path.Join(NewDirName, FileName1), FileContents, t)
+	ValidateObjectContents(path.Join(NewDirName, FileName1), GCSFileContent, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName1), t)
 	ValidateObjectContents(path.Join(NewDirName, FileName2), FileContents+FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName2), t)

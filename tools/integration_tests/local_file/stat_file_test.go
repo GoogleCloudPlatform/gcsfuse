@@ -25,10 +25,9 @@ import (
 )
 
 func TestStatOnLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Stat the local file.
 	VerifyStatOnLocalFile(filePath, 0, t)
@@ -44,10 +43,9 @@ func TestStatOnLocalFile(t *testing.T) {
 }
 
 func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Stat the local file.
 	VerifyStatOnLocalFile(filePath+inode.ConflictingFileNameSuffix, 0, t)
@@ -57,10 +55,9 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 }
 
 func TestTruncateLocalFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.PreTestSetup(LocalFileTestDirInBucket)
+	setup.SetupTestDirectory(testDirPath)
 	// Create a local file.
-	filePath, fh := CreateLocalFile(FileName1, t)
+	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Writing contents to local file .
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 

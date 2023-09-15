@@ -18,11 +18,18 @@ package explicit_dir_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs=false"}}
+
+	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Run tests for testBucket only if --testbucket flag is set.
+	setup.SetUpTestDirForTestBucketFlag()
 
 	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 }

@@ -17,18 +17,31 @@
 package local_file_test
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
+	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
+// testDirPath holds the path to the test subdirectory in the mounted bucket.
+var testDirPath string
+
 func TestMain(m *testing.M) {
+	helpers.Ctx = context.Background()
+	var cancel context.CancelFunc
+	var err error
+
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
@@ -59,6 +72,17 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + configFile},
 		{"--implicit-dirs=false", "--rename-dir-limit=3", "--config-file=" + configFile}}
 
+	// Set testDirPath to run tests on, in the MntDir.
+	testDirPath = path.Join(setup.MntDir(), helpers.LocalFileTestDirInBucket)
+
+	// Create storage client before running tests.
+	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
+	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
+	if err != nil {
+		fmt.Printf("client.CreateStorageClient: %v", err)
+		os.Exit(1)
+	}
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
@@ -69,8 +93,11 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(flags, m)
 	}
 
-	setup.CleanMntDir()
+	// Close storage client and release resources.
+	helpers.StorageClient.Close()
+	cancel()
+	// Clean up test directory created.
+	setup.CleanupTestDirectoryOnGCS(helpers.LocalFileTestDirInBucket)
 	setup.RemoveBinFileCopiedForTesting()
-
 	os.Exit(successCode)
 }

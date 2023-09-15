@@ -29,6 +29,7 @@ func MountGcsfuse(binaryFile string, flags []string) error {
 		binaryFile,
 		flags...,
 	)
+	fmt.Println(mountCmd.String())
 
 	// Adding mount command in LogFile
 	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

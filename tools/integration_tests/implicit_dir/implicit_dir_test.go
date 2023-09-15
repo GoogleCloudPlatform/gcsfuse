@@ -16,8 +16,15 @@
 package implicit_dir_test
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"path"
 	"testing"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
@@ -30,8 +37,33 @@ const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
 
 func TestMain(m *testing.M) {
+	ctx = context.Background()
+	var cancel context.CancelFunc
+	var err error
+
+	// Run tests for mountedDirectory only if --mountedDirectory and --testbucket flag is set.
+	setup.RunTestsForMountedDirectoryFlag(m)
+
+	// Run tests for testBucket only if --testbucket flag is set.
+	setup.SetUpTestDirForTestBucketFlag()
+
+	// Set testDirPath to run tests on, in the MntDir.
+	testDirPath = path.Join(setup.MntDir(), testDirName)
+	// Create storage client before running tests.
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		fmt.Printf("client.CreateStorageClient: %v", err)
+		os.Exit(1)
+	}
+
 	flags := [][]string{{"--implicit-dirs"}}
 
 	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
-	setup.CleanMntDir()
+
+	// Close storage client and release resources.
+	helpers.StorageClient.Close()
+	cancel()
+	// Clean up test directory created.
+	setup.CleanupTestDirectoryOnGCS(testDirName)
 }

@@ -20,7 +20,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -41,30 +43,33 @@ const (
 	SizeOfGCSContent                     = 10
 	SizeTruncate                         = 5
 	LocalFileTestDirInBucket             = "LocalFileTest"
+	READ_SIZE                            = 1024
 )
 
-var MntSubDir = setup.MntDir() + LocalFileTestDirInBucket
+var StorageClient *storage.Client
+var Ctx context.Context
 
-func CreateLocalFile(fileName string, t *testing.T) (filePath string, f *os.File) {
+func CreateFile(filePath string, t *testing.T) (f *os.File) {
 	// Creating a file shouldn't create file on GCS.
-	filePath = path.Join(setup.MntDir(), LocalFileTestDirInBucket, fileName)
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, FilePerms)
 	if err != nil {
-		t.Fatalf("CreateLocalFile(%s): %v", fileName, err)
+		t.Fatalf("CreateFile(%s): %v", filePath, err)
 	}
-
-	ValidateObjectNotFoundErrOnGCS(fileName, t)
 	return
 }
 
 func ValidateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(path.Join(LocalFileTestDirInBucket, fileName))
+	_, err := client.ReadObjectFromGCS(
+		StorageClient,
+		path.Join(LocalFileTestDirInBucket, fileName),
+		READ_SIZE,
+		Ctx)
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
 }
 
-func CloseLocalFile(f *os.File, fileName string, t *testing.T) {
+func CloseFile(f *os.File, fileName string, t *testing.T) {
 	err := f.Close()
 	if err != nil {
 		t.Fatalf("%s.Close(): %v", fileName, err)
@@ -72,7 +77,11 @@ func CloseLocalFile(f *os.File, fileName string, t *testing.T) {
 }
 
 func ValidateObjectContents(fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(path.Join(LocalFileTestDirInBucket, fileName))
+	gotContent, err := client.ReadObjectFromGCS(
+		StorageClient,
+		path.Join(LocalFileTestDirInBucket, fileName),
+		READ_SIZE,
+		Ctx)
 	if err != nil {
 		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
 	}
@@ -83,11 +92,11 @@ func ValidateObjectContents(fileName string, expectedContent string, t *testing.
 }
 
 func CloseFileAndValidateObjectContents(f *os.File, fileName string, contents string, t *testing.T) {
-	CloseLocalFile(f, fileName, t)
+	CloseFile(f, fileName, t)
 	ValidateObjectContents(fileName, contents, t)
 }
 
-func WritingToLocalFileSHouldNotThrowError(fh *os.File, content string, t *testing.T) {
+func WritingToFileSHouldNotThrowError(fh *os.File, content string, t *testing.T) {
 	_, err := fh.Write([]byte(content))
 	if err != nil {
 		t.Fatalf("Error while writing to local file. err: %v", err)
@@ -95,13 +104,13 @@ func WritingToLocalFileSHouldNotThrowError(fh *os.File, content string, t *testi
 }
 
 func WritingToLocalFileShouldNotWriteToGCS(fh *os.File, fileName string, t *testing.T) {
-	WritingToLocalFileSHouldNotThrowError(fh, FileContents, t)
+	WritingToFileSHouldNotThrowError(fh, FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(fileName, t)
 }
 
-func NewFileShouldGetSyncedToGCSAtClose(fileName string, t *testing.T) {
+func NewFileShouldGetSyncedToGCSAtClose(testDirPath, fileName string, t *testing.T) {
 	// Create a local file.
-	_, fh := CreateLocalFile(fileName, t)
+	_, fh := CreateLocalFileInTestDir(testDirPath, fileName, t)
 
 	// Writing contents to local file shouldn't create file on GCS.
 	WritingToLocalFileShouldNotWriteToGCS(fh, fileName, t)
@@ -110,10 +119,10 @@ func NewFileShouldGetSyncedToGCSAtClose(fileName string, t *testing.T) {
 	CloseFileAndValidateObjectContents(fh, fileName, FileContents, t)
 }
 
-func ValidateNoFileOrDirError(filename string, t *testing.T) {
-	_, err := os.Stat(path.Join(setup.MntDir(), LocalFileTestDirInBucket, filename))
+func ValidateNoFileOrDirError(path string, t *testing.T) {
+	_, err := os.Stat(path)
 	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Fatalf("os.Stat on unlinked local file. Expected: %s, Got: %v",
+		t.Fatalf("os.Stat(%s). Expected: %s, Got: %v", path,
 			"no such file or directory", err)
 	}
 }
@@ -169,8 +178,9 @@ func SyncOnLocalFileShouldNotThrowError(fh *os.File, fileName string, t *testing
 	}
 }
 
-func CreateExplicitDirShouldNotThrowError(t *testing.T) {
-	err := os.Mkdir(path.Join(setup.MntDir(), LocalFileTestDirInBucket, ExplicitDirName), DirPerms)
+func CreateExplicitDirInTestDir(testDirPath string, t *testing.T) {
+	dirPath := path.Join(testDirPath, ExplicitDirName)
+	err := os.Mkdir(dirPath, DirPerms)
 
 	// Verify MkDir operation succeeds.
 	if err != nil {
@@ -178,8 +188,7 @@ func CreateExplicitDirShouldNotThrowError(t *testing.T) {
 	}
 }
 
-func RemoveDirShouldNotThrowError(dirName string, t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), LocalFileTestDirInBucket, dirName)
+func RemoveDirShouldNotThrowError(dirPath string, t *testing.T) {
 	err := os.RemoveAll(dirPath)
 
 	// Verify rmDir operation succeeds.
@@ -217,7 +226,7 @@ func VerifyReadFile(symlinkName string, t *testing.T) {
 		t.Fatalf("os.ReadFile(%s): %v", symlinkName, err)
 	}
 	if FileContents != string(contents) {
-		t.Fatalf("Symlink content mismatch. Expected: %s, Got: %s", FileContents, contents)
+		t.Fatalf("Content mismatch. Expected: %s, Got: %s", FileContents, contents)
 	}
 }
 
@@ -237,16 +246,36 @@ func VerifyRenameOperationNotSupported(err error, t *testing.T) {
 func VerifyStatOnLocalFile(filePath string, fileSize int64, t *testing.T) {
 	// Stat the file to validate if file is truncated correctly.
 	fi, err := os.Stat(filePath)
+
 	if err != nil {
 		t.Fatalf("os.Stat err: %v", err)
 	}
+
 	if fi.Name() != path.Base(filePath) {
 		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", path.Base(filePath), fi.Name())
 	}
+
 	if fi.Size() != fileSize {
 		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", fileSize, fi.Size())
 	}
+
 	if fi.Mode() != FilePerms {
 		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", FilePerms, fi.Mode())
 	}
+
+}
+
+func CreateObjectInGCSTestDir(fileName, content string, t *testing.T) {
+	objectName := path.Join(LocalFileTestDirInBucket, fileName)
+	err := client.CreateObjectOnGCS(StorageClient, objectName, content, Ctx)
+	if err != nil {
+		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
+	}
+}
+
+func CreateLocalFileInTestDir(testDirPath, fileName string, t *testing.T) (string, *os.File) {
+	filePath := path.Join(testDirPath, fileName)
+	fh := CreateFile(filePath, t)
+	ValidateObjectNotFoundErrOnGCS(fileName, t)
+	return filePath, fh
 }
