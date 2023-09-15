@@ -217,6 +217,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 
 // Write data of chunkSize in file at given offset.
 func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) error {
+	// Generate random data of chunk size.
 	chunk := make([]byte, chunkSize)
 	_, err := rand.Read(chunk)
 	if err != nil {
@@ -228,6 +229,7 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 	if err != nil {
 		return fmt.Errorf("Error in writing randomly in file:%v", err)
 	}
+
 	if n != chunkSize {
 		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
 	}
