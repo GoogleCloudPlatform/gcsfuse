@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -46,7 +47,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	//Create directory with 1 synced and 1 local file.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 	// Create synced file.
 	CreateObjectInGCSTestDir(path.Join(ExplicitDirName, FileName1), GCSFileContent, t)
 	// Create local file with some content.

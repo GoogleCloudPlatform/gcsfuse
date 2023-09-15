@@ -25,6 +25,7 @@ import (
 	"time"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -39,7 +40,7 @@ func TestReadDir(t *testing.T) {
 
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit dir with 1 local file.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
 	// Create empty local file.
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
@@ -50,18 +51,18 @@ func TestReadDir(t *testing.T) {
 	CreateObjectInGCSTestDir(FileName3, GCSFileContent, t)
 
 	// Attempt to list mnt and explicit directory.
-	entriesMnt := ReadDirectory(testDirPath, t)
-	entriesDir := ReadDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	entriesMnt := operations.ReadDirectory(testDirPath, t)
+	entriesDir := operations.ReadDirectory(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Verify entriesMnt received successfully.
-	VerifyCountOfEntries(4, len(entriesMnt), t)
-	VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
-	VerifyLocalFileEntry(entriesMnt[1], FileName1, 0, t)
-	VerifyLocalFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t)
-	VerifyLocalFileEntry(entriesMnt[3], FileName3, SizeOfGCSContent, t)
+	operations.VerifyCountOfEntries(4, len(entriesMnt), t)
+	operations.VerifyDirectoryEntry(entriesMnt[0], ExplicitDirName, t)
+	operations.VerifyFileEntry(entriesMnt[1], FileName1, 0, t)
+	operations.VerifyFileEntry(entriesMnt[2], FileName2, SizeOfFileContents, t)
+	operations.VerifyFileEntry(entriesMnt[3], FileName3, SizeOfGCSContent, t)
 	// Verify entriesDir received successfully.
-	VerifyCountOfEntries(1, len(entriesDir), t)
-	VerifyLocalFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
+	operations.VerifyCountOfEntries(1, len(entriesDir), t)
+	operations.VerifyFileEntry(entriesDir[0], ExplicitFileName1, 0, t)
 	// Close the local files.
 	CloseFileAndValidateObjectContents(fh1, path.Join(ExplicitDirName, ExplicitFileName1), "", t)
 	CloseFileAndValidateObjectContents(fh2, FileName1, "", t)
@@ -80,7 +81,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// Create local file in mnt/ dir.
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Create explicit dir with 1 local file.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
 
 	// Recursively list mntDir/ directory.
@@ -93,21 +94,21 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 			return nil
 		}
 
-		objs := ReadDirectory(walkPath, t)
+		objs := operations.ReadDirectory(walkPath, t)
 
 		// Check if mntDir has correct objects.
 		if walkPath == testDirPath {
 			// numberOfObjects = 2
-			VerifyCountOfEntries(2, len(objs), t)
-			VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
-			VerifyLocalFileEntry(objs[1], FileName1, 0, t)
+			operations.VerifyCountOfEntries(2, len(objs), t)
+			operations.VerifyDirectoryEntry(objs[0], ExplicitDirName, t)
+			operations.VerifyFileEntry(objs[1], FileName1, 0, t)
 		}
 
 		// Check if mntDir/explicit/ has correct objects.
 		if walkPath == path.Join(setup.MntDir(), ExplicitDirName) {
 			// numberOfObjects = 1
-			VerifyCountOfEntries(1, len(objs), t)
-			VerifyLocalFileEntry(objs[0], ExplicitFileName1, 0, t)
+			operations.VerifyCountOfEntries(1, len(objs), t)
+			operations.VerifyFileEntry(objs[0], ExplicitFileName1, 0, t)
 		}
 
 		return nil
@@ -136,5 +137,5 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 	}
 
 	// Close the local file.
-	CloseFile(fh1, FileName1, t)
+	operations.CloseFile(fh1)
 }

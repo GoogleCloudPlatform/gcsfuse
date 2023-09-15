@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -42,7 +43,7 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 
 	// Write some contents to file sequentially.
 	for i := 0; i < 3; i++ {
-		WritingToFileSHouldNotThrowError(fh, FileContents, t)
+		operations.WriteWithoutClose(fh, FileContents, t)
 	}
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 

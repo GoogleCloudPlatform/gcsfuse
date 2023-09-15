@@ -24,9 +24,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
+	"testing"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -167,7 +169,7 @@ func CloseFile(file *os.File) {
 func RemoveFile(filePath string) {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Printf("Error in removing file:%v", err)
+		log.Printf("os.Remove(%s): %v", filePath, err)
 	}
 }
 
@@ -436,4 +438,99 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	// implementation for updating object metadata is missing on the kokoro VM.
 	_, err := ExecuteGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
+}
+
+func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.File) {
+	// Creating a file shouldn't create file on GCS.
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
+	if err != nil {
+		t.Fatalf("CreateFile(%s): %v", filePath, err)
+	}
+	return
+}
+
+func SyncFile(fh *os.File, t *testing.T) {
+	err := fh.Sync()
+
+	// Verify fh.Sync operation succeeds.
+	if err != nil {
+		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
+	}
+}
+
+func SymLink(filePath, symlink string, t *testing.T) {
+	err := os.Symlink(filePath, symlink)
+
+	// Verify os.SymLink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Symlink(%s, %s): %v", filePath, symlink, err)
+	}
+}
+
+func VerifyStatFile(filePath string, fileSize int64, filePerms os.FileMode, t *testing.T) {
+	// Stat the file to validate if file is truncated correctly.
+	fi, err := os.Stat(filePath)
+
+	if err != nil {
+		t.Fatalf("os.Stat err: %v", err)
+	}
+
+	if fi.Name() != path.Base(filePath) {
+		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", path.Base(filePath), fi.Name())
+	}
+
+	if fi.Size() != fileSize {
+		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", fileSize, fi.Size())
+	}
+
+	if fi.Mode() != filePerms {
+		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", filePerms, fi.Mode())
+	}
+}
+
+func VerifyReadFile(symlinkName, expectedContent string, t *testing.T) {
+	gotContent, err := os.ReadFile(symlinkName)
+
+	// Verify os.ReadFile operation succeeds.
+	if err != nil {
+		t.Fatalf("os.ReadFile(%s): %v", symlinkName, err)
+	}
+	if expectedContent != string(gotContent) {
+		t.Fatalf("Content mismatch. Expected: %s, Got: %s", expectedContent, gotContent)
+	}
+}
+
+func VerifyFileEntry(entry os.DirEntry, fileName string, size int64, t *testing.T) {
+	if entry.IsDir() {
+		t.Fatalf("Expected: file entry, Got: directory entry.")
+	}
+	if entry.Name() != fileName {
+		t.Fatalf("File name, Expected: %s, Got: %s", fileName, entry.Name())
+	}
+	fileInfo, err := entry.Info()
+	if err != nil {
+		t.Fatalf("%s.Info() err: %v", fileName, err)
+	}
+	if fileInfo.Size() != size {
+		t.Fatalf("Local file %s size, Expected: %d, Got: %d", fileName, size, fileInfo.Size())
+	}
+}
+
+func VerifyReadLink(filePath, symlinkName string, t *testing.T) {
+	target, err := os.Readlink(symlinkName)
+
+	// Verify os.Readlink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Readlink(%s): %v", symlinkName, err)
+	}
+	if filePath != target {
+		t.Fatalf("Symlink target mismatch. Expected: %s, Got: %s", filePath, target)
+	}
+}
+
+func WriteWithoutClose(fh *os.File, content string, t *testing.T) {
+	_, err := fh.Write([]byte(content))
+	if err != nil {
+		t.Fatalf("Error while writing to local file. err: %v", err)
+	}
 }

@@ -20,13 +20,14 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit directory with one synced and one local file.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, syncedFile, t)
@@ -34,14 +35,14 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile, t)
 
 	// Attempt to remove explicit directory.
-	RemoveDirShouldNotThrowError(path.Join(testDirPath, ExplicitDirName), t)
+	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
 
 	// Verify that directory is removed.
 	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Validate writing content to unlinked local file does not throw error.
-	WritingToFileSHouldNotThrowError(fh2, FileContents, t)
+	operations.WriteWithoutClose(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
-	CloseFile(fh2, localFile, t)
+	operations.CloseFile(fh2)
 	ValidateObjectNotFoundErrOnGCS(localFile, t)
 	// Validate synced files are also deleted.
 	ValidateObjectNotFoundErrOnGCS(syncedFile, t)
@@ -51,21 +52,21 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a directory with two local files.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 	localFile1 := path.Join(ExplicitDirName, FileName1)
 	localFile2 := path.Join(ExplicitDirName, FileName2)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, localFile1, t)
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile2, t)
 
 	// Attempt to remove explicit directory.
-	RemoveDirShouldNotThrowError(path.Join(testDirPath, ExplicitDirName), t)
+	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
 
 	// Verify rmDir operation succeeds.
 	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
-	CloseFile(fh1, localFile1, t)
+	operations.CloseFile(fh1)
 	ValidateObjectNotFoundErrOnGCS(localFile1, t)
-	CloseFile(fh2, localFile2, t)
+	operations.CloseFile(fh2)
 	ValidateObjectNotFoundErrOnGCS(localFile2, t)
 	// Validate directory is also deleted.
 	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -33,7 +34,7 @@ func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Make explicit directory.
-	CreateExplicitDirInTestDir(testDirPath, t)
+	operations.CreateExplicitDir(path.Join(testDirPath, ExplicitDirName), t)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
@@ -48,7 +49,7 @@ func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
 	CreateObjectInGCSTestDir(FileName1, GCSFileContent, t)
 
 	// Write to local file.
-	WritingToFileSHouldNotThrowError(fh, FileContents, t)
+	operations.WriteWithoutClose(fh, FileContents, t)
 	// Close the local file and ensure that the content on GCS is not overwritten.
 	CloseFileAndValidateObjectContents(fh, FileName1, GCSFileContent, t)
 }

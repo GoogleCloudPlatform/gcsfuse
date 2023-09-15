@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -28,13 +29,13 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// unlink the local file.
-	UnlinkShouldNotThrowError(filePath, t)
+	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Close the file and validate that file is not created on GCS.
-	CloseFile(fh, FileName1, t)
+	operations.CloseFile(fh)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
@@ -45,20 +46,20 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName2, t)
 	filepath3, fh3 := CreateLocalFileInTestDir(testDirPath, FileName3, t)
 	// Unlink local file 3.
-	UnlinkShouldNotThrowError(filepath3, t)
+	operations.ReadFile(filepath3)
 
 	// Attempt to list mntDir.
-	entries := ReadDirectory(testDirPath, t)
+	entries := operations.ReadDirectory(testDirPath, t)
 
 	// Verify unlinked entries are not listed.
-	VerifyCountOfEntries(2, len(entries), t)
-	VerifyLocalFileEntry(entries[0], FileName1, 0, t)
-	VerifyLocalFileEntry(entries[1], FileName2, 0, t)
+	operations.VerifyCountOfEntries(2, len(entries), t)
+	operations.VerifyFileEntry(entries[0], FileName1, 0, t)
+	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
 	// Close the local files.
 	CloseFileAndValidateObjectContents(fh1, FileName1, "", t)
 	CloseFileAndValidateObjectContents(fh2, FileName2, "", t)
 	// Verify unlinked file is not written to GCS.
-	CloseFile(fh3, FileName3, t)
+	operations.CloseFile(fh3)
 	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
 func TestUnlinkOfLocalFile(t *testing.T) {
@@ -67,11 +68,11 @@ func TestUnlinkOfLocalFile(t *testing.T) {
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Attempt to unlink local file.
-	UnlinkShouldNotThrowError(filePath, t)
+	operations.RemoveFile(filePath)
 
 	// Verify unlink operation succeeds.
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
-	CloseFile(fh, FileName1, t)
+	operations.CloseFile(fh)
 	// Validate file it is not present on GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
@@ -81,14 +82,14 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	// Create local file.
 	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Verify unlink operation succeeds.
-	UnlinkShouldNotThrowError(filepath, t)
+	operations.RemoveFile(filepath)
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Write to unlinked local file.
-	WritingToFileSHouldNotThrowError(fh, FileContents, t)
+	operations.WriteWithoutClose(fh, FileContents, t)
 
 	// Validate flush file does not throw error.
-	CloseFile(fh, FileName1, t)
+	operations.CloseFile(fh)
 	// Validate unlinked file is not written to GCS.
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
@@ -99,15 +100,15 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Attempt to unlink local file.
-	UnlinkShouldNotThrowError(filepath, t)
+	operations.RemoveFile(filepath)
 
 	// Verify unlink operation succeeds.
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 	// Validate sync operation does not write to GCS after unlink.
-	SyncOnLocalFileShouldNotThrowError(fh, FileName1, t)
+	operations.SyncFile(fh, t)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 	// Close the local file and validate it is not present on GCS.
-	CloseFile(fh, FileName1, t)
+	operations.CloseFile(fh)
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 }
 
@@ -118,7 +119,7 @@ func TestUnlinkOfSyncedLocalFile(t *testing.T) {
 	CloseFileAndValidateObjectContents(fh, FileName1, "", t)
 
 	// Attempt to unlink synced local file.
-	UnlinkShouldNotThrowError(filePath, t)
+	operations.RemoveFile(filePath)
 
 	// Verify unlink operation succeeds.
 	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)

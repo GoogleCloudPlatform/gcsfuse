@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -30,13 +31,13 @@ func TestStatOnLocalFile(t *testing.T) {
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Stat the local file.
-	VerifyStatOnLocalFile(filePath, 0, t)
+	operations.VerifyStatFile(filePath, 0, FilePerms, t)
 
 	// Writing contents to local file shouldn't create file on GCS.
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Stat the local file again to check if new content is written.
-	VerifyStatOnLocalFile(filePath, SizeOfFileContents, t)
+	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, FileContents, t)
@@ -48,7 +49,7 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
 	// Stat the local file.
-	VerifyStatOnLocalFile(filePath+inode.ConflictingFileNameSuffix, 0, t)
+	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, "", t)
@@ -62,7 +63,7 @@ func TestTruncateLocalFile(t *testing.T) {
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Stat the file to validate if new contents are written.
-	VerifyStatOnLocalFile(filePath, SizeOfFileContents, t)
+	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
 
 	// Truncate the file to update the file size.
 	err := os.Truncate(filePath, SizeTruncate)
@@ -72,7 +73,7 @@ func TestTruncateLocalFile(t *testing.T) {
 	ValidateObjectNotFoundErrOnGCS(FileName1, t)
 
 	// Stat the file to validate if file is truncated correctly.
-	VerifyStatOnLocalFile(filePath, SizeTruncate, t)
+	operations.VerifyStatFile(filePath, SizeTruncate, FilePerms, t)
 
 	// Close the file and validate if the file is created on GCS.
 	CloseFileAndValidateObjectContents(fh, FileName1, "tests", t)
