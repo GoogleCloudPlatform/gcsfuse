@@ -94,21 +94,6 @@ func NewFileShouldGetSyncedToGCSAtClose(testDirPath, fileName string, t *testing
 	CloseFileAndValidateObjectContentsFromGCS(fh, fileName, FileContents, t)
 }
 
-func ValidateNoFileOrDirError(path string, t *testing.T) {
-	_, err := os.Stat(path)
-	if err == nil || !strings.Contains(err.Error(), "no such file or directory") {
-		t.Fatalf("os.Stat(%s). Expected: %s, Got: %v", path,
-			"no such file or directory", err)
-	}
-}
-
-func VerifyRenameOperationNotSupported(err error, t *testing.T) {
-	if err == nil || !strings.Contains(err.Error(), "operation not supported") {
-		t.Fatalf("os.Rename(), expected err: %s, got err: %v",
-			"operation not supported", err)
-	}
-}
-
 func CreateObjectInGCSTestDir(fileName, content string, t *testing.T) {
 	objectName := path.Join(LocalFileTestDirInBucket, fileName)
 	err := client.CreateObjectOnGCS(StorageClient, objectName, content, Ctx)

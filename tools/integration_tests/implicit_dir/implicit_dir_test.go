@@ -51,11 +51,13 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--implicit-dirs"}}
 
-	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 
 	// Close storage client and release resources.
-	cancel()
 	storageClient.Close()
+	cancel()
 	// Clean up test directory created.
 	setup.CleanupTestDirectoryOnGCS(testDirName)
+	setup.RemoveBinFileCopiedForTesting()
+	os.Exit(successCode)
 }

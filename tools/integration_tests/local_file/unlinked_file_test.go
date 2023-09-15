@@ -46,7 +46,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName2, t)
 	filepath3, fh3 := CreateLocalFileInTestDir(testDirPath, FileName3, t)
 	// Unlink local file 3.
-	operations.ReadFile(filepath3)
+	operations.RemoveFile(filepath3)
 
 	// Attempt to list mntDir.
 	entries := operations.ReadDirectory(testDirPath, t)
