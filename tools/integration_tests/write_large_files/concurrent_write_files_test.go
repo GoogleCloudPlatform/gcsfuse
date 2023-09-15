@@ -34,32 +34,29 @@ const (
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
-func writeFile(fileName string, fileSize int64) (err error) {
+func writeFile(fileName string, fileSize int64) error {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
 	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
 	if err != nil {
-		err = fmt.Errorf("Open file for write at start: %v", err)
-		return err
+		return fmt.Errorf("Open file for write at start: %v", err)
 	}
 
 	// Closing file at the end.
 	defer operations.CloseFile(f)
 
-	err = operations.WriteChunkSizeInFile(f, int(fileSize), 0)
+	err = operations.WriteChunkOfRandomBytesToFile(f, int(fileSize), 0)
 	if err != nil {
-		err = fmt.Errorf("Error:%v", err)
-		return err
+		return fmt.Errorf("Error:%v", err)
 	}
 
 	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
 	localFilePath := path.Join(TmpDir, fileName)
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		err = fmt.Errorf("Error:%v", err)
-		return err
+		return fmt.Errorf("Error:%v", err)
 	}
 
-	return
+	return nil
 }
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
