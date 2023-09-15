@@ -234,21 +234,11 @@ sudo umount $MOUNT_DIR
 
 # package local_file
 # Run test with static mounting. (flags: --implicit-dirs=true)
-go run ./ --implicit-dirs=true --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --implicit-dirs=true --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting. (flags: --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3,implicit_dirs
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
 # Run test with static mounting. (flags: --implicit-dirs=false)
-go run ./ --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
+gcsfuse --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting. (flags: --implicit-dirs=false)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o rename_dir_limit=3
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
