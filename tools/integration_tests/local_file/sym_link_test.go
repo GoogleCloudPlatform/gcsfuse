@@ -26,34 +26,29 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func TestCreateSymlinkForLocalFile(t *testing.T) {
+func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File) {
 	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
+	filePath, fh = CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
 
 	// Create the symlink.
-	symlink := path.Join(testDirPath, "bar")
+	symlink = path.Join(testDirPath, "bar")
 	operations.CreateSymLink(filePath, symlink, t)
 
 	// Read the link.
 	operations.VerifyReadLink(filePath, symlink, t)
 	operations.VerifyReadFile(symlink, FileContents, t)
+	return
+}
+
+func TestCreateSymlinkForLocalFile(t *testing.T) {
+	_, _, fh := createAndVerifySymLink(t)
 	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents, t)
 }
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
-	// Create a local file.
-	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
-
-	// Create the symlink.
-	symlink := path.Join(testDirPath, "bar")
-	operations.CreateSymLink(filePath, symlink, t)
-
-	// Read the link.
-	operations.VerifyReadLink(filePath, symlink, t)
+	filePath, symlink, fh := createAndVerifySymLink(t)
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	operations.RemoveFile(filePath)
 	operations.CloseFile(fh)
