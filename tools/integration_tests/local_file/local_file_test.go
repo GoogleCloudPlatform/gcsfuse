@@ -38,11 +38,11 @@ import (
 var testDirPath string
 
 func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
 	helpers.Ctx = context.Background()
 	var cancel context.CancelFunc
 	var err error
-
-	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

@@ -37,7 +37,7 @@ func TestReadDir(t *testing.T) {
 	// mntDir/foo2  									--- non empty local file
 	// mntDir/foo3										--- gcs synced file
 
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit dir with 1 local file.
 	CreateExplicitDirInTestDir(testDirPath, t)
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, ExplicitFileName1), t)
@@ -76,7 +76,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// mntDir/explicit/		    				--- directory
 	// mntDir/explicit/explicitFile1  --- file
 
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file in mnt/ dir.
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Create explicit dir with 1 local file.
@@ -122,7 +122,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 }
 
 func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file.
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Create same name gcs file.

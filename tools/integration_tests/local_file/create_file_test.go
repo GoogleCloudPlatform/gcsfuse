@@ -24,14 +24,14 @@ import (
 )
 
 func TestNewFileShouldNotGetSyncedToGCSTillClose(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 
 	// Validate.
 	NewFileShouldGetSyncedToGCSAtClose(testDirPath, FileName1, t)
 }
 
 func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Make explicit directory.
 	CreateExplicitDirInTestDir(testDirPath, t)
 
@@ -40,7 +40,7 @@ func TestNewFileUnderExplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 }
 
 func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 

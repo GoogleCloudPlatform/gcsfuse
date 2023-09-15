@@ -36,6 +36,8 @@ const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
 
 func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
 	ctx = context.Background()
 	var cancel context.CancelFunc
 	var err error

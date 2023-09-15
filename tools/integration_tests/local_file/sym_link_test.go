@@ -26,7 +26,7 @@ import (
 )
 
 func TestCreateSymlinkForLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
@@ -42,7 +42,7 @@ func TestCreateSymlinkForLocalFile(t *testing.T) {
 }
 
 func TestReadSymlinkForDeletedLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)

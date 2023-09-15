@@ -23,7 +23,7 @@ import (
 )
 
 func TestReadLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 

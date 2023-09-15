@@ -85,7 +85,7 @@ func createLocalFile(filePath, fileName string, t *testing.T) (fh *os.File) {
 // //////////////////////////////////////////////////////////////////////
 
 func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	createImplicitDir(t)
 	fileName := path.Join(ImplicitDirName, FileName1)
 	filePath := path.Join(testDirPath, fileName)
@@ -99,7 +99,7 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 }
 
 func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	createImplicitDir(t)
 	fileName1 := path.Join(ImplicitDirName, FileName1)
 	fileName2 := path.Join(ImplicitDirName, FileName2)
@@ -131,7 +131,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// mntDir/implicit/foo2  					--- file
 	// mntDir/implicit/implicitFile1	--- file
 
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 
 	fileName2 := path.Join(ExplicitDirName, ExplicitFileName1)
 	fileName3 := path.Join(ImplicitDirName, FileName2)

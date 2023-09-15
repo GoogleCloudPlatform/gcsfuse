@@ -307,12 +307,14 @@ func CleanMntDir() {
 	CleanUpDir(mntDir)
 }
 
-func SetupTestDirectory(testDirPath string) {
+func SetupTestDirectory(testDirName string) string {
+	testDirPath := path.Join(MntDir(), DynamicBucketMounted(), testDirName)
 	err := os.Mkdir(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
 	}
 	CleanUpDir(testDirPath)
+	return testDirPath
 }
 
 func CleanupTestDirectoryOnGCS(directoryName string) {

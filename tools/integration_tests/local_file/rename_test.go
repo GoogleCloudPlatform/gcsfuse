@@ -25,7 +25,7 @@ import (
 )
 
 func TestRenameOfLocalFileFails(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file with some content.
 	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
@@ -44,7 +44,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 }
 
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	//Create directory with 1 synced and 1 local file.
 	CreateExplicitDirInTestDir(testDirPath, t)
 	// Create synced file.

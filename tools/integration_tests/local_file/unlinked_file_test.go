@@ -24,7 +24,7 @@ import (
 )
 
 func TestStatOnUnlinkedLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// unlink the local file.
@@ -39,7 +39,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 }
 
 func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local files.
 	_, fh1 := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	_, fh2 := CreateLocalFileInTestDir(testDirPath, FileName2, t)
@@ -62,7 +62,7 @@ func TestReadDirContainingUnlinkedLocalFiles(t *testing.T) {
 	ValidateObjectNotFoundErrOnGCS(FileName3, t)
 }
 func TestUnlinkOfLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create empty local file.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
@@ -77,7 +77,7 @@ func TestUnlinkOfLocalFile(t *testing.T) {
 }
 
 func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file.
 	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	// Verify unlink operation succeeds.
@@ -94,7 +94,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 }
 
 func TestSyncOnUnlinkedLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file.
 	filepath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 
@@ -112,7 +112,7 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 }
 
 func TestUnlinkOfSyncedLocalFile(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create local file and sync to GCS.
 	filePath, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
 	CloseFileAndValidateObjectContents(fh, FileName1, "", t)

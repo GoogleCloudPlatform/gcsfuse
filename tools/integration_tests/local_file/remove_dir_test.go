@@ -24,7 +24,7 @@ import (
 )
 
 func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create explicit directory with one synced and one local file.
 	CreateExplicitDirInTestDir(testDirPath, t)
 	syncedFile := path.Join(ExplicitDirName, FileName1)
@@ -49,7 +49,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 }
 
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
-	setup.SetupTestDirectory(testDirPath)
+	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
 	// Create a directory with two local files.
 	CreateExplicitDirInTestDir(testDirPath, t)
 	localFile1 := path.Join(ExplicitDirName, FileName1)
