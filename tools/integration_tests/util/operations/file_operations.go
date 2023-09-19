@@ -167,7 +167,7 @@ func CloseFile(file *os.File) {
 func RemoveFile(filePath string) {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Printf("Error in removing file:%v", err)
+		log.Printf("Error in removing file: %v", err)
 	}
 }
 
@@ -177,7 +177,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		log.Printf("Error in opening file:%v", err)
+		log.Printf("Error in opening file: %v", err)
 	}
 
 	// Closing the file at the end.
@@ -227,7 +227,7 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 	// Write data in the file.
 	n, err := file.WriteAt(chunk, offset)
 	if err != nil {
-		return fmt.Errorf("Error in writing randomly in file:%v", err)
+		return fmt.Errorf("Error in writing randomly in file: %v", err)
 	}
 
 	if n != chunkSize {
@@ -236,7 +236,7 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 
 	err = file.Sync()
 	if err != nil {
-		return fmt.Errorf("Error in syncing file:%v", err)
+		return fmt.Errorf("Error in syncing file: %v", err)
 	}
 
 	return nil
@@ -245,7 +245,7 @@ func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) e
 func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
 	if err != nil {
-		log.Fatalf("Error in opening file:%v", err)
+		log.Fatalf("Error in opening file: %v", err)
 	}
 
 	// Closing file at the end.
@@ -261,7 +261,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 
 		err := WriteChunkOfRandomBytesToFile(file, int(chunkSize), offset)
 		if err != nil {
-			log.Fatalf("Error in writing chunk:%v", err)
+			log.Fatalf("Error in writing chunk: %v", err)
 		}
 
 		offset = offset + chunkSize
@@ -274,13 +274,13 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY, FilePermission_0600)
 	if err != nil {
-		log.Printf("Error in opening file:%v", err)
+		log.Printf("Error in opening file: %v", err)
 		return
 	}
 
 	f, err := os.Stat(filePath)
 	if err != nil {
-		log.Printf("Error in stating file:%v", err)
+		log.Printf("Error in stating file: %v", err)
 		return
 	}
 
