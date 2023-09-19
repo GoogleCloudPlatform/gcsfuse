@@ -46,14 +46,14 @@ func writeFile(fileName string, fileSize int64) error {
 
 	err = operations.WriteChunkOfRandomBytesToFile(f, int(fileSize), 0)
 	if err != nil {
-		return fmt.Errorf("Error:%v", err)
+		return fmt.Errorf("Error: %v", err)
 	}
 
 	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
 	localFilePath := path.Join(TmpDir, fileName)
 	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
 	if err != nil {
-		return fmt.Errorf("Error:%v", err)
+		return fmt.Errorf("Error: %v", err)
 	}
 
 	return nil
@@ -63,7 +63,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	concurrentWriteDir := path.Join(setup.MntDir(), DirForConcurrentWrite)
 	err := os.Mkdir(concurrentWriteDir, setup.FilePermission_0600)
 	if err != nil {
-		t.Fatalf("Error in creating directory:%v", err)
+		t.Fatalf("Error in creating directory: %v", err)
 	}
 
 	// Clean up.
@@ -88,7 +88,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 			defer wg.Done()
 			err = writeFile(files[fileIndex], FiveHundredMB)
 			if err != nil {
-				log.Fatalf("Error:%v", err)
+				log.Fatalf("Error: %v", err)
 			}
 		}()
 	}
