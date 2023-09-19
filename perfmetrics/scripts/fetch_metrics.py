@@ -56,6 +56,9 @@ if __name__ == '__main__':
   else:
     temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
 
+  print(temp)
+  sys.exit("Exiting right after fio metrics")
+
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
   # So, waiting for 360 seconds to ensure the returned metrics are not empty.

@@ -27,7 +27,8 @@ echo "Overall fio end epoch time:" `date +%s`
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json gsheet
+test -f "gsheet/creds.json" || ( echo 'gsheet/creds.json not found. Copy it from gs://periodic-perf-tests/creds.json ' ; exit 1 ; )
+# gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
 # Upload data to the gsheet only when it runs through kokoro.
 if [ "${KOKORO_JOB_TYPE}" != "RELEASE" ] && [ "${KOKORO_JOB_TYPE}" != "CONTINUOUS_INTEGRATION" ] && [ "${KOKORO_JOB_TYPE}" != "PRESUBMIT_GITHUB" ];
