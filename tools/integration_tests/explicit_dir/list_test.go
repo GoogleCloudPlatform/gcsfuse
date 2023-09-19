@@ -66,6 +66,8 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
+			t.Errorf("Testing error")
+			
 			// testBucket/explicitDir     -- Dir
 			if objs[0].Name() != implicit_and_explicit_dir_setup.ExplicitDirectory || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object")

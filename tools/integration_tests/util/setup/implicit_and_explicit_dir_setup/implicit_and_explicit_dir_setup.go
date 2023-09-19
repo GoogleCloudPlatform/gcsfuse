@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const ExplicitDirectory = "explicitDirectory_fail"
+const ExplicitDirectory = "explicitDirectory"
 const ExplicitFile = "explicitFile"
 const ImplicitDirectory = "implicitDirectory"
 const ImplicitSubDirectory = "implicitSubDirectory"
