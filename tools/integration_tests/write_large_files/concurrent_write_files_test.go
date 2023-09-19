@@ -16,7 +16,6 @@ package write_large_files
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -33,6 +33,8 @@ const (
 	FileThree             = "fileThree.txt"
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
+
+var eG errgroup.Group
 
 func writeFile(fileName string, fileSize int64) error {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
@@ -83,16 +85,17 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 		fileIndex := i
 
 		// Thread to write the current file.
-		go func() {
+		eG.Go(func() error {
 			// Reduce thread count when it is done.
 			defer wg.Done()
 			err = writeFile(files[fileIndex], FiveHundredMB)
-			if err != nil {
-				log.Fatalf("Error: %v", err)
-			}
-		}()
+			return err
+		})
 	}
 
 	// Wait on threads to end.
-	wg.Wait()
+	err = eG.Wait()
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
 }
