@@ -35,7 +35,7 @@ const (
 func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
 	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
-		return fmt.Errorf("Error in downloading object:%w", err)
+		return fmt.Errorf("Error in downloading object: %w", err)
 	}
 
 	// Remove file after testing.
