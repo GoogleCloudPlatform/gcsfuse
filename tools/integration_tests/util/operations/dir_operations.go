@@ -27,6 +27,7 @@ import (
 
 const FilePermission_0600 = 0600
 const FilePermission_0777 = 0777
+const DirPermission_0755 = 0755
 
 func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
 	err = cmd.Run()
@@ -106,6 +107,38 @@ func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string,
 
 func RemoveDir(dirPath string) {
 	if err := os.RemoveAll(dirPath); err != nil {
-		log.Printf("Error in removing direcitory: %v", err)
+		log.Printf("os.RemoveAll(%s): %v", dirPath, err)
+	}
+}
+
+func ReadDirectory(dirPath string, t *testing.T) (entries []os.DirEntry) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Fatalf("os.ReadDir(%s) err: %v", dirPath, err)
+	}
+	return
+}
+
+func VerifyDirectoryEntry(entry os.DirEntry, dirName string, t *testing.T) {
+	if !entry.IsDir() {
+		t.Fatalf("Expected: directory entry, Got: file entry.")
+	}
+	if entry.Name() != dirName {
+		t.Fatalf("File name, Expected: %s, Got: %s", dirName, entry.Name())
+	}
+}
+
+func VerifyCountOfDirectoryEntries(expected, got int, t *testing.T) {
+	if expected != got {
+		t.Fatalf("directory entry count mismatch, expected: %d, got: %d", expected, got)
+	}
+}
+
+func CreateDirectory(dirPath string, t *testing.T) {
+	err := os.Mkdir(dirPath, DirPermission_0755)
+
+	// Verify MkDir operation succeeds.
+	if err != nil {
+		t.Fatalf("Error while creating directory, err: %v", err)
 	}
 }

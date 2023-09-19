@@ -16,13 +16,19 @@
 package explicit_dir_test
 
 import (
+	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
 	flags := [][]string{{"--implicit-dirs=false"}}
 
-	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+
+	os.Exit(successCode)
 }
