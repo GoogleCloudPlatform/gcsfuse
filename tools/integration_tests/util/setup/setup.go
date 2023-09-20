@@ -276,6 +276,9 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 }
 
 func SetUpTestDirForTestBucketFlag() {
+	if TestBucket() == "" {
+		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
+	}
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
@@ -329,11 +332,9 @@ func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
 }
 
 func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
-	if MountedDirectory() != "" {
-		if TestBucket() == "" {
-			log.Fatal("Set both --mountedDirectory and --testBucket to run mounted directory tests.")
-		}
+	if MountedDirectory() != "" && TestBucket() != "" {
 		return true
 	}
+	log.Print("Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set.")
 	return false
 }
