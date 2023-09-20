@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -33,13 +33,20 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-// testDirPath holds the path to the test subdirectory in the mounted bucket.
-var testDirPath string
+const (
+	testDirName = "LocalFileTest"
+)
+
+var (
+	testDirPath   string
+	storageClient *storage.Client
+	ctx           context.Context
+)
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	helpers.Ctx = context.Background()
+	ctx = context.Background()
 	var cancel context.CancelFunc
 	var err error
 
@@ -51,8 +58,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create storage client before running tests.
-	helpers.Ctx, cancel = context.WithTimeout(helpers.Ctx, time.Minute*15)
-	helpers.StorageClient, err = client.CreateStorageClient(helpers.Ctx)
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
@@ -89,10 +96,10 @@ func TestMain(m *testing.M) {
 	}
 
 	// Close storage client and release resources.
-	helpers.StorageClient.Close()
+	storageClient.Close()
 	cancel()
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), helpers.LocalFileTestDirInBucket))
+	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }
