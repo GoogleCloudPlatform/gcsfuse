@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"sync"
 	"syscall"
 	"testing"
 
@@ -33,8 +32,6 @@ const (
 	FileThree             = "fileThree.txt"
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
-
-var eG errgroup.Group
 
 func writeFile(fileName string, fileSize int64) error {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
@@ -71,15 +68,13 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	// Clean up.
 	defer operations.RemoveDir(concurrentWriteDir)
 
-	// For waiting on threads.
-	var wg sync.WaitGroup
-
 	files := []string{FileOne, FileTwo, FileThree}
+
+	var eG errgroup.Group
 
 	// Concurrently write three files.
 	for i := range files {
 		// Increment the WaitGroup counter.
-		wg.Add(1)
 
 		// Copy the current value of i into a local variable to avoid data races.
 		fileIndex := i
@@ -87,7 +82,6 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 		// Thread to write the current file.
 		eG.Go(func() error {
 			// Reduce thread count when it is done.
-			defer wg.Done()
 			err = writeFile(files[fileIndex], FiveHundredMB)
 			return err
 		})
