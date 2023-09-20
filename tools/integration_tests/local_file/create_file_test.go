@@ -50,6 +50,8 @@ func TestCreateNewFileWhenSameFileExistsOnGCS(t *testing.T) {
 
 	// Write to local file.
 	operations.WriteWithoutClose(fh, FileContents, t)
-	// Close the local file and ensure that the content on GCS is not overwritten.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName, FileName1, GCSFileContent, t)
+	// Close the local file.
+	operations.CloseFileShouldNotThrowError(fh, t)
+	//  Ensure that the content on GCS is not overwritten.
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, FileName1, GCSFileContent, t)
 }

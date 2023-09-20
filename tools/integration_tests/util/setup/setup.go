@@ -327,3 +327,13 @@ func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
 			directoryPathOnGCS, err)
 	}
 }
+
+func RunMountedDirectoryTestsWithTestBucket() bool {
+	if MountedDirectory() != "" {
+		if TestBucket() == "" {
+			log.Fatal("Set both --mountedDirectory and --testBucket to run mounted directory tests.")
+		}
+		return true
+	}
+	return false
+}

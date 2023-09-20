@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -52,11 +51,6 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.MountedDirectory() != "" && setup.TestBucket() == "" {
-		log.Print("Both --testbucket and --mountedDirectory should be specified to run mounted directory tests.")
-		os.Exit(1)
-	}
-
 	// Create storage client before running tests.
 	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
 	storageClient, err = client.CreateStorageClient(ctx)
@@ -64,26 +58,20 @@ func TestMain(m *testing.M) {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as local_file tests validates content from the bucket.
+	if setup.RunMountedDirectoryTestsWithTestBucket() {
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
 
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-	// Set up config file with create-empty-file: false. (default)
-	mountConfig := config.MountConfig{
-		WriteConfig: config.WriteConfig{
-			CreateEmptyFile: false,
-		},
-		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
-		},
-	}
-	configFile := setup.YAMLConfigFile(mountConfig)
+
 	// Set up flags to run tests on.
 	flags := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + configFile},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--config-file=" + configFile}}
+		{"--implicit-dirs=true", "--rename-dir-limit=3"},
+		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
 
 	successCode := static_mounting.RunTests(flags, m)
 

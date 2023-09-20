@@ -59,7 +59,7 @@ func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.
 	}
 }
 
-func validateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
+func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
 	testDirName string, fileName string, expectedContent string, t *testing.T) {
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName), ReadSize)
 	if err != nil {
@@ -74,7 +74,7 @@ func validateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
 	testDirName string, fh *os.File, fileName, content string, t *testing.T) {
 	operations.CloseFileShouldNotThrowError(fh, t)
-	validateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }
 
 func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client,
@@ -112,7 +112,7 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 func CloseFileAndValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
 	f *os.File, testDirName, fileName, contents string, t *testing.T) {
 	operations.CloseFileShouldNotThrowError(f, t)
-	validateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, contents, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, contents, t)
 }
 
 func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,
