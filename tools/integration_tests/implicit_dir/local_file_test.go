@@ -50,7 +50,7 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 
 	// Validate.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh, fileName, FileContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t)
 }
 
 func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
@@ -70,8 +70,8 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
 	operations.VerifyFileEntry(entries[2], ImplicitFileName1, GCSFileSize, t)
 	// Close the local files.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh1, fileName1, "", t)
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh2, fileName2, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, fileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName, fileName2, "", t)
 }
 
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
@@ -139,7 +139,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("filepath.WalkDir() err: %v", err)
 	}
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh1, FileName1, "", t)
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh2, fileName2, "", t)
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh3, fileName3, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, FileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh2, testDirName, fileName2, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh3, testDirName, fileName3, "", t)
 }

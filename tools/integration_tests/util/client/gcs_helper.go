@@ -72,7 +72,7 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 }
 
 func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
-	testDirName string, fh *os.File, fileName, content string, t *testing.T) {
+	fh *os.File, testDirName, fileName, content string, t *testing.T) {
 	operations.CloseFileShouldNotThrowError(fh, t)
 	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, content, t)
 }
@@ -106,13 +106,7 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t)
 
 	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t)
-}
-
-func CloseFileAndValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	f *os.File, testDirName, fileName, contents string, t *testing.T) {
-	operations.CloseFileShouldNotThrowError(f, t)
-	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, contents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t)
 }
 
 func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,
