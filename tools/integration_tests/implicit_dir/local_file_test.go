@@ -15,30 +15,19 @@ package implicit_dir_test
 
 import (
 	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"golang.org/x/net/context"
 )
 
 const (
-	FileName1         = "foo1"
-	FileName2         = "foo2"
-	ImplicitDirName   = "implicit"
-	ImplicitFileName1 = "implicitFile1"
-	ExplicitDirName   = "explicit"
-	ExplicitFileName1 = "explicitFile1"
-	FilePerms         = 0644
-	FileContents      = "teststring"
-	ReadSize          = 1024
-	testDirName       = "ImplicitDirTest"
+	testDirName = "ImplicitDirTest"
 )
 
 var (
@@ -48,76 +37,29 @@ var (
 )
 
 // //////////////////////////////////////////////////////////////////////
-// Helpers
-// //////////////////////////////////////////////////////////////////////
-
-func createImplicitDir(t *testing.T) {
-	err := client.CreateObjectOnGCS(
-		storageClient,
-		path.Join(testDirName, ImplicitDirName, ImplicitFileName1),
-		FileContents,
-		ctx)
-	if err != nil {
-		t.Errorf("Error while creating implicit directory, err: %v", err)
-	}
-}
-
-func validateObjectNotFoundErrOnGCS(fileName string, t *testing.T) {
-	_, err := client.ReadObjectFromGCS(storageClient, path.Join(testDirName, fileName), ReadSize, ctx)
-	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
-		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
-	}
-}
-
-func validateObjectContentsFromGCS(fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := client.ReadObjectFromGCS(storageClient, path.Join(testDirName, fileName), ReadSize, ctx)
-	if err != nil {
-		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
-	}
-
-	if expectedContent != gotContent {
-		t.Fatalf("GCS file %s content mismatch. Got: %s, Expected: %s ", fileName, gotContent, expectedContent)
-	}
-}
-
-func closeFileAndValidateContentFromGCS(fh *os.File, fileName, content string, t *testing.T) {
-	operations.CloseFileShouldNotThrowError(fh, t)
-	validateObjectContentsFromGCS(fileName, content, t)
-}
-
-func createLocalFile(filePath, fileName string, t *testing.T) (fh *os.File) {
-	fh = operations.CreateFile(filePath, FilePerms, t)
-	validateObjectNotFoundErrOnGCS(fileName, t)
-	return
-}
-
-// //////////////////////////////////////////////////////////////////////
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
 func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	createImplicitDir(t)
+	CreateImplicitDir(ctx, storageClient, testDirName, t)
 	fileName := path.Join(ImplicitDirName, FileName1)
-	filePath := path.Join(testDirPath, fileName)
 
-	fh := createLocalFile(filePath, fileName, t)
+	fh := CreateLocalFile(ctx, storageClient, testDirPath, fileName, t)
 	operations.WriteWithoutClose(fh, FileContents, t)
-	validateObjectNotFoundErrOnGCS(fileName, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 
 	// Validate.
-	closeFileAndValidateContentFromGCS(fh, fileName, FileContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh, fileName, FileContents, t)
 }
 
 func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
-	createImplicitDir(t)
+	CreateImplicitDir(ctx, storageClient, testDirName, t)
 	fileName1 := path.Join(ImplicitDirName, FileName1)
 	fileName2 := path.Join(ImplicitDirName, FileName2)
-	filePath1 := path.Join(testDirPath, fileName1)
-	filePath2 := path.Join(testDirPath, fileName2)
-	fh1 := createLocalFile(filePath1, fileName1, t)
-	fh2 := createLocalFile(filePath2, fileName2, t)
+	fh1 := CreateLocalFile(ctx, storageClient, testDirPath, fileName1, t)
+	fh2 := CreateLocalFile(ctx, storageClient, testDirPath, fileName2, t)
 
 	// Attempt to list implicit directory.
 	entries := operations.ReadDirectory(path.Join(testDirPath, ImplicitDirName), t)
@@ -126,10 +68,10 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	operations.VerifyCountOfDirectoryEntries(3, len(entries), t)
 	operations.VerifyFileEntry(entries[0], FileName1, 0, t)
 	operations.VerifyFileEntry(entries[1], FileName2, 0, t)
-	operations.VerifyFileEntry(entries[2], ImplicitFileName1, 10, t)
+	operations.VerifyFileEntry(entries[2], ImplicitFileName1, ImplicitFileSize, t)
 	// Close the local files.
-	closeFileAndValidateContentFromGCS(fh1, fileName1, "", t)
-	closeFileAndValidateContentFromGCS(fh2, fileName2, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh1, fileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh2, fileName2, "", t)
 }
 
 func TestRecursiveListingWithLocalFiles(t *testing.T) {
@@ -143,21 +85,16 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	// mntDir/implicit/implicitFile1	--- file
 
 	testDirPath = setup.SetupTestDirectory(testDirName)
-
 	fileName2 := path.Join(ExplicitDirName, ExplicitFileName1)
 	fileName3 := path.Join(ImplicitDirName, FileName2)
-	filePath1 := path.Join(testDirPath, FileName1)
-	filePath2 := path.Join(testDirPath, fileName2)
-	filePath3 := path.Join(testDirPath, fileName3)
-
 	// Create local file in mnt/ dir.
-	fh1 := createLocalFile(filePath1, FileName1, t)
+	fh1 := CreateLocalFile(ctx, storageClient, testDirPath, FileName1, t)
 	// Create explicit dir with 1 local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-	fh2 := createLocalFile(filePath2, fileName2, t)
+	fh2 := CreateLocalFile(ctx, storageClient, testDirPath, fileName2, t)
 	// Create implicit dir with 1 local file1 and 1 synced file.
-	createImplicitDir(t)
-	fh3 := createLocalFile(filePath3, fileName3, t)
+	CreateImplicitDir(ctx, storageClient, testDirName, t)
+	fh3 := CreateLocalFile(ctx, storageClient, testDirPath, fileName3, t)
 
 	// Recursively list mntDir/ directory.
 	err := filepath.WalkDir(testDirPath,
@@ -193,7 +130,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 				// numberOfObjects = 2
 				operations.VerifyCountOfDirectoryEntries(2, len(objs), t)
 				operations.VerifyFileEntry(objs[0], FileName2, 0, t)
-				operations.VerifyFileEntry(objs[1], ImplicitFileName1, 10, t)
+				operations.VerifyFileEntry(objs[1], ImplicitFileName1, ImplicitFileSize, t)
 			}
 			return nil
 		})
@@ -202,7 +139,7 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("filepath.WalkDir() err: %v", err)
 	}
-	closeFileAndValidateContentFromGCS(fh1, FileName1, "", t)
-	closeFileAndValidateContentFromGCS(fh2, fileName2, "", t)
-	closeFileAndValidateContentFromGCS(fh3, fileName3, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh1, FileName1, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh2, fileName2, "", t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, testDirName, fh3, fileName3, "", t)
 }

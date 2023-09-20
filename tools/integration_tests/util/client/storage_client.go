@@ -56,7 +56,7 @@ func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 }
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
-func ReadObjectFromGCS(client *storage.Client, object string, size int64, ctx context.Context) (string, error) {
+func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string, size int64) (string, error) {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
@@ -79,7 +79,7 @@ func ReadObjectFromGCS(client *storage.Client, object string, size int64, ctx co
 }
 
 // CreateObjectOnGCS creates an object with given name and content on GCS.
-func CreateObjectOnGCS(client *storage.Client, object, content string, ctx context.Context) error {
+func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
