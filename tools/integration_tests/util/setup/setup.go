@@ -276,6 +276,9 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 }
 
 func SetUpTestDirForTestBucketFlag() {
+	if TestBucket() == "" {
+		log.Fatal("Not running TestBucket tests as --testBucket flag is not set.")
+	}
 	if err := SetUpTestDir(); err != nil {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
