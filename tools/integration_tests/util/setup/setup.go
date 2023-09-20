@@ -211,14 +211,11 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	if successCode != 0 {
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
-
-		logData, err := os.ReadFile(LogFile())
+		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), logFile)
+		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
 		if err != nil {
-			log.Fatalf("Error in printing logs: %v", err)
+			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
 		}
-
-		// Print the logs of fail tests.
-		log.Println(string(logData))
 		return
 	}
 }

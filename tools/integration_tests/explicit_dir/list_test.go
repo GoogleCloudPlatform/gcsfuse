@@ -43,6 +43,8 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(t)
 
+	t.Errorf("Testing error")
+
 	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
