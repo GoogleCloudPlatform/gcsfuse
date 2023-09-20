@@ -40,6 +40,6 @@ func TestReadLocalFile(t *testing.T) {
 			"Expected content: %s, Got Content: %s", err, content, string(buf))
 	}
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t)
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, FileName1, content, t)
 }

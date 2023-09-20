@@ -329,11 +329,9 @@ func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
 }
 
 func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
-	if MountedDirectory() != "" {
-		if TestBucket() == "" {
-			log.Fatal("Set both --mountedDirectory and --testBucket to run mounted directory tests.")
-		}
+	if MountedDirectory() != "" && TestBucket() != "" {
 		return true
 	}
+	log.Print("Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set.")
 	return false
 }

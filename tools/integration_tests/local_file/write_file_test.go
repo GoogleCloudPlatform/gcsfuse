@@ -34,8 +34,8 @@ func TestMultipleWritesToLocalFile(t *testing.T) {
 	}
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents+FileContents+FileContents, t)
 }
 
@@ -50,7 +50,7 @@ func TestRandomWritesToLocalFile(t *testing.T) {
 	operations.WriteAt("string3", 3, fh, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, "stsstring3", t)
 }
