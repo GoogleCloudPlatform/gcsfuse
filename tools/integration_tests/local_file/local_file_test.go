@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as local_file tests validates content from the bucket.
-	if setup.RunMountedDirectoryTestsWithTestBucket() {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		setup.RunTestsForMountedDirectoryFlag(m)
 	}
 
@@ -69,6 +69,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Set up flags to run tests on.
+	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
