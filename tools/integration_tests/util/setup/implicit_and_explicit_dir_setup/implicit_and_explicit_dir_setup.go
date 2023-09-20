@@ -41,9 +41,7 @@ const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
 
-func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
-	setup.ParseSetUpFlags()
-
+func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
@@ -64,8 +62,7 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) {
 	}
 
 	setup.RemoveBinFileCopiedForTesting()
-
-	os.Exit(successCode)
+	return successCode
 }
 
 func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
