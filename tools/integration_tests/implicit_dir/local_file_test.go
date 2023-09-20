@@ -45,7 +45,7 @@ func TestNewFileUnderImplicitDirectoryShouldNotGetSyncedToGCSTillClose(t *testin
 	CreateImplicitDir(ctx, storageClient, testDirName, t)
 	fileName := path.Join(ImplicitDirName, FileName1)
 
-	fh := CreateLocalFile(ctx, storageClient, testDirPath, fileName, t)
+	fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
 	operations.WriteWithoutClose(fh, FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 
@@ -58,8 +58,8 @@ func TestReadDirForImplicitDirWithLocalFile(t *testing.T) {
 	CreateImplicitDir(ctx, storageClient, testDirName, t)
 	fileName1 := path.Join(ImplicitDirName, FileName1)
 	fileName2 := path.Join(ImplicitDirName, FileName2)
-	fh1 := CreateLocalFile(ctx, storageClient, testDirPath, fileName1, t)
-	fh2 := CreateLocalFile(ctx, storageClient, testDirPath, fileName2, t)
+	fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName1, t)
+	fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName2, t)
 
 	// Attempt to list implicit directory.
 	entries := operations.ReadDirectory(path.Join(testDirPath, ImplicitDirName), t)
@@ -88,13 +88,13 @@ func TestRecursiveListingWithLocalFiles(t *testing.T) {
 	fileName2 := path.Join(ExplicitDirName, ExplicitFileName1)
 	fileName3 := path.Join(ImplicitDirName, FileName2)
 	// Create local file in mnt/ dir.
-	fh1 := CreateLocalFile(ctx, storageClient, testDirPath, FileName1, t)
+	fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
 	// Create explicit dir with 1 local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
-	fh2 := CreateLocalFile(ctx, storageClient, testDirPath, fileName2, t)
+	fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName2, t)
 	// Create implicit dir with 1 local file1 and 1 synced file.
 	CreateImplicitDir(ctx, storageClient, testDirName, t)
-	fh3 := CreateLocalFile(ctx, storageClient, testDirPath, fileName3, t)
+	fh3 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName3, t)
 
 	// Recursively list mntDir/ directory.
 	err := filepath.WalkDir(testDirPath,
