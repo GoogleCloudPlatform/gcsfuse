@@ -39,8 +39,8 @@ func TestStatOnLocalFile(t *testing.T) {
 	// Stat the local file again to check if new content is written.
 	operations.VerifyStatFile(filePath, SizeOfFileContents, FilePerms, t)
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents, t)
 }
 
@@ -52,8 +52,8 @@ func TestStatOnLocalFileWithConflictingFileNameSuffix(t *testing.T) {
 	// Stat the local file.
 	operations.VerifyStatFile(filePath+inode.ConflictingFileNameSuffix, 0, FilePerms, t)
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, "", t)
 }
 
@@ -77,7 +77,7 @@ func TestTruncateLocalFile(t *testing.T) {
 	// Stat the file to validate if file is truncated correctly.
 	operations.VerifyStatFile(filePath, SizeTruncate, FilePerms, t)
 
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
-		FileName1, "tests", t)
+	// Close the file and validate that the file is created on GCS.
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, "testS", t)
 }

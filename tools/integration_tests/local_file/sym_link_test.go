@@ -44,7 +44,7 @@ func createAndVerifySymLink(t *testing.T) (filePath, symlink string, fh *os.File
 
 func TestCreateSymlinkForLocalFile(t *testing.T) {
 	_, _, fh := createAndVerifySymLink(t)
-	CloseFileAndValidateObjectContentsFromGCS(ctx, storageClient, fh, testDirName,
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
 		FileName1, FileContents, t)
 }
 
