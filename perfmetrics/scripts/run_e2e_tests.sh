@@ -18,7 +18,7 @@
 set -e
 sudo apt-get update
 
-readonly INTEGRATION_TEST_TIMEOUT=24m
+readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 

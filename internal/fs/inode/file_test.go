@@ -47,6 +47,7 @@ const gid = 456
 const fileInodeID = 17
 const fileName = "foo/bar"
 const fileMode os.FileMode = 0641
+const Delta = 30 * time.Minute
 
 type FileTest struct {
 	ctx    context.Context
@@ -434,6 +435,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	var err error
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	creationTime := t.clock.Now()
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile()
 	AssertEq(nil, err)
@@ -451,8 +453,11 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
 	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
 	ExpectEq(0, o.Size)
-	_, ok := o.Metadata["gcsfuse_mtime"]
-	AssertFalse(ok)
+	// Validate the mtime.
+	mtimeInBucket, ok := o.Metadata["gcsfuse_mtime"]
+	AssertTrue(ok)
+	mtime, _ := time.Parse(time.RFC3339Nano, mtimeInBucket)
+	ExpectThat(mtime, timeutil.TimeNear(creationTime, Delta))
 	// Read the object's contents.
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	AssertEq(nil, err)
@@ -829,11 +834,15 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var attrs fuseops.InodeAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
+	createTime := t.in.mtimeClock.Now()
 	err = t.in.CreateEmptyTempFile()
+	// Validate the attributes on an empty file.
+	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
+	ExpectThat(attrs.Mtime, timeutil.TimeNear(createTime, Delta))
+
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
-
 	err = t.in.SetMtime(t.ctx, mtime)
 
 	AssertEq(nil, err)
