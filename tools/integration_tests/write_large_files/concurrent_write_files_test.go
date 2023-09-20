@@ -74,16 +74,12 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 	// Concurrently write three files.
 	for i := range files {
-		// Increment the WaitGroup counter.
-
 		// Copy the current value of i into a local variable to avoid data races.
 		fileIndex := i
 
 		// Thread to write the current file.
 		eG.Go(func() error {
-			// Reduce thread count when it is done.
-			err = writeFile(files[fileIndex], FiveHundredMB)
-			return err
+			return writeFile(files[fileIndex], FiveHundredMB)
 		})
 	}
 

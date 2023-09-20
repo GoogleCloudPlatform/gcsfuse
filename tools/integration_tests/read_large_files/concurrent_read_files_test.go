@@ -76,9 +76,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 
 		// Thread to read the current file.
 		eG.Go(func() error {
-			// Reduce thread count when it is done.
-			err := readFile(filesPathInLocalDisk[fileIndex], filesPathInMntDir[fileIndex])
-			return err
+			return readFile(filesPathInLocalDisk[fileIndex], filesPathInMntDir[fileIndex])
 		})
 	}
 
