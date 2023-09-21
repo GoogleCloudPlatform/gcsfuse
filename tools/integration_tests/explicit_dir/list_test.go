@@ -30,6 +30,8 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
+	t.Errorf("Test error")
+
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
