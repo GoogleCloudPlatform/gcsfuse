@@ -39,8 +39,8 @@ const (
 	FilePerms          = 0644
 	ReadSize           = 1024
 	SizeTruncate       = 5
-	NewFileName       = "newName"
-	NewDirName        = "newDirName"
+	NewFileName        = "newName"
+	NewDirName         = "newDirName"
 )
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
