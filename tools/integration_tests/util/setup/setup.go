@@ -18,12 +18,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -36,6 +38,11 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 
 const BufferSize = 100
 const FilePermission_0600 = 0600
+const LogFileName = "gcsfuse.log"
+
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+const Charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 var (
 	binFile  string
@@ -162,7 +169,7 @@ func SetUpTestDir() error {
 		binFile = "gcsfuse"
 		sbinFile = "mount.gcsfuse"
 	}
-	logFile = path.Join(TestDir(), "gcsfuse.log")
+	logFile = path.Join(TestDir(), LogFileName)
 	mntDir = path.Join(TestDir(), "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
@@ -201,6 +208,14 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
+func GenerateRandomString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = Charset[seededRand.Intn(len(Charset))]
+	}
+	return string(b)
+}
+
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	err := UnMount()
 	if err != nil {
@@ -211,7 +226,11 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	if successCode != 0 {
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
-		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), logFile)
+
+		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
+		failedlogsFileName := "gcsfuse-failed-integration-test-log-" + GenerateRandomString(5)
+		log.Print("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
+		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
 		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
 		if err != nil {
 			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
