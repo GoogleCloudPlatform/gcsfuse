@@ -19,7 +19,6 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -39,7 +38,7 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
 
 	// Verify that directory is removed.
-	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Validate writing content to unlinked local file does not throw error.
 	operations.WriteWithoutClose(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
@@ -63,7 +62,7 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
 
 	// Verify rmDir operation succeeds.
-	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
 	operations.CloseFileShouldNotThrowError(fh1, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile1, t)

@@ -85,33 +85,14 @@ func CreateLocalFileInTestDir(ctx context.Context, storageClient *storage.Client
 	testDirPath, fileName string, t *testing.T) (string, *os.File) {
 	filePath := path.Join(testDirPath, fileName)
 	fh := operations.CreateFile(filePath, FilePerms, t)
-	testDirName := getDirName(testDirPath)
+	testDirName := GetDirName(testDirPath)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 	return filePath, fh
 }
 
-func getDirName(testDirPath string) string {
+func GetDirName(testDirPath string) string {
 	dirName := testDirPath[strings.LastIndex(testDirPath, "/")+1:]
 	return dirName
-}
-
-func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client,
-	fh *os.File, testDirName, fileName string, t *testing.T) {
-	operations.WriteWithoutClose(fh, FileContents, t)
-	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
-}
-
-func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *storage.Client,
-	testDirPath, fileName string, t *testing.T) {
-	// Create a local file.
-	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, fileName, t)
-
-	// Writing contents to local file shouldn't create file on GCS.
-	testDirName := getDirName(testDirPath)
-	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, fileName, t)
-
-	// Close the file and validate if the file is created on GCS.
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t)
 }
 
 func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client,

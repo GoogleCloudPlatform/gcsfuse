@@ -18,13 +18,28 @@ package local_file_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func verifyRenameOperationNotSupported(err error, t *testing.T) {
+	if err == nil || !strings.Contains(err.Error(), "operation not supported") {
+		t.Fatalf("os.Rename(), expected err: %s, got err: %v",
+			"operation not supported", err)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
 
 func TestRenameOfLocalFileFails(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
@@ -38,7 +53,7 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 		path.Join(testDirPath, NewFileName))
 
 	// Verify rename operation fails.
-	VerifyRenameOperationNotSupported(err, t)
+	verifyRenameOperationNotSupported(err, t)
 	// write more content to local file.
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
 	// Close the local file.
@@ -65,7 +80,7 @@ func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 		path.Join(testDirPath, NewDirName))
 
 	// Verify rename operation fails.
-	VerifyRenameOperationNotSupported(err, t)
+	verifyRenameOperationNotSupported(err, t)
 	// Write more content to local file.
 	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName2, t)
 	// Close the local file.
