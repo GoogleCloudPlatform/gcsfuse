@@ -21,15 +21,16 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestRenameOfLocalFileFails(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create local file with some content.
-	_, fh := CreateLocalFileInTestDir(testDirPath, FileName1, t)
-	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
 
 	// Attempt to rename local file.
 	err := os.Rename(
@@ -39,20 +40,24 @@ func TestRenameOfLocalFileFails(t *testing.T) {
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
 	// write more content to local file.
-	WritingToLocalFileShouldNotWriteToGCS(fh, FileName1, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName1, t)
 	// Close the local file.
-	CloseFileAndValidateObjectContentsFromGCS(fh, FileName1, FileContents+FileContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		FileName1, FileContents+FileContents, t)
 }
 
 func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	//Create directory with 1 synced and 1 local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	// Create synced file.
-	CreateObjectInGCSTestDir(path.Join(ExplicitDirName, FileName1), GCSFileContent, t)
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName,
+		path.Join(ExplicitDirName, FileName1), GCSFileContent, t)
 	// Create local file with some content.
-	_, fh := CreateLocalFileInTestDir(testDirPath, path.Join(ExplicitDirName, FileName2), t)
-	WritingToLocalFileShouldNotWriteToGCS(fh, path.Join(ExplicitDirName, FileName2), t)
+	_, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath,
+		path.Join(ExplicitDirName, FileName2), t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName,
+		path.Join(ExplicitDirName, FileName2), t)
 
 	// Attempt to rename directory containing local file.
 	err := os.Rename(
@@ -62,10 +67,10 @@ func TestRenameOfDirectoryWithLocalFileFails(t *testing.T) {
 	// Verify rename operation fails.
 	VerifyRenameOperationNotSupported(err, t)
 	// Write more content to local file.
-	WritingToLocalFileShouldNotWriteToGCS(fh, FileName2, t)
+	WritingToLocalFileShouldNotWriteToGCS(ctx, storageClient, fh, testDirName, FileName2, t)
 	// Close the local file.
-	CloseFileAndValidateObjectContentsFromGCS(fh, path.Join(ExplicitDirName, FileName2),
-		FileContents+FileContents, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName,
+		path.Join(ExplicitDirName, FileName2), FileContents+FileContents, t)
 }
 
 func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
@@ -80,8 +85,9 @@ func TestRenameOfLocalFileSucceedsAfterSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Rename() failed on synced file: %v", err)
 	}
-	ValidateObjectContentsFromGCS(NewFileName, FileContents+FileContents, t)
-	ValidateObjectNotFoundErrOnGCS(FileName1, t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, NewFileName,
+		FileContents+FileContents, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
 }
 
 func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
@@ -96,8 +102,12 @@ func TestRenameOfDirectoryWithLocalFileSucceedsAfterSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("os.Rename() failed on directory containing synced files: %v", err)
 	}
-	ValidateObjectContentsFromGCS(path.Join(NewDirName, FileName1), GCSFileContent, t)
-	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName1), t)
-	ValidateObjectContentsFromGCS(path.Join(NewDirName, FileName2), FileContents+FileContents, t)
-	ValidateObjectNotFoundErrOnGCS(path.Join(ExplicitDirName, FileName2), t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName,
+		path.Join(NewDirName, FileName1), GCSFileContent, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName,
+		path.Join(ExplicitDirName, FileName1), t)
+	ValidateObjectContentsFromGCS(ctx, storageClient, testDirName,
+		path.Join(NewDirName, FileName2), FileContents+FileContents, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName,
+		path.Join(ExplicitDirName, FileName2), t)
 }

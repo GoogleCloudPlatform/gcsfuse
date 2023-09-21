@@ -20,19 +20,20 @@ import (
 	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
+	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create explicit directory with one synced and one local file.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	syncedFile := path.Join(ExplicitDirName, FileName1)
 	localFile := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFileInTestDir(testDirPath, syncedFile, t)
-	CloseFileAndValidateObjectContentsFromGCS(fh1, syncedFile, "", t)
-	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile, t)
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, syncedFile, t)
+	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh1, testDirName, syncedFile, "", t)
+	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile, t)
 
 	// Attempt to remove explicit directory.
 	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
@@ -43,20 +44,20 @@ func TestRmDirOfDirectoryContainingGCSAndLocalFiles(t *testing.T) {
 	operations.WriteWithoutClose(fh2, FileContents, t)
 	// Validate flush file does not throw error and does not create object on GCS.
 	operations.CloseFileShouldNotThrowError(fh2, t)
-	ValidateObjectNotFoundErrOnGCS(localFile, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile, t)
 	// Validate synced files are also deleted.
-	ValidateObjectNotFoundErrOnGCS(syncedFile, t)
-	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, syncedFile, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t)
 }
 
 func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
-	testDirPath = setup.SetupTestDirectory(LocalFileTestDirInBucket)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 	// Create a directory with two local files.
 	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
 	localFile1 := path.Join(ExplicitDirName, FileName1)
 	localFile2 := path.Join(ExplicitDirName, FileName2)
-	_, fh1 := CreateLocalFileInTestDir(testDirPath, localFile1, t)
-	_, fh2 := CreateLocalFileInTestDir(testDirPath, localFile2, t)
+	_, fh1 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile1, t)
+	_, fh2 := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, localFile2, t)
 
 	// Attempt to remove explicit directory.
 	operations.RemoveDir(path.Join(testDirPath, ExplicitDirName))
@@ -65,9 +66,9 @@ func TestRmDirOfDirectoryContainingOnlyLocalFiles(t *testing.T) {
 	ValidateNoFileOrDirError(path.Join(testDirPath, ExplicitDirName), t)
 	// Close the local files and validate they are not present on GCS.
 	operations.CloseFileShouldNotThrowError(fh1, t)
-	ValidateObjectNotFoundErrOnGCS(localFile1, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile1, t)
 	operations.CloseFileShouldNotThrowError(fh2, t)
-	ValidateObjectNotFoundErrOnGCS(localFile2, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, localFile2, t)
 	// Validate directory is also deleted.
-	ValidateObjectNotFoundErrOnGCS(ExplicitDirName, t)
+	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, ExplicitDirName, t)
 }
