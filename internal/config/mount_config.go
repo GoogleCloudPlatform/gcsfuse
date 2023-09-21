@@ -15,7 +15,9 @@
 package config
 
 type WriteConfig struct {
-	CreateEmptyFile bool `yaml:"create-empty-file"`
+	CreateEmptyFile       bool `yaml:"create-empty-file"`
+	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
+	BufferSize            uint `yaml:"buffer-size"`
 }
 
 type LogConfig struct {
@@ -31,6 +33,8 @@ type MountConfig struct {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
+	mountConfig.WriteConfig.EnableStreamingWrites = false
+	mountConfig.BufferSize = 16
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
