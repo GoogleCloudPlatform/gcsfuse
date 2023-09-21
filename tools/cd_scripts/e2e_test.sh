@@ -71,6 +71,12 @@ then
     #install git
     sudo apt install -y git
 
+    # Downloading one or more large file(s), which would run significantly faster if
+    # you enabled sliced object downloads. This feature is enabled by default but
+    # requires that compiled crcmod be installed.
+    sudo apt-get install -y gcc python3-dev python3-setuptools
+    sudo apt install -y python3-crcmod
+
     #install build-essentials
     sudo apt install -y build-essential
 else
@@ -100,6 +106,14 @@ else
     #install git
     sudo yum -y install git
 
+    # install python3-setuptools tools and python3-pip
+    sudo yum -y install gcc python3-dev python3-setuptools
+    sudo yum -y install python3-pip
+    # Downloading one or more large file(s), which would run significantly faster if
+    # you enabled sliced object downloads. This feature is enabled by default but
+    # requires that compiled crcmod be installed.
+    sudo pip3 install --no-cache-dir -U crcmod
+
     #install Development tools
     sudo yum -y install gcc gcc-c++ make
 fi
@@ -108,6 +122,7 @@ fi
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
+
 #Write gcsfuse and go version to log file
 gcsfuse --version |& tee -a ~/logs.txt
 go version |& tee -a ~/logs.txt
