@@ -26,17 +26,19 @@ import (
 )
 
 const (
-	FileName1         = "foo1"
-	FileName2         = "foo2"
-	ExplicitDirName   = "explicit"
-	ExplicitFileName1 = "explicitFile1"
-	ImplicitDirName   = "implicit"
-	ImplicitFileName1 = "implicitFile1"
-	FileContents      = "testString"
-	GCSFileContent    = "GCSteststring"
-	GCSFileSize       = 13
-	FilePerms         = 0644
-	ReadSize          = 1024
+	FileName1          = "foo1"
+	FileName2          = "foo2"
+	ExplicitDirName    = "explicit"
+	ExplicitFileName1  = "explicitFile1"
+	ImplicitDirName    = "implicit"
+	ImplicitFileName1  = "implicitFile1"
+	FileContents       = "testString"
+	SizeOfFileContents = 10
+	GCSFileContent     = "GCSteststring"
+	GCSFileSize        = 13
+	FilePerms          = 0644
+	ReadSize           = 1024
+	SizeTruncate       = 5
 )
 
 func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
@@ -91,7 +93,8 @@ func getDirName(testDirPath string) string {
 	return dirName
 }
 
-func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client, fh *os.File, testDirName, fileName string, t *testing.T) {
+func WritingToLocalFileShouldNotWriteToGCS(ctx context.Context, storageClient *storage.Client,
+	fh *os.File, testDirName, fileName string, t *testing.T) {
 	operations.WriteWithoutClose(fh, FileContents, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, fileName, t)
 }
