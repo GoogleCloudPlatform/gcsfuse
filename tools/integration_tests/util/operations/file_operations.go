@@ -470,7 +470,6 @@ func CreateSymLink(filePath, symlink string, t *testing.T) {
 }
 
 func VerifyStatFile(filePath string, fileSize int64, filePerms os.FileMode, t *testing.T) {
-	// Stat the file to validate if file is truncated correctly.
 	fi, err := os.Stat(filePath)
 
 	if err != nil {
