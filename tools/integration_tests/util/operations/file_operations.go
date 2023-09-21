@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
@@ -459,6 +460,47 @@ func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.Fil
 	return
 }
 
+func CreateSymLink(filePath, symlink string, t *testing.T) {
+	err := os.Symlink(filePath, symlink)
+
+	// Verify os.Symlink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Symlink(%s, %s): %v", filePath, symlink, err)
+	}
+}
+
+func VerifyStatFile(filePath string, fileSize int64, filePerms os.FileMode, t *testing.T) {
+	fi, err := os.Stat(filePath)
+
+	if err != nil {
+		t.Fatalf("os.Stat err: %v", err)
+	}
+
+	if fi.Name() != path.Base(filePath) {
+		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", path.Base(filePath), fi.Name())
+	}
+
+	if fi.Size() != fileSize {
+		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", fileSize, fi.Size())
+	}
+
+	if fi.Mode() != filePerms {
+		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", filePerms, fi.Mode())
+	}
+}
+
+func VerifyReadFile(filePath, expectedContent string, t *testing.T) {
+	gotContent, err := os.ReadFile(filePath)
+
+	// Verify os.ReadFile operation succeeds.
+	if err != nil {
+		t.Fatalf("os.ReadFile(%s): %v", filePath, err)
+	}
+	if expectedContent != string(gotContent) {
+		t.Fatalf("Content mismatch. Expected: %s, Got: %s", expectedContent, gotContent)
+	}
+}
+
 func VerifyFileEntry(entry os.DirEntry, fileName string, size int64, t *testing.T) {
 	if entry.IsDir() {
 		t.Fatalf("Expected: file entry, Got: directory entry.")
@@ -472,6 +514,18 @@ func VerifyFileEntry(entry os.DirEntry, fileName string, size int64, t *testing.
 	}
 	if fileInfo.Size() != size {
 		t.Fatalf("Local file %s size, Expected: %d, Got: %d", fileName, size, fileInfo.Size())
+	}
+}
+
+func VerifyReadLink(expectedTarget, symlinkName string, t *testing.T) {
+	gotTarget, err := os.Readlink(symlinkName)
+
+	// Verify os.Readlink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Readlink(%s): %v", symlinkName, err)
+	}
+	if expectedTarget != gotTarget {
+		t.Fatalf("Symlink target mismatch. Expected: %s, Got: %s", expectedTarget, gotTarget)
 	}
 }
 
