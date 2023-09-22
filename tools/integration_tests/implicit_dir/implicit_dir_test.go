@@ -16,8 +16,15 @@
 package implicit_dir_test
 
 import (
+	"context"
+	"log"
+	"os"
+	"path"
 	"testing"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
@@ -29,7 +36,27 @@ const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
 
 func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
+	ctx = context.Background()
+	var cancel context.CancelFunc
+	var err error
+
+	// Create storage client before running tests.
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+
 	flags := [][]string{{"--implicit-dirs"}}
 
-	implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+
+	// Close storage client and release resources.
+	storageClient.Close()
+	cancel()
+	// Clean up test directory created.
+	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	os.Exit(successCode)
 }

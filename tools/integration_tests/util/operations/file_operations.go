@@ -24,9 +24,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
+	"testing"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -160,14 +162,14 @@ func MoveFile(srcFilePath string, destDirPath string) (err error) {
 
 func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
-		log.Printf("error in closing: %v", err)
+		log.Fatalf("error in closing: %v", err)
 	}
 }
 
 func RemoveFile(filePath string) {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Printf("Error in removing file:%v", err)
+		log.Printf("os.Remove(%s): %v", filePath, err)
 	}
 }
 
@@ -177,7 +179,7 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
-		log.Printf("Error in opening file:%v", err)
+		log.Printf("Error in opening file: %v", err)
 	}
 
 	// Closing the file at the end.
@@ -215,10 +217,37 @@ func ReadFileSequentially(filePath string, chunkSize int64) (content []byte, err
 	return
 }
 
+// Write data of chunkSize in file at given offset.
+func WriteChunkOfRandomBytesToFile(file *os.File, chunkSize int, offset int64) error {
+	// Generate random data of chunk size.
+	chunk := make([]byte, chunkSize)
+	_, err := rand.Read(chunk)
+	if err != nil {
+		return fmt.Errorf("error while generating random string: %v", err)
+	}
+
+	// Write data in the file.
+	n, err := file.WriteAt(chunk, offset)
+	if err != nil {
+		return fmt.Errorf("Error in writing randomly in file: %v", err)
+	}
+
+	if n != chunkSize {
+		return fmt.Errorf("Incorrect number of bytes written in the file actual %d, expected %d", n, chunkSize)
+	}
+
+	err = file.Sync()
+	if err != nil {
+		return fmt.Errorf("Error in syncing file: %v", err)
+	}
+
+	return nil
+}
+
 func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (err error) {
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, FilePermission_0600)
 	if err != nil {
-		log.Printf("Error in opening file:%v", err)
+		log.Fatalf("Error in opening file: %v", err)
 	}
 
 	// Closing file at the end.
@@ -231,26 +260,10 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 		if (fileSize - offset) < chunkSize {
 			chunkSize = (fileSize - offset)
 		}
-		chunk := make([]byte, chunkSize)
-		_, err = rand.Read(chunk)
-		if err != nil {
-			log.Fatalf("error while generating random string: %s", err)
-		}
 
-		var numberOfBytes int
-
-		// Writes random chunkSize or remaining filesize data into file.
-		numberOfBytes, err = file.Write(chunk)
-		err = file.Sync()
+		err := WriteChunkOfRandomBytesToFile(file, int(chunkSize), offset)
 		if err != nil {
-			log.Printf("Error in syncing file:%v", err)
-		}
-
-		if err != nil {
-			return
-		}
-		if int64(numberOfBytes) != chunkSize {
-			log.Fatalf("Incorrect number of bytes written in the file.")
+			log.Fatalf("Error in writing chunk: %v", err)
 		}
 
 		offset = offset + chunkSize
@@ -263,13 +276,13 @@ func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []
 
 	file, err := os.OpenFile(filePath, os.O_RDONLY, FilePermission_0600)
 	if err != nil {
-		log.Printf("Error in opening file:%v", err)
+		log.Printf("Error in opening file: %v", err)
 		return
 	}
 
 	f, err := os.Stat(filePath)
 	if err != nil {
-		log.Printf("Error in stating file:%v", err)
+		log.Printf("Error in stating file: %v", err)
 		return
 	}
 
@@ -436,4 +449,102 @@ func ClearCacheControlOnGcsObject(gcsObjPath string) error {
 	// implementation for updating object metadata is missing on the kokoro VM.
 	_, err := ExecuteGsutilCommandf("setmeta -h \"Cache-Control:\" gs://%s ", gcsObjPath)
 	return err
+}
+
+func CreateFile(filePath string, filePerms os.FileMode, t *testing.T) (f *os.File) {
+	// Creating a file shouldn't create file on GCS.
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, filePerms)
+	if err != nil {
+		t.Fatalf("CreateFile(%s): %v", filePath, err)
+	}
+	return
+}
+
+func CreateSymLink(filePath, symlink string, t *testing.T) {
+	err := os.Symlink(filePath, symlink)
+
+	// Verify os.Symlink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Symlink(%s, %s): %v", filePath, symlink, err)
+	}
+}
+
+func VerifyStatFile(filePath string, fileSize int64, filePerms os.FileMode, t *testing.T) {
+	fi, err := os.Stat(filePath)
+
+	if err != nil {
+		t.Fatalf("os.Stat err: %v", err)
+	}
+
+	if fi.Name() != path.Base(filePath) {
+		t.Fatalf("File name mismatch in stat call. Expected: %s, Got: %s", path.Base(filePath), fi.Name())
+	}
+
+	if fi.Size() != fileSize {
+		t.Fatalf("File size mismatch in stat call. Expected: %d, Got: %d", fileSize, fi.Size())
+	}
+
+	if fi.Mode() != filePerms {
+		t.Fatalf("File permissions mismatch in stat call. Expected: %v, Got: %v", filePerms, fi.Mode())
+	}
+}
+
+func VerifyReadFile(filePath, expectedContent string, t *testing.T) {
+	gotContent, err := os.ReadFile(filePath)
+
+	// Verify os.ReadFile operation succeeds.
+	if err != nil {
+		t.Fatalf("os.ReadFile(%s): %v", filePath, err)
+	}
+	if expectedContent != string(gotContent) {
+		t.Fatalf("Content mismatch. Expected: %s, Got: %s", expectedContent, gotContent)
+	}
+}
+
+func VerifyFileEntry(entry os.DirEntry, fileName string, size int64, t *testing.T) {
+	if entry.IsDir() {
+		t.Fatalf("Expected: file entry, Got: directory entry.")
+	}
+	if entry.Name() != fileName {
+		t.Fatalf("File name, Expected: %s, Got: %s", fileName, entry.Name())
+	}
+	fileInfo, err := entry.Info()
+	if err != nil {
+		t.Fatalf("%s.Info() err: %v", fileName, err)
+	}
+	if fileInfo.Size() != size {
+		t.Fatalf("Local file %s size, Expected: %d, Got: %d", fileName, size, fileInfo.Size())
+	}
+}
+
+func VerifyReadLink(expectedTarget, symlinkName string, t *testing.T) {
+	gotTarget, err := os.Readlink(symlinkName)
+
+	// Verify os.Readlink operation succeeds.
+	if err != nil {
+		t.Fatalf("os.Readlink(%s): %v", symlinkName, err)
+	}
+	if expectedTarget != gotTarget {
+		t.Fatalf("Symlink target mismatch. Expected: %s, Got: %s", expectedTarget, gotTarget)
+	}
+}
+
+func WriteWithoutClose(fh *os.File, content string, t *testing.T) {
+	_, err := fh.Write([]byte(content))
+	if err != nil {
+		t.Fatalf("Error while writing to local file. err: %v", err)
+	}
+}
+
+func WriteAt(content string, offset int64, fh *os.File, t *testing.T) {
+	_, err := fh.WriteAt([]byte(content), offset)
+	if err != nil {
+		t.Fatalf("%s.WriteAt(%s, %d): %v", fh.Name(), content, offset, err)
+	}
+}
+
+func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
+	if err := file.Close(); err != nil {
+		t.Fatalf("file.Close() for file %s: %v", file.Name(), err)
+	}
 }
