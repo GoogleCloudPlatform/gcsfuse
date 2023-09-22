@@ -107,7 +107,7 @@ else
     sudo yum -y install git
 
     # install python3-setuptools tools and python3-pip
-    sudo yum -y install gcc python3-dev python3-setuptools
+    sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
     sudo yum -y install python3-pip
     # Downloading one or more large file(s), which would run significantly faster if
     # you enabled sliced object downloads. This feature is enabled by default but
