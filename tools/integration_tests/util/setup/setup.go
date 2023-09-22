@@ -43,7 +43,6 @@ const (
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
-	LogFileName         = "gcsfuse.log"
 )
 
 var (
@@ -193,7 +192,7 @@ func SetUpTestDir() error {
 		binFile = "gcsfuse"
 		sbinFile = "mount.gcsfuse"
 	}
-	logFile = path.Join(TestDir(), LogFileName)
+	logFile = path.Join(TestDir(), "gcsfuse.log")
 	mntDir = path.Join(TestDir(), "mnt")
 
 	err = os.Mkdir(mntDir, 0755)
