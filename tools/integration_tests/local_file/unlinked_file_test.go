@@ -19,7 +19,6 @@ import (
 	"path"
 	"testing"
 
-	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/local_file/helpers"
 	. "github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -33,7 +32,7 @@ func TestStatOnUnlinkedLocalFile(t *testing.T) {
 	operations.RemoveFile(filePath)
 
 	// Stat the local file and validate error.
-	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Close the file and validate that file is not created on GCS.
 	operations.CloseFileShouldNotThrowError(fh, t)
@@ -72,7 +71,7 @@ func TestWriteOnUnlinkedLocalFileSucceeds(t *testing.T) {
 	filepath, fh := CreateLocalFileInTestDir(ctx, storageClient, testDirPath, FileName1, t)
 	// Verify unlink operation succeeds.
 	operations.RemoveFile(filepath)
-	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 
 	// Write to unlinked local file.
 	operations.WriteWithoutClose(fh, FileContents, t)
@@ -92,7 +91,7 @@ func TestSyncOnUnlinkedLocalFile(t *testing.T) {
 	operations.RemoveFile(filepath)
 
 	// Verify unlink operation succeeds.
-	ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
+	operations.ValidateNoFileOrDirError(path.Join(testDirPath, FileName1), t)
 	// Validate sync operation does not write to GCS after unlink.
 	operations.SyncFile(fh, t)
 	ValidateObjectNotFoundErrOnGCS(ctx, storageClient, testDirName, FileName1, t)
