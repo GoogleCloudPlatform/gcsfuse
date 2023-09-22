@@ -8,14 +8,7 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 **Writes**
 
-For modifications to existing objects, Cloud Storage FUSE downloads the entire
-backing object's contents from Cloud Storage. The contents are stored in a local
-temporary file whose location is controlled by the flag ```--temp-dir```. Later,
-when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of
-the local file back to Cloud Storage as a new object generation. Modifying even
-a single bit of an object results in the full re-upload of the object. The
-exception is if an append is done to the end of a file, where the original file
-is at least 2MB, then only the appended content is uploaded.
+For modifications to existing objects, Cloud Storage FUSE downloads the entire backing object's contents from Cloud Storage. The contents are stored in a local temporary file whose location is controlled by the flag ```--temp-dir```. Later, when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of the local file back to Cloud Storage as a new object generation. Modifying even a single bit of an object results in the full re-upload of the object. The exception is if an append is done to the end of a file, where the original file is at least 2MB,  then only the appended content is uploaded.
 
 For new objects, objects are first written to the same temporary directory as
 mentioned above. Upon closing or fsyncing the file, the file is then written to
