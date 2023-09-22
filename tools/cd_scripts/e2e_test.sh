@@ -71,9 +71,8 @@ then
     #install git
     sudo apt install -y git
 
-    # Downloading one or more large file(s), which would run significantly faster if
-    # you enabled sliced object downloads. This feature is enabled by default but
-    # requires that compiled crcmod be installed.
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
     sudo apt-get install -y gcc python3-dev python3-setuptools
     sudo apt install -y python3-crcmod
 
