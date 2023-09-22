@@ -23,15 +23,17 @@ your Cloud Storage bucket.
 As new and modified files are fully staged in the local temporary directory
 until they are written out to Cloud Storage from being closed or fsync'd, you
 must ensure that there is enough free space available to handle staged content
-when writing large files.\
-**Note:** Prior to version 1.2.0, you will notice that an empty file is created
-in the Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the
-file is written to your Cloud Storage bucket, with the existing empty file now
-reflecting the accurate file size and content. Starting with version 1.2, the
-default behavior is to not create this zero-byte file, which increases write
-performance. If needed, it can be re-enabled by setting
-the `create-empty-file: true` configuration in the [config file](TODO: link
-public documentation here).
+when writing large files.
+
+> **Note:** Prior to version 1.2.0, you will notice that an empty file is
+> created
+> in the Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the
+> file is written to your Cloud Storage bucket, with the existing empty file now
+> reflecting the accurate file size and content. Starting with version 1.2, the
+> default behavior is to not create this zero-byte file, which increases write
+> performance. If needed, it can be re-enabled by setting
+> the `create-empty-file: true` configuration in the [config file](TODO: link
+> public documentation here).
 
 **Concurrency**
 
