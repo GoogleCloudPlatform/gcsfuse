@@ -26,7 +26,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 #echo "Building and installing gcsfuse..."
 #chmod +x perfmetrics/scripts/build_and_install_package.sh
 #./perfmetrics/scripts/build_and_install_package.sh
-
+LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 echo "Running e2e tests...."
 chmod +x perfmetrics/scripts/run_e2e_tests.sh
 ./perfmetrics/scripts/run_e2e_tests.sh false
