@@ -71,10 +71,12 @@ then
     #install git
     sudo apt install -y git
 
+    # install python3-setuptools tools and python3-pip
+    sudo apt-get install -y gcc python3-dev python3-setuptools
+    sudo apt install -y python3-pip
     # Downloading composite object requires integrity checking with CRC32c in gsutil.
     # it requires to install crcmod.
-    sudo apt-get install -y gcc python3-dev python3-setuptools
-    sudo apt install -y python3-crcmod
+    pip3 install --require-hashes -r requirements.txt --user
 
     #install build-essentials
     sudo apt install -y build-essential

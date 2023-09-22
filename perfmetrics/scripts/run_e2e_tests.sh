@@ -35,6 +35,12 @@ export PATH=$PATH:/usr/local/go/bin
 # It requires to install crcmod.
 sudo apt-get install -y gcc python3-dev python3-setuptools
 sudo apt install -y python3-crcmod
+# install python3-setuptools tools and python3-pip
+sudo apt-get install -y gcc python3-dev python3-setuptools
+sudo apt install -y python3-pip
+# Downloading composite object requires integrity checking with CRC32c in gsutil.
+# it requires to install crcmod.
+pip3 install --require-hashes -r requirements.txt --user
 
 # Create bucket for integration tests.
 # The prefix for the random string
@@ -47,6 +53,7 @@ BUCKET_NAME=$bucketPrefix$random_string
 echo 'bucket name = '$BUCKET_NAME
 # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
 gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+
 
 set +e
 # Executing integration tests
