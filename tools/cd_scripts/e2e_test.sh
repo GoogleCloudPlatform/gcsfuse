@@ -107,10 +107,10 @@ else
 
     # install python3-setuptools tools and python3-pip
     sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
-    sudo yum -y install python3-pip
+    sudo apt-get install pip -y
     # Downloading composite object requires integrity checking with CRC32c in gsutil.
     # it requires to install crcmod.
-    sudo pip3 install --no-cache-dir -U crcmod
+    pip install --require-hashes -r requirements.txt --user
 
     #install Development tools
     sudo yum -y install gcc gcc-c++ make
