@@ -37,7 +37,7 @@ func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) 
 		}
 	}
 
-	source, err := os.OpenFile(srcFileName, syscall.O_WRONLY, FilePermission_0600)
+	source, err := os.OpenFile(srcFileName, syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		err = fmt.Errorf("file %s opening error: %v", srcFileName, err)
 		return
@@ -48,9 +48,9 @@ func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) 
 
 	var destination *os.File
 	if allowOverwrite {
-		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT|os.O_TRUNC, FilePermission_0600)
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, FilePermission_0600)
 	} else {
-		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE, FilePermission_0600)
 	}
 
 	if err != nil {
