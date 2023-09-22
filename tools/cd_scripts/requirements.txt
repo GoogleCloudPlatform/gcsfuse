@@ -4,5 +4,5 @@
 #
 #    pip-compile requirements.in
 #
-crcmod==1.7
+crcmod==1.7 --hash=sha256:dc7051a0db5f2bd48665a990d3ec1cc305a466a77358ca4492826f41f283601e
     # via -r requirements.in
