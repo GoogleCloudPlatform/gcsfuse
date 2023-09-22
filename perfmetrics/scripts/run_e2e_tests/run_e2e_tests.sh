@@ -31,10 +31,6 @@ echo "Installing go-lang 1.21.0..."
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
-# Downloading composite object requires integrity checking with CRC32c in gsutil.
-# It requires to install crcmod.
-sudo apt-get install -y gcc python3-dev python3-setuptools
-sudo apt install -y python3-crcmod
 # install python3-setuptools tools and python3-pip
 sudo apt-get install -y gcc python3-dev python3-setuptools
 sudo apt install -y python3-pip
