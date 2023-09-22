@@ -16,11 +16,17 @@
 package write_large_files
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"strings"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -32,20 +38,21 @@ const (
 	WritePermission_0200 = 0200
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
-	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
+func compareFileFromGCSBucketAndMntDir(filepath, testDirName, gcsFileName string, fileSize int64, t *testing.T) error {
+	content, err := operations.ReadFile(filepath)
 	if err != nil {
-		return fmt.Errorf("Error in downloading object: %v", err)
+		return fmt.Errorf("failed to read file %s", filepath)
 	}
 
-	// Remove file after testing.
-	defer operations.RemoveFile(localFilePathToDownloadGcsFile)
-
-	// DiffFiles loads the entire files into memory. These are both 500 MiB files, hence would have a 1 GiB
-	// requirement just for this step
-	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
-	if diff != 0 {
-		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
+	expectedContent := strings.Trim(string(content), "\x00")
+	gotContent, err := client.ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, gcsFileName), fileSize)
+	if expectedContent != gotContent {
+		t.Fatalf("GCS file %s content mismatch. Got: , Expected:  ", gcsFileName)
 	}
 
 	return nil
@@ -53,6 +60,17 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+
+	ctx = context.Background()
+	var cancel context.CancelFunc
+	var err error
+
+	// Create storage client before running tests.
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
 
 	flags := [][]string{{"--implicit-dirs"}}
 
@@ -70,6 +88,10 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
+
+	// Close storage client and release resources.
+	storageClient.Close()
+	cancel()
 
 	setup.RemoveBinFileCopiedForTesting()
 

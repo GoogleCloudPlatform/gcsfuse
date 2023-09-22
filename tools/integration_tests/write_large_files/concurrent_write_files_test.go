@@ -33,7 +33,7 @@ const (
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
-func writeFile(fileName string, fileSize int64) error {
+func writeFile(fileName string, fileSize int64, t *testing.T) error {
 	filePath := path.Join(setup.MntDir(), DirForConcurrentWrite, fileName)
 	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, WritePermission_0200)
 	if err != nil {
@@ -48,9 +48,7 @@ func writeFile(fileName string, fileSize int64) error {
 		return fmt.Errorf("Error: %v", err)
 	}
 
-	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForConcurrentWrite, fileName)
-	localFilePath := path.Join(TmpDir, fileName)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+	err = compareFileFromGCSBucketAndMntDir(filePath, DirForConcurrentWrite, fileName, fileSize, t)
 	if err != nil {
 		return fmt.Errorf("Error: %v", err)
 	}
@@ -79,7 +77,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 		// Thread to write the current file.
 		eG.Go(func() error {
-			return writeFile(files[fileIndex], FiveHundredMB)
+			return writeFile(files[fileIndex], FiveHundredMB, t)
 		})
 	}
 

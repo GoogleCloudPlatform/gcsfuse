@@ -26,10 +26,9 @@ import (
 )
 
 const (
-	NumberOfRandomWriteCalls                     = 20
-	DirForRandomWrite                            = "dirForRandomWrite"
-	MaxWritableByteFromFile                      = 500 * OneMiB
-	FiveHundredMBFileForRandomWriteInLocalSystem = "fiveHundredMBFileForRandomWriteInLocalSystem"
+	NumberOfRandomWriteCalls = 20
+	DirForRandomWrite        = "dirForRandomWrite"
+	MaxWritableByteFromFile  = 500 * OneMiB
 )
 
 func TestWriteLargeFileRandomly(t *testing.T) {
@@ -64,9 +63,7 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 			t.Fatalf("Error: %v", err)
 		}
 
-		filePathInGcsBucket := path.Join(setup.TestBucket(), DirForRandomWrite, FiveHundredMBFile)
-		localFilePath := path.Join(TmpDir, FiveHundredMBFileForRandomWriteInLocalSystem)
-		err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+		err = compareFileFromGCSBucketAndMntDir(filePath, DirForRandomWrite, FiveHundredMBFile, FiveHundredMB, t)
 		if err != nil {
 			t.Fatalf("Error: %v", err)
 		}

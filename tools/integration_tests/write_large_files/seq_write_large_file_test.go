@@ -24,11 +24,10 @@ import (
 )
 
 const (
-	FiveHundredMB                             = 500 * OneMiB
-	FiveHundredMBFile                         = "fiveHundredMBFile.txt"
-	ChunkSize                                 = 20 * OneMiB
-	DirForSeqWrite                            = "dirForSeqWrite"
-	FiveHundredMBFileForSeqWriteInLocalSystem = "fiveHundredMBFileForSeqWriteInLocalSystem"
+	FiveHundredMB     = 50 * OneMiB
+	FiveHundredMBFile = "fiveHundredMBFile.txt"
+	ChunkSize         = 20 * OneMiB
+	DirForSeqWrite    = "dirForSeqWrite"
 )
 
 func TestWriteLargeFileSequentially(t *testing.T) {
@@ -48,11 +47,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 		t.Fatalf("Error in writing file: %v", err)
 	}
 
-	// Download the file from a bucket in which we write the content and compare with
-	// the file content we wrote in mntDir.
-	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForSeqWrite, FiveHundredMBFile)
-	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+	err = compareFileFromGCSBucketAndMntDir(filePath, DirForSeqWrite, FiveHundredMBFile, FiveHundredMB, t)
 	if err != nil {
 		t.Fatalf("Error:%v", err)
 	}

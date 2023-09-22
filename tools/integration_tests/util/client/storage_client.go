@@ -78,6 +78,28 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	return strings.Trim(string(buf), "\x00"), nil
 }
 
+func ReadObjectFromGCS2(ctx context.Context, client *storage.Client, object string, size int64) ([]byte, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	// Create storage reader to read from GCS.
+	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Object(%q).NewReader: %w", object, err)
+	}
+	defer rc.Close()
+
+	// Variable buf will contain the output from reader.
+	buf := make([]byte, size)
+	_, err = rc.Read(buf)
+	if err != nil && !strings.Contains(err.Error(), "EOF") {
+		return nil, fmt.Errorf("rc.Read: %w", err)
+	}
+
+	// Remove any extra null characters from buf before returning.
+	return buf, nil
+}
+
 // CreateObjectOnGCS creates an object with given name and content on GCS.
 func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	var bucket string
