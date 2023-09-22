@@ -54,7 +54,6 @@ echo 'bucket name = '$BUCKET_NAME
 # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
 gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
 
-
 set +e
 # Executing integration tests
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
