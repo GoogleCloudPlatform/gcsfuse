@@ -234,8 +234,6 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
 		}
 		return
-
-		return
 	}
 }
 
