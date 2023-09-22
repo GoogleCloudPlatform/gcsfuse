@@ -109,9 +109,8 @@ else
     # install python3-setuptools tools and python3-pip
     sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
     sudo yum -y install python3-pip
-    # Downloading one or more large file(s), which would run significantly faster if
-    # you enabled sliced object downloads. This feature is enabled by default but
-    # requires that compiled crcmod be installed.
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
     sudo pip3 install --no-cache-dir -U crcmod
 
     #install Development tools
@@ -122,7 +121,6 @@ fi
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
-
 #Write gcsfuse and go version to log file
 gcsfuse --version |& tee -a ~/logs.txt
 go version |& tee -a ~/logs.txt
