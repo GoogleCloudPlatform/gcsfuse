@@ -29,4 +29,4 @@ chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
 echo "Running e2e tests on installed package...."
 chmod +x perfmetrics/scripts/run_e2e_tests.sh
 # $1 argument is refering to value of testInstalledPackage
-./perfmetrics/scripts/run_e2e_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
+./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
