@@ -123,6 +123,8 @@ export PATH=${PATH}:/usr/local/go/bin
 git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
 cd gcsfuse
 
+# Installation of crcmod is working through pip only on rhel and centos.
+# For debian and ubuntu, we are installing through sudo apt.
 if grep -q rhel details.txt || grep -q centos details.txt;
 then
     # install python3-setuptools tools and python3-pip
