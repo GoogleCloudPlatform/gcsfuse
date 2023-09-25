@@ -28,6 +28,7 @@ import (
 const (
 	FileName1          = "foo1"
 	FileName2          = "foo2"
+	FileName3          = "foo3"
 	ExplicitDirName    = "explicit"
 	ExplicitFileName1  = "explicitFile1"
 	ImplicitDirName    = "implicit"
