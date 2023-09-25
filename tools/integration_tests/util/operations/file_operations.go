@@ -548,3 +548,12 @@ func CloseFileShouldNotThrowError(file *os.File, t *testing.T) {
 		t.Fatalf("file.Close() for file %s: %v", file.Name(), err)
 	}
 }
+
+func SyncFile(fh *os.File, t *testing.T) {
+	err := fh.Sync()
+
+	// Verify fh.Sync operation succeeds.
+	if err != nil {
+		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
+	}
+}
