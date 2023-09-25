@@ -106,13 +106,6 @@ else
     #install git
     sudo yum -y install git
 
-    # install python3-setuptools tools and python3-pip
-    sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
-    sudo yum -y install python3-pip
-    # Downloading composite object requires integrity checking with CRC32c in gsutil.
-    # it requires to install crcmod.
-    pip3 install --require-hashes -r requirements.txt --user
-
     #install Development tools
     sudo yum -y install gcc gcc-c++ make
 fi
@@ -129,6 +122,17 @@ go version |& tee -a ~/logs.txt
 export PATH=${PATH}:/usr/local/go/bin
 git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
 cd gcsfuse
+
+if grep -q rhel details.txt || grep -q centos details.txt;
+then
+    # install python3-setuptools tools and python3-pip
+    sudo yum -y install gcc python3-devel python3-setuptools redhat-rpm-config
+    sudo yum -y install python3-pip
+    # Downloading composite object requires integrity checking with CRC32c in gsutil.
+    # it requires to install crcmod.
+    pip3 install --require-hashes -r tools/cd_scripts/requirements.txt --user
+fi
+
 git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 
 #run tests with testbucket flag
