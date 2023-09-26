@@ -30,7 +30,9 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
-	AssertEq(false, mountConfig.CreateEmptyFile)
+	AssertEq(false, mountConfig.WriteConfig.CreateEmptyFile)
+	AssertEq(false, mountConfig.WriteConfig.EnableStreamingWrites)
+	AssertEq(16, mountConfig.WriteConfig.BufferSize)
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
 	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
@@ -70,14 +72,23 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
 	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
+	AssertEq(true, mountConfig.WriteConfig.EnableStreamingWrites)
+	AssertEq(150, mountConfig.WriteConfig.BufferSize)
 	AssertEq(ERROR, mountConfig.LogConfig.Severity)
 	AssertEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	AssertEq("text", mountConfig.LogConfig.Format)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
+func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidBufferSizeConfig() {
+	_, err := ParseConfigFile("testdata/invalid_write_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "buffer size should be greater than 0"))
 }
