@@ -250,9 +250,11 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
 
-		// Send logfile on kokoro artifacts.
-		logFileInArtifactDir := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), logFile)
-		err := operations.CopyFile(logFile, logFileInArtifactDir)
+		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
+		failedlogsFileName := "gcsfuse-failed-integration-test-logs-" + GenerateRandomString(5)
+		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
+		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
+		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
 		if err != nil {
 			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
 		}
