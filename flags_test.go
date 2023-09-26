@@ -80,6 +80,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectEq(nil, f.CustomEndpoint)
+	ExpectFalse(f.DisableAuth)
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
@@ -111,6 +112,7 @@ func (t *FlagsTest) Bools() {
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
+		"disable-auth",
 	}
 
 	var args []string
@@ -132,6 +134,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
+	ExpectTrue(f.DisableAuth)
 
 	// --foo=false form
 	args = nil
@@ -148,6 +151,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 	ExpectFalse(f.EnableNonexistentTypeCache)
+	ExpectFalse(f.DisableAuth)
 
 	// --foo=true form
 	args = nil
@@ -164,6 +168,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
+	ExpectTrue(f.DisableAuth)
 }
 
 func (t *FlagsTest) DecimalNumbers() {

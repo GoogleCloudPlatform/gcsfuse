@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -70,6 +71,7 @@ func GetTokenSource(
 		method = "newProxyTokenSource"
 	} else {
 		tokenSrc, err = google.DefaultTokenSource(ctx, scope)
+		log.Print("default token ")
 		method = "DefaultTokenSource"
 	}
 

@@ -21,7 +21,6 @@ import (
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
-	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -128,9 +127,8 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {

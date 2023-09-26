@@ -29,11 +29,12 @@ type clientTest struct {
 
 func init() { RegisterTestSuite(&clientTest{}) }
 
-func (t *clientTest) TestCreateTokenSrcWithCustomEndpoint() {
+func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsTrue() {
 	url, err := url.Parse(CustomEndpoint)
 	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
+	sc.DisableAuth = true
 
 	tokenSrc, err := createTokenSource(&sc)
 
@@ -41,9 +42,36 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpoint() {
 	ExpectNe(nil, &tokenSrc)
 }
 
-func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNil() {
+func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsFalse() {
+	url, err := url.Parse(CustomEndpoint)
+	AssertEq(nil, err)
+	sc := GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url
+	sc.DisableAuth = false
+
+	// It will try to create the actual auth token and fail since key-file doesn't exist.
+	tokenSrc, err := createTokenSource(&sc)
+
+	ExpectNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	ExpectNe(nil, &tokenSrc)
+}
+
+func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
+	sc.DisableAuth = true
+
+	tokenSrc, err := createTokenSource(&sc)
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, &tokenSrc)
+}
+
+func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
+	sc := GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.DisableAuth = false
 
 	// It will try to create the actual auth token and fail since key-file doesn't exist.
 	tokenSrc, err := createTokenSource(&sc)
@@ -55,6 +83,7 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNil() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+	sc.DisableAuth = true
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
@@ -67,6 +96,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
+	sc.DisableAuth = true
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)

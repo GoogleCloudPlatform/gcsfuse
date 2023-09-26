@@ -187,6 +187,12 @@ func newApp() (app *cli.App) {
 				Usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported",
 			},
 
+			cli.BoolFlag{
+				Name: "disable-auth",
+				Usage: "Authorization will be enabled by default. With this flag, authorization will be disabled. If one " +
+					"wants to use a custom endpoint for testing purposes; they need to pass --disable-auth flag.",
+			},
+
 			/////////////////////////
 			// Tuning
 			/////////////////////////
@@ -378,6 +384,7 @@ type flagStorage struct {
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	SequentialReadSizeMb               int32
+	DisableAuth                        bool
 
 	// Tuning
 	MaxRetrySleep              time.Duration
@@ -488,6 +495,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		EgressBandwidthLimitBytesPerSecond: c.Float64("limit-bytes-per-sec"),
 		OpRateLimitHz:                      c.Float64("limit-ops-per-sec"),
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
+		DisableAuth:                        c.Bool("disable-auth"),
 
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),

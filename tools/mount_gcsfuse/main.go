@@ -85,7 +85,8 @@ func makeGcsfuseArgs(
 			"experimental_local_file_cache",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache",
-			"experimental_enable_json_read":
+			"experimental_enable_json_read",
+			"disable_auth":
 			if value == "" {
 				value = "true"
 			}

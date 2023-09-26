@@ -40,6 +40,7 @@ type StorageClientConfig struct {
 	TokenUrl                   string
 	ReuseTokenFromUrl          bool
 	ExperimentalEnableJsonRead bool
+	DisableAuth                bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
@@ -91,9 +92,11 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // is nil, it creates the token-source from the provided key-file or using ADC search
 // order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	if storageClientConfig.CustomEndpoint == nil {
+	// Create token src only if disable-auth flag is false.
+	if !storageClientConfig.DisableAuth {
 		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
+	return nil, nil
 }
