@@ -59,7 +59,6 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 			log.Fatal(err)
 		}
 
-		t.Errorf("In Testing")
 		// Check if mntDir has correct objects.
 		if path == setup.MntDir() {
 			// numberOfObjects - 2
