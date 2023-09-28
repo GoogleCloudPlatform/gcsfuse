@@ -24,9 +24,29 @@ type LogConfig struct {
 	FilePath string      `yaml:"file-path"`
 }
 
+type FileCacheConfig struct {
+	Path                    string `yaml:"path"`
+	Size                    int64  `yaml:"size-mb"`
+	TTL                     int64  `yaml:"ttl-sec"`
+	CacheFileForRandomReads bool   `yaml:"cache-file-for-random-reads"`
+}
+
+type MetadataCacheConfig struct {
+	Capacity int64 `yaml:"capacity"`
+	TTL      int64 `yaml:"ttl-sec"`
+}
+
+type TypeCacheConfig struct {
+	TTL              int64 `yaml:"ttl-sec"`
+	CacheNonexistent bool  `yaml:"cache-nonexistent"`
+}
+
 type MountConfig struct {
-	WriteConfig `yaml:"write"`
-	LogConfig   `yaml:"logging"`
+	WriteConfig         `yaml:"write"`
+	LogConfig           `yaml:"logging"`
+	FileCacheConfig     `yaml:"file-cache"`
+	MetadataCacheConfig `yaml:"metadata-cache"`
+	TypeCacheConfig     `yaml:"type-cache"`
 }
 
 func NewMountConfig() *MountConfig {
@@ -34,6 +54,13 @@ func NewMountConfig() *MountConfig {
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
+	}
+	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
+		Capacity: 4096,
+		TTL:      60,
+	}
+	mountConfig.TypeCacheConfig = TypeCacheConfig{
+		TTL: 60,
 	}
 	return mountConfig
 }

@@ -4,4 +4,16 @@ logging:
   file-path: /tmp/logfile.json
   format: text
   severity: error
+file-cache:
+  path: /tmp/read-cache/
+  size-mb: 100
+  ttl-sec: 10
+  cache-file-for-random-reads: true
+metadata-cache:
+  capacity: 10000
+  ttl-sec: 1000
+type-cache:
+  ttl-sec: 600
+  cache-nonexistent: false
+
 

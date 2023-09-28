@@ -82,13 +82,9 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(nil, f.CustomEndpoint)
 
 	// Tuning
-	ExpectEq(4096, f.StatCacheCapacity)
-	ExpectEq(time.Minute, f.StatCacheTTL)
-	ExpectEq(time.Minute, f.TypeCacheTTL)
 	ExpectEq(0, f.HttpClientTimeout)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
-	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
@@ -109,7 +105,6 @@ func (t *FlagsTest) Bools() {
 		"debug_http",
 		"debug_gcs",
 		"debug_invariants",
-		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
 	}
 
@@ -130,7 +125,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
 
 	// --foo=false form
@@ -147,7 +141,6 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugGCS)
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
-	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// --foo=true form
 	args = nil
@@ -163,7 +156,6 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugGCS)
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableNonexistentTypeCache)
 }
 
 func (t *FlagsTest) DecimalNumbers() {
@@ -172,7 +164,6 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--gid=19",
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
-		"--stat-cache-capacity=8192",
 		"--max-idle-conns-per-host=100",
 		"--max-conns-per-host=100",
 	}
@@ -182,7 +173,6 @@ func (t *FlagsTest) DecimalNumbers() {
 	ExpectEq(19, f.Gid)
 	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
 	ExpectEq(56.78, f.OpRateLimitHz)
-	ExpectEq(8192, f.StatCacheCapacity)
 	ExpectEq(100, f.MaxIdleConnsPerHost)
 	ExpectEq(100, f.MaxConnsPerHost)
 }
@@ -215,15 +205,11 @@ func (t *FlagsTest) Strings() {
 
 func (t *FlagsTest) Durations() {
 	args := []string{
-		"--stat-cache-ttl", "1m17s",
-		"--type-cache-ttl", "19ns",
 		"--http-client-timeout", "800ms",
 		"--max-retry-duration", "30s",
 	}
 
 	f := parseArgs(args)
-	ExpectEq(77*time.Second, f.StatCacheTTL)
-	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
 	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
 	ExpectEq(30*time.Second, f.MaxRetryDuration)
 }

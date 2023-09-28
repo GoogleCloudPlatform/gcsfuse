@@ -34,6 +34,13 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
 	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
+	AssertEq("", mountConfig.FileCacheConfig.Path)
+	AssertEq(0, mountConfig.FileCacheConfig.Size)
+	AssertEq(0, mountConfig.FileCacheConfig.TTL)
+	AssertEq(4096, mountConfig.MetadataCacheConfig.Capacity)
+	AssertEq(60, mountConfig.MetadataCacheConfig.TTL)
+	AssertEq(60, mountConfig.TypeCacheConfig.TTL)
+	AssertEq(false, mountConfig.TypeCacheConfig.CacheNonexistent)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
