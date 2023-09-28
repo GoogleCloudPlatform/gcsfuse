@@ -62,6 +62,7 @@ function execute_perf_test() {
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
+ git reset --hard
  git checkout master
  # Store results
  touch result.txt
