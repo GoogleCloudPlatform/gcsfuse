@@ -594,7 +594,7 @@ func (fs *fileSystem) checkInvariants() {
 	//////////////////////////////////
 
 	// INVARIANT: For all keys k in handles, k < nextHandleID
-	for k, _ := range fs.handles {
+	for k := range fs.handles {
 		if k >= fs.nextHandleID {
 			panic(fmt.Sprintf("Illegal handle ID: %v", k))
 		}

@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"math/rand"
 	"strings"
 	"testing"
@@ -135,11 +134,6 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 
 	if err != nil {
 		panic(err)
-	}
-
-	// Check the result.
-	if o.Generation > math.MaxInt64 {
-		panic(fmt.Sprintf("Out of range: %v", o.Generation))
 	}
 
 	gen = o.Generation

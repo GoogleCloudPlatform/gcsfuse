@@ -17,7 +17,7 @@ package gcsx
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -111,13 +111,14 @@ func (t *AppendObjectCreatorTest) CallsCreateObject() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// Call
-	t.call()
+	_, err := t.call()
+	AssertNe(nil, err)
 
 	AssertNe(nil, req)
 	ExpectTrue(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 
-	b, err := ioutil.ReadAll(req.Contents)
+	b, err := io.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))
 }
@@ -177,7 +178,8 @@ func (t *AppendObjectCreatorTest) CallsComposeObjects() {
 		WillOnce(Return(nil))
 
 	// Call
-	t.call()
+	_, err := t.call()
+	AssertNe(nil, err)
 
 	AssertNe(nil, req)
 	ExpectEq(t.srcObject.Name, req.DstName)
