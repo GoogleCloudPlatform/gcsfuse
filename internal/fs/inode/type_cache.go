@@ -28,10 +28,10 @@ type cacheEntry struct {
 // A cache that maps from a name to information about the type of the object
 // with that name. Each name N is in one of the following states:
 //
-//  *  Nothing is known about N.
-//  *  We have recorded that N is a file.
-//  *  We have recorded that N is a directory.
-//  *  We have recorded that N is both a file and a directory.
+//   - Nothing is known about N.
+//   - We have recorded that N is a file.
+//   - We have recorded that N is a directory.
+//   - We have recorded that N is both a file and a directory.
 //
 // Must be created with newTypeCache. May be contained in a larger struct.
 // External synchronization is required.
