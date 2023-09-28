@@ -836,6 +836,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
 	err = t.in.CreateEmptyTempFile()
+	AssertEq(nil, err)
 	// Validate the attributes on an empty file.
 	attrs, err = t.in.Attributes(t.ctx)
 	AssertEq(nil, err)
