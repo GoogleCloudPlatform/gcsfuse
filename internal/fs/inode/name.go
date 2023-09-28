@@ -20,8 +20,9 @@ import (
 )
 
 // Name is the inode's name that can be interpreted in 2 ways:
-//   (1) LocalName: the name of the inode in the local file system.
-//   (2) GcsObjectName: the name of its gcs object backed by the inode.
+//
+//	(1) LocalName: the name of the inode in the local file system.
+//	(2) GcsObjectName: the name of its gcs object backed by the inode.
 type Name struct {
 	// The value of bucketName can be:
 	// - "", when single gcs bucket is explicitly mounted for the file system.

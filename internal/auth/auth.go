@@ -17,7 +17,7 @@ package auth
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -31,7 +31,7 @@ func newTokenSourceFromPath(
 	scope string,
 ) (ts oauth2.TokenSource, err error) {
 	// Read the file.
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
 		return
