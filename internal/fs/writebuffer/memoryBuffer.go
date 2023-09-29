@@ -10,8 +10,6 @@ type MemoryBuffer struct {
 	buffer *bytes.Buffer
 	// chunkSize is the size of data to be written in one GCS call.
 	chunkSize int
-	// fileSize is the total data written so far (uploaded to GCS + data in buffer).
-	fileSize int
 }
 
 func (b *MemoryBuffer) Create(sizeInMB int) WriteBuffer {

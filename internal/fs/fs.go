@@ -2078,10 +2078,10 @@ func (fs *fileSystem) WriteFile(
 
 	// Serve the request.
 	if fs.shouldTriggerBufferEnabledWrite(in) {
-		// trigger write file buffering flow.
+		// Trigger write file buffering flow.
 		in.WriteWithBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
 	} else {
-		// trigger the temp file flow
+		// Trigger the temp file flow.
 		if err := in.Write(ctx, op.Data, op.Offset); err != nil {
 			return err
 		}
