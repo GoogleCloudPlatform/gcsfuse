@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/writebuffer"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -80,7 +80,7 @@ type FileInode struct {
 
 	// Represents the buffer associated with inode which stores the data to be
 	// written to GCS.
-	buffer writebuffer.WriteBuffer
+	buffer buffer.WriteBuffer
 
 	// Has Destroy been called?
 	//
@@ -481,16 +481,16 @@ func (f *FileInode) ensureBuffer(bufferSize int) {
 		return
 	}
 	if bufferSize <= 50 {
-		f.buffer = &writebuffer.MemoryBuffer{}
+		f.buffer = &buffer.MemoryBuffer{}
 	}
 	// TODO: else assign on-disk buffer to f.buffer.
 	f.buffer.Create(bufferSize)
 }
 
-// WriteWithBuffer served the write request with buffer.
+// WriteToBuffer served the write request with buffer.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) WriteWithBuffer(bufferSize uint,
+func (f *FileInode) WriteToBuffer(bufferSize uint,
 	data []byte,
 	offset int64) error {
 	// Ensure that f.buffer != nil.

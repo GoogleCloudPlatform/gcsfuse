@@ -928,3 +928,22 @@ func (t *FileTest) UnlinkLocalFile() {
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
+
+func (t *FileTest) TestMultipleCallsToWriteWithBufferCreatesBufferOnce() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	var bufferSize uint = 20
+	content := []byte("Hello world!")
+
+	// Call WriteToBuffer multiple times and ensure buffer is created only once.
+	err := t.in.WriteToBuffer(bufferSize, content, 0)
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.buffer)
+	bufferCreated := t.in.buffer
+	err = t.in.WriteToBuffer(bufferSize, content, 13)
+	AssertEq(nil, err)
+	AssertEq(bufferCreated, t.in.buffer)
+	err = t.in.WriteToBuffer(bufferSize, content, 25)
+	AssertEq(nil, err)
+	AssertEq(bufferCreated, t.in.buffer)
+}

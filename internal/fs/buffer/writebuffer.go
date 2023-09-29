@@ -1,4 +1,4 @@
-package writebuffer
+package buffer
 
 type WriteBuffer interface {
 	// Create creates a buffer of 2*size passed as a parameter.

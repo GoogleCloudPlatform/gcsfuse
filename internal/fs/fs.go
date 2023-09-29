@@ -2079,7 +2079,7 @@ func (fs *fileSystem) WriteFile(
 	// Serve the request.
 	if fs.shouldTriggerBufferEnabledWrite(in) {
 		// Trigger write file buffering flow.
-		err := in.WriteWithBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
+		err := in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
 		if err != nil {
 			return err
 		}
@@ -2095,7 +2095,6 @@ func (fs *fileSystem) WriteFile(
 
 func (fs *fileSystem) shouldTriggerBufferEnabledWrite(in *inode.FileInode) bool {
 	if fs.mountConfig.WriteConfig.EnableStreamingWrites &&
-		!fs.mountConfig.WriteConfig.CreateEmptyFile &&
 		in.IsLocal() {
 		return true
 	}

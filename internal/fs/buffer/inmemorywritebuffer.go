@@ -1,4 +1,4 @@
-package writebuffer
+package buffer
 
 import (
 	"bytes"
