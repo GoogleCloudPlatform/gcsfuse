@@ -17,7 +17,7 @@ package config
 type WriteConfig struct {
 	CreateEmptyFile       bool `yaml:"create-empty-file"`
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
-	BufferSize            uint `yaml:"buffer-size"`
+	BufferSizeMB          uint `yaml:"buffer-size-mb"`
 }
 
 type LogConfig struct {

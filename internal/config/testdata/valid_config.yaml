@@ -1,7 +1,7 @@
 write:
   create-empty-file: true
   enable-streaming-writes: true
-  buffer-size: 150
+  buffer-size-mb: 150
 logging:
   file-path: /tmp/logfile.json
   format: text
