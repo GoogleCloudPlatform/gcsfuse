@@ -30,3 +30,7 @@ func (b *MemoryBuffer) Status() {
 
 func (b *MemoryBuffer) Destroy() {
 }
+
+func (b *MemoryBuffer) Read(p []byte) (n int, err error) {
+	return
+}

@@ -929,7 +929,7 @@ func (t *FileTest) UnlinkLocalFile() {
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
 
-func (t *FileTest) TestMultipleCallsToWriteWithBufferCreatesBufferOnce() {
+func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	var bufferSize uint = 20
