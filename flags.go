@@ -493,7 +493,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		HttpClientTimeout: c.Duration("http-client-timeout"),
 		MaxRetryDuration:  c.Duration("max-retry-duration"),
 		RetryMultiplier:   c.Float64("retry-multiplier"),
-		// Always disable the older experimental local cache.
+		// Always disable the older experimental local cache. The code for this will
+		// be removed once the new file cache is implemented and tested.
 		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
