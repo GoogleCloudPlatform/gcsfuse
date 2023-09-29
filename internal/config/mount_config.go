@@ -33,8 +33,6 @@ type MountConfig struct {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
-	mountConfig.WriteConfig.EnableStreamingWrites = false
-	mountConfig.WriteConfig.BufferSize = 16
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,

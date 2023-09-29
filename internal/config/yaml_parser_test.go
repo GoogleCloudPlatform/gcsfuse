@@ -32,7 +32,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	AssertEq(false, mountConfig.WriteConfig.CreateEmptyFile)
 	AssertEq(false, mountConfig.WriteConfig.EnableStreamingWrites)
-	AssertEq(16, mountConfig.WriteConfig.BufferSize)
+	AssertEq(0, mountConfig.WriteConfig.BufferSize)
 	AssertEq("INFO", mountConfig.LogConfig.Severity)
 	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
