@@ -2,8 +2,6 @@ package writebuffer
 
 import (
 	"bytes"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 type MemoryBuffer struct {
@@ -19,19 +17,13 @@ type MemoryBuffer struct {
 func (b *MemoryBuffer) Create(sizeInMB int) WriteBuffer {
 	b.chunkSize = sizeInMB * 1024 * 1024
 	b.buffer = bytes.NewBuffer(make([]byte, 0, 2*b.chunkSize))
-	logger.Infof("In memory buffer created of size %v, %T", sizeInMB, *b)
 	return b
 }
 
 func (b *MemoryBuffer) Write(data []byte, offset int64) {
-	b.buffer.Write(data)
-	if b.buffer.Len() <= b.chunkSize {
-		b.Upload()
-	}
 }
 
 func (b *MemoryBuffer) Upload() {
-	logger.Info("upload trigerred")
 }
 
 func (b *MemoryBuffer) Status() {

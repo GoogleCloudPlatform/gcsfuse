@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/writebuffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -483,14 +482,13 @@ func (f *FileInode) ensureBuffer(bufferSize int) {
 	if bufferSize <= 50 {
 		f.buffer = &writebuffer.MemoryBuffer{}
 	}
-	// TODO: else assign disk buffer.
+	// TODO: else assign on-disk buffer.
 	f.buffer.Create(bufferSize)
 }
 
 func (f *FileInode) WriteWithBuffer(bufferSize uint,
 	data []byte,
 	offset int64) {
-	logger.Infof("Write triggered, buffer = ", f.buffer)
 	f.ensureBuffer(int(bufferSize))
 
 	f.buffer.Write(data, offset)
