@@ -2077,11 +2077,26 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		return err
+	if fs.shouldTriggerBufferEnabledWrite(in) {
+		// trigger write file buffering flow.
+		in.WriteWithBuffer(fs.mountConfig.WriteConfig.BufferSize, op.Data, op.Offset)
+	} else {
+		// trigger the temp file flow
+		if err := in.Write(ctx, op.Data, op.Offset); err != nil {
+			return err
+		}
 	}
 
 	return
+}
+
+func (fs *fileSystem) shouldTriggerBufferEnabledWrite(in *inode.FileInode) bool {
+	if fs.mountConfig.WriteConfig.EnableStreamingWrites &&
+		!fs.mountConfig.WriteConfig.CreateEmptyFile &&
+		in.IsLocal() {
+		return true
+	}
+	return false
 }
 
 // LOCKS_EXCLUDED(fs.mu)

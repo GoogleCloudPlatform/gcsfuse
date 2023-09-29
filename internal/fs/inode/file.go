@@ -23,7 +23,9 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/writebuffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
@@ -76,6 +78,9 @@ type FileInode struct {
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
 	content gcsx.TempFile
+
+	// buffer stores the data to be written to gcs.
+	buffer writebuffer.WriteBuffer
 
 	// Has Destroy been called?
 	//
@@ -469,6 +474,26 @@ func (f *FileInode) Write(
 	_, err = f.content.WriteAt(data, offset)
 
 	return
+}
+
+func (f *FileInode) ensureBuffer(bufferSize int) {
+	if f.buffer != nil {
+		return
+	}
+	if bufferSize <= 50 {
+		f.buffer = &writebuffer.MemoryBuffer{}
+	}
+	// TODO: else assign disk buffer.
+	f.buffer.Create(bufferSize)
+}
+
+func (f *FileInode) WriteWithBuffer(bufferSize uint,
+	data []byte,
+	offset int64) {
+	logger.Infof("Write triggered, buffer = ", f.buffer)
+	f.ensureBuffer(int(bufferSize))
+
+	f.buffer.Write(data, offset)
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
