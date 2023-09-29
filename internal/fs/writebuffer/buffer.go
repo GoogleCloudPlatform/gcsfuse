@@ -5,7 +5,7 @@ type WriteBuffer interface {
 	Create(size int) WriteBuffer
 
 	// Write writes to the buffer.
-	Write(data []byte, offset int64)
+	Write(data []byte, offset int64) error
 
 	// Upload asynchronously uploads written data to GCS.
 	Upload()

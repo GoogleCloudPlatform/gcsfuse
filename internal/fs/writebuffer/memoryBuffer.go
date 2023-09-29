@@ -18,7 +18,8 @@ func (b *MemoryBuffer) Create(sizeInMB int) WriteBuffer {
 	return b
 }
 
-func (b *MemoryBuffer) Write(data []byte, offset int64) {
+func (b *MemoryBuffer) Write(data []byte, offset int64) error {
+	return nil
 }
 
 func (b *MemoryBuffer) Upload() {
