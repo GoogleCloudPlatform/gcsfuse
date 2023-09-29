@@ -35,8 +35,8 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
 	AssertEq("", mountConfig.FileCacheConfig.Path)
-	AssertEq(0, mountConfig.FileCacheConfig.SizeInMB)
-	AssertEq(0, mountConfig.FileCacheConfig.TTLInSec)
+	AssertEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
+	AssertEq(60, mountConfig.FileCacheConfig.TTLInSec)
 	AssertEq(false, mountConfig.FileCacheConfig.CacheFileForRandomReads)
 }
 
@@ -86,16 +86,16 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheSizeConfig() {
+func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "the value of max-size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheTTLConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachettl_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "the value of max-size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
 }

@@ -26,7 +26,7 @@ type LogConfig struct {
 
 type FileCacheConfig struct {
 	Path                    string `yaml:"path"`
-	SizeInMB                int64  `yaml:"size-in-mb"`
+	MaxSizeInMB             int64  `yaml:"max-size-in-mb"`
 	TTLInSec                int64  `yaml:"ttl-in-sec"`
 	CacheFileForRandomReads bool   `yaml:"cache-file-for-random-reads"`
 }
@@ -42,6 +42,10 @@ func NewMountConfig() *MountConfig {
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
+	}
+	mountConfig.FileCacheConfig = FileCacheConfig{
+		MaxSizeInMB: 0,
+		TTLInSec:    60,
 	}
 	return mountConfig
 }
