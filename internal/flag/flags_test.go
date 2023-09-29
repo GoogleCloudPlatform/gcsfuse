@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package flag
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -39,12 +38,12 @@ type FlagsTest struct {
 
 func init() { RegisterTestSuite(&FlagsTest{}) }
 
-func parseArgs(args []string) (flags *flagStorage) {
+func parseArgs(args []string) (flags *FlagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
-	app := newApp()
+	app := NewApp("")
 	var err error
 	app.Action = func(appCtx *cli.Context) {
-		flags, err = populateFlags(appCtx)
+		flags, err = PopulateFlags(appCtx)
 		AssertEq(nil, err)
 	}
 
@@ -114,7 +113,7 @@ func (t *FlagsTest) Bools() {
 	}
 
 	var args []string
-	var f *flagStorage
+	var f *FlagStorage
 
 	// --foo form
 	args = nil
@@ -250,59 +249,8 @@ func (t *FlagsTest) Maps() {
 	ExpectEq("jacobsa", f.MountOptions["user"])
 }
 
-func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
-	app := newApp()
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-	app.Action = func(appCtx *cli.Context) {
-		err = resolvePathForTheFlagInContext("log-file", appCtx)
-		AssertEq(nil, err)
-		err = resolvePathForTheFlagInContext("key-file", appCtx)
-		AssertEq(nil, err)
-		err = resolvePathForTheFlagInContext("config-file", appCtx)
-		AssertEq(nil, err)
-
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("log-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("key-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
-			appCtx.String("config-file"))
-	}
-	// Simulate argv.
-	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt", "--config-file=config.yaml"}
-
-	err = app.Run(fullArgs)
-
-	AssertEq(nil, err)
-}
-
-func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
-	app := newApp()
-	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
-	app.Action = func(appCtx *cli.Context) {
-		resolvePathForTheFlagsInContext(appCtx)
-
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("log-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("key-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
-			appCtx.String("config-file"))
-	}
-	// Simulate argv.
-	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt", "--config-file=config.yaml"}
-
-	err = app.Run(fullArgs)
-
-	AssertEq(nil, err)
-}
-
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
-	flags := &flagStorage{
+	flags := &FlagStorage{
 		SequentialReadSizeMb: 10,
 		ClientProtocol:       mountpkg.ClientProtocol("http1"),
 	}
@@ -313,7 +261,7 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientPro
 }
 
 func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
-	flags := &flagStorage{
+	flags := &FlagStorage{
 		SequentialReadSizeMb: 0,
 		ClientProtocol:       mountpkg.ClientProtocol("http2"),
 	}
@@ -325,7 +273,7 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProt
 }
 
 func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
-	flags := &flagStorage{
+	flags := &FlagStorage{
 		SequentialReadSizeMb: 2048,
 		ClientProtocol:       mountpkg.ClientProtocol("http1"),
 	}
@@ -337,7 +285,7 @@ func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndVali
 }
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientProtocol() {
-	flags := &flagStorage{
+	flags := &FlagStorage{
 		SequentialReadSizeMb: 10,
 		ClientProtocol:       mountpkg.ClientProtocol("http4"),
 	}
@@ -348,7 +296,7 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientP
 }
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
-	flags := &flagStorage{
+	flags := &FlagStorage{
 		SequentialReadSizeMb: 10,
 		ClientProtocol:       mountpkg.ClientProtocol("http2"),
 	}

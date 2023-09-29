@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package flag
 
 import (
 	"fmt"
@@ -23,7 +23,6 @@ import (
 	"time"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
 )
 
@@ -53,7 +52,7 @@ COPYRIGHT:
 `
 }
 
-func newApp() (app *cli.App) {
+func NewApp(version string) (app *cli.App) {
 	dirModeValue := new(OctalInt)
 	*dirModeValue = 0755
 
@@ -62,7 +61,7 @@ func newApp() (app *cli.App) {
 
 	app = &cli.App{
 		Name:    "gcsfuse",
-		Version: getVersion(),
+		Version: version,
 		Usage:   "Mount a specified GCS bucket or all accessible buckets locally",
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
@@ -354,7 +353,7 @@ func newApp() (app *cli.App) {
 	return
 }
 
-type flagStorage struct {
+type FlagStorage struct {
 	AppName    string
 	Foreground bool
 	ConfigFile string
@@ -411,44 +410,9 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
-// This method resolves path in the context dictionary.
-func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
-	flagValue := c.String(flagKey)
-	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
-	if err != nil {
-		return
-	}
-
-	err = c.Set(flagKey, resolvedPath)
-	return
-}
-
-// For parent process: it only resolves the path with respect to home folder.
-// For child process: it resolves the path relative to both home directory and
-// GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
-// is disabled.
-func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagInContext("log-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for log-file: %w", err)
-	}
-
-	err = resolvePathForTheFlagInContext("key-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for key-file: %w", err)
-	}
-
-	err = resolvePathForTheFlagInContext("config-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for config-file: %w", err)
-	}
-
-	return
-}
-
 // Add the flags accepted by run to the supplied flag set, returning the
 // variables into which the flags will parse.
-func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
+func PopulateFlags(c *cli.Context) (flags *FlagStorage, err error) {
 	customEndpointStr := c.String("custom-endpoint")
 	var customEndpoint *url.URL
 
@@ -464,7 +428,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
-	flags = &flagStorage{
+	flags = &FlagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
 		ConfigFile: c.String("config-file"),
@@ -531,7 +495,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	return
 }
 
-func validateFlags(flags *flagStorage) (err error) {
+func validateFlags(flags *FlagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 		return

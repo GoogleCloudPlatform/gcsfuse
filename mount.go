@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/flag"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -37,7 +38,7 @@ func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
-	flags *flagStorage,
+	flags *flag.FlagStorage,
 	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
