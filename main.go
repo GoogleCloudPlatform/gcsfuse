@@ -336,13 +336,14 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// Wait for the file system to be unmounted.
 	err = mfs.Join(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed MountedFileSystem.Join: %w", err)
+	}
 
 	monitor.CloseStackdriverExporter()
-	monitor.CloseOpenTelemetryCollectorExporter()
 
-	if err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %w", err)
-		return
+	if err := monitor.CloseOpenTelemetryCollectorExporter(); err != nil {
+		return fmt.Errorf("failed to close open-telemetry collector exporter: %w", err)
 	}
 
 	return

@@ -17,12 +17,10 @@ package integration_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	//"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -156,7 +154,7 @@ func (t *GcsfuseTest) NonEmptyMountPoint() {
 
 	// Write a file into the mount point.
 	p := path.Join(t.dir, "foo")
-	err = ioutil.WriteFile(p, nil, 0600)
+	err = os.WriteFile(p, nil, 0600)
 	AssertEq(nil, err)
 
 	defer os.Remove(p)
@@ -175,7 +173,7 @@ func (t *GcsfuseTest) MountPointIsAFile() {
 	// Write a file.
 	p := path.Join(t.dir, "foo")
 
-	err = ioutil.WriteFile(p, []byte{}, 0500)
+	err = os.WriteFile(p, []byte{}, 0500)
 	AssertEq(nil, err)
 	defer os.Remove(p)
 
@@ -216,11 +214,11 @@ func (t *GcsfuseTest) KeyFile() {
 		cmd := t.gcsfuseCommand(args, tc.env)
 
 		output, err := cmd.CombinedOutput()
-		util.Unmount(t.dir)
-
 		ExpectThat(err, Error(HasSubstr("exit status")), "case %d", i)
 		ExpectThat(string(output), HasSubstr(nonexistent), "case %d", i)
 		ExpectThat(string(output), HasSubstr("no such file"), "case %d", i)
+
+		AssertEq(nil, util.Unmount(t.dir))
 	}
 }
 
@@ -233,14 +231,16 @@ func (t *GcsfuseTest) CannedContents() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Check the expected contents of the file system.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(os.FileMode(0644), fi.Mode())
 
-	contents, err := ioutil.ReadFile(path.Join(t.dir, canned.TopLevelFile))
+	contents, err := os.ReadFile(path.Join(t.dir, canned.TopLevelFile))
 	AssertEq(nil, err)
 	ExpectEq(canned.TopLevelFile_Contents, string(contents))
 
@@ -262,10 +262,12 @@ func (t *GcsfuseTest) ReadOnlyMode() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
@@ -277,15 +279,17 @@ func (t *GcsfuseTest) ReadWriteMode() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Overwrite the canned file.
 	p := path.Join(t.dir, canned.TopLevelFile)
 
-	err = ioutil.WriteFile(p, []byte("enchilada"), 0400)
+	err = os.WriteFile(p, []byte("enchilada"), 0400)
 	AssertEq(nil, err)
 
-	contents, err := ioutil.ReadFile(p)
+	contents, err := os.ReadFile(p)
 	AssertEq(nil, err)
 	ExpectEq("enchilada", string(contents))
 }
@@ -304,7 +308,9 @@ func (t *GcsfuseTest) FileAndDirModeFlags() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Stat contents.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -332,7 +338,9 @@ func (t *GcsfuseTest) UidAndGidFlags() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Stat contents.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -359,7 +367,9 @@ func (t *GcsfuseTest) ImplicitDirs() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// The implicit directory should be visible, as should its child.
 	fi, err = os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))
@@ -385,7 +395,9 @@ func (t *GcsfuseTest) OnlyDir() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// It should be as if t.dir points into the bucket's first-level directory.
 	entries, err := fusetesting.ReadDirPicky(t.dir)
@@ -411,7 +423,9 @@ func (t *GcsfuseTest) OnlyDir_TrailingSlash() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// It should be as if t.dir points into the bucket's first-level directory.
 	entries, err := fusetesting.ReadDirPicky(t.dir)
@@ -437,7 +451,9 @@ func (t *GcsfuseTest) OnlyDir_WithImplicitDir() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// It should be as if t.dir points into the implicit directory
 	entries, err := fusetesting.ReadDirPicky(t.dir)
@@ -462,7 +478,9 @@ func (t *GcsfuseTest) RelativeMountPoint() {
 	output, err := cmd.CombinedOutput()
 	AssertEq(nil, err, "output:\n%s", output)
 
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// The file system should be available.
 	fi, err := os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -491,8 +509,12 @@ func (t *GcsfuseTest) ForegroundMode() {
 
 	err = cmd.Start()
 	AssertEq(nil, err)
-	defer cmd.Wait()
-	defer cmd.Process.Kill()
+	defer func() {
+		ExpectEq(nil, cmd.Wait())
+	}()
+	defer func() {
+		ExpectEq(nil, cmd.Process.Kill())
+	}()
 
 	// Accumulate output from stderr until we see a successful mount message,
 	// hackily synchronizing. Yes, this is an O(n^2) loop.
@@ -506,7 +528,9 @@ func (t *GcsfuseTest) ForegroundMode() {
 		}
 	}
 
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// The gcsfuse process should still be running, even after waiting a moment.
 	time.Sleep(50 * time.Millisecond)
@@ -520,8 +544,7 @@ func (t *GcsfuseTest) ForegroundMode() {
 	ExpectEq(len(canned.TopLevelFile_Contents), fi.Size())
 
 	// Unmounting should work fine.
-	err = util.Unmount(t.dir)
-	AssertEq(nil, err)
+	AssertEq(nil, util.Unmount(t.dir))
 
 	// Now the process should exit successfully.
 	err = cmd.Wait()
@@ -623,9 +646,8 @@ func (t *GcsfuseTest) LogFilePath() {
 		args := tc.extraArgs
 		args = append(args, canned.FakeBucketName, t.dir)
 
-		err := t.runGcsfuseWithEnv(args, tc.env)
-		util.Unmount(t.dir)
-		ExpectEq(nil, err)
+		AssertEq(nil, t.runGcsfuseWithEnv(args, tc.env))
+		AssertEq(nil, util.Unmount(t.dir))
 	}
 }
 
@@ -670,9 +692,8 @@ func (t *GcsfuseTest) KeyFilePath() {
 		args := tc.extraArgs
 		args = append(args, canned.FakeBucketName, t.dir)
 
-		err := t.runGcsfuseWithEnv(args, tc.env)
-		util.Unmount(t.dir)
-		ExpectEq(nil, err)
+		AssertEq(nil, t.runGcsfuseWithEnv(args, tc.env))
+		AssertEq(nil, util.Unmount(t.dir))
 	}
 }
 
@@ -723,8 +744,7 @@ func (t *GcsfuseTest) BothLogAndKeyFilePath() {
 		args := tc.extraArgs
 		args = append(args, canned.FakeBucketName, t.dir)
 
-		err := t.runGcsfuseWithEnv(args, tc.env)
-		util.Unmount(t.dir)
-		ExpectEq(nil, err)
+		AssertEq(nil, t.runGcsfuseWithEnv(args, tc.env))
+		AssertEq(nil, util.Unmount(t.dir))
 	}
 }

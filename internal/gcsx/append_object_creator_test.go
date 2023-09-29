@@ -240,7 +240,8 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		WillOnce(Return(nil))
 
 	// Call
-	t.call()
+	_, err := t.call()
+	ExpectEq(nil, err)
 
 	AssertNe(nil, req)
 	ExpectEq(t.srcObject.Name, req.DstName)

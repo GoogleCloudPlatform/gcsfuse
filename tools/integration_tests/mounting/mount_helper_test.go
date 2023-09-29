@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -66,7 +65,7 @@ func (t *MountHelperTest) SetUp(_ *TestInfo) {
 	}
 
 	// Set up the temporary directory.
-	t.dir, err = ioutil.TempDir("", "mount_helper_test")
+	t.dir, err = os.MkdirTemp("", "mount_helper_test")
 	AssertEq(nil, err)
 }
 
@@ -143,7 +142,7 @@ func (t *MountHelperTest) NoMtabFlag() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	util.Unmount(t.dir)
+	AssertEq(nil, util.Unmount(t.dir))
 }
 
 func (t *MountHelperTest) SuccessfulMount() {
@@ -155,7 +154,9 @@ func (t *MountHelperTest) SuccessfulMount() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -179,7 +180,9 @@ func (t *MountHelperTest) RelativeMountPoint() {
 	output, err := cmd.CombinedOutput()
 	AssertEq(nil, err, "output:\n%s", output)
 
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// The file system should be available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -196,10 +199,12 @@ func (t *MountHelperTest) ReadOnlyMode() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
@@ -216,7 +221,9 @@ func (t *MountHelperTest) ExtraneousOptions() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -233,10 +240,12 @@ func (t *MountHelperTest) LinuxArgumentOrder() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Writing to the file system should fail.
-	err = ioutil.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
+	err = os.WriteFile(path.Join(t.dir, "blah"), []byte{}, 0400)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
@@ -255,7 +264,9 @@ func (t *MountHelperTest) FuseSubtype() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Check that the file system is available.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelFile))
@@ -277,7 +288,9 @@ func (t *MountHelperTest) ModeOptions() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// Stat the directory.
 	fi, err = os.Lstat(path.Join(t.dir, canned.TopLevelDir))
@@ -298,7 +311,9 @@ func (t *MountHelperTest) ImplicitDirs() {
 
 	err = t.mount(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() {
+		AssertEq(nil, util.Unmount(t.dir))
+	}()
 
 	// The implicit directory should be visible.
 	fi, err := os.Lstat(path.Join(t.dir, path.Dir(canned.ImplicitDirFile)))

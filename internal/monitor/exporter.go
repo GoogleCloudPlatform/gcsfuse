@@ -99,10 +99,15 @@ func EnableOpenTelemetryCollectorExporter(address string) error {
 
 // CloseOpenTelemetryCollectorExporter ensures all collected metrics are sent to
 // the OpenTelemetry Collect and closes the exporter.
-func CloseOpenTelemetryCollectorExporter() {
+func CloseOpenTelemetryCollectorExporter() error {
 	if ocExporter != nil {
-		ocExporter.Stop()
+		if err := ocExporter.Stop(); err != nil {
+			return fmt.Errorf("failed to stop opencensus-exporter: %w", err)
+		}
+
 		ocExporter.Flush()
+		ocExporter = nil
 	}
-	ocExporter = nil
+
+	return nil
 }
