@@ -1,6 +1,4 @@
 file-cache:
-  ttl-sec: -2
-type-cache:
-  ttl-sec: -1
+  ttl-in-sec: -2
 
 

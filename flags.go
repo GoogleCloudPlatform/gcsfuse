@@ -200,6 +200,24 @@ func newApp() (app *cli.App) {
 					" The default is 1 minute. A value of 0 disables retries.",
 			},
 
+			cli.IntFlag{
+				Name:  "stat-cache-capacity",
+				Value: 4096,
+				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+			},
+
+			cli.DurationFlag{
+				Name:  "stat-cache-ttl",
+				Value: time.Minute,
+				Usage: "How long to cache StatObject results and inode attributes.",
+			},
+
+			cli.DurationFlag{
+				Name:  "type-cache-ttl",
+				Value: time.Minute,
+				Usage: "How long to cache name -> file/dir mappings in directory inodes.",
+			},
+
 			cli.DurationFlag{
 				Name:  "http-client-timeout",
 				Usage: "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout. ",
@@ -242,6 +260,14 @@ func newApp() (app *cli.App) {
 				Name:  "max-idle-conns-per-host",
 				Value: 100,
 				Usage: "The number of maximum idle connections allowed per server.",
+			},
+
+			cli.BoolFlag{
+				Name: "enable-nonexistent-type-cache",
+				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
+					" will be created. This also means new file/dir created might not be seen. For example, if this" +
+					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
 			/////////////////////////
@@ -350,15 +376,19 @@ type flagStorage struct {
 	SequentialReadSizeMb               int32
 
 	// Tuning
-	MaxRetrySleep       time.Duration
-	HttpClientTimeout   time.Duration
-	MaxRetryDuration    time.Duration
-	RetryMultiplier     float64
-	LocalFileCache      bool
-	TempDir             string
-	ClientProtocol      mountpkg.ClientProtocol
-	MaxConnsPerHost     int
-	MaxIdleConnsPerHost int
+	MaxRetrySleep              time.Duration
+	StatCacheCapacity          int
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
+	HttpClientTimeout          time.Duration
+	MaxRetryDuration           time.Duration
+	RetryMultiplier            float64
+	LocalFileCache             bool
+	TempDir                    string
+	ClientProtocol             mountpkg.ClientProtocol
+	MaxConnsPerHost            int
+	MaxIdleConnsPerHost        int
+	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
 	StackdriverExportInterval  time.Duration
@@ -457,15 +487,19 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 		// Tuning,
 		MaxRetrySleep:     c.Duration("max-retry-sleep"),
+		StatCacheCapacity: c.Int("stat-cache-capacity"),
+		StatCacheTTL:      c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:      c.Duration("type-cache-ttl"),
 		HttpClientTimeout: c.Duration("http-client-timeout"),
 		MaxRetryDuration:  c.Duration("max-retry-duration"),
 		RetryMultiplier:   c.Float64("retry-multiplier"),
-		// Don't allow users to enable older experimental local cache.
-		LocalFileCache:      false,
-		TempDir:             c.String("temp-dir"),
-		ClientProtocol:      clientProtocol,
-		MaxConnsPerHost:     c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost: c.Int("max-idle-conns-per-host"),
+		// Always disable the older experimental local cache.
+		LocalFileCache:             false,
+		TempDir:                    c.String("temp-dir"),
+		ClientProtocol:             clientProtocol,
+		MaxConnsPerHost:            c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
+		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),

@@ -1,6 +1,6 @@
+write:
+  create-empty-file: true
 file-cache:
-  size-mb: -100
-metadata-cache:
-  ttl-sec: 100
+  size-in-mb: -100
 
 

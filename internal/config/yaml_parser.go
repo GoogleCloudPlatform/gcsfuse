@@ -48,22 +48,8 @@ func IsValidLogSeverity(severity LogSeverity) bool {
 }
 
 func validateFileCacheConfig(fileCacheConfig FileCacheConfig) error {
-	if fileCacheConfig.TTL < -1 || fileCacheConfig.Size < -1 {
-		return fmt.Errorf("the value of size or ttl for file cache can't be less than -1")
-	}
-	return nil
-}
-
-func validateMetadataCacheConfig(metadataCacheConfig MetadataCacheConfig) error {
-	if metadataCacheConfig.TTL < -1 || metadataCacheConfig.Capacity < -1 {
-		return fmt.Errorf("the value of capacity or ttl for metadata cache can't be less than -1")
-	}
-	return nil
-}
-
-func validateTypeCacheConfig(typeCacheConfig TypeCacheConfig) error {
-	if typeCacheConfig.TTL < -1 {
-		return fmt.Errorf("the value of ttl for type cache can't be less than -1")
+	if fileCacheConfig.TTLInSec < -1 || fileCacheConfig.SizeInMB < -1 {
+		return fmt.Errorf("the value of size-in-mb or ttl-in-mb for file cache can't be less than -1")
 	}
 	return nil
 }
@@ -94,14 +80,6 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	}
 
 	if err = validateFileCacheConfig(mountConfig.FileCacheConfig); err != nil {
-		return
-	}
-
-	if err = validateMetadataCacheConfig(mountConfig.MetadataCacheConfig); err != nil {
-		return
-	}
-
-	if err = validateTypeCacheConfig(mountConfig.TypeCacheConfig); err != nil {
 		return
 	}
 	return

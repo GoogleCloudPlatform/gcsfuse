@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -84,14 +83,13 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	var statCacheTTL = time.Duration(mountConfig.MetadataCacheConfig.TTL) * time.Second
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
-		StatCacheCapacity:                  int(mountConfig.MetadataCacheConfig.Capacity),
-		StatCacheTTL:                       statCacheTTL,
+		StatCacheCapacity:                  flags.StatCacheCapacity,
+		StatCacheTTL:                       flags.StatCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
@@ -108,15 +106,15 @@ be interacting with the file system.`)
 		DebugFS:                    flags.DebugFS,
 		TempDir:                    flags.TempDir,
 		ImplicitDirectories:        flags.ImplicitDirs,
-		InodeAttributeCacheTTL:     statCacheTTL,
-		DirTypeCacheTTL:            time.Duration(mountConfig.TypeCacheConfig.TTL) * time.Second,
+		InodeAttributeCacheTTL:     flags.StatCacheTTL,
+		DirTypeCacheTTL:            flags.TypeCacheTTL,
 		Uid:                        uid,
 		Gid:                        gid,
 		FilePerms:                  os.FileMode(flags.FileMode),
 		DirPerms:                   os.FileMode(flags.DirMode),
 		RenameDirLimit:             flags.RenameDirLimit,
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
-		EnableNonexistentTypeCache: mountConfig.TypeCacheConfig.CacheNonexistent,
+		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
 	}
 
