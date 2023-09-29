@@ -143,7 +143,7 @@ This is the default behavior, unless a user passes the ```--implicit-dirs``` fla
 
 Cloud Storage FUSE supports a flag called ```--implicit-dirs``` that changes the behavior for how pre-existing directory structures, not created by Cloud Storage FUSE, are mounted and visible to Cloud Storage FUSE. When this flag is enabled, name lookup requests from the kernel use the Cloud Storage API's Objects.list operation to search for objects that would implicitly define the existence of a directory with the name in question. 
 
-The example above describes how from the local filesystem the user sees only 0.txt, until the user creates A/, A/B/, C/ using mkdir.  If instead the ```--implicit-dirs``` flag is passed, you would see the intended directory structure without first having to create the directories A/, A/B/, C/. 
+The example above describes how from the local filesystem the user doesn't see any files, until the user creates A/, A/B/, C/ using mkdir.  If instead the ```--implicit-dirs``` flag is passed, you would see the intended directory structure without first having to create the directories A/, A/B/, C/. 
 
 However, implicit directories does have drawbacks:
 - The feature requires an additional request to Cloud Storage for each name lookup, which may have costs in terms of both charges for operations and latency.
