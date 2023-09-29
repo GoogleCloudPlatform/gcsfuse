@@ -1,0 +1,6 @@
+file-cache:
+  size-mb: -100
+metadata-cache:
+  ttl-sec: 100
+
+

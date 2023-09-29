@@ -1,0 +1,7 @@
+file-cache:
+  size-mb: 100
+type-cache:
+  ttl-sec: -2
+  cache-nonexistent: false
+
+

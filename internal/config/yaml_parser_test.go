@@ -88,3 +88,38 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
 }
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheSizeConfig() {
+	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "the value of size or ttl for file cache can't be less than -1"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheTTLConfig() {
+	_, err := ParseConfigFile("testdata/invalid_filecachettl_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "the value of size or ttl for file cache can't be less than -1"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidMetadataCacheCapacityConfig() {
+	_, err := ParseConfigFile("testdata/invalid_metadatacachecapacity_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "the value of capacity or ttl for metadata cache can't be less than -1"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidMetadataCacheTTLConfig() {
+	_, err := ParseConfigFile("testdata/invalid_metadatacachettl_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "the value of capacity or ttl for metadata cache can't be less than -1"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidTypeCacheTTLConfig() {
+	_, err := ParseConfigFile("testdata/invalid_typecachettl_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "the value of ttl for type cache can't be less than -1"))
+}
