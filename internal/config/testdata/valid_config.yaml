@@ -9,5 +9,3 @@ file-cache:
   size-in-mb: 100
   ttl-in-sec: 10
   cache-file-for-random-reads: true
-
-

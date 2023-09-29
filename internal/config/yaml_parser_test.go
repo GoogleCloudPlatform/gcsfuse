@@ -89,12 +89,12 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheTTLConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachettl_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "the value of size-in-mb or ttl-in-mb for file-cache can't be less than -1"))
 }
