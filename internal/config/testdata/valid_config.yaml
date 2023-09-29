@@ -6,8 +6,8 @@ logging:
   severity: error
 file-cache:
   path: /tmp/read-cache/
-  size-mb: 100
-  ttl-sec: 10
+  size-in-mb: 100
+  ttl-in-sec: 10
   cache-file-for-random-reads: true
 
 
