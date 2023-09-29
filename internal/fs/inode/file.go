@@ -487,6 +487,9 @@ func (f *FileInode) ensureBuffer(bufferSize int) {
 	f.buffer.Create(bufferSize)
 }
 
+// WriteWithBuffer served the write request with buffer.
+//
+// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) WriteWithBuffer(bufferSize uint,
 	data []byte,
 	offset int64) error {
