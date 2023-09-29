@@ -6,6 +6,6 @@ logging:
   severity: error
 file-cache:
   path: /tmp/read-cache/
-  size-in-mb: 100
+  max-size-in-mb: 100
   ttl-in-sec: 10
   cache-file-for-random-reads: true
