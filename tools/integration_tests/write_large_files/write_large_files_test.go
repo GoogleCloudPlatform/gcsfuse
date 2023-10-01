@@ -27,15 +27,15 @@ import (
 )
 
 const (
-	TmpDir = "/tmp"
-	OneMiB = 1024 * 1024
+	TmpDir               = "/tmp"
+	OneMiB               = 1024 * 1024
+	WritePermission_0200 = 0200
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) (err error) {
-	err = operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
+	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
 	if err != nil {
-		err = fmt.Errorf("Error in downloading object:%w", err)
-		return
+		return fmt.Errorf("Error in downloading object: %v", err)
 	}
 
 	// Remove file after testing.
@@ -45,10 +45,10 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	// requirement just for this step
 	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
 	if diff != 0 {
-		err = fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
-		return
+		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
 	}
-	return
+
+	return nil
 }
 
 func TestMain(m *testing.M) {

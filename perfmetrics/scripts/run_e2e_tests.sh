@@ -18,7 +18,7 @@
 set -e
 sudo apt-get update
 
-readonly INTEGRATION_TEST_TIMEOUT=24m
+readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 
@@ -31,6 +31,11 @@ echo "Installing go-lang 1.21.0..."
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.0.linux-${architecture}.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
+# install python3-setuptools tools.
+sudo apt-get install -y gcc python3-dev python3-setuptools
+# Downloading composite object requires integrity checking with CRC32c in gsutil.
+# it requires to install crcmod.
+sudo apt install -y python3-crcmod
 
 # Create bucket for integration tests.
 # The prefix for the random string

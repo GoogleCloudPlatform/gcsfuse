@@ -16,13 +16,14 @@ package read_large_files
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path"
-	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"golang.org/x/sync/errgroup"
 )
 
 const FileOne = "fileOne.txt"
@@ -30,24 +31,23 @@ const FileTwo = "fileTwo.txt"
 const FileThree = "fileThree.txt"
 const NumberOfFilesInLocalDiskForConcurrentRead = 3
 
-func readFile(fileInLocalDisk string, fileInMntDir string, wg *sync.WaitGroup, t *testing.T) {
-	// Reduce thread count when it read the file.
-	defer wg.Done()
-
+func readFile(fileInLocalDisk string, fileInMntDir string) error {
 	dataInMntDirFile, err := operations.ReadFile(fileInMntDir)
 	if err != nil {
-		return
+		return err
 	}
 
 	dataInLocalDiskFile, err := operations.ReadFile(fileInLocalDisk)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Compare actual content and expect content.
 	if bytes.Equal(dataInLocalDiskFile, dataInMntDirFile) == false {
-		t.Errorf("Reading incorrect file.")
+		return fmt.Errorf("Reading incorrect file.")
 	}
+
+	return nil
 }
 
 func TestReadFilesConcurrently(t *testing.T) {
@@ -68,16 +68,21 @@ func TestReadFilesConcurrently(t *testing.T) {
 		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
 	}
 
-	// For waiting on threads.
-	var wg sync.WaitGroup
+	var eG errgroup.Group
 
 	for i := 0; i < NumberOfFilesInLocalDiskForConcurrentRead; i++ {
-		// Increment the WaitGroup counter.
-		wg.Add(1)
-		// Thread to read file.
-		go readFile(filesPathInLocalDisk[i], filesPathInMntDir[i], &wg, t)
+		// Copy the current value of i into a local variable to avoid data races.
+		fileIndex := i
+
+		// Thread to read the current file.
+		eG.Go(func() error {
+			return readFile(filesPathInLocalDisk[fileIndex], filesPathInMntDir[fileIndex])
+		})
 	}
 
 	// Wait on threads to end.
-	wg.Wait()
+	err := eG.Wait()
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
 }

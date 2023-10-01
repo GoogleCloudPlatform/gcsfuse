@@ -32,9 +32,8 @@ type MountConfig struct {
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
-		// Making the default severity as INFO and format as json.
+		// Making the default severity as INFO.
 		Severity: INFO,
-		Format:   "json",
 	}
 	return mountConfig
 }
