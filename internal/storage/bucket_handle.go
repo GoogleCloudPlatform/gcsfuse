@@ -27,6 +27,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
@@ -157,10 +158,11 @@ func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateObjectReq
 	return obj, (req.GenerationPrecondition == nil || preconditions.DoesNotExist)
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	obj := bh.bucket.Object(req.Name)
-	obj, _ = withCreatePreconditions(obj, req)
-
+// recreateObject is meant for re-creating an existing GCS object.
+// It doesn't do anything special, it just preserves the old logic
+// of copying the entire object data in one go after it is all available.
+// It uses the default options/flags of the go-storage-client as it is.
+func recreateObject(ctx context.Context, obj *storage.ObjectHandle, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
 	wc := obj.NewWriter(ctx)
@@ -189,6 +191,37 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	return
+}
+
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	obj := bh.bucket.Object(req.Name)
+
+	var doesNotExist bool
+	obj, doesNotExist = withCreatePreconditions(obj, req)
+
+	if !doesNotExist {
+		return recreateObject(ctx, obj, req)
+	}
+
+	chunkSize := googleapi.DefaultUploadChunkSize
+	sow, err := NewStreamedChunkUploader(ctx, obj, req, chunkSize, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		// Copy the content chunk to the writer for upload to GCS
+		err = sow.UploadChunkAsync(io.LimitReader(req.Contents, int64(chunkSize)))
+		if err == io.EOF {
+			logger.Debugf("Completed upload. totalSizeUploaded-so-far=%d, sent-to-upload-so-far=%d, chunk-size=%d for object %s: %v", sow.BytesUploadedSoFar(), sow.BytesUploadInitiatedSoFar(), sow.wc.ChunkSize, req.Name, err)
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("completed upload. totalSizeUploaded-so-far=%d, sent-to-upload-so-far=%d, chunk-size=%d for object %s: %v", sow.BytesUploadedSoFar(), sow.BytesUploadInitiatedSoFar(), sow.wc.ChunkSize, req.Name, err)
+		}
+	}
+
+	o, err = sow.Close()
 	return
 }
 
