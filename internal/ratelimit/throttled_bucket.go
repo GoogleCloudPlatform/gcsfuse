@@ -15,6 +15,7 @@
 package ratelimit
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -88,6 +89,14 @@ func (b *throttledBucket) CreateObject(
 	o, err = b.wrapped.CreateObject(ctx, req)
 
 	return
+}
+
+func (b *throttledBucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	return nil, fmt.Errorf("not implemented yet")
 }
 
 func (b *throttledBucket) CopyObject(

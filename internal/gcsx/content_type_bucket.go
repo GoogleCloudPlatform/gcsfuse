@@ -45,6 +45,20 @@ func (b contentTypeBucket) CreateObject(
 	return
 }
 
+func (b contentTypeBucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	// Guess a content type if necessary.
+	if req.ContentType == "" {
+		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
+	}
+
+	// Pass on the request.
+	return b.Bucket.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+}
+
 func (b contentTypeBucket) ComposeObjects(
 	ctx context.Context,
 	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {

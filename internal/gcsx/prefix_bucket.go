@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"unicode/utf8"
@@ -91,6 +92,14 @@ func (b *prefixBucket) CreateObject(
 	}
 
 	return
+}
+
+func (b *prefixBucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	return nil, fmt.Errorf("not implemented yet")
 }
 
 func (b *prefixBucket) CopyObject(
