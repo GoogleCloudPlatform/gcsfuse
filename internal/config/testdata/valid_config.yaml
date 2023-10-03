@@ -8,4 +8,4 @@ cache-location: "/tmp/read_cache/"
 file-cache:
   max-size-in-mb: 100
   ttl-in-sec: 10
-  cache-file-for-random-reads: true
+  download-file-for-random-read: true
