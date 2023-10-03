@@ -235,6 +235,11 @@ func newApp() (app *cli.App) {
 				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
 			},
 
+			cli.BoolFlag{
+				Name:  "experimental-local-file-cache",
+				Usage: "Experimental: Cache GCS files on local disk for reads.",
+			},
+
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
@@ -486,16 +491,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		HttpClientTimeout: c.Duration("http-client-timeout"),
-		MaxRetryDuration:  c.Duration("max-retry-duration"),
-		RetryMultiplier:   c.Float64("retry-multiplier"),
-		// Always disable the older experimental local cache. The code for this will
-		// be removed once the new file cache is implemented and tested.
-		LocalFileCache:             false,
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		HttpClientTimeout:          c.Duration("http-client-timeout"),
+		MaxRetryDuration:           c.Duration("max-retry-duration"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
+		LocalFileCache:             c.Bool("experimental-local-file-cache"),
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),

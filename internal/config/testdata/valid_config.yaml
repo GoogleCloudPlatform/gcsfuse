@@ -4,8 +4,8 @@ logging:
   file-path: /tmp/logfile.json
   format: text
   severity: error
+cache-location: "/tmp/read_cache/"
 file-cache:
-  path: /tmp/read-cache/
   max-size-in-mb: 100
   ttl-in-sec: 10
   cache-file-for-random-reads: true

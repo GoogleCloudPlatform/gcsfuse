@@ -24,17 +24,19 @@ type LogConfig struct {
 	FilePath string      `yaml:"file-path"`
 }
 
+type CacheLocation string
+
 type FileCacheConfig struct {
-	Path                    string `yaml:"path"`
-	MaxSizeInMB             int64  `yaml:"max-size-in-mb"`
-	TTLInSec                int64  `yaml:"ttl-in-sec"`
-	CacheFileForRandomReads bool   `yaml:"cache-file-for-random-reads"`
+	MaxSizeInMB               int64 `yaml:"max-size-in-mb"`
+	TTLInSec                  int64 `yaml:"ttl-in-sec"`
+	DownloadFileForRandomRead bool  `yaml:"download-file-for-random-read"`
 }
 
 type MountConfig struct {
 	WriteConfig     `yaml:"write"`
 	LogConfig       `yaml:"logging"`
 	FileCacheConfig `yaml:"file-cache"`
+	CacheLocation   `yaml:"cache-location"`
 }
 
 func NewMountConfig() *MountConfig {
