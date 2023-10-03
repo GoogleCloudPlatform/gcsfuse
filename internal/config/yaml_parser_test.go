@@ -90,5 +90,5 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidBufferSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_write_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing write configs: buffer-size-mb should be greater than 0 if enable-streaming-writes is set"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing write configs: buffer-size-mb should be greater than 0 if enable-streaming-writes is enabled"))
 }

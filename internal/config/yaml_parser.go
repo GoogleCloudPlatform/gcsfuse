@@ -49,7 +49,7 @@ func (severity *LogSeverity) validate() error {
 
 func (writeConfig *WriteConfig) validate() error {
 	if writeConfig.EnableStreamingWrites && writeConfig.BufferSizeMB <= 0 {
-		return fmt.Errorf("buffer-size-mb should be greater than 0 if enable-streaming-writes is set")
+		return fmt.Errorf("buffer-size-mb should be greater than 0 if enable-streaming-writes is enabled")
 	}
 	return nil
 }
