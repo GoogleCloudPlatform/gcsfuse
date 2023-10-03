@@ -137,7 +137,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisabl
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
+	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
 }
 
