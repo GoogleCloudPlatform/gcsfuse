@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"fmt"
 	"mime"
 	"path"
 
@@ -43,6 +44,13 @@ func (b contentTypeBucket) CreateObject(
 	// Pass on the request.
 	o, err = b.Bucket.CreateObject(ctx, req)
 	return
+}
+
+func (b contentTypeBucket) CreateAsyncObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	progressFunc func(int64)) (gcs.ObjectWriter, error) {
+	return nil, fmt.Errorf("not implemented yet")
 }
 
 func (b contentTypeBucket) ComposeObjects(

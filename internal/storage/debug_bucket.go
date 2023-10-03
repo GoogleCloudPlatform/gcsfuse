@@ -159,6 +159,13 @@ func (b *debugBucket) CreateObject(
 	return
 }
 
+func (b *debugBucket) CreateAsyncObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	progressFunc func(int64)) (gcs.ObjectWriter, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

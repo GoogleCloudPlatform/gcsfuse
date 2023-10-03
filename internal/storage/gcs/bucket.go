@@ -62,6 +62,32 @@ type Bucket interface {
 		ctx context.Context,
 		req *CreateObjectRequest) (*Object, error)
 
+	// Create a new object-writer according to the supplied request.
+	// This only returns an object-writer, to which content should be written.
+	// On closing this writer, a gcs.Object is returned.
+	//
+	// Sample usage:
+	// writer, err := bucket.CreateAsyncObjectWriter(ctx, createObjectReq,
+	//						func(n int64) {
+	//							log("n bytes successfully uploaded")
+	//						}
+	// )
+	// // check err
+	// for n times {
+	// 		err = writer.Write(buffer)
+	// 		// check err
+	// }
+	// obj, err := writer.Close()
+	// // check err
+	//
+	// Official documentation:
+	//     https://cloud.google.com/storage/docs/json_api/v1/objects/insert
+	//     https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
+	CreateAsyncObjectWriter(
+		ctx context.Context,
+		req *CreateObjectRequest,
+		progressFunc func(int64)) (ObjectWriter, error)
+
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
 	//

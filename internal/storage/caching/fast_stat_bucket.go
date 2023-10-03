@@ -145,6 +145,13 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
+func (b *fastStatBucket) CreateAsyncObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	progressFunc func(int64)) (gcs.ObjectWriter, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
 	ctx context.Context,

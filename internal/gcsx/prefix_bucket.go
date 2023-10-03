@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"unicode/utf8"
@@ -91,6 +92,13 @@ func (b *prefixBucket) CreateObject(
 	}
 
 	return
+}
+
+func (b *prefixBucket) CreateAsyncObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	progressFunc func(int64)) (gcs.ObjectWriter, error) {
+	return nil, fmt.Errorf("not implemented yet")
 }
 
 func (b *prefixBucket) CopyObject(

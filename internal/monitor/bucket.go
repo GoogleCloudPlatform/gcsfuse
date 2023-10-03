@@ -137,6 +137,13 @@ func (mb *monitoringBucket) CreateObject(
 	return o, err
 }
 
+func (mb *monitoringBucket) CreateAsyncObjectWriter(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	progressFunc func(int64)) (gcs.ObjectWriter, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {
