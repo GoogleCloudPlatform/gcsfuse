@@ -27,23 +27,20 @@ import (
 // On closing, they return a GCS object (gcs.Object)
 // and and error object for error-handling.
 type ChunkUploader interface {
-	// UploadChunkAsync uploads the given chunk to gcs.
+	// Upload uploads the given chunk to gcs.
 	// Progress should be tracked using the progress func
 	// passed during ChunkUploader instance creation.
-	//
-	// io.EOF is an expected error in case the reader has less
-	// data than the writer tries to read from it.
 	//
 	// Unlike the io.Writer interface, it doesn't return number-of-bytes
 	// uploaded in this call, as the write is asynchronous; instead
 	// this interface instead has
 	// BytesWrittenSoFar function below, which returns the total number
 	// of bytes successfully uploaded so far.
-	UploadChunkAsync(contents io.Reader) error
+	Upload(ctx context.Context, contents io.Reader) error
 
 	// Close finalizes the upload and returns the created object.
 	// Error is returned in case of failures.
-	Close() (*Object, error)
+	Close(ctx context.Context) (*Object, error)
 
 	// Returns the number of bytes successfully uploaded so far
 	// by this uploader.
@@ -110,7 +107,7 @@ type Bucket interface {
 	// )
 	// // check err
 	// for n times {
-	// 		err = uploader.UploadChunkAsync(buffer)
+	// 		err = uploader.Upload(buffer)
 	// 		// check err
 	// }
 	// obj, err := uploader.Close()
