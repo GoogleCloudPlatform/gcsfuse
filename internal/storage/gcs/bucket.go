@@ -20,6 +20,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+type ObjectWriter interface {
+	Write(contents io.Reader) error
+	Close() (*Object, error)
+	BytesWrittenSoFar() int64
+}
+
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //
