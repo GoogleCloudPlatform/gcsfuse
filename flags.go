@@ -81,8 +81,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "config-file",
 				Value: "",
-				Usage: "The path to the config file where all gcsfuse related config needs to be specified. " +
-					"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
 			},
 
 			/////////////////////////
