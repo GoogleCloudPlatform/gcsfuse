@@ -35,8 +35,8 @@ const (
 	OFF     LogSeverity = "OFF"
 )
 
-func validateLogSeverity(severity LogSeverity) error {
-	switch severity {
+func (severity *LogSeverity) validate() error {
+	switch *severity {
 	case
 		TRACE,
 		DEBUG,
@@ -46,12 +46,12 @@ func validateLogSeverity(severity LogSeverity) error {
 		OFF:
 		return nil
 	}
-	return fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
+	return fmt.Errorf("log severity should be one of [trace, debug, info, warning, error, off]")
 }
 
-func validateWriteConfig(writeConfig WriteConfig) error {
+func (writeConfig *WriteConfig) validate() error {
 	if writeConfig.EnableStreamingWrites && writeConfig.BufferSizeMB <= 0 {
-		return fmt.Errorf("buffer size should be greater than 0")
+		return fmt.Errorf("buffer-size-mb should be greater than 0 if enable-streaming-writes is enabled")
 	}
 	return nil
 }
@@ -83,12 +83,12 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 
 	// convert log severity to upper-case
 	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
-	if err = validateLogSeverity(mountConfig.LogConfig.Severity); err != nil {
-		return
+	if err = mountConfig.LogConfig.Severity.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing logging configs: %v", err)
 	}
 
-	if err = validateWriteConfig(mountConfig.WriteConfig); err != nil {
-		return
+	if err = mountConfig.WriteConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing write configs: %v", err)
 	}
 
 	return
