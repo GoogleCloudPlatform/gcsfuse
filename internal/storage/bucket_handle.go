@@ -127,9 +127,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
-	obj := bh.bucket.Object(req.Name)
-
+func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateObjectRequest) (*storage.ObjectHandle, bool) {
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
@@ -155,6 +153,13 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	if isStorageConditionsNotEmpty(preconditions) {
 		obj = obj.If(preconditions)
 	}
+
+	return obj, (req.GenerationPrecondition == nil || preconditions.DoesNotExist)
+}
+
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	obj := bh.bucket.Object(req.Name)
+	obj, _ = withCreatePreconditions(obj, req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
@@ -191,8 +196,22 @@ func (bh *bucketHandle) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
-	progressFunc func(int64)) (sow gcs.ChunkUploader, err error) {
-	return nil, fmt.Errorf("not implemented yet")
+	progressFunc func(int64)) (uploader gcs.ChunkUploader, err error) {
+	obj := bh.bucket.Object(req.Name)
+
+	var doesNotExist bool
+	obj, doesNotExist = withCreatePreconditions(obj, req)
+
+	if !doesNotExist {
+		return nil, fmt.Errorf("method not supported for pre-existing GCS objects")
+	}
+
+	uploader, err = NewChunkUploader(ctx, obj, req, writeChunkSize, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return uploader, err
 }
 
 func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {

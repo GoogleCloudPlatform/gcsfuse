@@ -25,7 +25,7 @@ import (
 // call using GCS' resumable upload API.
 //
 // On closing, they return a GCS object (gcs.Object)
-// and and error object for error-handling.
+// and error object for error-handling.
 type ChunkUploader interface {
 	// UploadChunkAsync uploads the given chunk to gcs.
 	// Progress should be tracked using the progress func

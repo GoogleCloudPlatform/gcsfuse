@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"google.golang.org/api/googleapi"
 )
 
 const missingObjectName string = "test/foo"
@@ -364,6 +365,57 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 
 	AssertEq(nil, obj)
 	AssertTrue(errors.As(err, &precondition))
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithValidObject() {
+	content := "Creating a new object"
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:     "test_object",
+			Contents: strings.NewReader(content),
+		},
+		chunkSize,
+		nil,
+	)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsZero() {
+	content := "Creating a new object"
+	var generation int64 = 0
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			GenerationPrecondition: &generation,
+		},
+		chunkSize,
+		nil)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsNonZero() {
+	content := "Creating a new object"
+	var generation int64 = 47367842389354
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:                   "test_object",
+			Contents:               strings.NewReader(content),
+			GenerationPrecondition: &generation,
+		}, chunkSize, nil)
+	// this should fail as CreateChunkUploader is currently supported
+	// only to objects that don't exist already.
+	AssertEq(nil, uploader)
+	AssertNe(nil, err)
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
