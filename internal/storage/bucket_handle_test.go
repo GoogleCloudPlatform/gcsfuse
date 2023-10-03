@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"google.golang.org/api/googleapi"
 )
 
 const missingObjectName string = "test/foo"
@@ -364,6 +365,51 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 
 	AssertEq(nil, obj)
 	AssertTrue(errors.As(err, &precondition))
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithValidObject() {
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateChunkUploaderRequest{
+			Name: "test_object",
+		},
+		chunkSize,
+		nil,
+	)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsZero() {
+	var generation int64 = 0
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateChunkUploaderRequest{
+			Name:                   "test_object",
+			GenerationPrecondition: &generation,
+		},
+		chunkSize,
+		nil)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsNonZero() {
+	var generation int64 = 47367842389354
+	chunkSize := googleapi.MinUploadChunkSize
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		&gcs.CreateChunkUploaderRequest{
+			Name:                   "test_object",
+			GenerationPrecondition: &generation,
+		}, chunkSize, nil)
+	// this should fail as CreateChunkUploader is currently supported
+	// only to objects that don't exist already.
+	AssertEq(nil, uploader)
+	AssertNe(nil, err)
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
