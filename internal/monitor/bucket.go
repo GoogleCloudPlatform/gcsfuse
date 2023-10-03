@@ -137,6 +137,14 @@ func (mb *monitoringBucket) CreateObject(
 	return o, err
 }
 
+func (mb *monitoringBucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 func (mb *monitoringBucket) CopyObject(
 	ctx context.Context,
 	req *gcs.CopyObjectRequest) (*gcs.Object, error) {

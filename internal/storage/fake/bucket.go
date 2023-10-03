@@ -559,6 +559,14 @@ func (b *bucket) CreateObject(
 	return
 }
 
+func (b *bucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	return nil, fmt.Errorf("not supported")
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,
