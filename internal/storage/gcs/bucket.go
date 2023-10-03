@@ -20,6 +20,36 @@ import (
 	"golang.org/x/net/context"
 )
 
+// ChunkUploader interface represents asynchronous object
+// uploaders which upload a chunk of an object's data in a
+// call using GCS' resumable upload API.
+//
+// On closing, they return a GCS object (gcs.Object)
+// and and error object for error-handling.
+type ChunkUploader interface {
+	// UploadChunkAsync uploads the given chunk to gcs.
+	// Progress should be tracked using the progress func
+	// passed during ChunkUploader instance creation.
+	//
+	// io.EOF is an expected error in case the reader has less
+	// data than the writer tries to read from it.
+	//
+	// Unlike the io.Writer interface, it doesn't return number-of-bytes
+	// uploaded in this call, as the write is asynchronous; instead
+	// this interface instead has
+	// BytesWrittenSoFar function below, which returns the total number
+	// of bytes successfully uploaded so far.
+	UploadChunkAsync(contents io.Reader) error
+
+	// Close finalizes the upload and returns the created object.
+	// Error is returned in case of failures.
+	Close() (*Object, error)
+
+	// Returns the number of bytes successfully uploaded so far
+	// by this uploader.
+	BytesUploadedSoFar() int64
+}
+
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //
