@@ -131,6 +131,14 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 	return
 }
 
+func (m *mockBucket) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (gcs.ChunkUploader, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
