@@ -83,12 +83,12 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing logging configs: log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidBufferSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_write_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "buffer size should be greater than 0"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing write configs: buffer-size-mb should be greater than 0 if enable-streaming-writes is enabled"))
 }
