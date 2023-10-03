@@ -481,7 +481,7 @@ func (f *FileInode) ensureBuffer(bufferSize int) {
 		return
 	}
 	if bufferSize <= 50 {
-		f.buffer = &buffer.MemoryBuffer{}
+		f.buffer = &buffer.InMemoryWriteBuffer{}
 	}
 	// TODO: else assign on-disk buffer to f.buffer.
 	f.buffer.Create(bufferSize)

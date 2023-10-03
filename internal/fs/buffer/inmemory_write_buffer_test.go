@@ -27,7 +27,7 @@ func TestMemoryBuffer(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type MemoryBufferTest struct {
-	mb *MemoryBuffer
+	mb *InMemoryWriteBuffer
 }
 
 var _ SetUpInterface = &MemoryBufferTest{}
@@ -36,7 +36,7 @@ var _ TearDownInterface = &MemoryBufferTest{}
 func init() { RegisterTestSuite(&MemoryBufferTest{}) }
 
 func (t *MemoryBufferTest) SetUp(ti *TestInfo) {
-	t.mb = &MemoryBuffer{}
+	t.mb = &InMemoryWriteBuffer{}
 }
 
 func (t *MemoryBufferTest) TearDown() {}
