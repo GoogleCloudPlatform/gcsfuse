@@ -21,6 +21,7 @@ import (
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -131,14 +132,29 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	AssertEq(nil, err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url
+	sc.DisableAuth = false
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNotNilAndDisableAuthIsFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.DisableAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
