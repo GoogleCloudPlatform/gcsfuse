@@ -120,7 +120,6 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-// This will fail while fetching the token-source, since key-file doesn't exist.
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
@@ -128,6 +127,17 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.DisableAuth = false
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
 	AssertNe(nil, handleCreated)
 }
 

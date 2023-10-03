@@ -43,6 +43,7 @@ type storageClient struct {
 // customized http client. We can configure the http client using the
 // storageClientConfig parameter.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
+
 	var clientOpts []option.ClientOption
 	// Add WithHttpClient option.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {

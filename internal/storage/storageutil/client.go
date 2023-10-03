@@ -88,11 +88,10 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	return httpClient, err
 }
 
-// It creates dummy token-source in case of non-nil custom url. If the custom-endpoint
-// is nil, it creates the token-source from the provided key-file or using ADC search
+// It creates dummy token-source in case of disable-auth flag. If the disable-auth flag
+// is true, it creates the token-source from the provided key-file or using ADC search
 // order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	// Create token src only if disable-auth flag is false.
 	if !storageClientConfig.DisableAuth {
 		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 	} else {
