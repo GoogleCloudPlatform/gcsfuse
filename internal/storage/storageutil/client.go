@@ -98,5 +98,4 @@ func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
-	return nil, nil
 }
