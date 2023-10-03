@@ -31,9 +31,6 @@ type ChunkUploader interface {
 	// Progress should be tracked using the progress func
 	// passed during ChunkUploader instance creation.
 	//
-	// io.EOF is an expected error in case the reader has less
-	// data than the writer tries to read from it.
-	//
 	// Unlike the io.Writer interface, it doesn't return number-of-bytes
 	// uploaded in this call, as the write is asynchronous; instead
 	// this interface instead has
