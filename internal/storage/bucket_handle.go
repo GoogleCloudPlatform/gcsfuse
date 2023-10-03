@@ -187,6 +187,14 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 
+func (bh *bucketHandle) CreateChunkUploader(
+	ctx context.Context,
+	req *gcs.CreateObjectRequest,
+	writeChunkSize int,
+	progressFunc func(int64)) (sow gcs.ChunkUploader, err error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
