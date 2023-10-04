@@ -932,18 +932,18 @@ func (t *FileTest) UnlinkLocalFile() {
 func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	var bufferSize uint = 20
+	var bufferSizeMB uint = 20
 	content := []byte("Hello world!")
 
-	// Call WriteToBuffer multiple times and ensure buffer is created only once.
-	err := t.in.WriteToBuffer(bufferSize, content, 0)
+	// Call WriteToBuffer multiple times and ensure writeBuffer is created only once.
+	err := t.in.WriteToBuffer(bufferSizeMB, content, 0)
 	AssertEq(nil, err)
-	AssertNe(nil, t.in.buffer)
-	bufferCreated := t.in.buffer
-	err = t.in.WriteToBuffer(bufferSize, content, 13)
+	AssertNe(nil, t.in.writeBuffer)
+	bufferCreated := t.in.writeBuffer
+	err = t.in.WriteToBuffer(bufferSizeMB, content, 13)
 	AssertEq(nil, err)
-	AssertEq(bufferCreated, t.in.buffer)
-	err = t.in.WriteToBuffer(bufferSize, content, 25)
+	AssertEq(bufferCreated, t.in.writeBuffer)
+	err = t.in.WriteToBuffer(bufferSizeMB, content, 25)
 	AssertEq(nil, err)
-	AssertEq(bufferCreated, t.in.buffer)
+	AssertEq(bufferCreated, t.in.writeBuffer)
 }

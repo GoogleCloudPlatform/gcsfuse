@@ -46,11 +46,11 @@ func (t *MemoryBufferTest) TearDown() {}
 // //////////////////////////////////////////////////////////////////////
 
 func (t *MemoryBufferTest) TestCreateInMemoryBuffer() {
-	bufferSize := 10
+	bufferSizeMB := 10
 
-	t.mb.Create(bufferSize)
+	t.mb = NewInMemoryWriteBuffer(bufferSizeMB)
 
-	AssertEq(bufferSize*1024*1024, t.mb.chunkSize)
-	AssertEq(2*bufferSize*1024*1024, t.mb.buffer.Cap())
+	AssertEq(bufferSizeMB*MiB, t.mb.chunkSize)
+	AssertEq(2*bufferSizeMB*MiB, t.mb.buffer.Cap())
 	AssertEq(0, t.mb.buffer.Len())
 }

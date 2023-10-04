@@ -12,12 +12,14 @@ type InMemoryWriteBuffer struct {
 	chunkSize int
 }
 
-func (b *InMemoryWriteBuffer) Create(sizeInMB int) WriteBuffer {
-	b.chunkSize = sizeInMB * 1024 * 1024
+// NewInMemoryWriteBuffer creates a buffer of 2*sizeInMB passed as a parameter.
+func NewInMemoryWriteBuffer(sizeInMB int) *InMemoryWriteBuffer {
+	b := &InMemoryWriteBuffer{}
+	b.chunkSize = sizeInMB * MiB
 	b.buffer = bytes.NewBuffer(make([]byte, 0, 2*b.chunkSize))
 	return b
 }
 
-func (b *InMemoryWriteBuffer) Write(data []byte, offset int64) error {
+func (b *InMemoryWriteBuffer) WriteAt(data []byte, offset int64) error {
 	return nil
 }

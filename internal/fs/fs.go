@@ -2094,11 +2094,7 @@ func (fs *fileSystem) WriteFile(
 }
 
 func (fs *fileSystem) shouldTriggerBufferEnabledWrite(in *inode.FileInode) bool {
-	if fs.mountConfig.WriteConfig.EnableStreamingWrites &&
-		in.IsLocal() {
-		return true
-	}
-	return false
+	return fs.mountConfig.WriteConfig.EnableStreamingWrites && in.IsLocal()
 }
 
 // LOCKS_EXCLUDED(fs.mu)

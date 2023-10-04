@@ -80,7 +80,7 @@ type FileInode struct {
 
 	// Represents the buffer associated with inode which stores the data to be
 	// written to GCS.
-	buffer buffer.WriteBuffer
+	writeBuffer buffer.WriteBuffer
 
 	// Has Destroy been called?
 	//
@@ -476,27 +476,26 @@ func (f *FileInode) Write(
 	return
 }
 
-func (f *FileInode) ensureBuffer(bufferSize int) {
-	if f.buffer != nil {
+func (f *FileInode) ensureBuffer(bufferSizeMB int) {
+	if f.writeBuffer != nil {
 		return
 	}
-	if bufferSize <= 50 {
-		f.buffer = &buffer.InMemoryWriteBuffer{}
+	if bufferSizeMB <= 50 {
+		f.writeBuffer = buffer.NewInMemoryWriteBuffer(bufferSizeMB)
 	}
-	// TODO: else assign on-disk buffer to f.buffer.
-	f.buffer.Create(bufferSize)
+	// TODO: else assign on-disk buffer to f.writeBuffer.
 }
 
-// WriteToBuffer served the write request with buffer.
+// WriteToBuffer serves the write request with buffer.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) WriteToBuffer(bufferSize uint,
+func (f *FileInode) WriteToBuffer(bufferSizeMB uint,
 	data []byte,
 	offset int64) error {
-	// Ensure that f.buffer != nil.
-	f.ensureBuffer(int(bufferSize))
+	// Ensure that f.writeBuffer != nil.
+	f.ensureBuffer(int(bufferSizeMB))
 
-	return f.buffer.Write(data, offset)
+	return f.writeBuffer.WriteAt(data, offset)
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
