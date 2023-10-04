@@ -15,7 +15,9 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -67,11 +69,18 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return
 	}
 
-	err = yaml.Unmarshal(buf, mountConfig)
-	if err != nil {
-		err = fmt.Errorf("error parsing config file: %w", err)
-		return
+	// Ensure error is thrown when unexpected configs are passed in config file.
+	// Ref: https://github.com/go-yaml/yaml/issues/602#issuecomment-623485602
+	decoder := yaml.NewDecoder(bytes.NewReader(buf))
+	decoder.KnownFields(true)
+	if err = decoder.Decode(mountConfig); err != nil {
+		// Decode returns EOF in case of empty config file.
+		if err == io.EOF {
+			return mountConfig, nil
+		}
+		return mountConfig, fmt.Errorf("error parsing config file: %w", err)
 	}
+
 	// convert log severity to upper-case
 	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
 	if err = mountConfig.LogConfig.Severity.validate(); err != nil {
