@@ -1,7 +1,12 @@
 package buffer
 
-// MiB is the multiplication factor to convert MiB to bytes.
-const MiB = 1024 * 1024
+const (
+	// MiB is the multiplication factor to convert MiB to bytes.
+	MiB = 1024 * 1024
+	// InMemoryBufferThresholdMB is the upper limit on the size upto which the buffer should
+	// be created in memory. Beyond this size, buffer should be on disk.
+	InMemoryBufferThresholdMB = 50
+)
 
 // WriteBuffer is an interface that buffers the data to be written to GCS during
 // the write flow.

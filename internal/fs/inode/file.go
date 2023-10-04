@@ -480,7 +480,7 @@ func (f *FileInode) ensureBuffer(bufferSizeMB int) {
 	if f.writeBuffer != nil {
 		return
 	}
-	if bufferSizeMB <= 50 {
+	if bufferSizeMB <= buffer.InMemoryBufferThresholdMB {
 		f.writeBuffer = buffer.NewInMemoryWriteBuffer(bufferSizeMB)
 	}
 	// TODO: else assign on-disk buffer to f.writeBuffer.
