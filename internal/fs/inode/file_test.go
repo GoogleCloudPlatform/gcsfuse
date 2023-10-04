@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -128,6 +129,17 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		local)
 
 	t.in.Lock()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func writeToBuffer(t *FileTest, bufferSizeMB uint, content []byte, offset int64) *buffer.WriteBuffer {
+	err := t.in.WriteToBuffer(bufferSizeMB, content, offset)
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.writeBuffer)
+	return &t.in.writeBuffer
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -935,15 +947,10 @@ func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
 	var bufferSizeMB uint = 20
 	content := []byte("Hello world!")
 
+	// verify writeBuffer is nil initially.
+	AssertEq(nil, t.in.writeBuffer)
 	// Call WriteToBuffer multiple times and ensure writeBuffer is created only once.
-	err := t.in.WriteToBuffer(bufferSizeMB, content, 0)
-	AssertEq(nil, err)
-	AssertNe(nil, t.in.writeBuffer)
-	bufferCreated := t.in.writeBuffer
-	err = t.in.WriteToBuffer(bufferSizeMB, content, 13)
-	AssertEq(nil, err)
-	AssertEq(bufferCreated, t.in.writeBuffer)
-	err = t.in.WriteToBuffer(bufferSizeMB, content, 25)
-	AssertEq(nil, err)
-	AssertEq(bufferCreated, t.in.writeBuffer)
+	bufferCreated := writeToBuffer(t, bufferSizeMB, content, 0)
+	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 13))
+	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 25))
 }
