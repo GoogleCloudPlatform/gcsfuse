@@ -476,14 +476,19 @@ func (f *FileInode) Write(
 	return
 }
 
-func (f *FileInode) ensureBuffer(bufferSizeMB int) {
-	if f.writeBuffer != nil {
-		return
-	}
+func (f *FileInode) CreateEmptyWriteBuffer(bufferSizeMB int) {
 	if bufferSizeMB <= buffer.InMemoryBufferThresholdMB {
-		f.writeBuffer = buffer.NewInMemoryWriteBuffer(bufferSizeMB)
+		f.writeBuffer = buffer.EmptyInMemoryWriteBuffer()
 	}
 	// TODO: else assign on-disk buffer to f.writeBuffer.
+}
+
+// Ensures that f.writeBuffer object is not null and is ready to be written to.
+func (f *FileInode) ensureWriteBuffer(bufferSizeMB int) {
+	if f.writeBuffer == nil {
+		f.CreateEmptyWriteBuffer(bufferSizeMB)
+	}
+	f.writeBuffer.AllocateBuffer(bufferSizeMB)
 }
 
 // WriteToBuffer serves the write request with buffer.
@@ -493,7 +498,7 @@ func (f *FileInode) WriteToBuffer(bufferSizeMB uint,
 	data []byte,
 	offset int64) error {
 	// Ensure that f.writeBuffer != nil.
-	f.ensureBuffer(int(bufferSizeMB))
+	f.ensureWriteBuffer(int(bufferSizeMB))
 
 	return f.writeBuffer.WriteAt(data, offset)
 }

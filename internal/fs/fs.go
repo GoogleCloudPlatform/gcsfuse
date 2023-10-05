@@ -1486,11 +1486,15 @@ func (fs *fileSystem) createLocalFile(
 		child = fs.mintInode(*result)
 		fs.localFileInodes[child.Name()] = child
 
-		// Empty file is created to be able to set attributes on the file.
+		// Empty buffer/temp file is created to be able to set attributes on it.
 		fileInode := child.(*inode.FileInode)
-		err = fileInode.CreateEmptyTempFile()
-		if err != nil {
-			return
+		if fs.isWriteBufferEnabled(fileInode) {
+			fileInode.CreateEmptyWriteBuffer(int(fs.mountConfig.WriteConfig.BufferSizeMB))
+		} else {
+			err = fileInode.CreateEmptyTempFile()
+			if err != nil {
+				return
+			}
 		}
 	}
 
@@ -2077,7 +2081,7 @@ func (fs *fileSystem) WriteFile(
 	defer in.Unlock()
 
 	// Serve the request.
-	if fs.shouldTriggerBufferEnabledWrite(in) {
+	if fs.isWriteBufferEnabled(in) {
 		// Trigger write file buffering flow.
 		err := in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
 		if err != nil {
@@ -2093,7 +2097,7 @@ func (fs *fileSystem) WriteFile(
 	return
 }
 
-func (fs *fileSystem) shouldTriggerBufferEnabledWrite(in *inode.FileInode) bool {
+func (fs *fileSystem) isWriteBufferEnabled(in *inode.FileInode) bool {
 	return fs.mountConfig.WriteConfig.EnableStreamingWrites && in.IsLocal()
 }
 

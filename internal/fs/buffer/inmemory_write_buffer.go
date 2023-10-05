@@ -19,19 +19,27 @@ import (
 )
 
 type InMemoryWriteBuffer struct {
-	// buffer will hold the data to be written to GCS. Buffer holds the data for 2
-	// GCS write calls.
+	// Holds the data to be written to GCS. At any time, Buffer holds the data for
+	// 2 GCS write calls.
 	buffer *bytes.Buffer
-	// chunkSize is the size of data to be written in one GCS call.
-	chunkSize int
 }
 
-// NewInMemoryWriteBuffer creates a buffer of 2*sizeInMB passed as a parameter.
-func NewInMemoryWriteBuffer(sizeInMB int) *InMemoryWriteBuffer {
+// EmptyInMemoryWriteBuffer creates a buffer with InMemoryWriteBuffer.buffer
+// set to nil. Memory is allocated to the buffer when the first write call comes.
+// This avoids unnecessarily bloating GCSFuse memory consumption.
+//
+// To allocate memory to the buffer, use WriteBuffer.AllocateBuffer.
+func EmptyInMemoryWriteBuffer() *InMemoryWriteBuffer {
 	b := &InMemoryWriteBuffer{}
-	b.chunkSize = sizeInMB * MiB
-	b.buffer = bytes.NewBuffer(make([]byte, 0, 2*b.chunkSize))
+	// TODO: set mtime attribute.
 	return b
+}
+
+func (b *InMemoryWriteBuffer) AllocateBuffer(sizeInMB int) {
+	ChunkSize = sizeInMB * MiB
+	if b.buffer == nil {
+		b.buffer = bytes.NewBuffer(make([]byte, 0, 2*sizeInMB*MiB))
+	}
 }
 
 func (b *InMemoryWriteBuffer) WriteAt(data []byte, offset int64) error {

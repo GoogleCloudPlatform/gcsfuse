@@ -954,3 +954,17 @@ func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
 	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 13))
 	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 25))
 }
+
+func (t *FileTest) TestEnsureBufferCreatesInMemoryBufferWhenBufferSizeIsLessThan50() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	var bufferSizeMB int = 20
+	// verify writeBuffer is nil initially.
+	AssertEq(nil, t.in.writeBuffer)
+
+	t.in.ensureWriteBuffer(bufferSizeMB)
+
+	// Validate that the buffer created is of type InMemoryWriteBuffer
+	_, ok := t.in.writeBuffer.(*buffer.InMemoryWriteBuffer)
+	AssertEq(true, ok)
+}

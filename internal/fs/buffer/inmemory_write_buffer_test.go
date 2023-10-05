@@ -45,12 +45,20 @@ func (t *MemoryBufferTest) TearDown() {}
 // Tests
 // //////////////////////////////////////////////////////////////////////
 
-func (t *MemoryBufferTest) TestCreateInMemoryBuffer() {
+func (t *MemoryBufferTest) TestCreateEmptyInMemoryBuffer() {
+	t.mb = EmptyInMemoryWriteBuffer()
+
+	AssertEq(nil, t.mb.buffer)
+	AssertEq(0, ChunkSize)
+}
+
+func (t *MemoryBufferTest) TestAllocateInMemoryBuffer() {
 	bufferSizeMB := 10
+	t.mb = EmptyInMemoryWriteBuffer()
 
-	t.mb = NewInMemoryWriteBuffer(bufferSizeMB)
+	t.mb.AllocateBuffer(bufferSizeMB)
 
-	AssertEq(bufferSizeMB*MiB, t.mb.chunkSize)
+	AssertEq(bufferSizeMB*MiB, ChunkSize)
 	AssertEq(2*bufferSizeMB*MiB, t.mb.buffer.Cap())
 	AssertEq(0, t.mb.buffer.Len())
 }

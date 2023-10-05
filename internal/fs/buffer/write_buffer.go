@@ -22,6 +22,10 @@ const (
 	InMemoryBufferThresholdMB = 50
 )
 
+// ChunkSize (bytes) is the size of data to be written in 1 write call to GCS.
+// Ensure ChunkSize <= 100MB to avoid memory bloat.
+var ChunkSize int
+
 // WriteBuffer is an interface that buffers the data to be written to GCS during
 // the write flow.
 // WriteBuffer is used only in create new file flow with sequential writes and
@@ -30,4 +34,8 @@ const (
 type WriteBuffer interface {
 	// WriteAt writes at an offset to the buffer.
 	WriteAt(data []byte, offset int64) error
+
+	// AllocateBuffer assigns a buffer of 2*configured buffer size to the WriteBuffer.
+	// AllocateBuffer should be called before any write calls to the buffer.
+	AllocateBuffer(sizeInMB int)
 }
