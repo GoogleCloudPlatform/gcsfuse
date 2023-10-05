@@ -84,6 +84,14 @@ mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,implicit_dirs=tru
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
+# Run tests with config "write: create-empty-file: true".
+echo "write:
+       create-empty-file: true
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+sudo umount $MOUNT_DIR
+
 # Run tests with config "file-cache: max-size-in-mb" static mounting.
 echo "file-cache:
        max-size-in-mb: 2
