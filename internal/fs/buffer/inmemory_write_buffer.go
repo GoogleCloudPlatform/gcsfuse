@@ -24,18 +24,18 @@ type InMemoryWriteBuffer struct {
 	buffer *bytes.Buffer
 }
 
-// EmptyInMemoryWriteBuffer creates a buffer with InMemoryWriteBuffer.buffer
+// CreateInMemoryWriteBuffer creates a buffer with InMemoryWriteBuffer.buffer
 // set to nil. Memory is allocated to the buffer when the first write call comes.
 // This avoids unnecessarily bloating GCSFuse memory consumption.
 //
-// To allocate memory to the buffer, use WriteBuffer.AllocateBuffer.
-func EmptyInMemoryWriteBuffer() *InMemoryWriteBuffer {
+// To allocate memory to the buffer, use WriteBuffer.InitializeBuffer.
+func CreateInMemoryWriteBuffer() *InMemoryWriteBuffer {
 	b := &InMemoryWriteBuffer{}
 	// TODO: set mtime attribute.
 	return b
 }
 
-func (b *InMemoryWriteBuffer) AllocateBuffer(sizeInMB int) {
+func (b *InMemoryWriteBuffer) InitializeBuffer(sizeInMB int) {
 	ChunkSize = sizeInMB * MiB
 	if b.buffer == nil {
 		b.buffer = bytes.NewBuffer(make([]byte, 0, 2*sizeInMB*MiB))

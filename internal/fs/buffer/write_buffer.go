@@ -32,10 +32,10 @@ var ChunkSize int
 // at any point in time, only 2x of the configured buffer size is stored in the
 // write buffer.
 type WriteBuffer interface {
+	// InitializeBuffer assigns a buffer of 2*configured buffer size to the WriteBuffer.
+	// InitializeBuffer should be called before any write calls to the buffer.
+	InitializeBuffer(sizeInMB int)
+
 	// WriteAt writes at an offset to the buffer.
 	WriteAt(data []byte, offset int64) error
-
-	// AllocateBuffer assigns a buffer of 2*configured buffer size to the WriteBuffer.
-	// AllocateBuffer should be called before any write calls to the buffer.
-	AllocateBuffer(sizeInMB int)
 }
