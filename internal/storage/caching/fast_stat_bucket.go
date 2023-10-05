@@ -149,8 +149,19 @@ func (b *fastStatBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
-	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	progressFunc func(int64)) (uploader gcs.ChunkUploader, err error) {
+	// Throw away any existing record for this object.
+	b.invalidate(req.Name)
+
+	// Create the new object.
+	uploader, err = b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+	if err != nil {
+		return
+	}
+
+	// Record the new object.
+	// b.insert(o)
+	return uploader, fmt.Errorf("failed to insert the new object into fastStatBucket as it's not created yet")
 }
 
 // LOCKS_EXCLUDED(b.mu)

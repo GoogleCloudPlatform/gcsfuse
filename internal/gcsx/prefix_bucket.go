@@ -98,8 +98,24 @@ func (b *prefixBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
-	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	progressFunc func(int64)) (uploader gcs.ChunkUploader, err error) {
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	uploader, err = b.wrapped.CreateChunkUploader(ctx, mReq, writeChunkSize, progressFunc)
+	if err != nil {
+		return
+	}
+
+	// Modify the returned object.
+	if uploader != nil {
+		// o.Name = b.localName(o.Name)
+		err = fmt.Errorf("failed to rename object's name as it has not been created yet")
+	}
+
+	return
 }
 
 func (b *prefixBucket) CopyObject(

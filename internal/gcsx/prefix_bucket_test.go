@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"google.golang.org/api/googleapi"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
@@ -114,6 +115,28 @@ func (t *PrefixBucketTest) CreateObject() {
 	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(actual))
+}
+
+func (t *PrefixBucketTest) CreateChunkUploader() {
+	var err error
+	suffix := "taco"
+	contents := "foobar"
+	chunkSize := googleapi.MinUploadChunkSize
+
+	// Create the object.
+	uploader, err := t.bucket.CreateChunkUploader(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:            suffix,
+			ContentLanguage: "en-GB",
+			Contents:        strings.NewReader(contents),
+		},
+		chunkSize,
+		nil,
+	)
+
+	AssertEq(nil, uploader)
+	AssertNe(nil, err)
 }
 
 func (t *PrefixBucketTest) CopyObject() {

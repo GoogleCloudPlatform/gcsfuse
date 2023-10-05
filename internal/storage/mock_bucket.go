@@ -132,11 +132,36 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 }
 
 func (m *mockBucket) CreateChunkUploader(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest,
-	writeChunkSize int,
-	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	p0 context.Context,
+	p1 *gcs.CreateObjectRequest,
+	p2 int,
+	p3 func(int64)) (o0 gcs.ChunkUploader, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"CreateChunkUploader",
+		file,
+		line,
+		[]interface{}{p0, p1, p2, p3})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.CreateObject: invalid return values: %v", retVals))
+	}
+
+	// o0 *Object
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.ChunkUploader)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
 }
 
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {

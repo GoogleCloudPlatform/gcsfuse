@@ -163,8 +163,12 @@ func (b *debugBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
-	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	progressFunc func(int64)) (uploader gcs.ChunkUploader, err error) {
+	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	uploader, err = b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+	return
 }
 
 func (b *debugBucket) CopyObject(

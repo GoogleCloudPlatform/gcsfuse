@@ -564,7 +564,7 @@ func (b *bucket) CreateChunkUploader(
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not supported")
+	return nil, fmt.Errorf("unable to lock object as none created")
 }
 
 // LOCKS_EXCLUDED(b.mu)
