@@ -23,8 +23,8 @@ import (
 	"sync"
 )
 
-// An LRU cache for arbitrary values indexed by string keys. External
-// synchronization is required. Gob encoding/decoding is supported as long as
+// Cache is a weighted LRU cache for any lrucache.ValueType indexed by string keys.
+// External synchronization is required. Gob encoding/decoding is supported as long as
 // all values are registered using gob.Register.
 //
 // May be used directly as a field in a larger struct. Must be created with New
@@ -34,16 +34,19 @@ type Cache struct {
 	// Constant data
 	/////////////////////////
 
-	// INVARIANT: capacity > 0
-	capacity uint64
+	// INVARIANT: maxWeight > 0
+	maxWeight uint64
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
+	// Sum of entry.Value.Weight() of all the entries in the cache.
+	occupiedWeight uint64
+
 	// List of cache entries, with least recently used at the tail.
 	//
-	// INVARIANT: entries.Len() <= capacity
+	// INVARIANT: occupiedWeight <= maxWeight
 	// INVARIANT: Each element is of type entry
 	entries list.List
 
@@ -53,14 +56,14 @@ type Cache struct {
 	// INVARIANT: Contains all and only the elements of entries
 	index map[string]*list.Element
 
-	// Guards all the methods of this cache.
+	// All exposed methods are guarded by this Mutex. This means that only one
+	// method of this cache will be executed at a time, and other methods will
+	// be blocked until the current method completes.
 	mu sync.Mutex
-
-	usedSize uint64
 }
 
 type ValueType interface {
-	Size() uint64
+	Weight() uint64
 }
 
 type entry struct {
@@ -68,25 +71,25 @@ type entry struct {
 	Value ValueType
 }
 
-// Initialize a cache with the supplied capacity, which must be greater than
+// New initialize a cache with the supplied maxWeight, which must be greater than
 // zero.
-func New(capacity uint64) (c Cache) {
-	c.capacity = capacity
+func New(maxWeight uint64) (c Cache) {
+	c.maxWeight = maxWeight
 	c.index = make(map[string]*list.Element)
 	return
 }
 
-// Panic if any internal invariants have been violated. The careful user can
-// arrange to call this at crucial moments.
+// CheckInvariants panic if any internal invariants have been violated.
+// The careful user can arrange to call this at crucial moments.
 func (c *Cache) CheckInvariants() {
-	// INVARIANT: capacity > 0
-	if !(c.capacity > 0) {
-		panic(fmt.Sprintf("Invalid capacity: %v", c.capacity))
+	// INVARIANT: maxWeight > 0
+	if !(c.maxWeight > 0) {
+		panic(fmt.Sprintf("Invalid maxWeight: %v", c.maxWeight))
 	}
 
-	// INVARIANT: entries.Len() <= capacity
-	if !(c.usedSize <= c.capacity) {
-		panic(fmt.Sprintf("Length %v over capacity %v", c.entries.Len(), c.capacity))
+	// INVARIANT: entries.Len() <= maxWeight
+	if !(c.occupiedWeight <= c.maxWeight) {
+		panic(fmt.Sprintf("Length %v over maxWeight %v", c.entries.Len(), c.maxWeight))
 	}
 
 	// INVARIANT: Each element is of type entry
@@ -119,7 +122,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	c.usedSize -= evictedEntry.Size()
+	c.occupiedWeight -= evictedEntry.Weight()
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -133,6 +136,7 @@ func (c *Cache) evictOne() ValueType {
 
 // Insert the supplied value into the cache, overwriting any previous entry for
 // the given key. The value must be non-nil.
+// Also returns a slice of ValueType evicted by the new inserted entry.
 func (c *Cache) Insert(
 	key string,
 	value ValueType) []ValueType {
@@ -143,31 +147,30 @@ func (c *Cache) Insert(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Erase any existing element for this key.
-	// If entry already exist
 	e, ok := c.index[key]
 	if ok {
-		c.usedSize -= e.Value.(entry).Value.Size()
-		c.usedSize += value.Size()
+		// Update an entry if already exist.
+		c.occupiedWeight -= e.Value.(entry).Value.Weight()
+		c.occupiedWeight += value.Weight()
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
-		// Add a new element.
+		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.usedSize += value.Size()
+		c.occupiedWeight += value.Weight()
 	}
 
-	var evictedEntries []ValueType
-	// Evict until we're at or below capacity.
-	for c.usedSize > c.capacity {
-		evictedEntries = append(evictedEntries, c.evictOne())
+	var evictedValues []ValueType
+	// Evict until we're at or below maxWeight.
+	for c.occupiedWeight > c.maxWeight {
+		evictedValues = append(evictedValues, c.evictOne())
 	}
 
-	return evictedEntries
+	return evictedValues
 }
 
-// Erase any entry for the supplied key.
+// Erase any entry for the supplied key, also returns the value of erased key.
 func (c *Cache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -178,7 +181,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.usedSize -= value.Size()
+	c.occupiedWeight -= value.Weight()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
@@ -186,7 +189,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	return deletedEntry
 }
 
-// Look up a previously-inserted value for the given key. Return nil if no
+// LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
 func (c *Cache) LookUp(key string) (value ValueType) {
 	c.mu.Lock()
@@ -228,21 +231,21 @@ func (c *Cache) GobEncode() (b []byte, err error) {
 		entrySlice = append(entrySlice, e.Value.(entry))
 	}
 
-	// Encode the capacity.
-	if err = encoder.Encode(c.capacity); err != nil {
-		err = fmt.Errorf("Encoding capacity: %v", err)
+	// Encode the maxWeight.
+	if err = encoder.Encode(c.maxWeight); err != nil {
+		err = fmt.Errorf("encoding maxWeight: %v", err)
 		return
 	}
 
-	// Encoding the usedSize.
-	if err = encoder.Encode(c.usedSize); err != nil {
-		err = fmt.Errorf("Encoding usedSize: %v", err)
+	// Encoding the occupiedWeight.
+	if err = encoder.Encode(c.occupiedWeight); err != nil {
+		err = fmt.Errorf("encoding occupiedWeight: %v", err)
 		return
 	}
 
 	// Encode the entries.
 	if err = encoder.Encode(entrySlice); err != nil {
-		err = fmt.Errorf("Encoding entries: %v", err)
+		err = fmt.Errorf("encoding entries: %v", err)
 		return
 	}
 
@@ -254,26 +257,26 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 	buf := bytes.NewBuffer(b)
 	decoder := gob.NewDecoder(buf)
 
-	// Decode the capacity.
-	var capacity uint64
-	if err = decoder.Decode(&capacity); err != nil {
-		err = fmt.Errorf("Decoding capacity: %v", err)
+	// Decode the maxWeight.
+	var maxWeight uint64
+	if err = decoder.Decode(&maxWeight); err != nil {
+		err = fmt.Errorf("decoding maxWeight: %v", err)
 		return
 	}
 
-	// Decode usedSize.
-	var usedSize uint64
-	if err = decoder.Decode(&usedSize); err != nil {
-		err = fmt.Errorf("Decoding usedSize: %v", err)
+	// Decode occupiedWeight.
+	var occupiedWeight uint64
+	if err = decoder.Decode(&occupiedWeight); err != nil {
+		err = fmt.Errorf("decoding occupiedWeight: %v", err)
 		return
 	}
 
-	*c = New(capacity)
+	*c = New(maxWeight)
 
 	// Decode the entries.
 	var entrySlice []entry
 	if err = decoder.Decode(&entrySlice); err != nil {
-		err = fmt.Errorf("Decoding entries: %v", err)
+		err = fmt.Errorf("decoding entries: %v", err)
 		return
 	}
 
@@ -283,6 +286,6 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 		c.index[entry.Key] = e
 	}
 
-	c.usedSize = usedSize
+	c.occupiedWeight = occupiedWeight
 	return
 }

@@ -61,7 +61,7 @@ func (c *invariantsCache) LookUp(key string) lrucache.ValueType {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const capacity = 50
+const maxWeight = 50
 
 type CacheTest struct {
 	cache invariantsCache
@@ -70,16 +70,16 @@ type CacheTest struct {
 func init() { RegisterTestSuite(&CacheTest{}) }
 
 func (t *CacheTest) SetUp(ti *TestInfo) {
-	t.cache.Wrapped = lrucache.New(capacity)
+	t.cache.Wrapped = lrucache.New(maxWeight)
 }
 
 type testData struct {
-	Value  int64
-	Weight uint64
+	Value int64
+	Size  uint64
 }
 
-func (td testData) Size() uint64 {
-	return td.Weight
+func (td testData) Weight() uint64 {
+	return td.Size
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,19 +99,19 @@ func (t *CacheTest) InsertNilValue() {
 }
 
 func (t *CacheTest) LookUpUnknownKey() {
-	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
-	t.cache.Insert("taco", testData{Value: 23, Weight: 8})
+	t.cache.Insert("burrito", testData{Value: 23, Size: 4})
+	t.cache.Insert("taco", testData{Value: 23, Size: 8})
 
 	ExpectEq(nil, t.cache.LookUp(""))
 	ExpectEq(nil, t.cache.LookUp("enchilada"))
 }
 
 func (t *CacheTest) FillUpToCapacity() {
-	AssertEq(50, capacity)
+	AssertEq(50, maxWeight)
 
-	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
-	t.cache.Insert("taco", testData{Value: 26, Weight: 20})
-	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26})
+	t.cache.Insert("burrito", testData{Value: 23, Size: 4})
+	t.cache.Insert("taco", testData{Value: 26, Size: 20})
+	t.cache.Insert("enchilada", testData{Value: 28, Size: 26})
 
 	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
 	ExpectEq(26, t.cache.LookUp("taco").(testData).Value)
@@ -119,15 +119,15 @@ func (t *CacheTest) FillUpToCapacity() {
 }
 
 func (t *CacheTest) ExpiresLeastRecentlyUsed() {
-	AssertEq(50, capacity)
+	AssertEq(50, maxWeight)
 
-	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
-	t.cache.Insert("taco", testData{Value: 26, Weight: 20})      // Least recent
-	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26}) // Second most recent
-	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)     // Most recent
+	t.cache.Insert("burrito", testData{Value: 23, Size: 4})
+	t.cache.Insert("taco", testData{Value: 26, Size: 20})      // Least recent
+	t.cache.Insert("enchilada", testData{Value: 28, Size: 26}) // Second most recent
+	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)   // Most recent
 
 	// Insert another.
-	t.cache.Insert("queso", testData{Value: 34, Weight: 5})
+	t.cache.Insert("queso", testData{Value: 34, Size: 5})
 
 	// See what's left.
 	ExpectEq(nil, t.cache.LookUp("taco"))
@@ -137,20 +137,20 @@ func (t *CacheTest) ExpiresLeastRecentlyUsed() {
 }
 
 func (t *CacheTest) Overwrite() {
-	ret := t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
+	ret := t.cache.Insert("burrito", testData{Value: 23, Size: 4})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("taco", testData{Value: 26, Weight: 20})
+	ret = t.cache.Insert("taco", testData{Value: 26, Size: 20})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("enchilada", testData{Value: 28, Weight: 20})
+	ret = t.cache.Insert("enchilada", testData{Value: 28, Size: 20})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("burrito", testData{Value: 33, Weight: 6})
+	ret = t.cache.Insert("burrito", testData{Value: 33, Size: 6})
 	AssertEq(len(ret), 0)
 
-	// Increase the Weight while modifying, so eviction should happen
-	ret = t.cache.Insert("burrito", testData{Value: 33, Weight: 12})
+	// Increase the Size while modifying, so eviction should happen
+	ret = t.cache.Insert("burrito", testData{Value: 33, Size: 12})
 	AssertEq(len(ret), 1)
 	ExpectEq(ret[0].(testData).Value, 26)
 
@@ -175,15 +175,15 @@ func (t *CacheTest) Encode_EmptyCache() {
 }
 
 func (t *CacheTest) Encode_PreservesLRUOrderAndCapacity() {
-	gob.Register(testData{Value: 30, Weight: 23})
+	gob.Register(testData{Value: 30, Size: 23})
 
 	// Contents
-	AssertEq(50, capacity)
+	AssertEq(50, maxWeight)
 
-	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
-	t.cache.Insert("taco", testData{Value: 26, Weight: 20})      // Least recent
-	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26}) // Second most recent
-	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)     // Most recent
+	t.cache.Insert("burrito", testData{Value: 23, Size: 4})
+	t.cache.Insert("taco", testData{Value: 26, Size: 20})      // Least recent
+	t.cache.Insert("enchilada", testData{Value: 28, Size: 26}) // Second most recent
+	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)   // Most recent
 
 	// Encode
 	buf := new(bytes.Buffer)
@@ -196,7 +196,7 @@ func (t *CacheTest) Encode_PreservesLRUOrderAndCapacity() {
 	AssertEq(nil, decoder.Decode(&decoded))
 
 	// Insert another.
-	evictedValue := decoded.Insert("queso", testData{Value: 33, Weight: 26})
+	evictedValue := decoded.Insert("queso", testData{Value: 33, Size: 26})
 	AssertEq(2, len(evictedValue))
 
 	ExpectEq(26, evictedValue[0].(testData).Value)
