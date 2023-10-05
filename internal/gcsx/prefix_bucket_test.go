@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
+	"google.golang.org/api/googleapi"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
@@ -107,6 +108,41 @@ func (t *PrefixBucketTest) CreateObject() {
 		})
 
 	AssertEq(nil, err)
+	ExpectEq(suffix, o.Name)
+	ExpectEq("en-GB", o.ContentLanguage)
+
+	// Read it through the back door.
+	actual, err := storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(actual))
+}
+
+func (t *PrefixBucketTest) ChunkUploader() {
+	var err error
+	suffix := "taco"
+	chunkSize := googleapi.MinUploadChunkSize
+	contents := "foobar"
+
+	// Create the object.
+	uploader, err := t.bucket.CreateChunkUploader(
+		t.ctx,
+		&gcs.CreateObjectRequest{
+			Name:            suffix,
+			ContentLanguage: "en-GB",
+		},
+		chunkSize,
+		nil,
+	)
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+
+	err = uploader.Upload(context.Background(), strings.NewReader(contents))
+	AssertEq(nil, err)
+
+	o, err := uploader.Close(context.Background())
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+
 	ExpectEq(suffix, o.Name)
 	ExpectEq("en-GB", o.ContentLanguage)
 

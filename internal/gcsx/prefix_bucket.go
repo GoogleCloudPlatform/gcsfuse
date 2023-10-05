@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"unicode/utf8"
@@ -94,12 +93,54 @@ func (b *prefixBucket) CreateObject(
 	return
 }
 
+type prefixChunkUploader struct {
+	gcs.ChunkUploader
+
+	b                    *prefixBucket
+	wrappedChunkUploader gcs.ChunkUploader
+}
+
+func NewPrefixChunkUploader(b *prefixBucket, wrappedChunkUploader gcs.ChunkUploader) *prefixChunkUploader {
+	return &prefixChunkUploader{
+		b:                    b,
+		wrappedChunkUploader: wrappedChunkUploader,
+	}
+}
+
+func (uploader *prefixChunkUploader) Upload(ctx context.Context, contents io.Reader) error {
+	return uploader.wrappedChunkUploader.Upload(ctx, contents)
+}
+
+func (uploader *prefixChunkUploader) Close(ctx context.Context) (*gcs.Object, error) {
+	o, err := uploader.wrappedChunkUploader.Close(ctx)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = uploader.b.localName(o.Name)
+	}
+	return o, err
+}
+
+func (uploader *prefixChunkUploader) BytesUploadedSoFar() int64 {
+	return uploader.wrappedChunkUploader.BytesUploadedSoFar()
+}
+
 func (b *prefixBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	wrappedChunkUploader, err := b.wrapped.CreateChunkUploader(ctx, mReq, writeChunkSize, progressFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPrefixChunkUploader(b, wrappedChunkUploader), nil
 }
 
 func (b *prefixBucket) CopyObject(

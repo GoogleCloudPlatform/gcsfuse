@@ -145,12 +145,49 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
+type fastStatChunkUploader struct {
+	gcs.ChunkUploader
+
+	b       *fastStatBucket
+	wrapped gcs.ChunkUploader
+}
+
+func (uploader *fastStatChunkUploader) Upload(ctx context.Context, contents io.Reader) error {
+	return uploader.wrapped.Upload(ctx, contents)
+}
+
+func (uploader *fastStatChunkUploader) Close(ctx context.Context) (*gcs.Object, error) {
+	o, err := uploader.wrapped.Close(ctx)
+	if err != nil || o == nil {
+		return o, err
+	}
+
+	// Record the new object.
+	uploader.b.insert(o)
+	return o, err
+}
+
+func (uploader *fastStatChunkUploader) BytesUploadedSoFar() int64 {
+	return uploader.wrapped.BytesUploadedSoFar()
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
-	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	progressFunc func(int64)) (uploader gcs.ChunkUploader, err error) {
+	// Throw away any existing record for this object.
+	b.invalidate(req.Name)
+
+	// Create the new object.
+	wrapped, err := b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+	if err != nil {
+		return
+	}
+
+	uploader = &fastStatChunkUploader{b: b, wrapped: wrapped}
+	return
 }
 
 // LOCKS_EXCLUDED(b.mu)

@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
+	"google.golang.org/api/googleapi"
 )
 
 var contentTypeBucketTestCases = []struct {
@@ -95,6 +96,40 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 		o, err := bucket.CreateObject(context.Background(), req)
 		if err != nil {
 			t.Fatalf("Test case %d: CreateObject: %v", i, err)
+		}
+
+		// Check the content type.
+		if got, want := o.ContentType, tc.expected; got != want {
+			t.Errorf("Test case %d: o.ContentType is %q, want %q", i, got, want)
+		}
+	}
+}
+
+func TestContentTypeBucket_CreateChunkUploader(t *testing.T) {
+	for i, tc := range contentTypeBucketTestCases {
+		// Set up a bucket.
+		bucket := gcsx.NewContentTypeBucket(
+			fake.NewFakeBucket(timeutil.RealClock(), ""))
+
+		// Create the object.
+		req := &gcs.CreateObjectRequest{
+			Name:        tc.name,
+			ContentType: tc.request,
+		}
+
+		chunkSize := googleapi.MinUploadChunkSize
+		uploader, err := bucket.CreateChunkUploader(context.Background(), req, chunkSize, nil)
+		if err != nil || uploader == nil {
+			t.Errorf("Test case %d. CreateChunkUploader: got = %v, %v, want = non-nil, nil", i, uploader, err)
+		}
+
+		if err = uploader.Upload(context.Background(), strings.NewReader("")); nil != err {
+			t.Errorf("Test case %d. Upload: got = %v, want = nil", i, err)
+		}
+
+		o, err := uploader.Close(context.Background())
+		if o == nil || nil != err {
+			t.Errorf("Test case %d. Close(): got = %v, %v want = non-nil, nil", i, o, err)
 		}
 
 		// Check the content type.
