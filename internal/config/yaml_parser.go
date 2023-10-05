@@ -47,6 +47,13 @@ func IsValidLogSeverity(severity LogSeverity) bool {
 	return false
 }
 
+func (fileCacheConfig *FileCacheConfig) validate() error {
+	if fileCacheConfig.TTLInSec < -1 || fileCacheConfig.MaxSizeInMB < -1 {
+		return fmt.Errorf("the value of max-size-in-mb or ttl-in-sec for file-cache can't be less than -1")
+	}
+	return nil
+}
+
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig = NewMountConfig()
 
@@ -72,5 +79,8 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return
 	}
 
+	if err = mountConfig.FileCacheConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing file-cache configs: %v", err)
+	}
 	return
 }
