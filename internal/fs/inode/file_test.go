@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -128,6 +129,17 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		local)
 
 	t.in.Lock()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func writeToBuffer(t *FileTest, bufferSizeMB uint, content []byte, offset int64) *buffer.WriteBuffer {
+	err := t.in.WriteToBuffer(bufferSizeMB, content, offset)
+	AssertEq(nil, err)
+	AssertNe(nil, t.in.writeBuffer)
+	return &t.in.writeBuffer
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -927,4 +939,32 @@ func (t *FileTest) UnlinkLocalFile() {
 	_, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
+}
+
+func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	var bufferSizeMB uint = 20
+	content := []byte("Hello world!")
+
+	// verify writeBuffer is nil initially.
+	AssertEq(nil, t.in.writeBuffer)
+	// Call WriteToBuffer multiple times and ensure writeBuffer is created only once.
+	bufferCreated := writeToBuffer(t, bufferSizeMB, content, 0)
+	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 13))
+	AssertEq(bufferCreated, writeToBuffer(t, bufferSizeMB, content, 25))
+}
+
+func (t *FileTest) TestEnsureBufferCreatesInMemoryBufferWhenBufferSizeIsLessThan50() {
+	// Create a local file inode.
+	t.createInodeWithLocalParam("test", true)
+	var bufferSizeMB int = 20
+	// verify writeBuffer is nil initially.
+	AssertEq(nil, t.in.writeBuffer)
+
+	t.in.ensureWriteBuffer(bufferSizeMB)
+
+	// Validate that the buffer created is of type InMemoryWriteBuffer
+	_, ok := t.in.writeBuffer.(*buffer.InMemoryWriteBuffer)
+	AssertEq(true, ok)
 }
