@@ -32,9 +32,19 @@ type LogConfig struct {
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
 }
 
+type CacheLocation string
+
+type FileCacheConfig struct {
+	MaxSizeInMB               int64 `yaml:"max-size-in-mb"`
+	TTLInSec                  int64 `yaml:"ttl-in-sec"`
+	DownloadFileForRandomRead bool  `yaml:"download-file-for-random-read"`
+}
+
 type MountConfig struct {
-	WriteConfig `yaml:"write"`
-	LogConfig   `yaml:"logging"`
+	WriteConfig     `yaml:"write"`
+	LogConfig       `yaml:"logging"`
+	FileCacheConfig `yaml:"file-cache"`
+	CacheLocation   `yaml:"cache-location"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -67,6 +77,10 @@ func NewMountConfig() *MountConfig {
 		Severity: INFO,
 		// Setting default values of log rotate config.
 		LogRotateConfig: DefaultLogRotateConfig(),
+	}
+	mountConfig.FileCacheConfig = FileCacheConfig{
+		MaxSizeInMB: 0,
+		TTLInSec:    60,
 	}
 	return mountConfig
 }
