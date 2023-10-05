@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -76,6 +77,10 @@ type FileInode struct {
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
 	content gcsx.TempFile
+
+	// Represents the buffer associated with inode which stores the data to be
+	// written to GCS.
+	writeBuffer buffer.WriteBuffer
 
 	// Has Destroy been called?
 	//
@@ -469,6 +474,34 @@ func (f *FileInode) Write(
 	_, err = f.content.WriteAt(data, offset)
 
 	return
+}
+
+func (f *FileInode) CreateEmptyWriteBuffer(bufferSizeMB int) {
+	if bufferSizeMB <= buffer.InMemoryBufferThresholdMB {
+		f.writeBuffer = buffer.CreateInMemoryWriteBuffer()
+	}
+	// TODO: else assign on-disk buffer to f.writeBuffer.
+}
+
+// Ensures that f.writeBuffer object is not null and is ready to be written to.
+func (f *FileInode) ensureWriteBuffer(bufferSizeMB int) {
+	if f.writeBuffer == nil {
+		f.CreateEmptyWriteBuffer(bufferSizeMB)
+	}
+	// Initialize a buffer of size 2*bufferSizeMB
+	f.writeBuffer.InitializeBuffer(bufferSizeMB)
+}
+
+// WriteToBuffer serves the write request with buffer.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) WriteToBuffer(bufferSizeMB uint,
+	data []byte,
+	offset int64) error {
+	// Ensure that f.writeBuffer != nil.
+	f.ensureWriteBuffer(int(bufferSizeMB))
+
+	return f.writeBuffer.WriteAt(data, offset)
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
