@@ -38,6 +38,10 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
 	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
+	AssertEq("", mountConfig.CacheLocation)
+	AssertEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
+	AssertEq(60, mountConfig.FileCacheConfig.TTLInSec)
+	AssertEq(false, mountConfig.FileCacheConfig.DownloadFileForRandomRead)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -127,3 +131,18 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
 	AssertTrue(strings.Contains(err.Error(),
 		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value")))
 }
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
+	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-in-mb or ttl-in-sec for file-cache can't be less than -1"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheTTLConfig() {
+	_, err := ParseConfigFile("testdata/invalid_filecachettl_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-in-mb or ttl-in-sec for file-cache can't be less than -1"))
+}
+
