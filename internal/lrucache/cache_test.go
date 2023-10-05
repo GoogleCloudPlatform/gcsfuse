@@ -35,8 +35,8 @@ type invariantsCache struct {
 }
 
 func (c *invariantsCache) Insert(
-		key string,
-		value lrucache.ValueType) []lrucache.ValueType {
+	key string,
+	value lrucache.ValueType) []lrucache.ValueType {
 	c.Wrapped.CheckInvariants()
 	defer c.Wrapped.CheckInvariants()
 
@@ -74,13 +74,12 @@ func (t *CacheTest) SetUp(ti *TestInfo) {
 }
 
 type testData struct {
-	lrucache.ValueType
-	value int64
-	size  uint64
+	Value  int64
+	Weight uint64
 }
 
 func (td testData) Size() uint64 {
-	return td.size
+	return td.Weight
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -100,8 +99,8 @@ func (t *CacheTest) InsertNilValue() {
 }
 
 func (t *CacheTest) LookUpUnknownKey() {
-	t.cache.Insert("burrito", testData{value: 23, size: 4})
-	t.cache.Insert("taco", testData{value: 23, size: 8})
+	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
+	t.cache.Insert("taco", testData{Value: 23, Weight: 8})
 
 	ExpectEq(nil, t.cache.LookUp(""))
 	ExpectEq(nil, t.cache.LookUp("enchilada"))
@@ -110,54 +109,54 @@ func (t *CacheTest) LookUpUnknownKey() {
 func (t *CacheTest) FillUpToCapacity() {
 	AssertEq(50, capacity)
 
-	t.cache.Insert("burrito", testData{value: 23, size: 4})
-	t.cache.Insert("taco", testData{value: 26, size: 20})
-	t.cache.Insert("enchilada", testData{value: 28, size: 26})
+	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
+	t.cache.Insert("taco", testData{Value: 26, Weight: 20})
+	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26})
 
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).value)
-	ExpectEq(26, t.cache.LookUp("taco").(testData).value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).value)
+	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+	ExpectEq(26, t.cache.LookUp("taco").(testData).Value)
+	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
 }
 
 func (t *CacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(50, capacity)
 
-	t.cache.Insert("burrito", testData{value: 23, size: 4})
-	t.cache.Insert("taco", testData{value: 26, size: 20})      // Least recent
-	t.cache.Insert("enchilada", testData{value: 28, size: 26}) // Second most recent
-	AssertEq(23, t.cache.LookUp("burrito").(testData).value)   // Most recent
+	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
+	t.cache.Insert("taco", testData{Value: 26, Weight: 20})      // Least recent
+	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26}) // Second most recent
+	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)     // Most recent
 
 	// Insert another.
-	t.cache.Insert("queso", testData{value: 34, size: 5})
+	t.cache.Insert("queso", testData{Value: 34, Weight: 5})
 
 	// See what's left.
 	ExpectEq(nil, t.cache.LookUp("taco"))
-	ExpectEq(23, t.cache.LookUp("burrito").(testData).value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).value)
-	ExpectEq(34, t.cache.LookUp("queso").(testData).value)
+	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
+	ExpectEq(34, t.cache.LookUp("queso").(testData).Value)
 }
 
 func (t *CacheTest) Overwrite() {
-	ret := t.cache.Insert("burrito", testData{value: 23, size: 4})
+	ret := t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("taco", testData{value: 26, size: 20})
+	ret = t.cache.Insert("taco", testData{Value: 26, Weight: 20})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("enchilada", testData{value: 28, size: 20})
+	ret = t.cache.Insert("enchilada", testData{Value: 28, Weight: 20})
 	AssertEq(len(ret), 0)
 
-	ret = t.cache.Insert("burrito", testData{value: 33, size: 6})
+	ret = t.cache.Insert("burrito", testData{Value: 33, Weight: 6})
 	AssertEq(len(ret), 0)
 
-	// Increase the size while modifying, so eviction should happen
-	ret = t.cache.Insert("burrito", testData{value: 33, size: 12})
+	// Increase the Weight while modifying, so eviction should happen
+	ret = t.cache.Insert("burrito", testData{Value: 33, Weight: 12})
 	AssertEq(len(ret), 1)
-	ExpectEq(ret[0].(testData).value, 26)
+	ExpectEq(ret[0].(testData).Value, 26)
 
 	ExpectEq(nil, t.cache.LookUp("taco"))
-	ExpectEq(33, t.cache.LookUp("burrito").(testData).value)
-	ExpectEq(28, t.cache.LookUp("enchilada").(testData).value)
+	ExpectEq(33, t.cache.LookUp("burrito").(testData).Value)
+	ExpectEq(28, t.cache.LookUp("enchilada").(testData).Value)
 }
 
 func (t *CacheTest) Encode_EmptyCache() {
@@ -176,16 +175,15 @@ func (t *CacheTest) Encode_EmptyCache() {
 }
 
 func (t *CacheTest) Encode_PreservesLRUOrderAndCapacity() {
-	// This test is failing with - Encoding entries: gob: type not registered for interface: lrucache_test.testData
-	// Please don't look at this.
+	gob.Register(testData{Value: 30, Weight: 23})
 
 	// Contents
 	AssertEq(50, capacity)
 
-	t.cache.Insert("burrito", testData{value: 23, size: 4})
-	t.cache.Insert("taco", testData{value: 26, size: 20})      // Least recent
-	t.cache.Insert("enchilada", testData{value: 28, size: 26}) // Second most recent
-	AssertEq(23, t.cache.LookUp("burrito").(testData).value)   // Most recent
+	t.cache.Insert("burrito", testData{Value: 23, Weight: 4})
+	t.cache.Insert("taco", testData{Value: 26, Weight: 20})      // Least recent
+	t.cache.Insert("enchilada", testData{Value: 28, Weight: 26}) // Second most recent
+	AssertEq(23, t.cache.LookUp("burrito").(testData).Value)     // Most recent
 
 	// Encode
 	buf := new(bytes.Buffer)
@@ -198,15 +196,15 @@ func (t *CacheTest) Encode_PreservesLRUOrderAndCapacity() {
 	AssertEq(nil, decoder.Decode(&decoded))
 
 	// Insert another.
-	evictedValue := decoded.Insert("queso", testData{value: 33, size: 26})
+	evictedValue := decoded.Insert("queso", testData{Value: 33, Weight: 26})
 	AssertEq(2, len(evictedValue))
 
-	ExpectEq(26, evictedValue[0].(testData).value)
-	ExpectEq(28, evictedValue[1].(testData).value)
+	ExpectEq(26, evictedValue[0].(testData).Value)
+	ExpectEq(28, evictedValue[1].(testData).Value)
 
 	// See what's left.
 	ExpectEq(nil, decoded.LookUp("taco"))
 	ExpectEq(nil, decoded.LookUp("enchilada"))
-	ExpectEq(23, decoded.LookUp("burrito").(testData).value)
-	ExpectEq(33, decoded.LookUp("queso").(testData).value)
+	ExpectEq(23, decoded.LookUp("burrito").(testData).Value)
+	ExpectEq(33, decoded.LookUp("queso").(testData).Value)
 }
