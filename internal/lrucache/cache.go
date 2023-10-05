@@ -20,8 +20,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"reflect"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"sync"
 )
 
 // An LRU cache for arbitrary values indexed by string keys. External
@@ -36,7 +35,7 @@ type Cache struct {
 	/////////////////////////
 
 	// INVARIANT: capacity > 0
-	capacity int
+	capacity uint64
 
 	/////////////////////////
 	// Mutable state
@@ -55,7 +54,9 @@ type Cache struct {
 	index map[string]*list.Element
 
 	// Guards all the methods of this cache.
-	mu locker.Locker
+	mu sync.Mutex
+
+	usedSize uint64
 }
 
 type ValueType interface {
@@ -69,7 +70,7 @@ type entry struct {
 
 // Initialize a cache with the supplied capacity, which must be greater than
 // zero.
-func New(capacity int) (c Cache) {
+func New(capacity uint64) (c Cache) {
 	c.capacity = capacity
 	c.index = make(map[string]*list.Element)
 	return
@@ -84,7 +85,7 @@ func (c *Cache) CheckInvariants() {
 	}
 
 	// INVARIANT: entries.Len() <= capacity
-	if !(c.entries.Len() <= c.capacity) {
+	if !(c.usedSize <= c.capacity) {
 		panic(fmt.Sprintf("Length %v over capacity %v", c.entries.Len(), c.capacity))
 	}
 
@@ -113,12 +114,17 @@ func (c *Cache) CheckInvariants() {
 	}
 }
 
-func (c *Cache) evictOne() {
+func (c *Cache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key
 
+	evictedEntry := e.Value.(entry).Value
+	c.usedSize -= evictedEntry.Size()
+
 	c.entries.Remove(e)
 	delete(c.index, key)
+
+	return evictedEntry
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -129,38 +135,63 @@ func (c *Cache) evictOne() {
 // the given key. The value must be non-nil.
 func (c *Cache) Insert(
 	key string,
-	value ValueType) {
+	value ValueType) []ValueType {
 	if value == nil {
 		panic("nil values are not supported")
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// Erase any existing element for this key.
-	c.Erase(key)
-
-	// Add a new element.
-	e := c.entries.PushFront(entry{key, value})
-	c.index[key] = e
-
-	// Evict until we're at or below capacity.
-	for c.entries.Len() > c.capacity {
-		c.evictOne()
+	// If entry already exist
+	e, ok := c.index[key]
+	if ok {
+		c.usedSize -= e.Value.(entry).Value.Size()
+		c.usedSize += value.Size()
+		e.Value = entry{key, value}
+		c.entries.MoveToFront(e)
+	} else {
+		// Add a new element.
+		e := c.entries.PushFront(entry{key, value})
+		c.index[key] = e
+		c.usedSize += value.Size()
 	}
+
+	var evictedEntries []ValueType
+	// Evict until we're at or below capacity.
+	for c.usedSize > c.capacity {
+		evictedEntries = append(evictedEntries, c.evictOne())
+	}
+
+	return evictedEntries
 }
 
 // Erase any entry for the supplied key.
-func (c *Cache) Erase(key string) {
+func (c *Cache) Erase(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	e := c.index[key]
 	if e == nil {
 		return
 	}
 
+	deletedEntry := e.Value.(entry).Value
+	c.usedSize -= value.Size()
+
 	delete(c.index, key)
 	c.entries.Remove(e)
+
+	return deletedEntry
 }
 
 // Look up a previously-inserted value for the given key. Return nil if no
 // value is present.
 func (c *Cache) LookUp(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// Consult the index.
 	e := c.index[key]
 	if e == nil {
@@ -171,8 +202,7 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	c.entries.MoveToFront(e)
 
 	// Return the value.
-	value = e.Value.(entry).Value
-	return
+	return e.Value.(entry).Value
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -184,6 +214,10 @@ func (c *Cache) GobEncode() (b []byte, err error) {
 	// clear from encoding/gob's documentation that its flattening process won't
 	// ruin our list and map values. Even if that works out fine, we don't need
 	// the redundant index on the wire.
+
+	// Make sure no inflight cache operation.
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
@@ -197,6 +231,12 @@ func (c *Cache) GobEncode() (b []byte, err error) {
 	// Encode the capacity.
 	if err = encoder.Encode(c.capacity); err != nil {
 		err = fmt.Errorf("Encoding capacity: %v", err)
+		return
+	}
+
+	// Encoding the usedSize.
+	if err = encoder.Encode(c.usedSize); err != nil {
+		err = fmt.Errorf("Encoding usedSize: %v", err)
 		return
 	}
 
@@ -215,9 +255,16 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 	decoder := gob.NewDecoder(buf)
 
 	// Decode the capacity.
-	var capacity int
+	var capacity uint64
 	if err = decoder.Decode(&capacity); err != nil {
 		err = fmt.Errorf("Decoding capacity: %v", err)
+		return
+	}
+
+	// Decode usedSize.
+	var usedSize uint64
+	if err = decoder.Decode(&usedSize); err != nil {
+		err = fmt.Errorf("Decoding usedSize: %v", err)
 		return
 	}
 
@@ -236,5 +283,6 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 		c.index[entry.Key] = e
 	}
 
+	c.usedSize = usedSize
 	return
 }
