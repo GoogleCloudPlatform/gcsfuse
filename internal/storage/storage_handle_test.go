@@ -50,6 +50,7 @@ func (t *StorageHandleTest) TearDown() {
 }
 
 func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
+	sc.DisableAuth = true
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -124,6 +125,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
+	sc.DisableAuth = true
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -136,7 +138,6 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisabl
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-	sc.DisableAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -148,7 +149,6 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisabl
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNotNilAndDisableAuthIsFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
-	sc.DisableAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 

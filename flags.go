@@ -189,8 +189,8 @@ func newApp() (app *cli.App) {
 
 			cli.BoolFlag{
 				Name: "disable-auth",
-				Usage: "Authorization will be enabled by default. With this flag, authorization will be disabled. If one " +
-					"wants to use a custom endpoint for testing purposes; they need to pass --disable-auth flag.",
+				Usage: "Authentication is enabled by default. The --disable-auth flag disables authentication. For users of the --custom-endpoint flag," +
+					" please pass --disable-auth flag explicitly if you do not want authentication enabled for your workflow.",
 			},
 
 			/////////////////////////

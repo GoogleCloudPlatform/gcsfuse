@@ -34,6 +34,7 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsTrue()
 	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
+	sc.DisableAuth = true
 
 	tokenSrc, err := createTokenSource(&sc)
 
@@ -46,7 +47,6 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsFalse(
 	AssertEq(nil, err)
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-	sc.DisableAuth = false
 
 	// It will try to create the actual auth token and fail since key-file doesn't exist.
 	tokenSrc, err := createTokenSource(&sc)
@@ -59,6 +59,7 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsFalse(
 func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
+	sc.DisableAuth = true
 
 	tokenSrc, err := createTokenSource(&sc)
 
@@ -69,7 +70,6 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTr
 func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
-	sc.DisableAuth = false
 
 	// It will try to create the actual auth token and fail since key-file doesn't exist.
 	tokenSrc, err := createTokenSource(&sc)
@@ -81,7 +81,7 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsFa
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
-
+	sc.DisableAuth = true
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
@@ -93,6 +93,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
+	sc.DisableAuth = true
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
