@@ -23,7 +23,7 @@ import (
 	"sync"
 )
 
-// Cache is a weighted LRU cache for any lrucache.ValueType indexed by string keys.
+// Cache is a LRU cache for any lrucache.ValueType indexed by string keys.
 // External synchronization is required. Gob encoding/decoding is supported as long as
 // all values are registered using gob.Register.
 //
@@ -34,19 +34,19 @@ type Cache struct {
 	// Constant data
 	/////////////////////////
 
-	// INVARIANT: maxWeight > 0
-	maxWeight uint64
+	// INVARIANT: maxSize > 0
+	maxSize uint64
 
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
-	// Sum of entry.Value.Weight() of all the entries in the cache.
-	occupiedWeight uint64
+	// Sum of entry.Value.Size() of all the entries in the cache.
+	currentSize uint64
 
 	// List of cache entries, with least recently used at the tail.
 	//
-	// INVARIANT: occupiedWeight <= maxWeight
+	// INVARIANT: currentSize <= maxSize
 	// INVARIANT: Each element is of type entry
 	entries list.List
 
@@ -63,7 +63,7 @@ type Cache struct {
 }
 
 type ValueType interface {
-	Weight() uint64
+	Size() uint64
 }
 
 type entry struct {
@@ -71,10 +71,10 @@ type entry struct {
 	Value ValueType
 }
 
-// New initialize a cache with the supplied maxWeight, which must be greater than
+// New initialize a cache with the supplied maxSize, which must be greater than
 // zero.
-func New(maxWeight uint64) (c Cache) {
-	c.maxWeight = maxWeight
+func New(maxSize uint64) (c Cache) {
+	c.maxSize = maxSize
 	c.index = make(map[string]*list.Element)
 	return
 }
@@ -82,14 +82,14 @@ func New(maxWeight uint64) (c Cache) {
 // CheckInvariants panic if any internal invariants have been violated.
 // The careful user can arrange to call this at crucial moments.
 func (c *Cache) CheckInvariants() {
-	// INVARIANT: maxWeight > 0
-	if !(c.maxWeight > 0) {
-		panic(fmt.Sprintf("Invalid maxWeight: %v", c.maxWeight))
+	// INVARIANT: maxSize > 0
+	if !(c.maxSize > 0) {
+		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
 	}
 
-	// INVARIANT: entries.Len() <= maxWeight
-	if !(c.occupiedWeight <= c.maxWeight) {
-		panic(fmt.Sprintf("Length %v over maxWeight %v", c.entries.Len(), c.maxWeight))
+	// INVARIANT: entries.Len() <= maxSize
+	if !(c.currentSize <= c.maxSize) {
+		panic(fmt.Sprintf("Length %v over maxSize %v", c.entries.Len(), c.maxSize))
 	}
 
 	// INVARIANT: Each element is of type entry
@@ -122,7 +122,7 @@ func (c *Cache) evictOne() ValueType {
 	key := e.Value.(entry).Key
 
 	evictedEntry := e.Value.(entry).Value
-	c.occupiedWeight -= evictedEntry.Weight()
+	c.currentSize -= evictedEntry.Size()
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -150,20 +150,20 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.occupiedWeight -= e.Value.(entry).Value.Weight()
-		c.occupiedWeight += value.Weight()
+		c.currentSize -= e.Value.(entry).Value.Size()
+		c.currentSize += value.Size()
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.occupiedWeight += value.Weight()
+		c.currentSize += value.Size()
 	}
 
 	var evictedValues []ValueType
-	// Evict until we're at or below maxWeight.
-	for c.occupiedWeight > c.maxWeight {
+	// Evict until we're at or below maxSize.
+	for c.currentSize > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
 
@@ -181,7 +181,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.occupiedWeight -= value.Weight()
+	c.currentSize -= value.Size()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
@@ -231,15 +231,15 @@ func (c *Cache) GobEncode() (b []byte, err error) {
 		entrySlice = append(entrySlice, e.Value.(entry))
 	}
 
-	// Encode the maxWeight.
-	if err = encoder.Encode(c.maxWeight); err != nil {
-		err = fmt.Errorf("encoding maxWeight: %v", err)
+	// Encode the maxSize.
+	if err = encoder.Encode(c.maxSize); err != nil {
+		err = fmt.Errorf("encoding maxSize: %v", err)
 		return
 	}
 
-	// Encoding the occupiedWeight.
-	if err = encoder.Encode(c.occupiedWeight); err != nil {
-		err = fmt.Errorf("encoding occupiedWeight: %v", err)
+	// Encoding the currentSize.
+	if err = encoder.Encode(c.currentSize); err != nil {
+		err = fmt.Errorf("encoding currentSize: %v", err)
 		return
 	}
 
@@ -257,21 +257,21 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 	buf := bytes.NewBuffer(b)
 	decoder := gob.NewDecoder(buf)
 
-	// Decode the maxWeight.
-	var maxWeight uint64
-	if err = decoder.Decode(&maxWeight); err != nil {
-		err = fmt.Errorf("decoding maxWeight: %v", err)
+	// Decode the maxSize.
+	var maxSize uint64
+	if err = decoder.Decode(&maxSize); err != nil {
+		err = fmt.Errorf("decoding maxSize: %v", err)
 		return
 	}
 
-	// Decode occupiedWeight.
-	var occupiedWeight uint64
-	if err = decoder.Decode(&occupiedWeight); err != nil {
-		err = fmt.Errorf("decoding occupiedWeight: %v", err)
+	// Decode currentSize.
+	var currentSize uint64
+	if err = decoder.Decode(&currentSize); err != nil {
+		err = fmt.Errorf("decoding currentSize: %v", err)
 		return
 	}
 
-	*c = New(maxWeight)
+	*c = New(maxSize)
 
 	// Decode the entries.
 	var entrySlice []entry
@@ -286,6 +286,6 @@ func (c *Cache) GobDecode(b []byte) (err error) {
 		c.index[entry.Key] = e
 	}
 
-	c.occupiedWeight = occupiedWeight
+	c.currentSize = currentSize
 	return
 }
