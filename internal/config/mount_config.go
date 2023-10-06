@@ -28,7 +28,6 @@ type CacheLocation string
 
 type FileCacheConfig struct {
 	MaxSizeInMB               int64 `yaml:"max-size-in-mb"`
-	TTLInSec                  int64 `yaml:"ttl-in-sec"`
 	DownloadFileForRandomRead bool  `yaml:"download-file-for-random-read"`
 }
 
@@ -47,7 +46,6 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
 		MaxSizeInMB: 0,
-		TTLInSec:    60,
 	}
 	return mountConfig
 }
