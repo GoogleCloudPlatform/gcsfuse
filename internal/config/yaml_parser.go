@@ -48,8 +48,8 @@ func IsValidLogSeverity(severity LogSeverity) bool {
 }
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
-	if fileCacheConfig.TTLInSec < -1 || fileCacheConfig.MaxSizeInMB < -1 {
-		return fmt.Errorf("the value of max-size-in-mb or ttl-in-sec for file-cache can't be less than -1")
+	if fileCacheConfig.MaxSizeInMB < -1 {
+		return fmt.Errorf("the value of max-size-in-mb for file-cache can't be less than -1")
 	}
 	return nil
 }
