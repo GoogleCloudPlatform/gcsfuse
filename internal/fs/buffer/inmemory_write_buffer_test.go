@@ -53,7 +53,7 @@ func (t *MemoryBufferTest) TestCreateEmptyInMemoryBuffer() {
 }
 
 func (t *MemoryBufferTest) TestInitializeInMemoryBuffer() {
-	bufferSizeMB := 10
+	bufferSizeMB := 1
 	t.mb = CreateInMemoryWriteBuffer()
 
 	t.mb.InitializeBuffer(bufferSizeMB)
@@ -61,4 +61,16 @@ func (t *MemoryBufferTest) TestInitializeInMemoryBuffer() {
 	AssertEq(bufferSizeMB*MiB, ChunkSize)
 	AssertEq(2*bufferSizeMB*MiB, t.mb.buffer.Cap())
 	AssertEq(0, t.mb.buffer.Len())
+}
+
+func (t *MemoryBufferTest) TestWriteToInMemoryBuffer() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+
+	// Write to buffer
+	err := t.mb.WriteAt([]byte("TacoBell"), 0)
+
+	AssertEq(nil, err)
+	//fmt.Println(t.mb.buffer.Bytes())
+	AssertEq(8, t.mb.buffer.Len())
 }
