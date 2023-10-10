@@ -34,9 +34,7 @@ type invariantsCache struct {
 	Wrapped lrucache.Cache
 }
 
-func (c *invariantsCache) Insert(
-		key string,
-		value lrucache.ValueType) []lrucache.ValueType {
+func (c *invariantsCache) Insert(key string, value lrucache.ValueType) []lrucache.ValueType {
 	c.Wrapped.CheckInvariants()
 	defer c.Wrapped.CheckInvariants()
 
