@@ -59,7 +59,7 @@ func (c *invariantsCache) LookUp(key string) lrucache.ValueType {
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const maxWeight = 50
+const MaxSize = 50
 
 type CacheTest struct {
 	cache invariantsCache
@@ -68,7 +68,7 @@ type CacheTest struct {
 func init() { RegisterTestSuite(&CacheTest{}) }
 
 func (t *CacheTest) SetUp(ti *TestInfo) {
-	t.cache.Wrapped = lrucache.New(maxWeight)
+	t.cache.Wrapped = lrucache.New(MaxSize)
 }
 
 type testData struct {
@@ -210,7 +210,7 @@ func (t *CacheTest) Encode_PreservesLRUOrderAndCapacity() {
 	gob.Register(testData{Value: 30, DataSize: 23})
 
 	// Contents
-	AssertEq(50, maxWeight)
+	AssertEq(50, MaxSize)
 
 	ret := t.cache.Insert("burrito", testData{Value: 23, DataSize: 4})
 	AssertEq(len(ret), 0)
