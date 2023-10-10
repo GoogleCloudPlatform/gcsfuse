@@ -21,6 +21,6 @@ type FileInfo struct {
 	FileSize         uint64
 }
 
-func (fi *FileInfo) Size() uint64 {
+func (fi FileInfo) Size() uint64 {
 	return fi.FileSize
 }
