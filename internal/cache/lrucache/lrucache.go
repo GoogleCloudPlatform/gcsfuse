@@ -137,6 +137,7 @@ func (c *Cache) evictOne() ValueType {
 // Insert the supplied value into the cache, overwriting any previous entry for
 // the given key. The value must be non-nil.
 // Also returns a slice of ValueType evicted by the new inserted entry.
+// LOCK_EXCLUDED(c.mu)
 func (c *Cache) Insert(
 	key string,
 	value ValueType) []ValueType {
@@ -171,6 +172,7 @@ func (c *Cache) Insert(
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
+// LOCK_EXCLUDED(c.mu)
 func (c *Cache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -191,6 +193,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 // LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
+// LOCK_EXCLUDED(c.mu)
 func (c *Cache) LookUp(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
