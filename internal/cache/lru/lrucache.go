@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package lrucache
+package lru
 
 import (
-	"bytes"
 	"container/list"
-	"encoding/gob"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 )
 
-// Cache is a LRU cache for any lrucache.ValueType indexed by string keys.
-// External synchronization is required. Gob encoding/decoding is supported as long as
-// all values are registered using gob.Register.
-//
-// May be used directly as a field in a larger struct. Must be created with New
-// or initialized using gob decoding.
+// Predefined error message returned by the Cache.
+const InvalidEntrySizeErrorMsg = "size of the entry is more the cache maxSize"
+const InvalidEntryErrorMsg = "nil values are not supported"
+
+// Cache is a LRU cache for any lru.ValueType indexed by string keys.
+// That means entry's value should be a lru.ValueType.
 type Cache struct {
 	/////////////////////////
 	// Constant data
@@ -56,9 +55,9 @@ type Cache struct {
 	// INVARIANT: Contains all and only the elements of entries
 	index map[string]*list.Element
 
-	// All exposed methods are guarded by this Mutex. This means that only one
-	// method of this cache will be executed at a time, and other methods will
-	// be blocked until the current method completes.
+	// All public methods of this Cache uses this mutex while accessing/updating
+	// Cache's data. This means when one method is accessing/updating Cache's data,
+	// other methods will be blocked until the method in execution completes.
 	mu sync.Mutex
 }
 
@@ -87,9 +86,9 @@ func (c *Cache) CheckInvariants() {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
 	}
 
-	// INVARIANT: entries.Len() <= maxSize
+	// INVARIANT: currentSize <= maxSize
 	if !(c.currentSize <= c.maxSize) {
-		panic(fmt.Sprintf("Length %v over maxSize %v", c.entries.Len(), c.maxSize))
+		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
 	}
 
 	// INVARIANT: Each element is of type entry
@@ -140,9 +139,13 @@ func (c *Cache) evictOne() ValueType {
 // LOCK_EXCLUDED(c.mu)
 func (c *Cache) Insert(
 	key string,
-	value ValueType) []ValueType {
+	value ValueType) ([]ValueType, error) {
 	if value == nil {
-		panic("nil values are not supported")
+		return nil, errors.New(InvalidEntryErrorMsg)
+	}
+
+	if value.Size() > c.maxSize {
+		return nil, errors.New(InvalidEntrySizeErrorMsg)
 	}
 
 	c.mu.Lock()
@@ -168,7 +171,7 @@ func (c *Cache) Insert(
 		evictedValues = append(evictedValues, c.evictOne())
 	}
 
-	return evictedValues
+	return evictedValues, nil
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
@@ -177,8 +180,8 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e := c.index[key]
-	if e == nil {
+	e, ok := c.index[key]
+	if !ok {
 		return
 	}
 
@@ -199,96 +202,13 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	defer c.mu.Unlock()
 
 	// Consult the index.
-	e := c.index[key]
-	if e == nil {
+	e, ok := c.index[key]
+	if !ok {
 		return
 	}
-
 	// This is now the most recently used entry.
 	c.entries.MoveToFront(e)
 
 	// Return the value.
 	return e.Value.(entry).Value
-}
-
-////////////////////////////////////////////////////////////////////////
-// Gob encoding
-////////////////////////////////////////////////////////////////////////
-
-func (c *Cache) GobEncode() (b []byte, err error) {
-	// Implementation note: we have a custom gob encoding method because it's not
-	// clear from encoding/gob's documentation that its flattening process won't
-	// ruin our list and map values. Even if that works out fine, we don't need
-	// the redundant index on the wire.
-
-	// Make sure no inflight cache operation.
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var buf bytes.Buffer
-	encoder := gob.NewEncoder(&buf)
-
-	// Create a slice containing all of our entries, in order by recency of use.
-	entrySlice := make([]entry, 0, c.entries.Len())
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		entrySlice = append(entrySlice, e.Value.(entry))
-	}
-
-	// Encode the maxSize.
-	if err = encoder.Encode(c.maxSize); err != nil {
-		err = fmt.Errorf("encoding maxSize: %v", err)
-		return
-	}
-
-	// Encoding the currentSize.
-	if err = encoder.Encode(c.currentSize); err != nil {
-		err = fmt.Errorf("encoding currentSize: %v", err)
-		return
-	}
-
-	// Encode the entries.
-	if err = encoder.Encode(entrySlice); err != nil {
-		err = fmt.Errorf("encoding entries: %v", err)
-		return
-	}
-
-	b = buf.Bytes()
-	return
-}
-
-func (c *Cache) GobDecode(b []byte) (err error) {
-	buf := bytes.NewBuffer(b)
-	decoder := gob.NewDecoder(buf)
-
-	// Decode the maxSize.
-	var maxSize uint64
-	if err = decoder.Decode(&maxSize); err != nil {
-		err = fmt.Errorf("decoding maxSize: %v", err)
-		return
-	}
-
-	// Decode currentSize.
-	var currentSize uint64
-	if err = decoder.Decode(&currentSize); err != nil {
-		err = fmt.Errorf("decoding currentSize: %v", err)
-		return
-	}
-
-	*c = New(maxSize)
-
-	// Decode the entries.
-	var entrySlice []entry
-	if err = decoder.Decode(&entrySlice); err != nil {
-		err = fmt.Errorf("decoding entries: %v", err)
-		return
-	}
-
-	// Store each.
-	for _, entry := range entrySlice {
-		e := c.entries.PushBack(entry)
-		c.index[entry.Key] = e
-	}
-
-	c.currentSize = currentSize
-	return
 }
