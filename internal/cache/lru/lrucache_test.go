@@ -16,6 +16,7 @@ package lru_test
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -200,4 +201,37 @@ func (t *CacheTest) TestEraseWhenKeyNotPresent() {
 	ExpectEq(nil, deletedEntry)
 
 	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+}
+
+// This will detect race if we run the test with `-race` flag.
+// We get the race condition failure if we remove lock from Insert or Erase method.
+func (t *CacheTest) TestRaceCondition() {
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < MaxSize; i++ {
+			t.cache.Wrapped.Insert("key", testData{
+				Value:    int64(i),
+				DataSize: uint64(i),
+			})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < MaxSize; i++ {
+			t.cache.Wrapped.Erase("key")
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < MaxSize; i++ {
+			t.cache.Wrapped.LookUp("key")
+		}
+	}()
+
+	wg.Wait()
 }
