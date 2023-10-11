@@ -65,7 +65,7 @@ type CacheTest struct {
 
 func init() { RegisterTestSuite(&CacheTest{}) }
 
-func (t *CacheTest) SetUp(ti *TestInfo) {
+func (t *CacheTest) SetUp(*TestInfo) {
 	t.cache.Wrapped = lru.New(MaxSize)
 }
 
@@ -180,6 +180,24 @@ func (t *CacheTest) TestWhenEntrySizeMoreThanCacheMaxSize() {
 
 	// Insert entry with size greater than maxSize of cache.
 	t.insertAndAssert("taco", testData{Value: 26, DataSize: MaxSize + 1}, 0, []int64{}, errors.New(lru.InvalidEntrySizeErrorMsg))
+
+	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
+}
+
+func (t *CacheTest) TestEraseWhenKeyPresent() {
+	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, 0, []int64{}, nil)
+
+	deletedEntry := t.cache.Erase("burrito")
+
+	ExpectEq(23, deletedEntry.(testData).Value)
+	ExpectEq(nil, t.cache.LookUp("burrito"))
+}
+
+func (t *CacheTest) TestEraseWhenKeyNotPresent() {
+	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, 0, []int64{}, nil)
+
+	deletedEntry := t.cache.Erase("taco")
+	ExpectEq(nil, deletedEntry)
 
 	ExpectEq(23, t.cache.LookUp("burrito").(testData).Value)
 }

@@ -186,7 +186,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 	}
 
 	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= value.Size()
+	c.currentSize -= deletedEntry.Size()
 
 	delete(c.index, key)
 	c.entries.Remove(e)
