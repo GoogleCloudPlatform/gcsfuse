@@ -9,12 +9,12 @@ and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
-  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
+  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
-  Flag --upload: Uploads the results of the test to the Google Sheet.
+  Flag --upload_gs: Uploads the results of the test to the Google Sheet.
   Flag --num_samples: Runs each test for NUM_SAMPLES times.
   Flag --message: Takes input a message string, which describes/titles the test.
   Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
@@ -411,7 +411,7 @@ def _parse_arguments(argv):
       required=False,
   )
   parser.add_argument(
-      '--upload',
+      '--upload_gs',
       help='Upload the results to the Google Sheet.',
       action='store_true',
       default=False,

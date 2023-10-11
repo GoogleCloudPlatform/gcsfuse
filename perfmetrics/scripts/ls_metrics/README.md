@@ -24,7 +24,7 @@ pip install --require-hashes -r requirements.txt --user
 ## Flags to use with the python script
 1. Flag -h: Typical help interface of the script.
 2. Flag --keep_files: Do not delete the generated directory structure from the persistent disk after running the tests.
-3. Flag --upload: Uploads the results of the test to the Google Sheet.
+3. Flag --upload_gs: Uploads the results of the test to the Google Sheet.
 4. Flag --num_samples: Runs each test for NUM_SAMPLES times.
 5. Flag --message: Takes input a message string, which describes/titles the test.
 6. Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
@@ -43,7 +43,7 @@ gsutil cp gs://your-bucket-name/creds.json ../gsheet
 7. Configure the [JSON config file](config.json) as per needs.
 8. Run the custom python script. A sample command is shown below:
 ```
-python3 listing_benchmark.py config.json --command "ls -R" --upload
+python3 listing_benchmark.py config.json --command "ls -R" --upload_gs
 ```
 
 **Note**: Steps 3, 4, 5, and 6 are needed only if you want to upload results to the Google Sheet.

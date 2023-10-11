@@ -277,7 +277,6 @@ class VmMetrics:
 
     updated_metrics_list.append(ops_latency_mean)
 
-    return updated_metrics_list
 
   def fetch_metrics(self, start_time_sec, end_time_sec, instance, period, test_type):
     """Fetches the metrics data for all types and returns a list of lists to be written in google sheet.
