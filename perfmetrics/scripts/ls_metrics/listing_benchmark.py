@@ -480,7 +480,7 @@ if __name__ == '__main__':
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
+                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
 
   args = _parse_arguments(argv)
 
@@ -544,7 +544,7 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  if args.upload:
+  if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')
     _export_to_gsheet(
         directory_structure.folders, gcs_parsed_metrics, args.command[0],
