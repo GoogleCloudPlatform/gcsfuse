@@ -83,7 +83,10 @@ METRICS_LIST = [
     READ_BYTES_COUNT, OPS_ERROR_COUNT
 ]
 
-
+# List of VM metrics extracted for listing tests
+LISTING_TESTS_METRICS_LIST = [
+    CPU_UTI_PEAK, CPU_UTI_MEAN, REC_BYTES_PEAK, REC_BYTES_MEAN
+]
 class NoValuesError(Exception):
   """API response values are missing."""
 
@@ -252,13 +255,17 @@ class VmMetrics:
     return metrics_data
   
   def _add_new_metric_using_test_type(self, test_type):
-    """Creates a copy of METRICS_LIST and appends new Metric objects to it.
+    """Creates a copy of METRICS_LIST and appends new Metric objects to it for
+    load tests or returns LISTING_TESTS_METRICS_LIST for list tests
 
     Args:
-      test_type(str): The type of load test for which metrics are taken
+      test_type(str): The type of test for which metrics are taken
     Returns:
       list[Metric]
     """
+    if test_type == 'list':
+      return LISTING_TESTS_METRICS_LIST
+
     # Getting the fs_op type from test_type:
     if test_type == 'read' or test_type == 'randread':
         fs_op = 'ReadFile'
