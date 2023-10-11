@@ -31,6 +31,8 @@ jobs:
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test
       run: CGO_ENABLED=0 go test -p 1 -count 1 -v -cover ./...
+    - name: Cache RaceDetector Test
+      run: CGO_ENABLED=1 go test -p 1 -count 1 -v -race -cover ./internal/cache/...
   lint:
     name: Lint
     runs-on: ubuntu-20.04
