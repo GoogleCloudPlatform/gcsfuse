@@ -443,7 +443,7 @@ def _parse_arguments(argv):
   )
   parser.add_argument(
       '--gcsfuse_flags',
-      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
       action='store',
       nargs=1,
       required=True,
