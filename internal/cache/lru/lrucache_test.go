@@ -212,10 +212,12 @@ func (t *CacheTest) TestRaceCondition() {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < MaxSize; i++ {
-			t.cache.Wrapped.Insert("key", testData{
+			_, err := t.cache.Wrapped.Insert("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(i),
 			})
+
+			AssertEq(nil, err)
 		}
 	}()
 
