@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -2083,17 +2084,15 @@ func (fs *fileSystem) WriteFile(
 	// Serve the request.
 	if fs.isWriteBufferEnabled(in) {
 		// Trigger write file buffering flow.
-		err := in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
-		if err != nil {
-			return err
+		err = in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
+		if err != nil && err.Error() == buffer.NonSequentialWriteError {
+			// Trigger the temp file flow in case of non-sequential writes.
+			err = in.Write(ctx, op.Data, op.Offset)
 		}
 	} else {
 		// Trigger the temp file flow.
-		if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-			return err
-		}
+		err = in.Write(ctx, op.Data, op.Offset)
 	}
-
 	return
 }
 

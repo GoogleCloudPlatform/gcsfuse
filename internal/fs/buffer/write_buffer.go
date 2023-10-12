@@ -19,7 +19,9 @@ const (
 	MiB = 1024 * 1024
 	// InMemoryBufferThresholdMB is the upper limit on the size upto which the buffer should
 	// be created in memory. Beyond this size, buffer should be on disk.
-	InMemoryBufferThresholdMB = 50
+	InMemoryBufferThresholdMB     = 50
+	NonSequentialWriteError       = "non-sequential writes are not supported with buffer"
+	DataNOtWrittenCompletelyError = "could not write all the data to buffer. Expected bytes to be written: %d, actually written: %d"
 )
 
 // ChunkSize (bytes) is the size of data to be written in 1 write call to GCS.

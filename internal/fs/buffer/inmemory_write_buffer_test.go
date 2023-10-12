@@ -15,6 +15,7 @@
 package buffer
 
 import (
+	"bytes"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -53,24 +54,93 @@ func (t *MemoryBufferTest) TestCreateEmptyInMemoryBuffer() {
 }
 
 func (t *MemoryBufferTest) TestInitializeInMemoryBuffer() {
-	bufferSizeMB := 1
+	sizeInMB := 1
 	t.mb = CreateInMemoryWriteBuffer()
 
-	t.mb.InitializeBuffer(bufferSizeMB)
+	t.mb.InitializeBuffer(sizeInMB)
 
-	AssertEq(bufferSizeMB*MiB, ChunkSize)
-	AssertEq(2*bufferSizeMB*MiB, t.mb.buffer.Cap())
-	AssertEq(0, t.mb.buffer.Len())
+	AssertEq(sizeInMB*MiB, ChunkSize)
+	AssertEq(2*sizeInMB*MiB, cap(t.mb.buffer))
+	AssertEq(0, len(t.mb.buffer))
 }
 
-func (t *MemoryBufferTest) TestWriteToInMemoryBuffer() {
+func (t *MemoryBufferTest) TestSingleWriteToInMemoryBuffer() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+	data := []byte("Taco")
+
+	// Write to buffer
+	err := t.mb.WriteAt(data, 0)
+
+	AssertEq(nil, err)
+	AssertEq(t.mb.fileSize, 4)
+	AssertEq(true, bytes.Equal(data, t.mb.buffer[0:t.mb.fileSize]))
+}
+
+func (t *MemoryBufferTest) TestMultipleSequentialWritesToInMemoryBuffer() {
 	// Allocate a buffer
 	t.TestInitializeInMemoryBuffer()
 
 	// Write to buffer
-	err := t.mb.WriteAt([]byte("TacoBell"), 0)
-
+	err := t.mb.WriteAt([]byte("Taco"), 0)
 	AssertEq(nil, err)
-	//fmt.Println(t.mb.buffer.Bytes())
-	AssertEq(8, t.mb.buffer.Len())
+	err = t.mb.WriteAt([]byte("Burrito"), 4)
+	AssertEq(nil, err)
+	err = t.mb.WriteAt([]byte("Pizza"), 11)
+	AssertEq(nil, err)
+
+	AssertEq(t.mb.fileSize, 16)
+	AssertEq(true, bytes.Equal([]byte("TacoBurritoPizza"), t.mb.buffer[0:t.mb.fileSize]))
+}
+
+func (t *MemoryBufferTest) TestMultipleRandomWritesToInMemoryBuffer() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+
+	// Write to buffer
+	err := t.mb.WriteAt([]byte("Taco"), 0)
+	AssertEq(nil, err)
+	err = t.mb.WriteAt([]byte("Burrito"), 2)
+	AssertEq(nil, err)
+	err = t.mb.WriteAt([]byte("Pizza"), 7)
+	AssertEq(nil, err)
+
+	AssertEq(t.mb.fileSize, 12)
+	AssertEq(true, bytes.Equal([]byte("TaBurriPizza"), t.mb.buffer[0:t.mb.fileSize]))
+}
+
+func (t *MemoryBufferTest) TestWriteJustBeforeChunkSizeOffset() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+
+	// Write to buffer
+	err := t.mb.WriteAt([]byte("Taco"), MiB-1)
+	AssertEq(nil, err)
+
+	AssertEq(t.mb.fileSize, MiB+3)
+	AssertEq(true, bytes.Equal([]byte("Taco"), t.mb.buffer[MiB-1:MiB+3]))
+}
+
+func (t *MemoryBufferTest) TestWriteAtChunkSizeOffset() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+
+	// Write to buffer
+	err := t.mb.WriteAt([]byte("Taco"), MiB)
+	AssertEq(nil, err)
+
+	AssertEq(t.mb.fileSize, MiB+4)
+	AssertEq(true, bytes.Equal([]byte("Taco"), t.mb.buffer[MiB:MiB+4]))
+}
+
+func (t *MemoryBufferTest) TestWriteJustAfterChunkSizeOffset() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+
+	// Write to buffer
+	err := t.mb.WriteAt([]byte("Taco"), MiB+1)
+
+	AssertNe(nil, err)
+	AssertEq(NonSequentialWriteError, err.Error())
+	AssertEq(t.mb.fileSize, 0)
 }
