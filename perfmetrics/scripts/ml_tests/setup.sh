@@ -4,7 +4,7 @@
 # >> source setup.sh
 
 # Go version to be installed.
-GO_VERSION=go1.21.1.linux-amd64.tar.gz
+GO_VERSION=go1.21.2.linux-amd64.tar.gz
 
 # This function will install the given module/dependency if it's not alredy 
 # installed.
