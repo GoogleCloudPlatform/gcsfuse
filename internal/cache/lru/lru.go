@@ -23,7 +23,7 @@ import (
 )
 
 // Predefined error message returned by the Cache.
-const InvalidEntrySizeErrorMsg = "size of the entry is more the cache maxSize"
+const InvalidEntrySizeErrorMsg = "size of the entry is more than the cache's maxSize"
 const InvalidEntryErrorMsg = "nil values are not supported"
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
@@ -72,7 +72,7 @@ type entry struct {
 
 // New initialize a cache with the supplied maxSize, which must be greater than
 // zero.
-func New(maxSize uint64) (c Cache) {
+func NewCache(maxSize uint64) (c Cache) {
 	c.maxSize = maxSize
 	c.index = make(map[string]*list.Element)
 	return
