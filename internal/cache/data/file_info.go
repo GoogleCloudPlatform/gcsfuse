@@ -14,8 +14,32 @@
 
 package data
 
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+const InvalidKeyAttributes = "un-initialized key attributes"
+
+type FileInfoKey struct {
+	BucketName         string
+	BucketCreationTime time.Time
+	ObjectName         string
+}
+
+// Key will return a string, combining all the attributes of FileInfoKey.
+// Returns error in case of uninitialized value.
+func (fik FileInfoKey) Key() (string, error) {
+	if fik.BucketName == "" || fik.BucketCreationTime.IsZero() || fik.ObjectName == "" {
+		return "", errors.New(InvalidKeyAttributes)
+	}
+	unixTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
+	return fik.BucketName + unixTimeString + fik.ObjectName, nil
+}
+
 type FileInfo struct {
-	Name             string
+	Key              FileInfoKey
 	ObjectGeneration string
 	Offset           uint64
 	FileSize         uint64

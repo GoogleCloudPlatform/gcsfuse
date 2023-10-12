@@ -16,21 +16,85 @@ package data
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestFileInfo(t *testing.T) { RunTests(t) }
 
+type fileInfoTestKey struct {
+}
+
 type fileInfoTest struct {
 }
 
 const TestDataFileSize uint64 = 23
+const TestTimeInEpoch int64 = 1654041600
+const TestBucketName = "test_bucket"
+const TestObjectName = "test/a.txt"
+const TestGeneration = "test-generation"
+const ExpectedFileInfoKey = "test_bucket1654041600test/a.txt"
 
-func init() { RegisterTestSuite(&fileInfoTest{}) }
+func init() {
+	RegisterTestSuite(&fileInfoTestKey{})
+	RegisterTestSuite(&fileInfoTest{})
+}
+
+func getTestFileInfoKey() FileInfoKey {
+	return FileInfoKey{
+		BucketName:         TestBucketName,
+		ObjectName:         TestObjectName,
+		BucketCreationTime: time.Unix(TestTimeInEpoch, 0),
+	}
+}
+
+func (t *fileInfoTestKey) TestKeyMethod() {
+	fik := getTestFileInfoKey()
+
+	key, err := fik.Key()
+	AssertEq(nil, err)
+
+	ExpectEq(ExpectedFileInfoKey, key)
+}
+
+func (t *fileInfoTestKey) TestKeyMethodWithEmptyBucketName() {
+	fik := getTestFileInfoKey()
+	fik.BucketName = ""
+
+	key, err := fik.Key()
+	AssertEq(InvalidKeyAttributes, err.Error())
+
+	ExpectEq("", key)
+}
+
+func (t *fileInfoTestKey) TestKeyMethodWithZeroBucketCreationTime() {
+	fik := getTestFileInfoKey()
+	var tt time.Time
+	fik.BucketCreationTime = tt
+
+	key, err := fik.Key()
+	AssertEq(InvalidKeyAttributes, err.Error())
+
+	ExpectEq("", key)
+}
+
+func (t *fileInfoTestKey) TestKeyMethodWithEmptyObjectName() {
+	fik := getTestFileInfoKey()
+	fik.ObjectName = ""
+
+	key, err := fik.Key()
+	AssertEq(InvalidKeyAttributes, err.Error())
+
+	ExpectEq("", key)
+}
 
 func (t *fileInfoTest) TestSizeMethod() {
-	fi := FileInfo{Name: "test", ObjectGeneration: "test-generation", FileSize: TestDataFileSize}
+	fi := FileInfo{
+		Key:              getTestFileInfoKey(),
+		ObjectGeneration: TestGeneration,
+		FileSize:         TestDataFileSize,
+	}
 
 	ExpectEq(TestDataFileSize, fi.Size())
 }
