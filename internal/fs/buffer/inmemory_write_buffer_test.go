@@ -219,6 +219,25 @@ func (t *MemoryBufferTest) TestWriteJustAfterChunkSizeOffset() {
 	AssertEq(t.mb.fileSize, 0)
 }
 
+func (t *MemoryBufferTest) TestWriteRollOverFrom2ndTo1stBlock() {
+	// Allocate a buffer
+	t.TestInitializeInMemoryBuffer()
+	data1 := generateRandomData(MiB)
+	data2 := generateRandomData(2 * KiB)
+
+	// Write to buffer
+	err := t.mb.WriteAt(data1, 0)
+	AssertEq(nil, err)
+	err = t.mb.WriteAt(data2, MiB)
+	AssertEq(nil, err)
+	err = t.mb.WriteAt(data2, 2*MiB-KiB)
+	AssertEq(nil, err)
+
+	AssertEq(t.mb.fileSize, 2*MiB+KiB)
+	AssertEq(true, bytes.Equal(data2[0:KiB], t.mb.buffer[2*MiB-KiB:2*MiB]))
+	AssertEq(true, bytes.Equal(data2[KiB:], t.mb.buffer[0:KiB]))
+}
+
 func (t *MemoryBufferTest) TestRandomWriteOnAnAlreadyWrittenBufferBlockShouldFail() {
 	// Allocate a buffer
 	t.TestInitializeInMemoryBuffer()
