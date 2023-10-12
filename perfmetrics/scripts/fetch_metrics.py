@@ -7,6 +7,8 @@ import argparse
 from fio import fio_metrics
 from vm_metrics import vm_metrics
 from gsheet import gsheet
+from bigquery import constants
+from bigquery import experiments_gcsfuse_bq
 
 INSTANCE = socket.gethostname()
 PERIOD_SEC = 120
@@ -40,6 +42,27 @@ def _parse_arguments(argv):
       default=False,
       required=False,
   )
+  parser.add_argument(
+      '--upload_bq',
+      help='Upload the results to the BigQuery.',
+      action='store_true',
+      default=False,
+      required=False,
+  )
+  parser.add_argument(
+      '--config_id',
+      help='Configuration ID of the experiment.',
+      action='store',
+      nargs=1,
+      required=False,
+  )
+  parser.add_argument(
+      '--start_time_build',
+      help='Start time of the build.',
+      action='store',
+      nargs=1,
+      required=False,
+  )
   return parser.parse_args(argv[1:])
 
 
@@ -51,15 +74,22 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
+  temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
+  metrics_data = fio_metrics_obj.get_values_to_upload(temp)
+
   if args.upload_gs:
-    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path, FIO_WORKSHEET_NAME)
-  else:
-    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
+    fio_metrics_obj.upload_metrics_to_gsheet(metrics_data, FIO_WORKSHEET_NAME)
+
+  if args.upload_bq:
+    if not args.config_id or not args.start_time_build:
+      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    fio_metrics_obj.upload_metrics_to_bigquery(metrics_data, args.config_id[0], args.start_time_build[0], constants.FIO_TABLE_ID)
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
   # So, waiting for 360 seconds to ensure the returned metrics are not empty.
-  # Intermittenly custom metrics are not available after 240 seconds, hence
+  # Intermittently custom metrics are not available after 240 seconds, hence
   # waiting for 360 secs instead of 240 secs
   time.sleep(360)
 
@@ -96,3 +126,9 @@ if __name__ == '__main__':
 
   if args.upload_gs:
     gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data)
+
+  if args.upload_bq:
+    if not args.config_id or not args.start_time_build:
+      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID, args.config_id[0], args.start_time_build[0], vm_metrics_data)
