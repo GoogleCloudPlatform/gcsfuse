@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const InvalidKeyAttributes = "un-initialized key attributes"
+const InvalidKeyAttributes = "key attributes not initialised"
 
 type FileInfoKey struct {
 	BucketName         string
