@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func YAMLConfigFile(config config.MountConfig) (filePath string) {
