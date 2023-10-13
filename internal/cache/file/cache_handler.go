@@ -17,6 +17,8 @@ package file
 import (
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"golang.org/x/net/context"
 )
 
@@ -38,19 +40,44 @@ type CacheFileHandle struct {
 // Actual Implementation
 
 // Responsible for managing fileInfoCache as well as fileDownloadManager.
-type FileCacheHandler struct {
-	lruCache            LRUCache
-	fileDownloadManager FileDownloadManager
+type CacheHandler struct {
+	fileInfoCache       *lru.Cache
+	fileDownloadManager *FileDownloadManager
 }
 
-func NewFileCacheHandler() FileCacheHandler {
-	// Init lru-cache
+func NewFileCacheHandler(cacheSize uint64) CacheHandler {
+	fileInfoCache := lru.NewCache(cacheSize)
+
 	// Init file-download manager
+	var fileDownloadManager FileDownloadManager
 
 	// and return the handle of FileCacheHandler
-	return FileCacheHandler{}
+	return CacheHandler{
+		fileInfoCache:       &fileInfoCache,
+		fileDownloadManager: &fileDownloadManager,
+	}
 }
 
-func (fch *FileCacheHandler) ReadFile(ctx context.Context, fileName string, fileSize int64, triggerDownload bool) *CacheFileHandle {
+func (fch *CacheHandler) HandleCache(key data.FileInfoKey) (*data.FileInfo, error) {
+	cacheKey, err := key.Key()
+	if err != nil {
+		return nil, nil
+	}
+
+	cacheVal := fch.fileInfoCache.LookUp(cacheKey)
+	if cacheVal != nil {
+		fileInfo := cacheVal.(data.FileInfo)
+		return &fileInfo, nil
+	}
+}
+
+func (fch *CacheHandler) ReadFile(ctx context.Context, key data.FileInfoKey, offset int64, chunkSize int64, triggerDownload bool) *CacheFileHandle {
+
+	fi, err := fch.HandleCache(key)
+
+	if fi.Offset >= offset+chunkSize {
+
+	}
+
 	return nil
 }
