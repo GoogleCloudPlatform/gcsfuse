@@ -34,7 +34,7 @@ def _parse_arguments(argv):
   )
 
   parser.add_argument(
-      '--upload',
+      '--upload_gs',
       help='Upload the results to the Google Sheet.',
       action='store_true',
       default=False,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  if args.upload:
+  if args.upload_gs:
     temp = fio_metrics_obj.get_metrics(args.fio_json_output_path, FIO_WORKSHEET_NAME)
   else:
     temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
@@ -94,5 +94,5 @@ if __name__ == '__main__':
     for row in metrics_data:
       vm_metrics_data.append(row)
 
-  if args.upload:
+  if args.upload_gs:
     gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data)
