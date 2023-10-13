@@ -74,6 +74,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
+<<<<<<< HEAD
   temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
   metrics_data = fio_metrics_obj.get_values_to_upload(temp)
 
@@ -85,6 +86,12 @@ if __name__ == '__main__':
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
     fio_metrics_obj.upload_metrics_to_bigquery(metrics_data, args.config_id[0], args.start_time_build[0], constants.FIO_TABLE_ID)
+=======
+  if args.upload_gs:
+    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path, FIO_WORKSHEET_NAME)
+  else:
+    temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
+>>>>>>> nov_2023_release
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph

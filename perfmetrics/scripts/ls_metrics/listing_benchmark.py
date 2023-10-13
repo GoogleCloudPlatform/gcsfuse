@@ -3,12 +3,14 @@
 This python script benchmarks and compares the latency of listing operation in
 persistent disk vs GCS bucket. It creates the necessary directory structure,
 containing files and folders, needed to test the listing operation. Furthermore,
+
 it can optionally upload the results of the test to a Google Sheet or Bigquery. It takes
 input a JSON config file which contains the info regrading directory structure
 and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
+
   $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
@@ -20,6 +22,8 @@ Typical usage example:
   Flag --message: Takes input a message string, which describes/titles the test.
   Flag --config_id: Configuration id of the experiment in BigQuery tables.
   Flag --start_time_build: Time at which KOKORO triggered the build scripts
+  Flag --num_samples: Runs each test for NUM_SAMPLES times.
+  Flag --message: Takes input a message string, which describes/titles the test.
   Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
   Flag --command (required): Takes as input a string, which is the command to run
                              the tests on.
@@ -470,6 +474,13 @@ def _parse_arguments(argv):
   parser.add_argument(
       '--gcsfuse_flags',
       help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file gcsfuse-list-logs.txt --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
+      required=True,
+  )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
       action='store',
       nargs=1,
       required=True,
