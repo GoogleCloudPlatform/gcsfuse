@@ -1,0 +1,7 @@
+[global]
+include glob-include.fio
+
+[14_thread]
+directory=gcs/5mb
+filesize=5M
+rw=randwrite

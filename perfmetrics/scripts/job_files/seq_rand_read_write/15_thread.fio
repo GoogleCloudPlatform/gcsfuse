@@ -1,0 +1,8 @@
+[global]
+include glob-include.fio
+
+[15_thread]
+directory=gcs/50mb
+filesize=50M
+rw=randread
+numjobs=40

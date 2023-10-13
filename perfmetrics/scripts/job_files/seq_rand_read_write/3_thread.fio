@@ -1,0 +1,7 @@
+[global]
+include glob-include.fio
+
+[3_thread]
+directory=gcs/3mb
+filesize=3M
+numjobs=40
