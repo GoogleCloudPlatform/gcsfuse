@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Tests for fio_metrics.
 
   Usage from perfmetrics/scripts folder: python3 -m fio.fio_metrics_test
@@ -23,7 +37,6 @@ WORKSHEET_NAME = 'fio_metrics'
 def get_full_filepath(filename):
   filepath = '{}{}'.format(TEST_PATH, filename)
   return filepath
-
 
 class TestFioMetricsTest(unittest.TestCase):
 
@@ -390,7 +403,7 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_get_job_params_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
-    expected_params = [{'bs_kb': 1000, 'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}]
+    expected_params = [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}]
 
     extracted_params = self.fio_metrics_obj._get_job_params(json_obj)
     self.assertEqual(expected_params, extracted_params)
@@ -408,7 +421,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'read',
             'filesize_kb': 50000,
-            'bs_kb': 1000,
             'num_threads': 40
         },
         'start_time': 1653027084,
@@ -444,7 +456,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'read',
             'filesize_kb': 50000,
-            'bs_kb': 1000,
             'num_threads': 40
         },
         'start_time': 1653027084,
@@ -500,7 +511,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'read',
             'filesize_kb': 50000,
-            'bs_kb': 1000,
             'num_threads': 40
         },
         'start_time': 1653027084,
@@ -528,7 +538,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'read',
             'filesize_kb': 50000,
-            'bs_kb': 1000,
             'num_threads': 10
         },
         'start_time': 1653381667,
@@ -549,7 +558,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'read',
             'filesize_kb': 50000,
-            'bs_kb': 1000,
             'num_threads': 10
         },
         'start_time': 1653381757,
@@ -577,7 +585,6 @@ class TestFioMetricsTest(unittest.TestCase):
             'rw': 'read',
             'num_threads': 40,
             'filesize_kb': 3000,
-            'bs_kb': 1000
         },
         'start_time': 1653596980,
         'end_time': 1653597056,
@@ -597,7 +604,6 @@ class TestFioMetricsTest(unittest.TestCase):
         'params': {
             'rw': 'write',
             'filesize_kb': 5000,
-            'bs_kb': 1000,
             'num_threads': 10
         },
         'start_time': 1653597076,
@@ -764,6 +770,7 @@ class TestFioMetricsTest(unittest.TestCase):
         'majorDimension': 'ROWS',
         'values': [['read'], ['read'], ['write']]
     }
+    print("get response", get_response)
     last_row = len(get_response['values'])+1
     update_response_clear = {
         'spreadsheetId': SPREADSHEET_ID,

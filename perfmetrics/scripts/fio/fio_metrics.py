@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Extracts required metrics from fio output file and writes to google sheet.
 
    Takes fio output json filepath as command-line input
@@ -17,8 +31,7 @@ from typing import Any, Dict, List, Tuple, Callable
 
 from fio import constants as consts
 from gsheet import gsheet
-from bigquery import constants
-from bigquery import experiments_gcsfuse_bq
+
 
 @dataclass(frozen=True)
 class JobParam:
@@ -73,11 +86,7 @@ REQ_JOB_PARAMS.append(JobParam(consts.THREADS, consts.NUMJOBS,
 REQ_JOB_PARAMS.append(
     JobParam(
         consts.FILESIZE_KB, consts.FILESIZE,
-        lambda val: _convert_value(val, consts.SIZE_TO_KB_CONVERSION), 0))
-REQ_JOB_PARAMS.append(
-    JobParam(
-        consts.BS_KB, consts.BS,
-        lambda val: _convert_value(val, consts.SIZE_TO_KB_CONVERSION), 0))
+        lambda val: _convert_value(val, consts.FILESIZE_TO_KB_CONVERSION), 0))
 # append new params here
 
 REQ_JOB_METRICS = []
@@ -272,7 +281,7 @@ class FioMetrics:
 
     Returns:
       List of dicts, each dict containing parameters for a job
-        Ex: [{'bs_kb': 16, 'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
+        Ex: [{'filesize_kb': 50000, 'num_threads': 40, 'rw': 'read'}
 
     Function working example:
       Ex: out_json = {"global options": {"filesize": "50M", "numjobs": "40"},
@@ -295,19 +304,12 @@ class FioMetrics:
               name= FILESIZE_KB,
               json_name= FILESIZE,
               format_param=lambda val: _convert_value(val,
-              consts.SIZE_TO_KB_CONVERSION),
-              default = 0
-          )
-          JobParam(
-              name= BS_KB,
-              json_name= BS,
-              format_param=lambda val: _convert_value(val,
-              consts.SIZE_TO_KB_CONVERSION),
+              consts.FILESIZE_TO_KB_CONVERSION),
               default = 0
           )
       ]
       Extracted parameters would be [{RW:'read', THREADS: 10, FILESIZE_KB:
-      50000, BS_KB: 16}]
+      50000}]
 
 
     """
@@ -356,7 +358,7 @@ class FioMetrics:
       List of dicts, contains list of jobs and required parameters and metrics
       for each job
       Example return value:
-        [{'params': {'bs': 16, 'filesize': 50000, 'num_threads': 40, 'rw': 'read'},
+        [{'params': {'filesize': 50000, 'num_threads': 40, 'rw': 'read'},
           'start_time': 1653027084, 'end_time': 1653027155, 'metrics':
         {'iops': 95.26093, 'bw_bytes': 99888324, 'io_bytes': 6040846336,
         'lat_s_mean': 0.41775487677469203, 'lat_s_min': 0.35337776000000004,
@@ -461,7 +463,6 @@ class FioMetrics:
 
   def upload_metrics_to_gsheet(self, metrics_data, worksheet_name):
     """Uploads metrics data for load tests to Google Spreadsheets
-
     Args:
       metrics_data (list): List of metric values for each job
       worksheet_name (str): Name of Google sheet to which metrics data will be uploaded
@@ -470,7 +471,6 @@ class FioMetrics:
 
   def upload_metrics_to_bigquery(self, metrics_data, config_id, start_time_build, table_id_bq):
     """Uploads metrics data for load tests to Google Spreadsheets
-
     Args:
       metrics_data (list): List of metric values for each job
       config_id (str): configuration ID of the experiment
@@ -488,5 +488,5 @@ if __name__ == '__main__':
                     'python3 -m fio.fio_metrics <fio output json filepath>')
 
   fio_metrics_obj = FioMetrics()
-  temp = fio_metrics_obj.get_metrics(argv[1])
+  temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
   print(temp)

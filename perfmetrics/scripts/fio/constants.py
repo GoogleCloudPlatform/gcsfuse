@@ -7,8 +7,6 @@ JOB_OPTS = 'job options'
 PARAMS = 'params'
 FILESIZE = 'filesize'
 FILESIZE_KB = 'filesize_kb'
-BS = 'bs'
-BS_KB = 'bs_kb'
 NUMJOBS = 'numjobs'
 THREADS = 'num_threads'
 TIMESTAMP_MS = 'timestamp_ms'
@@ -36,7 +34,7 @@ P95 = '95.000000'
 
 NS_TO_S = 10**(-9)
 
-SIZE_TO_KB_CONVERSION = {
+FILESIZE_TO_KB_CONVERSION = {
     'b': 0.001,
     'k': 1,
     'kb': 1,
