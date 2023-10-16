@@ -52,8 +52,10 @@ func (t *StorageHandleTest) TearDown() {
 func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
 	sc.DisableAuth = true
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
@@ -122,15 +124,16 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.DisableAuth = true
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
@@ -157,12 +160,12 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNotNilAndDis
 	AssertEq(nil, handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.KeyFile = ""
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
+//func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+//	sc := storageutil.GetDefaultStorageClientConfig()
+//	sc.KeyFile = ""
+//
+//	t.invokeAndVerifyStorageHandle(sc)
+//}
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()

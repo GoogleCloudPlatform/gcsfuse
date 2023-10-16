@@ -70,19 +70,24 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		return
 	}
 
-	// Custom http client for Go Client.
-	httpClient = &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   transport,
-			Source: tokenSrc,
-		},
-		Timeout: storageClientConfig.HttpClientTimeout,
-	}
-
-	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = &userAgentRoundTripper{
-		wrapped:   httpClient.Transport,
-		UserAgent: storageClientConfig.UserAgent,
+	if storageClientConfig.DisableAuth {
+		httpClient = &http.Client{
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+	} else {
+		// Custom http client for Go Client.
+		httpClient = &http.Client{
+			Transport: &oauth2.Transport{
+				Base:   transport,
+				Source: tokenSrc,
+			},
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
 	}
 
 	return httpClient, err
@@ -92,9 +97,5 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // is false which is default behaviour, it creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	if !storageClientConfig.DisableAuth {
-		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
-	} else {
-		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
-	}
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }

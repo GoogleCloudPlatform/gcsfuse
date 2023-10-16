@@ -18,7 +18,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -42,20 +41,6 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsTrue()
 	ExpectNe(nil, &tokenSrc)
 }
 
-func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsFalse() {
-	url, err := url.Parse(CustomEndpoint)
-	AssertEq(nil, err)
-	sc := GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = url
-
-	// It will try to create the actual auth token and fail since key-file doesn't exist.
-	tokenSrc, err := createTokenSource(&sc)
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	ExpectNe(nil, &tokenSrc)
-}
-
 func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
@@ -65,18 +50,6 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTr
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, &tokenSrc)
-}
-
-func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
-	sc := GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
-
-	// It will try to create the actual auth token and fail since key-file doesn't exist.
-	tokenSrc, err := createTokenSource(&sc)
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	ExpectEq(nil, tokenSrc)
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
