@@ -170,6 +170,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_fio_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING, 
+        operation string,
         num_threads INT64,
         file_size_kb INT64,
         start_time INT64, 
@@ -208,6 +209,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_ls_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING,
+        test_description string,
         command STRING, 
         num_files INT64, 
         num_folders INT64,
@@ -215,6 +217,7 @@ class ExperimentsGCSFuseBQ:
         mean_latency_msec FLOAT64, 
         median_latency_msec FLOAT64, 
         standard_dev_latency_msec FLOAT64, 
+        percentile_latency_0 FLOAT64, 
         percentile_latency_20 FLOAT64, 
         percentile_latency_50 FLOAT64, 
         percentile_latency_90 FLOAT64, 
