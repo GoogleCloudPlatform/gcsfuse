@@ -25,17 +25,18 @@
   },
   "jobs" : [
     {
-      "jobname" : "1_thread",
-      "groupid" : 0,
-      "error" : 0,
-      "eta" : 0,
-      "elapsed" : 80,
-      "job options" : {
-        "numjobs" : "40"
+      "jobname": "1_thread",
+      "job_start": 1653027084555,
+      "groupid": 0,
+      "error": 0,
+      "eta": 0,
+      "elapsed": 80,
+      "job options": {
+        "numjobs": "40"
       },
-      "read" : {
-        "io_bytes" : 0,
-        "io_kbytes" : 0,
+      "read": {
+        "io_bytes": 0,
+        "io_kbytes": 0,
         "bw_bytes" : 0,
         "bw" : 0,
         "iops" : 0.000000,

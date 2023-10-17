@@ -24,17 +24,18 @@
   },
   "jobs" : [
     {
-      "jobname" : "1_thread",
-      "groupid" : 0,
-      "error" : 0,
-      "eta" : 0,
-      "elapsed" : 164,
-      "job options" : {
-        "filesize" : "3M",
-        "directory" : "gcs/3mb",
-        "numjobs" : "40"
+      "jobname": "1_thread",
+      "job_start": 1653596980555,
+      "groupid": 0,
+      "error": 0,
+      "eta": 0,
+      "elapsed": 164,
+      "job options": {
+        "filesize": "3M",
+        "directory": "gcs/3mb",
+        "numjobs": "40"
       },
-      "read" : {
+      "read": {
         "io_bytes" : 6952058880,
         "io_kbytes" : 6789120,
         "bw_bytes" : 106170722,
@@ -288,17 +289,18 @@
       "latency_window" : 0
     },
     {
-      "jobname" : "2_thread",
-      "groupid" : 1,
-      "error" : 0,
-      "eta" : 0,
-      "elapsed" : 166,
-      "job options" : {
-        "filesize" : "5M",
-        "directory" : "gcs/5mb",
-        "numjobs" : "10",
+      "jobname": "2_thread",
+      "job_start": 1653597076112,
+      "groupid": 1,
+      "error": 0,
+      "eta": 0,
+      "elapsed": 166,
+      "job options": {
+        "filesize": "5M",
+        "directory": "gcs/5mb",
+        "numjobs": "10",
         "rw": "write",
-        "ramp_time" : "20s",
+        "ramp_time": "20s",
         "startdelay" : "100s"
       },
       "read" : {

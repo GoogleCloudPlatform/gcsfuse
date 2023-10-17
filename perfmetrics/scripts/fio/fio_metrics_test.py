@@ -63,6 +63,7 @@ class TestFioMetricsTest(unittest.TestCase):
         },
         'jobs': [{
             'jobname': '1_thread',
+            "job_start": 1653027084555,
             'groupid': 0,
             'error': 0,
             'eta': 0,
@@ -427,7 +428,6 @@ class TestFioMetricsTest(unittest.TestCase):
     }]
 
     extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
-
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_extract_metrics_from_incomplete_files(self):

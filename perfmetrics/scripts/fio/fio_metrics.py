@@ -94,6 +94,8 @@ REQ_JOB_METRICS.extend([
               [consts.LAT_NS, consts.PERCENTILE, consts.P90], consts.NS_TO_S),
     JobMetric('lat_s_perc_95',
               [consts.LAT_NS, consts.PERCENTILE, consts.P95], consts.NS_TO_S)])
+
+
 # append new metrics here
 
 
@@ -204,31 +206,21 @@ class FioMetrics:
       KeyError: If RW is not present in any dict in job_params
 
     """
-    # Creating a list of just the 'rw' job parameter. Later, we will
-    # loop through the jobs from the end, therefore we are creating
-    # reversed rw list for easy access
-    rw_rev_list = [job_param[consts.RW] for job_param in reversed(job_params)]
+    # Creating a list of just the 'rw' job parameter.
+    rw_list = [job_param[consts.RW] for job_param in job_params]
 
     global_ramptime_ms = 0
-    global_startdelay_ms = 0
     if consts.GLOBAL_OPTS in out_json:
       if consts.RAMPTIME in out_json[consts.GLOBAL_OPTS]:
         global_ramptime_ms = _convert_value(
             out_json[consts.GLOBAL_OPTS][consts.RAMPTIME],
             consts.TIME_TO_MS_CONVERSION, 's')
-      if consts.STARTDELAY in out_json[consts.GLOBAL_OPTS]:
-        global_startdelay_ms = _convert_value(
-            out_json[consts.GLOBAL_OPTS][consts.STARTDELAY],
-            consts.TIME_TO_MS_CONVERSION, 's')
 
-    next_end_time_ms = 0
-    rev_start_end_times = []
-    # Looping from end since the given time is the final end time
-    for i, job in enumerate(list(reversed(out_json[consts.JOBS]))):
-      rw = rw_rev_list[i]
+    start_end_times = []
+    for i, job in enumerate(list(out_json[consts.JOBS])):
+      rw = rw_list[i]
       job_rw = job[_get_rw(rw)]
       ramptime_ms = 0
-      startdelay_ms = 0
       if consts.JOB_OPTS in job:
         if consts.RAMPTIME in job[consts.JOB_OPTS]:
           ramptime_ms = _convert_value(job[consts.JOB_OPTS][consts.RAMPTIME],
@@ -236,22 +228,17 @@ class FioMetrics:
 
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
-      if startdelay_ms == 0:
-        startdelay_ms = global_startdelay_ms
 
-      # for multiple jobs, end time of one job = start time of next job
-      end_time_ms = next_end_time_ms if next_end_time_ms > 0 else out_json[
-          consts.TIMESTAMP_MS]
-      # job start time = job end time - job runtime - ramp time
-      start_time_ms = end_time_ms - job_rw[consts.RUNTIME] - ramptime_ms
-      next_end_time_ms = start_time_ms - startdelay_ms
+      start_time_ms = job[consts.JOB_START]
+      end_time_ms = start_time_ms + job_rw[consts.RUNTIME] + ramptime_ms
+      print()
 
       # converting start and end time to seconds
       start_time_s = start_time_ms // 1000
-      end_time_s = round(end_time_ms/1000)
-      rev_start_end_times.append((start_time_s, end_time_s))
+      end_time_s = round(end_time_ms / 1000)
+      start_end_times.append((start_time_s, end_time_s))
 
-    return list(reversed(rev_start_end_times))
+    return list(start_end_times)
 
   def _get_job_params(self, out_json):
     """Returns parameter values of each job.
@@ -435,8 +422,8 @@ class FioMetrics:
     gsheet.write_to_google_sheet(worksheet_name, values)
 
   def get_metrics(self,
-                  filepath,
-                  worksheet_name=None) -> List[Dict[str, Any]]:
+      filepath,
+      worksheet_name=None) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath and writes to gsheets.
 
     Args:
@@ -456,6 +443,7 @@ class FioMetrics:
 
     return job_metrics
 
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) != 2:
@@ -466,4 +454,3 @@ if __name__ == '__main__':
   fio_metrics_obj = FioMetrics()
   temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
   print(temp)
-

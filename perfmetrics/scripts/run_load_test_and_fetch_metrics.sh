@@ -14,10 +14,19 @@
 # limitations under the License.
 
 set -e
-echo "Installing fio"
-sudo apt-get install fio -y
+
 echo "Installing pip"
 sudo apt-get install pip -y
+echo "Installing fio"
+# install libaio as fio has a dependency on libaio
+sudo apt-get install libaio-dev
+sudo rm -rf "${KOKORO_ARTIFACTS_DIR}/github/fio"
+git clone https://github.com/axboe/fio.git "${KOKORO_ARTIFACTS_DIR}/github/fio"
+cd  "${KOKORO_ARTIFACTS_DIR}/github/fio" && \
+git checkout c5d8ce3fc736210ded83b126c71e3225c7ffd7c9 && \
+./configure && make && sudo make install
+
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 echo Print the time when FIO tests start
 date
 echo Running fio test..
@@ -27,12 +36,13 @@ echo "Overall fio end epoch time:" `date +%s`
 
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
-gsutil cp gs://periodic-perf-tests/creds.json gsheet
+#gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
-# Upload data to the gsheet only when it runs through kokoro.
-if [ "${KOKORO_JOB_TYPE}" != "RELEASE" ] && [ "${KOKORO_JOB_TYPE}" != "CONTINUOUS_INTEGRATION" ] && [ "${KOKORO_JOB_TYPE}" != "PRESUBMIT_GITHUB" ];
-then
-  python3 fetch_metrics.py fio-output.json
-else
-  python3 fetch_metrics.py fio-output.json --upload
-fi
+python3 fetch_metrics.py fio-output.json --upload
+## Upload data to the gsheet only when it runs through kokoro.
+#if [ "${KOKORO_JOB_TYPE}" != "RELEASE" ] && [ "${KOKORO_JOB_TYPE}" != "CONTINUOUS_INTEGRATION" ] && [ "${KOKORO_JOB_TYPE}" != "PRESUBMIT_GITHUB" ];
+#then
+#  python3 fetch_metrics.py fio-output.json
+#else
+#  python3 fetch_metrics.py fio-output.json --upload
+#fi
