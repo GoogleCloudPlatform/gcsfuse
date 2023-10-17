@@ -180,14 +180,11 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNotNilAndDis
 	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmptyAndDisableAuthTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.KeyFile = ""
 
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalseAndDisableAuthTrue() {
