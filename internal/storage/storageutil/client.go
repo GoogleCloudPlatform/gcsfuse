@@ -64,17 +64,18 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	}
 
-	tokenSrc, err := createTokenSource(storageClientConfig)
-	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
-		return
-	}
-
 	if storageClientConfig.DisableAuth {
 		httpClient = &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
+		var tokenSrc oauth2.TokenSource
+		tokenSrc, err = createTokenSource(storageClientConfig)
+		if err != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", err)
+			return
+		}
+
 		// Custom http client for Go Client.
 		httpClient = &http.Client{
 			Transport: &oauth2.Transport{
@@ -93,8 +94,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	return httpClient, err
 }
 
-// It creates dummy token-source in case of disable-auth flag. If the disable-auth flag
-// is false which is default behaviour, it creates the token-source from the provided
+// it creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)

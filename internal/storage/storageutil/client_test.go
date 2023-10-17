@@ -15,9 +15,9 @@
 package storageutil
 
 import (
-	"net/url"
 	"testing"
 
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -28,43 +28,19 @@ type clientTest struct {
 
 func init() { RegisterTestSuite(&clientTest{}) }
 
-func (t *clientTest) TestCreateTokenSrcWithCustomEndpointWhenDisableAuthIsTrue() {
-	url, err := url.Parse(CustomEndpoint)
-	AssertEq(nil, err)
-	sc := GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = url
-	sc.DisableAuth = true
-
-	tokenSrc, err := createTokenSource(&sc)
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, &tokenSrc)
-}
-
-func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
-	sc := GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
-	sc.DisableAuth = true
-
-	tokenSrc, err := createTokenSource(&sc)
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, &tokenSrc)
-}
-
-func (t *clientTest) TestCreateHttpClientWithHttp1() {
+func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthTrue() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 	sc.DisableAuth = true
+
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
-	ExpectNe(nil, httpClient.Transport)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
-func (t *clientTest) TestCreateHttpClientWithHttp2() {
+func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthTrue() {
 	sc := GetDefaultStorageClientConfig()
 	sc.DisableAuth = true
 
@@ -73,6 +49,37 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
-	ExpectNe(nil, httpClient.Transport)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthFalse() {
+	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+
+	// Act: this method add tokenSource and clientOptions.
+	httpClient, err := CreateHttpClient(&sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthFalse() {
+	sc := GetDefaultStorageClientConfig()
+
+	// Act: this method add tokenSource and clientOptions.
+	httpClient, err := CreateHttpClient(&sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, httpClient)
+}
+
+func (t *clientTest) TestCreateTokenSrc() {
+	sc := GetDefaultStorageClientConfig()
+
+	tokenSrc, err := createTokenSource(&sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	ExpectNe(nil, &tokenSrc)
 }
