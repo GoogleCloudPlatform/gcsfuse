@@ -40,6 +40,7 @@ type StorageClientConfig struct {
 	TokenUrl                   string
 	ReuseTokenFromUrl          bool
 	ExperimentalEnableJsonRead bool
+	DisableAuth                bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
@@ -63,37 +64,38 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	}
 
-	tokenSrc, err := createTokenSource(storageClientConfig)
-	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
-		return
-	}
+	if storageClientConfig.DisableAuth {
+		httpClient = &http.Client{
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+	} else {
+		var tokenSrc oauth2.TokenSource
+		tokenSrc, err = createTokenSource(storageClientConfig)
+		if err != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", err)
+			return
+		}
 
-	// Custom http client for Go Client.
-	httpClient = &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   transport,
-			Source: tokenSrc,
-		},
-		Timeout: storageClientConfig.HttpClientTimeout,
-	}
-
-	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = &userAgentRoundTripper{
-		wrapped:   httpClient.Transport,
-		UserAgent: storageClientConfig.UserAgent,
+		// Custom http client for Go Client.
+		httpClient = &http.Client{
+			Transport: &oauth2.Transport{
+				Base:   transport,
+				Source: tokenSrc,
+			},
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
 	}
 
 	return httpClient, err
 }
 
-// It creates dummy token-source in case of non-nil custom url. If the custom-endpoint
-// is nil, it creates the token-source from the provided key-file or using ADC search
-// order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
+// it creates the token-source from the provided
+// key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	if storageClientConfig.CustomEndpoint == nil {
-		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
-	} else {
-		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
-	}
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }

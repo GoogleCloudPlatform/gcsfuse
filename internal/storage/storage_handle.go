@@ -57,6 +57,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
 
+	if clientConfig.DisableAuth {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	}
+
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
 		clientOpts = append(clientOpts, storage.WithJSONReads())

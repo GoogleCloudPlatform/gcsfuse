@@ -95,6 +95,7 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
+		DisableAuth:                flags.DisableAuth,
 	}
 
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
