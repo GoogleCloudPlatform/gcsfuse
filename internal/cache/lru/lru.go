@@ -56,7 +56,7 @@ type Cache struct {
 	// INVARIANT: Contains all and only the elements of entries
 	index map[string]*list.Element
 
-	// All public methods of this Cache uses this mutex while accessing/updating
+	// All public methods of this Cache uses this mutex based locker while accessing/updating
 	// Cache's data. This means when one method is accessing/updating Cache's data,
 	// other methods will be blocked until the method in execution completes.
 	mu locker.Locker
