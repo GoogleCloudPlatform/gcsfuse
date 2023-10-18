@@ -12,33 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package data
+package file
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestFileInfo(t *testing.T) { RunTests(t) }
+func TestCacheHandle(t *testing.T) { RunTests(t) }
 
-type fileInfoTestKey struct {
+type cacheHandleTest struct {
 }
-
-type fileInfoTest struct {
-}
-
-const TestDataFileSize uint64 = 23
-const TestBucketName = "test_bucket"
-const TestObjectName = "test/a.txt"
-const TestGeneration = 12345678
-const ExpectedFileInfoKey = "test_bucket1654041600test/a.txt"
 
 func init() {
-	RegisterTestSuite(&fileInfoTestKey{})
-	RegisterTestSuite(&fileInfoTest{})
+	RegisterTestSuite(&cacheHandleTest{})
 }
 
 func getTestFileInfoKey() FileInfoKey {
@@ -66,34 +55,4 @@ func (t *fileInfoTestKey) TestKeyMethodWithEmptyBucketName() {
 	AssertEq(InvalidKeyAttributes, err.Error())
 
 	ExpectEq("", key)
-}
-
-func (t *fileInfoTestKey) TestKeyMethodWithZeroBucketCreationTime() {
-	fik := getTestFileInfoKey()
-
-	key, err := fik.Key()
-
-	ExpectEq(nil, err)
-	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
-	ExpectEq(fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
-}
-
-func (t *fileInfoTestKey) TestKeyMethodWithEmptyObjectName() {
-	fik := getTestFileInfoKey()
-	fik.ObjectName = ""
-
-	key, err := fik.Key()
-	AssertEq(InvalidKeyAttributes, err.Error())
-
-	ExpectEq("", key)
-}
-
-func (t *fileInfoTest) TestSizeMethod() {
-	fi := FileInfo{
-		Key:              getTestFileInfoKey(),
-		ObjectGeneration: TestGeneration,
-		FileSize:         TestDataFileSize,
-	}
-
-	ExpectEq(TestDataFileSize, fi.Size())
 }

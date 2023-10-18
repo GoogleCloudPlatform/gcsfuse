@@ -23,6 +23,8 @@ import (
 
 const InvalidKeyAttributes = "key attributes not initialised"
 
+const TestTimeInEpoch int64 = 1654041600
+
 type FileInfoKey struct {
 	BucketName         string
 	BucketCreationTime time.Time
