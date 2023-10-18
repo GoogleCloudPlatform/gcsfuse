@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -37,6 +38,7 @@ type jobTest struct {
 func init() { RegisterTestSuite(&jobTest{}) }
 
 func (jt *jobTest) SetUp(*TestInfo) {
+	locker.EnableInvariantsCheck()
 	jt.job = NewJob(nil, nil, "", nil,
 		0, os.FileMode(0777), 0, 0)
 }

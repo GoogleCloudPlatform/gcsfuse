@@ -132,8 +132,8 @@ func (job *Job) Cancel() {
 	defer job.mu.Unlock()
 }
 
-// Download starts async download if not already started and waits till the
-// download is completed for given offset if waitForDownload is true.
+// Download downloads object till the given offset if not already downloaded
+// and waits for download if waitForDownload is true.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus) {
