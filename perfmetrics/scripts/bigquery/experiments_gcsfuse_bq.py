@@ -170,6 +170,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_fio_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING, 
+        start_time_build INT64,
         operation string,
         num_threads INT64,
         file_size_kb INT64,
@@ -193,6 +194,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_vm_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING, 
+        start_time_build INT64,
         end_time INT64, 
         cpu_utilization_peak_percentage FLOAT64, 
         cpu_utilization_mean_percentage FLOAT64, 
@@ -209,6 +211,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_ls_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING,
+        start_time_build INT64,
         test_description string,
         command STRING, 
         num_files INT64, 
