@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Extracts required metrics from fio output file and writes to google sheet.
 
    Takes fio output json filepath as command-line input
@@ -25,7 +39,7 @@ class JobParam:
 
   name: Can be any suitable value, it refers to the output dictionary key for
   the parameter. To be used when creating parameter dict for each job.
-  json_name: Must match the FIO job specification key. Key for parameter inside 
+  json_name: Must match the FIO job specification key. Key for parameter inside
   'global options'/'job options' dictionary
     Ex: For output json = {"global options": {"filesize":"50M"}, "jobs": [
     "job options": {"rw": "read"}]}
@@ -48,7 +62,7 @@ class JobParam:
 class JobMetric:
   """Dataclass for a FIO job metric.
 
-  name: Can be any suitable value, it is used as key for the metric 
+  name: Can be any suitable value, it is used as key for the metric
   when creating metric dict for each job
   levels: Keys for the metric inside 'read'/'write' dictionary in each job.
   Each value in the list must match the key in the FIO output JSON
@@ -241,7 +255,7 @@ class FioMetrics:
 
       # for multiple jobs, end time of one job = start time of next job
       end_time_ms = next_end_time_ms if next_end_time_ms > 0 else out_json[
-          consts.TIMESTAMP_MS]
+        consts.TIMESTAMP_MS]
       # job start time = job end time - job runtime - ramp time
       start_time_ms = end_time_ms - job_rw[consts.RUNTIME] - ramptime_ms
       next_end_time_ms = start_time_ms - startdelay_ms
@@ -412,12 +426,13 @@ class FioMetrics:
 
     return all_jobs
 
-  def _add_to_gsheet(self, jobs, worksheet_name):
-    """Add the metric values to respective columns in a google sheet.
+  def get_values_to_upload(self, jobs):
+    """Get the metrics values in a list to export to Google Spreadsheet and BigQuery.
 
     Args:
-      jobs: list of dicts, contains required metrics for each job
-      worksheet_name: str, worksheet where job metrics should be written.
+      jobs: List of dicts, contains required metrics for each job
+    Returns:
+      list: A 2-d list consisting of metrics values for each job
     """
 
     values = []
@@ -431,30 +446,39 @@ class FioMetrics:
       for metric_val in job[consts.METRICS].values():
         row.append(metric_val)
       values.append(row)
+    return values
 
-    gsheet.write_to_google_sheet(worksheet_name, values)
-
-  def get_metrics(self,
-                  filepath,
-                  worksheet_name=None) -> List[Dict[str, Any]]:
-    """Returns job metrics obtained from given filepath and writes to gsheets.
+  def get_metrics(self, filepath) -> List[Dict[str, Any]]:
+    """Returns job metrics obtained from given filepath.
 
     Args:
-      filepath : str
-        Path of the json file to be parsed
-      worksheet_name: str, optional, default:None
-        Worksheet where job metrics should be written.
-        Pass '' or None to skip writing to Google sheets
+      filepath (str): Path of the json file to be parsed
 
     Returns:
       List of dicts, contains list of jobs and required metrics for each job
     """
     fio_out = self._load_file_dict(filepath)
     job_metrics = self._extract_metrics(fio_out)
-    if worksheet_name:
-      self._add_to_gsheet(job_metrics, worksheet_name)
-
     return job_metrics
+
+  def upload_metrics_to_gsheet(self, metrics_data, worksheet_name):
+    """Uploads metrics data for load tests to Google Spreadsheets
+    Args:
+      metrics_data (list): List of metric values for each job
+      worksheet_name (str): Name of Google sheet to which metrics data will be uploaded
+    """
+    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
+
+  def upload_metrics_to_bigquery(self, metrics_data, config_id, start_time_build, table_id_bq):
+    """Uploads metrics data for load tests to Google Spreadsheets
+    Args:
+      metrics_data (list): List of metric values for each job
+      config_id (str): configuration ID of the experiment
+      start_time_build (int): Start time of the build
+      table_id_bq (str): ID of table in BigQuery to which metrics data will be uploaded
+    """
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj.upload_metrics_to_table(table_id_bq, config_id, start_time_build, metrics_data)
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -466,4 +490,3 @@ if __name__ == '__main__':
   fio_metrics_obj = FioMetrics()
   temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
   print(temp)
-

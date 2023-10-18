@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Extracts required Google Cloud VM metrics using Monitoring V3 API call, parses
    the API response into a list and writes to google sheet.
 
@@ -252,10 +266,10 @@ class VmMetrics:
     return metrics_data
   
   def _add_new_metric_using_test_type(self, test_type):
-    """Creates a copy of METRICS_LIST and appends new Metric objects to it.
-
+    """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
+      and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
     Args:
-      test_type(str): The type of load test for which metrics are taken
+      test_type(str): The type of test for which metrics are taken
     Returns:
       list[Metric]
     """
@@ -313,6 +327,13 @@ class VmMetrics:
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
       metrics_data.append(row)
+      # Only a subset of extracted metrics data uploaded to Google Spreadsheets and BigQuery.
+      # Skipping the first column as it duplicates the second column.Appending 8 None values for VM metrics
+      # that are currently not extracted. For detailed schema information of the data uploaded to BigQuery
+      # and Google Spreadsheets, please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
+      # from bigquery/experiments_gcsfuse_bq.py.
+      row_to_upload = [values[1:] + [None]*8 for values in row]
+      metrics_data.append(row_to_upload)
 
     return metrics_data
 
