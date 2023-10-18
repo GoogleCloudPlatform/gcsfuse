@@ -488,5 +488,5 @@ if __name__ == '__main__':
                     'python3 -m fio.fio_metrics <fio output json filepath>')
 
   fio_metrics_obj = FioMetrics()
-  temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
+  temp = fio_metrics_obj.get_metrics(argv[1])
   print(temp)

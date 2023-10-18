@@ -332,8 +332,9 @@ class VmMetrics:
       # that are currently not extracted. For detailed schema information of the data uploaded to BigQuery
       # and Google Spreadsheets, please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
       # from bigquery/experiments_gcsfuse_bq.py.
-      row_to_upload = [values[1:] + [None]*8 for values in row]
-      metrics_data.append(row_to_upload)
+      if test_type != 'list':
+        row = row[1:] + [None]*2
+      metrics_data.append(row)
 
     return metrics_data
 
