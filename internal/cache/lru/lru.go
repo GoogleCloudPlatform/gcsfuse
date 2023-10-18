@@ -19,7 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sync"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 )
 
 // Predefined error message returned by the Cache.
@@ -58,7 +59,7 @@ type Cache struct {
 	// All public methods of this Cache uses this mutex while accessing/updating
 	// Cache's data. This means when one method is accessing/updating Cache's data,
 	// other methods will be blocked until the method in execution completes.
-	mu sync.Mutex
+	mu locker.Locker
 }
 
 type ValueType interface {
@@ -70,12 +71,14 @@ type entry struct {
 	Value ValueType
 }
 
-// New initialize a cache with the supplied maxSize, which must be greater than
+// Init initialize a cache with the supplied maxSize, which must be greater than
 // zero.
-func NewCache(maxSize uint64) (c Cache) {
+func (c *Cache) Init(maxSize uint64) {
 	c.maxSize = maxSize
 	c.index = make(map[string]*list.Element)
-	return
+
+	// Set up invariant checking.
+	c.mu = locker.New("LRUCache", c.CheckInvariants)
 }
 
 // CheckInvariants panic if any internal invariants have been violated.

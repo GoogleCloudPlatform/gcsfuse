@@ -21,39 +21,11 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestCache(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Invariant-checking cache
-////////////////////////////////////////////////////////////////////////
-
-type invariantsCache struct {
-	Wrapped lru.Cache
-}
-
-func (c *invariantsCache) Insert(key string, value lru.ValueType) ([]lru.ValueType, error) {
-	c.Wrapped.CheckInvariants()
-	defer c.Wrapped.CheckInvariants()
-
-	return c.Wrapped.Insert(key, value)
-}
-
-func (c *invariantsCache) Erase(key string) lru.ValueType {
-	c.Wrapped.CheckInvariants()
-	defer c.Wrapped.CheckInvariants()
-
-	return c.Wrapped.Erase(key)
-}
-
-func (c *invariantsCache) LookUp(key string) lru.ValueType {
-	c.Wrapped.CheckInvariants()
-	defer c.Wrapped.CheckInvariants()
-
-	return c.Wrapped.LookUp(key)
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -63,13 +35,14 @@ const MaxSize = 50
 const OperationCount = 100
 
 type CacheTest struct {
-	cache invariantsCache
+	cache lru.Cache
 }
 
 func init() { RegisterTestSuite(&CacheTest{}) }
 
 func (t *CacheTest) SetUp(*TestInfo) {
-	t.cache.Wrapped = lru.NewCache(MaxSize)
+	locker.EnableInvariantsCheck()
+	t.cache.Init(MaxSize)
 }
 
 type testData struct {
@@ -213,7 +186,7 @@ func (t *CacheTest) TestRaceCondition() {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < OperationCount; i++ {
-			_, err := t.cache.Wrapped.Insert("key", testData{
+			_, err := t.cache.Insert("key", testData{
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),
 			})
@@ -225,14 +198,14 @@ func (t *CacheTest) TestRaceCondition() {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < OperationCount; i++ {
-			t.cache.Wrapped.Erase("key")
+			t.cache.Erase("key")
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
 		for i := 0; i < OperationCount; i++ {
-			t.cache.Wrapped.LookUp("key")
+			t.cache.LookUp("key")
 		}
 	}()
 
