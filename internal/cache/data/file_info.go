@@ -17,6 +17,7 @@ package data
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -47,4 +48,11 @@ type FileInfo struct {
 
 func (fi FileInfo) Size() uint64 {
 	return fi.FileSize
+}
+
+type FileSpec struct {
+	Path     string
+	Perm     os.FileMode
+	OwnerUid uint32
+	OwnerGid uint32
 }

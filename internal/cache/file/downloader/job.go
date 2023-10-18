@@ -17,9 +17,9 @@ package downloader
 import (
 	"container/list"
 	"fmt"
-	"os"
 	"reflect"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -45,12 +45,9 @@ type Job struct {
 
 	object               *gcs.MinObject
 	bucket               gcs.Bucket
-	filePath             string
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
-	filePerm             os.FileMode
-	fileUid              uint32
-	fileGid              uint32
+	fileSpec             data.FileSpec
 
 	/////////////////////////
 	// Mutable state
@@ -83,25 +80,21 @@ type JobStatus struct {
 type jobSubscriber struct {
 }
 
-func NewJob(object *gcs.MinObject, bucket gcs.Bucket, filePath string,
-	fileInfoCache *lru.Cache, sequentialReadSizeMb int32, filePerm os.FileMode,
-	fileUid uint32, fileGid uint32) (job *Job) {
+func NewJob(object *gcs.MinObject, bucket gcs.Bucket, filePath string, fileInfoCache *lru.Cache,
+		sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
-		filePath:             filePath,
 		fileInfoCache:        fileInfoCache,
 		sequentialReadSizeMb: sequentialReadSizeMb,
-		filePerm:             filePerm,
-		fileUid:              fileUid,
-		fileGid:              fileGid,
+		fileSpec:             fileSpec,
 	}
 	job.mu = locker.New("Job-"+filePath, job.checkInvariants)
 	job.init()
 	return
 }
 
-// CheckInvariants panic if any internal invariants have been violated.
+// checkInvariants panic if any internal invariants have been violated.
 func (job *Job) checkInvariants() {
 	// INVARIANT: Each subscriber is of type jobSubscriber
 	for e := job.subscribers.Front(); e != nil; e = e.Next() {
@@ -123,6 +116,7 @@ func (job *Job) init() {
 
 // Cancel changes the state of job to cancelled and cancels the async download
 // job if there. Also, notifies the subscribers of job if any.
+// ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Cancel() {
@@ -132,6 +126,7 @@ func (job *Job) Cancel() {
 
 // Download downloads object till the given offset if not already downloaded
 // and waits for download if waitForDownload is true.
+// ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus) {
