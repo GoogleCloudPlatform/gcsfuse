@@ -326,7 +326,6 @@ class VmMetrics:
       row.append(end_time_sec)
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
-      metrics_data.append(row)
       # Only a subset of extracted metrics data uploaded to Google Spreadsheets and BigQuery.
       # Skipping the first column as it duplicates the second column.Appending 8 None values for VM metrics
       # that are currently not extracted. For detailed schema information of the data uploaded to BigQuery
