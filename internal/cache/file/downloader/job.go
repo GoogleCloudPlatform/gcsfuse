@@ -80,8 +80,8 @@ type JobStatus struct {
 type jobSubscriber struct {
 }
 
-func NewJob(object *gcs.MinObject, bucket gcs.Bucket, filePath string, fileInfoCache *lru.Cache,
-		sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
+func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
+	sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
@@ -89,7 +89,7 @@ func NewJob(object *gcs.MinObject, bucket gcs.Bucket, filePath string, fileInfoC
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
 	}
-	job.mu = locker.New("Job-"+filePath, job.checkInvariants)
+	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
 	return
 }

@@ -17,10 +17,10 @@ package downloader
 import (
 	"container/list"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	. "github.com/jacobsa/ogletest"
 )
@@ -39,8 +39,8 @@ func init() { RegisterTestSuite(&jobTest{}) }
 
 func (jt *jobTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	jt.job = NewJob(nil, nil, "", nil,
-		0, os.FileMode(0777), 0, 0)
+	var fileSpec data.FileSpec
+	jt.job = NewJob(nil, nil, nil, 200, fileSpec)
 }
 
 func (jt *jobTest) TestInit() {
