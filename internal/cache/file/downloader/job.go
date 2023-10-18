@@ -81,8 +81,6 @@ type JobStatus struct {
 // jobSubscriber represents a subscriber waiting on async download of job to
 // complete downloading at least till the subscribed offset.
 type jobSubscriber struct {
-	notificationC    chan<- JobStatus
-	subscribedOffset int64
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, filePath string,
