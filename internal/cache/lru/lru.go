@@ -71,19 +71,21 @@ type entry struct {
 	Value ValueType
 }
 
-// Init initialize a cache with the supplied maxSize, which must be greater than
-// zero.
-func (c *Cache) Init(maxSize uint64) {
-	c.maxSize = maxSize
-	c.index = make(map[string]*list.Element)
+// NewCache returns the reference of cache object by initialising the cache with
+// the supplied maxSize, which must be greater than zero.
+func NewCache(maxSize uint64) *Cache {
+	c := &Cache{
+		maxSize: maxSize,
+		index:   make(map[string]*list.Element),
+	}
 
 	// Set up invariant checking.
-	c.mu = locker.New("LRUCache", c.CheckInvariants)
+	c.mu = locker.New("LRUCache", c.checkInvariants)
+	return c
 }
 
 // CheckInvariants panic if any internal invariants have been violated.
-// The careful user can arrange to call this at crucial moments.
-func (c *Cache) CheckInvariants() {
+func (c *Cache) checkInvariants() {
 	// INVARIANT: maxSize > 0
 	if !(c.maxSize > 0) {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
