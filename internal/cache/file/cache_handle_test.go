@@ -107,7 +107,7 @@ func getPrepopulatedLRUCacheWithFileInfo() *lru.Cache {
 	_, err = cache.Insert(key, fileInfo)
 	AssertEq(nil, err)
 
-	return &cache
+	return cache
 }
 
 // getTestMinGCSObject returns the MinGCSObject whose entry as fileInfo
@@ -189,6 +189,18 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 	AssertEq(nil, err)
 	AssertEq(n, DstBufferLen)
 	AssertEq(FileContentFromTestOffset, string(dst))
+}
+
+func (t *cacheHandleTest) TestClose() {
+	file, err := createFileWithContent(TestFilePath, TestFileContent)
+	defer deleteFile(TestFilePath)
+	AssertEq(nil, err)
+	t.ch.fileHandle = file
+
+	err = t.ch.Close()
+	AssertEq(nil, err)
+
+	ExpectEq(nil, t.ch.fileHandle)
 }
 
 // TODO (princer): write test which validates download flow in the cache_handle.read()

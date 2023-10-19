@@ -97,6 +97,8 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 		ctx := context.Background()
 		jobStatus := fch.fileDownloadJob.Download(ctx, int64(requiredDataOffset), true)
 
+		// TODO (princer): Handel the case properly for different value of waitForDownload flag.
+
 		if jobStatus.Err != nil {
 			err = fmt.Errorf("error while downloading the data: %v", jobStatus.Err)
 			return
@@ -110,5 +112,21 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 	if err == io.EOF {
 		err = nil
 	}
+	return
+}
+
+// CancelJob responsible to cancel the running download Job.
+// TODO (princer) - complete it once download job starts supporting cancel job.
+func (fch *CacheHandle) CancelJob() {
+	fch.fileDownloadJob.Cancel()
+}
+
+// Close closes the underlined fileHandle points to locally downloaded data.
+func (fch *CacheHandle) Close() (err error) {
+	if fch.fileHandle != nil {
+		err = fch.fileHandle.Close()
+		fch.fileHandle = nil
+	}
+
 	return
 }
