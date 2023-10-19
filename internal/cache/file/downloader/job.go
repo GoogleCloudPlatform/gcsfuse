@@ -78,6 +78,8 @@ type JobStatus struct {
 // jobSubscriber represents a subscriber waiting on async download of job to
 // complete downloading at least till the subscribed offset.
 type jobSubscriber struct {
+	notificationC    chan<- JobStatus
+	subscribedOffset int64
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
@@ -122,6 +124,46 @@ func (job *Job) init() {
 func (job *Job) Cancel() {
 	job.mu.Lock()
 	defer job.mu.Unlock()
+}
+
+// subscribe adds subscriber for download job and returns channel which is
+// notified when the download is completed at least till the subscribed offset
+// or in case of failure.
+//
+// Not concurrency safe and requires LOCK(job.mu)
+func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatus) {
+	subscriberC := make(chan JobStatus, 1)
+	job.subscribers.PushBack(jobSubscriber{subscriberC, subscribedOffset})
+	return subscriberC
+}
+
+// notifySubscribers notifies all the subscribers of download job in case of
+// error/cancellation or when download is completed till the subscribed offset.
+//
+// Not concurrency safe and requires LOCK(job.mu)
+func (job *Job) notifySubscribers() {
+	var nextSubItr *list.Element
+	for subItr := job.subscribers.Front(); subItr != nil; subItr = nextSubItr {
+		subItrValue := subItr.Value.(jobSubscriber)
+		nextSubItr = subItr.Next()
+		if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Offset >= subItrValue.subscribedOffset {
+			subItrValue.notificationC <- job.status
+			close(subItrValue.notificationC)
+			job.subscribers.Remove(subItr)
+		}
+	}
+}
+
+// failWhileDownloading changes the status of job to failed and notifies
+// subscribers about the download error.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) failWhileDownloading(downloadErr error) {
+	job.mu.Lock()
+	job.status.Err = downloadErr
+	job.status.Name = FAILED
+	job.notifySubscribers()
+	job.mu.Unlock()
 }
 
 // Download downloads object till the given offset if not already downloaded
