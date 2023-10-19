@@ -1,27 +1,27 @@
 {
 "experiment_configuration": [
     {
-      "config_name": "EnabledStorageClientLibrary",
-      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library --debug_fuse --debug_gcs",
+      "config_name": "master",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "branch": "master",
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
-      "config_name": "DisabledStorageClientLibrary",
-      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library=false --debug_fuse --debug_gcs",
-      "branch": "master",
+      "config_name": "nov_2023_release",
+      "gcsfuse_flags":"--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
+      "branch": "nov_2023_release",
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
-      "config_name": "EnabledStorageClientLibraryProtocolHTTP2",
-      "gcsfuse_flags": "--implicit-dirs --enable-storage-client-library --client-protocol http2 --debug_fuse --debug_gcs",
-      "branch": "experiments_dashboard",
+      "config_name": "read_cache_release",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
+      "branch": "read_cache_release",
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
-      "config_name": "MaxConnsPerHost40",
-      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 40 --debug_fuse --debug_gcs",
-      "branch": "experiments_dashboard",
+      "config_name": "minimal_file_buffering_release",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
+      "branch": "minimal_file_buffering_release",
       "end_date": "2023-12-30 05:30:00+00:00"
     }
   ]

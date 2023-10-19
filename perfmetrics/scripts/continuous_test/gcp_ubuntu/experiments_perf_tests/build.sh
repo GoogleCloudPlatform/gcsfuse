@@ -20,6 +20,8 @@ echo "Installing git"
 sudo apt-get install git
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
+echo "Install command-line JSON processing tool"
 sudo apt-get install jq -y
 
 # Get the current date and time
@@ -62,17 +64,15 @@ then
   UPLOAD_FLAGS="--upload_gs --upload_bq --config_id $CONFIG_ID --start_time_build $START_TIME_BUILD"
 fi
 
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs --log-format \"text\" --stackdriver-export-interval=30s"
-LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS"
-
 # Executing perf tests
+LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
-LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs.txt
-GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
+LOG_FILE_LIST_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs${EXPERIMENT_NUMBER}.txt"
+GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
