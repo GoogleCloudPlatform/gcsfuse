@@ -175,15 +175,16 @@ func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 
 func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 	file, err := createFileWithContent(TestFilePath, TestFileContent)
+	defer func() {
+		err = deleteFile(TestFilePath)
+		AssertEq(nil, err)
+	}()
 	AssertEq(nil, err)
-
-	defer deleteFile(TestFilePath)
-	
 	t.ch.fileHandle = file
 	dst := make([]byte, DstBufferLen)
-
 	tb := getTestMinGCSObject()
 	tb.Name = TestObjectName
+
 	n, err := t.ch.Read(tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
 	AssertEq(nil, err)
@@ -193,10 +194,11 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 
 func (t *cacheHandleTest) TestClose() {
 	file, err := createFileWithContent(TestFilePath, TestFileContent)
+	defer func() {
+		err = deleteFile(TestFilePath)
+		AssertEq(nil, err)
+	}()
 	AssertEq(nil, err)
-
-	defer deleteFile(TestFilePath)
-
 	t.ch.fileHandle = file
 
 	err = t.ch.Close()
