@@ -166,6 +166,36 @@ func (job *Job) failWhileDownloading(downloadErr error) {
 	job.mu.Unlock()
 }
 
+// updateFileInfoCache updates the file info cache with latest offset downloaded
+// by job. Returns error in case of failure.
+//
+// Not concurrency safe and requires LOCK(job.mu)
+func (job *Job) updateFileInfoCache() (err error) {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: job.bucket.Name(),
+		ObjectName: job.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		err = fmt.Errorf(fmt.Sprintf("error while calling FileInfoKey.Key() for %s %v", fileInfoKeyName, err))
+		return
+	}
+
+	updatedFileInfo := data.FileInfo{
+		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
+		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
+	}
+
+	// To-Do(raj-prince): We should not call normal insert here as that internally
+	// changes the LRU element which is undesirable given this is not user access.
+	_, err = job.fileInfoCache.Insert(fileInfoKeyName, updatedFileInfo)
+	if err != nil {
+		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %v", updatedFileInfo.Key, err))
+		return
+	}
+	return
+}
+
 // Download downloads object till the given offset if not already downloaded
 // and waits for download if waitForDownload is true.
 // ToDo (sethiay): Implement this function.
