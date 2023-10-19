@@ -31,13 +31,16 @@ import (
 func TestCacheHandle(t *testing.T) { RunTests(t) }
 
 type cacheHandleTest struct {
+	ch *CacheHandle
 }
 
-const LRUMaxSize = 50
+const CacheMaxSize = 50
 const DstLen = 5
-const TestFilePath = "test1.txt"
+const TestFilePath = "test_file.txt"
 const TestFileContent = "abcdefghijklmnop"
+const TestBucketName = "test-bucket"
 
+/*********** Fake Bucket **********/
 type testBucket struct {
 	gcs.Bucket
 	BucketName string
@@ -47,6 +50,7 @@ func (tb testBucket) Name() string {
 	return tb.BucketName
 }
 
+/************ File Utility ************/
 func createFileWithContent(filePath string, content string) (*os.File, error) {
 	fullPath, err := filepath.Abs(filePath)
 	AssertEq(nil, err)
@@ -75,7 +79,7 @@ func deleteFile(filePath string) error {
 }
 
 func getPrepopulatedLRUCacheWithFileInfo() *lru.Cache {
-	cache := lru.NewCache(LRUMaxSize)
+	cache := lru.NewCache(CacheMaxSize)
 
 	key1 := "test1" + strconv.FormatInt(data.TestTimeInEpoch, 10) + "test1.txt"
 	_, err := cache.Insert(key1, data.FileInfo{
@@ -116,6 +120,10 @@ func getDefaultCacheHandle() CacheHandle {
 
 func init() {
 	RegisterTestSuite(&cacheHandleTest{})
+}
+
+func (t *cacheHandleTest) Setup(*TestInfo) {
+
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileHandle() {
@@ -178,4 +186,7 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 
 	AssertEq(nil, err)
 	AssertEq(n, DstLen)
+	AssertEq("fghij", string(dst))
 }
+
+// TODO (princer): write test which validates download flow in the cache_handle.read()

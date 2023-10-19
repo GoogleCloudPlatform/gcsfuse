@@ -28,16 +28,22 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
-const InvalidFileHandle = "fileHandle is nil"
-const InvalidFileDownloadJob = "download job is nil"
-const InvalidFileInfoCache = "fileInfo cache is nil"
-
-const InvalidFileInfo = "fileInfo is nil"
+const (
+	InvalidFileHandle      = "fileHandle is nil"
+	InvalidFileDownloadJob = "download job is nil"
+	InvalidFileInfoCache   = "fileInfo cache is nil"
+	InvalidFileInfo        = "fileInfo is nil"
+)
 
 type CacheHandle struct {
-	fileHandle      *os.File
+	// fileHandle to a local file which contains locally downloaded data.
+	fileHandle *os.File
+
+	//	fileDownloadJob is a reference to async download Job.
 	fileDownloadJob *downloader.Job
-	fileInfoCache   *lru.Cache
+
+	// Contains the latest information about the downloaded bits for a particular fileInfoKey.
+	fileInfoCache *lru.Cache
 }
 
 // validateCacheHandle will validate the  cache-handle and return appropriate error.
@@ -58,10 +64,10 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-// Expects the fileInfoCache entry for the read file.
-// This will serve one kernel request.
+// Read attempts to read the data from the cached location. This expects a
+// fileInfoCache entry for the current read request, and will wait to download
+// the requested chunk if it is not already present.
 func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset uint64, dst []byte) (n int, err error) {
-
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
@@ -69,12 +75,15 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 
 	// TODO (princer) - Get the actual bucket creation time. Ideally we will fetch using the bucket object.
 	bucketCreationTime := time.Unix(data.TestTimeInEpoch, 0)
+
+	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
 	fileInfoKey := data.FileInfoKey{ObjectName: object.Name, BucketName: bucket.Name(), BucketCreationTime: bucketCreationTime}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
 		return
 	}
 
+	// Get the existing fileInfo entry in the cache.
 	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
 	if fileInfo == nil {
 		err = errors.New(InvalidFileInfo)
@@ -94,7 +103,7 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 		}
 	}
 
-	// We are here means, we have the data downloaded which kernel asked for.
+	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(int64(offset), 0)
 	n, err = io.ReadFull(fch.fileHandle, dst)
 
