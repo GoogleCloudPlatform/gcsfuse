@@ -170,6 +170,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_fio_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING, 
+        start_time_build INT64,
         operation string,
         num_threads INT64,
         file_size_kb INT64,
@@ -193,6 +194,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_vm_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING, 
+        start_time_build INT64,
         end_time INT64, 
         cpu_utilization_peak_percentage FLOAT64, 
         cpu_utilization_mean_percentage FLOAT64, 
@@ -209,6 +211,7 @@ class ExperimentsGCSFuseBQ:
     query_create_table_ls_metrics = """
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING,
+        start_time_build INT64,
         test_description string,
         command STRING, 
         num_files INT64, 
@@ -280,18 +283,18 @@ class ExperimentsGCSFuseBQ:
     else:
       row = list(job)[0]
       # If the configuration name exists, but GCSFuse flags and branch don't match then raise an exception
-      if row.get('gcsfuse_flags') is not gcsfuse_flags or row.get('branch') is not branch:
+    if (row.get('gcsfuse_flags') != gcsfuse_flags) or (row.get('branch') != branch):
         raise Exception("Configuration name already exists. GCSFuse flags and branch don't match")
-      config_id = row.get('configuration_id')
-      # If the configuration name exists and GCSFuse flags and branch match, but end date does not match, then update end date
-      if row.get('end_date') is not end_date:
-        query_update_end_date = """
-          UPDATE `{}.{}.{}`
-          SET end_date = '{}'
-          WHERE configuration_id = '{}'
-        """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
-        self._execute_query(query_update_end_date)
-      return config_id
+    config_id = row.get('configuration_id')
+    # If the configuration name exists and GCSFuse flags and branch match, but end date does not match, then update end date
+    if row.get('end_date') is not end_date:
+      query_update_end_date = """
+        UPDATE `{}.{}.{}`
+        SET end_date = '{}'
+        WHERE configuration_id = '{}'
+      """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, end_date, config_id)
+      self._execute_query(query_update_end_date)
+    return config_id
 
   def upload_metrics_to_table(self, table_id, config_id, start_time_build, metrics_data):
 
