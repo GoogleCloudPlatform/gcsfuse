@@ -120,7 +120,7 @@ func (jt *jobTest) Test_init() {
 	ExpectNe(nil, jt.job.cancelFunc)
 }
 
-func (jt *jobTest) Test_addSubscriber() {
+func (jt *jobTest) Test_subscribe() {
 	subscriberOffset1 := int64(0)
 	subscriberOffset2 := int64(1)
 
