@@ -1,9 +1,9 @@
 {
 "experiment_configuration": [
     {
-      "config_name": "master",
+      "config_name": "updating_build_script",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
-      "branch": "master",
+      "branch": "updating_build_script",
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {

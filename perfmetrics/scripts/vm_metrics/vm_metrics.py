@@ -334,6 +334,7 @@ class VmMetrics:
       # from bigquery/experiments_gcsfuse_bq.py.
       if test_type != 'list':
         row = row[1:] + [None]*2
+
       metrics_data.append(row)
 
     return metrics_data

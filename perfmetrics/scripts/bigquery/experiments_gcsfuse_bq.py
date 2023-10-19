@@ -326,4 +326,6 @@ class ExperimentsGCSFuseBQ:
     for row in metrics_data:
       rows_to_insert = rows_to_insert + [(config_id, start_time_build) + tuple(row)]
 
+    print(rows_to_insert)
+
     self._insert_rows(table, rows_to_insert, table_id, config_id, start_time_build)
