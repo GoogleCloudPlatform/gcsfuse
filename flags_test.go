@@ -218,14 +218,14 @@ func (t *FlagsTest) Durations() {
 		"--stat-cache-ttl", "1m17s",
 		"--type-cache-ttl", "19ns",
 		"--http-client-timeout", "800ms",
-		"--max-retry-duration", "30s",
+		"--max-retry-duration", "-1s",
 	}
 
 	f := parseArgs(args)
 	ExpectEq(77*time.Second, f.StatCacheTTL)
 	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
 	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
-	ExpectEq(30*time.Second, f.MaxRetryDuration)
+	ExpectEq(-1*time.Second, f.MaxRetryDuration)
 }
 
 func (t *FlagsTest) Maps() {
