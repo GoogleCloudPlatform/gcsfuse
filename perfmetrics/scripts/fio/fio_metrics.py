@@ -31,7 +31,8 @@ from typing import Any, Dict, List, Tuple, Callable
 
 from fio import constants as consts
 from gsheet import gsheet
-
+from bigquery import constants
+from bigquery import experiments_gcsfuse_bq
 
 @dataclass(frozen=True)
 class JobParam:
