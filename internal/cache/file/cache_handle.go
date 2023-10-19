@@ -54,6 +54,7 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	if fch.fileInfoCache == nil {
 		return errors.New(InvalidFileInfoCache)
 	}
+
 	return nil
 }
 
