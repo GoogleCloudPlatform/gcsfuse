@@ -17,7 +17,6 @@ package file
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -28,17 +27,25 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
+const CacheMaxSize = 50
+const TestFilePath = "test_file.txt"
+const TestFileContent = "abcdefghijklmnop"
+const DstBufferLen = 5
+const TestOffset = 5
+
+const FileContentFromTestOffset = "fghij"
+
+const TestBucketName = "test-bucket"
+const TestObjectName = "test.txt"
+const TestObjectNameNotInFileInfoCache = "test_not_in_file_info.txt"
+const TestObjectGeneration = "3434343"
+const TestFileInfoFileSize = 32
+
 func TestCacheHandle(t *testing.T) { RunTests(t) }
 
 type cacheHandleTest struct {
 	ch *CacheHandle
 }
-
-const CacheMaxSize = 50
-const DstLen = 5
-const TestFilePath = "test_file.txt"
-const TestFileContent = "abcdefghijklmnop"
-const TestBucketName = "test-bucket"
 
 /*********** Fake Bucket **********/
 type testBucket struct {
@@ -50,7 +57,7 @@ func (tb testBucket) Name() string {
 	return tb.BucketName
 }
 
-/************ File Utility ************/
+// Test helper.
 func createFileWithContent(filePath string, content string) (*os.File, error) {
 	fullPath, err := filepath.Abs(filePath)
 	AssertEq(nil, err)
@@ -81,40 +88,34 @@ func deleteFile(filePath string) error {
 func getPrepopulatedLRUCacheWithFileInfo() *lru.Cache {
 	cache := lru.NewCache(CacheMaxSize)
 
-	key1 := "test1" + strconv.FormatInt(data.TestTimeInEpoch, 10) + "test1.txt"
-	_, err := cache.Insert(key1, data.FileInfo{
-		Key:              data.FileInfoKey{BucketName: "test", BucketCreationTime: time.Unix(data.TestTimeInEpoch, 0), ObjectName: "test1.txt"},
+	fileInfoKey := data.FileInfoKey{
+		BucketName:         TestBucketName,
+		BucketCreationTime: time.Unix(data.TestTimeInEpoch, 0),
+		ObjectName:         TestObjectName,
+	}
+
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
 		Offset:           uint64(len(TestFileContent)),
-		ObjectGeneration: "test1",
-		FileSize:         5,
-	})
+		ObjectGeneration: TestObjectGeneration,
+		FileSize:         TestFileInfoFileSize,
+	}
+
+	key, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 
-	key2 := "test2" + strconv.FormatInt(data.TestTimeInEpoch, 10) + "test2.txt"
-	_, err = cache.Insert(key2, data.FileInfo{
-		Key:              data.FileInfoKey{BucketName: "test2", BucketCreationTime: time.Unix(data.TestTimeInEpoch, 0), ObjectName: "test2.txt"},
-		Offset:           20,
-		ObjectGeneration: "test2",
-		FileSize:         10,
-	})
+	_, err = cache.Insert(key, fileInfo)
 	AssertEq(nil, err)
 
 	return &cache
 }
 
+// getTestMinGCSObject returns the MinGCSObject whose entry as fileInfo
+// present in the pre-populated fileInfoCache.
 func getTestMinGCSObject() *gcs.MinObject {
 	return &gcs.MinObject{
-		Name: "test",
-		Size: 10,
-	}
-}
-
-func getDefaultCacheHandle() CacheHandle {
-	cache := getPrepopulatedLRUCacheWithFileInfo()
-	return CacheHandle{
-		fileHandle:      &os.File{},
-		fileDownloadJob: &downloader.Job{},
-		fileInfoCache:   cache,
+		Name: TestObjectName,
+		Size: TestFileInfoFileSize,
 	}
 }
 
@@ -122,50 +123,52 @@ func init() {
 	RegisterTestSuite(&cacheHandleTest{})
 }
 
-func (t *cacheHandleTest) Setup(*TestInfo) {
-
+func (t *cacheHandleTest) SetUp(*TestInfo) {
+	t.ch = &CacheHandle{
+		fileHandle:      &os.File{},
+		fileDownloadJob: &downloader.Job{},
+		fileInfoCache:   getPrepopulatedLRUCacheWithFileInfo(),
+	}
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileHandle() {
-	cfh := getDefaultCacheHandle()
-	cfh.fileHandle = nil
+	t.ch.fileHandle = nil
 
-	err := cfh.validateCacheHandle()
+	err := t.ch.validateCacheHandle()
 
 	ExpectEq(InvalidFileHandle, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileDownloadJob() {
-	cfh := getDefaultCacheHandle()
-	cfh.fileDownloadJob = nil
+	t.ch.fileDownloadJob = nil
 
-	err := cfh.validateCacheHandle()
+	err := t.ch.validateCacheHandle()
 
 	ExpectEq(InvalidFileDownloadJob, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileInfoCache() {
-	cfh := getDefaultCacheHandle()
-	cfh.fileInfoCache = nil
+	t.ch.fileInfoCache = nil
 
-	err := cfh.validateCacheHandle()
+	err := t.ch.validateCacheHandle()
 
 	ExpectEq(InvalidFileInfoCache, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNonNilMemberAttributes() {
-	cfh := getDefaultCacheHandle()
-
-	err := cfh.validateCacheHandle()
+	err := t.ch.validateCacheHandle()
 
 	ExpectEq(nil, err)
 }
 
 func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
-	cfh := getDefaultCacheHandle()
-	dst := make([]byte, DstLen)
+	dst := make([]byte, DstBufferLen)
 
-	_, err := cfh.Read(getTestMinGCSObject(), testBucket{BucketName: "test1"}, 10, dst)
+	// This will return the minGCSObject whose entry is in fileInfoCache.
+	minGCSObject := getTestMinGCSObject()
+	minGCSObject.Name = TestObjectNameNotInFileInfoCache
+
+	_, err := t.ch.Read(minGCSObject, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
 	ExpectEq(InvalidFileInfo, err.Error())
 }
@@ -176,17 +179,16 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 
 	AssertEq(nil, err)
 
-	cfh := getDefaultCacheHandle()
-	cfh.fileHandle = file
-	dst := make([]byte, DstLen)
+	t.ch.fileHandle = file
+	dst := make([]byte, DstBufferLen)
 
 	tb := getTestMinGCSObject()
-	tb.Name = "test1.txt"
-	n, err := cfh.Read(tb, testBucket{BucketName: "test1"}, 5, dst)
+	tb.Name = TestObjectName
+	n, err := t.ch.Read(tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
 	AssertEq(nil, err)
-	AssertEq(n, DstLen)
-	AssertEq("fghij", string(dst))
+	AssertEq(n, DstBufferLen)
+	AssertEq(FileContentFromTestOffset, string(dst))
 }
 
 // TODO (princer): write test which validates download flow in the cache_handle.read()
