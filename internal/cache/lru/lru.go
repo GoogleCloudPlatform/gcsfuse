@@ -19,7 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sync"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 )
 
 // Predefined error message returned by the Cache.
@@ -55,10 +56,10 @@ type Cache struct {
 	// INVARIANT: Contains all and only the elements of entries
 	index map[string]*list.Element
 
-	// All public methods of this Cache uses this mutex while accessing/updating
+	// All public methods of this Cache uses this mutex based locker while accessing/updating
 	// Cache's data. This means when one method is accessing/updating Cache's data,
 	// other methods will be blocked until the method in execution completes.
-	mu sync.Mutex
+	mu locker.Locker
 }
 
 type ValueType interface {
@@ -70,17 +71,21 @@ type entry struct {
 	Value ValueType
 }
 
-// New initialize a cache with the supplied maxSize, which must be greater than
-// zero.
-func NewCache(maxSize uint64) (c Cache) {
-	c.maxSize = maxSize
-	c.index = make(map[string]*list.Element)
-	return
+// NewCache returns the reference of cache object by initialising the cache with
+// the supplied maxSize, which must be greater than zero.
+func NewCache(maxSize uint64) *Cache {
+	c := &Cache{
+		maxSize: maxSize,
+		index:   make(map[string]*list.Element),
+	}
+
+	// Set up invariant checking.
+	c.mu = locker.New("LRUCache", c.checkInvariants)
+	return c
 }
 
-// CheckInvariants panic if any internal invariants have been violated.
-// The careful user can arrange to call this at crucial moments.
-func (c *Cache) CheckInvariants() {
+// checkInvariants panic if any internal invariants have been violated.
+func (c *Cache) checkInvariants() {
 	// INVARIANT: maxSize > 0
 	if !(c.maxSize > 0) {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
