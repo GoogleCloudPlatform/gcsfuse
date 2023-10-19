@@ -47,7 +47,7 @@ type cacheHandleTest struct {
 	ch *CacheHandle
 }
 
-/*********** Fake Bucket **********/
+// Mocking test bucket, which contains Name() method.
 type testBucket struct {
 	gcs.Bucket
 	BucketName string
