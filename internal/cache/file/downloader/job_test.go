@@ -38,6 +38,7 @@ import (
 
 const CacheMaxSize = 50
 const DefaultObjectName = "foo"
+const DefaultSequentialReadSizeMb = 200
 
 func TestJob(t *testing.T) { RunTests(t) }
 
@@ -94,7 +95,7 @@ func (jt *jobTest) SetUp(*TestInfo) {
 		OwnerGid: uint32(os.Getgid()),
 	}
 
-	jt.job = NewJob(&defaultMinObject, jt.bucket, jt.cache, 200, fileSpec)
+	jt.job = NewJob(&defaultMinObject, jt.bucket, jt.cache, DefaultSequentialReadSizeMb, fileSpec)
 }
 
 func (jt *jobTest) TearDown() {
