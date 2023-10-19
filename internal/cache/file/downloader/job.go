@@ -126,12 +126,12 @@ func (job *Job) Cancel() {
 	defer job.mu.Unlock()
 }
 
-// addSubscriber adds subscriber for download job and returns channel which is
+// subscribe adds subscriber for download job and returns channel which is
 // notified when the download is completed at least till the subscribed offset
 // or in case of failure.
 //
 // Not concurrency safe and requires LOCK(job.mu)
-func (job *Job) addSubscriber(subscribedOffset int64) (notificationC <-chan JobStatus) {
+func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatus) {
 	subscriberC := make(chan JobStatus, 1)
 	job.subscribers.PushBack(jobSubscriber{subscriberC, subscribedOffset})
 	return subscriberC
@@ -142,20 +142,19 @@ func (job *Job) addSubscriber(subscribedOffset int64) (notificationC <-chan JobS
 //
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) notifySubscribers() {
-	subItr := job.subscribers.Front()
-	for subItr != nil {
+	var nextSubItr *list.Element
+	for subItr := job.subscribers.Front(); subItr != nil; subItr = nextSubItr {
 		subItrValue := subItr.Value.(jobSubscriber)
-		nextSubItr := subItr.Next()
+		nextSubItr = subItr.Next()
 		if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Offset >= subItrValue.subscribedOffset {
 			subItrValue.notificationC <- job.status
 			close(subItrValue.notificationC)
 			job.subscribers.Remove(subItr)
 		}
-		subItr = nextSubItr
 	}
 }
 
-// errWhileDownloading changes the status of job to failed and notifies
+// failWhileDownloading changes the status of job to failed and notifies
 // subscribers about the download error.
 //
 // Acquires and releases LOCK(job.mu)

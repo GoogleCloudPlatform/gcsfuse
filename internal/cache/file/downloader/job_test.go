@@ -26,37 +26,38 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
-	"github.com/jacobsa/timeutil"
 )
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-const TestBucketName = "test_bucket"
 const CacheMaxSize = 50
 const DefaultObjectName = "foo"
 
 func TestJob(t *testing.T) { RunTests(t) }
 
 type jobTest struct {
-	job    *Job
-	bucket gcs.Bucket
-	cache  *lru.Cache
+	job         *Job
+	bucket      gcs.Bucket
+	cache       *lru.Cache
+	fakeStorage storage.FakeStorage
 }
 
 func init() { RegisterTestSuite(&jobTest{}) }
 
 func (jt *jobTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
+	// Create bucket in fake storage.
+	jt.fakeStorage = storage.NewFakeStorage()
+	storageHandle := jt.fakeStorage.CreateStorageHandle()
+	jt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
-	jt.bucket = fake.NewFakeBucket(timeutil.RealClock(), TestBucketName)
-	cache := lru.NewCache(CacheMaxSize)
-	jt.cache = &cache
+	jt.cache = lru.NewCache(CacheMaxSize)
 
 	ctx := context.Background()
 	defaultObjects := map[string][]byte{
@@ -87,13 +88,17 @@ func (jt *jobTest) SetUp(*TestInfo) {
 	}
 
 	fileSpec := data.FileSpec{
-		Path:     path.Join("./", TestBucketName, DefaultObjectName),
+		Path:     path.Join("./", storage.TestBucketName, DefaultObjectName),
 		Perm:     os.FileMode(0666),
 		OwnerUid: uint32(os.Getuid()),
 		OwnerGid: uint32(os.Getgid()),
 	}
 
 	jt.job = NewJob(&defaultMinObject, jt.bucket, jt.cache, 200, fileSpec)
+}
+
+func (jt *jobTest) TearDown() {
+	jt.fakeStorage.ShutDown()
 }
 
 func (jt *jobTest) Test_init() {
@@ -119,8 +124,8 @@ func (jt *jobTest) Test_addSubscriber() {
 	subscriberOffset1 := int64(0)
 	subscriberOffset2 := int64(1)
 
-	notificationC1 := jt.job.addSubscriber(subscriberOffset1)
-	notificationC2 := jt.job.addSubscriber(subscriberOffset2)
+	notificationC1 := jt.job.subscribe(subscriberOffset1)
+	notificationC2 := jt.job.subscribe(subscriberOffset2)
 
 	ExpectEq(2, jt.job.subscribers.Len())
 	receivingC := make(<-chan JobStatus, 1)
@@ -136,7 +141,7 @@ func (jt *jobTest) Test_addSubscriber() {
 
 func (jt *jobTest) Test_notifySubscriber_FAILED() {
 	subscriberOffset := int64(1)
-	notificationC := jt.job.addSubscriber(subscriberOffset)
+	notificationC := jt.job.subscribe(subscriberOffset)
 	jt.job.status.Name = FAILED
 	customErr := fmt.Errorf("custom err")
 	jt.job.status.Err = customErr
@@ -152,7 +157,7 @@ func (jt *jobTest) Test_notifySubscriber_FAILED() {
 
 func (jt *jobTest) Test_notifySubscriber_CANCELLED() {
 	subscriberOffset := int64(1)
-	notificationC := jt.job.addSubscriber(subscriberOffset)
+	notificationC := jt.job.subscribe(subscriberOffset)
 	jt.job.status.Name = CANCELLED
 
 	jt.job.notifySubscribers()
@@ -167,8 +172,8 @@ func (jt *jobTest) Test_notifySubscriber_CANCELLED() {
 func (jt *jobTest) Test_notifySubscriber_SubscribedOffset() {
 	subscriberOffset1 := int64(3)
 	subscriberOffset2 := int64(5)
-	notificationC1 := jt.job.addSubscriber(subscriberOffset1)
-	_ = jt.job.addSubscriber(subscriberOffset2)
+	notificationC1 := jt.job.subscribe(subscriberOffset1)
+	_ = jt.job.subscribe(subscriberOffset2)
 	jt.job.status.Name = DOWNLOADING
 	jt.job.status.Offset = 4
 
@@ -186,8 +191,8 @@ func (jt *jobTest) Test_notifySubscriber_SubscribedOffset() {
 func (jt *jobTest) Test_failWhileDownloading() {
 	subscriberOffset1 := int64(3)
 	subscriberOffset2 := int64(5)
-	notificationC1 := jt.job.addSubscriber(subscriberOffset1)
-	notificationC2 := jt.job.addSubscriber(subscriberOffset2)
+	notificationC1 := jt.job.subscribe(subscriberOffset1)
+	notificationC2 := jt.job.subscribe(subscriberOffset2)
 	jt.job.status = JobStatus{Name: DOWNLOADING, Err: nil, Offset: 4}
 
 	customErr := fmt.Errorf("custom error")
