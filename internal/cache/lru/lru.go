@@ -84,7 +84,7 @@ func NewCache(maxSize uint64) *Cache {
 	return c
 }
 
-// CheckInvariants panic if any internal invariants have been violated.
+// checkInvariants panic if any internal invariants have been violated.
 func (c *Cache) checkInvariants() {
 	// INVARIANT: maxSize > 0
 	if !(c.maxSize > 0) {
