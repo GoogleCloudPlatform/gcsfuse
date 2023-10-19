@@ -175,10 +175,10 @@ func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 
 func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 	file, err := createFileWithContent(TestFilePath, TestFileContent)
-	defer deleteFile(TestFilePath)
-
 	AssertEq(nil, err)
 
+	defer deleteFile(TestFilePath)
+	
 	t.ch.fileHandle = file
 	dst := make([]byte, DstBufferLen)
 
@@ -193,8 +193,10 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 
 func (t *cacheHandleTest) TestClose() {
 	file, err := createFileWithContent(TestFilePath, TestFileContent)
-	defer deleteFile(TestFilePath)
 	AssertEq(nil, err)
+
+	defer deleteFile(TestFilePath)
+
 	t.ch.fileHandle = file
 
 	err = t.ch.Close()
