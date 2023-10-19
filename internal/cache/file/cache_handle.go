@@ -107,6 +107,10 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 
 	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(int64(offset), 0)
+	if err != nil {
+		return 0, fmt.Errorf("error while setting the offset: %v", err)
+	}
+
 	n, err = io.ReadFull(fch.fileHandle, dst)
 
 	if err == io.EOF {
