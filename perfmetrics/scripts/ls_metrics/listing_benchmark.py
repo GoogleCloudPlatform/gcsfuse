@@ -628,8 +628,8 @@ if __name__ == '__main__':
     if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     log.info('Uploading results to the BigQuery.\n')
-    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], results_gcs)
-    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], results_pd)
+    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], upload_values_gcs)
+    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], upload_values_pd)
 
   if not args.keep_files:
       log.info('Deleting files from persistent disk.\n')
