@@ -28,18 +28,18 @@
   },
   "jobs" : [
     {
-      "jobname": "1_thread",
-      "job_start": 1653381667555,
-      "groupid": 0,
-      "error": 0,
-      "eta": 0,
-      "elapsed": 166,
-      "job options": {
+      "jobname" : "1_thread",
+      "job_start" : 1653381667555,
+      "groupid" : 0,
+      "error" : 0,
+      "eta" : 0,
+      "elapsed" : 166,
+      "job options" : {
       },
-      "read": {
-        "io_bytes": 8405385216,
-        "io_kbytes": 8208384,
-        "bw_bytes": 138911322,
+      "read" : {
+        "io_bytes" : 8405385216,
+        "io_kbytes" : 8208384,
+        "bw_bytes" : 138911322,
         "bw" : 135655,
         "iops" : 115.354741,
         "runtime" : 60509,
@@ -290,18 +290,18 @@
       "latency_window" : 0
     },
     {
-      "jobname": "2_thread",
-      "job_start": 1653381757234,
-      "groupid": 1,
-      "error": 0,
-      "eta": 0,
-      "elapsed": 164,
-      "job options": {
-        "startdelay": "100"
+      "jobname" : "2_thread",
+      "job_start" : 1653381757234,
+      "groupid" : 1,
+      "error" : 0,
+      "eta" : 0,
+      "elapsed" : 164,
+      "job options" : {
+        "startdelay" : "100"
       },
-      "read": {
-        "io_bytes": 2747269120,
-        "io_kbytes": 2682880,
+      "read" : {
+        "io_bytes" : 2747269120,
+        "io_kbytes" : 2682880,
         "bw_bytes" : 45311294,
         "bw" : 44249,
         "iops" : 37.522060,

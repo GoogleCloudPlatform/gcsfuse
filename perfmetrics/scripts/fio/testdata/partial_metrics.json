@@ -25,18 +25,18 @@
   },
   "jobs" : [
     {
-      "jobname": "1_thread",
-      "job_start": 1653027084555,
-      "groupid": 0,
-      "error": 0,
-      "eta": 0,
-      "elapsed": 80,
-      "job options": {
-        "numjobs": "40"
+      "jobname" : "1_thread",
+      "job_start" : 1653027084555,
+      "groupid" : 0,
+      "error" : 0,
+      "eta" : 0,
+      "elapsed" : 80,
+      "job options" : {
+        "numjobs" : "40"
       },
-      "read": {
-        "io_bytes": 0,
-        "io_kbytes": 0,
+      "read" : {
+        "io_bytes" : 0,
+        "io_kbytes" : 0,
         "bw_bytes" : 0,
         "bw" : 0,
         "iops" : 0.000000,
@@ -307,18 +307,18 @@
       "latency_window" : 0
     },
     {
-      "jobname": "2_thread",
-      "job_start": 1653027084555,
-      "groupid": 0,
-      "error": 0,
-      "eta": 0,
-      "elapsed": 80,
-      "job options": {
-        "numjobs": "40"
+      "jobname" : "2_thread",
+      "job_start" : 1653027084555,
+      "groupid" : 0,
+      "error" : 0,
+      "eta" : 0,
+      "elapsed" : 80,
+      "job options" : {
+        "numjobs" : "40"
       },
-      "read": {
-        "io_bytes": 6040846336,
-        "io_kbytes": 5899264,
+      "read" : {
+        "io_bytes" : 6040846336,
+        "io_kbytes" : 5899264,
         "bw_bytes" : 99888324,
         "bw" : 97547,
         "iops" : 95.260930,

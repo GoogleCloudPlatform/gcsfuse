@@ -94,8 +94,6 @@ REQ_JOB_METRICS.extend([
               [consts.LAT_NS, consts.PERCENTILE, consts.P90], consts.NS_TO_S),
     JobMetric('lat_s_perc_95',
               [consts.LAT_NS, consts.PERCENTILE, consts.P95], consts.NS_TO_S)])
-
-
 # append new metrics here
 
 
@@ -443,7 +441,6 @@ class FioMetrics:
 
     return job_metrics
 
-
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) != 2:
@@ -454,3 +451,4 @@ if __name__ == '__main__':
   fio_metrics_obj = FioMetrics()
   temp = fio_metrics_obj.get_metrics(argv[1], 'fio_metrics_expt')
   print(temp)
+

@@ -428,6 +428,7 @@ class TestFioMetricsTest(unittest.TestCase):
     }]
 
     extracted_metrics = self.fio_metrics_obj._extract_metrics(json_obj)
+
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_extract_metrics_from_incomplete_files(self):
@@ -673,7 +674,7 @@ class TestFioMetricsTest(unittest.TestCase):
             },
             range='{}!A2'.format(WORKSHEET_NAME))
     ]
-    
+
     with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
