@@ -632,7 +632,7 @@ if __name__ == '__main__':
     _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], upload_values_pd)
 
   if not args.keep_files:
-      log.info('Deleting files from persistent disk.\n')
-      subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
+    log.info('Deleting files from persistent disk.\n')
+    subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
 
   _unmount_gcs_bucket(gcs_bucket)
