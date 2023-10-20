@@ -229,7 +229,6 @@ class FioMetrics:
 
       start_time_ms = job[consts.JOB_START]
       end_time_ms = start_time_ms + job_rw[consts.RUNTIME] + ramptime_ms
-      print()
 
       # converting start and end time to seconds
       start_time_s = start_time_ms // 1000
