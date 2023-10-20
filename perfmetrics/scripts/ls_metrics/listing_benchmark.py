@@ -76,6 +76,8 @@ log = logging.getLogger()
 
 WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
 WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
+MOUNT_TYPE_GCS = 'gcs_bucket'
+MOUNT_TYPE_PD = 'persistent_disk'
 
 def _count_number_of_files_and_folders(directory, files, folders):
   """Count the number of files and folders in the given directory recursively.
@@ -621,6 +623,13 @@ if __name__ == '__main__':
     log.info('Uploading files to the Google Sheet.\n')
     _export_to_gsheet(WORKSHEET_NAME_GCS, upload_values_gcs)
     _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd)
+
+    if args.upload_bq:
+      if not args.config_id or not args.start_time_build:
+        raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    log.info('Uploading results to the BigQuery.\n')
+    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], upload_values_gcs)
+    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], upload_values_pd)
 
   if not args.keep_files:
       log.info('Deleting files from persistent disk.\n')

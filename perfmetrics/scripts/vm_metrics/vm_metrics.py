@@ -327,14 +327,8 @@ class VmMetrics:
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
 
-      # Only a subset of extracted metrics data uploaded to Google Spreadsheets and BigQuery.
-      # Skipping the first column as it duplicates the second column.Appending 8 None values for VM metrics
-      # that are currently not extracted. For detailed schema information of the data uploaded to BigQuery
-      # and Google Spreadsheets, please refer to 'setup_dataset_and_tables' method in the ExperimentsGCSFuseBQ class
-      # from bigquery/experiments_gcsfuse_bq.py.
-      if test_type != 'list':
-        row = row[1:] + [None]*2
-      metrics_data.append(row)
+      # Skipping the first column as it duplicates the second column.
+      metrics_data.append(row[1:])
 
     return metrics_data
 
