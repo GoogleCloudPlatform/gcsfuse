@@ -119,12 +119,6 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 	return
 }
 
-// CancelJob responsible to cancel the running download Job.
-// TODO (princer) - complete it once download job starts supporting cancel job.
-func (fch *CacheHandle) CancelJob() {
-	fch.fileDownloadJob.Cancel()
-}
-
 // Close closes the underlined fileHandle points to locally downloaded data.
 func (fch *CacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
