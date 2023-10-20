@@ -464,14 +464,6 @@ class FioMetrics:
     job_metrics = self._extract_metrics(fio_out)
     return job_metrics
 
-  def upload_metrics_to_gsheet(self, metrics_data, worksheet_name):
-    """Uploads metrics data for load tests to Google Spreadsheets
-    Args:
-      metrics_data (list): List of metric values for each job
-      worksheet_name (str): Name of Google sheet to which metrics data will be uploaded
-    """
-    gsheet.write_to_google_sheet(worksheet_name, metrics_data)
-
   def upload_metrics_to_bigquery(self, metrics_data, config_id, start_time_build, table_id_bq):
     """Uploads metrics data for load tests to Google Spreadsheets
     Args:
