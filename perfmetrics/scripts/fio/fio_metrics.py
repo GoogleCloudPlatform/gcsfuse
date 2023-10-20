@@ -189,6 +189,23 @@ class FioMetrics:
       raise NoValuesError(f'JSON file {filepath} returned empty object')
     return fio_out
 
+  def _get_global_ramp_time(self, out_json):
+    global_ramptime_ms = 0
+    if consts.GLOBAL_OPTS in out_json:
+      if consts.RAMPTIME in out_json[consts.GLOBAL_OPTS]:
+        global_ramptime_ms = _convert_value(
+            out_json[consts.GLOBAL_OPTS][consts.RAMPTIME],
+            consts.TIME_TO_MS_CONVERSION, 's')
+    return global_ramptime_ms
+
+  def _get_job_ramp_time(self, job):
+    ramptime_ms = 0
+    if consts.JOB_OPTS in job:
+      if consts.RAMPTIME in job[consts.JOB_OPTS]:
+        ramptime_ms = _convert_value(job[consts.JOB_OPTS][consts.RAMPTIME],
+                                     consts.TIME_TO_MS_CONVERSION, 's')
+    return ramptime_ms
+
   def _get_start_end_times(self, out_json, job_params) -> List[Tuple[int]]:
     """Returns start and end times of each job as a list.
 
@@ -207,22 +224,12 @@ class FioMetrics:
     # Creating a list of just the 'rw' job parameter.
     rw_list = [job_param[consts.RW] for job_param in job_params]
 
-    global_ramptime_ms = 0
-    if consts.GLOBAL_OPTS in out_json:
-      if consts.RAMPTIME in out_json[consts.GLOBAL_OPTS]:
-        global_ramptime_ms = _convert_value(
-            out_json[consts.GLOBAL_OPTS][consts.RAMPTIME],
-            consts.TIME_TO_MS_CONVERSION, 's')
-
+    global_ramptime_ms = self._get_global_ramp_time(out_json)
     start_end_times = []
     for i, job in enumerate(list(out_json[consts.JOBS])):
       rw = rw_list[i]
       job_rw = job[_get_rw(rw)]
-      ramptime_ms = 0
-      if consts.JOB_OPTS in job:
-        if consts.RAMPTIME in job[consts.JOB_OPTS]:
-          ramptime_ms = _convert_value(job[consts.JOB_OPTS][consts.RAMPTIME],
-                                       consts.TIME_TO_MS_CONVERSION, 's')
+      ramptime_ms = self._get_job_ramp_time(job)
 
       if ramptime_ms == 0:
         ramptime_ms = global_ramptime_ms
