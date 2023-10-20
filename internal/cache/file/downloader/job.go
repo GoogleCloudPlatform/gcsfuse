@@ -128,7 +128,7 @@ func (job *Job) Cancel() {
 
 // subscribe adds subscriber for download job and returns channel which is
 // notified when the download is completed at least till the subscribed offset
-// or in case of failure.
+// or in case of failure and cancellation.
 //
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatus) {
@@ -177,7 +177,8 @@ func (job *Job) updateFileInfoCache() (err error) {
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error while calling FileInfoKey.Key() for %s %v", fileInfoKeyName, err))
+		err = fmt.Errorf(fmt.Sprintf("init: error while calling FileInfoKey.Key() for bucket %s and object %s %v",
+			fileInfoKey.BucketName, fileInfoKey.ObjectName, err))
 		return
 	}
 

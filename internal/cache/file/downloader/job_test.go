@@ -239,6 +239,8 @@ func (jt *jobTest) Test_updateFileInfoCache_UpdateEntry() {
 	ExpectEq(jt.job.object.Size, fileInfo.FileSize)
 }
 
+// This test should fail when we shift to only updating fileInfoCache in Job.
+// This test should be removed when that happens.
 func (jt *jobTest) Test_updateFileInfoCache_InsertNew() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,

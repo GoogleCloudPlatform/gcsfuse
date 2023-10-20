@@ -38,6 +38,7 @@ type utilTest struct {
 
 const FileDir = "/some/dir/"
 const FileName = "foo.txt"
+const DefaultFileMode = 0644
 
 func init() { RegisterTestSuite(&utilTest{}) }
 
@@ -50,7 +51,7 @@ func (ut *utilTest) SetUp(*TestInfo) {
 	}
 	ut.fileSpec = data.FileSpec{
 		Path: path.Join(homeDir, FileDir, FileName),
-		Perm: os.FileMode(0644),
+		Perm: os.FileMode(DefaultFileMode),
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
@@ -102,10 +103,14 @@ func (ut *utilTest) Test_CreateFile_ReadOnlyFile() {
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
 	ut.assertFileAndDirCreation(file, err)
-	_, err = file.Write([]byte("foo"))
+	content := "foo"
+	_, err = file.Write([]byte(content))
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), "bad file descriptor"))
 	ExpectEq(nil, file.Close())
+	fileContent, err := os.ReadFile(ut.fileSpec.Path)
+	ExpectEq(nil, err)
+	ExpectEq("", string(fileContent))
 }
 
 func (ut *utilTest) Test_CreateFile_ReadWriteFile() {
@@ -114,10 +119,14 @@ func (ut *utilTest) Test_CreateFile_ReadWriteFile() {
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
 	ut.assertFileAndDirCreation(file, err)
-	n, err := file.Write([]byte("foo"))
+	content := "foo"
+	n, err := file.Write([]byte(content))
 	ExpectEq(nil, err)
 	ExpectEq(3, n)
 	ExpectEq(nil, file.Close())
+	fileContent, err := os.ReadFile(ut.fileSpec.Path)
+	ExpectEq(nil, err)
+	ExpectEq(content, string(fileContent))
 }
 
 func (ut *utilTest) Test_CreateFile_FilePerm0755() {
@@ -129,8 +138,8 @@ func (ut *utilTest) Test_CreateFile_FilePerm0755() {
 	ExpectEq(nil, file.Close())
 }
 
-func (ut *utilTest) Test_CreateFile_FilePerm0644() {
-	ut.fileSpec.Perm = os.FileMode(0644)
+func (ut *utilTest) Test_CreateFile_FilePerm0544() {
+	ut.fileSpec.Perm = os.FileMode(0544)
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
@@ -162,4 +171,13 @@ func (ut *utilTest) Test_CreateFile_FilePresentWithLessAccess() {
 
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(strings.ToLower(err.Error()), "permission denied"))
+}
+
+func (ut *utilTest) Test_CreateFile_RelativePath() {
+	ut.fileSpec.Path = "./some/path/foo.txt"
+
+	file, err := CreateFile(ut.fileSpec, ut.flag)
+
+	ut.assertFileAndDirCreation(file, err)
+	ExpectEq(nil, file.Close())
 }
