@@ -15,6 +15,7 @@
 package data
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ const TestDataFileSize uint64 = 23
 const TestTimeInEpoch int64 = 1654041600
 const TestBucketName = "test_bucket"
 const TestObjectName = "test/a.txt"
-const TestGeneration = "test-generation"
+const TestGeneration = 12345678
 const ExpectedFileInfoKey = "test_bucket1654041600test/a.txt"
 
 func init() {
@@ -70,13 +71,12 @@ func (t *fileInfoTestKey) TestKeyMethodWithEmptyBucketName() {
 
 func (t *fileInfoTestKey) TestKeyMethodWithZeroBucketCreationTime() {
 	fik := getTestFileInfoKey()
-	var tt time.Time
-	fik.BucketCreationTime = tt
 
 	key, err := fik.Key()
-	AssertEq(InvalidKeyAttributes, err.Error())
 
-	ExpectEq("", key)
+	ExpectEq(nil, err)
+	unixCreationTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
+	ExpectEq(fik.BucketName+unixCreationTimeString+fik.ObjectName, key)
 }
 
 func (t *fileInfoTestKey) TestKeyMethodWithEmptyObjectName() {
