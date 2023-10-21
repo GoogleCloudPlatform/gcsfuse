@@ -122,17 +122,6 @@ func (job *Job) init() {
 	job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 }
 
-// cancel is helper function for job.Cancel().
-//
-// Not concurrency safe and requires LOCK(job.mu)
-func (job *Job) cancel() {
-	if job.status.Name == DOWNLOADING && job.cancelFunc != nil {
-		job.cancelFunc()
-	}
-	job.status.Name = CANCELLED
-	job.notifySubscribers()
-}
-
 // Cancel changes the state of job to cancelled and cancels the async download
 // job if there. Also, notifies the subscribers of job if any.
 // ToDo (sethiay): Implement this function.
@@ -242,10 +231,6 @@ func (job *Job) downloadObjectAsync() {
 	for {
 		select {
 		case <-job.cancelCtx.Done():
-			job.mu.Lock()
-			job.cancelFunc = nil
-			job.cancel()
-			job.mu.Unlock()
 			return
 		default:
 			if start < end {
