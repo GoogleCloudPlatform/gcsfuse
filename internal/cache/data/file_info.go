@@ -23,8 +23,6 @@ import (
 
 const InvalidKeyAttributes = "key attributes not initialised"
 
-const TestTimeInEpoch int64 = 1654041600
-
 type FileInfoKey struct {
 	BucketName         string
 	BucketCreationTime time.Time
@@ -34,7 +32,7 @@ type FileInfoKey struct {
 // Key will return a string, combining all the attributes of FileInfoKey.
 // Returns error in case of uninitialized value.
 func (fik FileInfoKey) Key() (string, error) {
-	if fik.BucketName == "" || fik.BucketCreationTime.IsZero() || fik.ObjectName == "" {
+	if fik.BucketName == "" || fik.ObjectName == "" {
 		return "", errors.New(InvalidKeyAttributes)
 	}
 	unixTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())

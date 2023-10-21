@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -73,11 +72,8 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 		return
 	}
 
-	// TODO (princer) - Get the actual bucket creation time. Ideally we will fetch using the bucket object.
-	bucketCreationTime := time.Unix(data.TestTimeInEpoch, 0)
-
 	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
-	fileInfoKey := data.FileInfoKey{ObjectName: object.Name, BucketName: bucket.Name(), BucketCreationTime: bucketCreationTime}
+	fileInfoKey := data.FileInfoKey{ObjectName: object.Name, BucketName: bucket.Name()}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
 		return

@@ -18,7 +18,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -38,7 +37,7 @@ const FileContentFromTestOffset = "fghij"
 const TestBucketName = "test-bucket"
 const TestObjectName = "test.txt"
 const TestObjectNameNotInFileInfoCache = "test_not_in_file_info.txt"
-const TestObjectGeneration = "3434343"
+const TestObjectGeneration = 3434343
 const TestFileInfoFileSize = 32
 
 func TestCacheHandle(t *testing.T) { RunTests(t) }
@@ -89,9 +88,8 @@ func getPrepopulatedLRUCacheWithFileInfo() *lru.Cache {
 	cache := lru.NewCache(CacheMaxSize)
 
 	fileInfoKey := data.FileInfoKey{
-		BucketName:         TestBucketName,
-		BucketCreationTime: time.Unix(data.TestTimeInEpoch, 0),
-		ObjectName:         TestObjectName,
+		BucketName: TestBucketName,
+		ObjectName: TestObjectName,
 	}
 
 	fileInfo := data.FileInfo{

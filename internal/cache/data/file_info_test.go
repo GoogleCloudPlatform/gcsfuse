@@ -31,6 +31,7 @@ type fileInfoTest struct {
 }
 
 const TestDataFileSize uint64 = 23
+const TestTimeInEpoch int64 = 1654041600
 const TestBucketName = "test_bucket"
 const TestObjectName = "test/a.txt"
 const TestGeneration = 12345678
