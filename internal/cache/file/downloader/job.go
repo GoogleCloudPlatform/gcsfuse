@@ -210,7 +210,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
 	// Create and open cache file for writing object into it.
-	cacheFile, err := util.CreateFile(job.fileSpec, os.O_RDWR)
+	cacheFile, err := util.CreateFile(job.fileSpec, os.O_WRONLY)
 	defer func(cacheFile *os.File) {
 		err = cacheFile.Close()
 		if err != nil {
