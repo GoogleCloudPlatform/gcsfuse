@@ -32,7 +32,7 @@ type FileInfoKey struct {
 // Key will return a string, combining all the attributes of FileInfoKey.
 // Returns error in case of uninitialized value.
 func (fik FileInfoKey) Key() (string, error) {
-	if fik.BucketName == "" || fik.BucketCreationTime.IsZero() || fik.ObjectName == "" {
+	if fik.BucketName == "" || fik.ObjectName == "" {
 		return "", errors.New(InvalidKeyAttributes)
 	}
 	unixTimeString := fmt.Sprintf("%d", fik.BucketCreationTime.Unix())
@@ -41,7 +41,7 @@ func (fik FileInfoKey) Key() (string, error) {
 
 type FileInfo struct {
 	Key              FileInfoKey
-	ObjectGeneration string
+	ObjectGeneration int64
 	Offset           uint64
 	FileSize         uint64
 }
@@ -51,8 +51,6 @@ func (fi FileInfo) Size() uint64 {
 }
 
 type FileSpec struct {
-	Path     string
-	Perm     os.FileMode
-	OwnerUid uint32
-	OwnerGid uint32
+	Path string
+	Perm os.FileMode
 }

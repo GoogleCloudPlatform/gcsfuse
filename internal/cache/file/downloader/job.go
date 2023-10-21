@@ -128,7 +128,7 @@ func (job *Job) Cancel() {
 
 // subscribe adds subscriber for download job and returns channel which is
 // notified when the download is completed at least till the subscribed offset
-// or in case of failure.
+// or in case of failure and cancellation.
 //
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatus) {
@@ -164,6 +164,37 @@ func (job *Job) failWhileDownloading(downloadErr error) {
 	job.status.Name = FAILED
 	job.notifySubscribers()
 	job.mu.Unlock()
+}
+
+// updateFileInfoCache updates the file info cache with latest offset downloaded
+// by job. Returns error in case of failure.
+//
+// Not concurrency safe and requires LOCK(job.mu)
+func (job *Job) updateFileInfoCache() (err error) {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: job.bucket.Name(),
+		ObjectName: job.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		err = fmt.Errorf(fmt.Sprintf("init: error while calling FileInfoKey.Key() for bucket %s and object %s %v",
+			fileInfoKey.BucketName, fileInfoKey.ObjectName, err))
+		return
+	}
+
+	updatedFileInfo := data.FileInfo{
+		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
+		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
+	}
+
+	// To-Do(raj-prince): We should not call normal insert here as that internally
+	// changes the LRU element which is undesirable given this is not user access.
+	_, err = job.fileInfoCache.Insert(fileInfoKeyName, updatedFileInfo)
+	if err != nil {
+		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %v", updatedFileInfo.Key, err))
+		return
+	}
+	return
 }
 
 // Download downloads object till the given offset if not already downloaded

@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
@@ -89,10 +90,8 @@ func (jt *jobTest) SetUp(*TestInfo) {
 	}
 
 	fileSpec := data.FileSpec{
-		Path:     path.Join("./", storage.TestBucketName, DefaultObjectName),
-		Perm:     os.FileMode(0666),
-		OwnerUid: uint32(os.Getuid()),
-		OwnerGid: uint32(os.Getgid()),
+		Path: path.Join("./", storage.TestBucketName, DefaultObjectName),
+		Perm: os.FileMode(0666),
 	}
 
 	jt.job = NewJob(&defaultMinObject, jt.bucket, jt.cache, DefaultSequentialReadSizeMb, fileSpec)
@@ -208,4 +207,76 @@ func (jt *jobTest) Test_failWhileDownloading() {
 	ExpectEq(true, ok1)
 	ExpectTrue(reflect.DeepEqual(jobStatus, notification2))
 	ExpectEq(true, ok2)
+}
+
+func (jt *jobTest) Test_updateFileInfoCache_UpdateEntry() {
+	// Add an entry into
+	fileInfoKey := data.FileInfoKey{
+		BucketName: storage.TestBucketName,
+		ObjectName: DefaultObjectName,
+	}
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: jt.job.object.Generation,
+		FileSize:         jt.job.object.Size,
+		Offset:           0,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	ExpectEq(nil, err)
+	_, err = jt.cache.Insert(fileInfoKeyName, fileInfo)
+	ExpectEq(nil, err)
+	jt.job.status.Offset = 1
+
+	err = jt.job.updateFileInfoCache()
+
+	ExpectEq(nil, err)
+	// confirm fileInfoCache is updated with new offset.
+	lookupResult := jt.cache.LookUp(fileInfoKeyName)
+	ExpectFalse(lookupResult == nil)
+	fileInfo = lookupResult.(data.FileInfo)
+	ExpectEq(1, fileInfo.Offset)
+	ExpectEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
+	ExpectEq(jt.job.object.Size, fileInfo.FileSize)
+}
+
+// This test should fail when we shift to only updating fileInfoCache in Job.
+// This test should be removed when that happens.
+func (jt *jobTest) Test_updateFileInfoCache_InsertNew() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: storage.TestBucketName,
+		ObjectName: DefaultObjectName,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	ExpectEq(nil, err)
+	jt.job.status.Offset = 1
+
+	err = jt.job.updateFileInfoCache()
+
+	ExpectEq(nil, err)
+	// confirm fileInfoCache is updated with new offset.
+	lookupResult := jt.cache.LookUp(fileInfoKeyName)
+	ExpectFalse(lookupResult == nil)
+	fileInfo := lookupResult.(data.FileInfo)
+	ExpectEq(1, fileInfo.Offset)
+	ExpectEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
+	ExpectEq(jt.job.object.Size, fileInfo.FileSize)
+}
+
+func (jt *jobTest) Test_updateFileInfoCache_Fail() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: storage.TestBucketName,
+		ObjectName: DefaultObjectName,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	ExpectEq(nil, err)
+	// set size of object more than MaxSize of cache.
+	jt.job.object.Size = 100
+
+	err = jt.job.updateFileInfoCache()
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg))
+	// confirm fileInfoCache is not updated.
+	lookupResult := jt.cache.LookUp(fileInfoKeyName)
+	ExpectTrue(lookupResult == nil)
 }
