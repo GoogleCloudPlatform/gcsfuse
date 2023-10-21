@@ -23,7 +23,9 @@ import (
 	"path"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -404,4 +406,313 @@ func (jt *jobTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
 	AssertEq(FAILED, jt.job.status.Name)
 	AssertEq(ReadChunkSize, jt.job.status.Offset)
 	AssertTrue(strings.Contains(jt.job.status.Err.Error(), "size of the entry is more than the cache's maxSize"))
+}
+
+func (jt *jobTest) Test_Download_WhenNotStarted() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
+
+	// start download
+	offset := int64(25 * MiB)
+	jobStatus, err := jt.job.Download(context.Background(), offset, true)
+
+	ExpectEq(nil, err)
+	// verify that jobStatus is downloading and downloaded more than 25 Mib.
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+	ExpectEq(nil, jobStatus.Err)
+	ExpectGe(jobStatus.Offset, offset)
+	// verify that after some time the whole object is downloaded
+	time.Sleep(time.Second * 2)
+	jobStatus = JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Download_WhenAlreadyDownloading() {
+	// Create new object in bucket and create new job for it.
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
+	// start download but not wait for download
+	ctx := context.Background()
+	jobStatus, err := jt.job.Download(ctx, 1, false)
+	ExpectEq(nil, err)
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+
+	// Again call download but wait for download this time.
+	offset := int64(25 * MiB)
+	jobStatus, err = jt.job.Download(ctx, offset, true)
+
+	ExpectEq(nil, err)
+	// verify that jobStatus is downloading and downloaded at least 25 Mib.
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+	ExpectEq(nil, jobStatus.Err)
+	ExpectGe(jobStatus.Offset, offset)
+	// verify that after some time the whole object is downloaded
+	time.Sleep(time.Second * 2)
+	jobStatus = JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Download_WhenAlreadyCompleted() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
+	// Wait for whole download to be completed.
+	ctx := context.Background()
+	jobStatus, err := jt.job.Download(ctx, int64(objectSize), true)
+	ExpectEq(nil, err)
+	// verify that jobStatus is completed
+	jobStatus = JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+
+	// try to request for some offset when job was already completed.
+	offset := int64(18 * MiB)
+	jobStatus, err = jt.job.Download(ctx, offset, false)
+
+	ExpectEq(nil, err)
+	// verify that jobStatus is completed & offset returned is still 25 MiB
+	// this ensures that async job is not started again.
+	ExpectEq(COMPLETED, jobStatus.Name)
+	ExpectEq(nil, jobStatus.Err)
+	ExpectGe(jobStatus.Offset, objectSize)
+	// verify file
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Download_WhenAsyncFails() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize-1))
+
+	// Wait for whole download to be completed/failed.
+	ctx := context.Background()
+	jobStatus, err := jt.job.Download(ctx, int64(objectSize), true)
+
+	ExpectEq(nil, err)
+	// verify that jobStatus is failed
+	ExpectEq(FAILED, jobStatus.Name)
+	ExpectEq(ReadChunkSize, jobStatus.Offset)
+	ExpectTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+}
+
+func (jt *jobTest) Test_Download_AlreadyFailed() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize-1))
+	// Wait for whole download to be completed/failed.
+	jobStatus, err := jt.job.Download(context.Background(), int64(objectSize), true)
+	ExpectEq(nil, err)
+	// verify that jobStatus is failed
+	ExpectEq(FAILED, jobStatus.Name)
+	ExpectEq(ReadChunkSize, jobStatus.Offset)
+	ExpectTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+
+	// requesting again from download job which is in failed state
+	jobStatus, err = jt.job.Download(context.Background(), int64(objectSize), true)
+
+	ExpectEq(nil, err)
+	ExpectEq(FAILED, jobStatus.Name)
+	ExpectEq(ReadChunkSize, jobStatus.Offset)
+	ExpectTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+}
+
+func (jt *jobTest) Test_Download_InvalidOffset() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize))
+
+	// requesting invalid offset
+	offset := int64(objectSize) + 1
+	jobStatus, err := jt.job.Download(context.Background(), offset, true)
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", offset, jt.object.Size)))
+	jobStatus = JobStatus{NOT_STARTED, nil, 0}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+}
+
+func (jt *jobTest) Test_Download_CtxCancelled() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+
+	// requesting full download and then the download call should be cancelled after
+	// timeout but not the async download
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*2)
+	offset := int64(objectSize)
+	jobStatus, err := jt.job.Download(ctx, offset, true)
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), "context deadline exceeded"))
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+	ExpectEq(nil, jobStatus.Err)
+	// job should be completed after sometime as the timeout is on Download call
+	// and not downloadObjectAsyncs
+	time.Sleep(time.Second * 2)
+	jobStatus = JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Download_Concurrent() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+	ctx := context.Background()
+	wg := sync.WaitGroup{}
+	offsets := []int64{0, 4 * MiB, 16 * MiB, 8 * MiB, int64(objectSize), int64(objectSize) + 1}
+	expectedErrs := []error{nil, nil, nil, nil, nil, fmt.Errorf(fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", int64(objectSize)+1, int64(objectSize)))}
+	downloadFunc := func(expectedOffset int64, expectedErr error) {
+		defer wg.Done()
+		var jobStatus JobStatus
+		var err error
+		jobStatus, err = jt.job.Download(ctx, expectedOffset, true)
+		ExpectNe(FAILED, jobStatus.Name)
+		if expectedErr != nil {
+			ExpectTrue(strings.Contains(err.Error(), expectedErr.Error()))
+			return
+		} else {
+			ExpectEq(expectedErr, err)
+		}
+		ExpectGe(jobStatus.Offset, expectedOffset)
+	}
+
+	// start concurrent downloads
+	for i, offset := range offsets {
+		wg.Add(1)
+		go downloadFunc(offset, expectedErrs[i])
+	}
+	wg.Wait()
+	
+	ExpectEq(COMPLETED, jt.job.status.Name)
+	ExpectEq(nil, jt.job.status.Err)
+	// verify file
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Cancel_WhenDownlooading() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+	// request for 2 MiB download to start downloading
+	offset := int64(2 * MiB)
+	jobStatus, err := jt.job.Download(context.Background(), offset, true)
+	ExpectEq(nil, err)
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+	ExpectEq(nil, jobStatus.Err)
+	ExpectGe(jobStatus.Offset, offset)
+
+	time.Sleep(time.Millisecond * 30)
+	jt.job.Cancel()
+
+	ExpectEq(CANCELLED, jt.job.status.Name)
+	ExpectEq(nil, jt.job.status.Err)
+	ExpectLt(jt.job.status.Offset, objectSize)
+	// job should not be completed even after sometime.
+	time.Sleep(time.Second)
+	ExpectEq(CANCELLED, jt.job.status.Name)
+	ExpectEq(nil, jt.job.status.Err)
+	ExpectLt(jt.job.status.Offset, objectSize)
+	// verify file downloaded till the offset
+	jt.verifyFile(objectContent[:jt.job.status.Offset])
+}
+
+func (jt *jobTest) Test_Cancel_WhenAlreadyCompleted() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+	_, err := jt.job.Download(context.Background(), int64(objectSize), true)
+	ExpectEq(nil, err)
+	expectedJobStatus := JobStatus{COMPLETED, nil, int64(objectSize)}
+	// wait for some time for job to be compeleted.
+	time.Sleep(time.Millisecond * 10)
+	ExpectTrue(reflect.DeepEqual(expectedJobStatus, jt.job.status))
+
+	jt.job.Cancel()
+
+	// status is not changed to Cancelled
+	ExpectTrue(reflect.DeepEqual(expectedJobStatus, jt.job.status))
+	// verify file downloaded till the offset
+	jt.verifyFile(objectContent)
+	// verify file info cache
+	jt.verifyFileInfoEntry(jt.object.Size)
+}
+
+func (jt *jobTest) Test_Cancel_WhenNotStarted() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+
+	jt.job.Cancel()
+
+	// status is changed to Cancelled
+	jobStatus := JobStatus{CANCELLED, nil, 0}
+	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file is not created
+	_, err := os.Stat(jt.fileSpec.Path)
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (jt *jobTest) Test_Cancel_Concurrent() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * MiB
+	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize*2))
+	ctx := context.Background()
+	// start download without waiting
+	jobStatus, err := jt.job.Download(ctx, 0, false)
+	ExpectEq(DOWNLOADING, jobStatus.Name)
+	ExpectEq(nil, err)
+	// wait for sometime to allow downloading before cancelling
+	time.Sleep(time.Millisecond * 10)
+	wg := sync.WaitGroup{}
+	cancelFunc := func() {
+		defer wg.Done()
+		jt.job.Cancel()
+		jobStatus, err := jt.job.Download(ctx, 1, true)
+		ExpectEq(CANCELLED, jobStatus.Name)
+		ExpectEq(nil, err)
+		ExpectGe(jobStatus.Offset, 0)
+	}
+
+	// start concurrent cancel
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go cancelFunc()
+	}
+	wg.Wait()
+
+	ExpectEq(CANCELLED, jt.job.status.Name)
+	ExpectEq(nil, jt.job.status.Err)
+	// verify file
+	jt.verifyFile(objectContent[:jt.job.status.Offset])
 }

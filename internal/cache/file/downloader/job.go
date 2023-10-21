@@ -124,12 +124,16 @@ func (job *Job) init() {
 
 // Cancel changes the state of job to cancelled and cancels the async download
 // job if there. Also, notifies the subscribers of job if any.
-// ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Cancel() {
 	job.mu.Lock()
 	defer job.mu.Unlock()
+	if job.status.Name == DOWNLOADING || job.status.Name == NOT_STARTED {
+		job.cancelFunc()
+		job.status.Name = CANCELLED
+		job.notifySubscribers()
+	}
 }
 
 // subscribe adds subscriber for download job and returns channel which is
@@ -299,14 +303,47 @@ func (job *Job) downloadObjectAsync() {
 	}
 }
 
-// Download downloads object till the given offset if not already downloaded
-// and waits for download if waitForDownload is true.
-// The caller of this method should not read from cache if job status is FAILED.
-// ToDo (sethiay): Implement this function.
+// Download downloads object till the given offset and returns the status of
+// job. If the object is already downloaded or there was failure/cancellation in
+// download, then it returns the job status
 //
 // Acquires and releases LOCK(job.mu)
-func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus) {
+func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus, err error) {
 	job.mu.Lock()
-	defer job.mu.Unlock()
+	if int64(job.object.Size) < offset {
+		defer job.mu.Unlock()
+		err = fmt.Errorf(fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", offset, job.object.Size))
+		return job.status, err
+	}
+
+	if job.status.Name == COMPLETED {
+		defer job.mu.Unlock()
+		return job.status, nil
+	} else if job.status.Name == NOT_STARTED {
+		// start the async download
+		job.status.Name = DOWNLOADING
+		go job.downloadObjectAsync()
+	} else if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Offset >= offset {
+		defer job.mu.Unlock()
+		return job.status, nil
+	}
+
+	if !waitForDownload {
+		defer job.mu.Unlock()
+		return job.status, nil
+	}
+
+	// subscribe to an offset.
+	notificationC := job.subscribe(offset)
+	// lock is not required when the subscriber is waiting for async download job.
+	job.mu.Unlock()
+
+	// Wait till subscriber is notified by async job or the async job is cancelled
+	select {
+	case <-ctx.Done():
+		err = fmt.Errorf(fmt.Sprintf("Download: %v", ctx.Err()))
+		jobStatus = job.status
+	case jobStatus = <-notificationC:
+	}
 	return
 }
