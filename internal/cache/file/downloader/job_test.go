@@ -324,12 +324,14 @@ func (jt *jobTest) Test_downloadObjectAsync_LessThanSequentialReadSize() {
 	jt.job.downloadObjectAsync()
 
 	// check job completed successfully
-	jobStatus := JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	jobStatus := JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
 	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
 	// verify file is downloaded
 	jt.verifyFile(objectContent)
 	// Verify fileInfoCache update
-	jt.verifyFileInfoEntry(jt.object.Size)
+	jt.verifyFileInfoEntry(uint64(objectSize))
 }
 
 func (jt *jobTest) Test_downloadObjectAsync_LessThanChunkSize() {
@@ -342,12 +344,14 @@ func (jt *jobTest) Test_downloadObjectAsync_LessThanChunkSize() {
 	jt.job.downloadObjectAsync()
 
 	// check job completed successfully
-	jobStatus := JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	jobStatus := JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
 	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
 	// verify file is downloaded
 	jt.verifyFile(objectContent)
 	// Verify fileInfoCache update
-	jt.verifyFileInfoEntry(jt.object.Size)
+	jt.verifyFileInfoEntry(uint64(objectSize))
 }
 
 func (jt *jobTest) Test_downloadObjectAsync_Notification() {
@@ -366,12 +370,14 @@ func (jt *jobTest) Test_downloadObjectAsync_Notification() {
 	// check the notification is sent after subscribed offset
 	ExpectGe(jobStatus.Offset, subscribedOffset)
 	// check job completed successfully
-	jobStatus = JobStatus{COMPLETED, nil, int64(jt.object.Size)}
+	jobStatus = JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
 	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
 	// verify file is downloaded
 	jt.verifyFile(objectContent)
 	// Verify fileInfoCache update
-	jt.verifyFileInfoEntry(jt.object.Size)
+	jt.verifyFileInfoEntry(uint64(objectSize))
 }
 
 func (jt *jobTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
@@ -384,6 +390,8 @@ func (jt *jobTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
 	jt.job.downloadObjectAsync()
 
 	// check job failed
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
 	ExpectEq(FAILED, jt.job.status.Name)
 	ExpectEq(ReadChunkSize, jt.job.status.Offset)
 	ExpectTrue(strings.Contains(jt.job.status.Err.Error(), "size of the entry is more than the cache's maxSize"))
