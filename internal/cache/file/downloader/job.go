@@ -342,7 +342,6 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	select {
 	case <-ctx.Done():
 		err = fmt.Errorf(fmt.Sprintf("Download: %v", ctx.Err()))
-		jobStatus = job.status
 	case jobStatus = <-notificationC:
 	}
 	return
