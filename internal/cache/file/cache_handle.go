@@ -87,11 +87,17 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 	}
 
 	// We need to download the data till offset + len(dst), if not already.
-	bufferLen := len(dst)
-	requiredDataOffset := fileInfo.(data.FileInfo).Offset + uint64(bufferLen)
-	if requiredDataOffset < offset {
+	bufferLen := uint64(len(dst))
+	requiredOffset := offset + bufferLen
+
+	// Also, need to make sure, it should not exceed the total file-size.
+	if requiredOffset > object.Size {
+		requiredOffset = object.Size
+	}
+
+	if requiredOffset > fileInfo.(data.FileInfo).Offset {
 		ctx := context.Background()
-		jobStatus := fch.fileDownloadJob.Download(ctx, int64(requiredDataOffset), true)
+		jobStatus := fch.fileDownloadJob.Download(ctx, int64(requiredOffset), true)
 
 		// TODO (princer): Handel the case properly for different value of waitForDownload flag.
 

@@ -16,18 +16,19 @@ package file
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
 const CacheMaxSize = 50
 const TestFilePath = "test_file.txt"
+const DefaultFileMode = 0644
 const TestFileContent = "abcdefghijklmnop"
 const DstBufferLen = 5
 const TestOffset = 5
@@ -58,13 +59,13 @@ func (tb testBucket) Name() string {
 
 // Test helper.
 func createFileWithContent(filePath string, content string) (*os.File, error) {
-	fullPath, err := filepath.Abs(filePath)
-	AssertEq(nil, err)
-
-	file, err := os.Create(fullPath)
-	if err != nil {
-		return nil, err
+	fileSpec := data.FileSpec{
+		Path: filePath,
+		Perm: os.FileMode(DefaultFileMode),
 	}
+
+	file, err := util.CreateFile(fileSpec, os.O_RDWR)
+	AssertEq(nil, err)
 
 	_, err = file.WriteString(content)
 	if err != nil {
@@ -122,11 +123,22 @@ func init() {
 }
 
 func (t *cacheHandleTest) SetUp(*TestInfo) {
+	file, err := createFileWithContent(TestFilePath, TestFileContent)
+	AssertEq(nil, err)
+
 	t.ch = &CacheHandle{
-		fileHandle:      &os.File{},
+		fileHandle:      file,
 		fileDownloadJob: &downloader.Job{},
 		fileInfoCache:   getPrepopulatedLRUCacheWithFileInfo(),
 	}
+}
+
+func (t *cacheHandleTest) TearDown() {
+	err := t.ch.Close()
+	AssertEq(nil, err)
+
+	err = deleteFile(TestFilePath)
+	AssertEq(nil, err)
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileHandle() {
@@ -162,7 +174,7 @@ func (t *cacheHandleTest) TestValidateCacheHandleWithNonNilMemberAttributes() {
 func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 	dst := make([]byte, DstBufferLen)
 
-	// This will return the minGCSObject whose entry is in fileInfoCache.
+	// Create the minGCS object whose entry is not in fileInfoCache.
 	minGCSObject := getTestMinGCSObject()
 	minGCSObject.Name = TestObjectNameNotInFileInfoCache
 
@@ -172,13 +184,6 @@ func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 }
 
 func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
-	file, err := createFileWithContent(TestFilePath, TestFileContent)
-	defer func() {
-		err = deleteFile(TestFilePath)
-		AssertEq(nil, err)
-	}()
-	AssertEq(nil, err)
-	t.ch.fileHandle = file
 	dst := make([]byte, DstBufferLen)
 	tb := getTestMinGCSObject()
 	tb.Name = TestObjectName
@@ -191,15 +196,7 @@ func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
 }
 
 func (t *cacheHandleTest) TestClose() {
-	file, err := createFileWithContent(TestFilePath, TestFileContent)
-	defer func() {
-		err = deleteFile(TestFilePath)
-		AssertEq(nil, err)
-	}()
-	AssertEq(nil, err)
-	t.ch.fileHandle = file
-
-	err = t.ch.Close()
+	err := t.ch.Close()
 	AssertEq(nil, err)
 
 	ExpectEq(nil, t.ch.fileHandle)
