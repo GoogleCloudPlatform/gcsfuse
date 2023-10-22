@@ -541,11 +541,11 @@ func (jt *jobTest) Test_Download_InvalidOffset() {
 
 	// requesting invalid offset
 	offset := int64(objectSize) + 1
-	jobStatus, err := jt.job.Download(context.Background(), offset, true)
+	_, err := jt.job.Download(context.Background(), offset, true)
 
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), fmt.Sprintf("Download: the requested offset %d is greater than the size of object %d", offset, jt.object.Size)))
-	jobStatus = JobStatus{NOT_STARTED, nil, 0}
+	jobStatus := JobStatus{NOT_STARTED, nil, 0}
 	ExpectTrue(reflect.DeepEqual(jobStatus, jt.job.status))
 }
 
@@ -606,7 +606,7 @@ func (jt *jobTest) Test_Download_Concurrent() {
 		go downloadFunc(offset, expectedErrs[i])
 	}
 	wg.Wait()
-	
+
 	ExpectEq(COMPLETED, jt.job.status.Name)
 	ExpectEq(nil, jt.job.status.Err)
 	// verify file
@@ -698,10 +698,10 @@ func (jt *jobTest) Test_Cancel_Concurrent() {
 	cancelFunc := func() {
 		defer wg.Done()
 		jt.job.Cancel()
-		jobStatus, err := jt.job.Download(ctx, 1, true)
-		ExpectEq(CANCELLED, jobStatus.Name)
-		ExpectEq(nil, err)
-		ExpectGe(jobStatus.Offset, 0)
+		currJobStatus, currErr := jt.job.Download(ctx, 1, true)
+		ExpectEq(CANCELLED, currJobStatus.Name)
+		ExpectEq(nil, currErr)
+		ExpectGe(currJobStatus.Offset, 0)
 	}
 
 	// start concurrent cancel
