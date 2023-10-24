@@ -15,10 +15,10 @@
 package downloader
 
 import (
-	"bytes"
 	"container/list"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"reflect"
@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -128,6 +129,14 @@ func (jt *jobTest) verifyFileInfoEntry(offset uint64) {
 
 func (jt *jobTest) fileCachePath(bucketName string, objectName string) string {
 	return path.Join(cacheLocation, bucketName, objectName)
+}
+
+func generateRandomBytes(length int) []byte {
+	randBytes := make([]byte, length)
+	for i := 0; i < length; i++ {
+		randBytes[i] = byte(rand.Intn(26) + 65)
+	}
+	return randBytes
 }
 
 func (jt *jobTest) Test_init() {
@@ -316,8 +325,8 @@ func (jt *jobTest) Test_updateFileInfoCache_Fail() {
 func (jt *jobTest) Test_downloadObjectAsync_LessThanSequentialReadSize() {
 	// Create new object in bucket and create new job for it.
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 50 * MiB
-	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
 	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
 
 	// start download
@@ -336,8 +345,8 @@ func (jt *jobTest) Test_downloadObjectAsync_LessThanSequentialReadSize() {
 
 func (jt *jobTest) Test_downloadObjectAsync_LessThanChunkSize() {
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 2 * MiB
-	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	objectSize := 2 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
 	jt.initJobTest(objectName, objectContent, 25, uint64(2*objectSize))
 
 	// start download
@@ -356,11 +365,11 @@ func (jt *jobTest) Test_downloadObjectAsync_LessThanChunkSize() {
 
 func (jt *jobTest) Test_downloadObjectAsync_Notification() {
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 50 * MiB
-	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
 	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
 	// Add subscriber
-	subscribedOffset := int64(45 * MiB)
+	subscribedOffset := int64(45 * util.MiB)
 	notificationC := jt.job.subscribe(subscribedOffset)
 
 	// start download
@@ -382,8 +391,8 @@ func (jt *jobTest) Test_downloadObjectAsync_Notification() {
 
 func (jt *jobTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 50 * MiB
-	objectContent := bytes.Repeat([]byte("t"), objectSize)
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
 	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize-1))
 
 	// start download

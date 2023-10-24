@@ -39,8 +39,7 @@ const (
 	CANCELLED   jobStatusName = "CANCELLED"
 )
 
-const MiB = 1024 * 1024
-const ReadChunkSize = 8 * MiB
+const ReadChunkSize = 8 * util.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -60,6 +59,7 @@ type Job struct {
 	/////////////////////////
 
 	// Represents the current status of Job.
+	// status.Offset means data in cache is present in range [0, status.offset)
 	status JobStatus
 
 	// list of subscribers waiting on async download.
@@ -211,6 +211,11 @@ func (job *Job) updateFileInfoCache() (err error) {
 func (job *Job) downloadObjectAsync() {
 	// Create and open cache file for writing object into it.
 	cacheFile, err := util.CreateFile(job.fileSpec, os.O_WRONLY)
+	if err != nil {
+		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
+		job.failWhileDownloading(err)
+		return
+	}
 	defer func(cacheFile *os.File) {
 		err = cacheFile.Close()
 		if err != nil {
@@ -218,15 +223,11 @@ func (job *Job) downloadObjectAsync() {
 			job.failWhileDownloading(err)
 		}
 	}(cacheFile)
-	if err != nil {
-		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
-		job.failWhileDownloading(err)
-	}
 
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
-	sequentialReadSize = int64(job.sequentialReadSizeMb) * MiB
+	sequentialReadSize = int64(job.sequentialReadSizeMb) * util.MiB
 
 	for {
 		select {
@@ -300,6 +301,7 @@ func (job *Job) downloadObjectAsync() {
 
 // Download downloads object till the given offset if not already downloaded
 // and waits for download if waitForDownload is true.
+// The caller of this method should not read from cache if job status is FAILED.
 // ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
