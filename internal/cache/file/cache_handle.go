@@ -24,14 +24,20 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
 const (
-	InvalidFileHandle      = "fileHandle is nil"
-	InvalidFileDownloadJob = "download job is nil"
-	InvalidFileInfoCache   = "fileInfo cache is nil"
-	InvalidFileInfo        = "fileInfo is nil"
+	InvalidFileHandle      = "destroy this cache_handle: invalid file handle"
+	InvalidFileDownloadJob = "destroy this cache_handle: invalid download job"
+	InvalidCacheHandle     = "destroy this cache_handle: invalid cache handle"
+	InvalidFileInfoCache   = "file info cache is nil"
+	ErrInSeekingFileHandle = "destroy this cache_handle: error while seeking file handle"
+	ErrInReadingFileHandle = "destroy this cache_handle: error while reading file handle"
+	FallbackToGCS          = "read via gcs without destroying this cache_handle"
+	MB                     = 1 << 20
+	MaxAllowedMB           = 8 * MB
 )
 
 type CacheHandle struct {
@@ -41,8 +47,35 @@ type CacheHandle struct {
 	//	fileDownloadJob is a reference to async download Job.
 	fileDownloadJob *downloader.Job
 
-	// Contains the latest information about the downloaded bits for a particular fileInfoKey.
+	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
+
+	// isSequential saves if the current read performed via cache_handle is sequential or
+	// random. If true then sequential otherwise random.
+	isSequential bool
+
+	// prevOffset stores the offset of previous cache_handle read call. This is used
+	// to decide the type of read.
+	prevOffset int64
+
+	// contributesToJobRefCount indicates that the cache handle contains the reference
+	// count of the Job. We maintain this reference count manually, since we keep the
+	// Job reference always, regardless of whether the read is sequential or random.
+	// However, by design, we want to cancel the Job if there is no sequential read
+	// active that depends on the Job.
+	contributesToJobRefCount bool
+}
+
+// NewCacheHandle constructs and returns CacheHandle object.
+func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, initialOffset int64) *CacheHandle {
+	return &CacheHandle{
+		fileHandle:               localFileHandle,
+		fileDownloadJob:          fileDownloadJob,
+		fileInfoCache:            fileInfoCache,
+		isSequential:             initialOffset == 0,
+		prevOffset:               initialOffset,
+		contributesToJobRefCount: true,
+	}
 }
 
 // validateCacheHandle will validate the  cache-handle and return appropriate error.
@@ -63,26 +96,30 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-// Read attempts to read the data from the cached location. This expects a
-// fileInfoCache entry for the current read request, and will wait to download
-// the requested chunk if it is not already present.
-func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset uint64, dst []byte) (n int, err error) {
-	err = fch.validateCacheHandle()
-	if err != nil {
-		return
-	}
-
+func (fch *CacheHandle) checkIfEntryExistWithCorrectGeneration(object *gcs.MinObject, bucket gcs.Bucket) (bool, error) {
 	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
+	// we don't need this.
 	fileInfoKey := data.FileInfoKey{ObjectName: object.Name, BucketName: bucket.Name()}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return
+		return false, fmt.Errorf("error while fetching key: %v", err)
 	}
 
 	// Get the existing fileInfo entry in the cache.
 	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
 	if fileInfo == nil {
-		err = errors.New(InvalidFileInfo)
+		return false, nil
+	}
+
+	return fileInfo.(data.FileInfo).ObjectGeneration == object.Generation, nil
+}
+
+// Read attempts to read the data from the cached location. This expects a
+// fileInfoCache entry for the current read request, and will wait to download
+// the requested chunk if it is not already present.
+func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, offset uint64, dst []byte) (n int, err error) {
+	err = fch.validateCacheHandle()
+	if err != nil {
 		return
 	}
 
@@ -95,30 +132,93 @@ func (fch *CacheHandle) Read(object *gcs.MinObject, bucket gcs.Bucket, offset ui
 		requiredOffset = object.Size
 	}
 
-	if requiredOffset > fileInfo.(data.FileInfo).Offset {
-		ctx := context.Background()
-		jobStatus := fch.fileDownloadJob.Download(ctx, int64(requiredOffset), true)
+	waitForDownload := true
+	if !fch.isSequential {
+		waitForDownload = false
+	}
 
-		// TODO (princer): Handel the case properly for different value of waitForDownload flag.
-
-		if jobStatus.Err != nil {
-			err = fmt.Errorf("error while downloading the data: %v", jobStatus.Err)
+	// Todo (raj-prince): to remove this check after implementation of download method.
+	if false {
+		var jobStatus downloader.JobStatus
+		jobStatus, err = fch.fileDownloadJob.Download(ctx, int64(requiredOffset), waitForDownload)
+		if err != nil {
+			n = 0
+			err = fmt.Errorf("while downloading job: %v", err)
 			return
+		}
+
+		// Todo - (raj-prince): to incorporate the newly introduced Invalid flag.
+		if jobStatus.Name == "Invalid" || jobStatus.Name == downloader.NOT_STARTED {
+			return 0, errors.New(InvalidFileDownloadJob)
+		} else {
+			if jobStatus.Offset < int64(requiredOffset) {
+				return 0, errors.New(FallbackToGCS)
+			}
 		}
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(int64(offset), 0)
 	if err != nil {
-		return 0, fmt.Errorf("error while setting the offset: %v", err)
+		logger.Warnf("error while seeking for %d offset in local file: %v", offset, err)
+		return 0, errors.New(ErrInSeekingFileHandle)
 	}
 
 	n, err = io.ReadFull(fch.fileHandle, dst)
-
 	if err == io.EOF {
 		err = nil
 	}
+	if err != nil {
+		logger.Warnf("error while reading from %d offset of the local file: %v", offset, err)
+		return 0, errors.New(ErrInReadingFileHandle)
+	}
+
+	// Handling special cases:
+	// 1. If there is no cache entry for the file, we will return no data.
+	// 2. If there is a race condition between read and check, e.g., eviction
+	//		following up with the addition of the same fileInfo.
+	//    (a) If the generations are the same, this will not cause any issue.
+	//    (b) If the generations are different, we will discard the old data and
+	//        server new data from gcs for this call.
+	ok, err := fch.checkIfEntryExistWithCorrectGeneration(object, bucket)
+	if err != nil || !ok {
+		n = 0
+		err = errors.New(InvalidCacheHandle)
+		return
+	}
+
 	return
+}
+
+// IsSequential returns true if the sequential read is being performed, false for
+// random read.
+func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
+	if !fch.isSequential {
+		return false
+	}
+
+	if currentOffset < fch.prevOffset {
+		return false
+	}
+
+	if currentOffset-fch.prevOffset > MaxAllowedMB {
+		return false
+	}
+
+	return true
+}
+
+// DoesContributeForJobRef returns the value of contributesToJobRefCount.
+// Please check the documentation of CacheHandle.contributesToJobRefCount for more details.
+func (fch *CacheHandle) DoesContributeForJobRef() bool {
+	return fch.contributesToJobRefCount
+}
+
+// RemoveContributionForJobRef changes the state of contributesToJobRefCount, which
+// signifies it doesn't depend on the job. We may cancel the job if no other reference
+// to the download job.
+func (fch *CacheHandle) RemoveContributionForJobRef() {
+	fch.contributesToJobRefCount = false
 }
 
 // Close closes the underlined fileHandle points to locally downloaded data.

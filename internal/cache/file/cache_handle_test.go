@@ -15,6 +15,7 @@
 package file
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -113,8 +114,9 @@ func getPrepopulatedLRUCacheWithFileInfo() *lru.Cache {
 // present in the pre-populated fileInfoCache.
 func getTestMinGCSObject() *gcs.MinObject {
 	return &gcs.MinObject{
-		Name: TestObjectName,
-		Size: TestFileInfoFileSize,
+		Name:       TestObjectName,
+		Size:       TestFileInfoFileSize,
+		Generation: TestObjectGeneration,
 	}
 }
 
@@ -178,21 +180,64 @@ func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 	minGCSObject := getTestMinGCSObject()
 	minGCSObject.Name = TestObjectNameNotInFileInfoCache
 
-	_, err := t.ch.Read(minGCSObject, testBucket{BucketName: TestBucketName}, TestOffset, dst)
+	_, err := t.ch.Read(context.Background(), minGCSObject, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
-	ExpectEq(InvalidFileInfo, err.Error())
+	ExpectEq(InvalidCacheHandle, err.Error())
 }
 
-func (t *cacheHandleTest) TestReadWithReadFromLocalCachedFilePath() {
+func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAndObjectMatch() {
 	dst := make([]byte, DstBufferLen)
 	tb := getTestMinGCSObject()
 	tb.Name = TestObjectName
 
-	n, err := t.ch.Read(tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
+	n, err := t.ch.Read(context.Background(), tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
 	AssertEq(nil, err)
 	AssertEq(n, DstBufferLen)
 	AssertEq(FileContentFromTestOffset, string(dst))
+}
+
+func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAndObjectNotMatch() {
+	dst := make([]byte, DstBufferLen)
+	tb := getTestMinGCSObject()
+	tb.Generation = 0 // overriding to not match with TestObjectGeneration
+	tb.Name = TestObjectName
+
+	n, err := t.ch.Read(context.Background(), tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
+
+	AssertEq(InvalidCacheHandle, err.Error())
+	AssertEq(n, 0)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfNoSuchEntryInCache() {
+	tb := getTestMinGCSObject()
+	tb.Name = TestObjectNameNotInFileInfoCache
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+
+	AssertEq(nil, err)
+	AssertEq(false, ok)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatch() {
+	tb := getTestMinGCSObject()
+	tb.Name = TestObjectName
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+
+	AssertEq(nil, err)
+	AssertEq(true, ok)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationNotMatch() {
+	tb := getTestMinGCSObject()
+	tb.Generation = 0 // overriding to not match with TestObjectGeneration
+	tb.Name = TestObjectName
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+
+	AssertEq(nil, err)
+	AssertEq(false, ok)
 }
 
 func (t *cacheHandleTest) TestClose() {
@@ -200,6 +245,73 @@ func (t *cacheHandleTest) TestClose() {
 	AssertEq(nil, err)
 
 	ExpectEq(nil, t.ch.fileHandle)
+}
+
+func (t *cacheHandleTest) TestIsSequentialWhenReadTypeIsSequential() {
+	t.ch.isSequential = false
+	currentOffset := 3
+
+	ExpectEq(false, t.ch.IsSequential(int64(currentOffset)))
+}
+
+func (t *cacheHandleTest) TestIsSequentialWhenPrevOffsetGreateThanCurrent() {
+	t.ch.isSequential = true
+	t.ch.prevOffset = 5
+	currentOffset := 3
+
+	ExpectEq(false, t.ch.IsSequential(int64(currentOffset)))
+}
+
+func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsMoreThanMaxAllowed() {
+	t.ch.isSequential = true
+	t.ch.prevOffset = 5
+	currentOffset := 8 + MaxAllowedMB
+
+	ExpectEq(false, t.ch.IsSequential(int64(currentOffset)))
+}
+
+func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsLessThanMaxAllowed() {
+	t.ch.isSequential = true
+	t.ch.prevOffset = 5
+	currentOffset := 10
+
+	ExpectEq(true, t.ch.IsSequential(int64(currentOffset)))
+}
+
+func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsEqualToMaxAllowed() {
+	t.ch.isSequential = true
+	t.ch.prevOffset = 5
+	currentOffset := 5 + MaxAllowedMB
+
+	ExpectEq(true, t.ch.IsSequential(int64(currentOffset)))
+}
+
+func (t *cacheHandleTest) TestDoesContributeForJobRefIfTrue() {
+	t.ch.contributesToJobRefCount = true
+
+	ExpectEq(true, t.ch.DoesContributeForJobRef())
+}
+
+func (t *cacheHandleTest) TestDoesContributeForJobRefIfFalse() {
+	t.ch.contributesToJobRefCount = false
+
+	ExpectEq(false, t.ch.DoesContributeForJobRef())
+}
+
+func (t *cacheHandleTest) TestRemoveContributionForJobRefIfTrue() {
+	t.ch.contributesToJobRefCount = true
+
+	t.ch.RemoveContributionForJobRef()
+
+	ExpectEq(false, t.ch.DoesContributeForJobRef())
+}
+
+func (t *cacheHandleTest) TestRemoveContributionForJobRefIfFalse() {
+	t.ch.contributesToJobRefCount = false
+
+	t.ch.RemoveContributionForJobRef()
+
+	ExpectEq(false, t.ch.DoesContributeForJobRef())
 }
 
 // TODO (princer): write test which validates download flow in the cache_handle.read()
