@@ -359,10 +359,12 @@ func (d *dirInode) createNewObject(
 	// exists.
 	var precond int64
 	createReq := &gcs.CreateObjectRequest{
-		Name:                   name.GcsObjectName(),
-		Contents:               strings.NewReader(""),
-		GenerationPrecondition: &precond,
-		Metadata:               metadata,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   name.GcsObjectName(),
+			GenerationPrecondition: &precond,
+			Metadata:               metadata,
+		},
+		Contents: strings.NewReader(""),
 	}
 
 	o, err = d.bucket.CreateObject(ctx, createReq)

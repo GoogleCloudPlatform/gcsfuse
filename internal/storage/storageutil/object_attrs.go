@@ -103,7 +103,7 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
 // These attributes will be assigned to the newly created or old object.
-func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {
+func setAttrsInWriter(wc *storage.Writer, req *gcs.CreateChunkUploaderRequest) *storage.Writer {
 	wc.Name = req.Name
 	wc.ContentType = req.ContentType
 	wc.ContentLanguage = req.ContentLanguage
@@ -121,6 +121,14 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 		aclRules = append(aclRules, convertObjectAccessControlToACLRule(element))
 	}
 	wc.ACL = aclRules
+
+	return wc
+}
+
+// SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
+// These attributes will be assigned to the newly created or old object.
+func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {
+	setAttrsInWriter(wc, &req.CreateChunkUploaderRequest)
 
 	if req.CRC32C != nil {
 		wc.CRC32C = *req.CRC32C

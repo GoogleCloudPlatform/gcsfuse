@@ -87,9 +87,11 @@ func TestContentTypeBucket_CreateObject(t *testing.T) {
 
 		// Create the object.
 		req := &gcs.CreateObjectRequest{
-			Name:        tc.name,
-			ContentType: tc.request,
-			Contents:    strings.NewReader(""),
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:        tc.name,
+				ContentType: tc.request,
+			},
+			Contents: strings.NewReader(""),
 		}
 
 		o, err := bucket.CreateObject(context.Background(), req)
@@ -116,7 +118,9 @@ func TestContentTypeBucket_ComposeObjects(t *testing.T) {
 		// Create a source object.
 		const srcName = "some_src"
 		_, err = bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
-			Name:     srcName,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: srcName,
+			},
 			Contents: strings.NewReader(""),
 		})
 

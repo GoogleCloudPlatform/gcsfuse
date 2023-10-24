@@ -84,7 +84,7 @@ type Bucket interface {
 		req *CreateObjectRequest) (*Object, error)
 
 	// CreateChunkUploader creates a chunkUploader instance
-	// according to supplied createObjectRequest. This needs
+	// according to supplied createChunkUploaderRequest. This needs
 	// to be used when caller wants control on the resumable
 	// upload api.
 	//
@@ -99,7 +99,7 @@ type Bucket interface {
 	// The progress function callback is expected exactly once for each upload.
 	//
 	// Sample usage:
-	// uploader, err := bucket.CreateChunkUploader(ctx, createObjectReq,
+	// uploader, err := bucket.CreateChunkUploader(ctx, createChunkUploaderReq,
 	//						chunkSize,
 	//						func(n int64) {
 	//							log("n bytes successfully uploaded so far")
@@ -117,7 +117,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/resumable-uploads#go
 	CreateChunkUploader(
 		ctx context.Context,
-		req *CreateObjectRequest,
+		req *CreateChunkUploaderRequest,
 		writeChunkSize int,
 		progressFunc func(int64)) (ChunkUploader, error)
 

@@ -476,9 +476,11 @@ func (t *createTest) Overwrite() {
 	_, err = t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name: "foo",
-			Metadata: map[string]string{
-				"foo": "bar",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+				Metadata: map[string]string{
+					"foo": "bar",
+				},
 			},
 			Contents: strings.NewReader("taco"),
 		})
@@ -489,7 +491,9 @@ func (t *createTest) Overwrite() {
 	_, err = t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader("burrito"),
 		})
 
@@ -558,14 +562,16 @@ func (t *createTest) ObjectAttributes_Explicit() {
 	// Create an object with explicit attributes set.
 	createTime := t.clock.Now()
 	req := &gcs.CreateObjectRequest{
-		Name:            "foo",
-		ContentType:     "image/png",
-		ContentLanguage: "fr",
-		ContentEncoding: "gzip",
-		CacheControl:    "public",
-		Metadata: map[string]string{
-			"foo": "bar",
-			"baz": "qux",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:            "foo",
+			ContentType:     "image/png",
+			ContentLanguage: "fr",
+			ContentEncoding: "gzip",
+			CacheControl:    "public",
+			Metadata: map[string]string{
+				"foo": "bar",
+				"baz": "qux",
+			},
 		},
 
 		Contents: strings.NewReader("taco"),
@@ -613,7 +619,9 @@ func (t *createTest) ErrorAfterPartialContents() {
 
 	// Set up a reader that will return some successful data, then an error.
 	req := &gcs.CreateObjectRequest{
-		Name: "foo",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+		},
 		Contents: iotest.TimeoutReader(
 			iotest.OneByteReader(
 				strings.NewReader(contents))),
@@ -775,9 +783,11 @@ func (t *createTest) IncorrectCRC32C() {
 	*crc32c++
 
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
-		Contents: strings.NewReader(contents),
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		CRC32C:   crc32c,
+		Contents: strings.NewReader(contents),
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
@@ -800,7 +810,9 @@ func (t *createTest) CorrectCRC32C() {
 
 	// Create
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		Contents: strings.NewReader(contents),
 		CRC32C:   storageutil.CRC32C([]byte(contents)),
 	}
@@ -820,7 +832,9 @@ func (t *createTest) IncorrectMD5() {
 	(*md5)[13]++
 
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		Contents: strings.NewReader(contents),
 		MD5:      md5,
 	}
@@ -845,7 +859,9 @@ func (t *createTest) CorrectMD5() {
 
 	// Create
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		Contents: strings.NewReader(contents),
 		MD5:      storageutil.MD5([]byte(contents)),
 	}
@@ -862,7 +878,9 @@ func (t *createTest) CorrectCRC32CAndMD5() {
 
 	// Create
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		Contents: strings.NewReader(contents),
 		CRC32C:   storageutil.CRC32C([]byte(contents)),
 		MD5:      storageutil.MD5([]byte(contents)),
@@ -887,9 +905,11 @@ func (t *createTest) GenerationPrecondition_Zero_Unsatisfied() {
 	// saying it shouldn't exist. The request should fail.
 	var gen int64 = 0
 	req := &gcs.CreateObjectRequest{
-		Name:                   "foo",
-		Contents:               strings.NewReader("burrito"),
-		GenerationPrecondition: &gen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   "foo",
+			GenerationPrecondition: &gen,
+		},
+		Contents: strings.NewReader("burrito"),
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
@@ -920,9 +940,11 @@ func (t *createTest) GenerationPrecondition_Zero_Satisfied() {
 	// The request should succeed.
 	var gen int64 = 0
 	req := &gcs.CreateObjectRequest{
-		Name:                   "foo",
-		Contents:               strings.NewReader("burrito"),
-		GenerationPrecondition: &gen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   "foo",
+			GenerationPrecondition: &gen,
+		},
+		Contents: strings.NewReader("burrito"),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -954,9 +976,11 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Missing() {
 	// should already exist with some generation number. The request should fail.
 	var gen int64 = 17
 	req := &gcs.CreateObjectRequest{
-		Name:                   "foo",
-		Contents:               strings.NewReader("burrito"),
-		GenerationPrecondition: &gen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   "foo",
+			GenerationPrecondition: &gen,
+		},
+		Contents: strings.NewReader("burrito"),
 	}
 
 	_, err := t.bucket.CreateObject(t.ctx, req)
@@ -987,9 +1011,11 @@ func (t *createTest) GenerationPrecondition_NonZero_Unsatisfied_Present() {
 	// the wrong generation. The request should fail.
 	var gen int64 = o.Generation + 1
 	req := &gcs.CreateObjectRequest{
-		Name:                   "foo",
-		Contents:               strings.NewReader("burrito"),
-		GenerationPrecondition: &gen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   "foo",
+			GenerationPrecondition: &gen,
+		},
+		Contents: strings.NewReader("burrito"),
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
@@ -1030,9 +1056,10 @@ func (t *createTest) GenerationPrecondition_NonZero_Satisfied() {
 	// should succeed.
 	var gen int64 = orig.Generation
 	req := &gcs.CreateObjectRequest{
-		Name:                   "foo",
-		Contents:               strings.NewReader("burrito"),
-		GenerationPrecondition: &gen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                   "foo",
+			GenerationPrecondition: &gen,
+		}, Contents: strings.NewReader("burrito"),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -1066,9 +1093,10 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectDoesntExist() 
 	// meta-generation. The request should fail.
 	var metagen int64 = 1
 	req := &gcs.CreateObjectRequest{
-		Name:                       "foo",
-		Contents:                   strings.NewReader("burrito"),
-		MetaGenerationPrecondition: &metagen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                       "foo",
+			MetaGenerationPrecondition: &metagen,
+		}, Contents: strings.NewReader("burrito"),
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
@@ -1099,9 +1127,10 @@ func (t *createTest) MetaGenerationPrecondition_Unsatisfied_ObjectExists() {
 	// the wrong meta-generation. The request should fail.
 	var metagen int64 = o.MetaGeneration + 1
 	req := &gcs.CreateObjectRequest{
-		Name:                       "foo",
-		Contents:                   strings.NewReader("burrito"),
-		MetaGenerationPrecondition: &metagen,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                       "foo",
+			MetaGenerationPrecondition: &metagen,
+		}, Contents: strings.NewReader("burrito"),
 	}
 
 	_, err = t.bucket.CreateObject(t.ctx, req)
@@ -1140,9 +1169,10 @@ func (t *createTest) MetaGenerationPrecondition_Satisfied() {
 	// Request to create another version of the object, with a satisfied
 	// precondition.
 	req := &gcs.CreateObjectRequest{
-		Name:                       "foo",
-		Contents:                   strings.NewReader("burrito"),
-		MetaGenerationPrecondition: &orig.MetaGeneration,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                       "foo",
+			MetaGenerationPrecondition: &orig.MetaGeneration,
+		}, Contents: strings.NewReader("burrito"),
 	}
 
 	o, err := t.bucket.CreateObject(t.ctx, req)
@@ -1210,13 +1240,15 @@ func (t *copyTest) DestinationDoesntExist() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:            "foo",
-			ContentType:     "text/plain",
-			ContentLanguage: "fr",
-			CacheControl:    "public",
-			Metadata: map[string]string{
-				"foo": "bar",
-				"baz": "qux",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:            "foo",
+				ContentType:     "text/plain",
+				ContentLanguage: "fr",
+				CacheControl:    "public",
+				Metadata: map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				},
 			},
 
 			Contents: strings.NewReader("taco"),
@@ -1278,13 +1310,15 @@ func (t *copyTest) DestinationExists() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:            "foo",
-			ContentType:     "text/plain",
-			ContentLanguage: "fr",
-			CacheControl:    "public",
-			Metadata: map[string]string{
-				"foo": "bar",
-				"baz": "qux",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:            "foo",
+				ContentType:     "text/plain",
+				ContentLanguage: "fr",
+				CacheControl:    "public",
+				Metadata: map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				},
 			},
 
 			Contents: strings.NewReader("taco"),
@@ -1301,11 +1335,13 @@ func (t *copyTest) DestinationExists() {
 	orig, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:            "bar",
-			ContentType:     "application/octet-stream",
-			ContentLanguage: "de",
-			Metadata: map[string]string{
-				"foo": "blah",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:            "bar",
+				ContentType:     "application/octet-stream",
+				ContentLanguage: "de",
+				Metadata: map[string]string{
+					"foo": "blah",
+				},
 			},
 
 			Contents: strings.NewReader("burrito"),
@@ -1363,13 +1399,15 @@ func (t *copyTest) DestinationIsSameName() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:            "foo",
-			ContentType:     "text/plain",
-			ContentLanguage: "fr",
-			CacheControl:    "public",
-			Metadata: map[string]string{
-				"foo": "bar",
-				"baz": "qux",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:            "foo",
+				ContentType:     "text/plain",
+				ContentLanguage: "fr",
+				CacheControl:    "public",
+				Metadata: map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				},
 			},
 
 			Contents: strings.NewReader("taco"),
@@ -1520,7 +1558,9 @@ func (t *copyTest) ParticularSourceGeneration_GenerationDoesntExist() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader("taco"),
 		})
 
@@ -1544,7 +1584,9 @@ func (t *copyTest) ParticularSourceGeneration_Exists() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader("taco"),
 		})
 
@@ -1568,7 +1610,9 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader(""),
 		})
 
@@ -1600,7 +1644,9 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader(""),
 		})
 
@@ -1655,13 +1701,14 @@ func (t *composeTest) createSources(
 				objs[i], err = t.bucket.CreateObject(
 					ctx,
 					&gcs.CreateObjectRequest{
-						Name:            fmt.Sprint(i),
-						Contents:        strings.NewReader(contents[i]),
-						ContentType:     "application/json",
-						ContentLanguage: "de",
-						Metadata: map[string]string{
-							"foo": "bar",
-						},
+						CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+							Name:            fmt.Sprint(i),
+							ContentType:     "application/json",
+							ContentLanguage: "de",
+							Metadata: map[string]string{
+								"foo": "bar",
+							},
+						}, Contents: strings.NewReader(contents[i]),
 					},
 				)
 
@@ -2463,7 +2510,9 @@ func (t *composeTest) TooManySources() {
 	src, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "src",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "src",
+			},
 			Contents: strings.NewReader(""),
 		})
 
@@ -2494,7 +2543,9 @@ func (t *composeTest) ComponentCountLimits() {
 	small, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "small",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "small",
+			},
 			Contents: strings.NewReader("a"),
 		})
 
@@ -3139,13 +3190,15 @@ func (t *updateTest) NonExistentObject() {
 func (t *updateTest) RemoveAllFields() {
 	// Create an object with explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
-		Name:            "foo",
-		ContentType:     "image/png",
-		ContentEncoding: "gzip",
-		ContentLanguage: "fr",
-		CacheControl:    "public",
-		Metadata: map[string]string{
-			"foo": "bar",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:            "foo",
+			ContentType:     "image/png",
+			ContentEncoding: "gzip",
+			ContentLanguage: "fr",
+			CacheControl:    "public",
+			Metadata: map[string]string{
+				"foo": "bar",
+			},
 		},
 
 		Contents: strings.NewReader("taco"),
@@ -3192,13 +3245,15 @@ func (t *updateTest) RemoveAllFields() {
 func (t *updateTest) ModifyAllFields() {
 	// Create an object with explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
-		Name:            "foo",
-		ContentType:     "image/png",
-		ContentEncoding: "gzip",
-		ContentLanguage: "fr",
-		CacheControl:    "public",
-		Metadata: map[string]string{
-			"foo": "bar",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:            "foo",
+			ContentType:     "image/png",
+			ContentEncoding: "gzip",
+			ContentLanguage: "fr",
+			CacheControl:    "public",
+			Metadata: map[string]string{
+				"foo": "bar",
+			},
 		},
 
 		Contents: strings.NewReader("taco"),
@@ -3245,12 +3300,14 @@ func (t *updateTest) ModifyAllFields() {
 func (t *updateTest) MixedModificationsToFields() {
 	// Create an object with some explicit attributes set.
 	createReq := &gcs.CreateObjectRequest{
-		Name:            "foo",
-		ContentType:     "image/png",
-		ContentEncoding: "gzip",
-		ContentLanguage: "fr",
-		Metadata: map[string]string{
-			"foo": "bar",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:            "foo",
+			ContentType:     "image/png",
+			ContentEncoding: "gzip",
+			ContentLanguage: "fr",
+			Metadata: map[string]string{
+				"foo": "bar",
+			},
 		},
 
 		Contents: strings.NewReader("taco"),
@@ -3341,11 +3398,13 @@ func (t *updateTest) AddUserMetadata() {
 func (t *updateTest) MixedModificationsToUserMetadata() {
 	// Create an object with some user metadata.
 	createReq := &gcs.CreateObjectRequest{
-		Name: "foo",
-		Metadata: map[string]string{
-			"0": "taco",
-			"2": "enchilada",
-			"3": "queso",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+			Metadata: map[string]string{
+				"0": "taco",
+				"2": "enchilada",
+				"3": "queso",
+			},
 		},
 
 		Contents: strings.NewReader("taco"),
@@ -3441,7 +3500,9 @@ func (t *updateTest) ParticularGeneration_NameDoesntExist() {
 func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
-		Name:     "foo",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+		},
 		Contents: strings.NewReader(""),
 	}
 
@@ -3473,7 +3534,9 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 func (t *updateTest) ParticularGeneration_Successful() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
-		Name:     "foo",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+		},
 		Contents: strings.NewReader(""),
 	}
 
@@ -3504,7 +3567,9 @@ func (t *updateTest) ParticularGeneration_Successful() {
 func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
-		Name:     "foo",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+		},
 		Contents: strings.NewReader(""),
 	}
 
@@ -3534,7 +3599,9 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	// Create an object.
 	createReq := &gcs.CreateObjectRequest{
-		Name:     "foo",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+		},
 		Contents: strings.NewReader(""),
 	}
 
@@ -4326,7 +4393,9 @@ func (t *cancellationTest) CreateObject() {
 	errChan := make(chan error)
 	go func() {
 		req := &gcs.CreateObjectRequest{
-			Name:     name,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: name,
+			},
 			Contents: rc,
 		}
 
@@ -4383,7 +4452,9 @@ func (t *cancellationTest) ReadObject() {
 	_, err = t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     name,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: name,
+			},
 			Contents: io.LimitReader(rand.Reader, size),
 		})
 

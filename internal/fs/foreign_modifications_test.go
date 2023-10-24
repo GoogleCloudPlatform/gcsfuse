@@ -817,9 +817,11 @@ func (t *ForeignModsTest) Mtime() {
 	// Create an object that has an mtime set.
 	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
 	req := &gcs.CreateObjectRequest{
-		Name: "foo",
-		Metadata: map[string]string{
-			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+			Metadata: map[string]string{
+				"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
+			},
 		},
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}
@@ -841,9 +843,11 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 	_, err = bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name: "foo",
-			Metadata: map[string]string{
-				"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+				Metadata: map[string]string{
+					"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
+				},
 			},
 			Contents: ioutil.NopCloser(strings.NewReader("")),
 		})
@@ -881,9 +885,11 @@ func (t *ForeignModsTest) Symlink() {
 
 	// Create an object that looks like a symlink.
 	req := &gcs.CreateObjectRequest{
-		Name: "foo",
-		Metadata: map[string]string{
-			"gcsfuse_symlink_target": "bar/baz",
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: "foo",
+			Metadata: map[string]string{
+				"gcsfuse_symlink_target": "bar/baz",
+			},
 		},
 		Contents: ioutil.NopCloser(strings.NewReader("")),
 	}

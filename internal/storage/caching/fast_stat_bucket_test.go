@@ -84,7 +84,9 @@ func (t *CreateObjectTest) CallsEraseAndWrapped() {
 
 	// Call
 	req := &gcs.CreateObjectRequest{
-		Name: name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 	}
 
 	_, _ = t.bucket.CreateObject(context.TODO(), req)

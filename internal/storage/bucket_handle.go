@@ -189,7 +189,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 func (bh *bucketHandle) CreateChunkUploader(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest,
+	req *gcs.CreateChunkUploaderRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (sow gcs.ChunkUploader, err error) {
 	return nil, fmt.Errorf("not implemented yet")

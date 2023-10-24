@@ -316,7 +316,9 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithValidObject() {
 	content := "Creating a new object"
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
-			Name:     "test_object",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "test_object",
+			},
 			Contents: strings.NewReader(content),
 		})
 
@@ -330,9 +332,11 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZero() {
 	var generation int64 = 0
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
-			Name:                   "test_object",
-			Contents:               strings.NewReader(content),
-			GenerationPrecondition: &generation,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   "test_object",
+				GenerationPrecondition: &generation,
+			},
+			Contents: strings.NewReader(content),
 		})
 
 	AssertEq(obj.Name, "test_object")
@@ -346,9 +350,11 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 	var precondition *gcs.PreconditionError
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
-			Name:                   "test_object",
-			Contents:               strings.NewReader(content),
-			GenerationPrecondition: &generation,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   "test_object",
+				GenerationPrecondition: &generation,
+			},
+			Contents: strings.NewReader(content),
 		})
 
 	AssertEq(obj.Name, "test_object")
@@ -357,9 +363,11 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 
 	obj, err = t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
-			Name:                   "test_object",
-			Contents:               strings.NewReader(content),
-			GenerationPrecondition: &generation,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   "test_object",
+				GenerationPrecondition: &generation,
+			},
+			Contents: strings.NewReader(content),
 		})
 
 	AssertEq(nil, obj)
@@ -374,10 +382,12 @@ func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExi
 
 	obj, err := t.bucketHandle.CreateObject(context.Background(),
 		&gcs.CreateObjectRequest{
-			Name:                   "test_object",
-			Contents:               strings.NewReader(content),
-			CRC32C:                 &crc32,
-			GenerationPrecondition: &generation,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   "test_object",
+				GenerationPrecondition: &generation,
+			},
+			Contents: strings.NewReader(content),
+			CRC32C:   &crc32,
 		})
 
 	AssertEq(nil, obj)

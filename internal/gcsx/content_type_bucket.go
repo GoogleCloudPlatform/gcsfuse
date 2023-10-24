@@ -47,7 +47,7 @@ func (b contentTypeBucket) CreateObject(
 
 func (b contentTypeBucket) CreateChunkUploader(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest,
+	req *gcs.CreateChunkUploaderRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
 	// Guess a content type if necessary.
