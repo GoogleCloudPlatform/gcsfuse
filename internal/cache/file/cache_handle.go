@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -50,8 +51,8 @@ type CacheHandle struct {
 	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
 
-	// isSequential saves if the current read performed via cache_handle is sequential or
-	// random. If true then sequential otherwise random.
+	// isSequential saves if the current read performed via cache handle is sequential or
+	// random.
 	isSequential bool
 
 	// prevOffset stores the offset of previous cache_handle read call. This is used
@@ -66,7 +67,6 @@ type CacheHandle struct {
 	contributesToJobRefCount bool
 }
 
-// NewCacheHandle constructs and returns CacheHandle object.
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:               localFileHandle,
@@ -78,7 +78,6 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, f
 	}
 }
 
-// validateCacheHandle will validate the  cache-handle and return appropriate error.
 func (fch *CacheHandle) validateCacheHandle() error {
 
 	if fch.fileHandle == nil {
@@ -99,8 +98,7 @@ func (fch *CacheHandle) validateCacheHandle() error {
 func (fch *CacheHandle) checkIfEntryExistWithCorrectGeneration(object *gcs.MinObject, bucket gcs.Bucket) (bool, error) {
 	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
 	// we don't need this.
-	fileInfoKey := data.FileInfoKey{ObjectName: object.Name, BucketName: bucket.Name()}
-	fileInfoKeyName, err := fileInfoKey.Key()
+	fileInfoKeyName, err := data.GetFileInfoKeyName(object.Name, time.Time{}, bucket.Name())
 	if err != nil {
 		return false, fmt.Errorf("error while fetching key: %v", err)
 	}
@@ -116,20 +114,24 @@ func (fch *CacheHandle) checkIfEntryExistWithCorrectGeneration(object *gcs.MinOb
 
 // Read attempts to read the data from the cached location. This expects a
 // fileInfoCache entry for the current read request, and will wait to download
-// the requested chunk if it is not already present.
-func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, offset uint64, dst []byte) (n int, err error) {
+// the requested chunk if it is not already present for sequential read.
+// It doesn't wait, in case of random reads.
+func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, offset int64, dst []byte) (n int, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
 	}
 
+	fch.prevOffset = offset
+
 	// We need to download the data till offset + len(dst), if not already.
-	bufferLen := uint64(len(dst))
+	bufferLen := int64(len(dst))
 	requiredOffset := offset + bufferLen
 
-	// Also, need to make sure, it should not exceed the total file-size.
-	if requiredOffset > object.Size {
-		requiredOffset = object.Size
+	// Also, need to make sure, it should not exceed the total object-size.
+	objSize := int64(object.Size)
+	if requiredOffset > objSize {
+		requiredOffset = objSize
 	}
 
 	waitForDownload := true
@@ -148,12 +150,12 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 		}
 
 		// Todo - (raj-prince): to incorporate the newly introduced Invalid flag.
-		if jobStatus.Name == "Invalid" || jobStatus.Name == downloader.NOT_STARTED {
+		if jobStatus.Name == "Invalid" ||
+				jobStatus.Name == downloader.NOT_STARTED ||
+				jobStatus.Name == downloader.FAILED {
 			return 0, errors.New(InvalidFileDownloadJob)
-		} else {
-			if jobStatus.Offset < int64(requiredOffset) {
-				return 0, errors.New(FallbackToGCS)
-			}
+		} else if jobStatus.Offset < requiredOffset {
+			return 0, errors.New(FallbackToGCS)
 		}
 	}
 
@@ -179,7 +181,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	//		following up with the addition of the same fileInfo.
 	//    (a) If the generations are the same, this will not cause any issue.
 	//    (b) If the generations are different, we will discard the old data and
-	//        server new data from gcs for this call.
+	//        serve new data from gcs for this call.
 	ok, err := fch.checkIfEntryExistWithCorrectGeneration(object, bucket)
 	if err != nil || !ok {
 		n = 0
