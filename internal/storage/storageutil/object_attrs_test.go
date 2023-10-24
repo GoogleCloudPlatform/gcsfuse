@@ -182,21 +182,23 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 	md5Hash := md5.Sum([]byte("testing"))
 	timeInRFC3339 := "2006-01-02T15:04:05Z07:00"
 	createObjectRequest := gcs.CreateObjectRequest{
-		Name:                       "test_object",
-		ContentType:                "json",
-		ContentEncoding:            "universal",
-		CacheControl:               "Medium",
-		Metadata:                   map[string]string{"file_name": "test.txt"},
-		ContentDisposition:         "Test content disposition",
-		CustomTime:                 timeInRFC3339,
-		EventBasedHold:             true,
-		StorageClass:               "High Accessibility",
-		Acl:                        nil,
-		Contents:                   strings.NewReader("Creating new object"),
-		CRC32C:                     &crc32c,
-		MD5:                        &md5Hash,
-		GenerationPrecondition:     &generationPrecondition,
-		MetaGenerationPrecondition: &metaGenerationPrecondition,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                       "test_object",
+			ContentType:                "json",
+			ContentEncoding:            "universal",
+			CacheControl:               "Medium",
+			Metadata:                   map[string]string{"file_name": "test.txt"},
+			ContentDisposition:         "Test content disposition",
+			CustomTime:                 timeInRFC3339,
+			EventBasedHold:             true,
+			StorageClass:               "High Accessibility",
+			Acl:                        nil,
+			GenerationPrecondition:     &generationPrecondition,
+			MetaGenerationPrecondition: &metaGenerationPrecondition,
+		},
+		Contents: strings.NewReader("Creating new object"),
+		CRC32C:   &crc32c,
+		MD5:      &md5Hash,
 	}
 	writer := &storage.Writer{}
 

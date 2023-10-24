@@ -29,7 +29,9 @@ func CreateObject(
 	name string,
 	contents []byte) (*gcs.Object, error) {
 	req := &gcs.CreateObjectRequest{
-		Name:     name,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name: name,
+		},
 		Contents: bytes.NewReader(contents),
 	}
 

@@ -71,7 +71,9 @@ func MakeFakeBucket(ctx context.Context) (b gcs.Bucket) {
 		_, err := b.CreateObject(
 			ctx,
 			&gcs.CreateObjectRequest{
-				Name:     k,
+				CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+					Name: k,
+				},
 				Contents: strings.NewReader(v),
 			})
 

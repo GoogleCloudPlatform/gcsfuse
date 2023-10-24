@@ -52,16 +52,16 @@ type chunkUploader struct {
 
 // NewChunkUploader creates a new instance of chunkUploader,
 // for the given inputs.
-func NewChunkUploader(ctx context.Context, obj *storage.ObjectHandle, req *gcs.CreateObjectRequest, writeChunkSize int, progressFunc func(int64)) (gcs.ChunkUploader, error) {
+func NewChunkUploader(ctx context.Context, obj *storage.ObjectHandle, req *gcs.CreateChunkUploaderRequest, writeChunkSize int, progressFunc func(int64)) (gcs.ChunkUploader, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("ctx is nil")
 	}
 	if obj == nil || req == nil {
-		return nil, fmt.Errorf("nil ObjectHandle or CreateObjectRequest")
+		return nil, fmt.Errorf("nil ObjectHandle or CreateChunkUploaderRequest")
 	}
 
 	if obj.ObjectName() != req.Name {
-		return nil, fmt.Errorf("names of passed ObjectHandle and CreateObjectRequest don't match: ObjectHandle.Name=%s createObjectRequest.Name=%s", obj.ObjectName(), req.Name)
+		return nil, fmt.Errorf("names of passed ObjectHandle and CreateChunkUploaderRequest don't match: ObjectHandle.Name=%s CreateChunkUploaderRequest.Name=%s", obj.ObjectName(), req.Name)
 	}
 
 	if req.GenerationPrecondition != nil && *req.GenerationPrecondition != 0 {
@@ -82,7 +82,7 @@ func NewChunkUploader(ctx context.Context, obj *storage.ObjectHandle, req *gcs.C
 	// Create a NewWriter with the requested attributes, using Go Storage Client.
 	// NewWriter never returns nil, so no nil-check is needed on it.
 	wc := obj.NewWriter(ctx)
-	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc = storageutil.SetAttrsInWriter(wc, &gcs.CreateObjectRequest{CreateChunkUploaderRequest: *req})
 	wc.ChunkSize = writeChunkSize
 	wc.ProgressFunc = func(n int64) {
 		uploader.totalWriteSucceededSoFar.Store(n)

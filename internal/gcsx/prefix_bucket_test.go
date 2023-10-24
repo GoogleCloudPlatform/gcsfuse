@@ -101,9 +101,11 @@ func (t *PrefixBucketTest) CreateObject() {
 	o, err := t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:            suffix,
-			ContentLanguage: "en-GB",
-			Contents:        strings.NewReader(contents),
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:            suffix,
+				ContentLanguage: "en-GB",
+			},
+			Contents: strings.NewReader(contents),
 		})
 
 	AssertEq(nil, err)

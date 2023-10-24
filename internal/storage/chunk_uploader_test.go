@@ -25,7 +25,7 @@ func TestChunkUploader(t *testing.T) { RunTests(t) }
 type ChunkUploaderTest struct {
 	fakeStorage FakeStorage
 	content     string
-	req         *gcs.CreateObjectRequest
+	req         *gcs.CreateChunkUploaderRequest
 	obj         *storage.ObjectHandle
 }
 
@@ -42,9 +42,8 @@ func (t *ChunkUploaderTest) SetUp(ti *TestInfo) {
 	AssertNe(nil, bucketHandle)
 
 	t.content = "Creating a new object"
-	t.req = &gcs.CreateObjectRequest{
-		Name:     "test_object",
-		Contents: strings.NewReader(t.content),
+	t.req = &gcs.CreateChunkUploaderRequest{
+		Name: "test_object",
 	}
 
 	t.obj = bucketHandle.bucket.Object(t.req.Name)
@@ -66,7 +65,7 @@ func (t *ChunkUploaderTest) TearDown() {
 // If properly created, it casts it to chunkUploader pointer and returns.
 func (t *ChunkUploaderTest) testNewChunkUploader(ctx context.Context,
 	obj *storage.ObjectHandle,
-	req *gcs.CreateObjectRequest,
+	req *gcs.CreateChunkUploaderRequest,
 	chunkSize int,
 	progressFunc func(int64)) *chunkUploader {
 	uploader, err := NewChunkUploader(ctx, obj, req, chunkSize, progressFunc)
@@ -252,13 +251,13 @@ func (t *ChunkUploaderTest) testUploadMultipleUploads(chunkSize int, chunkSizeMu
 func (t *ChunkUploaderTest) CreateWithImproperInputs() {
 	properReq := t.req
 	properObj := t.obj
-	diffCreateReq := &gcs.CreateObjectRequest{}
+	diffCreateReq := &gcs.CreateChunkUploaderRequest{}
 	*diffCreateReq = *properReq
 	diffCreateReq.Name = "FakeName"
 	inputs := []struct {
 		ctx          context.Context
 		obj          *storage.ObjectHandle
-		req          *gcs.CreateObjectRequest
+		req          *gcs.CreateChunkUploaderRequest
 		chunkSize    int
 		progressFunc func(int64)
 		errStr       string
@@ -266,7 +265,7 @@ func (t *ChunkUploaderTest) CreateWithImproperInputs() {
 		errStr: "ctx is nil",
 	}, {
 		ctx:    context.Background(),
-		errStr: "nil ObjectHandle or CreateObjectRequest",
+		errStr: "nil ObjectHandle or CreateChunkUploaderRequest",
 	}, {
 		ctx:    context.Background(),
 		obj:    properObj,
@@ -276,7 +275,7 @@ func (t *ChunkUploaderTest) CreateWithImproperInputs() {
 		ctx:       context.Background(),
 		obj:       properObj,
 		req:       diffCreateReq,
-		errStr:    "names of passed ObjectHandle and CreateObjectRequest don't match",
+		errStr:    "names of passed ObjectHandle and CreateChunkUploaderRequest don't match",
 		chunkSize: 100,
 	},
 	}
@@ -295,7 +294,7 @@ func (t *ChunkUploaderTest) CreateWithProperInputs() {
 	inputs := []struct {
 		ctx          context.Context
 		obj          *storage.ObjectHandle
-		req          *gcs.CreateObjectRequest
+		req          *gcs.CreateChunkUploaderRequest
 		chunkSize    int
 		progressFunc func(int64)
 	}{{
@@ -430,7 +429,7 @@ func (t *ChunkUploaderTest) TestCloseWithSingleSubChunkUpload() {
 	contentSize := len(t.content)
 
 	uploader := t.testNewChunkUploader(context.Background(), obj, t.req, chunkSize, nil)
-	t.testUploadChunkAsync(uploader, t.req.Contents)
+	t.testUploadChunkAsync(uploader, strings.NewReader(t.content))
 
 	t.testClose(uploader, t.req.Name, contentSize)
 }

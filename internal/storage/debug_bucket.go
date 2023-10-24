@@ -161,7 +161,7 @@ func (b *debugBucket) CreateObject(
 
 func (b *debugBucket) CreateChunkUploader(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest,
+	req *gcs.CreateChunkUploaderRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
 	return nil, fmt.Errorf("not implemented yet")

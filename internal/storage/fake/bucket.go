@@ -561,7 +561,7 @@ func (b *bucket) CreateObject(
 
 func (b *bucket) CreateChunkUploader(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest,
+	req *gcs.CreateChunkUploaderRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
 	return nil, fmt.Errorf("not supported")
@@ -686,12 +686,14 @@ func (b *bucket) ComposeObjects(
 
 	// Create the new object.
 	createReq := &gcs.CreateObjectRequest{
-		Name:                       req.DstName,
-		GenerationPrecondition:     req.DstGenerationPrecondition,
-		MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
-		Contents:                   io.MultiReader(srcReaders...),
-		ContentType:                req.ContentType,
-		Metadata:                   req.Metadata,
+		CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+			Name:                       req.DstName,
+			GenerationPrecondition:     req.DstGenerationPrecondition,
+			MetaGenerationPrecondition: req.DstMetaGenerationPrecondition,
+			ContentType:                req.ContentType,
+			Metadata:                   req.Metadata,
+		},
+		Contents: io.MultiReader(srcReaders...),
 	}
 
 	_, err = b.createObjectLocked(createReq)

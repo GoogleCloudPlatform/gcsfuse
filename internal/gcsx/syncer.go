@@ -92,10 +92,12 @@ func (oc *fullObjectCreator) Create(
 	if srcObject == nil {
 		var precond int64
 		req = &gcs.CreateObjectRequest{
-			Name:                   objectName,
-			Contents:               r,
-			GenerationPrecondition: &precond,
-			Metadata:               metadataMap,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   objectName,
+				GenerationPrecondition: &precond,
+				Metadata:               metadataMap,
+			},
+			Contents: r,
 		}
 	} else {
 		for key, value := range srcObject.Metadata {
@@ -103,18 +105,20 @@ func (oc *fullObjectCreator) Create(
 		}
 
 		req = &gcs.CreateObjectRequest{
-			Name:                       srcObject.Name,
-			GenerationPrecondition:     &srcObject.Generation,
-			MetaGenerationPrecondition: &srcObject.MetaGeneration,
-			Contents:                   r,
-			Metadata:                   metadataMap,
-			CacheControl:               srcObject.CacheControl,
-			ContentDisposition:         srcObject.ContentDisposition,
-			ContentEncoding:            srcObject.ContentEncoding,
-			ContentType:                srcObject.ContentType,
-			CustomTime:                 srcObject.CustomTime,
-			EventBasedHold:             srcObject.EventBasedHold,
-			StorageClass:               srcObject.StorageClass,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                       srcObject.Name,
+				GenerationPrecondition:     &srcObject.Generation,
+				MetaGenerationPrecondition: &srcObject.MetaGeneration,
+				Metadata:                   metadataMap,
+				CacheControl:               srcObject.CacheControl,
+				ContentDisposition:         srcObject.ContentDisposition,
+				ContentEncoding:            srcObject.ContentEncoding,
+				ContentType:                srcObject.ContentType,
+				CustomTime:                 srcObject.CustomTime,
+				EventBasedHold:             srcObject.EventBasedHold,
+				StorageClass:               srcObject.StorageClass,
+			},
+			Contents: r,
 		}
 	}
 

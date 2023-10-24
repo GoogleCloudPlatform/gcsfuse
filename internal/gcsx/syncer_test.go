@@ -304,7 +304,9 @@ func (t *SyncerTest) SetUp(ti *TestInfo) {
 	t.srcObject, err = t.bucket.CreateObject(
 		t.ctx,
 		&gcs.CreateObjectRequest{
-			Name:     "foo",
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name: "foo",
+			},
 			Contents: strings.NewReader(srcObjectContents),
 		})
 

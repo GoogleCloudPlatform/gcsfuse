@@ -22,8 +22,8 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-// A request to create an object, accepted by Bucket.CreateObject.
-type CreateObjectRequest struct {
+// A request to create an aysnchronous object uploader, accepted by Bucket.CreateChunkUploader.
+type CreateChunkUploaderRequest struct {
 	// The name with which to create the object. This field must be set.
 	//
 	// Object names must:
@@ -54,6 +54,21 @@ type CreateObjectRequest struct {
 	StorageClass       string
 	Acl                []*storagev1.ObjectAccessControl
 
+	// If non-nil, the object will be created/overwritten only if the current
+	// generation for the object name is equal to the given value. Zero means the
+	// object does not exist.
+	GenerationPrecondition *int64
+
+	// If non-nil, the object will be created/overwritten only if the current
+	// meta-generation for the object name is equal to the given value. This is
+	// only meaningful in conjunction with GenerationPrecondition.
+	MetaGenerationPrecondition *int64
+}
+
+// A request to create an object, accepted by Bucket.CreateObject.
+type CreateObjectRequest struct {
+	CreateChunkUploaderRequest
+
 	// A reader from which to obtain the contents of the object. Must be non-nil.
 	Contents io.Reader
 
@@ -64,16 +79,6 @@ type CreateObjectRequest struct {
 	// If non-nil, the object will not be created if the MD5 sum of the received
 	// contents does not match the supplied value.
 	MD5 *[md5.Size]byte
-
-	// If non-nil, the object will be created/overwritten only if the current
-	// generation for the object name is equal to the given value. Zero means the
-	// object does not exist.
-	GenerationPrecondition *int64
-
-	// If non-nil, the object will be created/overwritten only if the current
-	// meta-generation for the object name is equal to the given value. This is
-	// only meaningful in conjunction with GenerationPrecondition.
-	MetaGenerationPrecondition *int64
 }
 
 // A request to copy an object to a new name, preserving all metadata.

@@ -99,9 +99,11 @@ func (oc *appendObjectCreator) Create(
 	tmp, err := oc.bucket.CreateObject(
 		ctx,
 		&gcs.CreateObjectRequest{
-			Name:                   tmpName,
-			GenerationPrecondition: &zero,
-			Contents:               r,
+			CreateChunkUploaderRequest: gcs.CreateChunkUploaderRequest{
+				Name:                   tmpName,
+				GenerationPrecondition: &zero,
+			},
+			Contents: r,
 		})
 	if err != nil {
 		err = fmt.Errorf("CreateObject: %w", err)
