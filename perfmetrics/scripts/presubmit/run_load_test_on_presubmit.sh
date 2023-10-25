@@ -16,7 +16,6 @@
 set -e
 
 echo Running fio test..
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 fio ./perfmetrics/scripts/job_files/presubmit_perf_test.fio --lat_percentiles 1 --output-format=json --output='output.json'
 echo fetching results..
 python3 ./perfmetrics/scripts/presubmit/fetch_results.py output.json

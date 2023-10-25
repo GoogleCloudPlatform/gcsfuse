@@ -78,6 +78,7 @@ function install_requirements() {
   git checkout c5d8ce3fc736210ded83b126c71e3225c7ffd7c9 && \
   ./configure && make && sudo make install
   fio --version
+  cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }
 
 # execute perf tests.
