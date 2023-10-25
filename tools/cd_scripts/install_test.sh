@@ -117,7 +117,11 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
 else
-    sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
+    if grep -q centos-7 details.txt || grep -q rhel-7 details.txt; then
+        sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+    else
+        sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
+    fi
 fi
 
 gcsfuse --version |& tee version.txt
