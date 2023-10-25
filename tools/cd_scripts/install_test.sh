@@ -67,6 +67,7 @@ EOF
     else
         sudo dnf makecache
         sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    fi
 fi
 
 # Verify gcsfuse version (successful installation)
@@ -92,6 +93,7 @@ then
         sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
       else
         sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      fi
   fi
 
   # verify old version installation
