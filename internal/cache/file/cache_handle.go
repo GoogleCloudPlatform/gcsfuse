@@ -95,7 +95,7 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-func (fch *CacheHandle) checkIfEntryExistWithCorrectGeneration(object *gcs.MinObject, bucket gcs.Bucket) (bool, error) {
+func (fch *CacheHandle) checkIfEntryExistWithCorrectGenerationAndOffset(object *gcs.MinObject, bucket gcs.Bucket, requiredOffset int64) (bool, error) {
 	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
 	// we don't need this.
 	fileInfoKeyName, err := data.GetFileInfoKeyName(object.Name, time.Time{}, bucket.Name())
@@ -109,7 +109,11 @@ func (fch *CacheHandle) checkIfEntryExistWithCorrectGeneration(object *gcs.MinOb
 		return false, nil
 	}
 
-	return fileInfo.(data.FileInfo).ObjectGeneration == object.Generation, nil
+	if fileInfo.(data.FileInfo).ObjectGeneration != object.Generation {
+		return false, nil
+	}
+
+	return fileInfo.(data.FileInfo).Offset >= uint64(requiredOffset), nil
 }
 
 // Read attempts to read the data from the cached location. This expects a
@@ -182,7 +186,9 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	//    (a) If the generations are the same, this will not cause any issue.
 	//    (b) If the generations are different, we will discard the old data and
 	//        serve new data from gcs for this call.
-	ok, err := fch.checkIfEntryExistWithCorrectGeneration(object, bucket)
+	//    (c) If requiredOffset < fileInfo.Offset, we will discard the old data and
+	//        serve new data from gcs for this call.
+	ok, err := fch.checkIfEntryExistWithCorrectGenerationAndOffset(object, bucket, requiredOffset)
 	if err != nil || !ok {
 		n = 0
 		err = errors.New(InvalidCacheHandle)

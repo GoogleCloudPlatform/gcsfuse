@@ -192,9 +192,9 @@ func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAn
 
 	n, err := t.ch.Read(context.Background(), tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
-	AssertEq(nil, err)
-	AssertEq(n, DstBufferLen)
-	AssertEq(FileContentFromTestOffset, string(dst))
+	ExpectEq(nil, err)
+	ExpectEq(n, DstBufferLen)
+	ExpectEq(FileContentFromTestOffset, string(dst))
 }
 
 func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAndObjectNotMatch() {
@@ -205,28 +205,51 @@ func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAn
 
 	n, err := t.ch.Read(context.Background(), tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
-	AssertEq(InvalidCacheHandle, err.Error())
-	AssertEq(n, 0)
+	ExpectEq(InvalidCacheHandle, err.Error())
+	ExpectEq(n, 0)
 }
 
 func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfNoSuchEntryInCache() {
 	tb := getTestMinGCSObject()
 	tb.Name = TestObjectNameNotInFileInfoCache
 
-	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, 0)
 
-	AssertEq(nil, err)
-	AssertEq(false, ok)
+	ExpectEq(nil, err)
+	ExpectEq(false, ok)
 }
 
-func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatch() {
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatchWithGreaterRequiredOffset() {
 	tb := getTestMinGCSObject()
 	tb.Name = TestObjectName
+	requiredOffset := len(TestFileContent) + 1
 
-	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, int64(requiredOffset))
 
-	AssertEq(nil, err)
-	AssertEq(true, ok)
+	ExpectEq(nil, err)
+	ExpectEq(false, ok)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatchWithLesserRequiredOffset() {
+	tb := getTestMinGCSObject()
+	tb.Name = TestObjectName
+	requiredOffset := len(TestFileContent) - 1
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, int64(requiredOffset))
+
+	ExpectEq(nil, err)
+	ExpectEq(true, ok)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatchWithEqualRequiredOffset() {
+	tb := getTestMinGCSObject()
+	tb.Name = TestObjectName
+	requiredOffset := len(TestFileContent)
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, int64(requiredOffset))
+
+	ExpectEq(nil, err)
+	ExpectEq(true, ok)
 }
 
 func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationNotMatch() {
@@ -234,10 +257,20 @@ func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGeneratio
 	tb.Generation = 0 // overriding to not match with TestObjectGeneration
 	tb.Name = TestObjectName
 
-	ok, err := t.ch.checkIfEntryExistWithCorrectGeneration(tb, testBucket{BucketName: TestBucketName})
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, 0)
 
-	AssertEq(nil, err)
-	AssertEq(false, ok)
+	ExpectEq(nil, err)
+	ExpectEq(false, ok)
+}
+
+func (t *cacheHandleTest) Test_checkIfEntryExistWithCorrectGenerationIfGenerationMatch() {
+	tb := getTestMinGCSObject()
+	tb.Name = TestObjectName
+
+	ok, err := t.ch.checkIfEntryExistWithCorrectGenerationAndOffset(tb, testBucket{BucketName: TestBucketName}, 0)
+
+	ExpectEq(nil, err)
+	ExpectEq(true, ok)
 }
 
 func (t *cacheHandleTest) TestClose() {
