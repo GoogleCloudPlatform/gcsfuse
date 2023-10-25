@@ -298,7 +298,7 @@ func (t *cacheHandleTest) TestIsSequentialWhenPrevOffsetGreateThanCurrent() {
 func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsMoreThanMaxAllowed() {
 	t.ch.isSequential = true
 	t.ch.prevOffset = 5
-	currentOffset := 8 + MaxAllowedMB
+	currentOffset := 8 + downloader.ReadChunkSize
 
 	ExpectEq(false, t.ch.IsSequential(int64(currentOffset)))
 }
@@ -314,7 +314,7 @@ func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsLessThanMaxAllowed() {
 func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsEqualToMaxAllowed() {
 	t.ch.isSequential = true
 	t.ch.prevOffset = 5
-	currentOffset := 5 + MaxAllowedMB
+	currentOffset := 5 + downloader.ReadChunkSize
 
 	ExpectEq(true, t.ch.IsSequential(int64(currentOffset)))
 }

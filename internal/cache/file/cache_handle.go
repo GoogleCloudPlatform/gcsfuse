@@ -37,8 +37,6 @@ const (
 	ErrInSeekingFileHandle = "destroy this cache_handle: error while seeking file handle"
 	ErrInReadingFileHandle = "destroy this cache_handle: error while reading file handle"
 	FallbackToGCS          = "read via gcs without destroying this cache_handle"
-	MB                     = 1 << 20
-	MaxAllowedMB           = 8 * MB
 )
 
 type CacheHandle struct {
@@ -209,7 +207,7 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 		return false
 	}
 
-	if currentOffset-fch.prevOffset > MaxAllowedMB {
+	if currentOffset-fch.prevOffset > downloader.ReadChunkSize {
 		return false
 	}
 
