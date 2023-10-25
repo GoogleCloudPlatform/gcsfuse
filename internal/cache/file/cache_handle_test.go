@@ -148,7 +148,7 @@ func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileHandle() {
 
 	err := t.ch.validateCacheHandle()
 
-	ExpectEq(InvalidFileHandle, err.Error())
+	ExpectEq(util.InvalidFileHandleErrMsg, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileDownloadJob() {
@@ -156,7 +156,7 @@ func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileDownloadJob() {
 
 	err := t.ch.validateCacheHandle()
 
-	ExpectEq(InvalidFileDownloadJob, err.Error())
+	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileInfoCache() {
@@ -164,7 +164,7 @@ func (t *cacheHandleTest) TestValidateCacheHandleWithNilFileInfoCache() {
 
 	err := t.ch.validateCacheHandle()
 
-	ExpectEq(InvalidFileInfoCache, err.Error())
+	ExpectEq(util.InvalidFileInfoCacheErrMsg, err.Error())
 }
 
 func (t *cacheHandleTest) TestValidateCacheHandleWithNonNilMemberAttributes() {
@@ -182,7 +182,7 @@ func (t *cacheHandleTest) TestReadWithFileInfoKeyNotPresentInTheCache() {
 
 	_, err := t.ch.Read(context.Background(), minGCSObject, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
-	ExpectEq(InvalidCacheHandle, err.Error())
+	ExpectEq(util.InvalidCacheHandleErrMsg, err.Error())
 }
 
 func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAndObjectMatch() {
@@ -205,7 +205,7 @@ func (t *cacheHandleTest) TestReadWithLocalCachedFilePathWhenGenerationInCacheAn
 
 	n, err := t.ch.Read(context.Background(), tb, testBucket{BucketName: TestBucketName}, TestOffset, dst)
 
-	ExpectEq(InvalidCacheHandle, err.Error())
+	ExpectEq(util.InvalidCacheHandleErrMsg, err.Error())
 	ExpectEq(n, 0)
 }
 
@@ -317,34 +317,6 @@ func (t *cacheHandleTest) TestIsSequentialWhenOffsetDiffIsEqualToMaxAllowed() {
 	currentOffset := 5 + downloader.ReadChunkSize
 
 	ExpectEq(true, t.ch.IsSequential(int64(currentOffset)))
-}
-
-func (t *cacheHandleTest) TestDoesContributeForJobRefIfTrue() {
-	t.ch.contributesToJobRefCount = true
-
-	ExpectEq(true, t.ch.DoesContributeForJobRef())
-}
-
-func (t *cacheHandleTest) TestDoesContributeForJobRefIfFalse() {
-	t.ch.contributesToJobRefCount = false
-
-	ExpectEq(false, t.ch.DoesContributeForJobRef())
-}
-
-func (t *cacheHandleTest) TestRemoveContributionForJobRefIfTrue() {
-	t.ch.contributesToJobRefCount = true
-
-	t.ch.RemoveContributionForJobRef()
-
-	ExpectEq(false, t.ch.DoesContributeForJobRef())
-}
-
-func (t *cacheHandleTest) TestRemoveContributionForJobRefIfFalse() {
-	t.ch.contributesToJobRefCount = false
-
-	t.ch.RemoveContributionForJobRef()
-
-	ExpectEq(false, t.ch.DoesContributeForJobRef())
 }
 
 // TODO (princer): write test which validates download flow in the cache_handle.read()

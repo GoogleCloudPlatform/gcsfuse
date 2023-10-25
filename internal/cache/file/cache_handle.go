@@ -25,18 +25,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-)
-
-const (
-	InvalidFileHandle      = "invalid file handle"
-	InvalidFileDownloadJob = "invalid download job"
-	InvalidCacheHandle     = "invalid cache handle"
-	InvalidFileInfoCache   = "invalid file info cache"
-	ErrInSeekingFileHandle = "destroy this cache_handle: error while seeking file handle"
-	ErrInReadingFileHandle = "destroy this cache_handle: error while reading file handle"
-	FallbackToGCS          = "read via gcs without destroying this cache_handle"
 )
 
 type CacheHandle struct {
@@ -56,38 +47,30 @@ type CacheHandle struct {
 	// prevOffset stores the offset of previous cache_handle read call. This is used
 	// to decide the type of read.
 	prevOffset int64
-
-	// contributesToJobRefCount indicates that the cache handle contains the reference
-	// count of the Job. We maintain this reference count manually, since we keep the
-	// Job reference always, regardless of whether the read is sequential or random.
-	// However, by design, we want to cancel the Job if there is no sequential read
-	// active that depends on the Job.
-	contributesToJobRefCount bool
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
-		fileHandle:               localFileHandle,
-		fileDownloadJob:          fileDownloadJob,
-		fileInfoCache:            fileInfoCache,
-		isSequential:             initialOffset == 0,
-		prevOffset:               initialOffset,
-		contributesToJobRefCount: true,
+		fileHandle:      localFileHandle,
+		fileDownloadJob: fileDownloadJob,
+		fileInfoCache:   fileInfoCache,
+		isSequential:    initialOffset == 0,
+		prevOffset:      initialOffset,
 	}
 }
 
 func (fch *CacheHandle) validateCacheHandle() error {
 
 	if fch.fileHandle == nil {
-		return errors.New(InvalidFileHandle)
+		return errors.New(util.InvalidFileHandleErrMsg)
 	}
 
 	if fch.fileDownloadJob == nil {
-		return errors.New(InvalidFileDownloadJob)
+		return errors.New(util.InvalidFileDownloadJobErrMsg)
 	}
 
 	if fch.fileInfoCache == nil {
-		return errors.New(InvalidFileInfoCache)
+		return errors.New(util.InvalidFileInfoCacheErrMsg)
 	}
 
 	return nil
@@ -142,9 +125,10 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	}
 
 	// Todo (raj-prince): to remove this check after implementation of download method.
+	// Todo (raj-prince): Also, add check to not call Download method for only one random job
 	if false {
 		var jobStatus downloader.JobStatus
-		jobStatus, err = fch.fileDownloadJob.Download(ctx, int64(requiredOffset), waitForDownload)
+		jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 		if err != nil {
 			n = 0
 			err = fmt.Errorf("while downloading job: %v", err)
@@ -155,9 +139,9 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 		if jobStatus.Name == "Invalid" ||
 			jobStatus.Name == downloader.NOT_STARTED ||
 			jobStatus.Name == downloader.FAILED {
-			return 0, errors.New(InvalidFileDownloadJob)
+			return 0, errors.New(util.InvalidFileDownloadJobErrMsg)
 		} else if jobStatus.Offset < requiredOffset {
-			return 0, errors.New(FallbackToGCS)
+			return 0, errors.New(util.FallbackToGCSErrMsg)
 		}
 	}
 
@@ -165,7 +149,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	_, err = fch.fileHandle.Seek(int64(offset), 0)
 	if err != nil {
 		logger.Warnf("error while seeking for %d offset in local file: %v", offset, err)
-		return 0, errors.New(ErrInSeekingFileHandle)
+		return 0, errors.New(util.ErrInSeekingFileHandleMsg)
 	}
 
 	n, err = io.ReadFull(fch.fileHandle, dst)
@@ -174,7 +158,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	}
 	if err != nil {
 		logger.Warnf("error while reading from %d offset of the local file: %v", offset, err)
-		return 0, errors.New(ErrInReadingFileHandle)
+		return 0, errors.New(util.ErrInReadingFileHandleMsg)
 	}
 
 	// Handling special cases:
@@ -182,14 +166,12 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	// 2. If there is a race condition between read and check, e.g., eviction
 	//		following up with the addition of the same fileInfo.
 	//    (a) If the generations are the same, this will not cause any issue.
-	//    (b) If the generations are different, we will discard the old data and
-	//        serve new data from gcs for this call.
-	//    (c) If requiredOffset < fileInfo.Offset, we will discard the old data and
-	//        serve new data from gcs for this call.
+	//    (b) If the generations are different, we will fall back to normal flow.
+	//    (c) If requiredOffset < fileInfo.Offset, we will fall back to normal flow.
 	ok, err := fch.checkIfEntryExistWithCorrectGenerationAndOffset(object, bucket, requiredOffset)
 	if err != nil || !ok {
 		n = 0
-		err = errors.New(InvalidCacheHandle)
+		err = errors.New(util.InvalidCacheHandleErrMsg)
 		return
 	}
 
@@ -212,19 +194,6 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 	}
 
 	return true
-}
-
-// DoesContributeForJobRef returns the value of contributesToJobRefCount.
-// Please check the documentation of CacheHandle.contributesToJobRefCount for more details.
-func (fch *CacheHandle) DoesContributeForJobRef() bool {
-	return fch.contributesToJobRefCount
-}
-
-// RemoveContributionForJobRef changes the state of contributesToJobRefCount, which
-// signifies it doesn't depend on the job. We may cancel the job if no other reference
-// to the download job.
-func (fch *CacheHandle) RemoveContributionForJobRef() {
-	fch.contributesToJobRefCount = false
 }
 
 // Close closes the underlined fileHandle points to locally downloaded data.
