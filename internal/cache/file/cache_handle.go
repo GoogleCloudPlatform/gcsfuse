@@ -30,10 +30,10 @@ import (
 )
 
 const (
-	InvalidFileHandle      = "destroy this cache_handle: invalid file handle"
-	InvalidFileDownloadJob = "destroy this cache_handle: invalid download job"
-	InvalidCacheHandle     = "destroy this cache_handle: invalid cache handle"
-	InvalidFileInfoCache   = "file info cache is nil"
+	InvalidFileHandle      = "invalid file handle"
+	InvalidFileDownloadJob = "invalid download job"
+	InvalidCacheHandle     = "invalid cache handle"
+	InvalidFileInfoCache   = "invalid file info cache"
 	ErrInSeekingFileHandle = "destroy this cache_handle: error while seeking file handle"
 	ErrInReadingFileHandle = "destroy this cache_handle: error while reading file handle"
 	FallbackToGCS          = "read via gcs without destroying this cache_handle"
@@ -151,8 +151,8 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 
 		// Todo - (raj-prince): to incorporate the newly introduced Invalid flag.
 		if jobStatus.Name == "Invalid" ||
-				jobStatus.Name == downloader.NOT_STARTED ||
-				jobStatus.Name == downloader.FAILED {
+			jobStatus.Name == downloader.NOT_STARTED ||
+			jobStatus.Name == downloader.FAILED {
 			return 0, errors.New(InvalidFileDownloadJob)
 		} else if jobStatus.Offset < requiredOffset {
 			return 0, errors.New(FallbackToGCS)
