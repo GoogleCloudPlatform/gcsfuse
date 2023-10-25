@@ -49,7 +49,6 @@ else
     # arm64 machines only supports dnf
     sudo yum -y install dnf
     sudo dnf makecache
-    sudo yum -y install dnf-plugin-artifact-registry
 sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
 [gcsfuse-el7-x86-64]
 name=gcsfuse-el7-x86-64
@@ -60,8 +59,14 @@ gpgcheck=1
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
     https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-    sudo dnf makecache
-    sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    if grep -q centos-7 details.txt || grep -q rhel-7 details.txt;
+    then
+        sudo yum -y install yum-plugin-artifact-registry
+        sudo yum makecache
+        sudo yum -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    else
+        sudo dnf makecache
+        sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
@@ -83,7 +88,10 @@ then
       sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
   else
       sudo dnf -y remove gcsfuse
-      sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      if grep -q centos-7 details.txt || grep -q rhel-7 details.txt; then
+        sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      else
+        sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
   fi
 
   # verify old version installation
