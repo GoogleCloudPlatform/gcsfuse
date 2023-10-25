@@ -141,12 +141,13 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 			jobStatus.Name == downloader.FAILED {
 			return 0, errors.New(util.InvalidFileDownloadJobErrMsg)
 		} else if jobStatus.Offset < requiredOffset {
-			return 0, errors.New(util.FallbackToGCSErrMsg)
+			err = fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
+			return 0, err
 		}
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
-	_, err = fch.fileHandle.Seek(int64(offset), 0)
+	_, err = fch.fileHandle.Seek(offset, 0)
 	if err != nil {
 		logger.Warnf("error while seeking for %d offset in local file: %v", offset, err)
 		return 0, errors.New(util.ErrInSeekingFileHandleMsg)
@@ -166,8 +167,8 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 	// 2. If there is a race condition between read and check, e.g., eviction
 	//		following up with the addition of the same fileInfo.
 	//    (a) If the generations are the same, this will not cause any issue.
-	//    (b) If the generations are different, we will fall back to normal flow.
-	//    (c) If requiredOffset < fileInfo.Offset, we will fall back to normal flow.
+	//    (b) If the generations are different, we will fetch data from gcs directly..
+	//    (c) If requiredOffset < fileInfo.Offset, we will fetch data from gcs directly.
 	ok, err := fch.checkIfEntryExistWithCorrectGenerationAndOffset(object, bucket, requiredOffset)
 	if err != nil || !ok {
 		n = 0
