@@ -68,6 +68,8 @@ function install_requirements() {
   pip install google-cloud-vision
   pip install google-api-python-client
   pip install prettytable
+  # install libaio as fio has a dependency on libaio
+  sudo apt-get install libaio-dev
   # We are building fio from source because of issue: https://github.com/axboe/fio/issues/1640.
   # The fix is not currently released in a package as of 20th Oct, 2023.
   # TODO: install fio via package when release > 3.35 is available.
