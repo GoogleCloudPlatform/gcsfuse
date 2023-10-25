@@ -225,7 +225,7 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "max-retry-duration",
 				Value: -1 * time.Second,
-				Usage: "The operation will be retried till the value of max-retry-duration. This flag is currently unused.",
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.Float64Flag{
