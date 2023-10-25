@@ -18,6 +18,7 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"reflect"
@@ -26,10 +27,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -41,13 +44,17 @@ const CacheMaxSize = 50
 const DefaultObjectName = "foo"
 const DefaultSequentialReadSizeMb = 200
 
+var cacheLocation string = path.Join(os.Getenv("HOME"), "cache/location")
+
 func TestJob(t *testing.T) { RunTests(t) }
 
 type jobTest struct {
 	job         *Job
 	bucket      gcs.Bucket
+	object      gcs.MinObject
 	cache       *lru.Cache
 	fakeStorage storage.FakeStorage
+	fileSpec    data.FileSpec
 }
 
 func init() { RegisterTestSuite(&jobTest{}) }
@@ -59,46 +66,77 @@ func (jt *jobTest) SetUp(*TestInfo) {
 	storageHandle := jt.fakeStorage.CreateStorageHandle()
 	jt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
-	jt.cache = lru.NewCache(CacheMaxSize)
-
-	ctx := context.Background()
-	defaultObjects := map[string][]byte{
-		// File
-		DefaultObjectName: []byte("taco"),
-		// Directory
-		"bar/": []byte(""),
-		// File
-		"baz": []byte("burrito"),
-	}
-	err := storageutil.CreateObjects(ctx, jt.bucket, defaultObjects)
-	if err != nil {
-		panic(fmt.Errorf("error whlie creating objects: %v", err))
-	}
-	defaultObject, err := jt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: DefaultObjectName,
-		ForceFetchFromGcs: true})
-	if err != nil {
-		panic(fmt.Errorf("error whlie stating object: %v", err))
-	}
-	defaultMinObject := gcs.MinObject{
-		Name:            defaultObject.Name,
-		Size:            defaultObject.Size,
-		Generation:      defaultObject.Generation,
-		MetaGeneration:  defaultObject.MetaGeneration,
-		Updated:         defaultObject.Updated,
-		Metadata:        defaultObject.Metadata,
-		ContentEncoding: defaultObject.ContentEncoding,
-	}
-
-	fileSpec := data.FileSpec{
-		Path: path.Join("./", storage.TestBucketName, DefaultObjectName),
-		Perm: os.FileMode(0666),
-	}
-
-	jt.job = NewJob(&defaultMinObject, jt.bucket, jt.cache, DefaultSequentialReadSizeMb, fileSpec)
+	jt.initJobTest(DefaultObjectName, []byte("taco"), 200, CacheMaxSize)
+	operations.RemoveDir(cacheLocation)
 }
 
 func (jt *jobTest) TearDown() {
 	jt.fakeStorage.ShutDown()
+	operations.RemoveDir(cacheLocation)
+}
+
+func (jt *jobTest) getMinObject(objectName string) gcs.MinObject {
+	ctx := context.Background()
+	object, err := jt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
+		ForceFetchFromGcs: true})
+	if err != nil {
+		panic(fmt.Errorf("error whlie stating object: %v", err))
+	}
+	minObject := gcs.MinObject{
+		Name:            object.Name,
+		Size:            object.Size,
+		Generation:      object.Generation,
+		MetaGeneration:  object.MetaGeneration,
+		Updated:         object.Updated,
+		Metadata:        object.Metadata,
+		ContentEncoding: object.ContentEncoding,
+	}
+	return minObject
+}
+
+func (jt *jobTest) initJobTest(objectName string, objectContent []byte, sequentialReadSize int32, lruCacheSize uint64) {
+	ctx := context.Background()
+	objects := map[string][]byte{objectName: objectContent}
+	err := storageutil.CreateObjects(ctx, jt.bucket, objects)
+	AssertEq(nil, err)
+	jt.object = jt.getMinObject(objectName)
+	jt.fileSpec = data.FileSpec{Path: jt.fileCachePath(jt.bucket.Name(), jt.object.Name), Perm: os.FileMode(0644)}
+	jt.cache = lru.NewCache(lruCacheSize)
+	jt.job = NewJob(&jt.object, jt.bucket, jt.cache, sequentialReadSize, jt.fileSpec)
+}
+
+func (jt *jobTest) verifyFile(content []byte) {
+	fileStat, err := os.Stat(jt.fileSpec.Path)
+	AssertEq(nil, err)
+	AssertEq(jt.fileSpec.Perm, fileStat.Mode())
+	AssertEq(len(content), fileStat.Size())
+	// verify the content of file downloaded. only verified till
+	fileContent, err := os.ReadFile(jt.fileSpec.Path)
+	AssertEq(nil, err)
+	AssertTrue(reflect.DeepEqual(content, fileContent[:len(content)]))
+}
+
+func (jt *jobTest) verifyFileInfoEntry(offset uint64) {
+	fileInfoKey := data.FileInfoKey{BucketName: jt.bucket.Name(), ObjectName: jt.object.Name}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := jt.cache.LookUp(fileInfoKeyName)
+	AssertTrue(fileInfo != nil)
+	AssertEq(jt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
+	AssertEq(offset, fileInfo.(data.FileInfo).Offset)
+	AssertEq(jt.object.Size, fileInfo.(data.FileInfo).Size())
+}
+
+func (jt *jobTest) fileCachePath(bucketName string, objectName string) string {
+	return path.Join(cacheLocation, bucketName, objectName)
+}
+
+func generateRandomBytes(length int) []byte {
+	randBytes := make([]byte, length)
+	for i := 0; i < length; i++ {
+		randBytes[i] = byte(rand.Intn(26) + 65)
+	}
+	return randBytes
 }
 
 func (jt *jobTest) Test_init() {
@@ -112,12 +150,12 @@ func (jt *jobTest) Test_init() {
 
 	jt.job.init()
 
-	ExpectEq(NOT_STARTED, jt.job.status.Name)
-	ExpectEq(nil, jt.job.status.Err)
-	ExpectEq(0, jt.job.status.Offset)
-	ExpectTrue(reflect.DeepEqual(list.List{}, jt.job.subscribers))
-	ExpectNe(nil, jt.job.cancelCtx)
-	ExpectNe(nil, jt.job.cancelFunc)
+	AssertEq(NOT_STARTED, jt.job.status.Name)
+	AssertEq(nil, jt.job.status.Err)
+	AssertEq(0, jt.job.status.Offset)
+	AssertTrue(reflect.DeepEqual(list.List{}, jt.job.subscribers))
+	AssertNe(nil, jt.job.cancelCtx)
+	AssertNe(nil, jt.job.cancelFunc)
 }
 
 func (jt *jobTest) Test_subscribe() {
@@ -127,16 +165,16 @@ func (jt *jobTest) Test_subscribe() {
 	notificationC1 := jt.job.subscribe(subscriberOffset1)
 	notificationC2 := jt.job.subscribe(subscriberOffset2)
 
-	ExpectEq(2, jt.job.subscribers.Len())
+	AssertEq(2, jt.job.subscribers.Len())
 	receivingC := make(<-chan JobStatus, 1)
-	ExpectEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC1))
-	ExpectEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC2))
+	AssertEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC1))
+	AssertEq(reflect.TypeOf(receivingC), reflect.TypeOf(notificationC2))
 	// check 1st and 2nd subscribers
 	var subscriber jobSubscriber
-	ExpectEq(reflect.TypeOf(subscriber), reflect.TypeOf(jt.job.subscribers.Front().Value.(jobSubscriber)))
-	ExpectEq(0, jt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
-	ExpectEq(reflect.TypeOf(subscriber), reflect.TypeOf(jt.job.subscribers.Back().Value.(jobSubscriber)))
-	ExpectEq(1, jt.job.subscribers.Back().Value.(jobSubscriber).subscribedOffset)
+	AssertEq(reflect.TypeOf(subscriber), reflect.TypeOf(jt.job.subscribers.Front().Value.(jobSubscriber)))
+	AssertEq(0, jt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
+	AssertEq(reflect.TypeOf(subscriber), reflect.TypeOf(jt.job.subscribers.Back().Value.(jobSubscriber)))
+	AssertEq(1, jt.job.subscribers.Back().Value.(jobSubscriber).subscribedOffset)
 }
 
 func (jt *jobTest) Test_notifySubscriber_FAILED() {
@@ -148,11 +186,11 @@ func (jt *jobTest) Test_notifySubscriber_FAILED() {
 
 	jt.job.notifySubscribers()
 
-	ExpectEq(0, jt.job.subscribers.Len())
+	AssertEq(0, jt.job.subscribers.Len())
 	notification, ok := <-notificationC
 	jobStatus := JobStatus{Name: FAILED, Err: customErr, Offset: 0}
-	ExpectTrue(reflect.DeepEqual(jobStatus, notification))
-	ExpectEq(true, ok)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
 }
 
 func (jt *jobTest) Test_notifySubscriber_CANCELLED() {
@@ -162,11 +200,11 @@ func (jt *jobTest) Test_notifySubscriber_CANCELLED() {
 
 	jt.job.notifySubscribers()
 
-	ExpectEq(0, jt.job.subscribers.Len())
+	AssertEq(0, jt.job.subscribers.Len())
 	notification, ok := <-notificationC
 	jobStatus := JobStatus{Name: CANCELLED, Err: nil, Offset: 0}
-	ExpectTrue(reflect.DeepEqual(jobStatus, notification))
-	ExpectEq(true, ok)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
 }
 
 func (jt *jobTest) Test_notifySubscriber_SubscribedOffset() {
@@ -179,13 +217,13 @@ func (jt *jobTest) Test_notifySubscriber_SubscribedOffset() {
 
 	jt.job.notifySubscribers()
 
-	ExpectEq(1, jt.job.subscribers.Len())
+	AssertEq(1, jt.job.subscribers.Len())
 	notification1, ok := <-notificationC1
 	jobStatus := JobStatus{Name: DOWNLOADING, Err: nil, Offset: 4}
-	ExpectTrue(reflect.DeepEqual(jobStatus, notification1))
-	ExpectEq(true, ok)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
+	AssertEq(true, ok)
 	// check 2nd subscriber's offset
-	ExpectEq(subscriberOffset2, jt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
+	AssertEq(subscriberOffset2, jt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
 }
 
 func (jt *jobTest) Test_failWhileDownloading() {
@@ -198,15 +236,15 @@ func (jt *jobTest) Test_failWhileDownloading() {
 	customErr := fmt.Errorf("custom error")
 	jt.job.failWhileDownloading(customErr)
 
-	ExpectEq(0, jt.job.subscribers.Len())
+	AssertEq(0, jt.job.subscribers.Len())
 	notification1, ok1 := <-notificationC1
 	notification2, ok2 := <-notificationC2
 	jobStatus := JobStatus{Name: FAILED, Err: customErr, Offset: 4}
 	// Check 1st and 2nd subscriber notifications
-	ExpectTrue(reflect.DeepEqual(jobStatus, notification1))
-	ExpectEq(true, ok1)
-	ExpectTrue(reflect.DeepEqual(jobStatus, notification2))
-	ExpectEq(true, ok2)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
+	AssertEq(true, ok1)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification2))
+	AssertEq(true, ok2)
 }
 
 func (jt *jobTest) Test_updateFileInfoCache_UpdateEntry() {
@@ -222,21 +260,21 @@ func (jt *jobTest) Test_updateFileInfoCache_UpdateEntry() {
 		Offset:           0,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	_, err = jt.cache.Insert(fileInfoKeyName, fileInfo)
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	jt.job.status.Offset = 1
 
 	err = jt.job.updateFileInfoCache()
 
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	// confirm fileInfoCache is updated with new offset.
 	lookupResult := jt.cache.LookUp(fileInfoKeyName)
-	ExpectFalse(lookupResult == nil)
+	AssertFalse(lookupResult == nil)
 	fileInfo = lookupResult.(data.FileInfo)
-	ExpectEq(1, fileInfo.Offset)
-	ExpectEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
-	ExpectEq(jt.job.object.Size, fileInfo.FileSize)
+	AssertEq(1, fileInfo.Offset)
+	AssertEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
+	AssertEq(jt.job.object.Size, fileInfo.FileSize)
 }
 
 // This test should fail when we shift to only updating fileInfoCache in Job.
@@ -247,19 +285,19 @@ func (jt *jobTest) Test_updateFileInfoCache_InsertNew() {
 		ObjectName: DefaultObjectName,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	jt.job.status.Offset = 1
 
 	err = jt.job.updateFileInfoCache()
 
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	// confirm fileInfoCache is updated with new offset.
 	lookupResult := jt.cache.LookUp(fileInfoKeyName)
-	ExpectFalse(lookupResult == nil)
+	AssertFalse(lookupResult == nil)
 	fileInfo := lookupResult.(data.FileInfo)
-	ExpectEq(1, fileInfo.Offset)
-	ExpectEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
-	ExpectEq(jt.job.object.Size, fileInfo.FileSize)
+	AssertEq(1, fileInfo.Offset)
+	AssertEq(jt.job.object.Generation, fileInfo.ObjectGeneration)
+	AssertEq(jt.job.object.Size, fileInfo.FileSize)
 }
 
 func (jt *jobTest) Test_updateFileInfoCache_Fail() {
@@ -268,15 +306,102 @@ func (jt *jobTest) Test_updateFileInfoCache_Fail() {
 		ObjectName: DefaultObjectName,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 	// set size of object more than MaxSize of cache.
 	jt.job.object.Size = 100
 
 	err = jt.job.updateFileInfoCache()
 
-	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg))
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg))
 	// confirm fileInfoCache is not updated.
 	lookupResult := jt.cache.LookUp(fileInfoKeyName)
-	ExpectTrue(lookupResult == nil)
+	AssertTrue(lookupResult == nil)
+}
+
+// Note: We can't test Test_downloadObjectAsync_MoreThanSequentialReadSize as
+// the fake storage bucket/server in the testing environment doesn't support
+// reading ranges (start and limit in NewReader call)
+func (jt *jobTest) Test_downloadObjectAsync_LessThanSequentialReadSize() {
+	// Create new object in bucket and create new job for it.
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
+
+	// start download
+	jt.job.downloadObjectAsync()
+
+	// check job completed successfully
+	jobStatus := JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
+	AssertTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file is downloaded
+	jt.verifyFile(objectContent)
+	// Verify fileInfoCache update
+	jt.verifyFileInfoEntry(uint64(objectSize))
+}
+
+func (jt *jobTest) Test_downloadObjectAsync_LessThanChunkSize() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 2 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, 25, uint64(2*objectSize))
+
+	// start download
+	jt.job.downloadObjectAsync()
+
+	// check job completed successfully
+	jobStatus := JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
+	AssertTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file is downloaded
+	jt.verifyFile(objectContent)
+	// Verify fileInfoCache update
+	jt.verifyFileInfoEntry(uint64(objectSize))
+}
+
+func (jt *jobTest) Test_downloadObjectAsync_Notification() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(2*objectSize))
+	// Add subscriber
+	subscribedOffset := int64(45 * util.MiB)
+	notificationC := jt.job.subscribe(subscribedOffset)
+
+	// start download
+	jt.job.downloadObjectAsync()
+
+	jobStatus := <-notificationC
+	// check the notification is sent after subscribed offset
+	AssertGe(jobStatus.Offset, subscribedOffset)
+	// check job completed successfully
+	jobStatus = JobStatus{COMPLETED, nil, int64(objectSize)}
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
+	AssertTrue(reflect.DeepEqual(jobStatus, jt.job.status))
+	// verify file is downloaded
+	jt.verifyFile(objectContent)
+	// Verify fileInfoCache update
+	jt.verifyFileInfoEntry(uint64(objectSize))
+}
+
+func (jt *jobTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 50 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, 100, uint64(objectSize-1))
+
+	// start download
+	jt.job.downloadObjectAsync()
+
+	// check job failed
+	jt.job.mu.Lock()
+	defer jt.job.mu.Unlock()
+	AssertEq(FAILED, jt.job.status.Name)
+	AssertEq(ReadChunkSize, jt.job.status.Offset)
+	AssertTrue(strings.Contains(jt.job.status.Err.Error(), "size of the entry is more than the cache's maxSize"))
 }
