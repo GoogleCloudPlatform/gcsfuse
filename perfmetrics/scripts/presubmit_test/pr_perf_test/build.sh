@@ -62,6 +62,7 @@ function execute_perf_test() {
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
+ git reset --hard
  git checkout master
  # Store results
  touch result.txt
@@ -71,6 +72,7 @@ then
 
  # Executing perf tests for PR branch
  echo checkout PR branch
+ git reset --hard
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
@@ -84,6 +86,7 @@ fi
 if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
   echo checkout PR branch
+  git reset --hard
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests...."
