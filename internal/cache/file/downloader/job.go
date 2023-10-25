@@ -17,10 +17,13 @@ package downloader
 import (
 	"container/list"
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -35,6 +38,8 @@ const (
 	FAILED      jobStatusName = "FAILED"
 	CANCELLED   jobStatusName = "CANCELLED"
 )
+
+const ReadChunkSize = 8 * util.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -54,6 +59,7 @@ type Job struct {
 	/////////////////////////
 
 	// Represents the current status of Job.
+	// status.Offset means data in cache is present in range [0, status.offset)
 	status JobStatus
 
 	// list of subscribers waiting on async download.
@@ -197,8 +203,105 @@ func (job *Job) updateFileInfoCache() (err error) {
 	return
 }
 
+// downloadObjectAsync downloads the backing GCS object into a file as part of
+// file cache using NewReader method of gcs.Bucket.
+//
+// Note: There can only be one async download running for a job at a time.
+// Acquires and releases LOCK(job.mu)
+func (job *Job) downloadObjectAsync() {
+	// Create and open cache file for writing object into it.
+	cacheFile, err := util.CreateFile(job.fileSpec, os.O_WRONLY)
+	if err != nil {
+		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
+		job.failWhileDownloading(err)
+		return
+	}
+	defer func(cacheFile *os.File) {
+		err = cacheFile.Close()
+		if err != nil {
+			err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %v", err)
+			job.failWhileDownloading(err)
+		}
+	}(cacheFile)
+
+	var newReader io.ReadCloser
+	var start, end, sequentialReadSize, newReaderLimit int64
+	end = int64(job.object.Size)
+	sequentialReadSize = int64(job.sequentialReadSizeMb) * util.MiB
+
+	for {
+		select {
+		case <-job.cancelCtx.Done():
+			return
+		default:
+			if start < end {
+				if newReader == nil {
+					newReaderLimit = min(start+sequentialReadSize, end)
+					newReader, err = job.bucket.NewReader(
+						job.cancelCtx,
+						&gcs.ReadObjectRequest{
+							Name:       job.object.Name,
+							Generation: job.object.Generation,
+							Range: &gcs.ByteRange{
+								Start: uint64(start),
+								Limit: uint64(newReaderLimit),
+							},
+							ReadCompressed: job.object.HasContentEncodingGzip(),
+						})
+					if err != nil {
+						err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %v", start, newReaderLimit, err))
+						job.failWhileDownloading(err)
+						return
+					}
+				}
+
+				maxRead := min(end-start, ReadChunkSize)
+				_, err = cacheFile.Seek(start, 0)
+				if err != nil {
+					err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error while seeking file handle, seek %d: %v", start, err))
+					job.failWhileDownloading(err)
+					return
+				}
+
+				// copy the contents from NewReader to cache file.
+				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
+				if readErr != nil && readErr != io.EOF {
+					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %v", readErr)
+					job.failWhileDownloading(err)
+					return
+				}
+				start += maxRead
+				if readErr == io.EOF {
+					newReader = nil
+				}
+
+				job.mu.Lock()
+				job.status.Offset = start
+				err = job.updateFileInfoCache()
+				// Notify subscribers if file cache is updated.
+				if err == nil {
+					job.notifySubscribers()
+				}
+				job.mu.Unlock()
+				// change status of job in case of error while updating file cache.
+				if err != nil {
+					job.failWhileDownloading(err)
+					return
+				}
+			} else {
+				job.mu.Lock()
+				job.status.Name = COMPLETED
+				job.notifySubscribers()
+				job.mu.Unlock()
+				return
+			}
+		}
+	}
+}
+
 // Download downloads object till the given offset if not already downloaded
 // and waits for download if waitForDownload is true.
+// The caller of this method should not read from cache if job status is FAILED.
 // ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
