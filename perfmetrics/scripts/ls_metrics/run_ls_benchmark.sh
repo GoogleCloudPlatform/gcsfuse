@@ -10,4 +10,4 @@ pip install --require-hashes -r requirements.txt --user
 echo Running script..
 GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
-python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 300 --message "Testing CT setup."
+python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup."
