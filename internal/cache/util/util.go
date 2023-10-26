@@ -22,6 +22,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 )
 
+const (
+	InvalidFileHandleErrMsg      = "invalid file handle"
+	InvalidFileDownloadJobErrMsg = "invalid download job"
+	InvalidCacheHandleErrMsg     = "invalid cache handle"
+	InvalidFileInfoCacheErrMsg   = "invalid file info cache"
+	ErrInSeekingFileHandleMsg    = "error while seeking file handle"
+	ErrInReadingFileHandleMsg    = "error while reading file handle"
+	FallbackToGCSErrMsg          = "read via gcs"
+)
+
 const FileDirPerm = os.FileMode(0755) | os.ModeDir
 const MiB = 1024 * 1024
 
