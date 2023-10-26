@@ -17,7 +17,6 @@ set -e
 
 echo "Installing pip"
 sudo apt-get install pip -y
-
 echo "Installing fio"
 # install libaio as fio has a dependency on libaio
 sudo apt-get install libaio-dev
@@ -31,7 +30,6 @@ git checkout c5d8ce3fc736210ded83b126c71e3225c7ffd7c9 && \
 ./configure && make && sudo make install
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
-
 
 echo "Mounting gcs bucket"
 mkdir -p gcs
