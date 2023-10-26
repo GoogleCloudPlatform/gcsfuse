@@ -88,7 +88,6 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git reset --hard
  git checkout master
  # Store results
  touch result.txt
