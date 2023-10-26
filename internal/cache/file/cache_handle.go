@@ -119,33 +119,6 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 		requiredOffset = objSize
 	}
 
-	waitForDownload := true
-	if !fch.isSequential {
-		waitForDownload = false
-	}
-
-	// Todo (raj-prince): to remove this check after implementation of download method.
-	// Todo (raj-prince): Also, add check to not call Download method for only one random job
-	if false {
-		var jobStatus downloader.JobStatus
-		jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
-		if err != nil {
-			n = 0
-			err = fmt.Errorf("while downloading job: %v", err)
-			return
-		}
-
-		// Todo - (raj-prince): to incorporate the newly introduced Invalid flag.
-		if jobStatus.Name == "Invalid" ||
-			jobStatus.Name == downloader.NOT_STARTED ||
-			jobStatus.Name == downloader.FAILED {
-			return 0, errors.New(util.InvalidFileDownloadJobErrMsg)
-		} else if jobStatus.Offset < requiredOffset {
-			err = fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
-			return 0, err
-		}
-	}
-
 	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(offset, 0)
 	if err != nil {
