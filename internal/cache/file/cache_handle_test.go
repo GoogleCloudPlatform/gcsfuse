@@ -280,7 +280,7 @@ func (t *cacheHandleTest) TestClose() {
 	ExpectEq(nil, t.ch.fileHandle)
 }
 
-func (t *cacheHandleTest) TestIsSequentialWhenReadTypeIsSequential() {
+func (t *cacheHandleTest) TestIsSequentialWhenReadTypeIsNotSequential() {
 	t.ch.isSequential = false
 	currentOffset := 3
 
