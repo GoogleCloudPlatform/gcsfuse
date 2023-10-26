@@ -305,7 +305,7 @@ func (job *Job) downloadObjectAsync() {
 // ToDo (sethiay): Implement this function.
 //
 // Acquires and releases LOCK(job.mu)
-func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus) {
+func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus, err error) {
 	job.mu.Lock()
 	defer job.mu.Unlock()
 	return
