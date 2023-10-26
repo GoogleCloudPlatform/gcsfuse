@@ -30,6 +30,7 @@ chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
 
+
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
@@ -49,6 +50,7 @@ chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
+
 LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs.txt
 GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
 cd "./ls_metrics"

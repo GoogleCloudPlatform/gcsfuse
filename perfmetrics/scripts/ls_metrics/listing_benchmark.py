@@ -494,6 +494,13 @@ def _parse_arguments(argv):
       nargs=1,
       required=True,
   )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
+      required=True,
+  )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])

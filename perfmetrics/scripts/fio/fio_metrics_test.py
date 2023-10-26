@@ -17,8 +17,10 @@
   Usage from perfmetrics/scripts folder: python3 -m fio.fio_metrics_test
 """
 import unittest
+import json
 from unittest import mock
 from fio import fio_metrics
+from fio import constants as consts
 
 TEST_PATH = './fio/testdata/'
 GOOD_FILE = 'good_out_job.json'
@@ -30,6 +32,7 @@ NO_METRICS_FILE = 'no_metrics.json'
 BAD_FORMAT_FILE = 'bad_format.json'
 MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE = 'multiple_jobs_global_options.json'
 MULTIPLE_JOBS_JOB_OPTIONS_FILE = 'multiple_jobs_job_options.json'
+NO_GLOBAL_RAMP_TIME = 'no_global_ramp_time.json'
 
 SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 WORKSHEET_NAME = 'fio_metrics'
@@ -76,6 +79,7 @@ class TestFioMetricsTest(unittest.TestCase):
         },
         'jobs': [{
             'jobname': '1_thread',
+            "job_start": 1653027084555,
             'groupid': 0,
             'error': 0,
             'eta': 0,
@@ -414,6 +418,56 @@ class TestFioMetricsTest(unittest.TestCase):
     with self.assertRaises(KeyError):
       _ = self.fio_metrics_obj._get_start_end_times({}, extracted_job_params)
 
+  def test_get_global_ramp_time_when_global_ramp_time_is_present(self):
+    fio_out = {}
+    f = open(get_full_filepath(GOOD_FILE), 'r')
+    fio_out = json.load(f)
+    f.close()
+    expected_global_ramp_time = 10000
+
+    extracted_global_ramp_time = self.fio_metrics_obj \
+      ._get_global_ramp_time(fio_out)
+
+    self.assertEqual(expected_global_ramp_time, extracted_global_ramp_time)
+
+  def test_get_global_ramp_time_when_global_ramp_time_is_not_present(self):
+    fio_out = {}
+    f = open(get_full_filepath(NO_GLOBAL_RAMP_TIME), 'r')
+    fio_out = json.load(f)
+    f.close()
+    expected_global_ramp_time = 0
+
+    extracted_global_ramp_time = self.fio_metrics_obj._get_global_ramp_time(
+        fio_out)
+
+    self.assertEqual(expected_global_ramp_time, extracted_global_ramp_time)
+
+  def test_get_job_ramp_time_when_job_ramp_time_is_present(self):
+    fio_out = {}
+    f = open(get_full_filepath(NO_GLOBAL_RAMP_TIME), 'r')
+    fio_out = json.load(f)
+    f.close()
+    job = list(fio_out[consts.JOBS])[0]
+    expected_job_ramp_time = 20000
+
+    extracted_job_ramp_time = self.fio_metrics_obj \
+      ._get_job_ramp_time(job)
+
+    self.assertEqual(expected_job_ramp_time, extracted_job_ramp_time)
+
+  def test_get_job_ramp_time_when_job_ramp_time_is_not_present(self):
+    fio_out = {}
+    f = open(get_full_filepath(GOOD_FILE), 'r')
+    fio_out = json.load(f)
+    f.close()
+    job = list(fio_out[consts.JOBS])[0]
+    expected_job_ramp_time = 0
+
+    extracted_job_ramp_time = self.fio_metrics_obj._get_job_ramp_time(
+        job)
+
+    self.assertEqual(expected_job_ramp_time, extracted_job_ramp_time)
+
   def test_extract_metrics_from_good_file(self):
     json_obj = self.fio_metrics_obj._load_file_dict(
         get_full_filepath(GOOD_FILE))
@@ -575,8 +629,10 @@ class TestFioMetricsTest(unittest.TestCase):
             'lat_s_perc_95': 0.526385152
         }
     }]
+    
     extracted_metrics = self.fio_metrics_obj.get_metrics(
         get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
+
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_get_metrics_for_multiple_jobs_job_options(self):
