@@ -305,7 +305,8 @@ func (job *Job) downloadObjectAsync() {
 
 // Download downloads object till the given offset and returns the status of
 // job. If the object is already downloaded or there was failure/cancellation in
-// download, then it returns the job status
+// download, then it returns the job status. The caller shouldn't read data
+// from file in cache if jobStatus is FAILED or INVALID.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus, err error) {
