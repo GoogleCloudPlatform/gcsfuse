@@ -1,17 +1,3 @@
-# Copyright 2023 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http:#www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """Tests for fio_metrics.
 
   Usage from perfmetrics/scripts folder: python3 -m fio.fio_metrics_test
@@ -41,6 +27,7 @@ def get_full_filepath(filename):
   filepath = '{}{}'.format(TEST_PATH, filename)
   return filepath
 
+
 class TestFioMetricsTest(unittest.TestCase):
 
   def setUp(self):
@@ -50,13 +37,13 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_load_file_dict_good_file(self):
     expected_json = {
         'fio version':
-          'fio-3.30',
+            'fio-3.30',
         'timestamp':
-          1653027155,
+            1653027155,
         'timestamp_ms':
-          1653027155355,
+            1653027155355,
         'time':
-          'Fri May 20 06:12:35 2022',
+            'Fri May 20 06:12:35 2022',
         'global options': {
             'direct': '1',
             'fadvise_hint': '0',
@@ -500,7 +487,7 @@ class TestFioMetricsTest(unittest.TestCase):
   def test_extract_metrics_from_incomplete_files(self):
     """When input file contains a job with incomplete data.
 
-    The partial_json file has non-zero metric values for the 2nd job only.
+    The partial_json file has non zero metric values for the 2nd job only.
     Since all metrics for 1st job have zero values, the 1st job will be ignored
     and only the 2nd job metrics will be returned
     """
@@ -629,73 +616,8 @@ class TestFioMetricsTest(unittest.TestCase):
             'lat_s_perc_95': 0.526385152
         }
     }]
-
     extracted_metrics = self.fio_metrics_obj.get_metrics(
         get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
-
-    get_response = {
-        'range': '{}!A1:A'.format(WORKSHEET_NAME),
-        'majorDimension': 'ROWS',
-        'values': [['read'], ['read'], ['write']]
-    }
-    last_row = len(get_response['values'])+1
-    update_response_clear = {
-        'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{}!A2:{}'.format(WORKSHEET_NAME, last_row),
-        'updatedRows': 1,
-        'updatedColumns': 15,
-        'updatedCells': 45
-    }
-    update_response_write = {
-        'spreadsheetId': SPREADSHEET_ID,
-        'updatedRange': '{}!A2'.format(WORKSHEET_NAME),
-        'updatedRows': 1,
-        'updatedColumns': 15,
-        'updatedCells': 30
-    }
-    sheets_service_mock = mock.MagicMock()
-    sheets_service_mock.spreadsheets().values().get(
-    ).execute.return_value = get_response
-    sheets_service_mock.spreadsheets().values().clear(
-    ).execute.return_value = update_response_clear
-    sheets_service_mock.spreadsheets().values().update(
-    ).execute.return_value = update_response_write
-    calls = [
-        mock.call.spreadsheets().values().get(
-            spreadsheetId=SPREADSHEET_ID,
-            range='{}!A1:A'.format(WORKSHEET_NAME)),
-        mock.call.spreadsheets().values().clear(
-            spreadsheetId=SPREADSHEET_ID,
-            range='{}!A2:{}'.format(WORKSHEET_NAME, last_row),
-            body={}),
-        mock.call.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            valueInputOption='USER_ENTERED',
-            body={
-                'majorDimension':
-                    'ROWS',
-                'values': [
-                    ['read', 10, 50000, 1653381667, 1653381738,
-                     115.354741, 138911322, 8405385216, 0.24973726400000001,
-                     28.958587178000002, 18.494668007316744,
-                     0.37958451200000004, 0.38797312, 0.49283072000000006,
-                     0.526385152],
-                    ['read', 10, 50000, 1653381757, 1653381828,
-                     37.52206, 45311294, 2747269120, 0.172148734,
-                     20.110704859000002, 14.960429037403822,
-                     0.37958451200000004, 0.38797312, 0.49283072000000006,
-                     0.526385152]
-                ]
-            },
-            range='{}!A2'.format(WORKSHEET_NAME))
-    ]
-
-    with mock.patch.object(fio_metrics.gsheet, '_get_sheets_service_client'
-                           ) as get_sheets_service_client_mock:
-      get_sheets_service_client_mock.return_value = sheets_service_mock
-      extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
-
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_get_metrics_for_multiple_jobs_job_options(self):
