@@ -17,7 +17,6 @@ set -e
 
 echo "Installing pip"
 sudo apt-get install pip -y
-
 echo "Installing fio"
 # install libaio as fio has a dependency on libaio
 sudo apt-get install libaio-dev
@@ -54,3 +53,4 @@ pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
 python3 fetch_metrics.py fio-output.json $UPLOAD_FLAGS
+
