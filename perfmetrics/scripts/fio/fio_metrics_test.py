@@ -694,7 +694,7 @@ class TestFioMetricsTest(unittest.TestCase):
                            ) as get_sheets_service_client_mock:
       get_sheets_service_client_mock.return_value = sheets_service_mock
       extracted_metrics = self.fio_metrics_obj.get_metrics(
-          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE), WORKSHEET_NAME)
+          get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
 
     self.assertEqual(expected_metrics, extracted_metrics)
 
