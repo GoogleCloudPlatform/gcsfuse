@@ -26,7 +26,6 @@ performed in a single run.
 Typical usage example:
 
   $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
-
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
@@ -490,6 +489,13 @@ def _parse_arguments(argv):
   parser.add_argument(
       '--gcsfuse_flags',
       help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file gcsfuse-list-logs.txt --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
+      required=True,
+  )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"',
       action='store',
       nargs=1,
       required=True,

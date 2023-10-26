@@ -33,9 +33,8 @@ cd "./perfmetrics/scripts/"
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
-# Upload data to the gsheet only when it runs through kokoro.
 UPLOAD_FLAGS=""
-if [ "${KOKORO_JOB_TYPE}" == "RELEASE" ] || [ "${KOKORO_JOB_TYPE}" == "CONTINUOUS_INTEGRATION" ] || [ "${KOKORO_JOB_TYPE}" == "PRESUBMIT_GITHUB" ] || [ "${KOKORO_JOB_TYPE}" == "SUB_JOB" ];
+if [ "${KOKORO_JOB_TYPE}" == "RELEASE" ] || [ "${KOKORO_JOB_TYPE}" == "CONTINUOUS_INTEGRATION" ] || [ "${KOKORO_JOB_TYPE}" == "PRESUBMIT_GITHUB" ];
 then
   UPLOAD_FLAGS="--upload_gs"
 fi
