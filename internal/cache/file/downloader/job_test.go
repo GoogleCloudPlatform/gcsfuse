@@ -810,7 +810,7 @@ func (jt *jobTest) Test_Invalidate_Concurrent() {
 		AssertEq(nil, currJobStatus.Err)
 	}
 
-	// start concurrent cancel
+	// start concurrent Invalidate
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go invalidateFunc()
