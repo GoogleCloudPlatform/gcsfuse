@@ -37,6 +37,7 @@ const (
 	COMPLETED   jobStatusName = "COMPLETED"
 	FAILED      jobStatusName = "FAILED"
 	CANCELLED   jobStatusName = "CANCELLED"
+	INVALID     jobStatusName = "INVALID"
 )
 
 const ReadChunkSize = 8 * util.MiB
@@ -134,6 +135,21 @@ func (job *Job) Cancel() {
 		job.status.Name = CANCELLED
 		job.notifySubscribers()
 	}
+}
+
+// Invalidate invalidates the download job i.e. changes the state to INVALID.
+// If the async download is in progress, this function cancels that. The caller
+// should not read from the file in cache if job is in INVALID state.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) Invalidate() {
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	if job.status.Name == DOWNLOADING {
+		job.cancelFunc()
+	}
+	job.status.Name = INVALID
+	job.notifySubscribers()
 }
 
 // subscribe adds subscriber for download job and returns channel which is
@@ -324,7 +340,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		// start the async download
 		job.status.Name = DOWNLOADING
 		go job.downloadObjectAsync()
-	} else if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Offset >= offset {
+	} else if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Name == INVALID || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
 	}
@@ -346,4 +362,13 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	case jobStatus = <-notificationC:
 	}
 	return
+}
+
+// GetStatus returns the status of download job.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) GetStatus() JobStatus {
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	return job.status
 }
