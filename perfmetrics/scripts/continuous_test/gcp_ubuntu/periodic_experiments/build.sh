@@ -44,9 +44,8 @@ END_DATE=$(echo "$config" | jq -r '.end_date')
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=3619a4d4600c8e56c61d3211a320019bf6ca326e
 chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+./perfmetrics/scripts/build_and_install_gcsfuse.sh $BRANCH
 
 cd "./perfmetrics/scripts/"
 export PYTHONPATH="./"
