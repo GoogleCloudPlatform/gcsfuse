@@ -27,7 +27,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,
 		HttpClientTimeout:   5,
-		MaxRetryDuration:    7,
+		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
 		AppName:             "app",
 		KeyFile:             "testdata/test_creds.json",
