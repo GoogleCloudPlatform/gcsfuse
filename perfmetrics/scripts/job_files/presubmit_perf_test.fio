@@ -33,6 +33,7 @@ bs=16k
 directory=gcs/256kb
 filesize=256k
 rw=write
+fsync=16
 numjobs=40
 
 [256kb_randread]
@@ -67,6 +68,7 @@ startdelay=950
 directory=gcs/50mb
 filesize=50M
 rw=write
+fsync=50
 numjobs=40
 
 [50mb_randread]
@@ -99,6 +101,7 @@ startdelay=1710
 directory=gcs/1gb
 filesize=1G
 rw=write
+fsync=1024
 numjobs=40
 
 [1gb_randread]
