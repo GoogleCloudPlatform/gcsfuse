@@ -528,6 +528,24 @@ func (jt *jobTest) Test_Download_AlreadyFailed() {
 	AssertTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
 }
 
+func (jt *jobTest) Test_Download_AlreadyInvalid() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 1 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
+	// make the state as invalid
+	jt.job.mu.Lock()
+	jt.job.status.Name = INVALID
+	jt.job.mu.Unlock()
+
+	// requesting download when already invalid.
+	jobStatus, err := jt.job.Download(context.Background(), int64(objectSize), true)
+
+	AssertEq(nil, err)
+	AssertEq(INVALID, jobStatus.Name)
+	AssertEq(nil, jobStatus.Err)
+}
+
 func (jt *jobTest) Test_Download_InvalidOffset() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
@@ -730,4 +748,72 @@ func (jt *jobTest) Test_Cancel_Concurrent() {
 	AssertEq(nil, jobStatus.Err)
 	// verify file
 	jt.verifyFile(objectContent[:jobStatus.Offset])
+}
+
+func (jt *jobTest) Test_GetStatus() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 20 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
+	ctx := context.Background()
+	// start download without waiting
+	jobStatus, err := jt.job.Download(ctx, 0, false)
+	AssertEq(nil, err)
+	AssertEq(DOWNLOADING, jobStatus.Name)
+	// wait for sometime to get some data downloaded
+	time.Sleep(10 * time.Millisecond)
+
+	// GetStatus in between downloading
+	jobStatus = jt.job.GetStatus()
+
+	AssertEq(DOWNLOADING, jobStatus.Name)
+	AssertEq(nil, jobStatus.Err)
+	AssertGe(jobStatus.Offset, 0)
+	// verify file
+	jt.verifyFile(objectContent[:jobStatus.Offset])
+}
+
+func (jt *jobTest) Test_Invalidate_WhenDownloading() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 25 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
+	ctx := context.Background()
+	// start download without waiting
+	jobStatus, err := jt.job.Download(ctx, 0, false)
+	AssertEq(nil, err)
+	AssertEq(DOWNLOADING, jobStatus.Name)
+
+	jt.job.Invalidate()
+
+	jobStatus = jt.job.GetStatus()
+	AssertEq(nil, jobStatus.Err)
+	AssertEq(INVALID, jobStatus.Name)
+}
+
+func (jt *jobTest) Test_Invalidate_Concurrent() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 30 * util.MiB
+	objectContent := generateRandomBytes(objectSize)
+	jt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
+	ctx := context.Background()
+	// start download without waiting
+	jobStatus, err := jt.job.Download(ctx, 0, false)
+	AssertEq(nil, err)
+	AssertEq(DOWNLOADING, jobStatus.Name)
+	wg := sync.WaitGroup{}
+	invalidateFunc := func() {
+		defer wg.Done()
+		jt.job.Invalidate()
+		currJobStatus := jt.job.GetStatus()
+		AssertEq(INVALID, currJobStatus.Name)
+		AssertEq(nil, currJobStatus.Err)
+	}
+
+	// start concurrent Invalidate
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go invalidateFunc()
+	}
+	wg.Wait()
 }
