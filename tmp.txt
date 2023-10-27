@@ -1,7 +1,0 @@
-time="27/10/2023 03:18:51.758041" severity=INFO msg="Start gcsfuse/unknown (Go version go1.22-20230908-RC04 cl/563875016 +2fe2f08542 X:fieldtrack,boringcrypto) for app \"\" using mount point: /usr/local/google/home/tulsishah/gcs\n"
-time="27/10/2023 03:18:51.758090" severity=INFO msg="Creating Storage handle..."
-time="27/10/2023 03:18:51.758438" severity=INFO msg="Creating a mount at \"/usr/local/google/home/tulsishah/gcs\"\n"
-time="27/10/2023 03:18:51.758457" severity=INFO msg="Creating a new server...\n"
-time="27/10/2023 03:18:51.758466" severity=INFO msg="Set up root directory for bucket tulsishah-test"
-time="27/10/2023 03:18:52.864999" severity=INFO msg="Mounting file system \"tulsishah-test\"..."
-time="27/10/2023 03:18:52.867657" severity=INFO msg="File system has been successfully mounted."
