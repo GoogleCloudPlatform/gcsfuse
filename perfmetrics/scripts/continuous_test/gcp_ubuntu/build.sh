@@ -40,9 +40,9 @@ then
   UPLOAD_FLAGS="--upload_gs"
 fi
 
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs --log-format \"text\" --stackdriver-export-interval=30s"
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs --log-format \"text\" "
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS"
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
