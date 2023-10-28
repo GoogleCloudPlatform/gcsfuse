@@ -370,7 +370,7 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithValidObject() {
 	chunkSize := googleapi.MinUploadChunkSize
 	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
-		&gcs.CreateChunkUploaderRequest{
+		&gcs.CreateObjectRequest{
 			Name: "test_object",
 		},
 		chunkSize,
@@ -386,7 +386,7 @@ func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsZero() {
 	var generation int64 = 0
 	chunkSize := googleapi.MinUploadChunkSize
 	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
-		&gcs.CreateChunkUploaderRequest{
+		&gcs.CreateObjectRequest{
 			Name:                   "test_object",
 			GenerationPrecondition: &generation,
 		},
@@ -402,7 +402,7 @@ func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsNonZero(
 	var generation int64 = 47367842389354
 	chunkSize := googleapi.MinUploadChunkSize
 	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
-		&gcs.CreateChunkUploaderRequest{
+		&gcs.CreateObjectRequest{
 			Name:                   "test_object",
 			GenerationPrecondition: &generation,
 		}, chunkSize, nil)

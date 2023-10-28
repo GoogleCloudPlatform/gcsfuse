@@ -127,7 +127,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateChunkUploaderRequest) (*storage.ObjectHandle, bool) {
+func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateObjectRequest) (*storage.ObjectHandle, bool) {
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
 	// Zero means the object does not exist.
@@ -159,7 +159,7 @@ func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateChunkUplo
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	obj := bh.bucket.Object(req.Name)
-	obj, _ = withCreatePreconditions(obj, &req.CreateChunkUploaderRequest)
+	obj, _ = withCreatePreconditions(obj, req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.

@@ -576,12 +576,12 @@ type fakeChunkUploader struct {
 	closed                              bool
 }
 
+// LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -680,6 +680,8 @@ func (uploader *fakeChunkUploader) Upload(ctx context.Context, contents io.Reade
 					uploader.totalBytesSuccessfullyUploadedSoFar.Store(numBytesUploadedSoFar)
 					uploader.progressFunc(numBytesUploadedSoFar)
 				}
+			} else {
+				uploader.totalBytesSuccessfullyUploadedSoFar.Store(int64(numChunksFinal) * int64(uploader.chunkSize))
 			}
 			return err
 		}
@@ -688,6 +690,7 @@ func (uploader *fakeChunkUploader) Upload(ctx context.Context, contents io.Reade
 	return nil
 }
 
+// LOCKS_EXCLUDED(b.mu)
 func (uploader *fakeChunkUploader) Close(ctx context.Context) (*gcs.Object, error) {
 	uploader.b.mu.Lock()
 	defer uploader.b.mu.Unlock()
@@ -700,9 +703,7 @@ func (uploader *fakeChunkUploader) Close(ctx context.Context) (*gcs.Object, erro
 		uploader.closed = true
 	}()
 
-	// Snarf the contents.
 	contents := uploader.contents.Bytes()
-
 	// Create an object record from the given attributes.
 	var fo fakeObject = uploader.b.mintObject(uploader.req, contents)
 	o := copyObject(&fo.metadata)
