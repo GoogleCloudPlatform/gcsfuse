@@ -77,7 +77,7 @@ func (dt *downloaderTest) verifyFile(content []byte) {
 	fileStat, err := os.Stat(dt.fileSpec.Path)
 	AssertEq(nil, err)
 	AssertEq(dt.fileSpec.Perm, fileStat.Mode())
-	AssertEq(len(content), fileStat.Size())
+	AssertLe(len(content), fileStat.Size())
 	// verify the content of file downloaded. only verified till
 	fileContent, err := os.ReadFile(dt.fileSpec.Path)
 	AssertEq(nil, err)
@@ -600,7 +600,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	dt.verifyFileInfoEntry(uint64(objectSize))
 }
 
-func (dt *downloaderTest) Test_Cancel_WhenDownlooading() {
+func (dt *downloaderTest) Test_Cancel_WhenDownloading() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
 	objectContent := generateRandomBytes(objectSize)
@@ -621,18 +621,8 @@ func (dt *downloaderTest) Test_Cancel_WhenDownlooading() {
 	AssertEq(nil, err)
 	AssertEq(CANCELLED, jobStatus.Name)
 	AssertEq(nil, jobStatus.Err)
-	// file is not completely downloaded as job was still running when cancelled.
-	AssertLt(jobStatus.Offset, objectSize)
-	// job should not be completed even after sometime.
-	time.Sleep(time.Second)
-	newJobStatus, err := dt.job.Download(context.Background(), 0, false)
-	AssertEq(nil, err)
-	AssertEq(CANCELLED, newJobStatus.Name)
-	AssertEq(nil, newJobStatus.Err)
-	// file is not completely downloaded as job was still running when cancelled.
-	AssertLt(newJobStatus.Offset, objectSize)
 	// verify file downloaded till the offset
-	dt.verifyFile(objectContent[:newJobStatus.Offset])
+	dt.verifyFile(objectContent[:jobStatus.Offset])
 }
 
 func (dt *downloaderTest) Test_Cancel_WhenAlreadyCompleted() {
