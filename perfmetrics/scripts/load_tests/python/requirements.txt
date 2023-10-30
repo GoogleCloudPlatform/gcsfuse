@@ -475,9 +475,9 @@ urllib3==1.26.18 \
     # via
     #   google-auth
     #   requests
-werkzeug==2.3.4 \
-    --hash=sha256:1d5a58e0377d1fe39d061a5de4469e414e78ccb1e1e59c0f5ad6fa1c36c52b76 \
-    --hash=sha256:48e5e61472fee0ddee27ebad085614ebedb7af41e88f687aaf881afb723a162f
+werkzeug==3.0.1 \
+    --hash=sha256:507e811ecea72b18a404947aded4b3390e1db8f826b494d76550ef45bb3b1dcc \
+    --hash=sha256:90a285dc0e42ad56b34e696398b8122ee4c681833fb35b8334a095d82c56da10
     # via tensorboard
 wheel==0.40.0 \
     --hash=sha256:cd1196f3faee2b31968d626e1731c94f99cbdb67cf5a46e4f5656cbee7738873 \
