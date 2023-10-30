@@ -89,7 +89,9 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 
 	// Read from file and compare with expectedContent.
 	_, err = cht.cacheHandle.fileHandle.Seek(readStartOffset, 0)
+	AssertEq(nil, err)
 	_, err = io.ReadFull(cht.cacheHandle.fileHandle, buf)
+	AssertEq(nil, err)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
