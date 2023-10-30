@@ -33,17 +33,35 @@ func getObjectPath(bucketName string, objectName string) string {
 // JobManager is responsible for maintaining, getting and removing file download
 // jobs.
 type JobManager struct {
-	fileInfoCache        *lru.Cache
-	perm                 os.FileMode
-	cacheLocation        string
-	sequentialReadSizeMb int32
+	/////////////////////////
+	// Constant data
+	/////////////////////////
 
+	// filePerm is passed to Job created by JobManager. filePerm decides the
+	// permission of file in cache created by Job.
+	filePerm os.FileMode
+	// cacheLocation is the path to directory where cache files should be created.
+	cacheLocation string
+	// sequentialReadSizeMb is passed to Job created by JobManager, and it decides
+	// the size of GCS read requests by Job at the time of downloading object to
+	// file in cache.
+	sequentialReadSizeMb int32
+	fileInfoCache        *lru.Cache
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	// jobs contains the reference to Job for a given object path. Object path is
+	// concatenation of bucket name, "/", and object name. e.g. object path for an
+	// object named "a/b/foo.txt" in bucket named "test_bucket" would be
+	// "test_bucket/a/b/foo.txt"
 	jobs map[string]*Job
 	mu   locker.Locker
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, perm os.FileMode, cacheLocation string, sequentialReadSizeMb int32) (jm *JobManager) {
-	jm = &JobManager{fileInfoCache: fileInfoCache, perm: perm,
+func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, cacheLocation string, sequentialReadSizeMb int32) (jm *JobManager) {
+	jm = &JobManager{fileInfoCache: fileInfoCache, filePerm: filePerm,
 		cacheLocation: cacheLocation, sequentialReadSizeMb: sequentialReadSizeMb}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -66,7 +84,7 @@ func (jm *JobManager) GetJob(object *gcs.MinObject, bucket gcs.Bucket) (job *Job
 	job, ok := jm.jobs[objectPath]
 	if !ok {
 		downloadPath := jm.getDownloadPath(objectPath)
-		fileSpec := data.FileSpec{Path: downloadPath, Perm: jm.perm}
+		fileSpec := data.FileSpec{Path: downloadPath, Perm: jm.filePerm}
 		job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec)
 		jm.jobs[objectPath] = job
 	}

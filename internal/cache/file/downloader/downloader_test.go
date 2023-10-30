@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -32,8 +33,6 @@ import (
 )
 
 var cacheLocation string = path.Join(os.Getenv("HOME"), "cache/location")
-
-const DefaultPerm = os.FileMode(0644)
 
 func TestDownloader(t *testing.T) { RunTests(t) }
 
@@ -59,7 +58,7 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), 200, CacheMaxSize)
-	dt.jm = NewJobManager(dt.cache, DefaultPerm, cacheLocation, DefaultSequentialReadSizeMb)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, cacheLocation, DefaultSequentialReadSizeMb)
 }
 
 func (dt *downloaderTest) TearDown() {
@@ -190,7 +189,7 @@ func (dt *downloaderTest) Test_RemoveJob_Existing() {
 	_, ok := dt.jm.jobs[objectPath]
 	ExpectFalse(ok)
 	dt.jm.mu.Unlock()
-	// verify the job is cancelled
+	// verify the job is invalid
 	jobStatus, err := expectedJob.Download(context.Background(), 0, false)
 	ExpectEq(nil, err)
 	ExpectEq(INVALID, jobStatus.Name)

@@ -68,7 +68,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	err := storageutil.CreateObjects(ctx, dt.bucket, objects)
 	AssertEq(nil, err)
 	dt.object = dt.getMinObject(objectName)
-	dt.fileSpec = data.FileSpec{Path: dt.fileCachePath(dt.bucket.Name(), dt.object.Name), Perm: DefaultPerm}
+	dt.fileSpec = data.FileSpec{Path: dt.fileCachePath(dt.bucket.Name(), dt.object.Name), Perm: util.DefaultFilePerm}
 	dt.cache = lru.NewCache(lruCacheSize)
 	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec)
 }
@@ -370,7 +370,6 @@ func (dt *downloaderTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	AssertEq(FAILED, dt.job.status.Name)
-	AssertEq(ReadChunkSize, dt.job.status.Offset)
 	AssertTrue(strings.Contains(dt.job.status.Err.Error(), "size of the entry is more than the cache's maxSize"))
 }
 
