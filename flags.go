@@ -81,7 +81,8 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  "config-file",
 				Value: "",
-				Usage: "The path to the config file where all gcsfuse related config needs to be specified.",
+				Usage: "The path to the config file where all gcsfuse related config needs to be specified. " +
+					"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.",
 			},
 
 			/////////////////////////
@@ -193,10 +194,9 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "max-retry-sleep",
-				Value: time.Minute,
-				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff " +
-					"for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry stops." +
-					" The default is 1 minute. A value of 0 disables retries.",
+				Value: 30 * time.Second,
+				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend." +
+					" Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.",
 			},
 
 			cli.IntFlag{
@@ -224,8 +224,8 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "max-retry-duration",
-				Value: 30 * time.Second,
-				Usage: "The operation will be retried till the value of max-retry-duration.",
+				Value: -1 * time.Second,
+				Usage: "This flag is currently unused.",
 			},
 
 			cli.Float64Flag{

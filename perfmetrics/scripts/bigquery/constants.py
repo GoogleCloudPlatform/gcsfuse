@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-action {
-  define_artifacts {
-    regex: "gcsfuse-failed-integration-test-logs-*"
-    strip_prefix: "github/gcsfuse/perfmetrics/scripts"
-  }
-}
+"""Contains constants for bigquery.
+"""
 
-build_file: "gcsfuse/perfmetrics/scripts/presubmit_test/pr_perf_test/build.sh"
+PROJECT_ID = 'gcs-fuse-test-ml'
+DATASET_ID = 'performance_metrics'
+CONFIGURATION_TABLE_ID = 'experiment_configuration'
+FIO_TABLE_ID = 'read_write_fio_metrics'
+VM_TABLE_ID = 'read_write_vm_metrics'
+LS_TABLE_ID = 'list_metrics'

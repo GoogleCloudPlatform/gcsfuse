@@ -29,22 +29,25 @@ chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
 
 # Mounting gcs bucket
 cd "./perfmetrics/scripts/"
-echo "Mounting gcs bucket"
-mkdir -p gcs
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file $LOG_FILE --log-format \"text\" --stackdriver-export-interval=30s"
-BUCKET_NAME=periodic-perf-tests
-MOUNT_POINT=gcs
-# The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+
+# Upload data to the gsheet only when it runs through kokoro.
+UPLOAD_FLAGS=""
+if [ "${KOKORO_JOB_TYPE}" == "RELEASE" ] || [ "${KOKORO_JOB_TYPE}" == "CONTINUOUS_INTEGRATION" ] || [ "${KOKORO_JOB_TYPE}" == "PRESUBMIT_GITHUB" ];
+then
+  UPLOAD_FLAGS="--upload_gs"
+fi
+
+GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs --log-format \"text\" "
+LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 
 # Executing perf tests
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
-sudo umount $MOUNT_POINT
-
-# ls_metrics test. This test does gcsfuse mount first and then do the testing.
+# ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
+LOG_FILE_LIST_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs.txt
+GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh
+./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"

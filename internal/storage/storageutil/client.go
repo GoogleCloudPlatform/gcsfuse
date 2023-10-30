@@ -32,7 +32,7 @@ type StorageClientConfig struct {
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
-	MaxRetryDuration           time.Duration
+	MaxRetrySleep              time.Duration
 	RetryMultiplier            float64
 	UserAgent                  string
 	CustomEndpoint             *url.URL

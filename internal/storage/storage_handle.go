@@ -83,7 +83,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// https://github.com/googleapis/google-cloud-go/blob/main/storage/storage.go#L1953
 	sc.SetRetry(
 		storage.WithBackoff(gax.Backoff{
-			Max:        clientConfig.MaxRetryDuration,
+			Max:        clientConfig.MaxRetrySleep,
 			Multiplier: clientConfig.RetryMultiplier,
 		}),
 		storage.WithPolicy(storage.RetryAlways),

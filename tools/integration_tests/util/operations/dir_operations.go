@@ -25,6 +25,7 @@ import (
 	"testing"
 )
 
+const FilePermission_0400 = 0400
 const FilePermission_0600 = 0600
 const FilePermission_0777 = 0777
 const DirPermission_0755 = 0755

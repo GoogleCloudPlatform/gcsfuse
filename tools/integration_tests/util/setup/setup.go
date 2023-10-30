@@ -18,12 +18,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/util"
@@ -34,10 +37,13 @@ var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted 
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 const (
 	BufferSize          = 100
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
+	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
 )
 
 var (
@@ -226,6 +232,14 @@ func ExecuteTest(m *testing.M) (successCode int) {
 	return successCode
 }
 
+func GenerateRandomString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = Charset[seededRand.Intn(len(Charset))]
+	}
+	return string(b)
+}
+
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	err := UnMount()
 	if err != nil {
@@ -236,6 +250,15 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	if successCode != 0 {
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
+
+		// Logfile name will be failed-integration-test-log-xxxxx
+		failedlogsFileName := "failed-integration-test-logs-" + GenerateRandomString(5)
+		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
+		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
+		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
+		if err != nil {
+			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
+		}
 		return
 	}
 }
@@ -287,6 +310,7 @@ func SetUpTestDirForTestBucketFlag() {
 
 func LogAndExit(s string) {
 	log.Print(s)
+	log.Print(string(debug.Stack()))
 	os.Exit(1)
 }
 
