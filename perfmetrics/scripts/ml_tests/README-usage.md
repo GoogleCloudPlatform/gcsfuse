@@ -1,4 +1,4 @@
-# Commands to run animal_image_recognition_model
+# Commands to run fashion_items_image_recognition_model
 
 ### Setup a new Virtual Machine
 
