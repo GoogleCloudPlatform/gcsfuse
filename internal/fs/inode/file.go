@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -118,7 +119,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            convertObjToMinObject(o),
+		src:            storageutil.ConvertObjToMinObject(o),
 		local:          localFile,
 		unlinked:       false,
 	}
@@ -516,7 +517,7 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		f.src = convertObjToMinObject(o)
+		f.src = storageutil.ConvertObjToMinObject(o)
 		return
 	}
 
@@ -592,7 +593,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
-		f.src = convertObjToMinObject(newObj)
+		f.src = storageutil.ConvertObjToMinObject(newObj)
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
@@ -639,21 +640,4 @@ func (f *FileInode) CreateEmptyTempFile() (err error) {
 	// Setting the initial mtime to creation time.
 	f.content.SetMtime(f.mtimeClock.Now())
 	return
-}
-
-func convertObjToMinObject(o *gcs.Object) gcs.MinObject {
-	var min gcs.MinObject
-	if o == nil {
-		return min
-	}
-
-	return gcs.MinObject{
-		Name:            o.Name,
-		Size:            o.Size,
-		Generation:      o.Generation,
-		MetaGeneration:  o.MetaGeneration,
-		Updated:         o.Updated,
-		Metadata:        o.Metadata,
-		ContentEncoding: o.ContentEncoding,
-	}
 }
