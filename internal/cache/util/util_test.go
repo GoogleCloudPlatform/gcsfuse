@@ -21,8 +21,10 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
@@ -38,7 +40,6 @@ type utilTest struct {
 
 const FileDir = "/some/dir/"
 const FileName = "foo.txt"
-const DefaultFileMode = 0644
 
 func init() { RegisterTestSuite(&utilTest{}) }
 
@@ -51,7 +52,7 @@ func (ut *utilTest) SetUp(*TestInfo) {
 	}
 	ut.fileSpec = data.FileSpec{
 		Path: path.Join(homeDir, FileDir, FileName),
-		Perm: os.FileMode(DefaultFileMode),
+		Perm: DefaultFileMode,
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
@@ -180,4 +181,41 @@ func (ut *utilTest) Test_CreateFile_RelativePath() {
 
 	ut.assertFileAndDirCreation(file, err)
 	ExpectEq(nil, file.Close())
+}
+
+func (ut *utilTest) Test_ConvertObjToMinObject_WithNilObject() {
+	var gcsObject *gcs.Object
+
+	gcsMinObject := ConvertObjToMinObject(gcsObject)
+
+	ExpectEq(nil, gcsMinObject)
+}
+
+func (ut *utilTest) Test_ConvertObjToMinObject_WithValidObject() {
+	name := "test"
+	size := uint64(36)
+	generation := int64(444)
+	metaGeneration := int64(555)
+	currentTime := time.Now()
+	contentEncode := "test_encoding"
+	metadata := map[string]string{"test_key": "test_value"}
+	gcsObject := gcs.Object{
+		Name:            name,
+		Size:            size,
+		Generation:      generation,
+		MetaGeneration:  metaGeneration,
+		Updated:         currentTime,
+		Metadata:        metadata,
+		ContentEncoding: contentEncode,
+	}
+
+	gcsMinObject := ConvertObjToMinObject(&gcsObject)
+
+	ExpectEq(name, gcsMinObject.Name)
+	ExpectEq(size, gcsMinObject.Size)
+	ExpectEq(generation, gcsMinObject.Generation)
+	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
+	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
+	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
+	ExpectEq(metadata, gcsMinObject.Metadata)
 }

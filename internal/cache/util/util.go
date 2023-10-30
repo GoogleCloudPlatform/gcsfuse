@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
 const (
@@ -32,6 +33,7 @@ const (
 	FallbackToGCSErrMsg          = "read via gcs"
 )
 
+const DefaultFileMode = os.FileMode(0644)
 const FileDirPerm = os.FileMode(0755) | os.ModeDir
 const MiB = 1024 * 1024
 
@@ -65,4 +67,20 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		return
 	}
 	return
+}
+
+func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
+	if o == nil {
+		return nil
+	}
+
+	return &gcs.MinObject{
+		Name:            o.Name,
+		Size:            o.Size,
+		Generation:      o.Generation,
+		MetaGeneration:  o.MetaGeneration,
+		Updated:         o.Updated,
+		Metadata:        o.Metadata,
+		ContentEncoding: o.ContentEncoding,
+	}
 }
