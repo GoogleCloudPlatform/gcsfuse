@@ -308,6 +308,15 @@ func SetUpTestDirForTestBucketFlag() {
 	}
 }
 
+func SetUpLogDir(logDirName string) (logDir string) {
+	logDir, err := os.MkdirTemp("", logDirName)
+	if err != nil {
+		log.Printf("SetUpLogDir: %v\n", err)
+		os.Exit(1)
+	}
+	return
+}
+
 func LogAndExit(s string) {
 	log.Print(s)
 	log.Print(string(debug.Stack()))

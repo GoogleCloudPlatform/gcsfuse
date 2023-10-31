@@ -18,13 +18,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Syslog file contains logs from all different programmes running on the VM.
@@ -104,27 +104,6 @@ func Close() {
 	}
 }
 
-// NewDebug returns a new logger for logging debug messages with given prefix
-// to the log file or stdout.
-func NewDebug(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelDebug, prefix)
-}
-
-// NewInfo returns a new logger for logging info with given prefix to the log
-// file or stdout.
-func NewInfo(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelInfo, prefix)
-}
-
-// NewError returns a new logger for logging errors with given prefix to the log
-// file or stderr.
-func NewError(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelError, prefix)
-}
-
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
 	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
@@ -189,7 +168,13 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
 	if f.file != nil {
-		return f.createJsonOrTextHandler(f.file, levelVar, prefix)
+		fileWriter := &lumberjack.Logger{
+			Filename:   f.file.Name(),
+			MaxSize:    f.logRotateConfig.MaxFileSizeMB,
+			MaxBackups: f.logRotateConfig.FileCount - 1,
+			Compress:   f.logRotateConfig.Compress,
+		}
+		return f.createJsonOrTextHandler(fileWriter, levelVar, prefix)
 	}
 
 	if f.sysWriter != nil {

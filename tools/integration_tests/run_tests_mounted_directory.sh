@@ -250,3 +250,19 @@ sudo umount $MOUNT_DIR
 gcsfuse --implicit-dirs=false --rename-dir-limit=3 $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
+
+# Run tests with log rotation config.
+mkdir /tmp/gcsfuse_integration_test_logs
+rm -r /tmp/gcsfuse_integration_test_logs
+echo "logging:
+        file-path: /tmp/gcsfuse_integration_test_logs/log.txt
+        format: text
+        severity: trace
+        log-rotate:
+          max-file-size-mb: 1
+          file-count: 1
+          compress: true
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+sudo umount $MOUNT_DIR
