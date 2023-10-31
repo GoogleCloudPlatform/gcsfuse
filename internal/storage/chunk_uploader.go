@@ -156,7 +156,7 @@ func (uploader *chunkUploader) Upload(ctx context.Context, contents io.Reader) e
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("uploader.Upload() timed out")
+		return fmt.Errorf("uploader.Upload() failed: %v", ctx.Err())
 	case <-ioCopyComplete:
 		if err != nil {
 			uploader.state = UploadError
@@ -213,7 +213,7 @@ func (uploader *chunkUploader) Close(ctx context.Context) (*gcs.Object, error) {
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("uploader.Close() timed out")
+		return nil, fmt.Errorf("uploader.Close() failed: %v", ctx.Err())
 	case <-writerCloseComplete:
 		if err != nil {
 			var gErr *googleapi.Error

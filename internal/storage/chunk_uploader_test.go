@@ -334,6 +334,10 @@ func (t *ChunkUploaderTest) TestUploadWithTimeout() {
 	defer cancel()
 	err := uploader.Upload(ctx, strings.NewReader(content))
 	AssertNe(nil, err)
+	expectedErrorSubstring := "context deadline exceeded"
+	if !strings.Contains(err.Error(), expectedErrorSubstring) {
+		AddFailure("Error message (%s) doesn't contain expected sustring(%s)", err.Error(), expectedErrorSubstring)
+	}
 }
 
 func (t *ChunkUploaderTest) TestUploadEmptyContent() {
@@ -437,6 +441,10 @@ func (t *ChunkUploaderTest) TestCloseWithTimeout() {
 	defer cancel()
 	_, err := uploader.Close(ctx)
 	AssertNe(nil, err)
+	expectedErrorSubstring := "context deadline exceeded"
+	if !strings.Contains(err.Error(), expectedErrorSubstring) {
+		AddFailure("Error message (%s) doesn't contain expected sustring(%s)", err.Error(), expectedErrorSubstring)
+	}
 }
 
 func (t *ChunkUploaderTest) TestDoubleClosure() {
