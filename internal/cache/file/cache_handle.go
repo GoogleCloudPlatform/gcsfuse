@@ -24,7 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
@@ -74,14 +73,15 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-// shouldReadFromLocalDownloadedFile returns nil if the data should be read from the local,
+// shouldReadFromCache returns nil if the data should be read from the local,
 // downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
-func (fch *CacheHandle) shouldReadFromLocalDownloadedFile(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
+func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.INVALID ||
 		jobStatus.Name == downloader.FAILED ||
 		jobStatus.Name == downloader.NOT_STARTED {
-		return errors.New(util.InvalidFileDownloadJobErrMsg)
+		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %v", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		return errors.New(errMsg)
 	} else if jobStatus.Offset < requiredOffset {
 		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
 		return err
@@ -99,7 +99,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 		return
 	}
 
-	if offset < 0 || offset > int64(object.Size) {
+	if offset < 0 || offset >= int64(object.Size) {
 		return 0, fmt.Errorf("wrong offset requested: %d", offset)
 	}
 
@@ -125,19 +125,19 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 	jobStatus, err := fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 	if err != nil {
 		n = 0
-		err = fmt.Errorf("while downloading job: %v", err)
+		err = fmt.Errorf("read: while downloading through job: %v", err)
 		return
 	}
 
-	if err = fch.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset); err != nil {
+	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 		return 0, err
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(offset, 0)
 	if err != nil {
-		logger.Warnf("while seeking for %d offset in local file: %v", offset, err)
-		return 0, errors.New(util.ErrInSeekingFileHandleMsg)
+		errMsg := fmt.Sprintf("%s: while seeking for %d offset in local file: %v", util.ErrInSeekingFileHandleMsg, offset, err)
+		return 0, errors.New(errMsg)
 	}
 
 	n, err = io.ReadFull(fch.fileHandle, dst)
@@ -145,16 +145,16 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 		err = nil
 	}
 	if err != nil {
-		logger.Warnf("while reading from %d offset of the local file: %v", offset, err)
-		return 0, errors.New(util.ErrInReadingFileHandleMsg)
+		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
+		return 0, errors.New(errMsg)
 	}
 
 	// The job state may change while reading data from the local downloaded file. This may be
 	// due to a failure in the download job, or cache eviction due to another file. In this case,
 	// we will check the job state again after reading the data, and fall back to the normal flow
-	// if it is not advisable to read the data from the local downloaded file.
+	// if job status is invalid or failed.
 	jobStatus = fch.fileDownloadJob.GetStatus()
-	if err = fch.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset); err != nil {
+	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 		return 0, err
 	}
 

@@ -18,8 +18,10 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"io"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -38,9 +40,9 @@ import (
 const CacheMaxSize = 100 * util.MiB
 const ReadContentSize = 1 * util.MiB
 
-const TestObjectSize = 20 * util.MiB
+const TestObjectSize = 16 * util.MiB
 const TestObjectName = "foo.txt"
-const DefaultSequentialReadSizeMb = 16
+const DefaultSequentialReadSizeMb = 17
 
 func TestCacheHandle(t *testing.T) { RunTests(t) }
 
@@ -77,8 +79,6 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 	AssertEq(nil, err)
 }
 
-// Todo (princer) - enable this after the fix in job.go.
-/*
 func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedContent []byte) {
 	fileStat, err := os.Stat(cht.fileSpec.Path)
 	AssertEq(nil, err)
@@ -95,7 +95,6 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
-*/
 
 func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
@@ -240,106 +239,106 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsEqualToMaxAllowed(
 	ExpectEq(true, isSeq)
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobStateIsNotStarted() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	AssertEq(downloader.NOT_STARTED, jobStatus.Name)
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobStateIsFailed() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.FAILED
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobStateIsInvalid() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.INVALID
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobStateIsDownloading() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsDownloading() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.DOWNLOADING
 	jobStatus.Offset = downloader.ReadChunkSize
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobStateIsCompleted() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsCompleted() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.COMPLETED
 	jobStatus.Offset = int64(cht.object.Size)
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectEq(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobDownloadedOffsetIsLessThanRequiredOffset() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsLessThanRequiredOffset() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.DOWNLOADING
 	jobStatus.Offset = requiredOffset - 1
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobDownloadedOffsetSameAsRequiredOffset() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetSameAsRequiredOffset() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.DOWNLOADING
 	jobStatus.Offset = requiredOffset
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectEq(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithJobDownloadedOffsetIsMoreThanRequiredOffset() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsMoreThanRequiredOffset() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.DOWNLOADING
 	jobStatus.Offset = requiredOffset + 1
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectEq(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_shouldReadFromLocalDownloadedFile_WithNonNilJobStatusErr() {
+func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	jobStatus.Name = downloader.DOWNLOADING
 	jobStatus.Offset = requiredOffset + 1
 	jobStatus.Err = errors.New("job error")
 
-	err := cht.cacheHandle.shouldReadFromLocalDownloadedFile(&jobStatus, requiredOffset)
+	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
 func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
@@ -379,8 +378,6 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
-// Todo (princer) - enable this test after the fix in job.go.
-/*
 func (cht *cacheHandleTest) Test_Read_Sequential() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
@@ -388,13 +385,31 @@ func (cht *cacheHandleTest) Test_Read_Sequential() {
 	cht.cacheHandle.prevOffset = offset - util.MiB
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
-	n, err := cht.cacheHandle.Read(context.Background(), cht.object, offset, dst)
+	_, err := cht.cacheHandle.Read(context.Background(), cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, offset)
 	cht.verifyContentRead(offset, dst)
 	ExpectEq(nil, err)
+}
+
+func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
+	dst := make([]byte, ReadContentSize)
+	firstReqOffset := int64(0)
+	cht.cacheHandle.isSequential = true
+
+	// Since, it's a sequential read, hence will wait to download till requested offset.
+	_, err := cht.cacheHandle.Read(context.Background(), cht.object, firstReqOffset, dst)
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectGe(jobStatus.Offset, firstReqOffset)
+	ExpectGe(jobStatus.Offset, firstReqOffset)
+	ExpectEq(cht.cacheHandle.isSequential, true)
+
+	secondReqOffset := int64(cht.object.Size - ReadContentSize) // type will change to random.
+	_, err = cht.cacheHandle.Read(context.Background(), cht.object, secondReqOffset, dst)
+	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectLe(jobStatus.Offset, secondReqOffset)
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	ExpectEq(cht.cacheHandle.isSequential, false)
 }
-*/
