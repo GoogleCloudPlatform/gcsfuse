@@ -35,7 +35,6 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertEq("", mountConfig.LogConfig.Format)
 	AssertEq("", mountConfig.LogConfig.FilePath)
 	AssertEq(200, mountConfig.LogConfig.LogRotate.MaxSizeInMB)
-	AssertEq(28, mountConfig.LogConfig.LogRotate.MaxDays)
 	AssertEq(3, mountConfig.LogConfig.LogRotate.BackupCount)
 	AssertEq(true, mountConfig.LogConfig.LogRotate.Compress)
 }
@@ -86,7 +85,6 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	AssertEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	AssertEq("text", mountConfig.LogConfig.Format)
 	AssertEq(100, mountConfig.LogConfig.LogRotate.MaxSizeInMB)
-	AssertEq(1, mountConfig.LogConfig.LogRotate.MaxDays)
 	AssertEq(5, mountConfig.LogConfig.LogRotate.BackupCount)
 	AssertEq(false, mountConfig.LogConfig.LogRotate.Compress)
 }

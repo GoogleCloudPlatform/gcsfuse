@@ -6,7 +6,6 @@ logging:
   severity: error
   log-rotate:
     max-size-in-mb: 100
-    max-days: 1
     backup-count: 5
     compress: false
 

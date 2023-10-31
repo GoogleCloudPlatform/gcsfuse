@@ -32,7 +32,6 @@ type MountConfig struct {
 
 type LogRotate struct {
 	MaxSizeInMB uint32 `yaml:"max-size-in-mb"`
-	MaxDays     uint32 `yaml:"max-days"`
 	BackupCount uint32 `yaml:"backup-count"`
 	Compress    bool   `yaml:"compress"`
 }
@@ -40,7 +39,6 @@ type LogRotate struct {
 func DefaultLogRotateConfig() LogRotate {
 	return LogRotate{
 		MaxSizeInMB: 200,
-		MaxDays:     28,
 		BackupCount: 3,
 		Compress:    true,
 	}
