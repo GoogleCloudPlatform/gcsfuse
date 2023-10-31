@@ -33,6 +33,8 @@ const (
 	WARNING LogSeverity = "WARNING"
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
+
+	parseConfigFileError = "error parsing config file: %w"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -47,6 +49,16 @@ func IsValidLogSeverity(severity LogSeverity) bool {
 		return true
 	}
 	return false
+}
+
+func IsValidLogRotateConfig(config LogRotateConfig) error {
+	if config.MaxFileSizeMB <= 0 {
+		return fmt.Errorf("max-file-size-mb cannot be less than 0")
+	}
+	if config.FileCount <= 0 {
+		return fmt.Errorf("file-count cannot be less than 0")
+	}
+	return nil
 }
 
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
@@ -71,13 +83,18 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		if err == io.EOF {
 			return mountConfig, nil
 		}
-		return mountConfig, fmt.Errorf("error parsing config file: %w", err)
+		return mountConfig, fmt.Errorf(parseConfigFileError, err)
 	}
 
 	// convert log severity to upper-case
 	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
+		return
+	}
+
+	if err = IsValidLogRotateConfig(mountConfig.LogConfig.LogRotateConfig); err != nil {
+		err = fmt.Errorf(parseConfigFileError, err)
 		return
 	}
 

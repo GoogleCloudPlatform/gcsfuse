@@ -46,13 +46,13 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string, level config.LogSeverity) error {
+func InitLogFile(logConfig config.LogConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var err error
-	if filename != "" {
+	if logConfig.FilePath != "" {
 		f, err = os.OpenFile(
-			filename,
+			logConfig.FilePath,
 			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 			0644,
 		)
@@ -75,12 +75,13 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:      f,
-		sysWriter: sysWriter,
-		format:    format,
-		level:     level,
+		file:            f,
+		sysWriter:       sysWriter,
+		format:          logConfig.Format,
+		level:           logConfig.Severity,
+		logRotateConfig: logConfig.LogRotateConfig,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(level)
+	defaultLogger = defaultLoggerFactory.newLogger(logConfig.Severity)
 
 	return nil
 }
@@ -88,8 +89,9 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
-		file:  nil,
-		level: config.INFO, // setting log level to INFO by default
+		file:            nil,
+		level:           config.INFO, // setting log level to INFO by default
+		logRotateConfig: config.DefaultLogRotateConfig(),
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }
@@ -162,10 +164,11 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file      *os.File
-	sysWriter *syslog.Writer
-	format    string
-	level     config.LogSeverity
+	file            *os.File
+	sysWriter       *syslog.Writer
+	format          string
+	level           config.LogSeverity
+	logRotateConfig config.LogRotateConfig
 }
 
 func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {

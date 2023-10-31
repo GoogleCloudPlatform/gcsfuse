@@ -17,6 +17,7 @@ package logger
 import (
 	"bytes"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 
@@ -260,4 +261,33 @@ func (t *LoggerTest) TestSetLoggingLevel() {
 		setLoggingLevel(test.inputLevel, test.programLevel)
 		AssertEq(test.programLevel.Level(), test.expectedProgramLevel)
 	}
+}
+
+func (t *LoggerTest) TestInitLogFile() {
+	format := "text"
+	filePath, _ := os.UserHomeDir()
+	filePath += "/log.txt"
+	fileSize := 100
+	fileCount := 2
+	logConfig := config.LogConfig{
+		Severity: config.DEBUG,
+		Format:   format,
+		FilePath: filePath,
+		LogRotateConfig: config.LogRotateConfig{
+			MaxFileSizeMB: fileSize,
+			FileCount:     fileCount,
+			Compress:      true,
+		},
+	}
+
+	err := InitLogFile(logConfig)
+
+	AssertEq(nil, err)
+	AssertEq(filePath, defaultLoggerFactory.file.Name())
+	AssertEq(nil, defaultLoggerFactory.sysWriter)
+	AssertEq(format, defaultLoggerFactory.format)
+	AssertEq(config.DEBUG, defaultLoggerFactory.level)
+	AssertEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
+	AssertEq(fileCount, defaultLoggerFactory.logRotateConfig.FileCount)
+	AssertEq(true, defaultLoggerFactory.logRotateConfig.Compress)
 }
