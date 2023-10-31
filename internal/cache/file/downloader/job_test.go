@@ -613,8 +613,6 @@ func (dt *downloaderTest) Test_Cancel_WhenDownloading() {
 	AssertEq(nil, jobStatus.Err)
 	AssertGe(jobStatus.Offset, offset)
 
-	// Wait for some time and then cancel
-	time.Sleep(time.Millisecond * 30)
 	dt.job.Cancel()
 
 	jobStatus, err = dt.job.Download(context.Background(), 0, false)
