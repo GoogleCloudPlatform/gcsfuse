@@ -18,8 +18,10 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"io"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -77,8 +79,6 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 	AssertEq(nil, err)
 }
 
-// Todo (princer) - enable this after the fix in job.go.
-/*
 func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedContent []byte) {
 	fileStat, err := os.Stat(cht.fileSpec.Path)
 	AssertEq(nil, err)
@@ -95,7 +95,6 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
-*/
 
 func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
