@@ -19,9 +19,10 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity LogSeverity `yaml:"severity"`
-	Format   string      `yaml:"format"`
-	FilePath string      `yaml:"file-path"`
+	Severity  LogSeverity `yaml:"severity"`
+	Format    string      `yaml:"format"`
+	FilePath  string      `yaml:"file-path"`
+	LogRotate LogRotate   `yaml:"log-rotate"`
 }
 
 type MountConfig struct {
@@ -29,11 +30,29 @@ type MountConfig struct {
 	LogConfig   `yaml:"logging"`
 }
 
+type LogRotate struct {
+	MaxSizeInMB uint32 `yaml:"max-size-in-mb"`
+	MaxDays     uint32 `yaml:"max-days"`
+	BackupCount uint32 `yaml:"backup-count"`
+	Compress    bool   `yaml:"compress"`
+}
+
+func DefaultLogRotateConfig() LogRotate {
+	return LogRotate{
+		MaxSizeInMB: 200,
+		MaxDays:     28,
+		BackupCount: 3,
+		Compress:    true,
+	}
+}
+
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
+		// Setting default values of log rotate config.
+		LogRotate: DefaultLogRotateConfig(),
 	}
 	return mountConfig
 }

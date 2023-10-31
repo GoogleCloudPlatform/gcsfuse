@@ -46,13 +46,13 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string, level config.LogSeverity) error {
+func InitLogFile(logConfig config.LogConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var err error
-	if filename != "" {
+	if logConfig.FilePath != "" {
 		f, err = os.OpenFile(
-			filename,
+			logConfig.FilePath,
 			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 			0644,
 		)
@@ -77,10 +77,11 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 	defaultLoggerFactory = &loggerFactory{
 		file:      f,
 		sysWriter: sysWriter,
-		format:    format,
-		level:     level,
+		format:    logConfig.Format,
+		level:     logConfig.Severity,
+		logRotate: logConfig.LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(level)
+	defaultLogger = defaultLoggerFactory.newLogger(logConfig.Severity)
 
 	return nil
 }
@@ -88,8 +89,9 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
-		file:  nil,
-		level: config.INFO, // setting log level to INFO by default
+		file:      nil,
+		level:     config.INFO, // setting log level to INFO by default
+		logRotate: config.DefaultLogRotateConfig(),
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }
@@ -166,6 +168,7 @@ type loggerFactory struct {
 	sysWriter *syslog.Writer
 	format    string
 	level     config.LogSeverity
+	logRotate config.LogRotate
 }
 
 func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
