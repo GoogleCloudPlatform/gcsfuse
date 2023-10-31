@@ -330,7 +330,8 @@ func (t *ChunkUploaderTest) TestUploadWithTimeout() {
 	content := genRandomContent(contentSize)
 
 	uploader := t.testNewChunkUploader(context.Background(), obj, t.req, chunkSize, nil)
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
 	err := uploader.Upload(ctx, strings.NewReader(content))
 	AssertNe(nil, err)
 }
@@ -432,7 +433,8 @@ func (t *ChunkUploaderTest) TestCloseWithTimeout() {
 	content := genRandomContent(contentSize)
 	uploader := t.testNewChunkUploader(context.Background(), obj, t.req, chunkSize, nil)
 	t.testUpload(uploader, strings.NewReader(content))
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
 	_, err := uploader.Close(ctx)
 	AssertNe(nil, err)
 }
