@@ -21,7 +21,7 @@ const (
 	// be created in memory. Beyond this size, buffer should be on disk.
 	InMemoryBufferThresholdMB     = 50
 	NonSequentialWriteError       = "non-sequential writes are not supported with buffer"
-	DataNOtWrittenCompletelyError = "could not write all the data to buffer. Expected bytes to be written: %d, actually written: %d"
+	DataNotWrittenCompletelyError = "could not write all the data to buffer. Expected bytes to be written: %d, actually written: %d"
 )
 
 // ChunkSize (bytes) is the size of data to be written in 1 write call to GCS.
@@ -34,9 +34,9 @@ var ChunkSize int64
 // at any point in time, only 2x of the configured buffer size is stored in the
 // write buffer.
 type WriteBuffer interface {
-	// InitializeBuffer assigns a buffer of 2*configured buffer size to the WriteBuffer.
-	// InitializeBuffer should be called before any write calls to the buffer.
-	InitializeBuffer(sizeInMB int)
+	// Initialize assigns a buffer of 2*configured buffer size to the WriteBuffer.
+	// Initialize should be called before any write calls to the buffer.
+	Initialize(sizeInMB int)
 
 	// WriteAt writes at an offset to the buffer.
 	WriteAt(data []byte, offset int64) error

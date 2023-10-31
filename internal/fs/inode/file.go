@@ -489,7 +489,7 @@ func (f *FileInode) ensureWriteBuffer(bufferSizeMB int) {
 		f.CreateEmptyWriteBuffer(bufferSizeMB)
 	}
 	// Initialize a buffer of size 2*bufferSizeMB
-	f.writeBuffer.InitializeBuffer(bufferSizeMB)
+	f.writeBuffer.Initialize(bufferSizeMB)
 }
 
 // WriteToBuffer serves the write request with buffer.

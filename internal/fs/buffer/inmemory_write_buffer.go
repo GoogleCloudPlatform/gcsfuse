@@ -43,14 +43,14 @@ type InMemoryWriteBuffer struct {
 // set to nil. Memory is allocated to the buffer when the first write call comes.
 // This avoids unnecessarily bloating GCSFuse memory consumption.
 //
-// To allocate memory to the buffer, use WriteBuffer.InitializeBuffer.
+// To allocate memory to the buffer, use WriteBuffer.Initialize.
 func CreateInMemoryWriteBuffer() *InMemoryWriteBuffer {
 	b := &InMemoryWriteBuffer{}
 	// TODO: set mtime attribute.
 	return b
 }
 
-func (b *InMemoryWriteBuffer) InitializeBuffer(sizeInMB int) {
+func (b *InMemoryWriteBuffer) Initialize(sizeInMB int) {
 	if ChunkSize == 0 {
 		ChunkSize = int64(sizeInMB * MiB)
 	}
@@ -110,7 +110,7 @@ func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset, contentEndOff
 
 	n := copy(b.currentBuffer[si:ei], content)
 	if int64(n) != dataSize {
-		return fmt.Errorf(DataNOtWrittenCompletelyError, dataSize, n)
+		return fmt.Errorf(DataNotWrittenCompletelyError, dataSize, n)
 	}
 	b.updateFileSize(contentEndOffset)
 	return nil
