@@ -220,8 +220,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f h1:X+tnaqoCcBgAwSTJtoYW6p0qKiuPyMfofEHEFUf2kdU=
 github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f/go.mod h1:Ip4fOwzCrnDVuluHBd7FXIMb7SHOKfkt9/UDrYSZvqI=
-github.com/jacobsa/fuse v0.0.0-20230810134708-ab21db1af836 h1:Xhn8huWAi1BVXQlpSEO+ZTWmrkaH+FuCJw0KLQtzwOg=
-github.com/jacobsa/fuse v0.0.0-20230810134708-ab21db1af836/go.mod h1:XUKuYy1M4vamyxQjW8/WZBTxyZ0NnUiq+kkA+WWOfeI=
+github.com/jacobsa/fuse v0.0.0-20231003132804-d0f3daf365c3 h1:NhlhxaD3w7/+ztfJzZHWJ9FeNPl3kDYQPXQ/arbXAbA=
+github.com/jacobsa/fuse v0.0.0-20231003132804-d0f3daf365c3/go.mod h1:XUKuYy1M4vamyxQjW8/WZBTxyZ0NnUiq+kkA+WWOfeI=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd h1:9GCSedGjMcLZCrusBZuo4tyKLpKUPenUUqi34AkuFmA=
 github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd/go.mod h1:TlmyIZDpGmwRoTWiakdr+HA1Tukze6C6XbRVidYq02M=
 github.com/jacobsa/oglemock v0.0.0-20150831005832-e94d794d06ff h1:2xRHTvkpJ5zJmglXLRqHiZQNjUoOkhUyhTAhEQvPAWw=
