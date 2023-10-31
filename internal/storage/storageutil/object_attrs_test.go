@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"crypto/md5"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -216,4 +217,41 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 	ExpectEq(writer.CRC32C, *createObjectRequest.CRC32C)
 	ExpectTrue(writer.SendCRC32C)
 	ExpectEq(string(writer.MD5[:]), string(createObjectRequest.MD5[:]))
+}
+
+func (t objectAttrsTest) Test_ConvertObjToMinObject_WithNilObject() {
+	var gcsObject *gcs.Object
+
+	gcsMinObject := ConvertObjToMinObject(gcsObject)
+
+	ExpectTrue(reflect.DeepEqual(gcs.MinObject{}, gcsMinObject))
+}
+
+func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
+	name := "test"
+	size := uint64(36)
+	generation := int64(444)
+	metaGeneration := int64(555)
+	currentTime := time.Now()
+	contentEncode := "test_encoding"
+	metadata := map[string]string{"test_key": "test_value"}
+	gcsObject := gcs.Object{
+		Name:            name,
+		Size:            size,
+		Generation:      generation,
+		MetaGeneration:  metaGeneration,
+		Updated:         currentTime,
+		Metadata:        metadata,
+		ContentEncoding: contentEncode,
+	}
+
+	gcsMinObject := ConvertObjToMinObject(&gcsObject)
+
+	ExpectEq(name, gcsMinObject.Name)
+	ExpectEq(size, gcsMinObject.Size)
+	ExpectEq(generation, gcsMinObject.Generation)
+	ExpectEq(metaGeneration, gcsMinObject.MetaGeneration)
+	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
+	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
+	ExpectEq(metadata, gcsMinObject.Metadata)
 }
