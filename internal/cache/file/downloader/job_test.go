@@ -50,16 +50,8 @@ func (dt *downloaderTest) getMinObject(objectName string) gcs.MinObject {
 	if err != nil {
 		panic(fmt.Errorf("error whlie stating object: %v", err))
 	}
-	minObject := gcs.MinObject{
-		Name:            object.Name,
-		Size:            object.Size,
-		Generation:      object.Generation,
-		MetaGeneration:  object.MetaGeneration,
-		Updated:         object.Updated,
-		Metadata:        object.Metadata,
-		ContentEncoding: object.ContentEncoding,
-	}
-	return minObject
+
+	return storageutil.ConvertObjToMinObject(object)
 }
 
 func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, sequentialReadSize int32, lruCacheSize uint64) {

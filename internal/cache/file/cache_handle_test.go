@@ -118,7 +118,8 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	gcsObj, err := cht.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: TestObjectName,
 		ForceFetchFromGcs: true})
 	AssertEq(nil, err)
-	cht.object = util.ConvertObjToMinObject(gcsObj)
+	minObject := storageutil.ConvertObjToMinObject(gcsObj)
+	cht.object = &minObject
 
 	// fileInfoCache with testFileInfoEntry
 	cht.cache = lru.NewCache(CacheMaxSize)
