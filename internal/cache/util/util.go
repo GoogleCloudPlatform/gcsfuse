@@ -32,7 +32,6 @@ const (
 	FallbackToGCSErrMsg          = "read via gcs"
 )
 
-const DefaultFileMode = os.FileMode(0644)
 const FileDirPerm = os.FileMode(0755) | os.ModeDir
 const MiB = 1024 * 1024
 const DefaultFilePerm = os.FileMode(0644)
