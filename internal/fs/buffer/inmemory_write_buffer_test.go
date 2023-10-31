@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
+	"time"
 
 	. "github.com/jacobsa/ogletest"
 )
@@ -50,7 +51,7 @@ func (t *MemoryBufferTest) TearDown() {}
 // //////////////////////////////////////////////////////////////////////
 
 func generateRandomData(size int64) []byte {
-	r := rand.New(rand.NewSource(1))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	data := make([]byte, size)
 	r.Read(data)
 	return data
@@ -63,7 +64,8 @@ func generateRandomData(size int64) []byte {
 func (t *MemoryBufferTest) TestCreateEmptyInMemoryBuffer() {
 	t.mb = CreateInMemoryWriteBuffer()
 
-	AssertEq(nil, t.mb.buffer)
+	AssertEq(nil, t.mb.currentBuffer)
+	AssertEq(nil, t.mb.flushedBuffer)
 	AssertEq(0, ChunkSize)
 }
 
@@ -74,8 +76,15 @@ func (t *MemoryBufferTest) TestInitializeInMemoryBuffer() {
 	t.mb.InitializeBuffer(sizeInMB)
 
 	AssertEq(sizeInMB*MiB, ChunkSize)
-	AssertEq(2*sizeInMB*MiB, cap(t.mb.buffer))
-	AssertEq(0, len(t.mb.buffer))
+	AssertEq(sizeInMB*MiB, cap(t.mb.currentBuffer))
+	AssertEq(0, len(t.mb.currentBuffer))
+	AssertEq(0, t.mb.currentBufferStartOffset)
+	AssertEq(sizeInMB*MiB, t.mb.currentBufferEndOffset)
+
+	AssertEq(sizeInMB*MiB, cap(t.mb.flushedBuffer))
+	AssertEq(0, len(t.mb.flushedBuffer))
+	AssertEq(0, t.mb.flushedBufferStartOffset)
+	AssertEq(0, t.mb.flushedBufferEndOffset)
 }
 
 func (t *MemoryBufferTest) TestSingleWriteToInMemoryBuffer() {
@@ -88,7 +97,7 @@ func (t *MemoryBufferTest) TestSingleWriteToInMemoryBuffer() {
 
 	AssertEq(nil, err)
 	AssertEq(t.mb.fileSize, 4)
-	AssertEq(true, bytes.Equal(data, t.mb.buffer[0:t.mb.fileSize]))
+	AssertEq(true, bytes.Equal(data, t.mb.currentBuffer[0:t.mb.fileSize]))
 }
 
 func (t *MemoryBufferTest) TestMultipleSequentialWritesToInMemoryBuffer() {
@@ -104,7 +113,7 @@ func (t *MemoryBufferTest) TestMultipleSequentialWritesToInMemoryBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 16)
-	AssertEq(true, bytes.Equal([]byte("TacoBurritoPizza"), t.mb.buffer[0:t.mb.fileSize]))
+	AssertEq(true, bytes.Equal([]byte("TacoBurritoPizza"), t.mb.currentBuffer[0:t.mb.fileSize]))
 }
 
 func (t *MemoryBufferTest) Test2MBWriteTo2MBInMemoryBuffer() {
@@ -120,8 +129,8 @@ func (t *MemoryBufferTest) Test2MBWriteTo2MBInMemoryBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 2*MiB)
-	AssertEq(true, bytes.Equal(data1, t.mb.buffer[0:MiB]))
-	AssertEq(true, bytes.Equal(data2, t.mb.buffer[MiB:t.mb.fileSize]))
+	AssertEq(true, bytes.Equal(data1, t.mb.flushedBuffer[0:MiB]))
+	AssertEq(true, bytes.Equal(data2, t.mb.currentBuffer[0:MiB]))
 }
 
 func (t *MemoryBufferTest) Test3MBWriteTo2MBInMemoryBuffer() {
@@ -140,8 +149,8 @@ func (t *MemoryBufferTest) Test3MBWriteTo2MBInMemoryBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 3*MiB)
-	AssertEq(true, bytes.Equal(data3, t.mb.buffer[0:MiB]))
-	AssertEq(true, bytes.Equal(data2, t.mb.buffer[MiB:2*MiB]))
+	AssertEq(true, bytes.Equal(data3, t.mb.currentBuffer[0:MiB]))
+	AssertEq(true, bytes.Equal(data2, t.mb.flushedBuffer[0:MiB]))
 }
 
 func (t *MemoryBufferTest) Test4MBWriteTo2MBInMemoryBuffer() {
@@ -163,8 +172,8 @@ func (t *MemoryBufferTest) Test4MBWriteTo2MBInMemoryBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 4*MiB)
-	AssertEq(true, bytes.Equal(data3, t.mb.buffer[0:MiB]))
-	AssertEq(true, bytes.Equal(data4, t.mb.buffer[MiB:2*MiB]))
+	AssertEq(true, bytes.Equal(data3, t.mb.flushedBuffer[0:MiB]))
+	AssertEq(true, bytes.Equal(data4, t.mb.currentBuffer[0:MiB]))
 }
 
 func (t *MemoryBufferTest) TestMultipleRandomWritesToInMemoryBuffer() {
@@ -180,7 +189,7 @@ func (t *MemoryBufferTest) TestMultipleRandomWritesToInMemoryBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 12)
-	AssertEq(true, bytes.Equal([]byte("TaBurriPizza"), t.mb.buffer[0:t.mb.fileSize]))
+	AssertEq(true, bytes.Equal([]byte("TaBurriPizza"), t.mb.currentBuffer[0:t.mb.fileSize]))
 }
 
 func (t *MemoryBufferTest) TestWriteJustBeforeChunkSizeOffset() {
@@ -192,7 +201,8 @@ func (t *MemoryBufferTest) TestWriteJustBeforeChunkSizeOffset() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, MiB+3)
-	AssertEq(true, bytes.Equal([]byte("Taco"), t.mb.buffer[MiB-1:MiB+3]))
+	AssertEq(true, bytes.Equal([]byte("T"), t.mb.flushedBuffer[MiB-1:MiB]))
+	AssertEq(true, bytes.Equal([]byte("aco"), t.mb.currentBuffer[0:3]))
 }
 
 func (t *MemoryBufferTest) TestWriteAtChunkSizeOffset() {
@@ -204,7 +214,7 @@ func (t *MemoryBufferTest) TestWriteAtChunkSizeOffset() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, MiB+4)
-	AssertEq(true, bytes.Equal([]byte("Taco"), t.mb.buffer[MiB:MiB+4]))
+	AssertEq(true, bytes.Equal([]byte("Taco"), t.mb.currentBuffer[0:4]))
 }
 
 func (t *MemoryBufferTest) TestWriteJustAfterChunkSizeOffset() {
@@ -234,8 +244,8 @@ func (t *MemoryBufferTest) TestWriteRollOverFrom2ndTo1stBlock() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 2*MiB+KiB)
-	AssertEq(true, bytes.Equal(data2[0:KiB], t.mb.buffer[2*MiB-KiB:2*MiB]))
-	AssertEq(true, bytes.Equal(data2[KiB:], t.mb.buffer[0:KiB]))
+	AssertEq(true, bytes.Equal(data2[0:KiB], t.mb.flushedBuffer[MiB-KiB:MiB]))
+	AssertEq(true, bytes.Equal(data2[KiB:], t.mb.currentBuffer[0:KiB]))
 }
 
 func (t *MemoryBufferTest) TestRandomWriteOnAnAlreadyWrittenBufferBlockShouldFail() {

@@ -27,7 +27,6 @@ const (
 // ChunkSize (bytes) is the size of data to be written in 1 write call to GCS.
 // Ensure ChunkSize <= 100MB to avoid memory bloat.
 var ChunkSize int64
-var BufferSize int64
 
 // WriteBuffer is an interface that buffers the data to be written to GCS during
 // the write flow.

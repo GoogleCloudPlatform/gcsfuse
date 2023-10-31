@@ -2081,18 +2081,23 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
+	// TODO: add unit tests for the following.
 	if fs.isWriteBufferEnabled(in) {
-		// Trigger write file buffering flow.
+		// Trigger write file with buffer flow.
 		err = in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
-		if err != nil && err.Error() == buffer.NonSequentialWriteError {
-			// Trigger the temp file flow in case of non-sequential writes.
-			err = in.Write(ctx, op.Data, op.Offset)
+		if err == nil {
+			return
 		}
-	} else {
-		// Trigger the temp file flow.
-		err = in.Write(ctx, op.Data, op.Offset)
+		logger.Warnf("Failed to complete write with buffer: %v", err)
+		if err.Error() != buffer.NonSequentialWriteError {
+			return
+		} else {
+			// Trigger the temp file flow in case of non-sequential writes.
+			logger.Infof("Failing back to write file operation with temp file created on-disk.")
+		}
 	}
+	// Trigger the temp file flow.
+	err = in.Write(ctx, op.Data, op.Offset)
 	return
 }
 
