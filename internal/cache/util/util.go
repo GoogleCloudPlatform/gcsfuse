@@ -34,6 +34,7 @@ const (
 
 const FileDirPerm = os.FileMode(0755) | os.ModeDir
 const MiB = 1024 * 1024
+const DefaultFilePerm = os.FileMode(0644)
 
 // CreateFile creates file with given file spec i.e. permissions and returns
 // file handle for that file opened with given flag.

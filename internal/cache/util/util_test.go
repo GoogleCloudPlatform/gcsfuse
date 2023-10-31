@@ -38,7 +38,6 @@ type utilTest struct {
 
 const FileDir = "/some/dir/"
 const FileName = "foo.txt"
-const DefaultFileMode = 0644
 
 func init() { RegisterTestSuite(&utilTest{}) }
 
@@ -51,7 +50,7 @@ func (ut *utilTest) SetUp(*TestInfo) {
 	}
 	ut.fileSpec = data.FileSpec{
 		Path: path.Join(homeDir, FileDir, FileName),
-		Perm: os.FileMode(DefaultFileMode),
+		Perm: DefaultFilePerm,
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
