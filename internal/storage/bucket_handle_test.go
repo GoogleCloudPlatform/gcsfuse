@@ -410,6 +410,11 @@ func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsNonZero(
 	// only to objects that don't exist already.
 	AssertEq(nil, uploader)
 	AssertNe(nil, err)
+	expectedErrorSubstring := "method not supported for pre-existing GCS objects"
+	actualErrorString := err.Error()
+	if !strings.Contains(actualErrorString, expectedErrorSubstring) {
+		AddFailure("Actual error \"%s\" does not contain expected error \"%s\"", actualErrorString, expectedErrorSubstring)
+	}
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {

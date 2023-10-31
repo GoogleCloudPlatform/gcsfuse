@@ -206,7 +206,7 @@ func (bh *bucketHandle) CreateChunkUploader(
 		return nil, fmt.Errorf("method not supported for pre-existing GCS objects")
 	}
 
-	uploader, err = NewChunkUploader(ctx, obj, req, writeChunkSize, nil)
+	uploader, err = NewChunkUploader(ctx, obj, req, writeChunkSize, progressFunc)
 	if err != nil {
 		return nil, err
 	}

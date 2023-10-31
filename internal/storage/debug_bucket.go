@@ -159,6 +159,44 @@ func (b *debugBucket) CreateObject(
 	return
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+//////////// Chunk Uploader ///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+type debugChunkUploader struct {
+	gcs.ChunkUploader
+	bucket    *debugBucket
+	requestID uint64
+	desc      string
+	startTime time.Time
+	wrapped   gcs.ChunkUploader
+}
+
+func (dcu *debugChunkUploader) Upload(ctx context.Context, contents io.Reader) error {
+	err := dcu.wrapped.Upload(ctx, contents)
+	// Don't log EOF errors, which are par for the course.
+	if err != nil && err != io.EOF {
+		dcu.bucket.requestLogf(dcu.requestID, "-> Upload error: %v", err)
+	}
+
+	return err
+}
+
+func (dcu *debugChunkUploader) Close(ctx context.Context) (o *gcs.Object, err error) {
+	defer dcu.bucket.finishRequest(
+		dcu.requestID,
+		dcu.desc,
+		dcu.startTime,
+		&err)
+
+	o, err = dcu.wrapped.Close(ctx)
+	return
+}
+
+func (dcu *debugChunkUploader) BytesUploadedSoFar() int64 {
+	return dcu.wrapped.BytesUploadedSoFar()
+}
+
 func (b *debugBucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
@@ -168,6 +206,19 @@ func (b *debugBucket) CreateChunkUploader(
 	defer b.finishRequest(id, desc, start, &err)
 
 	uploader, err = b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+	if err != nil {
+		uploader = nil
+		return nil, err
+	}
+
+	// Return a special chunk-uploader that prings debug info.
+	uploader = &debugChunkUploader{
+		bucket:    b,
+		requestID: id,
+		desc:      desc,
+		startTime: start,
+		wrapped:   uploader,
+	}
 	return
 }
 
