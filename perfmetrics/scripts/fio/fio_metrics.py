@@ -441,10 +441,7 @@ class FioMetrics:
       values.append(row)
     return values
 
-
-  def get_metrics(self,
-      filepath,
-      worksheet_name=None) -> List[Dict[str, Any]]:
+  def get_metrics(self, filepath) -> List[Dict[str, Any]]:
     """Returns job metrics obtained from given filepath.
 
     Args:
@@ -456,17 +453,6 @@ class FioMetrics:
     fio_out = self._load_file_dict(filepath)
     job_metrics = self._extract_metrics(fio_out)
     return job_metrics
-
-  def upload_metrics_to_bigquery(self, metrics_data, config_id, start_time_build, table_id_bq):
-    """Uploads metrics data for load tests to Google Spreadsheets
-    Args:
-      metrics_data (list): List of metric values for each job
-      config_id (str): configuration ID of the experiment
-      start_time_build (int): Start time of the build
-      table_id_bq (str): ID of table in BigQuery to which metrics data will be uploaded
-    """
-    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-    bigquery_obj.upload_metrics_to_table(table_id_bq, config_id, start_time_build, metrics_data)
 
 if __name__ == '__main__':
   argv = sys.argv

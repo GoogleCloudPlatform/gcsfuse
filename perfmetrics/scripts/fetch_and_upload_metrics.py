@@ -98,8 +98,7 @@ if __name__ == '__main__':
     if not args.config_id or not args.start_time_build:
       raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-    fio_metrics_obj.upload_metrics_to_bigquery(metrics_data, args.config_id[0], args.start_time_build[0], constants.FIO_TABLE_ID)
-
+    bigquery_obj.upload_metrics_to_table(constants.FIO_TABLE_ID, args.config_id[0], args.start_time_build[0], metrics_data)
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph

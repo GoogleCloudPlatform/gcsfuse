@@ -54,7 +54,7 @@ gsutil cp gs://your-bucket-name/creds.json ./gsheet
 11. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
 12. Finally, execute fetch_metrics.py to extract FIO and VM metrics and write to your Google Sheet by running
 ```bash
-python3 fetch_metrics.py output.json
+python3 fetch_and_upload_metrics.py output.json
 ```
 The FIO output JSON file is passed as an argument to the fetch_metrics module.
 
