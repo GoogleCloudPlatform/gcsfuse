@@ -50,7 +50,7 @@ func (ut *utilTest) SetUp(*TestInfo) {
 	}
 	ut.fileSpec = data.FileSpec{
 		Path: path.Join(homeDir, FileDir, FileName),
-		Perm: DefaultFileMode,
+		Perm: DefaultFilePerm,
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
