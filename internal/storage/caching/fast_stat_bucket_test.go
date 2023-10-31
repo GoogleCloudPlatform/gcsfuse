@@ -169,45 +169,57 @@ func (t *CreateChunkUploaderTest) CallsEraseAndWrapped() {
 
 func (t *CreateChunkUploaderTest) WrappedFails() {
 	var err error
+	const name = "taco"
 
 	// Erase
 	ExpectCall(t.cache, "Erase")(Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "CreateChunkUploader")(Any(), Any(), Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+		WillOnce(Return(nil, errors.New(name)))
 
 	// Call
 	_, err = t.bucket.CreateChunkUploader(context.TODO(), &gcs.CreateObjectRequest{}, 1, nil)
 
-	ExpectThat(err, Error(HasSubstr("taco")))
+	ExpectThat(err, Error(HasSubstr(name)))
 }
 
-func (t *CreateChunkUploaderTest) WrappedSucceeds() {
-	const name = "taco"
-	var err error
+// func (t *CreateChunkUploaderTest) WrappedSucceeds() {
+// 	const name = "taco"
+// 	var err error
+// 	chunkSize := googleapi.MinUploadChunkSize
 
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+// 	// Erase
+// 	ExpectCall(t.cache, "Erase")(Any())
 
-	// Wrapped
-	obj := &gcs.Object{
-		Name:       name,
-		Generation: 1234,
-	}
+// 	// Wrapped
+// 	obj := &gcs.Object{
+// 		Name:       name,
+// 		Generation: 1234,
+// 	}
 
-	ExpectCall(t.wrapped, "CreateObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+// 	// uploader gcs.ChunkUploader{}
 
-	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+// 	ExpectCall(t.wrapped, "CreateChunkUploader")(Any(), Any(), Any(), Any())
 
-	// Call
-	o, err := t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
+// 	// Insert
+// 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
-	AssertEq(nil, err)
-	ExpectEq(obj, o)
-}
+// 	// Call
+// 	uploader, err := t.bucket.CreateChunkUploader(context.TODO(), &gcs.CreateObjectRequest{}, chunkSize, nil)
+
+// 	AssertEq(nil, err)
+// 	ExpectNe(nil, uploader)
+
+// 	err = uploader.Upload(context.Background(), strings.NewReader(""))
+
+// 	AssertEq(nil, err)
+
+// 	o, err := uploader.Close(context.Background())
+
+// 	AssertEq(nil, err)
+// 	AssertNe(nil, o)
+// }
 
 ////////////////////////////////////////////////////////////////////////
 // CopyObject

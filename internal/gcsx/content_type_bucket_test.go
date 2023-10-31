@@ -128,7 +128,7 @@ func TestContentTypeBucket_CreateChunkUploader(t *testing.T) {
 		}
 
 		o, err := uploader.Close(context.Background())
-		if o == nil || nil != err {
+		if o == nil || err != nil {
 			t.Errorf("Test case %d. Close(): got = %v, %v want = non-nil, nil", i, o, err)
 		}
 

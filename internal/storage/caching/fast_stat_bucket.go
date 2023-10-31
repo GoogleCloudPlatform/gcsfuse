@@ -185,6 +185,10 @@ func (b *fastStatBucket) CreateChunkUploader(
 	if err != nil {
 		return
 	}
+	if wrapped == nil {
+		uploader = nil
+		return
+	}
 
 	uploader = &fastStatChunkUploader{b: b, wrapped: wrapped}
 	return

@@ -25,6 +25,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"

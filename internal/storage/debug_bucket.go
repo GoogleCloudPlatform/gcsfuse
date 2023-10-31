@@ -174,8 +174,7 @@ type debugChunkUploader struct {
 
 func (dcu *debugChunkUploader) Upload(ctx context.Context, contents io.Reader) error {
 	err := dcu.wrapped.Upload(ctx, contents)
-	// Don't log EOF errors, which are par for the course.
-	if err != nil && err != io.EOF {
+	if err != nil {
 		dcu.bucket.requestLogf(dcu.requestID, "-> Upload error: %v", err)
 	}
 
@@ -208,7 +207,7 @@ func (b *debugBucket) CreateChunkUploader(
 	uploader, err = b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
 	if err != nil {
 		uploader = nil
-		return nil, err
+		return
 	}
 
 	// Return a special chunk-uploader that prings debug info.
