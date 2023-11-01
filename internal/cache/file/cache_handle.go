@@ -77,9 +77,9 @@ func (fch *CacheHandle) validateCacheHandle() error {
 // downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
-		jobStatus.Name == downloader.INVALID ||
-		jobStatus.Name == downloader.FAILED ||
-		jobStatus.Name == downloader.NOT_STARTED {
+			jobStatus.Name == downloader.INVALID ||
+			jobStatus.Name == downloader.FAILED ||
+			jobStatus.Name == downloader.NOT_STARTED {
 		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %v", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
 		return errors.New(errMsg)
 	} else if jobStatus.Offset < requiredOffset {
@@ -93,8 +93,8 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 // For sequential reads, it will wait to download the requested chunk
 // if it is not already present. For random reads, it does not wait for
 // download. Additionally, for random reads, the download will not be
-// initiated if downloadForRandom is false.
-func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, downloadForRandom bool, offset int64, dst []byte) (n int, err error) {
+// initiated if downloadForRandomRead is false.
+func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, downloadForRandomRead bool, offset int64, dst []byte) (n int, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
@@ -123,8 +123,8 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, downloa
 		requiredOffset = objSize
 	}
 
-	// If downloadForRandom is false and readType is random, download will not be initiated.
-	if !downloadForRandom && !fch.IsSequential(offset) {
+	// If downloadForRandomRead is false and readType is random, download will not be initiated.
+	if !downloadForRandomRead && !fch.IsSequential(offset) {
 		jobStatus := fch.fileDownloadJob.GetStatus()
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 			return 0, err
