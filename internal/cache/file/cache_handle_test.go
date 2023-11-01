@@ -421,6 +421,7 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, firstReqOffset)
 	ExpectGe(jobStatus.Offset, firstReqOffset)
+	ExpectEq(nil, err)
 	ExpectEq(cht.cacheHandle.isSequential, true)
 
 	secondReqOffset := int64(cht.object.Size - ReadContentSize) // type will change to random.
