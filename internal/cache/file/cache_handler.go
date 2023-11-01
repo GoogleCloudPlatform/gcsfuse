@@ -17,7 +17,6 @@ package file
 import (
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -44,13 +43,9 @@ type CacheHandler struct {
 	mu locker.Locker
 }
 
-func (chr *CacheHandler) getLocalFilePath(objectName string, bucketName string) string {
-	return path.Join(chr.cacheLocation, bucketName, objectName)
-}
-
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
-		Path: chr.getLocalFilePath(objectName, bucketName),
+		Path: util.GetObjectPath(objectName, bucketName),
 		Perm: util.DefaultFilePerm,
 	}
 
@@ -77,7 +72,7 @@ func (chr *CacheHandler) performPostEvictionWork(evictedValues []lru.ValueType) 
 
 		chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
 
-		localFilePath := chr.getLocalFilePath(key.ObjectName, key.BucketName)
+		localFilePath := util.GetObjectPath(key.ObjectName, key.BucketName)
 		err = os.Remove(localFilePath)
 		if err != nil {
 			return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
@@ -100,6 +95,7 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
+	// This look-up
 	fileInfo := chr.fileInfoCache.LookUp(fileInfoKeyName)
 	if fileInfo == nil {
 		fileInfo = data.FileInfo{
@@ -128,14 +124,14 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 // which contains the downloaded content. Finally, it returns a CacheHandle that
 // contains the async DownloadJob and the local file handle.
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
-	localFileReadHandle, err := chr.createLocalFileReadHandle(object.Name, bucket.Name())
+	err := chr.addFileInfoEntryInTheCacheIfNotAlready(object, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("error while create local-file read handle: %v", err)
+		return nil, fmt.Errorf("while adding the entry in the cache: %v", err)
 	}
 
-	err = chr.addFileInfoEntryInTheCacheIfNotAlready(object, bucket)
+	localFileReadHandle, err := chr.createLocalFileReadHandle(object.Name, bucket.Name())
 	if err != nil {
-		return nil, fmt.Errorf("while addingen try in the cache: %v", err)
+		return nil, fmt.Errorf("while create local-file read handle: %v", err)
 	}
 
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil

@@ -17,7 +17,6 @@ package downloader
 import (
 	"os"
 	"path"
-	"reflect"
 	"sync"
 	"testing"
 
@@ -32,7 +31,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var cacheLocation string = path.Join(os.Getenv("HOME"), "cache/location")
+var cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
 
 func TestDownloader(t *testing.T) { RunTests(t) }
 
@@ -72,36 +71,9 @@ func (dt *downloaderTest) verifyJob(job *Job, object *gcs.MinObject, bucket gcs.
 	ExpectEq(object.Generation, job.object.Generation)
 	ExpectEq(object.Name, job.object.Name)
 	ExpectEq(bucket.Name(), job.bucket.Name())
-	downloadPath := dt.jm.getDownloadPath(getObjectPath(bucket.Name(), object.Name))
+	downloadPath := util.GetDownloadPath(dt.jm.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
 	ExpectEq(downloadPath, job.fileSpec.Path)
 	ExpectEq(sequentialReadSizeMb, job.sequentialReadSizeMb)
-}
-
-func (dt *downloaderTest) Test_getObjectPath() {
-	inputs := [][]string{{"", ""}, {"a", "b"}, {"a/b/", "/c/d"}, {"", "a"}, {"a", ""}}
-	expectedOutPuts := [5]string{"", "a/b", "a/b/c/d", "a", "a"}
-
-	results := [5]string{}
-	for i := 0; i < 5; i++ {
-		results[i] = getObjectPath(inputs[i][0], inputs[i][1])
-	}
-
-	ExpectTrue(reflect.DeepEqual(expectedOutPuts, results))
-}
-
-func (dt *downloaderTest) Test_getDownloadPath() {
-	inputs := []string{"/", "a/b", "a/b/c/d", "/a", "a/"}
-	dt.jm.mu.Lock()
-	expectedOutputs := [5]string{dt.jm.cacheLocation, dt.jm.cacheLocation + "/a/b",
-		dt.jm.cacheLocation + "/a/b/c/d", dt.jm.cacheLocation + "/a", dt.jm.cacheLocation + "/a"}
-	dt.jm.mu.Unlock()
-
-	results := [5]string{}
-	for i := 0; i < 5; i++ {
-		results[i] = dt.jm.getDownloadPath(inputs[i])
-	}
-
-	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))
 }
 
 func (dt *downloaderTest) Test_GetJob_NotExisting() {
@@ -165,7 +137,7 @@ func (dt *downloaderTest) Test_RemoveJob_NotExisting() {
 
 	// verify no job existing
 	dt.jm.mu.Lock()
-	objectPath := getObjectPath(dt.bucket.Name(), dt.object.Name)
+	objectPath := util.GetObjectPath(dt.bucket.Name(), dt.object.Name)
 	_, ok := dt.jm.jobs[objectPath]
 	ExpectFalse(ok)
 	dt.jm.mu.Unlock()
@@ -185,7 +157,7 @@ func (dt *downloaderTest) Test_RemoveJob_Existing() {
 
 	// verify no job existing
 	dt.jm.mu.Lock()
-	objectPath := getObjectPath(dt.bucket.Name(), dt.object.Name)
+	objectPath := util.GetObjectPath(dt.bucket.Name(), dt.object.Name)
 	_, ok := dt.jm.jobs[objectPath]
 	ExpectFalse(ok)
 	dt.jm.mu.Unlock()
@@ -216,7 +188,7 @@ func (dt *downloaderTest) Test_RemoveJob_Concurrent() {
 
 	// verify no job existing
 	dt.jm.mu.Lock()
-	objectPath := getObjectPath(dt.bucket.Name(), dt.object.Name)
+	objectPath := util.GetObjectPath(dt.bucket.Name(), dt.object.Name)
 	_, ok := dt.jm.jobs[objectPath]
 	ExpectFalse(ok)
 	dt.jm.mu.Unlock()

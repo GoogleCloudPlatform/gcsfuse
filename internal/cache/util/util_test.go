@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -179,4 +180,30 @@ func (ut *utilTest) Test_CreateFile_RelativePath() {
 
 	ut.assertFileAndDirCreation(file, err)
 	ExpectEq(nil, file.Close())
+}
+
+func (ut *utilTest) Test_getObjectPath() {
+	inputs := [][]string{{"", ""}, {"a", "b"}, {"a/b/", "/c/d"}, {"", "a"}, {"a", ""}}
+	expectedOutPuts := [5]string{"", "a/b", "a/b/c/d", "a", "a"}
+
+	results := [5]string{}
+	for i := 0; i < 5; i++ {
+		results[i] = GetDownloadPath(inputs[i][0], inputs[i][1])
+	}
+
+	ExpectTrue(reflect.DeepEqual(expectedOutPuts, results))
+}
+
+func (ut *utilTest) Test_getDownloadPath() {
+	inputs := []string{"/", "a/b", "a/b/c/d", "/a", "a/"}
+	cacheLocation := "/test/dir"
+	expectedOutputs := [5]string{cacheLocation, cacheLocation + "/a/b",
+		cacheLocation + "/a/b/c/d", cacheLocation + "/a", cacheLocation + "/a"}
+
+	results := [5]string{}
+	for i := 0; i < 5; i++ {
+		results[i] = GetDownloadPath(cacheLocation, inputs[i])
+	}
+
+	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))
 }
