@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Extracts required Google Cloud VM metrics using Monitoring V3 API call, parses
    the API response into a list and writes to google sheet.
 
@@ -252,10 +266,10 @@ class VmMetrics:
     return metrics_data
   
   def _add_new_metric_using_test_type(self, test_type):
-    """Creates a copy of METRICS_LIST and appends new Metric objects to it.
-
+    """Creates a copy of METRICS_LIST and appends new Metric objects to it for read
+      and write tests. Returns the LISTING_TESTS_METRICS_LIST for list type.
     Args:
-      test_type(str): The type of load test for which metrics are taken
+      test_type(str): The type of test for which metrics are taken
     Returns:
       list[Metric]
     """
@@ -312,7 +326,9 @@ class VmMetrics:
       row.append(end_time_sec)
       for metric in updated_metrics_list:
         row.append(metric.metric_point_list[i].value)
-      metrics_data.append(row)
+
+      # Skipping the first column as it duplicates the second column.
+      metrics_data.append(row[1:])
 
     return metrics_data
 

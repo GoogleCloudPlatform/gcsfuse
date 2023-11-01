@@ -25,11 +25,14 @@ pip install --require-hashes -r requirements.txt --user
 1. Flag -h: Typical help interface of the script.
 2. Flag --keep_files: Do not delete the generated directory structure from the persistent disk after running the tests.
 3. Flag --upload_gs: Uploads the results of the test to the Google Sheet.
-4. Flag --num_samples: Runs each test for NUM_SAMPLES times.
-5. Flag --message: Takes input a message string, which describes/titles the test.
-6. Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
-7. Flag --command (required): Takes as input a string, which is the command to run the tests on.
-8. config_file (required): Path to the JSON config file which contains the details of the tests.
+4. Flag --upload_bq: Uploads the results of the test to the BiqQuery.
+5. Flag --num_samples: Runs each test for NUM_SAMPLES times.
+6. Flag --message: Takes input a message string, which describes/titles the test.
+7. Flag --config_id: Configuration id of the experiment in BigQuery tables.
+8. Flag --start_time_build: Time at which KOKORO triggered the build scripts
+8. Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
+9. Flag --command (required): Takes a input a string, which is the command to run the tests on.
+10. config_file (required): Path to the JSON config file which contains the details of the tests.
 ## How to run
 1. Create a GCP VM with OS version as Ubuntu 20.04. Follow this [documentation](https://cloud.google.com/compute/docs/create-linux-vm-instance) and start your VM.
 2. Install the required packages as mentioned in the above section.

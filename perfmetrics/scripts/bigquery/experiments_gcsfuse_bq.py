@@ -212,6 +212,7 @@ class ExperimentsGCSFuseBQ:
       CREATE TABLE IF NOT EXISTS {}.{}.{}(
         configuration_id STRING,
         start_time_build INT64,
+        mount_type STRING,
         test_description string,
         command STRING, 
         num_files INT64, 
