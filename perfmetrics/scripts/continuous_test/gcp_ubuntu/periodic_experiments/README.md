@@ -1,7 +1,6 @@
-## Experiment Configuration JSON File README
+# Experiment Configuration JSON File README
 ## This JSON file contains configurations for different experiments.
-
-## Configuration Format:
+### Configuration Format:
 ```
 {
     "experiment_configuration": [
@@ -34,5 +33,5 @@
 ```
 
 ## Uniquely Identifying an Experiment
-#### A configuration name uniquely defines an experiment and two experiments can't have same configuration name.
-#### Once an experiment configuration has been defined, it is important to note that the gcsfuse flags and branch associated with that configuration cannot be edited directly. If there is a need to modify these values, the right approach is to create a new experiment configuration with the desired changes. This ensures the integrity and consistency of the existing configurations.
+1. A configuration name uniquely defines an experiment and two experiments can't have same configuration name.
+2. Once an experiment configuration has been defined, it is important to note that the gcsfuse flags and branch associated with that configuration cannot be edited directly. If there is a need to modify these values, the right approach is to create a new experiment configuration with the desired changes. This ensures the integrity and consistency of the existing configurations.
