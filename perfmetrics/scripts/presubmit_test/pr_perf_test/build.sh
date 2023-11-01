@@ -53,7 +53,6 @@ function execute_perf_test() {
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
-  chmod +x perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
 }
@@ -115,7 +114,6 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests...."
-  chmod +x perfmetrics/scripts/run_e2e_tests.sh
   # $1 argument is refering to value of testInstalledPackage.
   ./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
 fi

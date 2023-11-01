@@ -6,7 +6,6 @@ set -e
 cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver..."
-chmod +x ml_tests/setup_host.sh
 source ml_tests/setup_host.sh
 
 cd "$HOME/github/gcsfuse/"
@@ -21,7 +20,6 @@ sudo docker run --gpus all --name tf_model_container --privileged -d \
 -v $HOME/github/gcsfuse/container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
 
 # Setup the log_rotation.
-chmod +x perfmetrics/scripts/ml_tests/setup_log_rotation.sh
 source perfmetrics/scripts/ml_tests/setup_log_rotation.sh $HOME/github/gcsfuse/container_artifacts/logs/gcsfuse.log
 
 # Wait for the script completion as well as logs output.
