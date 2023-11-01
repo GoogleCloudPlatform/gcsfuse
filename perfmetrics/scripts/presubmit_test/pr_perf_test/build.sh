@@ -63,6 +63,8 @@ function install_requirements() {
   echo installing requirements
   echo Installing python3-pip
   sudo apt-get -y install python3-pip
+  echo Installing Bigquery module requirements...
+  pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
   echo Installing libraries to run python script
   pip install google-cloud
   pip install google-cloud-vision
@@ -88,6 +90,7 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
+ git reset --hard
  git checkout master
  # Store results
  touch result.txt
@@ -96,6 +99,7 @@ then
 
 
  # Executing perf tests for PR branch
+ git reset --hard
  echo checkout PR branch
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  echo Mounting gcs bucket from pr branch and execute tests
@@ -109,6 +113,7 @@ fi
 # Execute integration tests.
 if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
+  git reset --hard
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
