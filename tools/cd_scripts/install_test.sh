@@ -16,6 +16,19 @@
 # Print commands and their arguments as they are executed.
 set -x
 
+function write_config_for_rpm_package {
+sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
+[gcsfuse-el7-x86-64]
+name=gcsfuse-el7-x86-64
+baseurl=https://asia-yum.pkg.dev/projects/gcs-fuse-prod/gcsfuse-el7-x86-64
+enabled=1
+repo_gpgcheck=0
+gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+    https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+}
+
 #details.txt file contains the release version and commit hash of the current release.
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
@@ -49,19 +62,18 @@ else
     # arm64 machines only supports dnf
     sudo yum -y install dnf
     sudo dnf makecache
-    sudo yum -y install dnf-plugin-artifact-registry
-sudo tee -a /etc/yum.repos.d/artifact-registry.repo << EOF
-[gcsfuse-el7-x86-64]
-name=gcsfuse-el7-x86-64
-baseurl=https://asia-yum.pkg.dev/projects/gcs-fuse-prod/gcsfuse-el7-x86-64
-enabled=1
-repo_gpgcheck=0
-gpgcheck=1
-gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-    https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-EOF
-    sudo dnf makecache
-    sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    if grep -q centos-7 details.txt || grep -q rhel-7 details.txt;
+    then
+        sudo yum -y install yum-plugin-artifact-registry
+        write_config_for_rpm_package
+        sudo yum makecache
+        sudo yum -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    else
+        sudo yum -y install dnf-plugin-artifact-registry
+        write_config_for_rpm_package
+        sudo dnf makecache
+        sudo dnf -y --enablerepo=gcsfuse-el7-x86-64 install gcsfuse-$(sed -n 1p details.txt)-1 |& tee -a ~/logs.txt
+    fi
 fi
 
 # Verify gcsfuse version (successful installation)
@@ -83,7 +95,11 @@ then
       sudo apt install -y gcsfuse=0.42.5 -t gcsfuse-$(lsb_release -cs) |& tee -a ~/logs.txt
   else
       sudo dnf -y remove gcsfuse
-      sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      if grep -q centos-7 details.txt || grep -q rhel-7 details.txt; then
+        sudo yum -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      else
+        sudo dnf -y install gcsfuse-0.42.5-1 |& tee -a ~/logs.txt
+      fi
   fi
 
   # verify old version installation
@@ -101,7 +117,11 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt install --only-upgrade gcsfuse |& tee -a ~/logs.txt
 else
-    sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
+    if grep -q centos-7 details.txt || grep -q rhel-7 details.txt; then
+        sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+    else
+        sudo dnf -y upgrade gcsfuse |& tee -a ~/logs.txt
+    fi
 fi
 
 gcsfuse --version |& tee version.txt
