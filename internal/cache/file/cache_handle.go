@@ -105,31 +105,33 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, downloa
 	}
 
 	// Checking before updating the previous offset.
+	isSequentialRead := fch.IsSequential(offset)
 	waitForDownload := true
-	if !fch.IsSequential(offset) {
+	if !isSequentialRead {
 		fch.isSequential = false
 		waitForDownload = false
 	}
-
-	fch.prevOffset = offset
 
 	// We need to download the data till offset + len(dst), if not already.
 	bufferLen := int64(len(dst))
 	requiredOffset := offset + bufferLen
 
-	// Also, need to make sure, it should not exceed the total object-size.
+	// Also, assuming that dst buffer in read can be more than the remaining object length
+	// left for reading. Hence, making sure requiredOffset should not more than object-length.
 	objSize := int64(object.Size)
 	if requiredOffset > objSize {
 		requiredOffset = objSize
 	}
 
 	// If downloadForRandomRead is false and readType is random, download will not be initiated.
-	if !downloadForRandomRead && !fch.IsSequential(offset) {
+	if !downloadForRandomRead && !isSequentialRead {
 		jobStatus := fch.fileDownloadJob.GetStatus()
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 			return 0, err
 		}
 	}
+
+	fch.prevOffset = offset
 
 	jobStatus, err := fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 	if err != nil {
