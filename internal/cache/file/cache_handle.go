@@ -20,13 +20,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
@@ -76,54 +73,82 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-func (fch *CacheHandle) checkIfEntryExistWithCorrectGenerationAndOffset(object *gcs.MinObject, bucket gcs.Bucket, requiredOffset int64) (bool, error) {
-	// Create fileInfoKey to get the existing fileInfoEntry in the cache.
-	// we don't need this.
-	fileInfoKeyName, err := data.GetFileInfoKeyName(object.Name, time.Time{}, bucket.Name())
-	if err != nil {
-		return false, fmt.Errorf("error while fetching key: %v", err)
+// shouldReadFromCache returns nil if the data should be read from the local,
+// downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
+func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
+	if jobStatus.Err != nil ||
+		jobStatus.Name == downloader.INVALID ||
+		jobStatus.Name == downloader.FAILED ||
+		jobStatus.Name == downloader.NOT_STARTED {
+		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %v", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		return errors.New(errMsg)
+	} else if jobStatus.Offset < requiredOffset {
+		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
+		return err
 	}
-
-	// Get the existing fileInfo entry in the cache.
-	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
-	if fileInfo == nil {
-		return false, nil
-	}
-
-	if fileInfo.(data.FileInfo).ObjectGeneration != object.Generation {
-		return false, nil
-	}
-
-	return fileInfo.(data.FileInfo).Offset >= uint64(requiredOffset), nil
+	return err
 }
 
-// Read attempts to read the data from the cached location. This expects a
-// fileInfoCache entry for the current read request, and will wait to download
-// the requested chunk if it is not already present for sequential read.
-// It doesn't wait, in case of random reads.
-func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket gcs.Bucket, offset int64, dst []byte) (n int, err error) {
+// Read attempts to read the data from the cached location.
+// For sequential reads, it will wait to download the requested chunk
+// if it is not already present. For random reads, it does not wait for
+// download. Additionally, for random reads, the download will not be
+// initiated if downloadForRandomRead is false.
+func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, downloadForRandomRead bool, offset int64, dst []byte) (n int, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
 	}
 
-	fch.prevOffset = offset
+	if offset < 0 || offset >= int64(object.Size) {
+		return 0, fmt.Errorf("wrong offset requested: %d", offset)
+	}
+
+	// Checking before updating the previous offset.
+	isSequentialRead := fch.IsSequential(offset)
+	waitForDownload := true
+	if !isSequentialRead {
+		fch.isSequential = false
+		waitForDownload = false
+	}
 
 	// We need to download the data till offset + len(dst), if not already.
 	bufferLen := int64(len(dst))
 	requiredOffset := offset + bufferLen
 
-	// Also, need to make sure, it should not exceed the total object-size.
+	// Also, assuming that dst buffer in read can be more than the remaining object length
+	// left for reading. Hence, making sure requiredOffset should not more than object-length.
 	objSize := int64(object.Size)
 	if requiredOffset > objSize {
 		requiredOffset = objSize
 	}
 
+	// If downloadForRandomRead is false and readType is random, download will not be initiated.
+	if !downloadForRandomRead && !isSequentialRead {
+		jobStatus := fch.fileDownloadJob.GetStatus()
+		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
+			return 0, err
+		}
+	}
+
+	fch.prevOffset = offset
+
+	jobStatus, err := fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
+	if err != nil {
+		n = 0
+		err = fmt.Errorf("read: while downloading through job: %v", err)
+		return
+	}
+
+	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
+		return 0, err
+	}
+
 	// We are here means, we have the data downloaded which kernel has asked for.
 	_, err = fch.fileHandle.Seek(offset, 0)
 	if err != nil {
-		logger.Warnf("error while seeking for %d offset in local file: %v", offset, err)
-		return 0, errors.New(util.ErrInSeekingFileHandleMsg)
+		errMsg := fmt.Sprintf("%s: while seeking for %d offset in local file: %v", util.ErrInSeekingFileHandleMsg, offset, err)
+		return 0, errors.New(errMsg)
 	}
 
 	n, err = io.ReadFull(fch.fileHandle, dst)
@@ -131,22 +156,17 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, bucket 
 		err = nil
 	}
 	if err != nil {
-		logger.Warnf("error while reading from %d offset of the local file: %v", offset, err)
-		return 0, errors.New(util.ErrInReadingFileHandleMsg)
+		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
+		return 0, errors.New(errMsg)
 	}
 
-	// Handling special cases:
-	// 1. If there is no cache entry for the file, we will return no data.
-	// 2. If there is a race condition between read and check, e.g., eviction
-	//		following up with the addition of the same fileInfo.
-	//    (a) If the generations are the same, this will not cause any issue.
-	//    (b) If the generations are different, we will fetch data from gcs directly..
-	//    (c) If requiredOffset < fileInfo.Offset, we will fetch data from gcs directly.
-	ok, err := fch.checkIfEntryExistWithCorrectGenerationAndOffset(object, bucket, requiredOffset)
-	if err != nil || !ok {
-		n = 0
-		err = errors.New(util.InvalidCacheHandleErrMsg)
-		return
+	// The job state may change while reading data from the local downloaded file. This may be
+	// due to a failure in the download job, or cache eviction due to another file. In this case,
+	// we will check the job state again after reading the data, and fall back to the normal flow
+	// if job status is invalid or failed.
+	jobStatus = fch.fileDownloadJob.GetStatus()
+	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
+		return 0, err
 	}
 
 	return
