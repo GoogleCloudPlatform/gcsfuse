@@ -1490,7 +1490,10 @@ func (fs *fileSystem) createLocalFile(
 		// Empty buffer/temp file is created to be able to set attributes on it.
 		fileInode := child.(*inode.FileInode)
 		if fs.isWriteBufferEnabled(fileInode) {
-			fileInode.CreateEmptyWriteBuffer(int(fs.mountConfig.WriteConfig.BufferSizeMB))
+			err = fileInode.CreateEmptyWriteBuffer(fs.mountConfig.WriteConfig.BufferSizeMB)
+			if err != nil {
+				return
+			}
 		} else {
 			err = fileInode.CreateEmptyTempFile()
 			if err != nil {
@@ -2084,6 +2087,7 @@ func (fs *fileSystem) WriteFile(
 	// TODO: add unit tests for the following.
 	if fs.isWriteBufferEnabled(in) {
 		// Trigger write file with buffer flow.
+		logger.Errorf("op.Data = ", op.Data)
 		err = in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
 		if err == nil {
 			return
@@ -2093,7 +2097,7 @@ func (fs *fileSystem) WriteFile(
 			return
 		} else {
 			// Trigger the temp file flow in case of non-sequential writes.
-			logger.Infof("Failing back to write file operation with temp file created on-disk.")
+			logger.Debugf("Falling back to write file operation without file buffering.")
 		}
 	}
 	// Trigger the temp file flow.
