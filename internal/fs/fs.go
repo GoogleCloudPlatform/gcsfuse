@@ -2087,7 +2087,6 @@ func (fs *fileSystem) WriteFile(
 	// TODO: add unit tests for the following.
 	if fs.isWriteBufferEnabled(in) {
 		// Trigger write file with buffer flow.
-		logger.Errorf("op.Data = ", op.Data)
 		err = in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
 		if err == nil {
 			return

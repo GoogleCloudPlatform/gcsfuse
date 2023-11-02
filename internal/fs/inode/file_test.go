@@ -958,7 +958,7 @@ func (t *FileTest) TestMultipleCallsToWriteToBufferCreatesBufferOnce() {
 func (t *FileTest) TestEnsureBufferCreatesInMemoryBufferWhenBufferSizeIsLessThan50() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	var bufferSizeMB int = 20
+	var bufferSizeMB uint = 20
 	// verify writeBuffer is nil initially.
 	AssertEq(nil, t.in.writeBuffer)
 
