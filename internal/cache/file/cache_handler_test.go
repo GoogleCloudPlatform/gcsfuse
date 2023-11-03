@@ -325,11 +325,11 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
 	ExpectEq(false, isFileExist(chrT.downloadPath))
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateFileCache_WhenEntryAlreadyInCache() {
+func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryAlreadyInCache() {
 	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 	ExpectEq(nil, err)
 
-	err = chrT.cacheHandler.InvalidateFileCache(chrT.object, chrT.bucket)
+	err = chrT.cacheHandler.InvalidateCache(chrT.object, chrT.bucket)
 
 	ExpectEq(nil, err)
 	jobStatus := cacheHandle.fileDownloadJob.GetStatus()
@@ -337,26 +337,26 @@ func (chrT *cacheHandlerTest) Test_InvalidateFileCache_WhenEntryAlreadyInCache()
 	ExpectEq(false, isFileExist(chrT.downloadPath))
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateFileCache_WhenEntryNotInCache() {
+func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryNotInCache() {
 	minObject := chrT.getMinObject("object_1", "content of object_1")
 
-	err := chrT.cacheHandler.InvalidateFileCache(minObject, chrT.bucket)
+	err := chrT.cacheHandler.InvalidateCache(minObject, chrT.bucket)
 
 	ExpectEq(nil, err)
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateFileCache_ConcurrentSameFile() {
+func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
 	AssertEq(nil, cacheHandle1.validateCacheHandle())
 
 	wg := sync.WaitGroup{}
 
-	invalidateFileCacheTestFun := func() {
+	InvalidateCacheTestFun := func() {
 		defer wg.Done()
 		minObj := chrT.getMinObject("object_1", "content of object_1 ...")
 
-		err := chrT.cacheHandler.InvalidateFileCache(minObj, chrT.bucket)
+		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
 
 		AssertEq(nil, err)
 	}
@@ -364,24 +364,24 @@ func (chrT *cacheHandlerTest) Test_InvalidateFileCache_ConcurrentSameFile() {
 	// Start concurrent GetCacheHandle()
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go invalidateFileCacheTestFun()
+		go InvalidateCacheTestFun()
 	}
 	wg.Wait()
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateFileCache_ConcurrentDifferentFiles() {
+func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
 	AssertEq(nil, cacheHandle1.validateCacheHandle())
 	wg := sync.WaitGroup{}
 
-	invalidateFileCacheTestFun := func(index int) {
+	InvalidateCacheTestFun := func(index int) {
 		defer wg.Done()
 		objName := "object" + strconv.Itoa(index)
 		objContent := "object content: " + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, objContent)
 
-		err := chrT.cacheHandler.InvalidateFileCache(minObj, chrT.bucket)
+		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
 
 		AssertEq(nil, err)
 	}
@@ -389,7 +389,50 @@ func (chrT *cacheHandlerTest) Test_InvalidateFileCache_ConcurrentDifferentFiles(
 	// Start concurrent GetCacheHandle()
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go invalidateFileCacheTestFun(i)
+		go InvalidateCacheTestFun(i)
 	}
 	wg.Wait()
+}
+
+func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
+	// Existing cacheHandle.
+	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+	AssertEq(nil, cacheHandle1.validateCacheHandle())
+	wg := sync.WaitGroup{}
+
+	InvalidateCacheTestFun := func(index int) {
+		defer wg.Done()
+		objName := "object" + strconv.Itoa(index)
+		objContent := "object content: " + strconv.Itoa(index)
+		minObj := chrT.getMinObject(objName, objContent)
+
+		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
+
+		AssertEq(nil, err)
+	}
+
+	getCacheHandleTestFun := func(index int) {
+		defer wg.Done()
+		objName := "object" + strconv.Itoa(index)
+		objContent := "object content: " + strconv.Itoa(index)
+		minObj := chrT.getMinObject(objName, objContent)
+
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
+
+		AssertEq(nil, err)
+		AssertEq(nil, cacheHandle.validateCacheHandle())
+	}
+
+	// Start concurrent GetCacheHandle()
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go InvalidateCacheTestFun(i)
+		wg.Add(1)
+		go getCacheHandleTestFun(i)
+	}
+	wg.Wait()
+
+	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.INVALID, jobStatus.Name)
+	ExpectEq(false, isFileExist(chrT.downloadPath))
 }

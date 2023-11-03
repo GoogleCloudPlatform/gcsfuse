@@ -146,11 +146,11 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
 }
 
-// InvalidateFileCache removes the entry from the fileInfoCache, cancel the async running job incase,
+// InvalidateCache removes the entry from the fileInfoCache, cancel the async running job incase,
 // and delete the locally downloaded cached-file.
 // Acquires and releases LOCK(CacheHandler.mu)
 // TODO (raj-prince) to implement.
-func (chr *CacheHandler) InvalidateFileCache(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
