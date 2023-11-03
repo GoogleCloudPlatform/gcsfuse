@@ -45,7 +45,7 @@ type CacheHandler struct {
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
-		Path: util.GetObjectPath(objectName, bucketName),
+		Path: util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
 		Perm: util.DefaultFilePerm,
 	}
 
@@ -57,26 +57,23 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
 		cacheLocation: cacheLocation,
+		mu:            locker.New("FileCacheHandler", func() {}),
 	}
 }
 
-func (chr *CacheHandler) performPostEvictionWork(evictedValues []lru.ValueType) error {
-	for _, val := range evictedValues {
-		fileInfo := val.(data.FileInfo)
-		key := fileInfo.Key
+func (chr *CacheHandler) performPostEvictionWork(fileInfo *data.FileInfo) error {
+	key := fileInfo.Key
+	_, err := key.Key()
+	if err != nil {
+		return fmt.Errorf("error while performing post eviction: %v", err)
+	}
 
-		_, err := key.Key()
-		if err != nil {
-			return fmt.Errorf("error while performing post eviction: %v", err)
-		}
+	chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
 
-		chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
-
-		localFilePath := util.GetObjectPath(key.ObjectName, key.BucketName)
-		err = os.Remove(localFilePath)
-		if err != nil {
-			return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
-		}
+	localFilePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(key.BucketName, key.ObjectName))
+	err = os.Remove(localFilePath)
+	if err != nil {
+		return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
 	}
 
 	return nil
@@ -95,7 +92,7 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	// This look-up
+	// Todo - (raj-prince) - this lookUp should not change the LRU order.
 	fileInfo := chr.fileInfoCache.LookUp(fileInfoKeyName)
 	if fileInfo == nil {
 		fileInfo = data.FileInfo{
@@ -110,9 +107,19 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 			return fmt.Errorf("while inserting into the cache: %v", err)
 		}
 
-		err = chr.performPostEvictionWork(evictedValues)
-		if err != nil {
-			return fmt.Errorf("while performing post eviction step: %v", err)
+		for _, val := range evictedValues {
+			fileInfo := val.(data.FileInfo)
+			err := chr.performPostEvictionWork(&fileInfo)
+			if err != nil {
+				return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+			}
+		}
+	} else {
+		job := chr.jobManager.GetJob(object, bucket)
+		jobStatus := job.GetStatus()
+		if jobStatus.Name != downloader.FAILED {
+			// Move this entry on top of LRU.
+			_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
 		}
 	}
 
