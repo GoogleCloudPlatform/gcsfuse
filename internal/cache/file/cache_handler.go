@@ -144,20 +144,6 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
 }
 
-// DecrementJobRefCount decrement the reference count of clients which is dependent of
-// async job. This will cancel the async job once, the count reaches to zero.
-// TODO (raj-prince) to implement.
-func (chr *CacheHandler) DecrementJobRefCount(object *gcs.MinObject, bucket gcs.Bucket) error {
-	return nil
-}
-
-// RemoveFileFromCache removes the entry from the fileInfoCache, cancel the async running job incase,
-// and delete the locally downloaded cached-file.
-// TODO (raj-prince) to implement.
-func (chr *CacheHandler) RemoveFileFromCache(object *gcs.MinObject, bucket gcs.Bucket) {
-
-}
-
 // Destroy destroys the internal state of CacheHandler correctly specifically closing any fileHandles.
 // TODO (raj-prince) to implement.
 func (chr *CacheHandler) Destroy() {

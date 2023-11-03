@@ -19,7 +19,9 @@ import (
 	"crypto/rand"
 	"os"
 	"path"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
@@ -33,6 +35,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
+
+const HandlerCacheMaxSize = TestObjectSize + 20
 
 func TestCacheHandler(t *testing.T) { RunTests(t) }
 
@@ -50,11 +54,11 @@ type cacheHandlerTest struct {
 
 func init() { RegisterTestSuite(&cacheHandlerTest{}) }
 
-func (chrT *cacheHandlerTest) addTestFileInfoEntryInCache() {
+func (chrT *cacheHandlerTest) addTestFileInfoEntryInCache(bucketName string, objectName string) string {
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
-		BucketName: storage.TestBucketName,
-		ObjectName: TestObjectName,
+		BucketName: bucketName,
+		ObjectName: objectName,
 	}
 	fileInfo := data.FileInfo{
 		Key:              fileInfoKey,
@@ -65,10 +69,11 @@ func (chrT *cacheHandlerTest) addTestFileInfoEntryInCache() {
 
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
-	chrT.fileInfoKeyName = fileInfoKeyName
 
-	_, err = chrT.cache.Insert(chrT.fileInfoKeyName, fileInfo)
+	_, err = chrT.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
+
+	return fileInfoKeyName
 }
 
 func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
@@ -97,8 +102,8 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	chrT.object = &minObject
 
 	// fileInfoCache with testFileInfoEntry
-	chrT.cache = lru.NewCache(CacheMaxSize)
-	chrT.addTestFileInfoEntryInCache()
+	chrT.cache = lru.NewCache(HandlerCacheMaxSize)
+	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 
 	// Job manager
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, chrT.cacheLocation, DefaultSequentialReadSizeMb)
@@ -107,6 +112,19 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation)
 
 	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
+}
+
+func (chrT *cacheHandlerTest) getMinObject(objName string, objContent string) *gcs.MinObject {
+	ctx := context.Background()
+	objects := map[string][]byte{objName: []byte(objContent)}
+	err := storageutil.CreateObjects(ctx, chrT.bucket, objects)
+	AssertEq(nil, err)
+
+	gcsObj, err := chrT.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objName,
+		ForceFetchFromGcs: true})
+	AssertEq(nil, err)
+	minObject := storageutil.ConvertObjToMinObject(gcsObj)
+	return &minObject
 }
 
 func (chrT *cacheHandlerTest) TearDown() {
@@ -173,14 +191,100 @@ func (chrT *cacheHandlerTest) Test_performPostEvictionWork_WhenLocalFileNotExist
 	ExpectTrue(strings.Contains(err.Error(), "while deleting file"))
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryInTheCacheIfNotAlready() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryAlreadyInCache() {
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 
+	ExpectEq(nil, err)
+	ExpectEq(nil, cacheHandle.validateCacheHandle())
 }
 
-func (chrT *cacheHandlerTest) Test_createLocalFileReadHandle() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryNotInCache() {
+	minObject := chrT.getMinObject("object_1", "content of object_1")
 
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, 0)
+
+	ExpectEq(nil, err)
+	ExpectEq(nil, cacheHandle.validateCacheHandle())
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
+	// Existing cacheHandle.
+	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+	AssertEq(nil, err)
+	AssertNe(nil, cacheHandle1)
+	AssertEq(true, IsFileExist(chrT.downloadPath))
+	// Content of size more than 20 leads to eviction of initial TestObjectName.
+	// Here, content size is 21.
+	minObject := chrT.getMinObject("object_1", "content of object_1 ...")
 
+	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, 0)
+
+	ExpectEq(nil, err)
+	ExpectEq(nil, cacheHandle2.validateCacheHandle())
+	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.INVALID, jobStatus.Name)
+	ExpectEq(false, IsFileExist(chrT.downloadPath))
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
+	// Existing cacheHandle.
+	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+	AssertEq(nil, err)
+	AssertNe(nil, cacheHandle1)
+	AssertEq(true, IsFileExist(chrT.downloadPath))
+
+	wg := sync.WaitGroup{}
+
+	getCacheHandleTestFun := func() {
+		defer wg.Done()
+		minObj := chrT.getMinObject("object_1", "content of object_1 ...")
+
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
+
+		AssertEq(nil, err)
+		AssertEq(nil, cacheHandle.validateCacheHandle())
+	}
+
+	// Start concurrent GetCacheHandle()
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go getCacheHandleTestFun()
+	}
+	wg.Wait()
+
+	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.INVALID, jobStatus.Name)
+	ExpectEq(false, IsFileExist(chrT.downloadPath))
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
+	// Existing cacheHandle.
+	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+	AssertEq(nil, err)
+	AssertNe(nil, cacheHandle1)
+	AssertEq(true, IsFileExist(chrT.downloadPath))
+	wg := sync.WaitGroup{}
+
+	getCacheHandleTestFun := func(index int) {
+		defer wg.Done()
+		objName := "object" + strconv.Itoa(index)
+		objContent := "object content: " + strconv.Itoa(index)
+		minObj := chrT.getMinObject(objName, objContent)
+
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
+
+		AssertEq(nil, err)
+		AssertEq(nil, cacheHandle.validateCacheHandle())
+	}
+
+	// Start concurrent GetCacheHandle()
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go getCacheHandleTestFun(i)
+	}
+	wg.Wait()
+
+	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.INVALID, jobStatus.Name)
+	ExpectEq(false, IsFileExist(chrT.downloadPath))
 }
