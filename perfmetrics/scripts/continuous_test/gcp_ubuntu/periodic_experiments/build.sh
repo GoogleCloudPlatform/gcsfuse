@@ -27,6 +27,7 @@ sudo apt-get install jq -y
 # Get the current date and time
 current_date=$(date +"%Y-%m-%d %H:%M:%S")
 
+export EXPERIMENT_NUMBER=4
 # Get the required enabled configuration
 config=$(jq --arg EXPERIMENT_NUMBER "$EXPERIMENT_NUMBER" --arg current_date "$current_date" '.experiment_configuration[] | select(.end_date >= $current_date)' perfmetrics/scripts/continuous_test/gcp_ubuntu/periodic_experiments/experiments_configuration.json | jq -s ".[$EXPERIMENT_NUMBER-1]")
 
@@ -41,6 +42,8 @@ CONFIG_NAME=$(echo "$config" | jq -r '.config_name')
 GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
+# Get the value of the config-file key
+CONFIG_FILE_JSON=$(jq -r '.["config-file"]' <<< $config )
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -67,11 +70,11 @@ fi
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$CONFIG_FILE_JSON"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
 LOG_FILE_LIST_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
+./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS" "$CONFIG_FILE_JSON"

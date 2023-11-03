@@ -33,12 +33,24 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 
 echo "Mounting gcs bucket"
 mkdir -p gcs
-GCSFUSE_FLAGS=$1
+FLAGS=$1
 UPLOAD_FLAGS=$2
+CONFIG_FILE_JSON=$3
 BUCKET_NAME=periodic-perf-tests
 MOUNT_POINT=gcs
+
+echo $CONFIG_FILE_JSON
+if [ $CONFIG_FILE_JSON != "" ];
+then
+  jq -c -M . CONFIG_FILE_JSON > config.yml
+  GCSFUSE_FLAGS="$FLAGS --config-file config.yml"
+fi
+
+cat config.yml
+echo $GCSFUSE_FLAGS=
+
 # The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+gcsfuse $GCSFUSE_FLAGS  $BUCKET_NAME $MOUNT_POINT
 
 echo Print the time when FIO tests start
 date

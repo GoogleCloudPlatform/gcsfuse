@@ -1,0 +1,21 @@
+{
+  "experiment_configuration": [
+    {
+      "config_name": "minimal_file_buffering_release",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
+      "branch": "minimal_file_buffering_release",
+      "config-file": {
+        "write": {
+          "create-empty-file": true
+        },
+        "logging": {
+          "file-path": "~/log.log",
+          "format": "text",
+          "severity": "info"
+        }
+      },
+      "end_date": "2023-12-30 05:30:00+00:00"
+    }
+  ]
+}
+
