@@ -43,15 +43,6 @@ type CacheHandler struct {
 	mu locker.Locker
 }
 
-func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
-	fileSpec := data.FileSpec{
-		Path: util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
-		Perm: util.DefaultFilePerm,
-	}
-
-	return util.CreateFile(fileSpec, os.O_RDONLY)
-}
-
 func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string) *CacheHandler {
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
@@ -59,6 +50,15 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 		cacheLocation: cacheLocation,
 		mu:            locker.New("FileCacheHandler", func() {}),
 	}
+}
+
+func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
+	fileSpec := data.FileSpec{
+		Path: util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
+		Perm: util.DefaultFilePerm,
+	}
+
+	return util.CreateFile(fileSpec, os.O_RDONLY)
 }
 
 func (chr *CacheHandler) performPostEvictionWork(fileInfo *data.FileInfo) error {
@@ -79,6 +79,7 @@ func (chr *CacheHandler) performPostEvictionWork(fileInfo *data.FileInfo) error 
 	return nil
 }
 
+// Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
@@ -130,6 +131,7 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 // It creates FileDownloadJob if not already exist. Also, creates localFilePath
 // which contains the downloaded content. Finally, it returns a CacheHandle that
 // contains the async DownloadJob and the local file handle.
+// Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
 	err := chr.addFileInfoEntryInTheCacheIfNotAlready(object, bucket)
 	if err != nil {
@@ -142,6 +144,34 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	}
 
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
+}
+
+// InvalidateFileCache removes the entry from the fileInfoCache, cancel the async running job incase,
+// and delete the locally downloaded cached-file.
+// Acquires and releases LOCK(CacheHandler.mu)
+// TODO (raj-prince) to implement.
+func (chr *CacheHandler) InvalidateFileCache(object *gcs.MinObject, bucket gcs.Bucket) error {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: bucket.Name(),
+		ObjectName: object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		return fmt.Errorf("while creating key: %v", fileInfoKeyName)
+	}
+
+	chr.mu.Lock()
+	defer chr.mu.Unlock()
+
+	erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
+	if erasedVal != nil {
+		fileInfo := erasedVal.(data.FileInfo)
+		err := chr.performPostEvictionWork(&fileInfo)
+		if err != nil {
+			return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+		}
+	}
+	return nil
 }
 
 // Destroy destroys the internal state of CacheHandler correctly specifically closing any fileHandles.
