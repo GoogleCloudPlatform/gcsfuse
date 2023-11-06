@@ -43,16 +43,17 @@ GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
 # Get the value of the config_file_flag key
-CONFIG_FILE_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
+CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
 
 # Create config.yml file from json.
-CONFIG_FILE="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
-echo "$CONFIG_FILE_JSON" >> ${KOKORO_ARTIFACTS_DIR}/config_flags.json
-cat config_flags.json
+CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
+CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
+echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
+cat $CONFIG_FILE_JSON
 if [ -n "$CONFIG_FILE_JSON" ];
 then
-  jq -c -M . config_flags.json > $CONFIG_FILE
-  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE"
+  jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
+  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML"
 fi
 
 echo "Building and installing gcsfuse"
@@ -89,4 +90,3 @@ GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format 
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
-rm config_flags.json config_flags.yml

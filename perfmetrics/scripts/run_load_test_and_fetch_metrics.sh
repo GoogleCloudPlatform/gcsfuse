@@ -33,7 +33,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 
 echo "Mounting gcs bucket"
 mkdir -p gcs
-FLAGS=$1
+GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
 BUCKET_NAME=periodic-perf-tests
 MOUNT_POINT=gcs
