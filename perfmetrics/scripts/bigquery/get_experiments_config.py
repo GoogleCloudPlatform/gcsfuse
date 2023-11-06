@@ -77,5 +77,5 @@ if __name__ == '__main__':
   argv = sys.argv
   args = parse_arguments(argv)
   bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-  exp_config_id = bigquery_obj.get_experiment_configuration_id(args.gcsfuse_flags[0], args.branch[0], args.end_date[0], args.config_name[0])
+  exp_config_id = bigquery_obj.get_experiment_configuration_id(args.gcsfuse_flags[0], args.config_file_flag[0],args.branch[0], args.end_date[0], args.config_name[0])
   print(exp_config_id)

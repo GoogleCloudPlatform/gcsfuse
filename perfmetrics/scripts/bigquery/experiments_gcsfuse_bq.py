@@ -242,7 +242,7 @@ class ExperimentsGCSFuseBQ:
     self._execute_query(query_create_table_vm_metrics)
     self._execute_query(query_create_table_ls_metrics)
 
-  def get_experiment_configuration_id(self, gcsfuse_flags, branch, end_date, config_name) -> str:
+  def get_experiment_configuration_id(self, gcsfuse_flags, config_file_flag, branch, end_date, config_name) -> str:
 
     """Gets the configuration ID of the experiment from experiment details
        If experiment configuration exists: Check if end date needs update and
@@ -251,6 +251,7 @@ class ExperimentsGCSFuseBQ:
 
     Args:
       gcsfuse_flags (str): Set of flags the gcsfuse flags used for experiment.
+      config_file_flag (str): Config file flag value that gcsfuse --config-file flag used for experiment.
       branch (str): GCSFuse repo branch used for building GCSFuse.
       end_date (timestamp): Date till when experiments of this configuration are run.
                             Format: 'YYYY-MM-DD HH:MM:SS'
@@ -261,7 +262,7 @@ class ExperimentsGCSFuseBQ:
     """
     # Check if the experiment configuration is already present in table
     query_check_config_name_exists = """
-      SELECT configuration_id, gcsfuse_flags, branch, end_date
+      SELECT configuration_id, gcsfuse_flags, config_file_flag, branch, end_date
       FROM `{}.{}.{}`
       WHERE configuration_name = '{}'
     """.format(self.project_id, self.dataset_id, constants.CONFIGURATION_TABLE_ID, config_name)
@@ -277,7 +278,7 @@ class ExperimentsGCSFuseBQ:
     elif result_count == 0:
       table = self._get_table_from_table_id(constants.CONFIGURATION_TABLE_ID)
       uuid_str = str(uuid.uuid4())
-      rows_to_insert = [(uuid_str, config_name, gcsfuse_flags, branch, end_date)]
+      rows_to_insert = [(uuid_str, config_name, gcsfuse_flags, config_file_flag, branch, end_date)]
       self._insert_rows(table, rows_to_insert)
       return uuid_str
 

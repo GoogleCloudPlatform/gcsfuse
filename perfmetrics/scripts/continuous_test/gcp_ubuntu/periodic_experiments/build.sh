@@ -67,7 +67,7 @@ export PYTHONPATH="./"
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
-CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
+CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flag '$CONFIG_FILE_FLAG_JSON' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
 START_TIME_BUILD=$(date +%s)
 
 # Upload data to the gsheet only when it runs through kokoro.
