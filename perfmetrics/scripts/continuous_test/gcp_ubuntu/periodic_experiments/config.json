@@ -1,0 +1,10 @@
+{
+  "write": {
+    "create-empty-file": true
+  },
+  "logging": {
+    "file-path": "~/log.log",
+    "format": "text",
+    "severity": "info"
+  }
+}

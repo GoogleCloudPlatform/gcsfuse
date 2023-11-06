@@ -9,12 +9,11 @@ config_file_json=$(jq -r '.["config-file"]' <<< $config )
 
 # Print the config_file json
 echo "$config_file_json"
-echo "$config_file_json"" >> config.json
-jq -c -M . config.json > config.yml
+echo "$config_file_json" >> config.json
 cat config.json
-cat config.yml
 if [ -n "$CONFIG_FILE_JSON" ];
 then
   jq -c -M . config.json > config.yml
   GCSFUSE_FLAGS="$FLAGS --config-file config.yml"
+  cat config.yml
 fi

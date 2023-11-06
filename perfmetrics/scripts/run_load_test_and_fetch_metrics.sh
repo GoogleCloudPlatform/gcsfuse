@@ -43,8 +43,8 @@ echo "$CONFIG_FILE_JSON" >> config_flags.json
 cat config_flags.json
 if [ -n "$CONFIG_FILE_JSON" ];
 then
-  jq -c -M . config_flags.json > config.yml
-  GCSFUSE_FLAGS="$FLAGS --config-file config.yml"
+  jq -c -M . config_flags.json > config_flags.yml
+  GCSFUSE_FLAGS="$FLAGS --config-file config_flags.yml"
 fi
 
 # The VM will itself exit if the gcsfuse mount fails.
@@ -63,4 +63,4 @@ pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS
-rm config_flags.json config.yml
+rm config_flags.json config_flags.yml
