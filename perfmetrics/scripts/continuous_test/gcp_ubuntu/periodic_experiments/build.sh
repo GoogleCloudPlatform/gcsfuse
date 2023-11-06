@@ -55,6 +55,7 @@ then
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
 fi
+CONFIG_FILE_STRING=$(cat $CONFIG_FILE_JSON | jq -c .)
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -67,7 +68,7 @@ export PYTHONPATH="./"
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
-CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flag '$CONFIG_FILE_FLAG_JSON' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
+CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flag '$CONFIG_FILE_STRING' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
 START_TIME_BUILD=$(date +%s)
 
 # Upload data to the gsheet only when it runs through kokoro.
