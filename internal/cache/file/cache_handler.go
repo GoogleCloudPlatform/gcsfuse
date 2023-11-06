@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
@@ -37,17 +38,22 @@ type CacheHandler struct {
 	// Directory location which would contain local file to keep the downloaded data.
 	cacheLocation string
 
+	// filePerm parameter specifies the permission behaviour to determine which users
+	// will have access to the cache file.
+	filePerm os.FileMode
+
 	// Guards the handling of cache entry insertion while creating the CacheHandle.
 	// Also guards post eviction logic E.g. cancelling and deletion of async download job,
 	// deletion of local file containing downloaded data.
 	mu locker.Locker
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string, filePerm os.FileMode) *CacheHandler {
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
 		cacheLocation: cacheLocation,
+		filePerm:      filePerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
 	}
 }
@@ -55,32 +61,44 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
 		Path: util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
-		Perm: util.DefaultFilePerm,
+		Perm: chr.filePerm,
 	}
 
 	return util.CreateFile(fileSpec, os.O_RDONLY)
 }
 
-func (chr *CacheHandler) performPostEvictionWork(fileInfo *data.FileInfo) error {
+func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
 	if err != nil {
 		return fmt.Errorf("error while performing post eviction: %v", err)
 	}
 
+	// Removing Job doesn't delete the job object itself but invalidates the job and
+	// hence it's possible that some existing cache handle will have reference to older
+	// job object, but that job object will have INVALID status.
 	chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(key.BucketName, key.ObjectName))
 	err = os.Remove(localFilePath)
 	if err != nil {
-		return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
+		if os.IsNotExist(err) {
+			logger.Warnf("while clean up, filePath should exist: %v", err)
+		} else {
+			return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
+		}
 	}
 
 	return nil
 }
 
+// addFileInfoEntryInCache adds a data.FileInfo entry for the given object and bucket
+// in the file info cache if it does not already exist. While adding the entry, it also
+// performs the post eviction work (clean up for async job and local cache file) for the
+// evicted entry.
+
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *CacheHandler) addFileInfoEntryInCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
@@ -110,7 +128,7 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 
 		for _, val := range evictedValues {
 			fileInfo := val.(data.FileInfo)
-			err := chr.performPostEvictionWork(&fileInfo)
+			err := chr.cleanUpEvictedFile(&fileInfo)
 			if err != nil {
 				return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
 			}
@@ -128,12 +146,13 @@ func (chr *CacheHandler) addFileInfoEntryInTheCacheIfNotAlready(object *gcs.MinO
 }
 
 // GetCacheHandle creates an entry in fileInfoCache if it does not already exist.
-// It creates FileDownloadJob if not already exist. Also, creates localFilePath
-// which contains the downloaded content. Finally, it returns a CacheHandle that
-// contains the async DownloadJob and the local file handle.
+// It creates downloader.Job if not already exist. Also, creates local file
+// which contains the object content. Finally, it returns a CacheHandle that
+// contains the reference to downloader.Job and the local file handle.
+
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
-	err := chr.addFileInfoEntryInTheCacheIfNotAlready(object, bucket)
+	err := chr.addFileInfoEntryInCache(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("while adding the entry in the cache: %v", err)
 	}
@@ -146,10 +165,10 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
 }
 
-// InvalidateCache removes the entry from the fileInfoCache, cancel the async running job incase,
-// and delete the locally downloaded cached-file.
+// InvalidateCache removes the entry from the fileInfoCache, and removes download job,
+// and delete local file in the cache.
+
 // Acquires and releases LOCK(CacheHandler.mu)
-// TODO (raj-prince) to implement.
 func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
@@ -166,7 +185,7 @@ func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucke
 	erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 	if erasedVal != nil {
 		fileInfo := erasedVal.(data.FileInfo)
-		err := chr.performPostEvictionWork(&fileInfo)
+		err := chr.cleanUpEvictedFile(&fileInfo)
 		if err != nil {
 			return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
 		}
@@ -174,7 +193,8 @@ func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucke
 	return nil
 }
 
-// Destroy destroys the internal state of CacheHandler correctly specifically closing any fileHandles.
+// Destroy destroys the internal state of CacheHandler correctly specifically evict all the
+// entries in the file info cache and clean up for the evicted entries.
 // TODO (raj-prince) to implement.
 func (chr *CacheHandler) Destroy() {
 
