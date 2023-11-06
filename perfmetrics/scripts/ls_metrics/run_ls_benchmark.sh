@@ -12,4 +12,3 @@ GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
 
 python3 listing_benchmark.py config.json --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "Testing CT setup."
-rm config_flags.json config_flags.yml
