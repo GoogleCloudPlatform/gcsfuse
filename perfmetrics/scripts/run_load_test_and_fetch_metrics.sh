@@ -35,20 +35,11 @@ echo "Mounting gcs bucket"
 mkdir -p gcs
 FLAGS=$1
 UPLOAD_FLAGS=$2
-CONFIG_FILE_JSON=$3
 BUCKET_NAME=periodic-perf-tests
 MOUNT_POINT=gcs
 
-echo "$CONFIG_FILE_JSON" >> config_flags.json
-cat config_flags.json
-if [ -n "$CONFIG_FILE_JSON" ];
-then
-  jq -c -M . config_flags.json > config_flags.yml
-  GCSFUSE_FLAGS="$FLAGS --config-file config_flags.yml"
-fi
-
 # The VM will itself exit if the gcsfuse mount fails.
-gcsfuse $GCSFUSE_FLAGS  $BUCKET_NAME $MOUNT_POINT
+gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 echo Print the time when FIO tests start
 date
@@ -63,4 +54,3 @@ pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS
-rm config_flags.json config_flags.yml

@@ -42,8 +42,18 @@ CONFIG_NAME=$(echo "$config" | jq -r '.config_name')
 GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
-# Get the value of the config-file key
-CONFIG_FILE_JSON=$(jq -r '.["config-file"]' <<< $config )
+# Get the value of the config_file_flag key
+CONFIG_FILE_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
+
+# Create config.yml file from json.
+CONFIG_FILE="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
+echo "$CONFIG_FILE_JSON" >> ${KOKORO_ARTIFACTS_DIR}/config_flags.json
+cat config_flags.json
+if [ -n "$CONFIG_FILE_JSON" ];
+then
+  jq -c -M . config_flags.json > $CONFIG_FILE
+  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE"
+fi
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -68,13 +78,15 @@ fi
 
 # Executing perf tests
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
+
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 chmod +x run_load_test_and_fetch_metrics.sh
-./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$CONFIG_FILE_JSON"
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
 LOG_FILE_LIST_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
-./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS" "$CONFIG_FILE_JSON"
+./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
+rm config_flags.json config_flags.yml

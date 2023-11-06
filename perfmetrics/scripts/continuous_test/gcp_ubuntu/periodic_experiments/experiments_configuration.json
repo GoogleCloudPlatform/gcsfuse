@@ -22,7 +22,7 @@
       "config_name": "minimal_file_buffering_release",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "branch": "minimal_file_buffering_release",
-      "config-file": {
+      "config_file_flag": {
         "write": {
           "create-empty-file": true
         },
