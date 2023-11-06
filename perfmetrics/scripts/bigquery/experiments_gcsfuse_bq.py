@@ -160,6 +160,7 @@ class ExperimentsGCSFuseBQ:
         configuration_id STRING,
         configuration_name STRING,
         gcsfuse_flags STRING,
+        config_file_flag STRING,
         branch STRING,
         end_date TIMESTAMP,
         PRIMARY KEY (configuration_id) NOT ENFORCED

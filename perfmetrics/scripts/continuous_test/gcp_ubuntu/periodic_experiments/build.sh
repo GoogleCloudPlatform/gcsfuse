@@ -53,7 +53,7 @@ cat $CONFIG_FILE_JSON
 if [ -n "$CONFIG_FILE_JSON" ];
 then
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
-  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML"
+  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
 fi
 
 echo "Building and installing gcsfuse"
@@ -80,7 +80,7 @@ fi
 # Executing perf tests
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
 
-GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
+GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
@@ -90,3 +90,4 @@ GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format 
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
+rm $CONFIG_FILE_JSON $CONFIG_FILE_YML
