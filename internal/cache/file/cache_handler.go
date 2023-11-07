@@ -27,7 +27,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
-// CacheHandler Responsible for managing fileInfoCache as well as fileDownloadManager.
+// CacheHandler responsible for managing fileInfoCache as well as fileJobManager.
+// It provides an API (GetCacheHandle) to create a cache handle that can be used to
+// read the cached data. Additionally, while creating the cache handle, it ensures
+// that the entry in the fileInfoCache as well as the cache file is locally present
+// on the system.
 type CacheHandler struct {
 	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
@@ -35,16 +39,13 @@ type CacheHandler struct {
 	// jobManager contains reference to a singleton jobManager.
 	jobManager *downloader.JobManager
 
-	// Directory location which would contain local file to keep the downloaded data.
+	// cacheLocation is the local path which contains the cache data i.e. objects stored as file.
 	cacheLocation string
 
-	// filePerm parameter specifies the permission behaviour to determine which users
-	// will have access to the cache file.
+	// filePerm parameter specifies the permission of file in cache.
 	filePerm os.FileMode
 
-	// Guards the handling of cache entry insertion while creating the CacheHandle.
-	// Also guards post eviction logic E.g. cancelling and deletion of async download job,
-	// deletion of local file containing downloaded data.
+	// mu guards the handling of insertion into and eviction from file cache.
 	mu locker.Locker
 }
 
@@ -67,11 +68,14 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 	return util.CreateFile(fileSpec, os.O_RDONLY)
 }
 
+// cleanUpEvictedFile is a utility method called for the evicted/deleted fileInfo.
+// As part of execution, it stops and removes the download job, and deletes the cache
+// file.
 func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
 	if err != nil {
-		return fmt.Errorf("error while performing post eviction: %v", err)
+		return fmt.Errorf("cleanUpEvictedFile: while performing post eviction: %v", err)
 	}
 
 	// Removing Job doesn't delete the job object itself but invalidates the job and
@@ -83,9 +87,9 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	err = os.Remove(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("while clean up, filePath should exist: %v", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
 		} else {
-			return fmt.Errorf("while deleting file: %s, error: %v", localFilePath, err)
+			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %v", localFilePath, err)
 		}
 	}
 
@@ -93,9 +97,8 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 }
 
 // addFileInfoEntryToCache adds a data.FileInfo entry for the given object and bucket
-// in the file info cache if it does not already exist. While adding the entry, it also
-// performs the post eviction work (clean up for async job and local cache file) for the
-// evicted entry.
+// in the file info cache if it does not already exist. It also cleans up for entries
+// that are evicted at the time of adding new entry.
 // In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
 // it cleans up (job and local cache file) for the old entry and adds the new entry with the
 // latest generation to the cache.
@@ -108,7 +111,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return fmt.Errorf("while creating key: %v", fileInfoKeyName)
+		return fmt.Errorf("addFileInfoEntryToCache: while creating key: %v", fileInfoKeyName)
 	}
 
 	chr.mu.Lock()
@@ -124,15 +127,15 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		if fileInfoData.ObjectGeneration < object.Generation {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
-				fileInfo := erasedVal.(data.FileInfo)
-				err := chr.cleanUpEvictedFile(&fileInfo)
+				erasedFileInfo := erasedVal.(data.FileInfo)
+				err := chr.cleanUpEvictedFile(&erasedFileInfo)
 				if err != nil {
-					return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+					return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %v", erasedFileInfo.Key.ObjectName, err)
 				}
 			}
 			addEntryToCache = true
 		} else if fileInfoData.ObjectGeneration > object.Generation {
-			return fmt.Errorf("cache generation %d is more than object generation: %d", fileInfoData.ObjectGeneration, object.Generation)
+			return fmt.Errorf("addFileInfoEntryToCache: cache generation %d is more than object generation: %d", fileInfoData.ObjectGeneration, object.Generation)
 		}
 	}
 
@@ -146,14 +149,14 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
 		if err != nil {
-			return fmt.Errorf("while inserting into the cache: %v", err)
+			return fmt.Errorf("addFileInfoEntryToCache: while inserting into the cache: %v", err)
 		}
 
 		for _, val := range evictedValues {
 			fileInfo := val.(data.FileInfo)
 			err := chr.cleanUpEvictedFile(&fileInfo)
 			if err != nil {
-				return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+				return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
 			}
 		}
 	} else {
@@ -177,12 +180,12 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
 	err := chr.addFileInfoEntryToCache(object, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("while adding the entry in the cache: %v", err)
+		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %v", err)
 	}
 
 	localFileReadHandle, err := chr.createLocalFileReadHandle(object.Name, bucket.Name())
 	if err != nil {
-		return nil, fmt.Errorf("while create local-file read handle: %v", err)
+		return nil, fmt.Errorf("GetCacheHandle: while create local-file read handle: %v", err)
 	}
 
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
@@ -199,7 +202,7 @@ func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucke
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return fmt.Errorf("while creating key: %v", fileInfoKeyName)
+		return fmt.Errorf("InvalidateCache: while creating key: %v", fileInfoKeyName)
 	}
 
 	chr.mu.Lock()
@@ -210,7 +213,7 @@ func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucke
 		fileInfo := erasedVal.(data.FileInfo)
 		err := chr.cleanUpEvictedFile(&fileInfo)
 		if err != nil {
-			return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+			return fmt.Errorf("InvalidateCache: while performing clean-up for evicted  %s object, error: %v", fileInfo.Key.ObjectName, err)
 		}
 	}
 	return nil
