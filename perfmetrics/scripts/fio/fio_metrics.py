@@ -35,7 +35,6 @@ from gsheet import gsheet
 from bigquery import constants
 from bigquery import experiments_gcsfuse_bq
 
-
 @dataclass(frozen=True)
 class JobParam:
   """Dataclass for a FIO job parameter.

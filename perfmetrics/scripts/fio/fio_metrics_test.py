@@ -616,8 +616,10 @@ class TestFioMetricsTest(unittest.TestCase):
             'lat_s_perc_95': 0.526385152
         }
     }]
+
     extracted_metrics = self.fio_metrics_obj.get_metrics(
         get_full_filepath(MULTIPLE_JOBS_GLOBAL_OPTIONS_FILE))
+
     self.assertEqual(expected_metrics, extracted_metrics)
 
   def test_get_metrics_for_multiple_jobs_job_options(self):
