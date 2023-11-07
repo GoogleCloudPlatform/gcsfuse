@@ -17,6 +17,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
@@ -66,4 +67,15 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 		return
 	}
 	return
+}
+
+// GetObjectPath gives object path which is concatenation of bucket and object
+// name separated by "/".
+func GetObjectPath(bucketName string, objectName string) string {
+	return path.Join(bucketName, objectName)
+}
+
+// GetDownloadPath gives file path to file in cache for given object path.
+func GetDownloadPath(cacheLocation string, objectPath string) string {
+	return path.Join(cacheLocation, objectPath)
 }
