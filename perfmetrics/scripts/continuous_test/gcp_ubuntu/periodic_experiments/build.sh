@@ -50,7 +50,7 @@ CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
 echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
 # Create config_flags.yml file from json.
 CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
-if [ -n "$CONFIG_FILE_JSON" ];
+if [ -n "$CONFIG_FILE_FLAG_JSON" ];
 then
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
