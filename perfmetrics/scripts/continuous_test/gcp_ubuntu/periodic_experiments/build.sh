@@ -45,16 +45,17 @@ END_DATE=$(echo "$config" | jq -r '.end_date')
 # Get the value of the config_file_flag key
 CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
 
-# Create config.yml file from json.
-CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
+# Create JSON file to capture value of $CONFIG_FILE_FLAG_JSON
 CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
 echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
-cat $CONFIG_FILE_JSON
+# Create config_flags.yml file from json.
+CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
 if [ -n "$CONFIG_FILE_JSON" ];
 then
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
 fi
+# Create string of config file value for big query table.
 CONFIG_FILE_STRING=$(cat $CONFIG_FILE_JSON | jq -c .)
 
 echo "Building and installing gcsfuse"
@@ -75,12 +76,11 @@ START_TIME_BUILD=$(date +%s)
 UPLOAD_FLAGS=""
 if [ "${KOKORO_JOB_TYPE}" == "RELEASE" ] || [ "${KOKORO_JOB_TYPE}" == "CONTINUOUS_INTEGRATION" ] || [ "${KOKORO_JOB_TYPE}" == "PRESUBMIT_GITHUB" ] || [ "${KOKORO_JOB_TYPE}" == "SUB_JOB" ];
 then
-  UPLOAD_FLAGS="--upload_gs --upload_bq --config_id $CONFIG_ID --start_time_build $START_TIME_BUILD"
+  UPLOAD_FLAGS="--upload_bq --config_id $CONFIG_ID --start_time_build $START_TIME_BUILD"
 fi
 
 # Executing perf tests
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
-
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
