@@ -269,6 +269,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
 	// Existing cacheHandle.
 	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+	AssertEq(nil, err)
 	// Upgrade the version of the object, but cache still keeps old generation
 	chrT.object.Generation = chrT.object.Generation + 1
 
