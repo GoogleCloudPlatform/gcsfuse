@@ -92,13 +92,16 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	return nil
 }
 
-// addFileInfoEntryInCache adds a data.FileInfo entry for the given object and bucket
+// addFileInfoEntryToCache adds a data.FileInfo entry for the given object and bucket
 // in the file info cache if it does not already exist. While adding the entry, it also
 // performs the post eviction work (clean up for async job and local cache file) for the
 // evicted entry.
+// In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
+// it cleans up (job and local cache file) for the old entry and adds the new entry with latest
+// generation to the cache.
 
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) addFileInfoEntryInCache(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
@@ -111,9 +114,29 @@ func (chr *CacheHandler) addFileInfoEntryInCache(object *gcs.MinObject, bucket g
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
+	addEntryToCache := false
 	// Todo - (raj-prince) - this lookUp should not change the LRU order.
 	fileInfo := chr.fileInfoCache.LookUp(fileInfoKeyName)
 	if fileInfo == nil {
+		addEntryToCache = true
+	} else {
+		fileInfoData := fileInfo.(data.FileInfo)
+		if fileInfoData.ObjectGeneration < object.Generation {
+			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
+			if erasedVal != nil {
+				fileInfo := erasedVal.(data.FileInfo)
+				err := chr.cleanUpEvictedFile(&fileInfo)
+				if err != nil {
+					return fmt.Errorf("while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+				}
+			}
+			addEntryToCache = true
+		} else if fileInfoData.ObjectGeneration > object.Generation {
+			return fmt.Errorf("cache generation %d is more than object generation: %d", fileInfoData.ObjectGeneration, object.Generation)
+		}
+	}
+
+	if addEntryToCache {
 		fileInfo = data.FileInfo{
 			Key:              fileInfoKey,
 			ObjectGeneration: object.Generation,
@@ -152,7 +175,7 @@ func (chr *CacheHandler) addFileInfoEntryInCache(object *gcs.MinObject, bucket g
 
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
-	err := chr.addFileInfoEntryInCache(object, bucket)
+	err := chr.addFileInfoEntryToCache(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("while adding the entry in the cache: %v", err)
 	}

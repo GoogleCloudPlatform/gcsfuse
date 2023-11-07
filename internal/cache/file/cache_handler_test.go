@@ -17,6 +17,7 @@ package file
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -36,7 +37,8 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-const HandlerCacheMaxSize = TestObjectSize + 20
+const HandlerCacheMaxSize = TestObjectSize + ObjectSizeToCauseEviction
+const ObjectSizeToCauseEviction = 20
 
 func TestCacheHandler(t *testing.T) { RunTests(t) }
 
@@ -208,18 +210,45 @@ func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile_WhenLocalFileNotExist() {
 	ExpectEq(nil, err)
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryInCache_IfAlready() {
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfAlready() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
 	AssertEq(nil, cacheHandle1.validateCacheHandle())
 
-	err := chrT.cacheHandler.addFileInfoEntryInCache(chrT.object, chrT.bucket)
+	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryInCache_IfNotAlready() {
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_StaleEntry() {
+	// Existing cacheHandle.
+	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+	AssertEq(nil, cacheHandle1.validateCacheHandle())
+
+	chrT.object.Generation = chrT.object.Generation + 1
+
+	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+
+	ExpectEq(nil, err)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+}
+
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_InvalidEntry() {
+	// Existing cacheHandle.
+	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+	AssertEq(nil, cacheHandle1.validateCacheHandle())
+
+	chrT.object.Generation = chrT.object.Generation - 1
+
+	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+
+	ExpectNe(nil, err)
+	errMsg := fmt.Sprintf("cache generation %d is more than object generation", chrT.object.Generation+1)
+	ExpectTrue(strings.Contains(err.Error(), errMsg))
+}
+
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
 	AssertEq(nil, cacheHandle1.validateCacheHandle())
@@ -228,13 +257,40 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryInCache_IfNotAlready() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
 
 	// Insertion will happen and that leads to eviction.
-	err := chrT.cacheHandler.addFileInfoEntryInCache(minObject, chrT.bucket)
+	err := chrT.cacheHandler.addFileInfoEntryToCache(minObject, chrT.bucket)
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
 	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
 	ExpectEq(downloader.INVALID, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
+	// Existing cacheHandle.
+	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+	// Upgrade the version of the object, but cache still keeps old generation
+	chrT.object.Generation = chrT.object.Generation + 1
+
+	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+
+	ExpectEq(nil, err)
+	ExpectEq(nil, newCacheHandle.validateCacheHandle())
+	jobStatusOfOldHandle := oldCacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(jobStatusOfOldHandle.Name, downloader.INVALID)
+	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(jobStatusOfNewHandle.Name, downloader.NOT_STARTED)
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsInvalidEntry() {
+	//  Cache contains higher generation
+	chrT.object.Generation = chrT.object.Generation - 1
+
+	_, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
+
+	ExpectNe(nil, err)
+	errMsg := fmt.Sprintf("cache generation %d is more than object generation", chrT.object.Generation+1)
+	ExpectTrue(strings.Contains(err.Error(), errMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryAlreadyInCache() {
@@ -308,7 +364,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
 	getCacheHandleTestFun := func(index int) {
 		defer wg.Done()
 		objName := "object" + strconv.Itoa(index)
-		objContent := "object content: " + strconv.Itoa(index)
+		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
 		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
@@ -382,7 +438,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
 	InvalidateCacheTestFun := func(index int) {
 		defer wg.Done()
 		objName := "object" + strconv.Itoa(index)
-		objContent := "object content: " + strconv.Itoa(index)
+		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
 		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
@@ -407,7 +463,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 	invalidateCacheTestFun := func(index int) {
 		defer wg.Done()
 		objName := "object" + strconv.Itoa(index)
-		objContent := "object content: " + strconv.Itoa(index)
+		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
 		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
@@ -418,7 +474,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 	getCacheHandleTestFun := func(index int) {
 		defer wg.Done()
 		objName := "object" + strconv.Itoa(index)
-		objContent := "object content: " + strconv.Itoa(index)
+		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
 		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
@@ -436,6 +492,8 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 	}
 	wg.Wait()
 
+	// Any fileInfo addition with content size greater than ObjectSizeToCauseEviction will
+	// evict the existing cache handle.
 	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
 	ExpectEq(downloader.INVALID, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
