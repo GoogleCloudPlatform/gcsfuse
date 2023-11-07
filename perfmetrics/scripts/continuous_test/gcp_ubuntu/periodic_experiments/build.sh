@@ -27,7 +27,6 @@ sudo apt-get install jq -y
 # Get the current date and time
 current_date=$(date +"%Y-%m-%d %H:%M:%S")
 
-export EXPERIMENT_NUMBER=4
 # Get the required enabled configuration
 config=$(jq --arg EXPERIMENT_NUMBER "$EXPERIMENT_NUMBER" --arg current_date "$current_date" '.experiment_configuration[] | select(.end_date >= $current_date)' perfmetrics/scripts/continuous_test/gcp_ubuntu/periodic_experiments/experiments_configuration.json | jq -s ".[$EXPERIMENT_NUMBER-1]")
 
