@@ -184,43 +184,6 @@ func (t *CreateChunkUploaderTest) WrappedFails() {
 	ExpectThat(err, Error(HasSubstr(name)))
 }
 
-// func (t *CreateChunkUploaderTest) WrappedSucceeds() {
-// 	const name = "taco"
-// 	var err error
-// 	chunkSize := googleapi.MinUploadChunkSize
-
-// 	// Erase
-// 	ExpectCall(t.cache, "Erase")(Any())
-
-// 	// Wrapped
-// 	obj := &gcs.Object{
-// 		Name:       name,
-// 		Generation: 1234,
-// 	}
-
-// 	// uploader gcs.ChunkUploader{}
-
-// 	ExpectCall(t.wrapped, "CreateChunkUploader")(Any(), Any(), Any(), Any())
-
-// 	// Insert
-// 	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
-
-// 	// Call
-// 	uploader, err := t.bucket.CreateChunkUploader(context.TODO(), &gcs.CreateObjectRequest{}, chunkSize, nil)
-
-// 	AssertEq(nil, err)
-// 	ExpectNe(nil, uploader)
-
-// 	err = uploader.Upload(context.Background(), strings.NewReader(""))
-
-// 	AssertEq(nil, err)
-
-// 	o, err := uploader.Close(context.Background())
-
-// 	AssertEq(nil, err)
-// 	AssertNe(nil, o)
-// }
-
 ////////////////////////////////////////////////////////////////////////
 // CopyObject
 ////////////////////////////////////////////////////////////////////////
