@@ -26,6 +26,7 @@ performed in a single run.
 Typical usage example:
 
   $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
+
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
@@ -496,7 +497,6 @@ def _parse_arguments(argv):
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
-
 
 def _check_dependencies(packages) -> None:
   """Check whether the dependencies are installed or not.
