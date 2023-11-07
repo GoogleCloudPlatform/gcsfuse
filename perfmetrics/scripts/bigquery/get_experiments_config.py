@@ -17,11 +17,11 @@ This python script calls the bigquery module with the experiment details and ins
 if it doesn't exist and only updates end_date in case of existing configuration and gets the configuration ID
 
 Typical usage example from perfmetrics/scripts folder:
-  $ python3 bigquery.get_experiments_config [-h] [--gcsfuse_flags GCSFUSE_FLAGS] [--config_file_flag CONFIG_FILE_STRING] [--branch BRANCH] [--end_date END_DATE] [--config_name CONFIG_NAME]
+  $ python3 bigquery.get_experiments_config [-h] [--gcsfuse_flags GCSFUSE_FLAGS] [--config_file_flag CONFIG_FILE_FLAG_STRING] [--branch BRANCH] [--end_date END_DATE] [--config_name CONFIG_NAME]
 
   Flag -h: Typical help interface of the script.
   Flag gcsfuse_flags (required: str): Set of gcsfuse flags used for experiment.
-  Flag config_file_flag (required: str): Set of gcsfuse flags used for experiment.
+  Flag config_file_flag (required: str):  --config-file flag to be passed to the gcsfuse command when running the experiment.
   Flag branch (required: str): GCSFuse repo branch used for building GCSFuse.
   Flag end_date (required: timestamp): Date till when experiments of this configuration are run.
   Flag config_name (required: str): Name of the experiment configuration.
@@ -53,7 +53,7 @@ def parse_arguments(argv):
   )
   parser.add_argument(
       '--config_file_flag',
-      help='config-file flag value.',
+      help='--config-file flag value.',
       action='store',
       nargs=1,
       required=False

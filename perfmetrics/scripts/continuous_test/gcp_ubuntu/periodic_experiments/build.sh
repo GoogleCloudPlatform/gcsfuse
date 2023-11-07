@@ -55,7 +55,7 @@ then
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
 fi
-# Create string of config file value for big query table.
+# Create string of config file value for fetching data from big query table.
 CONFIG_FILE_STRING=$(cat $CONFIG_FILE_JSON | jq -c .)
 
 echo "Building and installing gcsfuse"
