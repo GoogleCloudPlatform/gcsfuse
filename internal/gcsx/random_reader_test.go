@@ -19,11 +19,18 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
@@ -135,9 +142,11 @@ const sequentialReadSizeInMb = 10
 const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
 
 type RandomReaderTest struct {
-	object *gcs.MinObject
-	bucket storage.MockBucket
-	rr     checkingRandomReader
+	object        *gcs.MinObject
+	bucket        storage.MockBucket
+	rr            checkingRandomReader
+	cacheLocation string
+	cacheHandler  *file.CacheHandler
 }
 
 func init() { RegisterTestSuite(&RandomReaderTest{}) }
@@ -158,13 +167,21 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
+	t.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
+	CacheMaxSize := 100 * util.MiB
+	lruCache := lru.NewCache(uint64(CacheMaxSize))
+	jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, t.cacheLocation, 100)
+
+	t.cacheHandler = file.NewCacheHandler(lruCache, jobManager, t.cacheLocation, util.DefaultFilePerm)
+
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
 func (t *RandomReaderTest) TearDown() {
 	t.rr.Destroy()
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -521,7 +538,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MB)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which
@@ -553,7 +570,7 @@ func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreater
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
 	t.rr.wrapped = rr.(*randomReader)
 	// Create readers for each chunk.
 	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
@@ -599,7 +616,7 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
 	t.rr.wrapped = rr.(*randomReader)
 	// Simulate an existing reader at the correct offset, which will be exhausted
 	// by the read below.
@@ -647,4 +664,54 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	ExpectEq(readSize, t.rr.wrapped.start)
 	// Limit is same as the byteRange of last GCS call made.
 	ExpectEq(existingSize+readSize, t.rr.wrapped.limit)
+}
+
+func (t *RandomReaderTest) Test_ReadAt_ViaCache() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+
+	objectSize := t.object.Size
+	// The bucket should be asked to read the entire object, even though we only
+	// ask for readSize bytes below, to minimize the cost for GCS requests.
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
+
+	// Call through.
+	buf := make([]byte, objectSize)
+	_, err := t.rr.ReadAt(buf, 0)
+	ExpectEq(nil, err)
+	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
+	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+}
+
+func (t *RandomReaderTest) Test_readFromCache() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+
+	objectSize := t.object.Size
+	// The bucket should be asked to read the entire object, even though we only
+	// ask for readSize bytes below, to minimize the cost for GCS requests.
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
+
+	// Call through.
+	buf := make([]byte, objectSize)
+	_, err := t.rr.wrapped.readFromCache(t.rr.ctx, buf, 0)
+	ExpectEq(nil, err)
+	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
+	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
 }

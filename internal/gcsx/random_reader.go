@@ -18,7 +18,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"go.opencensus.io/stats"
@@ -106,15 +109,17 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, downloadForRandomRead bool) RandomReader {
 	return &randomReader{
-		object:               o,
-		bucket:               bucket,
-		start:                -1,
-		limit:                -1,
-		seeks:                0,
-		totalReadBytes:       0,
-		sequentialReadSizeMb: sequentialReadSizeMb,
+		object:                o,
+		bucket:                bucket,
+		start:                 -1,
+		limit:                 -1,
+		seeks:                 0,
+		totalReadBytes:        0,
+		sequentialReadSizeMb:  sequentialReadSizeMb,
+		fileCacheHandler:      fileCacheHandler,
+		downloadForRandomRead: downloadForRandomRead,
 	}
 }
 
@@ -140,6 +145,12 @@ type randomReader struct {
 	totalReadBytes uint64
 
 	sequentialReadSizeMb int32
+
+	fileCacheHandler *file.CacheHandler
+
+	fileCacheHandle *file.CacheHandle
+
+	downloadForRandomRead bool
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -159,10 +170,51 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
+// readFromCache creates the cache handle if it does not already exist, and then
+// calls the read method via the cache handle. Additionally, this function should
+// not be called when rr.fileCacheHandler is nil.
+func (rr *randomReader) readFromCache(
+	ctx context.Context,
+	p []byte,
+	offset int64) (n int, err error) {
+
+	if rr.fileCacheHandle == nil {
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, offset)
+		if err != nil {
+			return 0, fmt.Errorf("readFromCache: while creating cachehandle instance: %v", err)
+		}
+	}
+
+	return rr.fileCacheHandle.Read(ctx, rr.object, rr.downloadForRandomRead, offset, p)
+}
+
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
 	offset int64) (n int, err error) {
+
+	if rr.fileCacheHandler != nil {
+		n, err = rr.readFromCache(ctx, p, offset)
+		if err == nil {
+			return
+		}
+
+		if strings.Contains(err.Error(), util.InvalidFileHandleErrMsg) ||
+			strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg) ||
+			strings.Contains(err.Error(), util.InvalidFileInfoCacheErrMsg) ||
+			strings.Contains(err.Error(), util.ErrInSeekingFileHandleMsg) ||
+			strings.Contains(err.Error(), util.ErrInReadingFileHandleMsg) {
+
+			err = rr.fileCacheHandle.Close()
+			if err != nil {
+				return 0, fmt.Errorf("ReadAt: while closing the fileCacheHandle: %v", err)
+			}
+			rr.fileCacheHandle = nil
+		} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
+			return 0, fmt.Errorf("ReadAt: while reading via cache: %v", err)
+		}
+	}
+
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
@@ -267,6 +319,10 @@ func (rr *randomReader) Destroy() {
 		rr.reader.Close()
 		rr.reader = nil
 		rr.cancel = nil
+	}
+
+	if rr.fileCacheHandler != nil {
+		rr.fileCacheHandler.InvalidateCache(rr.object, rr.bucket)
 	}
 }
 
