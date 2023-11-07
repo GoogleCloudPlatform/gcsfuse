@@ -16,19 +16,13 @@ package downloader
 
 import (
 	"os"
-	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
-
-// getObjectPath gives object path which is concatenation of bucket and object
-// name separated by "/".
-func getObjectPath(bucketName string, objectName string) string {
-	return path.Join(bucketName, objectName)
-}
 
 // JobManager is responsible for maintaining, getting and removing file download
 // jobs.
@@ -68,11 +62,6 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, cacheLocation
 	return
 }
 
-// getDownloadPath gives file path to file in cache for given object path.
-func (jm *JobManager) getDownloadPath(objectPath string) string {
-	return path.Join(jm.cacheLocation, objectPath)
-}
-
 // GetJob gives downloader.Job for given object and bucket. If there is no
 // existing job then this method creates one.
 //
@@ -80,10 +69,10 @@ func (jm *JobManager) getDownloadPath(objectPath string) string {
 func (jm *JobManager) GetJob(object *gcs.MinObject, bucket gcs.Bucket) (job *Job) {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
-	objectPath := getObjectPath(bucket.Name(), object.Name)
+	objectPath := util.GetObjectPath(bucket.Name(), object.Name)
 	job, ok := jm.jobs[objectPath]
 	if !ok {
-		downloadPath := jm.getDownloadPath(objectPath)
+		downloadPath := util.GetDownloadPath(jm.cacheLocation, objectPath)
 		fileSpec := data.FileSpec{Path: downloadPath, Perm: jm.filePerm}
 		job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec)
 		jm.jobs[objectPath] = job
@@ -99,7 +88,7 @@ func (jm *JobManager) GetJob(object *gcs.MinObject, bucket gcs.Bucket) (job *Job
 func (jm *JobManager) RemoveJob(objectName string, bucketName string) {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
-	objectPath := getObjectPath(bucketName, objectName)
+	objectPath := util.GetObjectPath(bucketName, objectName)
 	job, ok := jm.jobs[objectPath]
 	if ok {
 		job.Invalidate()
