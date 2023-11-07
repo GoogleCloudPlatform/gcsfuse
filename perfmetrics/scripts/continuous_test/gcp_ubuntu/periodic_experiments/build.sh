@@ -45,18 +45,21 @@ END_DATE=$(echo "$config" | jq -r '.end_date')
 # Get the value of the config_file_flag key
 CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
 
-# Create JSON file to capture value of $CONFIG_FILE_FLAG_JSON
-CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
-echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
 # Create config_flags.yml file from json.
 CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
-if [ -n "$CONFIG_FILE_FLAG_JSON" ];
+if [ "$CONFIG_FILE_FLAG_JSON" != null ];
 then
+  # Create JSON file to capture value of $CONFIG_FILE_FLAG_JSON
+  CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
+  echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
+
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
+
+  rm $CONFIG_FILE_JSON
 fi
 # Create string of config file value for fetching data from big query table.
-CONFIG_FILE_STRING=$(cat $CONFIG_FILE_JSON | jq -c .)
+CONFIG_FILE_STRING=$(echo "$CONFIG_FILE_FLAG_JSON" | jq -c .)
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -91,4 +94,4 @@ GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format 
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
-rm $CONFIG_FILE_JSON $CONFIG_FILE_YML
+rm $CONFIG_FILE_YML
