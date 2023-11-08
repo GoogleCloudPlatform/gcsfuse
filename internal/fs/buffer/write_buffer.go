@@ -19,10 +19,10 @@ const (
 	MiB = 1024 * 1024
 	// maxInMemoryBufferSizeMB is the upper limit on the size upto which the
 	// buffer would be created in memory. Beyond this size, buffer would be on disk.
-	MaxInMemoryBufferSizeMB       = 50
-	NonSequentialWriteError       = "non-sequential writes are not supported with WriteBuffer"
-	NotEnoughSpaceInCurrentBuffer = "not enough space in currentBuffer to write entire content"
-	ZeroSizeBufferError           = "buffer of size 0 cannot be created"
+	MaxInMemoryBufferSizeMB = 50
+	NonSequentialWriteError = "non-sequential writes are not supported with WriteBuffer"
+	NotEnoughSpaceInBuffer  = "not enough space in write buffer to write entire content"
+	ZeroSizeBufferError     = "buffer of size 0 cannot be created"
 )
 
 // WriteBuffer is an interface that buffers the data to be written to GCS during

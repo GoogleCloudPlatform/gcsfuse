@@ -26,6 +26,11 @@ type offset struct {
 	start, end int64
 }
 
+func (o *offset) advanceBy(value int64) {
+	o.start += value
+	o.end += value
+}
+
 type inMemoryBuffer struct {
 	buffer []byte
 	offset offset
@@ -87,15 +92,14 @@ func (b *InMemoryWriteBuffer) ensureFlushedBuffer() error {
 }
 
 func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
-	dataSize := int64(len(content))
-	receivedContentEndOffset := offset + dataSize
-	if dataSize == 0 {
+	contentSize := int64(len(content))
+	if contentSize == 0 {
 		return nil
 	}
 
 	// Ensure b.currentBuffer != nil
 	if err := b.ensureCurrentBuffer(); err != nil {
-		return err
+		return fmt.Errorf("ensureCurrentBuffer: %w", err)
 	}
 
 	// If receivedContentStartOffset is not in the range of offsets stored in current
@@ -103,40 +107,54 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 	if offset < b.current.offset.start ||
 		offset > b.current.offset.end {
 		// TODO: finalise write and trigger temp file flow.
-		logger.Debugf("TODO: finalise write and trigger temp file flow.")
+		logger.Debugf("Non-sequential write encountered. TODO: Switch to " +
+			"temp-file flow insteading of erroring out.")
 		return fmt.Errorf(NonSequentialWriteError)
 	}
 
+	// Validate that buffer has enough space to write content.
+	if contentSize > b.bufferSize {
+		return fmt.Errorf(NotEnoughSpaceInBuffer)
+	}
+
 	// If data can be completely written to the current buffer, write it.
+	receivedContentEndOffset := offset + contentSize
 	if receivedContentEndOffset <= b.current.offset.end {
-		return b.copyDataToBuffer(offset, receivedContentEndOffset, content)
+		return b.copyDataToBuffer(offset, content)
 	}
 	// Else, write the chunk of data that can be written to the current buffer block.
 	l := b.current.offset.end - offset
-	err := b.copyDataToBuffer(offset, b.current.offset.end, content[:l])
+	err := b.copyDataToBuffer(offset, content[:l])
 	if err != nil {
-		return err
+		return fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
+			offset, b.current.offset.end, err)
 	}
-	//TODO: get status of last write to GCS. If unsuccessful, trigger temp file flow.
-	logger.Debugf("TODO: get status of last write to GCS and if " +
+	//TODO: Wait/timeout on last write to GCS. If unsuccessful, trigger temp file flow.
+	logger.Debugf("TODO: Wait/timeout on last write to GCS and if " +
 		"unsuccessful, trigger temp file flow.")
 	if err = b.advanceToNextChunk(); err != nil {
-		return err
+		return fmt.Errorf("advanceToNextChunk: %w", err)
 	}
 	// TODO: trigger async upload to GCS for flushedBuffer.
 	logger.Debugf("TODO: trigger async upload to GCS for flushedBuffer.")
 
 	// Write the remaining data to currentBuffer.
-	return b.copyDataToBuffer(b.current.offset.start, receivedContentEndOffset, content[l:])
+	err = b.copyDataToBuffer(b.current.offset.start, content[l:])
+	if err != nil {
+		return fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
+			b.current.offset.start, receivedContentEndOffset, err)
+	}
+	return nil
 }
 
 // Copies received content to currentChunk if it has capacity.
-func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset, contentEndOffset int64, content []byte) error {
-	dataSize := int64(len(content))
+func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset int64, content []byte) error {
+	contentSize := int64(len(content))
+	contentEndOffset := contentStartOffset + contentSize
 	si := contentStartOffset % b.bufferSize
-	ei := si + dataSize
+	ei := si + contentSize
 	if ei > b.bufferSize {
-		return fmt.Errorf(NotEnoughSpaceInCurrentBuffer)
+		return fmt.Errorf(NotEnoughSpaceInBuffer)
 	}
 
 	copy(b.current.buffer[si:ei], content)
@@ -147,18 +165,16 @@ func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset, contentEndOff
 func (b *InMemoryWriteBuffer) advanceToNextChunk() error {
 	// ensure b.flushed.buffer != nil
 	if err := b.ensureFlushedBuffer(); err != nil {
-		return err
+		return fmt.Errorf("ensureFlushedBuffer: %w", err)
 	}
 
 	// Move current buffer to flushed buffer.
 	b.flushed.buffer, b.current.buffer = b.current.buffer, b.flushed.buffer
-	b.flushed.offset.start = b.current.offset.start
-	b.flushed.offset.end = b.current.offset.end
+	b.flushed.offset = b.current.offset
 
 	// Make current buffer ready for new writes coming from kernel.
 	clear(b.current.buffer)
-	b.current.offset.start = b.current.offset.end
-	b.current.offset.end += b.bufferSize
+	b.current.offset.advanceBy(b.bufferSize)
 	return nil
 }
 
