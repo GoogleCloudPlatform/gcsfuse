@@ -18,8 +18,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -36,11 +38,16 @@ type FileHandle struct {
 	//
 	// GUARDED_BY(mu)
 	reader gcsx.RandomReader
+
+	fileCacheHandler      *file.CacheHandler
+	downloadForRandomRead bool
 }
 
-func NewFileHandle(inode *inode.FileInode) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, downloadForRandomRead bool) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode: inode,
+		inode:                 inode,
+		fileCacheHandler:      fileCacheHandler,
+		downloadForRandomRead: downloadForRandomRead,
 	}
 
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
@@ -50,10 +57,15 @@ func NewFileHandle(inode *inode.FileInode) (fh *FileHandle) {
 
 // Destroy any resources associated with the handle, which must not be used
 // again.
-func (fh *FileHandle) Destroy() {
+func (fh *FileHandle) Destroy() error {
 	if fh.reader != nil {
-		fh.reader.Destroy()
+		err := fh.reader.Destroy()
+		if err != nil {
+			logger.Warnf("fh.Destroy(): while destroying reader: %v", err)
+		}
 	}
+
+	return nil
 }
 
 // Inode returns the inode backing this handle.
@@ -141,7 +153,10 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		if fh.reader != nil {
-			fh.reader.Destroy()
+			err = fh.reader.Destroy()
+			if err != nil {
+				return fmt.Errorf("tryEnsure: while destroying random-reader: %v", err)
+			}
 			fh.reader = nil
 		}
 
@@ -160,7 +175,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.downloadForRandomRead)
 
 	fh.reader = rr
 	return

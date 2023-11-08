@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"go.opencensus.io/stats"
@@ -104,7 +105,7 @@ type RandomReader interface {
 
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
-	Destroy()
+	Destroy() error
 }
 
 // NewRandomReader create a random reader for the supplied object record that
@@ -320,17 +321,25 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 	return
 }
 
-func (rr *randomReader) Destroy() {
+func (rr *randomReader) Destroy() error {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		rr.reader.Close()
+		err := rr.reader.Close()
 		rr.reader = nil
 		rr.cancel = nil
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
+		}
 	}
 
 	if rr.fileCacheHandler != nil {
-		rr.fileCacheHandler.InvalidateCache(rr.object, rr.bucket)
+		err := rr.fileCacheHandler.InvalidateCache(rr.object, rr.bucket)
+		if err != nil {
+			return fmt.Errorf("rr.Destroy(): while invalidating file-cache: %v", err)
+		}
 	}
+
+	return nil
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
