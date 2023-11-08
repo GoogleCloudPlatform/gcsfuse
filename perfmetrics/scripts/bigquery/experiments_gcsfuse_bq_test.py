@@ -28,6 +28,7 @@ from bigquery import constants
 from bigquery.experiments_gcsfuse_bq import ExperimentsGCSFuseBQ
 
 GCSFUSE_FLAGS = "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library"
+CONFIG_FILE_FLAG = "config-file: { write: { create-empty-file: true }, logging: { file-path: ~/log.log, format: text, severity: info }"
 BRANCH = "master"
 END_DATE = "2023-10-08 05:30:00"
 NEW_END_DATE = "2024-10-08 05:30:00"
@@ -192,7 +193,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
 
     # Call the method under test
     result = self.experiments.get_experiment_configuration_id(
-        GCSFUSE_FLAGS, BRANCH, END_DATE, CONFIG_NAME
+        GCSFUSE_FLAGS, BRANCH, CONFIG_FILE_FLAG,END_DATE, CONFIG_NAME
     )
 
     # Assertions to check other method calls and behaviors
@@ -203,7 +204,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
     # Assert client.get_table was called once with the correct dataset
     self.client.get_table.assert_called_once_with(self.experiments.dataset_ref.table.return_value)
     self.client.insert_rows.assert_called_once_with(table_mock, [(
-        config_id, CONFIG_NAME, GCSFUSE_FLAGS, BRANCH, END_DATE
+        config_id, CONFIG_NAME, GCSFUSE_FLAGS, BRANCH, CONFIG_FILE_FLAG,END_DATE
     )]) # Check inserted row data
 
   def test_get_experiment_configuration_id_get_existing_configuration(self):
@@ -215,6 +216,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
     mock_item.get.side_effect = lambda key: {
         'gcsfuse_flags': GCSFUSE_FLAGS,
         'branch': BRANCH,
+        'config_file_flag':CONFIG_FILE_FLAG,
         'end_date': END_DATE,
         'configuration_id': VALID_CONFIG_ID
     }.get(key)
@@ -224,7 +226,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
 
     # Call the method under test
     result = self.experiments.get_experiment_configuration_id(
-        GCSFUSE_FLAGS, BRANCH, END_DATE, CONFIG_NAME
+        GCSFUSE_FLAGS, CONFIG_FILE_FLAG, BRANCH, END_DATE, CONFIG_NAME
     )
 
     # Assertions to check other method calls and behaviors
@@ -241,6 +243,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
     mock_item.get.side_effect = lambda key: {
         'gcsfuse_flags': GCSFUSE_FLAGS,
         'branch': BRANCH,
+        'config_file_flag' : CONFIG_FILE_FLAG,
         'end_date': END_DATE,
         'configuration_id': VALID_CONFIG_ID
     }.get(key)
@@ -250,7 +253,7 @@ class TestExperimentsGCSFuseBQ(unittest.TestCase):
 
     # Call the method under test
     result = self.experiments.get_experiment_configuration_id(
-        GCSFUSE_FLAGS, BRANCH, NEW_END_DATE, CONFIG_NAME
+        GCSFUSE_FLAGS, CONFIG_FILE_FLAG, BRANCH, NEW_END_DATE, CONFIG_NAME
     )
 
     # Assertions to check other method calls and behaviors
