@@ -146,6 +146,7 @@ type RandomReaderTest struct {
 	bucket        storage.MockBucket
 	rr            checkingRandomReader
 	cacheLocation string
+	jobManager    *downloader.JobManager
 	cacheHandler  *file.CacheHandler
 }
 
@@ -170,9 +171,9 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
 	CacheMaxSize := 100 * util.MiB
 	lruCache := lru.NewCache(uint64(CacheMaxSize))
-	jobManager := downloader.NewJobManager(lruCache, util.DefaultFilePerm, t.cacheLocation, 100)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, t.cacheLocation, 100)
 
-	t.cacheHandler = file.NewCacheHandler(lruCache, jobManager, t.cacheLocation, util.DefaultFilePerm)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheLocation, util.DefaultFilePerm)
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
@@ -666,52 +667,194 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	ExpectEq(existingSize+readSize, t.rr.wrapped.limit)
 }
 
-func (t *RandomReaderTest) Test_ReadAt_ViaCache() {
+func (t *RandomReaderTest) Test_ReadAt_CacheHit() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-
 	objectSize := t.object.Size
-	// The bucket should be asked to read the entire object, even though we only
-	// ask for readSize bytes below, to minimize the cost for GCS requests.
 	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
 	rc := ioutil.NopCloser(r)
-
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
 		AllOf(rangeStartIs(0), rangeLimitIs(17))).
 		WillRepeatedly(Return(rc, nil))
-
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
 
-	// Call through.
+	_, err := t.rr.ReadAt(buf, 0)
+
+	ExpectEq(nil, err)
+	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
+	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+}
+
+func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
 	buf := make([]byte, objectSize)
 	_, err := t.rr.ReadAt(buf, 0)
 	ExpectEq(nil, err)
 	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
 	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandler)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	AssertEq(nil, err)
+	r2 := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc2 := ioutil.NopCloser(r2)
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc2, nil))
+	_, err = t.rr.ReadAt(buf, 0)
+
+	ExpectEq(nil, err)
+	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
 }
 
-func (t *RandomReaderTest) Test_readFromCache() {
+func (t *RandomReaderTest) Test_readFromCache_SuccessfulRead() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-
 	objectSize := t.object.Size
-	// The bucket should be asked to read the entire object, even though we only
-	// ask for readSize bytes below, to minimize the cost for GCS requests.
 	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
 	rc := ioutil.NopCloser(r)
-
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
 		AllOf(rangeStartIs(0), rangeLimitIs(17))).
 		WillRepeatedly(Return(rc, nil))
-
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
 
-	// Call through.
+	_, err := t.rr.wrapped.readFromCache(t.rr.ctx, buf, 0)
+
+	ExpectEq(nil, err)
+	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
+	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+}
+
+func (t *RandomReaderTest) Test_readFromCache_InvalidJob() {
+	// Setup:
+	// (a) Firstly read the data correctly via cache
+	// (b) Job will be in completed state, check that.
+	// (c) Invalidate the cache
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
 	buf := make([]byte, objectSize)
 	_, err := t.rr.wrapped.readFromCache(t.rr.ctx, buf, 0)
 	ExpectEq(nil, err)
 	expectedContent := []byte(strings.Repeat("x", int(objectSize)))
 	ExpectTrue(reflect.DeepEqual(expectedContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	ExpectEq(nil, err)
+
+	// Since job is invalid, hence it will fail with util.InvalidFileDownloadJobErrMsg
+	_, err = t.rr.wrapped.readFromCache(t.rr.ctx, buf, 0)
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+}
+
+func (t *RandomReaderTest) Test_readFromCache_RandomReadWithRandomDownloadTrue() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	t.rr.wrapped.downloadForRandomRead = true
+	objectSize := t.object.Size
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+
+	// Read from offset = 1 will trigger the random read.
+	_, err := t.rr.wrapped.readFromCache(t.rr.ctx, buf, 1)
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
+}
+
+func (t *RandomReaderTest) Test_readFromCache_RandomReadWithRandomDownloadFalse() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	t.rr.wrapped.downloadForRandomRead = false
+	objectSize := t.object.Size
+	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc := ioutil.NopCloser(r)
+	ExpectCall(t.bucket, "NewReader")(
+		Any(),
+		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		WillRepeatedly(Return(rc, nil))
+	ExpectCall(t.bucket, "Name")().
+		WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+
+	// Read from offset - 1 will trigger the random read.
+	_, err := t.rr.wrapped.readFromCache(t.rr.ctx, buf, 1)
+
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	ExpectTrue(jobStatus.Name == downloader.NOT_STARTED)
+}
+
+func (t *RandomReaderTest) Test_isCacheHandleValid_True() {
+	errMessages := []string{
+		util.InvalidFileHandleErrMsg + "test",
+		util.InvalidFileDownloadJobErrMsg + "test",
+		util.InvalidFileInfoCacheErrMsg + "test",
+		util.ErrInSeekingFileHandleMsg + "test",
+		util.ErrInReadingFileHandleMsg + "test",
+	}
+
+	for _, errMsg := range errMessages {
+		ExpectTrue(t.rr.wrapped.isCacheHandleInvalid(errors.New(errMsg)))
+	}
+}
+
+func (t *RandomReaderTest) Test_isCacheHandleValid_False() {
+	errMessages := []string{
+		util.FallbackToGCSErrMsg + "test",
+		"random error message",
+	}
+
+	for _, errMsg := range errMessages {
+		ExpectFalse(t.rr.wrapped.isCacheHandleInvalid(errors.New(errMsg)))
+	}
 }

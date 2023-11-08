@@ -188,6 +188,18 @@ func (rr *randomReader) readFromCache(
 	return rr.fileCacheHandle.Read(ctx, rr.object, rr.downloadForRandomRead, offset, p)
 }
 
+// isCacheHandleInvalid says either the current cacheHandle is invalid or not, based
+// on the error we got while reading with the cacheHandle.
+// If it's invalid then we should close that cacheHandle and create new cacheHandle
+// for next all onwards.
+func (rr *randomReader) isCacheHandleInvalid(err error) bool {
+	return strings.Contains(err.Error(), util.InvalidFileHandleErrMsg) ||
+		strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg) ||
+		strings.Contains(err.Error(), util.InvalidFileInfoCacheErrMsg) ||
+		strings.Contains(err.Error(), util.ErrInSeekingFileHandleMsg) ||
+		strings.Contains(err.Error(), util.ErrInReadingFileHandleMsg)
+}
+
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
@@ -199,12 +211,7 @@ func (rr *randomReader) ReadAt(
 			return
 		}
 
-		if strings.Contains(err.Error(), util.InvalidFileHandleErrMsg) ||
-			strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg) ||
-			strings.Contains(err.Error(), util.InvalidFileInfoCacheErrMsg) ||
-			strings.Contains(err.Error(), util.ErrInSeekingFileHandleMsg) ||
-			strings.Contains(err.Error(), util.ErrInReadingFileHandleMsg) {
-
+		if rr.isCacheHandleInvalid(err) {
 			err = rr.fileCacheHandle.Close()
 			if err != nil {
 				return 0, fmt.Errorf("ReadAt: while closing the fileCacheHandle: %v", err)

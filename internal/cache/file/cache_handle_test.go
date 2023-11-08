@@ -248,7 +248,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
@@ -426,7 +426,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
 	ExpectLt(jobStatus.Offset, offset)
 	ExpectEq(n, 0)
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
 func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
