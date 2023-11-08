@@ -140,6 +140,7 @@ func rangeLimitIs(expected uint64) (m Matcher) {
 
 const sequentialReadSizeInMb = 10
 const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
+const CacheMaxSize = 20 * MB
 
 type RandomReaderTest struct {
 	object        *gcs.MinObject
@@ -169,10 +170,8 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
 	t.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
-	CacheMaxSize := 100 * util.MiB
-	lruCache := lru.NewCache(uint64(CacheMaxSize))
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, t.cacheLocation, 100)
-
+	lruCache := lru.NewCache(CacheMaxSize)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, t.cacheLocation, sequentialReadSizeInMb)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheLocation, util.DefaultFilePerm)
 
 	// Set up the reader.
