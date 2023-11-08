@@ -147,11 +147,18 @@ type randomReader struct {
 
 	sequentialReadSizeMb int32
 
+	// fileCacheHandler is used to read the objectContent from cache. This will be
+	// nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
 
-	fileCacheHandle *file.CacheHandle
-
+	// downloadForRandomRead is also valid for cache workflow, if true, object content
+	// will be downloaded for random reads as well too. Generally, we don't cache the
+	// content for random-read.
 	downloadForRandomRead bool
+
+	// fileCacheHandle is used to read from the cached location. It is created on the fly
+	// using fileCacheHandler for the given object and bucket.
+	fileCacheHandle *file.CacheHandle
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -171,15 +178,19 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
-// readFromCache creates the cache handle if it does not already exist, and then
-// calls the read method via the cache handle. Additionally, this function should
-// not be called when rr.fileCacheHandler is nil.
+// readFromCache creates the cache handle if it does not exist already, and then
+// using that cache handle to read the data from the cached location.
+//
+// Note: this function should not be called when rr.fileCacheHandler is nil.
 func (rr *randomReader) readFromCache(
 	ctx context.Context,
 	p []byte,
 	offset int64) (n int, err error) {
 
 	if rr.fileCacheHandle == nil {
+		if rr.fileCacheHandler == nil {
+			panic("readFromCache: fileCacheHandler can not be nil")
+		}
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, offset)
 		if err != nil {
 			return 0, fmt.Errorf("readFromCache: while creating cachehandle instance: %v", err)
@@ -192,7 +203,7 @@ func (rr *randomReader) readFromCache(
 // isCacheHandleInvalid says either the current cacheHandle is invalid or not, based
 // on the error we got while reading with the cacheHandle.
 // If it's invalid then we should close that cacheHandle and create new cacheHandle
-// for next all onwards.
+// for next call onwards.
 func (rr *randomReader) isCacheHandleInvalid(err error) bool {
 	return strings.Contains(err.Error(), util.InvalidFileHandleErrMsg) ||
 		strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg) ||

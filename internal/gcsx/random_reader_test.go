@@ -674,7 +674,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHit() {
 	rc := ioutil.NopCloser(r)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
@@ -694,12 +694,12 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHit() {
 func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
-	rc := ioutil.NopCloser(r)
+	r1 := strings.NewReader(strings.Repeat("x", int(objectSize)))
+	rc1 := ioutil.NopCloser(r1)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
-		WillRepeatedly(Return(rc, nil))
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
+		WillRepeatedly(Return(rc1, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
 	buf := make([]byte, objectSize)
@@ -715,10 +715,13 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	AssertEq(nil, err)
 	r2 := strings.NewReader(strings.Repeat("x", int(objectSize)))
 	rc2 := ioutil.NopCloser(r2)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc2, nil))
+
 	_, err = t.rr.ReadAt(buf, 0)
 
 	ExpectEq(nil, err)
@@ -733,7 +736,7 @@ func (t *RandomReaderTest) Test_readFromCache_SuccessfulRead() {
 	rc := ioutil.NopCloser(r)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
@@ -751,17 +754,13 @@ func (t *RandomReaderTest) Test_readFromCache_SuccessfulRead() {
 }
 
 func (t *RandomReaderTest) Test_readFromCache_InvalidJob() {
-	// Setup:
-	// (a) Firstly read the data correctly via cache
-	// (b) Job will be in completed state, check that.
-	// (c) Invalidate the cache
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
 	r := strings.NewReader(strings.Repeat("x", int(objectSize)))
 	rc := ioutil.NopCloser(r)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
@@ -792,7 +791,7 @@ func (t *RandomReaderTest) Test_readFromCache_RandomReadWithRandomDownloadTrue()
 	rc := ioutil.NopCloser(r)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
@@ -817,7 +816,7 @@ func (t *RandomReaderTest) Test_readFromCache_RandomReadWithRandomDownloadFalse(
 	rc := ioutil.NopCloser(r)
 	ExpectCall(t.bucket, "NewReader")(
 		Any(),
-		AllOf(rangeStartIs(0), rangeLimitIs(17))).
+		AllOf(rangeStartIs(0), rangeLimitIs(objectSize))).
 		WillRepeatedly(Return(rc, nil))
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))

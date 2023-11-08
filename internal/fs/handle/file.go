@@ -21,7 +21,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -39,7 +38,13 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	reader gcsx.RandomReader
 
-	fileCacheHandler      *file.CacheHandler
+	// fileCacheHandler is used to read the objectContent from cache. This will be
+	// nil if the file cache is disabled.
+	fileCacheHandler *file.CacheHandler
+
+	// downloadForRandomRead is also valid for cache workflow, if true, object content
+	// will be downloaded for random reads as well too. Generally, we don't cache the
+	// content for random-read.
 	downloadForRandomRead bool
 }
 
@@ -61,7 +66,7 @@ func (fh *FileHandle) Destroy() error {
 	if fh.reader != nil {
 		err := fh.reader.Destroy()
 		if err != nil {
-			logger.Warnf("fh.Destroy(): while destroying reader: %v", err)
+			return fmt.Errorf("fh.Destroy(): while destroying reader: %v", err)
 		}
 	}
 
