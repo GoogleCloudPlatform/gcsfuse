@@ -27,11 +27,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
-// CacheHandler responsible for managing fileInfoCache as well as fileJobManager.
-// It provides an API (GetCacheHandle) to create a cache handle that can be used to
-// read the cached data. Additionally, while creating the cache handle, it ensures
-// that the entry in the fileInfoCache as well as the cache file is locally present
-// on the system.
+// CacheHandler is responsible for creating CacheHandle and invalidating file cache
+// for a given object in the bucket. CacheHandle contains reference to download job and
+// file handle to file in cache.
+// Additionally, while creating the CacheHandle, it ensures that the file info entry
+// is present in the fileInfoCache and a file is present in cache inside the appropriate
+// directory.
 type CacheHandler struct {
 	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
@@ -171,10 +172,10 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 	return nil
 }
 
-// GetCacheHandle creates an entry in fileInfoCache if it does not already exist.
-// It creates downloader.Job if not already exist. Also, creates local file
-// which contains the object content. Finally, it returns a CacheHandle that
-// contains the reference to downloader.Job and the local file handle.
+// GetCacheHandle creates an entry in fileInfoCache if it does not already exist. It
+// creates downloader.Job if not already exist. Also, creates local file into which
+// the download job downloads the object content. Finally, it returns a CacheHandle
+// that contains the reference to downloader.Job and the local file handle.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
@@ -191,7 +192,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, initialOffset), nil
 }
 
-// InvalidateCache removes the entry from the fileInfoCache, and removes download job,
+// InvalidateCache removes the entry from the fileInfoCache, removes download job,
 // and delete local file in the cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
