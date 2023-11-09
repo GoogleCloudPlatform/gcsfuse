@@ -102,47 +102,33 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 		return fmt.Errorf("ensureCurrentBuffer: %w", err)
 	}
 
-	// If receivedContentStartOffset is not in the range of offsets stored in current
-	// buffer, trigger temp file flow for writes.
 	if offset < b.current.offset.start ||
-		offset > b.current.offset.end {
+		offset >= b.current.offset.end+b.bufferSize {
 		// TODO: finalise write and trigger temp file flow.
 		logger.Debugf("Non-sequential write encountered. TODO: Switch to " +
 			"temp-file flow insteading of erroring out.")
 		return fmt.Errorf(NonSequentialWriteError)
 	}
 
-	// Validate that buffer has enough space to write content.
-	if contentSize > b.bufferSize {
-		return fmt.Errorf(NotEnoughSpaceInBuffer)
-	}
-
-	// If data can be completely written to the current buffer, write it.
-	receivedContentEndOffset := offset + contentSize
-	if receivedContentEndOffset <= b.current.offset.end {
-		return b.copyDataToBuffer(offset, content)
-	}
-	// Else, write the chunk of data that can be written to the current buffer block.
-	l := b.current.offset.end - offset
-	err := b.copyDataToBuffer(offset, content[:l])
-	if err != nil {
-		return fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
-			offset, b.current.offset.end, err)
-	}
-	//TODO: Wait/timeout on last write to GCS. If unsuccessful, trigger temp file flow.
-	logger.Debugf("TODO: Wait/timeout on last write to GCS and if " +
-		"unsuccessful, trigger temp file flow.")
-	if err = b.advanceToNextChunk(); err != nil {
-		return fmt.Errorf("advanceToNextChunk: %w", err)
-	}
-	// TODO: trigger async upload to GCS for flushedBuffer.
-	logger.Debugf("TODO: trigger async upload to GCS for flushedBuffer.")
-
-	// Write the remaining data to currentBuffer.
-	err = b.copyDataToBuffer(b.current.offset.start, content[l:])
-	if err != nil {
-		return fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
-			b.current.offset.start, receivedContentEndOffset, err)
+	var contentWrittenSoFar int64
+	for true {
+		n, err := b.writePartialContentToBuffer(content[contentWrittenSoFar:], offset+contentWrittenSoFar)
+		if err != nil {
+			return fmt.Errorf("writePartialContentToBuffer: %w", err)
+		}
+		contentWrittenSoFar += n
+		if contentWrittenSoFar == int64(len(content)) {
+			// all content written successfully to buffer.
+			return nil
+		}
+		//TODO: Wait/timeout on last write to GCS. If unsuccessful, trigger temp file flow.
+		logger.Debugf("TODO: Wait/timeout on last write to GCS and if " +
+			"unsuccessful, trigger temp file flow.")
+		if err := b.advanceToNextChunk(); err != nil {
+			return fmt.Errorf("advanceToNextChunk: %w", err)
+		}
+		// TODO: trigger async upload to GCS for flushedBuffer.
+		logger.Debugf("TODO: trigger async upload to GCS for flushedBuffer.")
 	}
 	return nil
 }
@@ -184,4 +170,22 @@ func (b *InMemoryWriteBuffer) updateFileSize(endOffset int64) {
 	if endOffset > b.fileSize {
 		b.fileSize = endOffset
 	}
+}
+
+func (b *InMemoryWriteBuffer) writePartialContentToBuffer(content []byte, offset int64) (int64, error) {
+	if offset < b.current.offset.start ||
+		offset >= b.current.offset.end {
+		// Nothing to copy to current buffer.
+		return 0, nil
+	}
+
+	// copy content to current buffer
+	capacityOfCurrentBuffer := b.current.offset.end - offset
+	l := min(capacityOfCurrentBuffer, int64(len(content)))
+	err := b.copyDataToBuffer(offset, content[:l])
+	if err != nil {
+		return 0, fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
+			offset, b.current.offset.end, err)
+	}
+	return l, nil
 }

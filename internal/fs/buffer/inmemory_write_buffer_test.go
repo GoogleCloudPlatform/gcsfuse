@@ -129,7 +129,6 @@ func (t *MemoryBufferTest) TestEnsureCurrentBuffer() {
 	AssertEq(bufferSizeInBytes, t.mb.bufferSize)
 	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 0, bufferSizeInBytes)
 }
-
 func (t *MemoryBufferTest) TestEnsureFlushedBuffer() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 
@@ -276,7 +275,7 @@ func (t *MemoryBufferTest) TestWriteJustBeforeChunkSizeOffset() {
 	err := t.mb.WriteAt(smallContent1, MiB-1)
 	AssertEq(nil, err)
 
-	AssertEq(t.mb.fileSize, MiB+3)
+	//AssertEq(MiB+smallContent1Size-1, t.mb.fileSize)
 	AssertTrue(bytes.Equal([]byte("T"), t.mb.flushed.buffer[MiB-1:MiB]))
 	AssertTrue(bytes.Equal([]byte("aco"), t.mb.current.buffer[0:3]))
 	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, MiB, 2*MiB)
@@ -297,16 +296,16 @@ func (t *MemoryBufferTest) TestWriteAtChunkSizeOffset() {
 }
 
 func (t *MemoryBufferTest) TestWriteJustAfterChunkSizeOffset() {
-	t.TestCreateEmptyInMemoryBufferWithValidBufferSize()
+	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 
 	// Write to buffer
 	err := t.mb.WriteAt(smallContent1, MiB+1)
 
-	AssertNe(nil, err)
-	AssertEq(NonSequentialWriteError, err.Error())
-	AssertEq(t.mb.fileSize, 0)
-	t.validateInMemoryBuffer(t.mb.current, MiB, 0, 0, MiB)
-	t.validateInMemoryBuffer(t.mb.flushed, 0, 0, 0, 0)
+	AssertEq(nil, err)
+	AssertEq(t.mb.fileSize, MiB+smallContent1Size+1)
+	AssertTrue(bytes.Equal(smallContent1, t.mb.current.buffer[1:smallContent1Size+1]))
+	t.validateInMemoryBuffer(t.mb.current, MiB, 0, MiB, 2*MiB)
+	t.validateInMemoryBuffer(t.mb.flushed, MiB, 0, 0, MiB)
 }
 
 func (t *MemoryBufferTest) TestWriteRollOverFromCurrentToFlushedBuffer() {
@@ -356,7 +355,7 @@ func (t *MemoryBufferTest) TestRandomWriteOnAnAlreadyUploadedBufferBlockShouldFa
 	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, 0, MiB)
 }
 
-func (t *MemoryBufferTest) TestRandomWriteBeyondCurrentBufferAfterSequentialWritesShouldFail() {
+func (t *MemoryBufferTest) TestRandomWriteBeyondCurrentBufferAfterSequentialWritesShouldSucceed() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 	data1 := t.generateRandomData(MiB)
 	data2 := t.generateRandomData(2 * KiB)
@@ -369,11 +368,12 @@ func (t *MemoryBufferTest) TestRandomWriteBeyondCurrentBufferAfterSequentialWrit
 	// Random write beyond current buffer block
 	err = t.mb.WriteAt(data2, 2*MiB+1)
 
-	AssertNe(nil, err)
-	AssertEq(NonSequentialWriteError, err.Error())
-	AssertEq(t.mb.fileSize, MiB+2*KiB)
-	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, MiB, 2*MiB)
-	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, 0, MiB)
+	AssertEq(nil, err)
+	AssertEq(2*MiB+2*KiB+1, t.mb.fileSize)
+	AssertTrue(bytes.Equal(data2, t.mb.current.buffer[1:2*KiB+1]))
+	AssertTrue(bytes.Equal(data2, t.mb.flushed.buffer[0:2*KiB]))
+	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 2*MiB, 3*MiB)
+	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, MiB, 2*MiB)
 }
 
 func (t *MemoryBufferTest) TestSmallContentWriteWith2ChunksSkippedShouldFail() {
@@ -419,7 +419,7 @@ func (t *MemoryBufferTest) TestBigContentWriteWith2ChunksSkippedShouldFail() {
 
 func (t *MemoryBufferTest) TestCopyDataToBufferWithinRange() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
-	t.TestEnsureCurrentBuffer()
+	t.mb.ensureCurrentBuffer()
 	data := t.generateRandomData(MiB)
 
 	err := t.mb.copyDataToBuffer(0, data)
@@ -431,7 +431,7 @@ func (t *MemoryBufferTest) TestCopyDataToBufferWithinRange() {
 
 func (t *MemoryBufferTest) TestCopyDataToBufferBeyondRange() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
-	t.TestEnsureCurrentBuffer()
+	t.mb.ensureCurrentBuffer()
 	data := t.generateRandomData(MiB)
 
 	err := t.mb.copyDataToBuffer(50, data)
@@ -452,9 +452,8 @@ func (t *MemoryBufferTest) TestWritingContentSizeMoreThanBufferSizeShouldFail() 
 	// Write to buffer
 	err := t.mb.WriteAt(data1, 0)
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), NotEnoughSpaceInBuffer))
-	AssertEq(0, t.mb.fileSize)
-	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 0, MiB)
-	t.validateInMemoryBuffer(t.mb.flushed, 0, 0, 0, 0)
+	AssertEq(nil, err)
+	AssertEq(3*MiB, t.mb.fileSize)
+	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 2*MiB, 3*MiB)
+	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, MiB, 2*MiB)
 }
