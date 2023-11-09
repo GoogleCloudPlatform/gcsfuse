@@ -417,32 +417,6 @@ func (t *MemoryBufferTest) TestBigContentWriteWith2ChunksSkippedShouldFail() {
 	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, 0, MiB)
 }
 
-func (t *MemoryBufferTest) TestCopyDataToBufferWithinRange() {
-	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
-	t.mb.ensureCurrentBuffer()
-	data := t.generateRandomData(MiB)
-
-	err := t.mb.copyDataToBuffer(0, data)
-
-	AssertEq(nil, err)
-	AssertEq(MiB, t.mb.fileSize)
-	AssertTrue(bytes.Equal(data, t.mb.current.buffer[:MiB]))
-}
-
-func (t *MemoryBufferTest) TestCopyDataToBufferBeyondRange() {
-	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
-	t.mb.ensureCurrentBuffer()
-	data := t.generateRandomData(MiB)
-
-	err := t.mb.copyDataToBuffer(50, data)
-
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), NotEnoughSpaceInBuffer))
-	AssertEq(0, t.mb.fileSize)
-	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 0, MiB)
-	t.validateInMemoryBuffer(t.mb.flushed, 0, 0, 0, 0)
-}
-
 // This test case can never happen in real scenarios as kernel writes never
 // exceed 1MiB size.
 func (t *MemoryBufferTest) TestWritingContentSizeMoreThanBufferSizeShouldFail() {

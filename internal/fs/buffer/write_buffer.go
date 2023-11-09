@@ -21,7 +21,6 @@ const (
 	// buffer would be created in memory. Beyond this size, buffer would be on disk.
 	MaxInMemoryBufferSizeMB = 50
 	NonSequentialWriteError = "non-sequential writes are not supported with WriteBuffer"
-	NotEnoughSpaceInBuffer  = "not enough space in write buffer to write entire content"
 	ZeroSizeBufferError     = "buffer of size 0 cannot be created"
 )
 

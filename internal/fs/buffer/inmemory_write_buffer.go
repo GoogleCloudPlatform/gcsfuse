@@ -112,10 +112,7 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 
 	var contentWrittenSoFar int64
 	for true {
-		n, err := b.writePartialContentToBuffer(content[contentWrittenSoFar:], offset+contentWrittenSoFar)
-		if err != nil {
-			return fmt.Errorf("writePartialContentToBuffer: %w", err)
-		}
+		n := b.writePartialContentToBuffer(content[contentWrittenSoFar:], offset+contentWrittenSoFar)
 		contentWrittenSoFar += n
 		if contentWrittenSoFar == int64(len(content)) {
 			// all content written successfully to buffer.
@@ -133,19 +130,15 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 	return nil
 }
 
-// Copies received content to currentChunk if it has capacity.
-func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset int64, content []byte) error {
+// Helper method to copy received content to currentBuffer.
+func (b *InMemoryWriteBuffer) copyDataToBuffer(contentStartOffset int64, content []byte) {
 	contentSize := int64(len(content))
 	contentEndOffset := contentStartOffset + contentSize
 	si := contentStartOffset % b.bufferSize
 	ei := si + contentSize
-	if ei > b.bufferSize {
-		return fmt.Errorf(NotEnoughSpaceInBuffer)
-	}
 
 	copy(b.current.buffer[si:ei], content)
 	b.updateFileSize(contentEndOffset)
-	return nil
 }
 
 func (b *InMemoryWriteBuffer) advanceToNextChunk() error {
@@ -172,20 +165,16 @@ func (b *InMemoryWriteBuffer) updateFileSize(endOffset int64) {
 	}
 }
 
-func (b *InMemoryWriteBuffer) writePartialContentToBuffer(content []byte, offset int64) (int64, error) {
+func (b *InMemoryWriteBuffer) writePartialContentToBuffer(content []byte, offset int64) int64 {
 	if offset < b.current.offset.start ||
 		offset >= b.current.offset.end {
 		// Nothing to copy to current buffer.
-		return 0, nil
+		return 0
 	}
 
 	// copy content to current buffer
 	capacityOfCurrentBuffer := b.current.offset.end - offset
 	l := min(capacityOfCurrentBuffer, int64(len(content)))
-	err := b.copyDataToBuffer(offset, content[:l])
-	if err != nil {
-		return 0, fmt.Errorf("copyDataToBuffer for offset [%d, %d): %w",
-			offset, b.current.offset.end, err)
-	}
-	return l, nil
+	b.copyDataToBuffer(offset, content[:l])
+	return l
 }
