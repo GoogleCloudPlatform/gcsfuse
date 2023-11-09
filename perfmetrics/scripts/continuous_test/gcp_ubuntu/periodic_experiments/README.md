@@ -8,7 +8,7 @@
             "config_name": "<config_name>",
             "gcsfuse_flags": "<gcsfuse_flags>",
             "branch": "<branch>",
-            "config_file_flag":"<config_file_flag_value_in_json>",
+            "config_file_flags_as_json":"<config_file_flag_value_in_json>",
             "end_date": "<end_date>"
         },
         {
@@ -21,7 +21,7 @@
 ## Key Descriptions:
 1. config_name (string): The name of the configuration. This should be a unique identifier for each experiment.
 2. gcsfuse_flags (string): Flags to be passed to the gcsfuse command when running the experiment.
-3. config_file_flag (json): --config-file flag to be passed to the gcsfuse command when running the experiment. (optional, default: null)
+3. config_file_flags_as_json (json): --config-file flag to be passed to the gcsfuse command when running the experiment. (optional, default: null)
 4. branch (string): The Git branch to use for the experiment.
 4. end_date (string): The experiment will run every day till this date and time. Format: "YYYY-MM-DD HH:MM:SS".
 
@@ -31,7 +31,7 @@
 "config_name": "TestConfiguration1"
 "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --enable-storage-client-library --debug_fuse --debug_gcs --stackdriver-export-interval=30s"
 "branch": "master"
-"config_file_flag": {
+"config_file_flags_as_json": {
     "write": {
        "create-empty-file": true
     },

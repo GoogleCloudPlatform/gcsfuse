@@ -41,8 +41,8 @@ CONFIG_NAME=$(echo "$config" | jq -r '.config_name')
 GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
-# Get the value of the config_file_flag key
-CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flag"]' <<< $config )
+# Get the value of the config_file_flags_as_json key
+CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flags_as_json"]' <<< $config )
 
 # Create config_flags.yml file from json.
 CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
@@ -71,7 +71,7 @@ export PYTHONPATH="./"
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
-CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flag '$CONFIG_FILE_STRING' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
+CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flags_as_json '$CONFIG_FILE_STRING' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
 START_TIME_BUILD=$(date +%s)
 
 # Upload data to the gsheet only when it runs through kokoro.
