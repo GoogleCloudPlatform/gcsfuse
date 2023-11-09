@@ -111,7 +111,7 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 	}
 
 	var contentWrittenSoFar int64
-	for true {
+	for {
 		n := b.writePartialContentToBuffer(content[contentWrittenSoFar:], offset+contentWrittenSoFar)
 		contentWrittenSoFar += n
 		if contentWrittenSoFar == int64(len(content)) {
@@ -127,7 +127,6 @@ func (b *InMemoryWriteBuffer) WriteAt(content []byte, offset int64) error {
 		// TODO: trigger async upload to GCS for flushedBuffer.
 		logger.Debugf("TODO: trigger async upload to GCS for flushedBuffer.")
 	}
-	return nil
 }
 
 // Helper method to copy received content to currentBuffer.
