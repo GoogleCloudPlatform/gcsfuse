@@ -173,7 +173,8 @@ func (b *InMemoryWriteBuffer) advanceToNextChunk() error {
 	b.flushed.offset = b.current.offset
 
 	// Make current buffer ready for new writes coming from kernel.
-	clear(b.current.buffer)
+	// TODO: revisit this when implementing on-disk-write-buffer.
+	clear(b.current.buffer[0:b.bufferSize])
 	b.current.offset.advanceBy(b.bufferSize)
 	return nil
 }

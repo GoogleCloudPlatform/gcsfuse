@@ -313,6 +313,7 @@ func (t *MemoryBufferTest) TestWriteRollOverFromCurrentToFlushedBuffer() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 	data1 := t.generateRandomData(MiB)
 	data2 := t.generateRandomData(2 * KiB)
+	emptyByteArray := make([]byte, 0, MiB)
 
 	// Write to buffer
 	err := t.mb.WriteAt(data1, 0)
@@ -323,8 +324,14 @@ func (t *MemoryBufferTest) TestWriteRollOverFromCurrentToFlushedBuffer() {
 	AssertEq(nil, err)
 
 	AssertEq(t.mb.fileSize, 2*MiB+KiB)
+	// Validate flushed buffer content.
+	AssertTrue(bytes.Equal(data2[0:], t.mb.flushed.buffer[0:2*KiB]))
+	AssertTrue(bytes.Equal(emptyByteArray[2*KiB:MiB-KiB], t.mb.flushed.buffer[2*KiB:MiB-KiB]))
 	AssertTrue(bytes.Equal(data2[0:KiB], t.mb.flushed.buffer[MiB-KiB:MiB]))
+	// Validate current buffer content.
 	AssertTrue(bytes.Equal(data2[KiB:], t.mb.current.buffer[0:KiB]))
+	AssertTrue(bytes.Equal(emptyByteArray[KiB:MiB], t.mb.current.buffer[KiB:MiB]))
+	// Validate buffers.
 	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 2*MiB, 3*MiB)
 	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, MiB, 2*MiB)
 }
