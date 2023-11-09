@@ -127,6 +127,11 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
+// withCreatePreconditions adds preconditions to the passed ObjectHandle,
+// based on the CreateObjectRequest.
+// It returns the same ObjectHandle and a boolean which is true if
+// this request is for a new object to be created, i.e. the passed
+// object does not already exist.
 func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateObjectRequest) (*storage.ObjectHandle, bool) {
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
 	// only if the current generation for the object name is equal to the given value.
@@ -154,6 +159,10 @@ func withCreatePreconditions(obj *storage.ObjectHandle, req *gcs.CreateObjectReq
 		obj = obj.If(preconditions)
 	}
 
+	// if the passed CreateObjectRequest doesn't have a GenerationPrecondition in it, or
+	// its GenerationPrecondition is 0, then object does not exist yet,
+	// and a new object needs to be created, rather than a new generation
+	// of the object.
 	return obj, (req.GenerationPrecondition == nil || preconditions.DoesNotExist)
 }
 
