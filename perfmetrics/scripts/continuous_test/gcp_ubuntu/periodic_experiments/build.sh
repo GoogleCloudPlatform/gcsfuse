@@ -42,23 +42,23 @@ GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
 # Get the value of the config_file_flags_as_json key
-CONFIG_FILE_FLAG_JSON=$(jq -r '.["config_file_flags_as_json"]' <<< $config )
+CONFIG_FILE_FLAGS_JSON=$(jq -r '.["config_file_flags_as_json"]' <<< $config )
 
 # Create config_flags.yml file from json.
 CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
-if [ "$CONFIG_FILE_FLAG_JSON" != null ];
+if [ "$CONFIG_FILE_FLAGS_JSON" != null ];
 then
-  # Create JSON file to capture value of $CONFIG_FILE_FLAG_JSON
+  # Create JSON file to capture value of $CONFIG_FILE_FLAGS_JSON
   CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
-  echo "$CONFIG_FILE_FLAG_JSON" >> $CONFIG_FILE_JSON
+  echo "$CONFIG_FILE_FLAGS_JSON" >> $CONFIG_FILE_JSON
 
   jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
   GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
 
   rm $CONFIG_FILE_JSON
 fi
-# Create string of config file value for fetching data from big query table.
-CONFIG_FILE_STRING=$(echo "$CONFIG_FILE_FLAG_JSON" | jq -c .)
+# Create string of config file content for fetching data from big query table.
+CONFIG_FILE_STRING=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
