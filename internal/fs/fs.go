@@ -2140,7 +2140,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	defer fs.mu.Unlock()
 
 	// Destroy the handle.
-	err = fs.handles[op.Handle].(*handle.FileHandle).Destroy()
+	fs.handles[op.Handle].(*handle.FileHandle).Destroy()
 
 	// Update the map.
 	delete(fs.handles, op.Handle)

@@ -62,15 +62,10 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 
 // Destroy any resources associated with the handle, which must not be used
 // again.
-func (fh *FileHandle) Destroy() error {
+func (fh *FileHandle) Destroy() {
 	if fh.reader != nil {
-		err := fh.reader.Destroy()
-		if err != nil {
-			return fmt.Errorf("fh.Destroy(): while destroying reader: %v", err)
-		}
+		fh.reader.Destroy()
 	}
-
-	return nil
 }
 
 // Inode returns the inode backing this handle.
@@ -158,10 +153,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		if fh.reader != nil {
-			err = fh.reader.Destroy()
-			if err != nil {
-				return fmt.Errorf("tryEnsure: while destroying random-reader: %v", err)
-			}
+			fh.reader.Destroy()
 			fh.reader = nil
 		}
 
@@ -174,7 +166,6 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 		if fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
 			return
 		}
-
 		fh.reader.Destroy()
 		fh.reader = nil
 	}

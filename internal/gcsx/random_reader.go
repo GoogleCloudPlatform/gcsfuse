@@ -105,7 +105,7 @@ type RandomReader interface {
 
 	// Clean up any resources associated with the reader, which must not be used
 	// again.
-	Destroy() error
+	Destroy()
 }
 
 // NewRandomReader create a random reader for the supplied object record that
@@ -332,7 +332,7 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 	return
 }
 
-func (rr *randomReader) Destroy() error {
+func (rr *randomReader) Destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
 		err := rr.reader.Close()
@@ -343,14 +343,12 @@ func (rr *randomReader) Destroy() error {
 		}
 	}
 
-	if rr.fileCacheHandler != nil {
-		err := rr.fileCacheHandler.InvalidateCache(rr.object, rr.bucket)
+	if rr.fileCacheHandler != nil && rr.fileCacheHandle != nil {
+		err := rr.fileCacheHandle.Close()
 		if err != nil {
-			return fmt.Errorf("rr.Destroy(): while invalidating file-cache: %v", err)
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
 	}
-
-	return nil
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.

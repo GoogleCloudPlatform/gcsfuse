@@ -56,9 +56,9 @@ func (rr *checkingRandomReader) ReadAt(p []byte, offset int64) (int, error) {
 	return rr.wrapped.ReadAt(rr.ctx, p, offset)
 }
 
-func (rr *checkingRandomReader) Destroy() error {
+func (rr *checkingRandomReader) Destroy() {
 	rr.wrapped.CheckInvariants()
-	return rr.wrapped.Destroy()
+	rr.wrapped.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -180,8 +180,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 }
 
 func (t *RandomReaderTest) TearDown() {
-	err := t.rr.Destroy()
-	AssertEq(nil, err)
+	t.rr.Destroy()
 }
 
 ////////////////////////////////////////////////////////////////////////
