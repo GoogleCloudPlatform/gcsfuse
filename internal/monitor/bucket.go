@@ -142,7 +142,14 @@ func (mb *monitoringBucket) CreateChunkUploader(
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	startTime := time.Now()
+	o, err := mb.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
+	// TODO: Add monitoring for bytes being written
+	// by this chunk-uploader. This will be similar
+	// to the monitoring initiated in the NewReader method.
+
+	recordRequest(ctx, "CreateChunkUploader", startTime)
+	return o, err
 }
 
 func (mb *monitoringBucket) CopyObject(

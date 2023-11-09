@@ -136,6 +136,55 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// CreateChunkUploader
+////////////////////////////////////////////////////////////////////////
+
+type CreateChunkUploaderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateChunkUploaderTest{}) }
+
+func (t *CreateChunkUploaderTest) CallsEraseAndWrapped() {
+	const name = "taco"
+
+	// Erase
+	ExpectCall(t.cache, "Erase")(name)
+
+	// Wrapped
+	var wrappedReq *gcs.CreateObjectRequest
+	ExpectCall(t.wrapped, "CreateChunkUploader")(Any(), Any(), Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), Return(nil, errors.New(""))))
+
+	// Call
+	req := &gcs.CreateObjectRequest{
+		Name: name,
+	}
+
+	_, _ = t.bucket.CreateChunkUploader(context.TODO(), req, 1, nil)
+
+	AssertNe(nil, wrappedReq)
+	ExpectEq(req, wrappedReq)
+}
+
+func (t *CreateChunkUploaderTest) WrappedFails() {
+	var err error
+	const name = "taco"
+
+	// Erase
+	ExpectCall(t.cache, "Erase")(Any())
+
+	// Wrapped
+	ExpectCall(t.wrapped, "CreateChunkUploader")(Any(), Any(), Any(), Any()).
+		WillOnce(Return(nil, errors.New(name)))
+
+	// Call
+	_, err = t.bucket.CreateChunkUploader(context.TODO(), &gcs.CreateObjectRequest{}, 1, nil)
+
+	ExpectThat(err, Error(HasSubstr(name)))
+}
+
+////////////////////////////////////////////////////////////////////////
 // CopyObject
 ////////////////////////////////////////////////////////////////////////
 

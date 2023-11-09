@@ -25,6 +25,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -559,12 +560,168 @@ func (b *bucket) CreateObject(
 	return
 }
 
+// Implementation of gcs.ChunkUploader interface
+// for fake bucket.
+type fakeChunkUploader struct {
+	// inputs for creation
+	b            *bucket
+	req          *gcs.CreateObjectRequest
+	chunkSize    int
+	progressFunc func(int64)
+
+	// state
+	contents                            bytes.Buffer
+	existingIndex                       int
+	existingRecord                      *fakeObject
+	totalBytesSuccessfullyUploadedSoFar atomic.Int64
+	closed                              bool
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CreateChunkUploader(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not supported")
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Check that the name is legal.
+	err := checkName(req.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find any existing record for this name.
+	existingIndex := b.objects.find(req.Name)
+	uploader := fakeChunkUploader{
+		b:            b,
+		req:          req,
+		chunkSize:    writeChunkSize,
+		progressFunc: progressFunc,
+	}
+
+	if existingIndex < len(b.objects) {
+		uploader.existingRecord = &b.objects[existingIndex]
+	}
+
+	// Check preconditions.
+	if req.GenerationPrecondition != nil {
+		if *req.GenerationPrecondition == 0 && uploader.existingRecord != nil {
+			return nil, &gcs.PreconditionError{
+				Err: errors.New("Precondition failed: object exists"),
+			}
+		}
+
+		if *req.GenerationPrecondition > 0 {
+			if uploader.existingRecord == nil {
+				return nil, &gcs.PreconditionError{
+					Err: errors.New("Precondition failed: object doesn't exist"),
+				}
+			}
+
+			existingGen := uploader.existingRecord.metadata.Generation
+			if existingGen != *req.GenerationPrecondition {
+				return nil, &gcs.PreconditionError{
+					Err: fmt.Errorf(
+						"Precondition failed: object has generation %v",
+						existingGen),
+				}
+			}
+		}
+	}
+
+	if req.MetaGenerationPrecondition != nil {
+		if uploader.existingRecord == nil {
+			return nil, &gcs.PreconditionError{
+				Err: errors.New("Precondition failed: object doesn't exist"),
+			}
+		}
+
+		existingMetaGen := uploader.existingRecord.metadata.MetaGeneration
+		if existingMetaGen != *req.MetaGenerationPrecondition {
+			return nil, &gcs.PreconditionError{
+				Err: fmt.Errorf(
+					"Precondition failed: object has meta-generation %v",
+					existingMetaGen),
+			}
+		}
+	}
+
+	return &uploader, nil
+}
+
+func (uploader *fakeChunkUploader) Upload(ctx context.Context, contents io.Reader) error {
+	if uploader != nil {
+		if uploader.closed {
+			return fmt.Errorf("uploading using a closed uploader")
+		}
+
+		origSize := uploader.contents.Len()
+		var numChunksOriginal int
+		var bytesCopied int64
+		var err error
+		ioCopyCompleted := make(chan bool)
+
+		go func() {
+			numChunksOriginal = origSize / uploader.chunkSize
+			bytesCopied, err = io.Copy(&uploader.contents, contents)
+			ioCopyCompleted <- true
+		}()
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("Upload() timed out")
+		case <-ioCopyCompleted:
+			finalSize := origSize + int(bytesCopied)
+			numChunksFinal := finalSize / uploader.chunkSize
+			if uploader.progressFunc != nil {
+				for i := numChunksOriginal + 1; i <= numChunksFinal; i++ {
+					numBytesUploadedSoFar := int64(i) * int64(uploader.chunkSize)
+					uploader.totalBytesSuccessfullyUploadedSoFar.Store(numBytesUploadedSoFar)
+					uploader.progressFunc(numBytesUploadedSoFar)
+				}
+			} else {
+				uploader.totalBytesSuccessfullyUploadedSoFar.Store(int64(numChunksFinal) * int64(uploader.chunkSize))
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (uploader *fakeChunkUploader) Close(ctx context.Context) (*gcs.Object, error) {
+	uploader.b.mu.Lock()
+	defer uploader.b.mu.Unlock()
+
+	if uploader.closed {
+		return nil, fmt.Errorf("closing a closed uploader")
+	}
+
+	defer func() {
+		uploader.closed = true
+	}()
+
+	contents := uploader.contents.Bytes()
+	// Create an object record from the given attributes.
+	var fo fakeObject = uploader.b.mintObject(uploader.req, contents)
+	o := copyObject(&fo.metadata)
+
+	// Replace an entry in or add an entry to our list of objects.
+	if uploader.existingIndex < len(uploader.b.objects) {
+		uploader.b.objects[uploader.existingIndex] = fo
+	} else {
+		uploader.b.objects = append(uploader.b.objects, fo)
+		sort.Sort(uploader.b.objects)
+	}
+
+	return o, nil
+}
+
+func (uploader *fakeChunkUploader) BytesUploadedSoFar() int64 {
+	return uploader.totalBytesSuccessfullyUploadedSoFar.Load()
 }
 
 // LOCKS_EXCLUDED(b.mu)

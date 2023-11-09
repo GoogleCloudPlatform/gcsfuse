@@ -15,7 +15,6 @@
 package ratelimit
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -96,7 +95,14 @@ func (b *throttledBucket) CreateChunkUploader(
 	req *gcs.CreateObjectRequest,
 	writeChunkSize int,
 	progressFunc func(int64)) (gcs.ChunkUploader, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	// Wait for permission to call through.
+	err := b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call through.
+	return b.wrapped.CreateChunkUploader(ctx, req, writeChunkSize, progressFunc)
 }
 
 func (b *throttledBucket) CopyObject(

@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
+	"google.golang.org/api/googleapi"
 )
 
 const missingObjectName string = "test/foo"
@@ -364,6 +365,89 @@ func (t *BucketHandleTest) TestCreateObjectMethodWithGenerationAsZeroWhenObjectA
 
 	AssertEq(nil, obj)
 	AssertTrue(errors.As(err, &precondition))
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithValidObject() {
+	chunkSize := googleapi.MinUploadChunkSize
+	req := &gcs.CreateObjectRequest{
+		Name: "test_object",
+	}
+	content := "Creating a new object"
+	contents := strings.NewReader(content)
+
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		req,
+		chunkSize,
+		nil,
+	)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+
+	err = uploader.Upload(context.Background(), contents)
+
+	AssertEq(nil, err)
+
+	o, err := uploader.Close(context.Background())
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+	AssertEq("test_object", o.Name)
+	AssertEq(len(content), o.Size)
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsZero() {
+	var generation int64 = 0
+	chunkSize := googleapi.MinUploadChunkSize
+	req := &gcs.CreateObjectRequest{
+		Name:                   "test_object",
+		GenerationPrecondition: &generation,
+	}
+	ctx := context.Background()
+	content := "Creating a new object"
+	contents := strings.NewReader(content)
+
+	uploader, err := t.bucketHandle.CreateChunkUploader(ctx,
+		req,
+		chunkSize,
+		nil)
+
+	AssertEq(nil, err)
+	AssertNe(nil, uploader)
+	AssertEq(0, uploader.BytesUploadedSoFar())
+
+	err = uploader.Upload(context.Background(), contents)
+
+	AssertEq(nil, err)
+
+	o, err := uploader.Close(context.Background())
+
+	AssertEq(nil, err)
+	AssertNe(nil, o)
+	AssertEq("test_object", o.Name)
+	AssertEq(len(content), o.Size)
+}
+
+func (t *BucketHandleTest) TestCreateChunkUploaderMethodWithGenerationAsNonZero() {
+	var generation int64 = 47367842389354
+	chunkSize := googleapi.MinUploadChunkSize
+	expectedErrorSubstring := "method not supported for pre-existing GCS objects"
+	req := &gcs.CreateObjectRequest{
+		Name:                   "test_object",
+		GenerationPrecondition: &generation,
+	}
+
+	// this should fail as CreateChunkUploader is currently supported
+	// only to objects that don't exist already.
+	uploader, err := t.bucketHandle.CreateChunkUploader(context.Background(),
+		req, chunkSize, nil)
+
+	AssertEq(nil, uploader)
+	AssertNe(nil, err)
+	if !strings.Contains(err.Error(), expectedErrorSubstring) {
+		AddFailure("Actual error \"%s\" does not contain expected error \"%s\"", err.Error(), expectedErrorSubstring)
+	}
 }
 
 func (t *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObjectNotExist() {
