@@ -41,6 +41,24 @@ CONFIG_NAME=$(echo "$config" | jq -r '.config_name')
 GCSFUSE_FLAGS=$(echo "$config" | jq -r '.gcsfuse_flags')
 BRANCH=$(echo "$config" | jq -r '.branch')
 END_DATE=$(echo "$config" | jq -r '.end_date')
+# Get the value of the config_file_flags_as_json key
+CONFIG_FILE_FLAGS_JSON=$(jq -r '.["config_file_flags_as_json"]' <<< $config )
+
+# Create config_flags.yml file from json.
+CONFIG_FILE_YML="${KOKORO_ARTIFACTS_DIR}/config_flags.yml"
+if [ "$CONFIG_FILE_FLAGS_JSON" != null ];
+then
+  # Create JSON file to capture value of $CONFIG_FILE_FLAGS_JSON
+  CONFIG_FILE_JSON="${KOKORO_ARTIFACTS_DIR}/config_flags.json"
+  echo "$CONFIG_FILE_FLAGS_JSON" >> $CONFIG_FILE_JSON
+
+  jq -c -M . $CONFIG_FILE_JSON > $CONFIG_FILE_YML
+  GCSFUSE_FLAGS="$GCSFUSE_FLAGS --config-file $CONFIG_FILE_YML "
+
+  rm $CONFIG_FILE_JSON
+fi
+# Create string of config file content for fetching data from big query table.
+CONFIG_FILE_FLAGS_COMPRESSED_JSON=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -53,14 +71,14 @@ export PYTHONPATH="./"
 echo Installing requirements..
 pip install --require-hashes -r bigquery/requirements.txt --user
 
-CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
+CONFIG_ID=$(eval "python3 -m bigquery.get_experiments_config --gcsfuse_flags '$GCSFUSE_FLAGS' --config_file_flags_as_json '$CONFIG_FILE_FLAGS_COMPRESSED_JSON' --branch '$BRANCH' --end_date '$END_DATE' --config_name '$CONFIG_NAME'")
 START_TIME_BUILD=$(date +%s)
 
 # Upload data to the gsheet only when it runs through kokoro.
 UPLOAD_FLAGS=""
 if [ "${KOKORO_JOB_TYPE}" == "RELEASE" ] || [ "${KOKORO_JOB_TYPE}" == "CONTINUOUS_INTEGRATION" ] || [ "${KOKORO_JOB_TYPE}" == "PRESUBMIT_GITHUB" ] || [ "${KOKORO_JOB_TYPE}" == "SUB_JOB" ];
 then
-  UPLOAD_FLAGS="--upload_gs --upload_bq --config_id $CONFIG_ID --start_time_build $START_TIME_BUILD"
+  UPLOAD_FLAGS="--upload_bq --config_id $CONFIG_ID --start_time_build $START_TIME_BUILD"
 fi
 
 # Executing perf tests
@@ -75,3 +93,4 @@ GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format 
 cd "./ls_metrics"
 chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
+rm -f $CONFIG_FILE_YML
