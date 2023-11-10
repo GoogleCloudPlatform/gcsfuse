@@ -49,7 +49,7 @@ func TestMemoryBuffer(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type MemoryBufferTest struct {
-	mb *InMemoryWriteBuffer
+	mb *inMemoryWriteBuffer
 }
 
 var _ SetUpInterface = &MemoryBufferTest{}
@@ -58,7 +58,7 @@ var _ TearDownInterface = &MemoryBufferTest{}
 func init() { RegisterTestSuite(&MemoryBufferTest{}) }
 
 func (t *MemoryBufferTest) SetUp(ti *TestInfo) {
-	t.mb = &InMemoryWriteBuffer{}
+	t.mb = &inMemoryWriteBuffer{}
 }
 
 func (t *MemoryBufferTest) TearDown() {}
@@ -84,9 +84,11 @@ func (t *MemoryBufferTest) validateInMemoryBuffer(buffer inMemoryBuffer,
 }
 
 func (t *MemoryBufferTest) createAndValidateInMemoryBuffer(sizeInMB int64) {
-	var err error
-	t.mb, err = CreateInMemoryWriteBuffer(uint(sizeInMB))
+	writeBuffer, err := CreateInMemoryWriteBuffer(uint(sizeInMB))
+	var ok bool
+	t.mb, ok = writeBuffer.(*inMemoryWriteBuffer)
 
+	AssertTrue(ok)
 	AssertEq(nil, err)
 	AssertEq(nil, t.mb.current.buffer)
 	AssertEq(nil, t.mb.flushed.buffer)
@@ -105,36 +107,27 @@ func (t *MemoryBufferTest) TestCreateEmptyInMemoryBufferWithValidBufferSize() {
 func (t *MemoryBufferTest) TestCreateEmptyInMemoryBufferWith0BufferSize() {
 	var err error
 	var sizeInMB int64 = 0
-	t.mb, err = CreateInMemoryWriteBuffer(uint(sizeInMB))
+	writeBuffer, err := CreateInMemoryWriteBuffer(uint(sizeInMB))
+	t.mb, _ = writeBuffer.(*inMemoryWriteBuffer)
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), ZeroSizeBufferError))
 	AssertEq(nil, t.mb)
 }
 
-func (t *MemoryBufferTest) TestWritingToUninitializedBuffer() {
-	// Write to buffer
-	err := t.mb.WriteAt(smallContent1, 0)
-
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), ZeroSizeBufferError))
-}
-
 func (t *MemoryBufferTest) TestEnsureCurrentBuffer() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 
-	err := t.mb.ensureCurrentBuffer()
+	t.mb.ensureCurrentBuffer()
 
-	AssertEq(nil, err)
 	AssertEq(bufferSizeInBytes, t.mb.bufferSize)
 	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, 0, bufferSizeInBytes)
 }
 func (t *MemoryBufferTest) TestEnsureFlushedBuffer() {
 	t.createAndValidateInMemoryBuffer(bufferSizeInMB)
 
-	err := t.mb.ensureFlushedBuffer()
+	t.mb.ensureFlushedBuffer()
 
-	AssertEq(nil, err)
 	AssertEq(bufferSizeInBytes, t.mb.bufferSize)
 	t.validateInMemoryBuffer(t.mb.flushed, bufferSizeInBytes, 0, 0, 0)
 }
