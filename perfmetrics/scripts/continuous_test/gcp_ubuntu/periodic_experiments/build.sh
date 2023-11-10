@@ -62,7 +62,6 @@ CONFIG_FILE_FLAGS_COMPRESSED_JSON=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
 echo "Building and installing gcsfuse"
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-chmod +x perfmetrics/scripts/build_and_install_gcsfuse.sh
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $BRANCH
 
 cd "./perfmetrics/scripts/"
@@ -84,13 +83,11 @@ fi
 # Executing perf tests
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
-chmod +x run_load_test_and_fetch_metrics.sh
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
 LOG_FILE_LIST_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_LIST_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_LIST_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
 cd "./ls_metrics"
-chmod +x run_ls_benchmark.sh
 ./run_ls_benchmark.sh "$GCSFUSE_LIST_FLAGS" "$UPLOAD_FLAGS"
 rm -f $CONFIG_FILE_YML
