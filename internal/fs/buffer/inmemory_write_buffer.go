@@ -36,7 +36,7 @@ type inMemoryBuffer struct {
 	offset offset
 }
 
-// InMemoryWriteBuffer implements WriteBuffer and is stored in memory.
+// Implements WriteBuffer and is stored in memory.
 // Refer to buffer.WriteBuffer for sample code usage.
 type inMemoryWriteBuffer struct {
 	// Holds the incoming data from kernel write calls, currently being buffered
@@ -54,7 +54,8 @@ type inMemoryWriteBuffer struct {
 	bufferSize int64
 }
 
-// CreateInMemoryWriteBuffer returns a new InMemoryWriteBuffer.
+// CreateInMemoryWriteBuffer returns a buffer.inMemoryWriteBuffer implementation
+// of WriteBuffer.
 // Memory is lazily allocated to current and flushed buffer on their first usage.
 func CreateInMemoryWriteBuffer(bufferSizeMB uint) (WriteBuffer, error) {
 	if bufferSizeMB == 0 {
