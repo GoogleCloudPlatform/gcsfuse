@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package caching_test
+package metadata_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
@@ -30,7 +30,7 @@ func TestStatCache(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type invariantsCache struct {
-	wrapped caching.StatCache
+	wrapped metadata.StatCache
 }
 
 func (c *invariantsCache) Insert(
@@ -106,7 +106,7 @@ type StatCacheTest struct {
 func init() { RegisterTestSuite(&StatCacheTest{}) }
 
 func (t *StatCacheTest) SetUp(ti *TestInfo) {
-	t.cache.wrapped = caching.NewStatCache(capacity)
+	t.cache.wrapped = metadata.NewStatCache(capacity)
 }
 
 ////////////////////////////////////////////////////////////////////////
