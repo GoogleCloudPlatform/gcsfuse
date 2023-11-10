@@ -38,8 +38,8 @@ type FileHandle struct {
 	// GUARDED_BY(mu)
 	reader gcsx.RandomReader
 
-	// fileCacheHandler is used to read the objectContent from cache. This will be
-	// nil if the file cache is disabled.
+	// fileCacheHandler is used to get file cache handle and read happens using that.
+	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
 
 	// downloadForRandomRead is also valid for cache workflow, if true, object content
@@ -105,7 +105,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	if fh.reader != nil {
 		fh.inode.Unlock()
 
-		n, err = fh.reader.ReadAt(ctx, dst, offset)
+		n, _, err = fh.reader.ReadAt(ctx, dst, offset)
 		switch {
 		case err == io.EOF:
 			return
