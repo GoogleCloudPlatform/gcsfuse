@@ -19,17 +19,25 @@ set -x
 #details.txt file contains the release version and commit hash of the current release.
 gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
+vm_instance_name = ${curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google"}
+echo $vm_instance_name >> details.txt
 touch ~/logs.txt
 
 # Based on the os type(from vm instance name) in detail.txt, run the following
 # commands to install gcsfuse.
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
-#  For ubuntu and debian os
+    #  For ubuntu and debian os
     export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
-    echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+    if [[grep -q ubuntu details.txt] && ["$vm_instance_name" >= "release-test-ubuntu-21"]] || [[grep -q debian details.txt] && ["$vm_instance_name" >= "release-test-debian-11"]];
+    then
+      # Don't use apt-key for Debian 11+ and Ubuntu 21+
+      echo "deb [signed-by=/usr/share/keyrings/cloud.google.asc] https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo tee /usr/share/keyrings/cloud.google.asc
+    else
+      echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+    fi
     sudo apt-get update
     # Install latest released gcsfuse version
     sudo apt-get install -y gcsfuse
