@@ -35,7 +35,7 @@ echo "Mounting gcs bucket"
 mkdir -p gcs
 GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
-BUCKET_NAME=periodic-perf-tests
+BUCKET_NAME="periodic-perf-tests-${EXPERIMENT_NUMBER}"
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
