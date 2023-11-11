@@ -1,3 +1,17 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Tests for listing_benchmark."""
 
 import unittest
@@ -121,68 +135,68 @@ METRICS3 = [100, 7, 6, 51, 21]
 
 SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2 = {
     '2KB_3files_0subdir':
-    {
-        'Test Desc.': 'fake_test',
-        'Number of samples': 5,
-        'Mean': 0.518,
-        'Median': 0.222,
-        'Standard Dev': 0.556,
-        'Quantiles':
-        {
-            '0 %ile': 0.017,
-            '20 %ile': 0.1,
-            '50 %ile': 0.222,
-            '90 %ile': 1.138,
-            '95 %ile': 1.186,
-            '98 %ile': 1.215,
-            '99 %ile': 1.224,
-            '99.5 %ile': 1.229,
-            '99.9 %ile': 1.233,
-            '100 %ile': 1.234
-        }
-    },
+      {
+          'Test Desc.': 'fake_test',
+          'Number of samples': 5,
+          'Mean': 0.518,
+          'Median': 0.222,
+          'Standard Dev': 0.556,
+          'Quantiles':
+            {
+                '0 %ile': 0.017,
+                '20 %ile': 0.1,
+                '50 %ile': 0.222,
+                '90 %ile': 1.138,
+                '95 %ile': 1.186,
+                '98 %ile': 1.215,
+                '99 %ile': 1.224,
+                '99.5 %ile': 1.229,
+                '99.9 %ile': 1.233,
+                '100 %ile': 1.234
+            }
+      },
     '1KB_2files_0subdir':
-    {
-        'Test Desc.': 'fake_test',
-        'Number of samples': 5,
-        'Mean': 19.965,
-        'Median': 1.95,
-        'Standard Dev': 39.504,
-        'Quantiles':
-        {
-            '0 %ile': 0.001,
-            '20 %ile': 0.267,
-            '50 %ile': 1.95,
-            '90 %ile': 57.106,
-            '95 %ile': 73.778,
-            '98 %ile': 83.781,
-            '99 %ile': 87.116,
-            '99.5 %ile': 88.783,
-            '99.9 %ile': 90.117,
-            '100 %ile': 90.45
-        }
-    },
+      {
+          'Test Desc.': 'fake_test',
+          'Number of samples': 5,
+          'Mean': 19.965,
+          'Median': 1.95,
+          'Standard Dev': 39.504,
+          'Quantiles':
+            {
+                '0 %ile': 0.001,
+                '20 %ile': 0.267,
+                '50 %ile': 1.95,
+                '90 %ile': 57.106,
+                '95 %ile': 73.778,
+                '98 %ile': 83.781,
+                '99 %ile': 87.116,
+                '99.5 %ile': 88.783,
+                '99.9 %ile': 90.117,
+                '100 %ile': 90.45
+            }
+      },
     '1KB_0files_0subdir':
-    {
-        'Test Desc.': 'fake_test',
-        'Number of samples': 5,
-        'Mean': 37,
-        'Median': 21,
-        'Standard Dev': 39.63,
-        'Quantiles':
-        {
-            '0 %ile': 6.0,
-            '20 %ile': 6.8,
-            '50 %ile': 21.0,
-            '90 %ile': 80.4,
-            '95 %ile': 90.2,
-            '98 %ile': 96.08,
-            '99 %ile': 98.04,
-            '99.5 %ile': 99.02,
-            '99.9 %ile': 99.804,
-            '100 %ile': 100.0
-        }
-    }
+      {
+          'Test Desc.': 'fake_test',
+          'Number of samples': 5,
+          'Mean': 37,
+          'Median': 21,
+          'Standard Dev': 39.63,
+          'Quantiles':
+            {
+                '0 %ile': 6.0,
+                '20 %ile': 6.8,
+                '50 %ile': 21.0,
+                '90 %ile': 80.4,
+                '95 %ile': 90.2,
+                '98 %ile': 96.08,
+                '99 %ile': 98.04,
+                '99.5 %ile': 99.02,
+                '99.9 %ile': 99.804,
+                '100 %ile': 100.0
+            }
+      }
 }
 
 # Converting JSON to protobuf.
@@ -195,6 +209,11 @@ DIRECTORY_STRUCTURE3 = ParseDict(
 
 WORKSHEET_NAME = 'ls_metrics_gcsfuse'
 
+DIRECTORY_STRUCTURE_2_VALUES = [
+    ['fake_test','ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017, 0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
+    ['fake_test','ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001, 0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
+    ['fake_test','ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0, 80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
+]
 
 class ListingBenchmarkTest(unittest.TestCase):
 
@@ -221,21 +240,18 @@ class ListingBenchmarkTest(unittest.TestCase):
         DIRECTORY_STRUCTURE1.folders, {}, 'fake_test', 5)
     self.assertEqual(metrics, {})
 
+  def test_get_values_to_export(self):
+    values = listing_benchmark._get_values_to_export(
+        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
+        'ls')
+    self.assertEqual(values, DIRECTORY_STRUCTURE_2_VALUES)
+
   @patch('listing_benchmark.gsheet.write_to_google_sheet')
   def test_export_to_google_sheet(self, mock_sheet):
     listing_benchmark._export_to_gsheet(
-        DIRECTORY_STRUCTURE2.folders, SAMPLE_METRIC_FOR_DIRECTORY_STRUCTURE_2,
-        'ls', WORKSHEET_NAME)
+        WORKSHEET_NAME, DIRECTORY_STRUCTURE_2_VALUES)
     self.assertEqual(mock_sheet.call_args_list, [
-        call('ls_metrics_gcsfuse',
-             [
-                 ['fake_test', 'ls', 3, 0, 5, 0.518, 0.222, 0.556, 0.017,
-                  0.1, 0.222, 1.138, 1.186, 1.215, 1.224, 1.229, 1.233, 1.234],
-                 ['fake_test', 'ls', 2, 0, 5, 19.965, 1.95, 39.504, 0.001,
-                  0.267, 1.95, 57.106, 73.778, 83.781, 87.116, 88.783, 90.117, 90.45],
-                 ['fake_test', 'ls', 0, 0, 5, 37, 21, 39.63, 6.0, 6.8, 21.0,
-                  80.4, 90.2, 96.08, 98.04, 99.02, 99.804, 100.0]
-             ])
+        call('ls_metrics_gcsfuse', DIRECTORY_STRUCTURE_2_VALUES)
     ])
 
   def test_parse_results_double_level_dir(self):
@@ -577,7 +593,7 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=0)
   def test_mount_gcs_bucket(self, mock_subprocess_call):
-    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket')
+    directory_name = listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(directory_name, 'fake_bucket')
     self.assertEqual(mock_subprocess_call.call_count, 2)
     self.assertEqual(mock_subprocess_call.call_args_list, [
@@ -587,7 +603,7 @@ class ListingBenchmarkTest(unittest.TestCase):
 
   @patch('listing_benchmark.subprocess.call', return_value=1)
   def test_mount_gcs_bucket_error(self, mock_subprocess_call):
-    listing_benchmark._mount_gcs_bucket('fake_bucket')
+    listing_benchmark._mount_gcs_bucket('fake_bucket', '--implicit-dirs --max-conns-per-host 100')
     self.assertEqual(mock_subprocess_call.call_count, 3)
     self.assertEqual(mock_subprocess_call.call_args_list, [
         call('mkdir fake_bucket', shell=True),

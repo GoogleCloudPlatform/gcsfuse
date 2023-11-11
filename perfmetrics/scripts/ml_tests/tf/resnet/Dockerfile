@@ -30,7 +30,6 @@ WORKDIR "/tf_test/"
 
 COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/setup_container.sh .
 COPY ./perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/resnet_runner.py .
-RUN chmod +x setup_container.sh
 
 RUN mkdir -p "myBucket"
 ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]

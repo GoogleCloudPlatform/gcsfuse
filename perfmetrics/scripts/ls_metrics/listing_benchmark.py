@@ -1,23 +1,45 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Python script for benchmarking listing operation.
 
 This python script benchmarks and compares the latency of listing operation in
 persistent disk vs GCS bucket. It creates the necessary directory structure,
-containing files and folders, needed to test the listing operation. Furthermore
-it can optionally upload the results of the test to a Google Sheet. It takes
-input a JSON config file whcih contains the info regrading directory structure
+containing files and folders, needed to test the listing operation. Furthermore,
+
+it can optionally upload the results of the test to a Google Sheet or Bigquery. It takes
+input a JSON config file which contains the info regrading directory structure
 and also through which multiple tests of different configurations can be
 performed in a single run.
 
 Typical usage example:
-  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file
+
+  $ python3 listing_benchmark.py [-h] [--keep_files] [--upload_gs] [--upload_bq] [--num_samples NUM_SAMPLES] [--config_id CONFIG_ID] [--start_time_build START_TIME_BUILD] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file
 
   Flag -h: Typical help interface of the script.
   Flag --keep_files: Do not delete the generated directory structure from the
                      persistent disk after running the tests.
-  Flag --upload: Uploads the results of the test to the Google Sheet.
+  Flag --upload_gs: Uploads the results of the test to the Google Sheet.
+  Flag --upload_bq: Uploads the results of the test to the BigQuery.
   Flag --num_samples: Runs each test for NUM_SAMPLES times.
   Flag --message: Takes input a message string, which describes/titles the test.
-  Flag --command (required): Takes a input a string, which is the command to run
+  Flag --config_id: Configuration id of the experiment in BigQuery tables.
+  Flag --start_time_build: Time at which KOKORO triggered the build scripts
+  Flag --num_samples: Runs each test for NUM_SAMPLES times.
+  Flag --message: Takes input a message string, which describes/titles the test.
+  Flag --gcsfuse_flags (required): GCSFUSE flags with which the list tests bucket will be mounted.
+  Flag --command (required): Takes as input a string, which is the command to run
                              the tests on.
   config_file (required): Path to the JSON config file which contains the
                           details of the tests.
@@ -41,6 +63,9 @@ from google.protobuf.json_format import ParseDict
 from gsheet import gsheet
 import numpy as np
 
+from bigquery import experiments_gcsfuse_bq
+from bigquery import constants
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,7 +76,8 @@ log = logging.getLogger()
 
 WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
 WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
-
+MOUNT_TYPE_GCS = 'gcs_bucket'
+MOUNT_TYPE_PD = 'persistent_disk'
 
 def _count_number_of_files_and_folders(directory, files, folders):
   """Count the number of files and folders in the given directory recursively.
@@ -72,19 +98,21 @@ def _count_number_of_files_and_folders(directory, files, folders):
   return files, folders
 
 
-def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
-  """Exports data to the Google Sheet.
+def _get_values_to_export(folders, metrics, command) -> list:
+  """This function takes in extracted metrics data, filters it, rearranges it,
+  and returns the modified data to export to Google Sheet and BigQuery.
+
   Args:
     folders: List containing protobufs of testing folders.
     metrics: A dictionary containing all the result metrics for each
              testing folder.
     command: Command to run the tests on.
-    worksheet: Google Sheet worksheet to upload the data.
+
+  Returns:
+    list: List of results to upload to GSheet or BigQuery
   """
 
-  # Changing directory to comply with "cred.json" path in "gsheet.py".
-  os.chdir('..')
-  gsheet_data = []
+  list_metrics_data = []
   for testing_folder in folders:
     num_files, num_folders = _count_number_of_files_and_folders(
         testing_folder, 0, 0)
@@ -108,11 +136,9 @@ def _export_to_gsheet(folders, metrics, command, worksheet) -> None:
         metrics[testing_folder.name]['Quantiles']['99.9 %ile'],
         metrics[testing_folder.name]['Quantiles']['100 %ile']
     ]
-    gsheet_data.append(row)
+    list_metrics_data.append(row)
 
-  gsheet.write_to_google_sheet(worksheet, gsheet_data)
-  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
-  return
+  return list_metrics_data
 
 
 def _parse_results(folders, results_list, message, num_samples) -> dict:
@@ -193,7 +219,7 @@ def _perform_testing(
   """This function tests the listing operation on the testing folders.
 
   Going through all the testing folders one by one for both GCS bucket and
-  peristent disk, we calculate the latency (in msec) of listing operation
+  persistent disk, we calculate the latency (in msec) of listing operation
   and store the results in a list of that particular testing folder. Reading
   are taken multiple times as specified by num_samples argument.
 
@@ -245,8 +271,8 @@ def _create_directory_structure(
                         files in.
    directory_structure: Protobuf of the current directory.
    create_files_in_gcs: Bool value which is True if we have to create files
-                        in GCS bucket (similar directory strucutre not present).
-                        Otherwise it is False, means that we will not create
+                        in GCS bucket (similar directory structure not present).
+                        Otherwise, it is False, means that we will not create
                         files in GCS bucket from scratch.
 
   Returns:
@@ -356,11 +382,12 @@ def _unmount_gcs_bucket(gcs_bucket) -> None:
         gcs_bucket)
 
 
-def _mount_gcs_bucket(bucket_name) -> str:
+def _mount_gcs_bucket(bucket_name, gcsfuse_flags) -> str:
   """Mounts the GCS bucket into the gcs_bucket directory.
 
   Args:
     bucket_name: Name of the bucket to be mounted.
+    gcsfuse_flags: Set of flags for which bucket_name will be mounted
 
   Returns:
     A string which contains the name of the directory to which the bucket
@@ -375,8 +402,8 @@ def _mount_gcs_bucket(bucket_name) -> str:
   subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
 
   exit_code = subprocess.call(
-      'gcsfuse --implicit-dirs  --max-conns-per-host 100 {} {}'.format(
-          bucket_name, gcs_bucket), shell=True)
+      'gcsfuse {} {} {}'.format(
+          gcsfuse_flags, bucket_name, gcs_bucket), shell=True)
   if exit_code != 0:
     log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
     subprocess.call('bash', shell=True)
@@ -388,7 +415,7 @@ def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
   Args:
-    argv: List of arguments recevied by the script.
+    argv: List of arguments received by the script.
 
   Returns:
     A class containing the parsed arguments.
@@ -409,8 +436,15 @@ def _parse_arguments(argv):
       required=False,
   )
   parser.add_argument(
-      '--upload',
+      '--upload_gs',
       help='Upload the results to the Google Sheet.',
+      action='store_true',
+      default=False,
+      required=False,
+  )
+  parser.add_argument(
+      '--upload_bq',
+      help='Upload the results to the BigQuery.',
       action='store_true',
       default=False,
       required=False,
@@ -421,6 +455,20 @@ def _parse_arguments(argv):
       action='store',
       nargs=1,
       default=['Performance Listing Benchmark'],
+      required=False,
+  )
+  parser.add_argument(
+      '--config_id',
+      help='Configuration ID of the experiment.',
+      action='store',
+      nargs=1,
+      required=False,
+  )
+  parser.add_argument(
+      '--start_time_build',
+      help='Start time of the build.',
+      action='store',
+      nargs=1,
       required=False,
   )
   parser.add_argument(
@@ -437,12 +485,18 @@ def _parse_arguments(argv):
       action='store',
       nargs=1,
       default=['ls -R'],
+      required=False,
+  )
+  parser.add_argument(
+      '--gcsfuse_flags',
+      help='Gcsfuse flags for mounting the list tests bucket. Example set of flags - "--implicit-dirs --max-conns-per-host 100 --debug_fuse --debug_gcs --log-file gcsfuse-list-logs.txt --log-format \"text\" --stackdriver-export-interval=30s"',
+      action='store',
+      nargs=1,
       required=True,
   )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
-
 
 def _check_dependencies(packages) -> None:
   """Check whether the dependencies are installed or not.
@@ -465,13 +519,39 @@ def _check_dependencies(packages) -> None:
 
   return
 
+def _export_to_gsheet(worksheet, ls_data):
+  """Writes list results to Google Spreadsheets
+  Args:
+    worksheet (str): Google sheet name to which results will be uploaded
+    ls_data (list): List results to be uploaded
+  """
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+
+  gsheet.write_to_google_sheet(worksheet, ls_data)
+
+  os.chdir('./ls_metrics')  # Changing the directory back to current directory.
+  return
+
+def _export_to_bigquery(test_type, config_id, start_time_build, ls_data):
+  """Writes list results to BigQuery
+  Args:
+    test_type (str): Table name to which results will be uploaded
+    config_id (str): Configuration ID of the experiment
+    start_time_build (str): Start time of the build
+    ls_data (list): List results to be uploaded
+  """
+  bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+  ls_data_upload = [[test_type] + row for row in ls_data]
+  bigquery_obj.upload_metrics_to_table(constants.LS_TABLE_ID, config_id, start_time_build, ls_data_upload)
+  return
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 3:
+  if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload] [--num_samples NUM_SAMPLES] [--message MESSAGE] --command COMMAND config_file')
+                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
 
   args = _parse_arguments(argv)
 
@@ -522,7 +602,7 @@ if __name__ == '__main__':
     subprocess.call('bash', shell=True)
   log.info('Directory Structure Created.\n')
 
-  gcs_bucket = _mount_gcs_bucket(directory_structure.name)
+  gcs_bucket = _mount_gcs_bucket(directory_structure.name, args.gcsfuse_flags[0])
 
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
@@ -535,14 +615,20 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  if args.upload:
+  upload_values_gcs = _get_values_to_export(directory_structure.folders, gcs_parsed_metrics, args.command[0])
+  upload_values_pd = _get_values_to_export(directory_structure.folders, pd_parsed_metrics, args.command[0])
+
+  if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')
-    _export_to_gsheet(
-        directory_structure.folders, gcs_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_GCS)
-    _export_to_gsheet(
-        directory_structure.folders, pd_parsed_metrics, args.command[0],
-        WORKSHEET_NAME_PD)
+    _export_to_gsheet(WORKSHEET_NAME_GCS, upload_values_gcs)
+    _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd)
+
+  if args.upload_bq:
+    if not args.config_id or not args.start_time_build:
+      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    log.info('Uploading results to the BigQuery.\n')
+    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], upload_values_gcs)
+    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], upload_values_pd)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')

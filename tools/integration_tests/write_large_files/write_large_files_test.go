@@ -41,10 +41,8 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	// Remove file after testing.
 	defer operations.RemoveFile(localFilePathToDownloadGcsFile)
 
-	// DiffFiles loads the entire files into memory. These are both 500 MiB files, hence would have a 1 GiB
-	// requirement just for this step
-	diff, err := operations.DiffFiles(mntDirFile, localFilePathToDownloadGcsFile)
-	if diff != 0 {
+	identical, err := operations.AreFilesIdentical(mntDirFile, localFilePathToDownloadGcsFile)
+	if !identical {
 		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
 	}
 

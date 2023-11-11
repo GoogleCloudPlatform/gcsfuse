@@ -64,6 +64,14 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
 }
 
+func (t *YamlParserTest) TestReadConfigFile_Invalid_UnexpectedField_Config() {
+	_, err := ParseConfigFile("testdata/invalid_unexpectedfield_config.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
+	AssertTrue(strings.Contains(err.Error(), "line 5: field formats not found in type config.LogConfig"))
+}
+
 func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	mountConfig, err := ParseConfigFile("testdata/valid_config.yaml")
 

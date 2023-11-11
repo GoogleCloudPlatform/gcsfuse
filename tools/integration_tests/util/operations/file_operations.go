@@ -31,6 +31,13 @@ import (
 	"testing"
 )
 
+const (
+	OneKiB = 1024
+	OneMiB = OneKiB * OneKiB
+	// ChunkSizeForContentComparison is currently set to 1 MiB.
+	ChunkSizeForContentComparison int = OneMiB
+)
+
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
 	if !allowOverwrite {
 		if _, err = os.Stat(dstFileName); err == nil {
@@ -50,9 +57,9 @@ func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) 
 
 	var destination *os.File
 	if allowOverwrite {
-		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT|os.O_TRUNC, FilePermission_0600)
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, FilePermission_0600)
 	} else {
-		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, FilePermission_0600)
+		destination, err = os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE, FilePermission_0600)
 	}
 
 	if err != nil {
@@ -321,58 +328,103 @@ func StatFile(file string) (*fs.FileInfo, error) {
 	return &fstat, nil
 }
 
+func openFileAsReadonly(filepath string) (*os.File, error) {
+	f, err := os.OpenFile(filepath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0400)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s as readonly: %v", filepath, err)
+	}
+
+	return f, nil
+}
+
+func readBytesFromFile(f *os.File, numBytesToRead int, b []byte) error {
+	numBytesRead, err := f.Read(b)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %v", f.Name(), err)
+	}
+	if numBytesRead != numBytesToRead {
+		return fmt.Errorf("failed to read file %s, expected read bytes = %d, actual read bytes = %d", f.Name(), numBytesToRead, numBytesRead)
+	}
+
+	return nil
+}
+
 // Finds if two local files have identical content (equivalnt to binary diff).
 // Needs (a) both files to exist, (b)read permission on both the files, (c) both
 // inputs to be proper files, i.e. directories not supported.
 // Compares file names first. If different, compares sizes next.
 // If sizes match, then compares the contents of both the files.
-// Not a good idea for very large files as it loads both the files' contents in
-// the memory completely.
-// Returns 0 if no error and files match.
-// Returns 1 if files don't match and captures reason for mismatch in err.
-// Returns 2 if any error.
-func DiffFiles(filepath1, filepath2 string) (int, error) {
+// Returns true if no error and files match.
+// Returns false if files don't match (captures reason for mismatch in err) or if any other error.
+func AreFilesIdentical(filepath1, filepath2 string) (bool, error) {
 	if filepath1 == "" || filepath2 == "" {
-		return 2, fmt.Errorf("one or both files being diff'ed have empty path")
+		return false, fmt.Errorf("one or both files being diff'ed have empty path")
 	} else if filepath1 == filepath2 {
-		return 0, nil
+		return true, nil
 	}
 
 	fstat1, err := StatFile(filepath1)
 	if err != nil {
-		return 2, err
+		return false, err
 	}
 
 	fstat2, err := StatFile(filepath2)
 	if err != nil {
-		return 2, err
+		return false, err
 	}
 
 	file1size := (*fstat1).Size()
 	file2size := (*fstat2).Size()
 	if file1size != file2size {
-		return 1, fmt.Errorf("files don't match in size: %s (%d bytes), %s (%d bytes)", filepath1, file1size, filepath2, file2size)
+		return false, fmt.Errorf("files don't match in size: %s (%d bytes), %s (%d bytes)", filepath1, file1size, filepath2, file2size)
 	}
 
-	bytes1, err := ReadFile(filepath1)
-	if err != nil || bytes1 == nil {
-		return 2, fmt.Errorf("failed to read file %s", filepath1)
-	} else if int64(len(bytes1)) != file1size {
-		return 2, fmt.Errorf("failed to completely read file %s", filepath1)
+	if file1size == 0 {
+		return true, nil
 	}
 
-	bytes2, err := ReadFile(filepath2)
-	if err != nil || bytes2 == nil {
-		return 2, fmt.Errorf("failed to read file %s", filepath2)
-	} else if int64(len(bytes2)) != file2size {
-		return 2, fmt.Errorf("failed to completely read file %s", filepath2)
+	f1, err := openFileAsReadonly(filepath1)
+	if err != nil {
+		return false, err
 	}
 
-	if !bytes.Equal(bytes1, bytes2) {
-		return 1, fmt.Errorf("files don't match in content: %s, %s", filepath1, filepath2)
+	defer CloseFile(f1)
+
+	f2, err := openFileAsReadonly(filepath2)
+	if err != nil {
+		return false, err
 	}
 
-	return 0, nil
+	defer CloseFile(f2)
+
+	sizeRemaining := int(file1size)
+	b1 := make([]byte, ChunkSizeForContentComparison)
+	b2 := make([]byte, ChunkSizeForContentComparison)
+	numBytesBeingRead := ChunkSizeForContentComparison
+
+	for sizeRemaining > 0 {
+		if sizeRemaining < ChunkSizeForContentComparison {
+			numBytesBeingRead = sizeRemaining
+		}
+
+		err := readBytesFromFile(f1, numBytesBeingRead, b1)
+		if err != nil {
+			return false, err
+		}
+
+		err = readBytesFromFile(f2, numBytesBeingRead, b2)
+		if err != nil {
+			return false, err
+		}
+
+		if !bytes.Equal(b1[:numBytesBeingRead], b2[:numBytesBeingRead]) {
+			return false, fmt.Errorf("files don't match in content: %s, %s", filepath1, filepath2)
+		}
+
+		sizeRemaining -= numBytesBeingRead
+	}
+
+	return true, nil
 }
 
 // Returns size of a give GCS object with path (without 'gs://').
