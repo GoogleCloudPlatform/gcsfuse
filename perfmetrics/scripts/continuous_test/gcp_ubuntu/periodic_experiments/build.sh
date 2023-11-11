@@ -60,8 +60,7 @@ fi
 # Create string of config file content for fetching data from big query table.
 CONFIG_FILE_FLAGS_COMPRESSED_JSON=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
-echo "Building and installing gcsfuse"
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+echo "Building and installing gcsfuse on branch: " $BRANCH
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $BRANCH
 
 cd "./perfmetrics/scripts/"
