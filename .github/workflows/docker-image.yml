@@ -18,4 +18,4 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: docker buildx create --use
-      - run: docker buildx build -t ${{ env.img_name }} --platform=linux/amd64,linux/arm64 .
+      - run: docker buildx build -t ${{ env.img_name }} --platform=linux/amd64,linux/arm64 --push .
