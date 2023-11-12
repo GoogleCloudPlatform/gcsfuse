@@ -21,4 +21,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: actions/checkout@v3
       - name: Build the Docker image
-        run: docker buildx build -t {$env.img_name} --platform=linux/amd64,linux/arm64 .
+        run: docker buildx build -t ${env.img_name} --platform=linux/amd64,linux/arm64 .
