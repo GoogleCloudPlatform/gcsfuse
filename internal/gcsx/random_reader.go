@@ -182,34 +182,27 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
-// readFromCache creates the cache handle if it does not exist already, and then
-// use that cache handle to read object's content which is cached in local file.
-//
-// Note: this function should not be called when rr.fileCacheHandler is nil.
-func (rr *randomReader) readFromCache(
-	ctx context.Context,
-	p []byte,
-	offset int64) (n int, err error) {
-
-	if rr.fileCacheHandle == nil {
-		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadForRandomRead, offset)
-		if err != nil {
-			return 0, fmt.Errorf("readFromCache: while creating CacheHandle instance: %v", err)
-		}
-	}
-
-	return rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
-}
-
-// tryReadingFromFileCache try to read the object's content from the cache file.
+// tryReadingFromFileCache creates the cache handle first if it doesn't exist already
+// and then use that handle to read object's content which is cached in local file.
 // For the successful read, it returns number of bytes read, and a boolean representing
-// cacheHit.
-// For unsuccessful read, it returns appropriate err and a boolean representing cacheMiss.
+// cacheHit as true.
+// For unsuccessful read, returns cacheHit as false, in this case content
+// should be read from GCS.
+// And it returns non-nil error in case something unexpected happens during the execution.
+// In this case, we must abort the Read operation.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
 	if rr.fileCacheHandler != nil {
-		n, err = rr.readFromCache(ctx, p, offset)
+		// Create fileCacheHandle if not already.
+		if rr.fileCacheHandle == nil {
+			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadForRandomRead, offset)
+			if err != nil {
+				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+			}
+		}
+
+		n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
 		if err == nil {
 			cacheHit = true
 			return
@@ -226,9 +219,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			rr.fileCacheHandle = nil
 		} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
 			err = fmt.Errorf("ReadAt: while reading via cache: %v", err)
+			return
 		}
+		err = nil
 	}
-
 	return
 }
 
@@ -248,6 +242,7 @@ func (rr *randomReader) ReadAt(
 
 	// Otherwise fallback to read from GCS.
 	cacheHit = false
+	err = nil
 
 	for len(p) > 0 {
 		// Have we blown past the end of the object?

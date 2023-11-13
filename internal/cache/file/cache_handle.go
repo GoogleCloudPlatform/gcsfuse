@@ -198,6 +198,9 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 func (fch *CacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
 		err = fch.fileHandle.Close()
+		if err != nil {
+			err = fmt.Errorf("cacheHandle.Close(): while closing read file handle: %v", err)
+		}
 		fch.fileHandle = nil
 	}
 
