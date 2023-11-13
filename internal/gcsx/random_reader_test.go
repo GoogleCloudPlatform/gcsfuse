@@ -1016,13 +1016,9 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-	//objectSize := t.object.Size
 	t.rr.wrapped.downloadForRandomRead = false
-	//testContent := getRandomContent(int(objectSize))
 	start := 5
-	end := 10 // not included
-	//rc := getReadCloser(testContent[start:])
-	//t.mockNewReaderCallForTestBucket(uint64(start), objectSize, rc)
+	end := 10
 	ExpectCall(t.bucket, "Name")().
 		WillRepeatedly(Return("test"))
 
@@ -1032,3 +1028,5 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 }
+
+// TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.
