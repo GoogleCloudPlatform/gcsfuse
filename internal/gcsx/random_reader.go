@@ -144,6 +144,8 @@ type randomReader struct {
 	//
 	// INVARIANT: start <= limit
 	// INVARIANT: limit < 0 implies reader != nil
+	// All these properties will be used only in case of GCS reads and not for
+	// reads from cache.
 	start          int64
 	limit          int64
 	seeks          uint64
