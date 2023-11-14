@@ -402,7 +402,7 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
-	cht.cacheHandle.downloadForRandomRead = true
+	cht.cacheHandle.downloadFileForRandomRead = true
 
 	// Since, it's a random read hence will not wait to download till requested offset.
 	n, err := cht.cacheHandle.Read(context.Background(), cht.object, offset, dst)
@@ -478,7 +478,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
-	cht.cacheHandle.downloadForRandomRead = true
+	cht.cacheHandle.downloadFileForRandomRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, err := cht.cacheHandle.Read(context.Background(), cht.object, offset, dst)
@@ -493,7 +493,7 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	dst := make([]byte, ReadContentSize)
 	firstReqOffset := int64(0)
 	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.downloadForRandomRead = true
+	cht.cacheHandle.downloadFileForRandomRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, err := cht.cacheHandle.Read(context.Background(), cht.object, firstReqOffset, dst)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
