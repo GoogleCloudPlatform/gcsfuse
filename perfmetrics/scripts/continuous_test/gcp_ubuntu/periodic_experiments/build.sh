@@ -60,8 +60,7 @@ fi
 # Create string of config file content for fetching data from big query table.
 CONFIG_FILE_FLAGS_COMPRESSED_JSON=$(echo "$CONFIG_FILE_FLAGS_JSON" | jq -c .)
 
-echo "Building and installing gcsfuse"
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+echo "Building and installing gcsfuse on branch: " $BRANCH
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $BRANCH
 
 cd "./perfmetrics/scripts/"
@@ -83,7 +82,8 @@ fi
 # Executing perf tests
 LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs${EXPERIMENT_NUMBER}.txt"
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --log-format \"text\" --stackdriver-export-interval=30s"
-./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS"
+BUCKET_NAME="experimental-periodic-perf-tests-${EXPERIMENT_NUMBER}"
+./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME"
 
 # ls_metrics test. This test does gcsfuse mount with the passed flags first and then does the testing.
 LOG_FILE_LIST_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-list-logs${EXPERIMENT_NUMBER}.txt"
