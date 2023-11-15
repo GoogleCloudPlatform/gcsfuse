@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 )
@@ -78,4 +79,16 @@ func GetObjectPath(bucketName string, objectName string) string {
 // GetDownloadPath gives file path to file in cache for given object path.
 func GetDownloadPath(cacheLocation string, objectPath string) string {
 	return path.Join(cacheLocation, objectPath)
+}
+
+// IsCacheHandleInvalid says either the current cacheHandle is invalid or not, based
+// on the error we got while reading with the cacheHandle.
+// If it's invalid then we should close that cacheHandle and create new cacheHandle
+// for next call onwards.
+func IsCacheHandleInvalid(readErr error) bool {
+	return strings.Contains(readErr.Error(), InvalidFileHandleErrMsg) ||
+		strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
+		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
+		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
+		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }

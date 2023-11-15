@@ -18,7 +18,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"go.opencensus.io/stats"
@@ -88,13 +92,17 @@ func init() {
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
 // Not safe for concurrent access.
+//
+// TODO - (raj-prince) - Rename this with appropriate name as it also started
+// fulfilling the responsibility of reading object's content from cache.
 type RandomReader interface {
 	// Panic if any internal invariants are violated.
 	CheckInvariants()
 
-	// Matches the semantics of io.ReaderAt, with the addition of context
-	// support.
-	ReadAt(ctx context.Context, p []byte, offset int64) (n int, err error)
+	// ReadAt Matches the semantics of io.ReaderAt, with the addition of context
+	// support and cache support. It returns a boolean which represent either
+	// content is read from fileCache (cacheHit = true) or gcs (cacheHit = false)
+	ReadAt(ctx context.Context, p []byte, offset int64) (n int, cacheHit bool, err error)
 
 	// Return the record for the object to which the reader is bound.
 	Object() (o *gcs.MinObject)
@@ -106,15 +114,17 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, downloadFileForRandomRead bool) RandomReader {
 	return &randomReader{
-		object:               o,
-		bucket:               bucket,
-		start:                -1,
-		limit:                -1,
-		seeks:                0,
-		totalReadBytes:       0,
-		sequentialReadSizeMb: sequentialReadSizeMb,
+		object:                    o,
+		bucket:                    bucket,
+		start:                     -1,
+		limit:                     -1,
+		seeks:                     0,
+		totalReadBytes:            0,
+		sequentialReadSizeMb:      sequentialReadSizeMb,
+		fileCacheHandler:          fileCacheHandler,
+		downloadFileForRandomRead: downloadFileForRandomRead,
 	}
 }
 
@@ -134,12 +144,26 @@ type randomReader struct {
 	//
 	// INVARIANT: start <= limit
 	// INVARIANT: limit < 0 implies reader != nil
+	// All these properties will be used only in case of GCS reads and not for
+	// reads from cache.
 	start          int64
 	limit          int64
 	seeks          uint64
 	totalReadBytes uint64
 
 	sequentialReadSizeMb int32
+
+	// fileCacheHandler is used to get file cache handle and read happens using that.
+	// This will be nil if the file cache is disabled.
+	fileCacheHandler *file.CacheHandler
+
+	// downloadFileForRandomRead is also valid for cache workflow, if true, object content
+	// will be downloaded for random reads as well too.
+	downloadFileForRandomRead bool
+
+	// fileCacheHandle is used to read from the cached location. It is created on the fly
+	// using fileCacheHandler for the given object and bucket.
+	fileCacheHandle *file.CacheHandle
 }
 
 func (rr *randomReader) CheckInvariants() {
@@ -159,10 +183,64 @@ func (rr *randomReader) CheckInvariants() {
 	}
 }
 
+// tryReadingFromFileCache creates the cache handle first if it doesn't exist already
+// and then use that handle to read object's content which is cached in local file.
+// For the successful read, it returns number of bytes read, and a boolean representing
+// cacheHit as true.
+// For unsuccessful read, returns cacheHit as false, in this case content
+// should be read from GCS.
+// And it returns non-nil error in case something unexpected happens during the execution.
+// In this case, we must abort the Read operation.
+func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
+	p []byte,
+	offset int64) (n int, cacheHit bool, err error) {
+	if rr.fileCacheHandler != nil {
+		// Create fileCacheHandle if not already.
+		if rr.fileCacheHandle == nil {
+			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
+			if err != nil {
+				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+			}
+		}
+
+		n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
+		if err == nil {
+			cacheHit = true
+			return
+		}
+
+		cacheHit = false
+		n = 0
+		if util.IsCacheHandleInvalid(err) {
+			err = rr.fileCacheHandle.Close()
+			if err != nil {
+				err = fmt.Errorf("tryReadingFromFileCache: while closing the fileCacheHandle: %v", err)
+				return
+			}
+			rr.fileCacheHandle = nil
+		} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
+			err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
+			return
+		}
+		err = nil
+	}
+	return
+}
+
 func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
-	offset int64) (n int, err error) {
+	offset int64) (n int, cacheHit bool, err error) {
+
+	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
+	if err != nil {
+		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
+		return
+	}
+	if cacheHit {
+		return
+	}
+
 	for len(p) > 0 {
 		// Have we blown past the end of the object?
 		if offset >= int64(rr.object.Size) {
@@ -264,9 +342,19 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 func (rr *randomReader) Destroy() {
 	// Close out the reader, if we have one.
 	if rr.reader != nil {
-		rr.reader.Close()
+		err := rr.reader.Close()
 		rr.reader = nil
 		rr.cancel = nil
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
+		}
+	}
+
+	if rr.fileCacheHandle != nil {
+		err := rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
+		}
 	}
 }
 
