@@ -15,6 +15,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -206,4 +207,29 @@ func (ut *utilTest) Test_getDownloadPath() {
 	}
 
 	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))
+}
+
+func (ut *utilTest) Test_IsCacheHandleValid_True() {
+	errMessages := []string{
+		InvalidFileHandleErrMsg + "test",
+		InvalidFileDownloadJobErrMsg + "test",
+		InvalidFileInfoCacheErrMsg + "test",
+		ErrInSeekingFileHandleMsg + "test",
+		ErrInReadingFileHandleMsg + "test",
+	}
+
+	for _, errMsg := range errMessages {
+		ExpectTrue(IsCacheHandleInvalid(errors.New(errMsg)))
+	}
+}
+
+func (ut *utilTest) Test_IsCacheHandleValid_False() {
+	errMessages := []string{
+		FallbackToGCSErrMsg + "test",
+		"random error message",
+	}
+
+	for _, errMsg := range errMessages {
+		ExpectFalse(IsCacheHandleInvalid(errors.New(errMsg)))
+	}
 }
