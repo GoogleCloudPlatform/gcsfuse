@@ -1521,7 +1521,8 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode))
+	// TODO (raj-prince) - pass correct value of fileCacheHandler and downloadFileForRandomRead
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), nil, false)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2011,7 +2012,8 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in)
+	// TODO (raj-prince) - Pass correct value of fileCacheHandler and downloadFileForRandomRead
+	fs.handles[handleID] = handle.NewFileHandle(in, nil, false)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
