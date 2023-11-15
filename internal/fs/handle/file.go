@@ -43,8 +43,7 @@ type FileHandle struct {
 	fileCacheHandler *file.CacheHandler
 
 	// downloadFileForRandomRead is also valid for cache workflow, if true, object content
-	// will be downloaded for random reads as well too. Generally, we don't cache the
-	// content for random-read.
+	// will be downloaded for random reads as well too.
 	downloadFileForRandomRead bool
 }
 
