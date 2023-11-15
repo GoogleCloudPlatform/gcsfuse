@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
@@ -193,7 +194,7 @@ func (bm *bucketManager) SetUpBucket(
 		cacheCapacity := bm.config.StatCacheCapacity
 		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			caching.NewStatCache(cacheCapacity),
+			metadata.NewStatCache(cacheCapacity),
 			timeutil.RealClock(),
 			b)
 	}
