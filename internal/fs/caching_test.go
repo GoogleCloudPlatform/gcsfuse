@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
@@ -52,7 +53,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
 	const statCacheCapacity = 1000
-	statCache := caching.NewStatCache(statCacheCapacity)
+	statCache := metadata.NewStatCache(statCacheCapacity)
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
