@@ -20,6 +20,9 @@ WD=$HOME/working_dir
 mkdir -p $WD
 cd $WD
 
+# Install fio.
+sudo apt install fio
+
 # Install and validate go.
 version=1.21.1
 wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz
