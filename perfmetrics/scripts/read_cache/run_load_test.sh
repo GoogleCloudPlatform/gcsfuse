@@ -64,7 +64,7 @@ if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
 fi
 
 for i in $(seq $epoch); do
-   NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ./job_files/file_cache/small/1kb.fio
+   NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ./job_files/read_cache_load_test.fio
 
    # Wait after one epoch training.
    sleep $pause_in_seconds
