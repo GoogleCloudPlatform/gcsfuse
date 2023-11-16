@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
@@ -195,14 +196,13 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 }
 
 // Close closes the underlined fileHandle points to locally downloaded data.
-func (fch *CacheHandle) Close() (err error) {
+func (fch *CacheHandle) Close() {
 	if fch.fileHandle != nil {
-		err = fch.fileHandle.Close()
+		err := fch.fileHandle.Close()
 		if err != nil {
 			err = fmt.Errorf("cacheHandle.Close(): while closing read file handle: %v", err)
+			logger.Warnf("%v", err)
 		}
 		fch.fileHandle = nil
 	}
-
-	return
 }

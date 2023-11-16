@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -133,6 +134,7 @@ func (job *Job) Cancel() {
 	if job.status.Name == DOWNLOADING || job.status.Name == NOT_STARTED {
 		job.cancelFunc()
 		job.status.Name = CANCELLED
+		logger.Errorf("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
 		job.notifySubscribers()
 	}
 }
@@ -149,6 +151,7 @@ func (job *Job) Invalidate() {
 		job.cancelFunc()
 	}
 	job.status.Name = INVALID
+	logger.Errorf("Job:%p (%s://%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
 	job.notifySubscribers()
 }
 
@@ -185,6 +188,7 @@ func (job *Job) notifySubscribers() {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) failWhileDownloading(downloadErr error) {
+	logger.Errorf("Job:%p (%s://%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
 	job.mu.Lock()
 	job.status.Err = downloadErr
 	job.status.Name = FAILED
@@ -212,6 +216,8 @@ func (job *Job) updateFileInfoCache() (err error) {
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
 		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
 	}
+
+	logger.Tracef("Job:%p (%s://%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 
 	// To-Do(raj-prince): We should not call normal insert here as that internally
 	// changes the LRU element which is undesirable given this is not user access.

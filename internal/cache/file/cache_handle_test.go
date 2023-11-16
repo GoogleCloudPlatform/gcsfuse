@@ -138,10 +138,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 
 func (cht *cacheHandleTest) TearDown() {
 	cht.fakeStorage.ShutDown()
-
-	err := cht.cacheHandle.Close()
-	AssertEq(nil, err)
-
+	cht.cacheHandle.Close()
 	operations.RemoveDir(cht.cacheLocation)
 }
 
@@ -176,8 +173,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNonNilMemberAttributes(
 }
 
 func (cht *cacheHandleTest) Test_Close_WithNonNilFileHandle() {
-	err := cht.cacheHandle.Close()
-	AssertEq(nil, err)
+	cht.cacheHandle.Close()
 
 	ExpectEq(nil, cht.cacheHandle.fileHandle)
 }
@@ -185,8 +181,7 @@ func (cht *cacheHandleTest) Test_Close_WithNonNilFileHandle() {
 func (cht *cacheHandleTest) Test_Close_WithNilFileHandle() {
 	cht.cacheHandle.fileHandle = nil
 
-	err := cht.cacheHandle.Close()
-	AssertEq(nil, err)
+	cht.cacheHandle.Close()
 
 	ExpectEq(nil, cht.cacheHandle.fileHandle)
 }

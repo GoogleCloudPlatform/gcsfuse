@@ -956,8 +956,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFil
 	AssertTrue(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
 	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
-	err = t.rr.wrapped.fileCacheHandle.Close()
-	AssertEq(nil, err)
+	t.rr.wrapped.fileCacheHandle.Close()
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
 	rc2 := getReadCloser(testContent)
