@@ -8,7 +8,7 @@ invalidate=1
 ramp_time=10s
 runtime=60s
 time_based=1
-nrfiles=1
+nrfiles=${NRFILES}
 thread=1
 openfiles=1
 group_reporting=1
@@ -16,8 +16,8 @@ allrandrepeat=1
 numjobs=40
 filename_format=$jobname.$jobnum.$filenum
 
-[1KB]
-directory=gcs/100M
-bs=1M
-filesize=100M
-rw=read
+[Workload]
+directory=${DIR}
+bs=${BLOCK_SIZE}
+filesize=${FILE_SIZE}
+rw=${READ_TYPE}
