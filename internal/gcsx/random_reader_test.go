@@ -978,6 +978,74 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFil
 	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
 }
 
+func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := getRandomContent(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertTrue(cacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
+	err = t.rr.wrapped.fileCacheHandle.Close()
+	AssertEq(nil, err)
+	t.rr.wrapped.fileCacheHandle = nil
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	rc2 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
+
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
+}
+
+func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := getRandomContent(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertTrue(cacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
+	err = t.rr.wrapped.fileCacheHandle.Close()
+	AssertEq(nil, err)
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	rc2 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
+	_, cacheHit, err = t.rr.ReadAt(buf, 0) // Read from GCS.
+	ExpectEq(nil, err)
+	ExpectFalse(cacheHit)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+	rc3 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc3)
+
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
+}
+
 // Only writing two unit tests for tryReadingFromFileCache as
 // unit tests of ReadAt method covers all the workflows.
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {

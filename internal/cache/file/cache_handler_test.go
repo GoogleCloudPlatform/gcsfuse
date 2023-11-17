@@ -269,12 +269,10 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGotDeleted() {
-	{
-		// Existing cacheHandle.
-		cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-		AssertEq(nil, cacheHandle1.validateCacheHandle())
-	}
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGetsDeleted() {
+	// Existing cacheHandle.
+	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+	AssertEq(nil, cacheHandle1.validateCacheHandle())
 	// Delete the local cache file.
 	err := os.Remove(chrT.downloadPath)
 	AssertEq(nil, err)
@@ -283,7 +281,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGotDeleted
 	err = chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "data inconsistent -"))
+	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
@@ -347,9 +345,10 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGotDeleted() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
 	_, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	AssertEq(nil, err)
 	// Delete the local cache file.
 	err = os.Remove(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), minObject.Name)))
 	AssertEq(nil, err)
@@ -357,7 +356,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGotDeleted() {
 	_, err = chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "data inconsistent -"))
+	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {

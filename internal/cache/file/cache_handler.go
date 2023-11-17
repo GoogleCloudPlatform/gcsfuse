@@ -103,8 +103,6 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 // In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
 // it cleans up (job and local cache file) for the old entry and adds the new entry with the
 // latest generation to the cache.
-//
-// Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
@@ -114,9 +112,6 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 	if err != nil {
 		return fmt.Errorf("addFileInfoEntryToCache: while creating key: %v", fileInfoKeyName)
 	}
-
-	chr.mu.Lock()
-	defer chr.mu.Unlock()
 
 	addEntryToCache := false
 	// Todo - (raj-prince) - this lookUp should not change the LRU order.
@@ -129,7 +124,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		filePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
 		_, err := os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
-			return fmt.Errorf("addFileInfoEntryToCache: data inconsistent - %s file not present", filePath)
+			return fmt.Errorf("%s: %s", util.DataInconsistentErrMsg, filePath)
 		}
 
 		fileInfoData := fileInfo.(data.FileInfo)
@@ -183,10 +178,15 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 // GetCacheHandle creates an entry in fileInfoCache if it does not already exist. It
 // creates downloader.Job if not already exist. Also, creates local file into which
 // the download job downloads the object content. Finally, it returns a CacheHandle
-// that contains the reference to downloader.Job and the local file handle.
+// that contains the reference to downloader.Job and the local file handle. This method
+// is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
+// sequence guarded by (CacheHandler.mu)
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, downloadForRandom bool, initialOffset int64) (*CacheHandle, error) {
+	chr.mu.Lock()
+	defer chr.mu.Unlock()
+
 	err := chr.addFileInfoEntryToCache(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %v", err)
