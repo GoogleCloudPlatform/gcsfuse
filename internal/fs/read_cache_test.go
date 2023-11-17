@@ -181,6 +181,10 @@ func (t *FileCacheTest) SequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest)
 }
 
+func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
+	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
+}
+
 func (t *FileCacheTest) CacheFilePermissionWithoutAllowOther() {
 	cacheFilePermissionWithoutAllowOther(&t.fsTest, util.DefaultFilePerm)
 }

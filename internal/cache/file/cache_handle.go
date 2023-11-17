@@ -105,7 +105,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 	}
 
 	if offset < 0 || offset >= int64(object.Size) {
-		return 0, fmt.Errorf("wrong offset requested: %d", offset)
+		return 0, fmt.Errorf("wrong offset requested: %d, object size: %d, length of dst: %d", offset, object.Size, len(dst))
 	}
 
 	// Checking before updating the previous offset.

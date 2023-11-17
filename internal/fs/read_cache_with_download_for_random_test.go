@@ -84,6 +84,10 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
+func (t *FileCacheWithDownloadForRandomRead) SequentialReadShouldPopulateCache() {
+	sequentialReadShouldPopulateCache(&t.fsTest)
+}
+
 func (t *FileCacheWithDownloadForRandomRead) CacheFilePermissionWithAllowOther() {
 	cacheFilePermissionWithoutAllowOther(&t.fsTest, util.FilePermWithAllowOther)
 }
@@ -93,7 +97,7 @@ func (t *FileCacheWithDownloadForRandomRead) WriteShouldNotPopulateCache() {
 }
 
 func (t *FileCacheWithDownloadForRandomRead) SequentialToRandomReadShouldPopulateCache() {
-	sequentialReadShouldPopulateCache(&t.fsTest)
+	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
 func (t *FileCacheWithDownloadForRandomRead) NewGenerationShouldRebuildCache() {
@@ -143,11 +147,12 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	// modify the file in cache
-	err = os.WriteFile(downloadPath, []byte(changedContent), util.DefaultFilePerm)
+	err = os.WriteFile(downloadPath, []byte(changedContent), util.FilePermWithAllowOther)
 	AssertEq(nil, err)
 
 	// read the file again, should give modified content
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.FilePermWithAllowOther)
+	AssertEq(nil, err)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)

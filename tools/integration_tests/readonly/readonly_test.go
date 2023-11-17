@@ -57,8 +57,8 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 	}
 }
 
-func createMountConfigsAndEquivalentFlags() (flags []string) {
-	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dir")
 
 	// Set up config file for file cache
 	mountConfig := config.MountConfig{
@@ -70,7 +70,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 		CacheLocation: config.CacheLocation(cacheLocationPath),
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	flags = append(flags, "--o=ro --config-file "+filePath)
+	flags = append(flags, []string{"--o=ro", "--config-file " + filePath})
 
 	return flags
 }
@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags)
+	flags = append(flags, mountConfigFlags...)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
