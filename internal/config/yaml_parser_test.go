@@ -39,9 +39,9 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
 	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
-	AssertEq("", mountConfig.CacheLocation)
-	AssertEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
-	AssertEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	ExpectEq("", mountConfig.CacheLocation)
+	ExpectEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
+	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -107,8 +107,13 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 
+	// log-rotate config
+	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
+	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+
 	// metadata-cache config
-	AssertEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
