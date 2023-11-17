@@ -84,6 +84,34 @@ const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThr
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
+func createMountConfigsAndEquivalentFlags() (flags []string) {
+	// Set up config file with create-empty-file: false.
+	mountConfig1 := config.MountConfig{
+		WriteConfig: config.WriteConfig{
+			CreateEmptyFile: true,
+		},
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
+	}
+	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
+	flags = append(flags, "--config-file "+filePath1)
+
+	// Set up config file for file cache.
+	mountConfig2 := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			// Keeping the size as low because the operations are performed on small
+			// files
+			MaxSizeInMB: 2,
+		},
+		CacheLocation: config.CacheLocation("~/cache-dir"),
+	}
+	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
+	flags = append(flags, "--config-file "+filePath2)
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -100,23 +128,14 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-	// Set up config file with create-empty-file: false.
-	mountConfig := config.MountConfig{
-		WriteConfig: config.WriteConfig{
-			CreateEmptyFile: true,
-		},
-		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
-		},
-	}
-	configFile := setup.YAMLConfigFile(mountConfig)
 	// Set up flags to run tests on.
 	flags := [][]string{
 		// By default, creating emptyFile is disabled.
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
-		{"--config-file=" + configFile}}
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags)
 
 	successCode := static_mounting.RunTests(flags, m)
 

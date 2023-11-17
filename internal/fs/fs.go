@@ -19,12 +19,18 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
@@ -120,12 +126,15 @@ type ServerConfig struct {
 
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
+
+	// AllowOther is true when -o allow_other flag is passed.
+	AllowOther bool
 }
 
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(
-	ctx context.Context,
-	cfg *ServerConfig) (fuseutil.FileSystem, error) {
+		ctx context.Context,
+		cfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
 	if cfg.FilePerms&^os.ModePerm != 0 {
 		return nil, fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
@@ -145,6 +154,12 @@ func NewFileSystem(
 			fmt.Printf("Encountered error retrieving files from cache directory, disabling local file cache: %v", err)
 			cfg.LocalFileCache = false
 		}
+	}
+
+	// create file cache handler if cache is enabled by user.
+	var fileCacheHandler *file.CacheHandler
+	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB != 0 {
+		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
 	// Set up the basic struct.
@@ -171,6 +186,8 @@ func NewFileSystem(
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
+		fileCacheHandler:           fileCacheHandler,
+		downloadFileForRandomRead:  cfg.MountConfig.FileCacheConfig.DownloadFileForRandomRead,
 	}
 
 	// Set up root bucket
@@ -197,10 +214,44 @@ func NewFileSystem(
 	return fs, nil
 }
 
+func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler) {
+	var sizeInBytes uint64
+	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
+	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
+	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB == -1 {
+		sizeInBytes = math.MaxUint64
+	} else {
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeInMB) * util.MiB
+	}
+	fileInfoCache := lru.NewCache(sizeInBytes)
+
+	cacheLocation := string(cfg.MountConfig.CacheLocation)
+	// use temp-dir as default cache-location.
+	if cacheLocation == "" {
+		cacheLocation = cfg.TempDir
+	}
+	cacheLocation, err := filepath.Abs(cacheLocation)
+	if err != nil {
+		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %v", cacheLocation, err))
+	}
+
+	// when user passes allow_other flag, then other users should be able to
+	// read from cache
+	filePerm := util.DefaultFilePerm
+	if cfg.AllowOther {
+		filePerm = util.FilePermWithAllowOther
+	}
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
+		cfg.SequentialReadSizeMb)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
+		cacheLocation, filePerm)
+	return
+}
+
 func makeRootForBucket(
-	ctx context.Context,
-	fs *fileSystem,
-	syncerBucket gcsx.SyncerBucket) inode.DirInode {
+		ctx context.Context,
+		fs *fileSystem,
+		syncerBucket gcsx.SyncerBucket) inode.DirInode {
 	return inode.NewDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
@@ -400,6 +451,14 @@ type fileSystem struct {
 
 	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
+
+	// fileCacheHandler manages read only file cache. It is non-nil only when
+	// file cache is enabled at the time of mounting.
+	fileCacheHandler *file.CacheHandler
+
+	// downloadFileForRandomRead when true downloads file into cache even for
+	// random file access.
+	downloadFileForRandomRead bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -843,9 +902,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 // LOCKS_EXCLUDED(parent)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpOrCreateChildInode(
-	ctx context.Context,
-	parent inode.DirInode,
-	childName string) (child inode.Inode, err error) {
+		ctx context.Context,
+		parent inode.DirInode,
+		childName string) (child inode.Inode, err error) {
 	// First check if the requested child is a localFileInode.
 	child = fs.lookUpLocalFileInode(parent, childName)
 	if child != nil {
@@ -962,9 +1021,9 @@ func (fs *fileSystem) lookUpLocalFileInode(parent inode.DirInode, childName stri
 // LOCKS_EXCLUDED(parent)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) lookUpOrCreateChildDirInode(
-	ctx context.Context,
-	parent inode.DirInode,
-	childName string) (child inode.BucketOwnedDirInode, err error) {
+		ctx context.Context,
+		parent inode.DirInode,
+		childName string) (child inode.BucketOwnedDirInode, err error) {
 	in, err := fs.lookUpOrCreateChildInode(ctx, parent, childName)
 	if err != nil {
 		return nil, fmt.Errorf("lookup or create %q: %w", childName, err)
@@ -983,8 +1042,8 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) syncFile(
-	ctx context.Context,
-	f *inode.FileInode) (err error) {
+		ctx context.Context,
+		f *inode.FileInode) (err error) {
 	// SyncFile can be triggered for unlinked files if the fileHandle is open by
 	// same or another user. Silently ignore the syncFile call.
 	// This is in sync with non-local file behaviour.
@@ -1091,8 +1150,8 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 // LOCKS_EXCLUDED(fs.mu)
 // UNLOCK_FUNCTION(in)
 func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
-	in inode.Inode,
-	err *error) {
+		in inode.Inode,
+		err *error) {
 	// If there is no error, just unlock.
 	if *err == nil {
 		in.Unlock()
@@ -1108,11 +1167,11 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 //
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
-	ctx context.Context,
-	in inode.Inode) (
-	attr fuseops.InodeAttributes,
-	expiration time.Time,
-	err error) {
+		ctx context.Context,
+		in inode.Inode) (
+		attr fuseops.InodeAttributes,
+		expiration time.Time,
+		err error) {
 	// Call through.
 	attr, err = in.Attributes(ctx)
 	if err != nil {
@@ -1173,7 +1232,7 @@ func (fs *fileSystem) fileInodeOrDie(id fuseops.InodeID) (in *inode.FileInode) {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fileSystem) symlinkInodeOrDie(
-	id fuseops.InodeID) (in *inode.SymlinkInode) {
+		id fuseops.InodeID) (in *inode.SymlinkInode) {
 	tmp := fs.inodes[id]
 	in, ok := tmp.(*inode.SymlinkInode)
 	if !ok {
@@ -1192,8 +1251,8 @@ func (fs *fileSystem) Destroy() {
 }
 
 func (fs *fileSystem) StatFS(
-	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
+		ctx context.Context,
+		op *fuseops.StatFSOp) (err error) {
 	// Simulate a large amount of free space so that the Finder doesn't refuse to
 	// copy in files. (See issue #125.) Use 2^17 as the block size because that
 	// is the largest that OS X will pass on.
@@ -1215,8 +1274,8 @@ func (fs *fileSystem) StatFS(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
-	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+		ctx context.Context,
+		op *fuseops.LookUpInodeOp) (err error) {
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1244,8 +1303,8 @@ func (fs *fileSystem) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) GetInodeAttributes(
-	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+		ctx context.Context,
+		op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1265,8 +1324,8 @@ func (fs *fileSystem) GetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SetInodeAttributes(
-	ctx context.Context,
-	op *fuseops.SetInodeAttributesOp) (err error) {
+		ctx context.Context,
+		op *fuseops.SetInodeAttributesOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1308,8 +1367,8 @@ func (fs *fileSystem) SetInodeAttributes(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ForgetInode(
-	ctx context.Context,
-	op *fuseops.ForgetInodeOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ForgetInodeOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1324,8 +1383,8 @@ func (fs *fileSystem) ForgetInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkDir(
-	ctx context.Context,
-	op *fuseops.MkDirOp) (err error) {
+		ctx context.Context,
+		op *fuseops.MkDirOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1376,8 +1435,8 @@ func (fs *fileSystem) MkDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) MkNode(
-	ctx context.Context,
-	op *fuseops.MkNodeOp) (err error) {
+		ctx context.Context,
+		op *fuseops.MkNodeOp) (err error) {
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -1409,10 +1468,10 @@ func (fs *fileSystem) MkNode(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCK_FUNCTION(child)
 func (fs *fileSystem) createFile(
-	ctx context.Context,
-	parentID fuseops.InodeID,
-	name string,
-	mode os.FileMode) (child inode.Inode, err error) {
+		ctx context.Context,
+		parentID fuseops.InodeID,
+		name string,
+		mode os.FileMode) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1454,8 +1513,8 @@ func (fs *fileSystem) createFile(
 // UNLOCK_FUNCTION(fs.mu)
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) createLocalFile(
-	parentID fuseops.InodeID,
-	name string) (child inode.Inode, err error) {
+		parentID fuseops.InodeID,
+		name string) (child inode.Inode, err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
@@ -1499,8 +1558,8 @@ func (fs *fileSystem) createLocalFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
-	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.CreateFileOp) (err error) {
 	// Create the child.
 	var child inode.Inode
 	if fs.mountConfig.CreateEmptyFile {
@@ -1521,8 +1580,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// TODO (raj-prince) - pass correct value of fileCacheHandler and downloadFileForRandomRead
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), nil, false)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.downloadFileForRandomRead)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -1542,8 +1600,8 @@ func (fs *fileSystem) CreateFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateSymlink(
-	ctx context.Context,
-	op *fuseops.CreateSymlinkOp) (err error) {
+		ctx context.Context,
+		op *fuseops.CreateSymlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1593,20 +1651,20 @@ func (fs *fileSystem) CreateSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) RmDir(
-	// When rm -r or os.RemoveAll call is made, the following calls are made in order
-	//	 1. RmDir (only in the case of os.RemoveAll)
-	//	 2. Unlink all nested files,
-	//	 3. lookupInode call on implicit directory
-	//	 4. Rmdir on the directory.
-	//
-	// When type cache ttl is set, we construct an implicitDir even though one doesn't
-	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
-	// and thus, we get rmDir call to GCSFuse.
-	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
-	// because object is not present in GCS.
+// When rm -r or os.RemoveAll call is made, the following calls are made in order
+//	 1. RmDir (only in the case of os.RemoveAll)
+//	 2. Unlink all nested files,
+//	 3. lookupInode call on implicit directory
+//	 4. Rmdir on the directory.
+//
+// When type cache ttl is set, we construct an implicitDir even though one doesn't
+// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+// and thus, we get rmDir call to GCSFuse.
+// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
+// because object is not present in GCS.
 
-	ctx context.Context,
-	op *fuseops.RmDirOp) (err error) {
+		ctx context.Context,
+		op *fuseops.RmDirOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1698,8 +1756,8 @@ func (fs *fileSystem) RmDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Rename(
-	ctx context.Context,
-	op *fuseops.RenameOp) (err error) {
+		ctx context.Context,
+		op *fuseops.RenameOp) (err error) {
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -1751,12 +1809,12 @@ func (fs *fileSystem) Rename(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFile(
-	ctx context.Context,
-	oldParent inode.DirInode,
-	oldName string,
-	oldObject *gcs.Object,
-	newParent inode.DirInode,
-	newFileName string) error {
+		ctx context.Context,
+		oldParent inode.DirInode,
+		oldName string,
+		oldObject *gcs.Object,
+		newParent inode.DirInode,
+		newFileName string) error {
 	// Clone into the new location.
 	newParent.Lock()
 	_, err := newParent.CloneToChildFile(ctx, newFileName, oldObject)
@@ -1792,11 +1850,11 @@ func (fs *fileSystem) renameFile(
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameDir(
-	ctx context.Context,
-	oldParent inode.DirInode,
-	oldName string,
-	newParent inode.DirInode,
-	newName string) error {
+		ctx context.Context,
+		oldParent inode.DirInode,
+		oldName string,
+		newParent inode.DirInode,
+		newName string) error {
 
 	// Set up a function that throws away the lookup count increment from
 	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
@@ -1901,8 +1959,8 @@ func (fs *fileSystem) renameDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
-	ctx context.Context,
-	op *fuseops.UnlinkOp) (err error) {
+		ctx context.Context,
+		op *fuseops.UnlinkOp) (err error) {
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1929,7 +1987,7 @@ func (fs *fileSystem) Unlink(
 	err = parent.DeleteChildFile(
 		ctx,
 		op.Name,
-		0,   // Latest generation
+		0, // Latest generation
 		nil) // No meta-generation precondition
 
 	if err != nil {
@@ -1942,8 +2000,8 @@ func (fs *fileSystem) Unlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenDir(
-	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+		ctx context.Context,
+		op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -1964,8 +2022,8 @@ func (fs *fileSystem) OpenDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDir(
-	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReadDirOp) (err error) {
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -1984,8 +2042,8 @@ func (fs *fileSystem) ReadDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseDirHandle(
-	ctx context.Context,
-	op *fuseops.ReleaseDirHandleOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReleaseDirHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -2000,8 +2058,8 @@ func (fs *fileSystem) ReleaseDirHandle(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) OpenFile(
-	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -2012,8 +2070,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// TODO (raj-prince) - Pass correct value of fileCacheHandler and downloadFileForRandomRead
-	fs.handles[handleID] = handle.NewFileHandle(in, nil, false)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.downloadFileForRandomRead)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
@@ -2027,8 +2084,8 @@ func (fs *fileSystem) OpenFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadFile(
-	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReadFileOp) (err error) {
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
@@ -2050,8 +2107,8 @@ func (fs *fileSystem) ReadFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadSymlink(
-	ctx context.Context,
-	op *fuseops.ReadSymlinkOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReadSymlinkOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)
@@ -2068,8 +2125,8 @@ func (fs *fileSystem) ReadSymlink(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) WriteFile(
-	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.WriteFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2088,8 +2145,8 @@ func (fs *fileSystem) WriteFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) SyncFile(
-	ctx context.Context,
-	op *fuseops.SyncFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.SyncFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2114,8 +2171,8 @@ func (fs *fileSystem) SyncFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) FlushFile(
-	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
+		ctx context.Context,
+		op *fuseops.FlushFileOp) (err error) {
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2134,8 +2191,8 @@ func (fs *fileSystem) FlushFile(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReleaseFileHandle(
-	ctx context.Context,
-	op *fuseops.ReleaseFileHandleOp) (err error) {
+		ctx context.Context,
+		op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -2149,13 +2206,13 @@ func (fs *fileSystem) ReleaseFileHandle(
 }
 
 func (fs *fileSystem) GetXattr(
-	ctx context.Context,
-	op *fuseops.GetXattrOp) (err error) {
+		ctx context.Context,
+		op *fuseops.GetXattrOp) (err error) {
 	return syscall.ENOSYS
 }
 
 func (fs *fileSystem) ListXattr(
-	ctx context.Context,
-	op *fuseops.ListXattrOp) error {
+		ctx context.Context,
+		op *fuseops.ListXattrOp) error {
 	return syscall.ENOSYS
 }

@@ -151,7 +151,7 @@ func (ut *utilTest) Test_CreateFile_FilePerm0544() {
 func (ut *utilTest) Test_CreateFile_FilePresent() {
 	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
 	ExpectEq(nil, err)
-	file, err := os.Create(ut.fileSpec.Path)
+	file, err := os.OpenFile(ut.fileSpec.Path, os.O_CREATE|os.O_RDWR, DefaultFilePerm)
 	ExpectEq(nil, err)
 	ExpectEq(nil, file.Close())
 

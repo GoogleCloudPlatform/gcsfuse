@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -34,10 +35,40 @@ const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 
+func createMountConfigsAndEquivalentFlags() (flags []string) {
+	// Set up config file for file cache with download-file-for-random-read: false
+	mountConfig1 := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			// Keeping the size as high because the operations are performed on large
+			// files
+			MaxSizeInMB:               700,
+			DownloadFileForRandomRead: true,
+		},
+		CacheLocation: config.CacheLocation("~/cache-dir"),
+	}
+	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
+	flags = append(flags, "--config-file "+filePath1)
+
+	// Set up config file for file cache with unlimited capacity
+	mountConfig2 := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeInMB:               -1,
+			DownloadFileForRandomRead: false,
+		},
+		CacheLocation: config.CacheLocation("~/cache-dir"),
+	}
+	filePath2 := setup.YAMLConfigFile(mountConfig2, "config1.yaml")
+	flags = append(flags, "--config-file "+filePath2)
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--implicit-dirs"}}
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

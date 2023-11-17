@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -55,10 +56,28 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 	}
 }
 
+func createMountConfigsAndEquivalentFlags() (flags []string) {
+	// Set up config file for file cache
+	mountConfig := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			// Keeping the size as small because the operations are performed on small
+			// files
+			MaxSizeInMB: 3,
+		},
+		CacheLocation: config.CacheLocation("~/cache-dir"),
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	flags = append(flags, "--o=ro --config-file "+filePath)
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

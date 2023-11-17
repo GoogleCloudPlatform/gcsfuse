@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
@@ -233,7 +234,8 @@ func (rr *randomReader) ReadAt(
 	offset int64) (n int, cacheHit bool, err error) {
 
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
-	if err != nil {
+	// We fall back to GCS if file size is greater than the cache size
+	if err != nil && !strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
 		return
 	}
