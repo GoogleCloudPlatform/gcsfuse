@@ -1003,7 +1003,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	rc2 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
 
-	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+	_, _, err = t.rr.ReadAt(buf, 0)
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
@@ -1040,7 +1040,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen
 	rc3 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc3)
 
-	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+	_, _, err = t.rr.ReadAt(buf, 0)
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
