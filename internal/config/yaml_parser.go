@@ -34,6 +34,7 @@ const (
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
 
+	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 )
 
@@ -49,6 +50,16 @@ func IsValidLogSeverity(severity LogSeverity) bool {
 		return true
 	}
 	return false
+}
+
+func IsValidLogRotateConfig(config LogRotateConfig) error {
+	if config.MaxFileSizeMB <= 0 {
+		return fmt.Errorf("max-file-size-mb should be atleast 1")
+	}
+	if config.FileCount <= 0 {
+		return fmt.Errorf("file-count should be atleast 1")
+	}
+	return nil
 }
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
@@ -87,13 +98,18 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		if err == io.EOF {
 			return mountConfig, nil
 		}
-		return mountConfig, fmt.Errorf("error parsing config file: %w", err)
+		return mountConfig, fmt.Errorf(parseConfigFileErrMsgFormat, err)
 	}
 
 	// convert log severity to upper-case
 	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
+		return
+	}
+
+	if err = IsValidLogRotateConfig(mountConfig.LogConfig.LogRotateConfig); err != nil {
+		err = fmt.Errorf(parseConfigFileErrMsgFormat, err)
 		return
 	}
 
