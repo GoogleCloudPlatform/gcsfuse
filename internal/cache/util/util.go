@@ -88,8 +88,8 @@ func GetDownloadPath(cacheLocation string, objectPath string) string {
 // for next call onwards.
 func IsCacheHandleInvalid(readErr error) bool {
 	return strings.Contains(readErr.Error(), InvalidFileHandleErrMsg) ||
-			strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
-			strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
-			strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
-			strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
+		strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
+		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
+		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
+		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
