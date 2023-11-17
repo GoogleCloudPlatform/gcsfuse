@@ -124,6 +124,14 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 	if fileInfo == nil {
 		addEntryToCache = true
 	} else {
+		// Throw an error, if there is an entry in the file-info cache and cache file doesn't
+		// exist locally.
+		filePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
+		_, err := os.Stat(filePath)
+		if err != nil && os.IsNotExist(err) {
+			return fmt.Errorf("addFileInfoEntryToCache: data inconsistent - %s file not present", filePath)
+		}
+
 		fileInfoData := fileInfo.(data.FileInfo)
 		if fileInfoData.ObjectGeneration < object.Generation {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)

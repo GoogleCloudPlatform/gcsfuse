@@ -73,7 +73,6 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 
 	// fileInfoCache with testFileInfoEntry
 	chrT.cache = lru.NewCache(HandlerCacheMaxSize)
-	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 
 	// Job manager
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, chrT.cacheLocation, DefaultSequentialReadSizeMb)
@@ -81,7 +80,11 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	// Mocked cached handler object.
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm)
 
+	// Follow consistency, local-cache file and entry in fileInfo cache should exist atomically.
+	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
+	_, err = chrT.cacheHandler.createLocalFileReadHandle(chrT.object.Name, chrT.bucket.Name())
+	AssertEq(nil, err)
 }
 
 func (chrT *cacheHandlerTest) TearDown() {
@@ -266,6 +269,23 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
 
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGotDeleted() {
+	{
+		// Existing cacheHandle.
+		cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+		AssertEq(nil, cacheHandle1.validateCacheHandle())
+	}
+	// Delete the local cache file.
+	err := os.Remove(chrT.downloadPath)
+	AssertEq(nil, err)
+
+	// Insertion will happen and that leads to eviction.
+	err = chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), "data inconsistent -"))
+}
+
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
 	// Existing cacheHandle.
 	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
@@ -325,6 +345,19 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
 	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
 	ExpectEq(downloader.INVALID, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGotDeleted() {
+	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
+	_, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	// Delete the local cache file.
+	err = os.Remove(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), minObject.Name)))
+	AssertEq(nil, err)
+
+	_, err = chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), "data inconsistent -"))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
