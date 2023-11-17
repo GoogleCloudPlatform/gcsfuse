@@ -283,11 +283,11 @@ func (t *LoggerTest) TestInitLogFile() {
 	err := InitLogFile(logConfig)
 
 	AssertEq(nil, err)
-	AssertEq(filePath, defaultLoggerFactory.file.Name())
-	AssertEq(nil, defaultLoggerFactory.sysWriter)
-	AssertEq(format, defaultLoggerFactory.format)
-	AssertEq(config.DEBUG, defaultLoggerFactory.level)
-	AssertEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
-	AssertEq(fileCount, defaultLoggerFactory.logRotateConfig.FileCount)
-	AssertEq(true, defaultLoggerFactory.logRotateConfig.Compress)
+	ExpectEq(filePath, defaultLoggerFactory.file.Name())
+	ExpectEq(nil, defaultLoggerFactory.sysWriter)
+	ExpectEq(format, defaultLoggerFactory.format)
+	ExpectEq(config.DEBUG, defaultLoggerFactory.level)
+	ExpectEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
+	ExpectEq(fileCount, defaultLoggerFactory.logRotateConfig.FileCount)
+	ExpectEq(true, defaultLoggerFactory.logRotateConfig.Compress)
 }
