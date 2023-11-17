@@ -18,6 +18,7 @@ package operations_test
 import (
 	"log"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -85,6 +86,8 @@ const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLeve
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
 func createMountConfigsAndEquivalentFlags() (flags []string) {
+	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+
 	// Set up config file with create-empty-file: false.
 	mountConfig1 := config.MountConfig{
 		WriteConfig: config.WriteConfig{
@@ -104,7 +107,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			// files
 			MaxSizeInMB: 2,
 		},
-		CacheLocation: config.CacheLocation("~/cache-dir"),
+		CacheLocation: config.CacheLocation(cacheLocationPath),
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, "--config-file "+filePath2)

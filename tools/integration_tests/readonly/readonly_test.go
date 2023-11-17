@@ -18,6 +18,7 @@ package readonly_test
 import (
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -57,6 +58,8 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 }
 
 func createMountConfigsAndEquivalentFlags() (flags []string) {
+	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+
 	// Set up config file for file cache
 	mountConfig := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -64,7 +67,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			// files
 			MaxSizeInMB: 3,
 		},
-		CacheLocation: config.CacheLocation("~/cache-dir"),
+		CacheLocation: config.CacheLocation(cacheLocationPath),
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	flags = append(flags, "--o=ro --config-file "+filePath)

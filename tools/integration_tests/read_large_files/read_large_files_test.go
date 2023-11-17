@@ -18,6 +18,7 @@ package read_large_files
 import (
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"testing"
 
@@ -36,6 +37,8 @@ const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 
 func createMountConfigsAndEquivalentFlags() (flags []string) {
+	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+
 	// Set up config file for file cache with download-file-for-random-read: false
 	mountConfig1 := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -44,7 +47,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			MaxSizeInMB:               700,
 			DownloadFileForRandomRead: true,
 		},
-		CacheLocation: config.CacheLocation("~/cache-dir"),
+		CacheLocation: config.CacheLocation(cacheLocationPath),
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, "--config-file "+filePath1)
@@ -55,7 +58,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			MaxSizeInMB:               -1,
 			DownloadFileForRandomRead: false,
 		},
-		CacheLocation: config.CacheLocation("~/cache-dir"),
+		CacheLocation: config.CacheLocation(cacheLocationPath),
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config1.yaml")
 	flags = append(flags, "--config-file "+filePath2)
