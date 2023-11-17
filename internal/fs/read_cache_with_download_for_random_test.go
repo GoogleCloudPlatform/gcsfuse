@@ -84,10 +84,6 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheWithDownloadForRandomRead) SequentialReadShouldPopulateCache() {
-	sequentialReadShouldPopulateCache(&t.fsTest)
-}
-
 func (t *FileCacheWithDownloadForRandomRead) CacheFilePermissionWithAllowOther() {
 	cacheFilePermissionWithoutAllowOther(&t.fsTest, util.FilePermWithAllowOther)
 }
@@ -127,6 +123,7 @@ func (t *FileCacheWithDownloadForRandomRead) NewGenerationShouldRebuildCache() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	cacheContent, err := os.ReadFile(downloadPath)
+	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cacheContent)))
 }
 

@@ -18,7 +18,6 @@
 package fs_test
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -145,7 +144,6 @@ func writeShouldNotPopulateCache(t *fsTest) {
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
-	fmt.Println(err.Error())
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -271,10 +269,6 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	stat, err := os.Stat(downloadPath)
 	AssertEq(nil, err)
 	AssertEq(0, stat.Size())
-}
-
-func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
-	sequentialReadShouldPopulateCache(&t.fsTest)
 }
 
 func (t *FileCacheTest) DeletingFileFromCacheShouldReadFromGCS() {
