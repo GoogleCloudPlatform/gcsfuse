@@ -36,7 +36,7 @@ const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 
-func createMountConfigsAndEquivalentFlags() (flags []string) {
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
 	// Set up config file for file cache with download-file-for-random-read: false
@@ -48,9 +48,12 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			DownloadFileForRandomRead: true,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, "--config-file "+filePath1)
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1})
 
 	// Set up config file for file cache with unlimited capacity
 	mountConfig2 := config.MountConfig{
@@ -59,9 +62,12 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			DownloadFileForRandomRead: false,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config1.yaml")
-	flags = append(flags, "--config-file "+filePath2)
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})
 
 	return flags
 }
@@ -71,7 +77,7 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags)
+	flags = append(flags, mountConfigFlags...)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

@@ -68,9 +68,12 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			MaxSizeInMB: 3,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	flags = append(flags, []string{"--o=ro", "--config-file " + filePath})
+	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})
 
 	return flags
 }

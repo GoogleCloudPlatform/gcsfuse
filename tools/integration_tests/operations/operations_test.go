@@ -85,7 +85,7 @@ const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThr
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
-func createMountConfigsAndEquivalentFlags() (flags []string) {
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
 	// Set up config file with create-empty-file: false.
@@ -98,7 +98,7 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, "--config-file "+filePath1)
+	flags = append(flags, []string{"--config-file=" + filePath1})
 
 	// Set up config file for file cache.
 	mountConfig2 := config.MountConfig{
@@ -108,9 +108,12 @@ func createMountConfigsAndEquivalentFlags() (flags []string) {
 			MaxSizeInMB: 2,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
+		LogConfig: config.LogConfig{
+			Severity: config.TRACE,
+		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, "--config-file "+filePath2)
+	flags = append(flags, []string{"--config-file=" + filePath2})
 
 	return flags
 }
@@ -138,7 +141,7 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags)
+	flags = append(flags, mountConfigFlags...)
 
 	successCode := static_mounting.RunTests(flags, m)
 
