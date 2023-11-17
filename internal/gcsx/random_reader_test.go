@@ -1016,6 +1016,34 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 }
+func (t *RandomReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	t.object.Size = util.MiB
+	objectSize := t.object.Size
+	testContent := getRandomContent(int(objectSize))
+	rc := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	start1 := 0
+	end1 := util.MiB // equal to objectSize
+	// First call from offset 0 - objectSize
+	buf := make([]byte, end1-start1)
+	_, cacheHit, err := t.rr.ReadAt(buf, int64(start1))
+	ExpectTrue(cacheHit)
+	ExpectEq(nil, err)
+	ExpectTrue(reflect.DeepEqual(testContent[start1:end1], buf))
+	start2 := util.MiB // offset equal to objectSize
+	end2 := start2 + util.MiB
+	buf2 := make([]byte, end2-start2)
+
+	// read for offset equal to objectSize
+	n, cacheHit, err := t.rr.ReadAt(buf2, int64(start2))
+
+	// nothing should be read
+	ExpectFalse(cacheHit)
+	ExpectEq(io.EOF, err)
+	ExpectEq(0, n)
+}
 
 // TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.
 // This requires mocking CacheHandle object, whose read method will return some unexpected

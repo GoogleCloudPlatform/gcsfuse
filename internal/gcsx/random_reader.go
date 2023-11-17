@@ -193,8 +193,8 @@ func (rr *randomReader) CheckInvariants() {
 // And it returns non-nil error in case something unexpected happens during the execution.
 // In this case, we must abort the Read operation.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
 	if rr.fileCacheHandler != nil {
 		// Create fileCacheHandle if not already.
 		if rr.fileCacheHandle == nil {
@@ -229,9 +229,14 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 }
 
 func (rr *randomReader) ReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		ctx context.Context,
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
+
+	if offset >= int64(rr.object.Size) {
+		err = io.EOF
+		return
+	}
 
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	// We fall back to GCS if file size is greater than the cache size
@@ -364,8 +369,8 @@ func (rr *randomReader) Destroy() {
 //
 // REQUIRES: rr.reader != nil
 func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
+		ctx context.Context,
+		p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -399,9 +404,9 @@ func (rr *randomReader) readFull(
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(
-	ctx context.Context,
-	start int64,
-	size int64) (err error) {
+		ctx context.Context,
+		start int64,
+		size int64) (err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
