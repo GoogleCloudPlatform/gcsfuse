@@ -69,7 +69,7 @@ function install_requirements() {
   pip install google-cloud-vision
   pip install google-api-python-client
   pip install prettytable
-  "${KOKORO_ARTIFACTS_DIR}"/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh
+  "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh" "${KOKORO_ARTIFACTS_DIR}/github"
   cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 }
 

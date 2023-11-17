@@ -17,7 +17,7 @@ set -e
 
 echo "Installing pip"
 sudo apt-get install pip -y
-"${KOKORO_ARTIFACTS_DIR}"/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh
+"${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/fio/install_fio.sh" "${KOKORO_ARTIFACTS_DIR}/github"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts"
 

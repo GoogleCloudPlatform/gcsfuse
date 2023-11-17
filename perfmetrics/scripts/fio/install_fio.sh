@@ -13,21 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Args: 
+# $1: <path-to-clone-fio-source-code> e.g. ~/github/
+
 set -e
+
+if [[ $# -eq 0 ]] ; then
+    echo 'No argument passed.'
+    echo 'Args: <path-to-clone-fio-source-code>'
+    exit 1
+fi
+
+SRC_DIR="$1"
+FIO_SRC_DIR="${SRC_DIR}/fio"
 
 echo "Installing fio ..."
 # install libaio as fio has a dependency on libaio
 sudo apt-get install -y libaio-dev
 
-# We are building fio from source because of issue: https://github.com/axboe/fio/issues/1640.
-# The fix is not currently released in a package as of 20th Oct, 2023.
-# TODO: install fio via package when release > 3.35 is available.
-FIO_SRC_DIR="${KOKORO_ARTIFACTS_DIR}/github/fio"
-sudo rm -rf "${FIO_SRC_DIR}" && \
-git clone https://github.com/axboe/fio.git "$FIO_SRC_DIR"
+# We are building fio from source because of the issue: https://github.com/axboe/fio/issues/1668.
+sudo rm -rf "$FIO_SRC_DIR" && \
+git clone https://github.com/axboe/fio.git "$FIO_SRC_DIR" && \
 cd  "$FIO_SRC_DIR" && \
-git checkout c5d8ce3fc736210ded83b126c71e3225c7ffd7c9 && \
+git checkout fio-3.35 && \
 ./configure && make && sudo make install
 
 # Now, print the installed fio version for verification
 echo 'fio version='$(fio -version)
+
+# go back to the original directory
+cd -
