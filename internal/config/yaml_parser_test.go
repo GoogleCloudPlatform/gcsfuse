@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -30,10 +31,13 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
-	AssertEq(false, mountConfig.CreateEmptyFile)
-	AssertEq("INFO", mountConfig.LogConfig.Severity)
-	AssertEq("", mountConfig.LogConfig.Format)
-	AssertEq("", mountConfig.LogConfig.FilePath)
+	ExpectEq(false, mountConfig.CreateEmptyFile)
+	ExpectEq("INFO", mountConfig.LogConfig.Severity)
+	ExpectEq("", mountConfig.LogConfig.Format)
+	ExpectEq("", mountConfig.LogConfig.FilePath)
+	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -77,15 +81,35 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(true, mountConfig.WriteConfig.CreateEmptyFile)
-	AssertEq(ERROR, mountConfig.LogConfig.Severity)
-	AssertEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
-	AssertEq("text", mountConfig.LogConfig.Format)
+	ExpectEq(true, mountConfig.WriteConfig.CreateEmptyFile)
+	ExpectEq(ERROR, mountConfig.LogConfig.Severity)
+	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
+	ExpectEq("text", mountConfig.LogConfig.Format)
+	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidValidLogConfig() {
+func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]"))
+	AssertTrue(strings.Contains(err.Error(),
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]")))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig1() {
+	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_1.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(),
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "max-file-size-mb should be atleast 1")))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
+	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_2.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(),
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "file-count should be atleast 1")))
 }

@@ -4,4 +4,9 @@ logging:
   file-path: /tmp/logfile.json
   format: text
   severity: error
+  log-rotate:
+    max-file-size-mb: 100
+    file-count: 5
+    compress: false
+
 
