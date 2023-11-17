@@ -35,7 +35,7 @@ sudo apt-get install -y libaio-dev
 sudo rm -rf "$FIO_SRC_DIR" && \
 git clone https://github.com/axboe/fio.git "$FIO_SRC_DIR" && \
 cd  "$FIO_SRC_DIR" && \
-git checkout fio-3.35 && \
+git checkout fio-3.36 && \
 ./configure && make && sudo make install
 
 # Now, print the installed fio version for verification
