@@ -17,7 +17,8 @@ set -e
 
 bucket_name=princer-read-cache-load-test
 
-mount_dir = $WORKING_DIR/gcs
+# Create mount dir.
+mount_dir=$WORKING_DIR/gcs
 mkdir -p $mount_dir
 
 # Mount gcsfuse
