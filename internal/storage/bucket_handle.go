@@ -27,6 +27,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
@@ -272,10 +273,15 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
-			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+			if attrs.Prefix == "/" {
+				logger.Debugf("Listing in bucket: %s found an unsupported prefix(directory) \"%s\". Ignoring it...", b.bucketName, req.Prefix)
+			} else {
+				list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+			}
 		} else {
 			// Converting attrs to *Object type.
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+
 			list.Objects = append(list.Objects, currObject)
 		}
 
