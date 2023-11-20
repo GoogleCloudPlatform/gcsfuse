@@ -21,11 +21,11 @@ mkdir -p $WD
 cd $WD
 
 # Install fio.
-sudo apt install fio
+sudo apt install fio -y
 
 # Install and validate go.
 version=1.21.1
-wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go
 tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
@@ -34,15 +34,13 @@ export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
 echo 'export PATH=$PATH:$HOME/go/bin/:/usr/local/go/bin' >> ~/.bashrc
 echo 'export WORKING_DIR=$WD' >> ~/.bashrc
 
+source ~/.bashrc
+
 # Install gcsfuse.
 go install github.com/googlecloudplatform/gcsfuse@read_cache_release
 
 # Install clone gcsfuse.
-git clone -b read_cache_release https://github.com/GoogleCloudPlatform/gcsfuse.git
-
-# Create mount dir and mount via gcsfuse.
-mkdir -p $WD/gcs
+git clone -b  fio_load_test_script https://github.com/GoogleCloudPlatform/gcsfuse.git
 
 # Mount gcsfuse.
-gcsfuse --help
-./mount_gcsfuse.sh
+./$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh
