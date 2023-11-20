@@ -15,57 +15,40 @@
 
 set -e
 
-print_usage() {
-  echo "Help/Supported options..."
-  printf "./run_read_cache_workload  "
-  printf "[-e epoch] [-p pause_after_every_epoch_in_seconds] "
-  printf "[-n number_of_files_per_thread] "
-  printf "[-r read_type (read | randread)] "
-  printf "[-s file_size (in K, M, G E.g. 10K] "
-  printf "[-b block_size (in K, M, G E.g. 20K] "
-  printf "[-d workload directory] \n"
-}
+# Mount gcsfuse.
+gcsfuse --help
 
-# Default values:
-epoch=2
-no_of_files_per_thread=1
-read_type=read
-pause_in_seconds=2
-block_size=1K
-file_size=1K
-
-while getopts he:p:n:r:d:s:b: flag
-do
-  case "${flag}" in
-    e) epoch=${OPTARG};;
-    p) pause_in_seconds=${OPTARG};;
-    n) no_of_files_per_thread=${OPTARG};;
-    r) read_type=${OPTARG};;
-    d) workload_dir=${OPTARG};;
-    s) file_size=${OPTARG};;
-    b) block_size=${OPTARG};;
-    h) print_usage
-        exit 0 ;;
-    *) print_usage
-        exit 1 ;;
-  esac
-done
-
-if [ ! -d "$workload_dir" ]; then
-  echo "Please pass a valid workload dir with -d options..."
+if [[ -z "${WORKING_DIR}" ]]; then
+  echo "Please set the working directory..."
   exit 1
 fi
 
-fio_job_path=x.fio
+# For file-size = 1K and block-size = 1K
+workload_dir=$WORKING_DIR/gcs/1K
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 1K -s 1K -d $workload_dir
 
-if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
-  echo "Please pass a valid read typr -r (read | randread)..."
-  exit 1
-fi
+# For file-size = 128K and block-size = 32K
+workload_dir=$WORKING_DIR/gcs/128K
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 32K -s 128K -d $workload_dir
 
-for i in $(seq $epoch); do
-   NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ./job_files/read_cache_load_test.fio
+# For file-size = 1M and block-size = 256K
+workload_dir=$WORKING_DIR/gcs/1M
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 256K -s 1M -d $workload_dir
 
-   # Wait after one epoch training.
-   sleep $pause_in_seconds
-done
+# For file-size = 100M and block-size = 1M
+workload_dir=$WORKING_DIR/gcs/100M
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 1M -s 100M -d $workload_dir
+
+# Random read for file-size = 1M and block-size = 256K
+workload_dir=$WORKING_DIR/gcs/1M
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 256K -s 1M -r randread -d $workload_dir
+
+# Random read for file-size = 100M and block-size = 1M
+workload_dir=$WORKING_DIR/gcs/100M
+mkdir -p $workload_dir
+./run_read_cache_fio_workload.sh -e 2 -n 2 -b 1M -s 100M -r randread -d $workload_dir
