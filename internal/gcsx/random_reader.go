@@ -200,6 +200,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if rr.fileCacheHandle == nil {
 			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
 			if err != nil {
+				// We fall back to GCS if file size is greater than the cache size
+				if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+					return 0, false, nil
+				}
 				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
 			}
 		}
@@ -239,8 +243,7 @@ func (rr *randomReader) ReadAt(
 	}
 
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
-	// We fall back to GCS if file size is greater than the cache size
-	if err != nil && !strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
 		return
 	}

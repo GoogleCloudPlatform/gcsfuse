@@ -66,7 +66,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity: config.TRACE,
 		},
 	}
-	filePath2 := setup.YAMLConfigFile(mountConfig2, "config1.yaml")
+	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})
 
 	return flags

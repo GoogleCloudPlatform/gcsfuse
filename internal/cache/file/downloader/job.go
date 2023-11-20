@@ -291,7 +291,7 @@ func (job *Job) downloadObjectAsync() {
 					return
 				}
 				start += maxRead
-				if start >= newReaderLimit {
+				if start == newReaderLimit {
 					newReader = nil
 				}
 

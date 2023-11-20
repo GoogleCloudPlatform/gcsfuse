@@ -97,11 +97,7 @@ be interacting with the file system.`)
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
-	var allowOther bool
-	_, ok := flags.MountOptions["allow_other"]
-	if ok {
-		allowOther = true
-	}
+	_, allowOther := flags.MountOptions["allow_other"]
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{

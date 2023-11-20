@@ -156,7 +156,7 @@ func NewFileSystem(
 		}
 	}
 
-	// create file cache handler if cache is enabled by user.
+	// Create file cache handler if cache is enabled by user.
 	var fileCacheHandler *file.CacheHandler
 	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB != 0 {
 		fileCacheHandler = createFileCacheHandler(cfg)
@@ -228,7 +228,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	cacheLocation := string(cfg.MountConfig.CacheLocation)
 	// use temp-dir as default cache-location.
 	if cacheLocation == "" {
-		cacheLocation = cfg.TempDir
+		cacheLocation = os.TempDir()
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {

@@ -16,7 +16,6 @@ package gcsx
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -185,13 +185,6 @@ func (t *RandomReaderTest) TearDown() {
 	t.rr.Destroy()
 }
 
-func getRandomContent(objectSize int) []byte {
-	testContent := make([]byte, objectSize)
-	_, err := rand.Read(testContent)
-	AssertEq(nil, err)
-
-	return testContent
-}
 func getReadCloser(content []byte) io.ReadCloser {
 	r := bytes.NewReader(content)
 	rc := io.NopCloser(r)
@@ -707,7 +700,7 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 func (t *RandomReaderTest) Test_ReadAt_SequentialFullObject() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -723,7 +716,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialFullObject() {
 func (t *RandomReaderTest) Test_ReadAt_SequentialRangeRead() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -743,7 +736,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanRea
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	t.object.Size = 20 * util.MiB
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -772,7 +765,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
 	t.rr.wrapped.downloadFileForRandomRead = false
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
 	rc := getReadCloser(testContent[start:])
@@ -794,7 +787,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
 	t.rr.wrapped.downloadFileForRandomRead = true
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
 	rc := getReadCloser(testContent[start:])
@@ -818,7 +811,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMor
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	t.object.Size = 20 * util.MiB
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -849,7 +842,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	t.object.Size = 20 * util.MiB
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -886,7 +879,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -916,7 +909,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -953,7 +946,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob
 func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFileHandle() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -990,7 +983,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFil
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -1016,11 +1009,12 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 }
+
 func (t *RandomReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	t.object.Size = util.MiB
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
