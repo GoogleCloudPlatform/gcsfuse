@@ -31,12 +31,13 @@ sudo rm -rf /usr/local/go
 tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
 
-# Add go in the path permanently.
+# Add go in the path permanently, so that $HOME/go/bin is visible.
+export PATH=$PATH:$HOME/go/bin/
 echo 'export PATH=$PATH:$HOME/go/bin/:/usr/local/go/bin' >> ~/.bashrc
 
 # Export WORKING_DIR env variable and add it to ~/.bashrc.
 export WORKING_DIR=$WD
-echo "export WORKING_DIR={$WD}" >> ~/.bashrc
+echo "export WORKING_DIR=$WD" >> ~/.bashrc
 
 # Install gcsfuse.
 go install github.com/googlecloudplatform/gcsfuse@read_cache_release
