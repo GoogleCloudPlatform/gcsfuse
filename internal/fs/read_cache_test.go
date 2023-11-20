@@ -448,7 +448,9 @@ func (t *FileCacheWithDownloadForRandomRead) TearDown() {
 }
 
 func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
-	objectContent := generateRandomString(1 * util.MiB)
+	hundredKiB := 100 * util.KiB
+	tenKiB := 10 * util.KiB
+	objectContent := generateRandomString(hundredKiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
 	AssertEq(nil, err)
@@ -458,19 +460,19 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertEq(nil, err)
 
 	// random read should also download
-	buf := make([]byte, len(objectContent)-util.MiB/2)
-	_, err = file.Seek(util.MiB/2, 0)
+	buf := make([]byte, tenKiB)
+	_, err = file.Seek(int64(tenKiB), 0)
 	AssertEq(nil, err)
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
-	AssertTrue(reflect.DeepEqual(objectContent[util.MiB/2:], string(buf)))
+	AssertTrue(reflect.DeepEqual(objectContent[tenKiB:2*tenKiB], string(buf)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
-	// Sleep to get the file downloaded to cache.
-	time.Sleep(4 * time.Millisecond)
+	// Sleep for complete object to download by async job.
+	time.Sleep(10 * time.Millisecond)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 

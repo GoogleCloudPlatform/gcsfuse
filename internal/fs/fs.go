@@ -228,7 +228,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	cacheLocation := string(cfg.MountConfig.CacheLocation)
 	// use temp-dir as default cache-location.
 	if cacheLocation == "" {
-		cacheLocation = os.TempDir()
+		if cfg.TempDir == "" {
+			cacheLocation = os.TempDir()
+		}
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {
