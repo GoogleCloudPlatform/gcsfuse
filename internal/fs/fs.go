@@ -226,7 +226,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	cacheLocation := string(cfg.MountConfig.CacheLocation)
-	// use temp-dir as default cache-location.
+	// Use temp-dir as default cache-location.
 	if cacheLocation == "" {
 		if cfg.TempDir == "" {
 			cacheLocation = os.TempDir()
@@ -237,7 +237,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %v", cacheLocation, err))
 	}
 
-	// when user passes allow_other flag, then other users should be able to
+	// When user passes allow_other flag, then other users should be able to
 	// read from cache
 	filePerm := util.DefaultFilePerm
 	if cfg.AllowOther {

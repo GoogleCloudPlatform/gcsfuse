@@ -469,10 +469,13 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
-	cachedContent, err := os.ReadFile(downloadPath)
+	// Sleep for async job to complete download
+	time.Sleep(50 * time.Millisecond)
+	cacheFile, err := os.OpenFile(downloadPath, os.O_RDWR|syscall.O_DIRECT, 0644)
+	defer closeFile(cacheFile)
 	AssertEq(nil, err)
-	// Sleep for complete object to download by async job.
-	time.Sleep(10 * time.Millisecond)
+	cachedContent := make([]byte, hundredKiB)
+	_, err = cacheFile.Read(cachedContent)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
