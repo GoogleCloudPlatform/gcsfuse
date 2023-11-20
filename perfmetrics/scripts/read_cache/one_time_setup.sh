@@ -32,7 +32,7 @@ export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
 
 # Add go in the path permanently.
 echo 'export PATH=$PATH:$HOME/go/bin/:/usr/local/go/bin' >> ~/.bashrc
-echo 'export WORKING_DIR=$WD' >> ~/.bashrc
+echo "export WORKING_DIR={$WD}" >> ~/.bashrc
 
 source ~/.bashrc
 
@@ -43,4 +43,7 @@ go install github.com/googlecloudplatform/gcsfuse@read_cache_release
 git clone -b  fio_load_test_script https://github.com/GoogleCloudPlatform/gcsfuse.git
 
 # Mount gcsfuse.
-./$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh
+$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh
+
+# Back to running directory.
+cd -

@@ -22,4 +22,4 @@ mount_dir=$WORKING_DIR/gcs
 mkdir -p $mount_dir
 
 # Mount gcsfuse
-gcsfuse --debug_fuse --debug_log logs.txt --log-format text $bucket_name $mount_dir
+gcsfuse --debug_fuse --log-file $WORKING_DIR/gcsfuse_logs.txt --log-format text $bucket_name $mount_dir
