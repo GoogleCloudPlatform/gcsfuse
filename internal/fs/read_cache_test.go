@@ -456,8 +456,8 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertEq(nil, err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
 	AssertEq(nil, err)
+	defer closeFile(file)
 
 	// random read should also download
 	buf := make([]byte, tenKiB)
@@ -472,10 +472,11 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	// Sleep for async job to complete download
 	time.Sleep(50 * time.Millisecond)
 	cacheFile, err := os.OpenFile(downloadPath, os.O_RDWR|syscall.O_DIRECT, 0644)
-	defer closeFile(cacheFile)
 	AssertEq(nil, err)
+	defer closeFile(cacheFile)
 	cachedContent := make([]byte, hundredKiB)
 	_, err = cacheFile.Read(cachedContent)
+	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
