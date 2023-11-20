@@ -35,9 +35,9 @@ sudo apt-get install -y libaio-dev
 # The sed command below is to address internal bug#309563824. 
 # As recorded in this bug, fio by-default supports 
 # clat percentile values to be calculated accurately upto only 
-# 2^(FIO_IO_U_PLAT_GROUP_NR + 5) ns = 14 ms 
+# 2^(FIO_IO_U_PLAT_GROUP_NR + 5) ns = 17.17 seconds. 
 # (with default value of FIO_IO_U_PLAT_GROUP_NR = 29). This change increases it upto 32, to allow
-# latencies upto 112 ms to be calculated accurately.
+# latencies upto 137.44s to be calculated accurately.
 sudo rm -rf "$FIO_SRC_DIR" && \
 git clone https://github.com/axboe/fio.git "$FIO_SRC_DIR" && \
 cd  "$FIO_SRC_DIR" && \
