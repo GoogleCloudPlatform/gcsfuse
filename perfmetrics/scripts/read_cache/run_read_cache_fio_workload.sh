@@ -15,62 +15,35 @@
 
 set -e
 
-print_usage() {
-  echo "Help/Supported options..."
-  printf "./run_read_cache_workload  "
-  printf "[-e epoch] [-p pause_after_every_epoch_in_seconds] "
-  printf "[-n number_of_files_per_thread] "
-  printf "[-r read_type (read | randread)] "
-  printf "[-s file_size (in K, M, G E.g. 10K] "
-  printf "[-b block_size (in K, M, G E.g. 20K] "
-  printf "[-d workload directory] \n"
-}
+# Don't pollute home, create a working dir.
+WD=$HOME/working_dir
+mkdir -p $WD
+cd $WD
 
-# Default values:
-epoch=2
-no_of_files_per_thread=1
-read_type=read
-pause_in_seconds=2
-block_size=1K
-file_size=1K
+# Install fio.
+sudo apt install fio
 
-while getopts he:p:n:r:d:s:b: flag
-do
-  case "${flag}" in
-    e) epoch=${OPTARG};;
-    p) pause_in_seconds=${OPTARG};;
-    n) no_of_files_per_thread=${OPTARG};;
-    r) read_type=${OPTARG};;
-    d) workload_dir=${OPTARG};;
-    s) file_size=${OPTARG};;
-    b) block_size=${OPTARG};;
-    h) print_usage
-        exit 0 ;;
-    *) print_usage
-        exit 1 ;;
-  esac
-done
+# Install and validate go.
+version=1.21.1
+wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+export PATH=$PATH:/usr/local/go/bin && go version && rm go_tar.tar.gz
 
-if [ ! -d "$workload_dir" ]; then
-  echo "Please pass a valid workload dir with -d options..."
-  exit 1
-fi
+# Add go in the path permanently.
+echo 'export PATH=$PATH:$HOME/go/bin/:/usr/local/go/bin' >> ~/.bashrc
 
-if [[ -z "${WORKING_DIR}" ]]; then
-  echo "Please set the working directory..."
-  exit 1
-fi
+# Export WORKING_DIR on opening new terminal.
+echo 'export WORKING_DIR=$HOME/working_dir' >> ~/.bashrc
 
-fio_job_path=x.fio
+# Install gcsfuse.
+go install github.com/googlecloudplatform/gcsfuse@read_cache_release
 
-if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
-  echo "Please pass a valid read typr -r (read | randread)..."
-  exit 1
-fi
+# Clone gcsfuse to get the scripts to run the fio workload.
+git clone -b read_cache_release https://github.com/GoogleCloudPlatform/gcsfuse.git
 
-for i in $(seq $epoch); do
-   NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
+# Create mount dir and mount via gcsfuse.
+mkdir -p $WD/gcs
 
-   # Wait after one epoch training.
-   sleep $pause_in_seconds
-done
+# Mount gcsfuse.
+gcsfuse --help
