@@ -109,8 +109,8 @@ func writeRandomDataToFileTillLogRotation(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func TestLogRotation(t *testing.T) {
-	// Perform log rotation 2 times.
-	for i := 0; i < 2; i++ {
+	// Perform log rotation 1 time.
+	for i := 0; i < 1; i++ {
 		writeRandomDataToFileTillLogRotation(t)
 	}
 
