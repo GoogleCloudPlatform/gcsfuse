@@ -268,7 +268,7 @@ func (t *MemoryBufferTest) TestWriteJustBeforeChunkSizeOffset() {
 	err := t.mb.WriteAt(smallContent1, MiB-1)
 	AssertEq(nil, err)
 
-	//AssertEq(MiB+smallContent1Size-1, t.mb.fileSize)
+	AssertEq(MiB+smallContent1Size-1, t.mb.fileSize)
 	AssertTrue(bytes.Equal([]byte("T"), t.mb.flushed.buffer[MiB-1:MiB]))
 	AssertTrue(bytes.Equal([]byte("aco"), t.mb.current.buffer[0:3]))
 	t.validateInMemoryBuffer(t.mb.current, bufferSizeInBytes, 0, MiB, 2*MiB)
