@@ -58,39 +58,10 @@ function execute_perf_test() {
   sudo umount gcs
 }
 
-function install_requirements() {
-  # Installing requirements
-  echo installing requirements
-  echo Installing python3-pip
-  sudo apt-get -y install python3-pip
-  echo Installing Bigquery module requirements...
-  pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
-  echo Installing libraries to run python script
-  pip install google-cloud
-  pip install google-cloud-vision
-  pip install google-api-python-client
-  pip install prettytable
-  # install libaio as fio has a dependency on libaio
-  sudo apt-get install libaio-dev
-  # We are building fio from source because of issue: https://github.com/axboe/fio/issues/1640.
-  # The fix is not currently released in a package as of 20th Oct, 2023.
-  # TODO: install fio via package when release > 3.35 is available.
-  echo Installing fio
-  sudo rm -rf "${KOKORO_ARTIFACTS_DIR}/github/fio"
-  git clone https://github.com/axboe/fio.git "${KOKORO_ARTIFACTS_DIR}/github/fio"
-  cd  "${KOKORO_ARTIFACTS_DIR}/github/fio" && \
-  git checkout c5d8ce3fc736210ded83b126c71e3225c7ffd7c9 && \
-  ./configure && make && sudo make install
-  fio --version
-  cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-}
-
 # execute perf tests.
 if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
- install_requirements
  # Executing perf tests for master branch
- git reset --hard
  git checkout master
  # Store results
  touch result.txt
@@ -100,7 +71,6 @@ then
 
  # Executing perf tests for PR branch
  echo checkout PR branch
- git reset --hard
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
  echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
@@ -114,7 +84,6 @@ fi
 if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
   echo checkout PR branch
-  git reset --hard
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests...."
