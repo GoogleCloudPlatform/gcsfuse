@@ -27,6 +27,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/internal/fs/buffer"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -1489,7 +1490,10 @@ func (fs *fileSystem) createLocalFile(
 		// Empty buffer/temp file is created to be able to set attributes on it.
 		fileInode := child.(*inode.FileInode)
 		if fs.isWriteBufferEnabled(fileInode) {
-			fileInode.CreateEmptyWriteBuffer(int(fs.mountConfig.WriteConfig.BufferSizeMB))
+			err = fileInode.CreateEmptyWriteBuffer(fs.mountConfig.WriteConfig.BufferSizeMB)
+			if err != nil {
+				return
+			}
 		} else {
 			err = fileInode.CreateEmptyTempFile()
 			if err != nil {
@@ -2080,20 +2084,23 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
+	// TODO: add unit tests for the following.
 	if fs.isWriteBufferEnabled(in) {
-		// Trigger write file buffering flow.
-		err := in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
-		if err != nil {
-			return err
+		// Trigger write file with buffer flow.
+		err = in.WriteToBuffer(fs.mountConfig.WriteConfig.BufferSizeMB, op.Data, op.Offset)
+		if err == nil {
+			return
 		}
-	} else {
-		// Trigger the temp file flow.
-		if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-			return err
+		logger.Warnf("Failed to complete write with buffer: %v", err)
+		if err.Error() != buffer.NonSequentialWriteError {
+			return
+		} else {
+			// Trigger the temp file flow in case of non-sequential writes.
+			logger.Debugf("Falling back to write file operation without file buffering.")
 		}
 	}
-
+	// Trigger the temp file flow.
+	err = in.Write(ctx, op.Data, op.Offset)
 	return
 }
 
