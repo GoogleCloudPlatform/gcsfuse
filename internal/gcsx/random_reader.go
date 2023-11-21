@@ -238,7 +238,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	if util.IsCacheHandleInvalid(err) {
 		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-		rr.fileCacheHandle.Close()
+		err = rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+		}
 		rr.fileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
@@ -379,7 +382,10 @@ func (rr *randomReader) Destroy() {
 
 	if rr.fileCacheHandle != nil {
 		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-		rr.fileCacheHandle.Close()
+		err := rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warf("Destroy: while closing fileCacheHandle: %v", err)
+		}
 		rr.fileCacheHandle = nil
 	}
 }
