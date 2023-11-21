@@ -97,6 +97,8 @@ be interacting with the file system.`)
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
+	_, allowOther := flags.MountOptions["allow_other"]
+
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
 		CacheClock:                 timeutil.RealClock(),
@@ -116,6 +118,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
+		AllowOther:                 allowOther,
 	}
 
 	logger.Infof("Creating a new server...\n")
