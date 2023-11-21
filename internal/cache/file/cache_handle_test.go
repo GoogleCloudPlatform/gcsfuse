@@ -139,7 +139,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 func (cht *cacheHandleTest) TearDown() {
 	cht.fakeStorage.ShutDown()
 
-	cht.cacheHandle.Close()
+	err := cht.cacheHandle.Close()
 	AssertEq(nil, err)
 
 	operations.RemoveDir(cht.cacheLocation)

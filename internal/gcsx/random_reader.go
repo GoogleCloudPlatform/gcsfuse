@@ -384,7 +384,7 @@ func (rr *randomReader) Destroy() {
 		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
 		if err != nil {
-			logger.Warf("Destroy: while closing fileCacheHandle: %v", err)
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
 	}
