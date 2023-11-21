@@ -19,6 +19,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
@@ -196,42 +197,56 @@ func (rr *randomReader) CheckInvariants() {
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
-	requestId := uuid.New()
-	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d)", requestId, rr.object.Name, offset, len(p))
-	if rr.fileCacheHandler != nil {
-		// Create fileCacheHandle if not already.
-		if rr.fileCacheHandle == nil {
-			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
-			if err != nil {
-				// We fall back to GCS if file size is greater than the cache size
-				if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
-					return 0, false, nil
-				}
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
-			}
-		}
 
-		n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
-		if err == nil {
-			cacheHit = true
-			return
-		}
-
-		cacheHit = false
-		n = 0
-
-		if util.IsCacheHandleInvalid(err) {
-			logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
-			rr.fileCacheHandle.Close()
-			rr.fileCacheHandle = nil
-		} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
-			err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
-			return
-		}
-		err = nil
-
+	if rr.fileCacheHandler == nil {
 		return
 	}
+
+	// Create fileCacheHandle if not already.
+	if rr.fileCacheHandle == nil {
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
+		if err != nil {
+			// We fall back to GCS if file size is greater than the cache size
+			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				return 0, false, nil
+			}
+
+			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+		}
+	}
+
+	// Request log.
+	requestId := uuid.New()
+	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d): (seq: %t)", requestId, rr.object.Name, offset, len(p), rr.fileCacheHandle.IsSequential(offset))
+	startTime := time.Now()
+
+	// Response log.
+	defer func() {
+		executionTime := time.Since(startTime)
+		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (hit: %t, %v)", requestId, rr.object.Name, offset, len(p), cacheHit, executionTime)
+	}()
+
+	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
+	if err == nil {
+		cacheHit = true
+		return
+	}
+
+	cacheHit = false
+	n = 0
+
+	if util.IsCacheHandleInvalid(err) {
+		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		rr.fileCacheHandle.Close()
+		rr.fileCacheHandle = nil
+	} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
+		return
+	}
+	err = nil
+
+	return
 }
 
 func (rr *randomReader) ReadAt(
