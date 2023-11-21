@@ -134,7 +134,7 @@ func (job *Job) Cancel() {
 	if job.status.Name == DOWNLOADING || job.status.Name == NOT_STARTED {
 		job.cancelFunc()
 		job.status.Name = CANCELLED
-		logger.Errorf("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
+		logger.Tracef("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
 		job.notifySubscribers()
 	}
 }
@@ -151,7 +151,7 @@ func (job *Job) Invalidate() {
 		job.cancelFunc()
 	}
 	job.status.Name = INVALID
-	logger.Errorf("Job:%p (%s://%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
+	logger.Tracef("Job:%p (%s://%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
 	job.notifySubscribers()
 }
 

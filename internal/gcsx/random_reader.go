@@ -229,9 +229,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			return
 		}
 		err = nil
+
+		return
 	}
-	logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): %t", requestId, rr.object.Name, offset, len(p), cacheHit)
-	return
 }
 
 func (rr *randomReader) ReadAt(
