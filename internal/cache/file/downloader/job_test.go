@@ -18,7 +18,6 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"reflect"
@@ -32,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -89,14 +89,6 @@ func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
 	return path.Join(cacheLocation, bucketName, objectName)
-}
-
-func generateRandomBytes(length int) []byte {
-	randBytes := make([]byte, length)
-	for i := 0; i < length; i++ {
-		randBytes[i] = byte(rand.Intn(26) + 65)
-	}
-	return randBytes
 }
 
 func (dt *downloaderTest) Test_init() {
@@ -286,7 +278,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() 
 	// Create new object in bucket and create new job for it.
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
 
 	// start download
@@ -306,7 +298,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() 
 func (dt *downloaderTest) Test_downloadObjectAsync_LessThanChunkSize() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 2 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, 25, uint64(2*objectSize))
 
 	// start download
@@ -326,7 +318,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanChunkSize() {
 func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
 	// Add subscriber
 	subscribedOffset := int64(45 * util.MiB)
@@ -352,7 +344,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
 func (dt *downloaderTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
 
 	// start download
@@ -368,7 +360,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize
 func (dt *downloaderTest) Test_Download_WhenNotStarted() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
 
 	// start download
@@ -392,7 +384,7 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyDownloading() {
 	// Create new object in bucket and create new job for it.
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
 	// start download but not wait for download
 	ctx := context.Background()
@@ -420,7 +412,7 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyDownloading() {
 func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
 	// Wait for whole download to be completed.
 	ctx := context.Background()
@@ -449,7 +441,7 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	// set size of cache smaller than object size.
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
 
@@ -467,7 +459,7 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
 	// Wait for whole download to be completed/failed.
 	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
@@ -489,7 +481,7 @@ func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 1 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
 	// make the state as invalid
 	dt.job.mu.Lock()
@@ -507,7 +499,7 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 func (dt *downloaderTest) Test_Download_InvalidOffset() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
 
 	// requesting invalid offset
@@ -523,7 +515,7 @@ func (dt *downloaderTest) Test_Download_InvalidOffset() {
 func (dt *downloaderTest) Test_Download_CtxCancelled() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 
 	// requesting full download and then the download call should be cancelled after
@@ -554,7 +546,7 @@ func (dt *downloaderTest) Test_Download_CtxCancelled() {
 func (dt *downloaderTest) Test_Download_Concurrent() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
@@ -595,7 +587,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 func (dt *downloaderTest) Test_Cancel_WhenDownloading() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	// request for 2 MiB download to start downloading
 	offset := int64(2 * util.MiB)
@@ -618,7 +610,7 @@ func (dt *downloaderTest) Test_Cancel_WhenDownloading() {
 func (dt *downloaderTest) Test_Cancel_WhenAlreadyCompleted() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	// download complete object
 	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
@@ -643,7 +635,7 @@ func (dt *downloaderTest) Test_Cancel_WhenAlreadyCompleted() {
 func (dt *downloaderTest) Test_Cancel_WhenNotStarted() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 
 	dt.job.Cancel()
@@ -662,7 +654,7 @@ func (dt *downloaderTest) Test_Cancel_WhenNotStarted() {
 func (dt *downloaderTest) Test_Cancel_Concurrent() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 50 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	ctx := context.Background()
 	// start download without waiting
@@ -699,7 +691,7 @@ func (dt *downloaderTest) Test_Cancel_Concurrent() {
 func (dt *downloaderTest) Test_GetStatus() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 20 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	ctx := context.Background()
 	// start download without waiting
@@ -722,7 +714,7 @@ func (dt *downloaderTest) Test_GetStatus() {
 func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	ctx := context.Background()
 	// start download without waiting
@@ -740,7 +732,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 30 * util.MiB
-	objectContent := generateRandomBytes(objectSize)
+	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2))
 	ctx := context.Background()
 	// start download without waiting

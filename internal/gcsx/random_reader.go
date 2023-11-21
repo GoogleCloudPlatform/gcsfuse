@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
@@ -199,6 +200,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if rr.fileCacheHandle == nil {
 			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
 			if err != nil {
+				// We fall back to GCS if file size is greater than the cache size
+				if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+					return 0, false, nil
+				}
 				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
 			}
 		}
@@ -231,6 +236,11 @@ func (rr *randomReader) ReadAt(
 	ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
+
+	if offset >= int64(rr.object.Size) {
+		err = io.EOF
+		return
+	}
 
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
