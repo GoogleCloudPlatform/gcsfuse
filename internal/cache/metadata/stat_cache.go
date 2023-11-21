@@ -17,8 +17,11 @@ package metadata
 import (
 	"time"
 
+	unsafe "unsafe"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-	"github.com/jacobsa/util/lrucache"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -56,15 +59,16 @@ type StatCache interface {
 // Create a new stat cache that holds the given number of entries, which must
 // be positive.
 func NewStatCache(capacity int) (sc StatCache) {
+	sizeOfEntry := entry{}.Size()
 	sc = &statCache{
-		c: lrucache.New(capacity),
+		c: lru.NewCache(uint64(capacity) * sizeOfEntry),
 	}
 
 	return
 }
 
 type statCache struct {
-	c lrucache.Cache
+	c *lru.Cache
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -72,6 +76,10 @@ type statCache struct {
 type entry struct {
 	o          *gcs.Object
 	expiration time.Time
+}
+
+func (e entry) Size() uint64 {
+	return uint64(unsafe.Sizeof(gcs.Object{}) + unsafe.Sizeof(entry{}))
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -151,5 +159,5 @@ func (sc *statCache) LookUp(
 }
 
 func (sc *statCache) CheckInvariants() {
-	sc.c.CheckInvariants()
+	logger.Tracef("CheckInvariants() doesn't do any checks.")
 }
