@@ -63,6 +63,8 @@ function install_requirements() {
   echo installing requirements
   echo Installing python3-pip
   sudo apt-get -y install python3-pip
+  echo Installing Bigquery module requirements...
+  pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
   echo Installing libraries to run python script
   pip install google-cloud
   pip install google-cloud-vision
