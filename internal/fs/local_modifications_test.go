@@ -2084,18 +2084,19 @@ func (t *FileTest) Sync_Clobbered() {
 
 	AssertEq(nil, err)
 
-	// Attempt to sync the file. This may result in an error if the OS has
-	// decided to hold back the writes from above until now (in which case the
-	// inode will fail to load the source object), or it may fail silently.
-	// Either way, this should not result in a new generation being created.
+	//Attempt to sync the file. This may result in an error if the OS has
+	//decided to hold back the writes from above until now (in which case the
+	//inode will fail to load the source object), or it may fail silently.
+	//Either way, this should not result in a new generation being created.
 	err = t.f1.Sync()
-	if err != nil {
-		ExpectThat(err, Error(HasSubstr("input/output error")))
-	}
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("input/output error")))
 
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
 	AssertEq(nil, err)
 	ExpectEq("foobar", string(contents))
+	AssertNe(nil, t.f1.Close())
+	t.f1 = nil
 }
 
 func (t *FileTest) Close_Dirty() {
