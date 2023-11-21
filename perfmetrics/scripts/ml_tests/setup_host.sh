@@ -2,6 +2,8 @@
 # This file installs docker engine and nvidia driver and nvidia container tool
 # necessary for running dlc container on the vm
 
+DRIVER_VERSION=$1
+
 # Install Ops-agent to get the memory and processes' related data on VM console.
 curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
 
@@ -32,7 +34,10 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 echo "Installing driver..."
 sudo apt update && sudo apt install -y build-essential
 BASE_URL=https://us.download.nvidia.com/tesla
-DRIVER_VERSION=450.172.01
+if [[ -z "$DRIVER_VERSION" ]];
+then
+  DRIVER_VERSION=450.172.01
+fi
 sudo curl -fSsl -O $BASE_URL/$DRIVER_VERSION/NVIDIA-Linux-x86_64-$DRIVER_VERSION.run
 
 sudo sh NVIDIA-Linux-x86_64-$DRIVER_VERSION.run -s

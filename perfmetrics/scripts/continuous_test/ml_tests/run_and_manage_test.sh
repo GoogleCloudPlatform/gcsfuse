@@ -27,6 +27,8 @@ ZONE_NAME=$2
 ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
+# run the model with pytorch2.0
+PYTORCH_2=$5
 
 function initialize_ssh_key () {
     echo "Delete existing ssh keys "
@@ -57,24 +59,48 @@ function delete_existing_vm_and_create_new () {
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
-  sudo gcloud compute instances create $VM_NAME \
-           --project=$GCP_PROJECT\
-           --zone=$ZONE_NAME \
-           --machine-type=a2-highgpu-2g \
-           --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
-           --metadata=enable-osconfig=TRUE,enable-oslogin=true \
-           --maintenance-policy=TERMINATE \
-           --provisioning-model=STANDARD \
-           --service-account=927584127901-compute@developer.gserviceaccount.com \
-           --scopes=https://www.googleapis.com/auth/cloud-platform \
-           --accelerator=count=2,type=nvidia-tesla-a100 \
-           --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
-           --no-shielded-secure-boot \
-           --shielded-vtpm \
-           --shielded-integrity-monitoring \
-           --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
-           --reservation-affinity=specific \
-           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus
+  if [[ $PYTORCH_2 == "pytorch2" ]];
+  then
+      # NVIDIA A100 40GB GPU type machine is currently unavailable due to global shortage.
+      # Creating NVIDIA L4 machines which are available on us-west1-1 zone.
+      sudo gcloud compute instances create $VM_NAME \
+              --project=$GCP_PROJECT\
+              --zone=$ZONE_NAME \
+              --machine-type=g2-standard-24 \
+              --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+              --metadata=enable-osconfig=TRUE,enable-oslogin=true \
+              --maintenance-policy=TERMINATE \
+              --provisioning-model=STANDARD \
+              --service-account=927584127901-compute@developer.gserviceaccount.com \
+              --scopes=https://www.googleapis.com/auth/cloud-platform \
+              --accelerator=count=2,type=nvidia-l4 \
+              --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
+              --no-shielded-secure-boot \
+              --shielded-vtpm \
+              --shielded-integrity-monitoring \
+              --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
+              --reservation-affinity=specific \
+              --reservation=projects/$GCP_PROJECT/reservations/pytorch2-ai-ml-tests
+  else
+    sudo gcloud compute instances create $VM_NAME \
+             --project=$GCP_PROJECT\
+             --zone=$ZONE_NAME \
+             --machine-type=a2-highgpu-2g \
+             --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+             --metadata=enable-osconfig=TRUE,enable-oslogin=true \
+             --maintenance-policy=TERMINATE \
+             --provisioning-model=STANDARD \
+             --service-account=927584127901-compute@developer.gserviceaccount.com \
+             --scopes=https://www.googleapis.com/auth/cloud-platform \
+             --accelerator=count=2,type=nvidia-tesla-a100 \
+             --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
+             --no-shielded-secure-boot \
+             --shielded-vtpm \
+             --shielded-integrity-monitoring \
+             --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
+             --reservation-affinity=specific \
+             --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus
+  fi
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s

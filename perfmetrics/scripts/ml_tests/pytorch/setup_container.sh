@@ -1,4 +1,20 @@
 #!/bin/bash
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+PYTORCH_VESRION=$1
+PYTHON_VESRION=$2
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.3.linux-amd64.tar.gz -q
@@ -39,7 +55,7 @@ def pil_loader(path: str) -> Image.Image:
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/opt/conda/lib/python3.7/site-packages/torchvision/datasets/folder.py"
+folder_file="/opt/conda/lib/${PYTHON_VESRION}site-packages/torchvision/datasets/folder.py"
 x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
 y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
 y=$((y - 2))
@@ -51,7 +67,7 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/dino"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
@@ -66,7 +82,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
   # We need to run it in foreground mode to make the container running.
   echo "Running the pytorch dino model..."
   experiment=dino_experiment
-  python3 -m torch.distributed.launch \
+  torchrun \
     --nproc_per_node=2 dino/main_dino.py \
     --arch vit_small \
     --num_workers 20 \

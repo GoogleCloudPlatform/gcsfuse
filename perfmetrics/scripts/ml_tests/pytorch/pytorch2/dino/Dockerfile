@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Image with gcsfuse installed and its package (.deb)
-FROM gcr.io/deeplearning-platform-release/pytorch-gpu.1-12
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-0.py310
 
 # Allow non-root users to specify the allow_other or allow_root mount options
 RUN echo "user_allow_other" > /etc/fuse.conf
@@ -24,9 +24,9 @@ WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
 
-COPY perfmetrics/scripts/ml_tests/pytorch/dino/setup_container.sh ./
+COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
 
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh","pytorch2","python3.10"]
