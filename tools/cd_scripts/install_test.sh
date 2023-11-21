@@ -30,14 +30,20 @@ then
     #  For ubuntu and debian os
     export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
     # Don't use apt-key for Debian 11+ and Ubuntu 21+
-    if { [[ $vm_instance_name == *"debian"*  &&  !( "$vm_instance_name" < "release-test-debian11") ]]; } || { [[ $vm_instance_name == *"ubuntu"*  && !("$vm_instance_name" < "release-test-ubuntu21") ]]; }
+    if { [[ $vm_instance_name == *"debian"*  &&  !( "$vm_instance_name" < "release-test-debian-11") ]]; } || { [[ $vm_instance_name == *"ubuntu"*  && !("$vm_instance_name" < "release-test-ubuntu-21") ]]; }
     then
       echo "deb [signed-by=/usr/share/keyrings/cloud.google.asc] https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
-      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo tee /usr/share/keyrings/cloud.google.asc
+      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo tee /usr/share/keyrings/cloud.google.asc >> ~/apt_key_logs.txt
     else
       echo "deb https://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
-      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+      curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add - >> ~/apt_key_logs.txt
     fi
+
+    if grep -q -i warning ~/apt_key_logs.txt;
+    then
+      echo "Failure: Got warning while using apt-key" >> ~/logs.txt
+    fi
+
     sudo apt-get update
     # Install latest released gcsfuse version
     sudo apt-get install -y gcsfuse
