@@ -21,4 +21,4 @@ cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 echo "Setting up the machine with Docker and Nvidia Driver"
 source ml_tests/setup_host.sh
 
-source ml_tests/pytorch/run_model.sh
+source ml_tests/pytorch/run_model.sh "pytorch1_12"

@@ -59,7 +59,7 @@ function delete_existing_vm_and_create_new () {
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
-  if [[ $PYTORCH_2 == "pytorch2" ]];
+  if [ $PYTORCH_2 == "pytorch2" ];
   then
       # NVIDIA A100 40GB GPU type machine is currently unavailable due to global shortage.
       # Creating NVIDIA L4 machines which are available on us-west1-1 zone.
@@ -159,12 +159,13 @@ exit_status=0
 # START to START: If model run is not triggerred due to some error.
 # START to RUNNING: If model is successfully triggerred on GPU. This state is 
 #                   changed by setup_host.sh that runs inside docker container of test VM.
+current_status="START"
 if [ $current_status == "START" ];
 then
   echo "Update commit Id for the run"
-  commit_id=$(git rev-parse HEAD)
-  echo $commit_id > commit.txt
-  gsutil cp commit.txt $ARTIFACTS_BUCKET_PATH/
+#  commit_id=$(git rev-parse HEAD)
+#  echo $commit_id > commit.txt
+#  gsutil cp commit.txt $ARTIFACTS_BUCKET_PATH/
 
   delete_existing_vm_and_create_new
   

@@ -24,9 +24,9 @@ WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
 
-COPY perfmetrics/scripts/ml_tests/pytorch/dino/setup_container.sh ./
+COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
 
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh", "pytorch1_12","python3.7"]
+ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh pytorch1_12 python3.7"]

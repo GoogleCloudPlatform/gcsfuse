@@ -12,10 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+set -e
+PYTORCH_VESRION=$1
 cd "$HOME/github/gcsfuse"
 echo "Building docker image containing all pytorch libraries..."
-sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch/dino/Dockerfile --tag pytorch-gcsfuse
+sudo docker build . -f perfmetrics/scripts/ml_tests/pytorch/${PYTORCH_VESRION}/dino/Dockerfile --tag pytorch-gcsfuse
 
 mkdir -p container_artifacts
 
