@@ -19,12 +19,18 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"math"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
@@ -120,6 +126,9 @@ type ServerConfig struct {
 
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
+
+	// AllowOther is true when -o allow_other flag is passed.
+	AllowOther bool
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -147,6 +156,12 @@ func NewFileSystem(
 		}
 	}
 
+	// Create file cache handler if cache is enabled by user.
+	var fileCacheHandler *file.CacheHandler
+	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB != 0 {
+		fileCacheHandler = createFileCacheHandler(cfg)
+	}
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:                 mtimeClock,
@@ -171,6 +186,8 @@ func NewFileSystem(
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
+		fileCacheHandler:           fileCacheHandler,
+		downloadFileForRandomRead:  cfg.MountConfig.FileCacheConfig.DownloadFileForRandomRead,
 	}
 
 	// Set up root bucket
@@ -195,6 +212,42 @@ func NewFileSystem(
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
 	return fs, nil
+}
+
+func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler) {
+	var sizeInBytes uint64
+	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
+	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
+	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB == -1 {
+		sizeInBytes = math.MaxUint64
+	} else {
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeInMB) * util.MiB
+	}
+	fileInfoCache := lru.NewCache(sizeInBytes)
+
+	cacheLocation := string(cfg.MountConfig.CacheLocation)
+	// Use temp-dir as default cache-location.
+	if cacheLocation == "" {
+		if cfg.TempDir == "" {
+			cacheLocation = os.TempDir()
+		}
+	}
+	cacheLocation, err := filepath.Abs(cacheLocation)
+	if err != nil {
+		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %v", cacheLocation, err))
+	}
+
+	// When user passes allow_other flag, then other users should be able to
+	// read from cache
+	filePerm := util.DefaultFilePerm
+	if cfg.AllowOther {
+		filePerm = util.FilePermWithAllowOther
+	}
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
+		cfg.SequentialReadSizeMb)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
+		cacheLocation, filePerm)
+	return
 }
 
 func makeRootForBucket(
@@ -400,6 +453,14 @@ type fileSystem struct {
 
 	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
+
+	// fileCacheHandler manages read only file cache. It is non-nil only when
+	// file cache is enabled at the time of mounting.
+	fileCacheHandler *file.CacheHandler
+
+	// downloadFileForRandomRead when true downloads file into cache even for
+	// random file access.
+	downloadFileForRandomRead bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1521,8 +1582,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// TODO (raj-prince) - pass correct value of fileCacheHandler and downloadFileForRandomRead
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), nil, false)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.downloadFileForRandomRead)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2012,8 +2072,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	// TODO (raj-prince) - Pass correct value of fileCacheHandler and downloadFileForRandomRead
-	fs.handles[handleID] = handle.NewFileHandle(in, nil, false)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.downloadFileForRandomRead)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

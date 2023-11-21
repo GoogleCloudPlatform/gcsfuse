@@ -275,7 +275,7 @@ func (job *Job) downloadObjectAsync() {
 					}
 				}
 
-				maxRead := min(end-start, ReadChunkSize)
+				maxRead := min(ReadChunkSize, newReaderLimit-start)
 				_, err = cacheFile.Seek(start, 0)
 				if err != nil {
 					err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error while seeking file handle, seek %d: %v", start, err))
@@ -285,13 +285,13 @@ func (job *Job) downloadObjectAsync() {
 
 				// copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
-				if readErr != nil && readErr != io.EOF {
+				if readErr != nil {
 					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %v", readErr)
 					job.failWhileDownloading(err)
 					return
 				}
 				start += maxRead
-				if readErr == io.EOF {
+				if start == newReaderLimit {
 					newReader = nil
 				}
 
