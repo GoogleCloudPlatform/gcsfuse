@@ -459,7 +459,7 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertEq(nil, err)
 	defer closeFile(file)
 
-	// random read should also download
+	// Random read should also download
 	buf := make([]byte, tenKiB)
 	_, err = file.Seek(int64(tenKiB), 0)
 	AssertEq(nil, err)
