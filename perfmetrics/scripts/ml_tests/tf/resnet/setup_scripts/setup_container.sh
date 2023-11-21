@@ -24,8 +24,8 @@ pip3 install --user tf-models-official==2.15.0
 
 echo "Updating the tensorflow library code to bypass the kernel-cache..."
 # Fail building the container image if train_lib.py and controller.py are not at expected location.
-if [ -f "/root/.local/lib/python3.7/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
-if [ -f "/root/.local/lib/python3.7/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
+if [ -f "/root/.local/lib/python3.10/site-packages/official/core/train_lib.py" ]; then echo "file exists"; else echo "train_lib.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
+if [ -f "/root/.local/lib/python3.10/site-packages/orbit/controller.py" ]; then echo "file exists"; else echo "controller.py file not present in expected location. Please correct the location. Exiting"; exit 1; fi
 
 # Adding cache clearing functionality and epochs in controller.py
 echo "
@@ -63,7 +63,7 @@ echo "
       self._maybe_save_checkpoint(check_interval=False)
 " > bypassed_code.py
 
-controller_file="/root/.local/lib/python3.7/site-packages/orbit/controller.py"
+controller_file="/root/.local/lib/python3.10/site-packages/orbit/controller.py"
 x=$(grep -n "def train(self, steps: int, checkpoint_at_completion: bool = True):" $controller_file | cut -f1 -d ':')
 y=$(grep -n "def evaluate(self, steps: int = -1)" $controller_file | cut -f1 -d ':')
 y=$((y - 2))
@@ -139,7 +139,7 @@ def run_experiment(
   return runner.run(epochs=epochs, clear_kernel_cache=clear_kernel_cache)
 " > bypassed_code.py
 
-train_lib_file="/root/.local/lib/python3.7/site-packages/official/core/train_lib.py"
+train_lib_file="/root/.local/lib/python3.10/site-packages/official/core/train_lib.py"
 x=$(grep -n "def run_experiment(" $train_lib_file | cut -f1 -d ':')
 y=$(grep -n "return runner.run()" $train_lib_file | cut -f1 -d ':')
 lines="$x,$y"
