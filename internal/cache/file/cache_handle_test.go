@@ -512,7 +512,9 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 }
 
 func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
-	dst := make([]byte, ReadContentSize + 1) // Increased the size of buffer.
+	// Add extra buffer.
+	extraBuffer := 2
+	dst := make([]byte, ReadContentSize+extraBuffer)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
@@ -523,6 +525,6 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, offset)
-	cht.verifyContentRead(offset, dst)
+	cht.verifyContentRead(offset, dst[:len(dst)-extraBuffer])
 	ExpectEq(nil, err)
 }
