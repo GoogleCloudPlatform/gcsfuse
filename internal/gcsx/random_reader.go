@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -207,6 +208,24 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d)", requestId, rr.object.Name, offset, len(p))
 	startTime := time.Now()
 
+	// Response log
+	defer func() {
+		executionTime := time.Since(startTime)
+		var requestOutput string
+		if err != nil {
+			requestOutput = fmt.Sprintf("(error: %v, %v)", err, executionTime)
+		} else {
+			seq := "unknown"
+			if rr.fileCacheHandle != nil {
+				seq = strconv.FormatBool(rr.fileCacheHandle.IsSequential(offset))
+			}
+			requestOutput = fmt.Sprintf("(seq: %s, hit: %t, %v)", seq, cacheHit, executionTime)
+		}
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): %s", requestId, rr.object.Name, offset, len(p), requestOutput)
+	}()
+
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
@@ -220,16 +239,6 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
 		}
 	}
-
-	// Response log
-	// Get the read type here, as later fileCacheHandle might be nil.
-	seq := rr.fileCacheHandle.IsSequential(offset)
-	defer func() {
-		executionTime := time.Since(startTime)
-
-		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (seq: %t, hit: %t, %v)", requestId, rr.object.Name, offset, len(p), seq, cacheHit, executionTime)
-	}()
 
 	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
 	if err == nil {

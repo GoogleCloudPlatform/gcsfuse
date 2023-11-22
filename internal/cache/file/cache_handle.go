@@ -156,7 +156,7 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 	}
 
 	n, err = io.ReadFull(fch.fileHandle, dst)
-	if err == io.EOF || err == io.ErrUnexpectedEOF {
+	if err == io.EOF {
 		err = nil
 	}
 	if err != nil {
