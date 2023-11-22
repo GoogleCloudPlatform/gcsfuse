@@ -313,7 +313,7 @@ func (t *CacheTest) TestRaceCondition() {
 				Value:    int64(i),
 				DataSize: uint64(rand.Intn(MaxSize)),
 			})
-			AssertTrue(err == nil || strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
+			AssertTrue((err == nil) || strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
 		}
 	}()
 
