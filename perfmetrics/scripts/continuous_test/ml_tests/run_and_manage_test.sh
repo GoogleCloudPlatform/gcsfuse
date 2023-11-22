@@ -162,9 +162,9 @@ exit_status=0
 if [ $current_status == "START" ];
 then
   echo "Update commit Id for the run"
-#  commit_id=$(git rev-parse HEAD)
-#  echo $commit_id > commit.txt
-#  gsutil cp commit.txt $ARTIFACTS_BUCKET_PATH/
+  commit_id=$(git rev-parse HEAD)
+  echo $commit_id > commit.txt
+  gsutil cp commit.txt $ARTIFACTS_BUCKET_PATH/
 
   delete_existing_vm_and_create_new
   

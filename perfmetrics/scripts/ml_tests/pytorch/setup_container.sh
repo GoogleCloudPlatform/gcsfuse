@@ -55,7 +55,7 @@ def pil_loader(path: str) -> Image.Image:
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/opt/conda/lib/${PYTHON_VESRION}site-packages/torchvision/datasets/folder.py"
+folder_file="/opt/conda/lib/${PYTHON_VESRION}/site-packages/torchvision/datasets/folder.py"
 x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
 y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
 y=$((y - 2))
