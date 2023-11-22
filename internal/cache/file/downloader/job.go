@@ -92,7 +92,7 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-		sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
+	sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
