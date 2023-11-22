@@ -202,6 +202,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		return
 	}
 
+	// Request log and start the execution timer.
+	requestId := uuid.New()
+	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d)", requestId, rr.object.Name, offset, len(p))
+	startTime := time.Now()
+
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
 		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
@@ -216,15 +221,12 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 	}
 
-	// Request log.
-	requestId := uuid.New()
-	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d): (seq: %t)", requestId, rr.object.Name, offset, len(p), rr.fileCacheHandle.IsSequential(offset))
-	startTime := time.Now()
-
-	// Response log.
+	// Response log
 	defer func() {
 		executionTime := time.Since(startTime)
-		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (hit: %t, %v)", requestId, rr.object.Name, offset, len(p), cacheHit, executionTime)
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (seq: %t, hit: %t, %v)", requestId, rr.object.Name, offset, len(p), rr.fileCacheHandle.IsSequential(offset), cacheHit, executionTime)
 	}()
 
 	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
