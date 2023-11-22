@@ -205,7 +205,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	logger.Tracef("%.13v <- ReadFromCache(%s, offset: %d, size: %d)", requestId, rr.object.Name, offset, len(p))
+	logger.Tracef("%.13v <- ReadFromCache(%s://%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
 	startTime := time.Now()
 
 	// Response log
@@ -223,7 +223,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): %s", requestId, rr.object.Name, offset, len(p), requestOutput)
+		logger.Tracef("%.13v -> ReadFromCache(%s://%s, offset: %d, size: %d): %s", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), requestOutput)
 	}()
 
 	// Create fileCacheHandle if not already.
