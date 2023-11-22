@@ -222,11 +222,13 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	}
 
 	// Response log
+	// Get the read type here, as later fileCacheHandle might be nil.
+	seq := rr.fileCacheHandle.IsSequential(offset)
 	defer func() {
 		executionTime := time.Since(startTime)
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (seq: %t, hit: %t, %v)", requestId, rr.object.Name, offset, len(p), rr.fileCacheHandle.IsSequential(offset), cacheHit, executionTime)
+		logger.Tracef("%.13v -> ReadFromCache(%s, offset: %d, size: %d): (seq: %t, hit: %t, %v)", requestId, rr.object.Name, offset, len(p), seq, cacheHit, executionTime)
 	}()
 
 	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
