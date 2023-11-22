@@ -13,16 +13,28 @@
       "end_date": "2023-12-30 05:30:00+00:00"
     },
     {
-      "config_name": "read_cache_release",
+      "config_name": "read_cache_download_for_rand_read",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
+      "config_file_flags_as_json": {
+        "file-cache": {
+          "max-size-in-mb": -1,
+          "download-file-for-random-read": true
+        }
+      },
       "branch": "read_cache_release",
       "end_date": "2024-03-31 05:30:00+00:00"
     },
     {
-      "config_name": "nov_2023_release",
+      "config_name": "read_cache_not_download_for_rand_read",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
-      "branch": "nov_2023_release",
-      "end_date": "2023-11-30 05:30:00+00:00"
+      "config_file_flags_as_json": {
+        "file-cache": {
+          "max-size-in-mb": -1,
+          "download-file-for-random-read": false
+        }
+      },
+      "branch": "read_cache_release",
+      "end_date": "2024-03-31 05:30:00+00:00"
     }
   ]
 }
