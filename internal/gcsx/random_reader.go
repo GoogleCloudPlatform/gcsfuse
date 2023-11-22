@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
@@ -195,40 +198,70 @@ func (rr *randomReader) CheckInvariants() {
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
-	if rr.fileCacheHandler != nil {
-		// Create fileCacheHandle if not already.
-		if rr.fileCacheHandle == nil {
-			rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
-			if err != nil {
-				// We fall back to GCS if file size is greater than the cache size
-				if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
-					return 0, false, nil
-				}
-				return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
-			}
-		}
 
-		n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
-		if err == nil {
-			cacheHit = true
-			return
-		}
-
-		cacheHit = false
-		n = 0
-		if util.IsCacheHandleInvalid(err) {
-			err = rr.fileCacheHandle.Close()
-			if err != nil {
-				err = fmt.Errorf("tryReadingFromFileCache: while closing the fileCacheHandle: %v", err)
-				return
-			}
-			rr.fileCacheHandle = nil
-		} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
-			err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
-			return
-		}
-		err = nil
+	if rr.fileCacheHandler == nil {
+		return
 	}
+
+	// Request log and start the execution timer.
+	requestId := uuid.New()
+	logger.Tracef("%.13v <- ReadFromCache(%s://%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
+	startTime := time.Now()
+
+	// Response log
+	defer func() {
+		executionTime := time.Since(startTime)
+		var requestOutput string
+		if err != nil {
+			requestOutput = fmt.Sprintf("(error: %v, %v)", err, executionTime)
+		} else {
+			seq := "unknown"
+			if rr.fileCacheHandle != nil {
+				seq = strconv.FormatBool(rr.fileCacheHandle.IsSequential(offset))
+			}
+			requestOutput = fmt.Sprintf("(seq: %s, hit: %t, %v)", seq, cacheHit, executionTime)
+		}
+
+		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
+		logger.Tracef("%.13v -> ReadFromCache(%s://%s, offset: %d, size: %d): %s", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), requestOutput)
+	}()
+
+	// Create fileCacheHandle if not already.
+	if rr.fileCacheHandle == nil {
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
+		if err != nil {
+			// We fall back to GCS if file size is greater than the cache size
+			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
+				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				return 0, false, nil
+			}
+
+			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+		}
+	}
+
+	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
+	if err == nil {
+		cacheHit = true
+		return
+	}
+
+	cacheHit = false
+	n = 0
+
+	if util.IsCacheHandleInvalid(err) {
+		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		err = rr.fileCacheHandle.Close()
+		if err != nil {
+			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
+		}
+		rr.fileCacheHandle = nil
+	} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
+		return
+	}
+	err = nil
+
 	return
 }
 
@@ -361,10 +394,12 @@ func (rr *randomReader) Destroy() {
 	}
 
 	if rr.fileCacheHandle != nil {
+		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
+		rr.fileCacheHandle = nil
 	}
 }
 
