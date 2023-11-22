@@ -510,3 +510,19 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 	ExpectEq(cht.cacheHandle.isSequential, false)
 }
+
+func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
+	dst := make([]byte, ReadContentSize + 1) // Increased the size of buffer.
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.downloadFileForRandomRead = true
+
+	// Since, it's a sequential read, hence will wait to download till requested offset.
+	_, err := cht.cacheHandle.Read(context.Background(), cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectGe(jobStatus.Offset, offset)
+	cht.verifyContentRead(offset, dst)
+	ExpectEq(nil, err)
+}
