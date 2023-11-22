@@ -23,7 +23,15 @@ RUN pip3 install timm
 WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
+WORKDIR "/pytorch_dino/dino"
+# Apply changes to support pytorch 2.0 to model.
+RUN echo '[remote "origin"]
+    >          fetch = +refs/pull/262/head:refs/remotes/origin/pr/262' >> .git/config
+RUN git fetch origin
+RUN git diff origin/main origin/pr/262 > diff.patch
+RUN git apply diff.patch
 
+WORKDIR "/pytorch_dino/"
 COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
 
 RUN mkdir -p "run_artifacts"
