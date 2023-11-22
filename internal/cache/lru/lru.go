@@ -23,9 +23,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 )
 
-// Predefined error message returned by the Cache.
-const InvalidEntrySizeErrorMsg = "size of the entry is more than the cache's maxSize"
-const InvalidEntryErrorMsg = "nil values are not supported"
+// Predefined error messages returned by the Cache.
+const (
+	InvalidEntrySizeErrorMsg       = "size of the entry is more than the cache's maxSize"
+	InvalidEntryErrorMsg           = "nil values are not supported"
+	InvalidUpdateEntrySizeErrorMsg = "size of entry to be updated is not same as existing size"
+	EntryNotExistErrMsg            = "entry with given key does not exist"
+)
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
@@ -213,4 +217,50 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 
 	// Return the value.
 	return e.Value.(entry).Value
+}
+
+// LookUpWithoutChangingOrder looks up previously-inserted value for a given key
+// without changing the order of entries in the cache. Return nil if no value
+// is present.
+func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Consult the index.
+	e, ok := c.index[key]
+	if !ok {
+		return
+	}
+
+	// Return the value.
+	return e.Value.(entry).Value
+}
+
+// UpdateWithoutChangingOrder updates entry with the given key in cache with
+// given value without changing order of entries in cache, returning error if an
+// entry with given key doesn't exist. Also, the size of value for entry
+// shouldn't be updated with this method (use c.Insert for updating size).
+func (c *Cache) UpdateWithoutChangingOrder(
+	key string,
+	value ValueType) error {
+	if value == nil {
+		return errors.New(InvalidEntryErrorMsg)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	e, ok := c.index[key]
+	if !ok {
+		return errors.New(EntryNotExistErrMsg)
+	}
+
+	if value.Size() != e.Value.(entry).Value.Size() {
+		return errors.New(InvalidUpdateEntrySizeErrorMsg)
+	}
+
+	e.Value = entry{key, value}
+	c.index[key] = e
+
+	return nil
 }

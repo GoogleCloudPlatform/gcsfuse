@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -91,7 +92,7 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
+		sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
@@ -175,7 +176,7 @@ func (job *Job) notifySubscribers() {
 	for subItr := job.subscribers.Front(); subItr != nil; subItr = nextSubItr {
 		subItrValue := subItr.Value.(jobSubscriber)
 		nextSubItr = subItr.Next()
-		if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Offset >= subItrValue.subscribedOffset {
+		if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Name == INVALID || job.status.Offset >= subItrValue.subscribedOffset {
 			subItrValue.notificationC <- job.status
 			close(subItrValue.notificationC)
 			job.subscribers.Remove(subItr)
@@ -218,10 +219,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 	}
 
 	logger.Tracef("Job:%p (%s://%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
-
-	// To-Do(raj-prince): We should not call normal insert here as that internally
-	// changes the LRU element which is undesirable given this is not user access.
-	_, err = job.fileInfoCache.Insert(fileInfoKeyName, updatedFileInfo)
+	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %v", updatedFileInfo.Key, err))
 		return
@@ -307,6 +305,16 @@ func (job *Job) downloadObjectAsync() {
 				// Notify subscribers if file cache is updated.
 				if err == nil {
 					job.notifySubscribers()
+				} else if strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
+					// Download job expects entry in file info cache for the file it is
+					// downloading. If the entry is deleted in between which is expected
+					// to happen at the time of eviction, then the job should be
+					// invalidated instead of failing because the failure is propagated by
+					// cache handle to user which is not ideal.
+					job.status.Name = INVALID
+					job.notifySubscribers()
+					job.mu.Unlock()
+					return
 				}
 				job.mu.Unlock()
 				// change status of job in case of error while updating file cache.
