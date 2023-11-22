@@ -36,34 +36,22 @@ type invariantsCache struct {
 func (c *invariantsCache) Insert(
 	o *gcs.Object,
 	expiration time.Time) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	c.wrapped.Insert(o, expiration)
 }
 
 func (c *invariantsCache) AddNegativeEntry(
 	name string,
 	expiration time.Time) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	c.wrapped.AddNegativeEntry(name, expiration)
 }
 
 func (c *invariantsCache) Erase(name string) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	c.wrapped.Erase(name)
 }
 
 func (c *invariantsCache) LookUp(
 	name string,
 	now time.Time) (hit bool, o *gcs.Object) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	hit, o = c.wrapped.LookUp(name, now)
 	return
 }
