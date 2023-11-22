@@ -1039,6 +1039,33 @@ func (t *RandomReaderTest) Test_ReadAt_OffsetEqualToObjectSize() {
 	ExpectEq(0, n)
 }
 
+func (t *RandomReaderTest) Test_Destroy_NilCacheHandle() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+
+	t.rr.Destroy()
+
+	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+}
+
+func (t *RandomReaderTest) Test_Destroy_NonNilCacheHandle() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rc := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.wrapped.tryReadingFromFileCache(t.rr.ctx, buf, 0)
+	AssertTrue(cacheHit)
+	AssertEq(nil, err)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
+
+	t.rr.wrapped.Destroy()
+
+	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
+}
+
 // TODO (raj-prince) - to add unit tests for failed scenario while reading via cache.
 // This requires mocking CacheHandle object, whose read method will return some unexpected
 // error.
