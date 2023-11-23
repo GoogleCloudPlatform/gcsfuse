@@ -23,19 +23,22 @@ RUN pip3 install timm
 WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
-WORKDIR "/pytorch_dino/dino"
-# Apply changes to support pytorch 2.0 to model.
-RUN echo '[remote "origin"]' >> .git/config
-RUN echo '    fetch = +refs/pull/262/head:refs/remotes/origin/pr/262' >> .git/config
+# (TulsiShah) TODO: The current docker image does not support the dino model with compile mode.
+#       We can unblock the below code whenever the docker image supports the same to run.
 
-RUN git fetch origin
-RUN git diff origin/main origin/pr/262 > diff.patch
-RUN git apply diff.patch
+# WORKDIR "/pytorch_dino/dino"
+# RUN echo '[remote "origin"]' >> .git/config
+# RUN echo '    fetch = +refs/pull/262/head:refs/remotes/origin/pr/262' >> .git/config
+#
+# RUN git fetch origin
+# RUN git diff origin/main origin/pr/262 > diff.patch
+# RUN git apply diff.patch
+#
+# WORKDIR "/pytorch_dino/"
 
-WORKDIR "/pytorch_dino/"
 COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
 
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh pytorch2 python3.10"]
+ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh v2 python3.10"]

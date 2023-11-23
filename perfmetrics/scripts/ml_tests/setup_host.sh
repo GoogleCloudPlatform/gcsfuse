@@ -34,10 +34,6 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 echo "Installing driver..."
 sudo apt update && sudo apt install -y build-essential
 BASE_URL=https://us.download.nvidia.com/tesla
-if [[ -z "$DRIVER_VERSION" ]];
-then
-  DRIVER_VERSION=450.172.01
-fi
 sudo curl -fSsl -O $BASE_URL/$DRIVER_VERSION/NVIDIA-Linux-x86_64-$DRIVER_VERSION.run
 
 sudo sh NVIDIA-Linux-x86_64-$DRIVER_VERSION.run -s

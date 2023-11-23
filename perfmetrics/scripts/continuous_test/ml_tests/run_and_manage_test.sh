@@ -158,7 +158,7 @@ exit_status=0
 # Transitions:
 # START to START: If model run is not triggerred due to some error.
 # START to RUNNING: If model is successfully triggerred on GPU. This state is 
-# changed by setup_host_and_run_model.sh that runs inside docker container of test VM.
+# changed by setup_host.sh that runs inside docker container of test VM.
 if [ $current_status == "START" ];
 then
   echo "Update commit Id for the run"

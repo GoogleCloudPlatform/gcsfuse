@@ -18,8 +18,8 @@ set -e
 
 VM_NAME="pytorch-dino-7d"
 ZONE_NAME="us-west1-b"
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/pytorch1_12/dino"
-TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/pytorch1_12/dino/setup_host_and_run_model.sh"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/v1_12/dino"
+TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v1_12/dino/setup_host_and_run_model.sh"
 PYTORCH_VERSION="v1_12"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"

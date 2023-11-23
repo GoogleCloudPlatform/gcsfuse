@@ -19,7 +19,9 @@ set -e
 cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver"
-source ml_tests/setup_host.sh
+# Driver version for A100 GPUs is 450.172.01
+DRIVER_VERSION="450.172.01"
+source ml_tests/setup_host.sh $DRIVER_VERSION
 
 PYTORCH_VERSION="v1_12"
 source ml_tests/pytorch/run_model.sh $PYTORCH_VERSION
