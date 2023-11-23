@@ -47,7 +47,8 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+  echo "running perf tests with trace logs"
+  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --config-file=/tmp/gcsfuse_config.yaml"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
@@ -90,6 +91,17 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
+  mkdir /tmp/gcsfuse_integration_test_logs
+  rm -r /tmp/gcsfuse_integration_test_logs
+  echo "logging:
+          file-path: /tmp/gcsfuse_integration_test_logs/log.txt
+          format: text
+          severity: trace
+          log-rotate:
+            max-file-size-mb: 1
+            file-count: 1
+            compress: true
+         " > /tmp/gcsfuse_config.yaml
  git reset --hard
  git checkout master
  # Store results
