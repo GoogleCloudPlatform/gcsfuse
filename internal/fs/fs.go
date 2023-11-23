@@ -1970,10 +1970,10 @@ func (fs *fileSystem) Unlink(
 
 	// if inode is a local file, mark it unlinked.
 	fileName := inode.NewFileName(parent.Name(), op.Name)
-	inode, ok := fs.localFileInodes[fileName]
+	fileInode, ok := fs.localFileInodes[fileName]
 	if ok {
 		fs.mu.Lock()
-		file := fs.fileInodeOrDie(inode.ID())
+		file := fs.fileInodeOrDie(fileInode.ID())
 		fs.mu.Unlock()
 		file.Lock()
 		defer file.Unlock()
@@ -1995,6 +1995,18 @@ func (fs *fileSystem) Unlink(
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return err
+	}
+	if fs.fileCacheHandler != nil {
+		if bucketOwnedDirInode, ok := parent.(inode.BucketOwnedDirInode); ok {
+			bucketName := bucketOwnedDirInode.Bucket().Name()
+			// Invalidate the file cache entry if it exists.
+			err = fs.fileCacheHandler.InvalidateCache(fileName.GcsObjectName(), bucketName)
+			if err != nil {
+				return fmt.Errorf("unlink: while invalidating the file cache: %v", err)
+			}
+		} else {
+			return fmt.Errorf("unlink: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
+		}
 	}
 
 	return

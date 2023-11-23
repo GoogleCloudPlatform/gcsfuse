@@ -891,7 +891,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectEq(jobStatus.Name, downloader.COMPLETED)
-	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
@@ -921,7 +921,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectEq(jobStatus.Name, downloader.COMPLETED)
-	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
@@ -981,7 +981,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFil
 func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
@@ -1012,7 +1012,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	testContent := getRandomContent(int(objectSize))
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))

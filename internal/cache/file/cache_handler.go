@@ -204,10 +204,10 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 // and delete local file in the cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) InvalidateCache(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
 	fileInfoKey := data.FileInfoKey{
-		BucketName: bucket.Name(),
-		ObjectName: object.Name,
+		BucketName: bucketName,
+		ObjectName: objectName,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {

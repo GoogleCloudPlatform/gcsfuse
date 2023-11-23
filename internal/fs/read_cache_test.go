@@ -275,7 +275,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	AssertEq(0, stat.Size())
 }
 
-func (t *FileCacheTest) DeletingFileFromCacheShouldReadFromGCS() {
+func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -289,22 +289,72 @@ func (t *FileCacheTest) DeletingFileFromCacheShouldReadFromGCS() {
 	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)
-	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	defer closeFile(file)
 	AssertEq(nil, err)
 
 	// reading again should throw error
 	_, err = file.Read(buf)
 
-	// ToDo(raj-prince): This is a bug due to which new file is created and data
-	// is served from that. Also, the data is mostly empty.
-	AssertEq(nil, err)
-	AssertFalse(reflect.DeepEqual(string(buf), objectContent))
+	AssertNe(nil, err)
 }
 
+func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail() {
+	objectContent := generateRandomString(util.MiB)
+	objects := map[string]string{DefaultObjectName: objectContent}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	filePath := path.Join(mntDir, DefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	closeFile(file)
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
+	defer closeFile(file)
+	AssertEq(nil, err)
+	_, err = file.Read(buf)
+	// delete the file in cache
+	err = os.Remove(downloadPath)
+
+	// Read with old handle.
+	file.Seek(0, 0)
+	_, err = file.Read(buf)
+
+	AssertEq(nil, err)
+	AssertTrue(reflect.DeepEqual(string(buf), objectContent))
+}
+
+func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
+	objectContent := generateRandomString(util.MiB)
+	objects := map[string]string{DefaultObjectName: objectContent}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	filePath := path.Join(mntDir, DefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	closeFile(file)
+
+	// Delete the object.
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err))
+}
 func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
