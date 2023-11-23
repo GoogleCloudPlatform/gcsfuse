@@ -27,8 +27,8 @@ ZONE_NAME=$2
 ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
-# run the model with pytorch2.0
-PYTORCH_2=$5
+# run the model with v2.0
+PYTORCH_VERSION=$5
 
 function initialize_ssh_key () {
     echo "Delete existing ssh keys "
@@ -59,7 +59,7 @@ function delete_existing_vm_and_create_new () {
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
-  if [ $PYTORCH_2 == "pytorch2" ];
+  if [ $PYTORCH_VERSION == "v2" ];
   then
       # NVIDIA A100 40GB GPU type machine is currently unavailable due to global shortage.
       # Creating NVIDIA L4 machines which are available on us-west1-1 zone.
@@ -158,7 +158,7 @@ exit_status=0
 # Transitions:
 # START to START: If model run is not triggerred due to some error.
 # START to RUNNING: If model is successfully triggerred on GPU. This state is 
-# changed by setup_host.sh that runs inside docker container of test VM.
+# changed by setup_host_and_run_model.sh that runs inside docker container of test VM.
 if [ $current_status == "START" ];
 then
   echo "Update commit Id for the run"
