@@ -41,4 +41,7 @@ COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
-ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh v2 python3.10"]
+ARG PYTORCH_VERSION="v2"
+ARG PYTHON_VERSION="python3.10"
+
+ENTRYPOINT ["/bin/bash", "-c", "./setup_container.sh ${PYTORCH_VERSION} ${PYTHON_VERSION}"]
