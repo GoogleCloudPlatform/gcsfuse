@@ -91,22 +91,18 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
-  mkdir /tmp/gcsfuse_integration_test_logs
-  rm -r /tmp/gcsfuse_integration_test_logs
-  echo "logging:
-          file-path: /tmp/gcsfuse_integration_test_logs/log.txt
-          format: text
-          severity: trace
-          log-rotate:
-            max-file-size-mb: 1
-            file-count: 1
-            compress: true
-         " > /tmp/gcsfuse_config.yaml
  git reset --hard
  git checkout master
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
+ echo writing config file without log rotation
+  mkdir /tmp/gcsfuse_integration_test_logs
+  echo "logging:
+          file-path: /tmp/gcsfuse_integration_test_logs/log1.txt
+          format: text
+          severity: trace
+         " > /tmp/gcsfuse_config.yaml
  execute_perf_test
 
 
@@ -114,6 +110,16 @@ then
  echo checkout PR branch
  git reset --hard
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
+ echo writing config file with log rotation
+ echo "logging:
+          file-path: /tmp/gcsfuse_integration_test_logs/log2.txt
+          format: text
+          severity: trace
+          log-rotate:
+            max-file-size-mb: 200
+            file-count: 10
+            compress: true
+         " > /tmp/gcsfuse_config.yaml
  echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
 
