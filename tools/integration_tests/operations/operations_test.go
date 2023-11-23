@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 			},
 		},
 	}
-	configFile := setup.YAMLConfigFile(mountConfig)
+	configFile := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	// Set up flags to run tests on.
 	flags := [][]string{
 		// By default, creating emptyFile is disabled.

@@ -309,7 +309,8 @@ func SetUpTestDirForTestBucketFlag() {
 }
 
 func SetUpLogDir(logDirName string) (logDir string) {
-	logDir, err := os.MkdirTemp("", logDirName)
+	logDir = path.Join(TestDir(), logDirName)
+	err := os.Mkdir(logDir, DirPermission_0755)
 	if err != nil {
 		log.Printf("SetUpLogDir: %v\n", err)
 		os.Exit(1)
