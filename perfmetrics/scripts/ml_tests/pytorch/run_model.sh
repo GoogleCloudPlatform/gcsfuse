@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -e
-# pytorch version v1_12 or v2
+# pytorch version (e.g. v1_12, v2)
 PYTORCH_VESRION=$1
 cd "$HOME/github/gcsfuse"
 echo "Building docker image containing all pytorch libraries..."

@@ -27,7 +27,7 @@ ZONE_NAME=$2
 ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
-# run the model with v2.0
+# pytorch version
 PYTORCH_VERSION=$5
 
 function initialize_ssh_key () {
