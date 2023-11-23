@@ -17,12 +17,13 @@
 package log_rotation
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (

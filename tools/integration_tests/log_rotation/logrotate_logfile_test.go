@@ -16,8 +16,6 @@ package log_rotation
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"math/rand"
 	"os"
 	"path"
@@ -25,6 +23,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
