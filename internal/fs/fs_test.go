@@ -163,11 +163,11 @@ func (t *fsTest) SetUpTestSuite() {
 	mountCfg.OpContext = ctx
 
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = logger.NewError("fuse_errors: ")
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = logger.NewDebug("fuse: ")
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
 	}
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
