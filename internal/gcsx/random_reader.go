@@ -195,6 +195,15 @@ func (rr *randomReader) CheckInvariants() {
 // should be read from GCS.
 // And it returns non-nil error in case something unexpected happens during the execution.
 // In this case, we must abort the Read operation.
+//
+// Important: What happens if the cache file is deleted externally?
+// This means that the fileInfoCache contains an entry for the cache file, but the cache
+// file is not available locally.
+// (a) If the fileCacheHandle is nil, in this case it will return a data-inconsistent error.
+// (b) In the case of an old cacheFileHandle, this will return correct data until the handle
+// is closed. This is because Linux does not delete a file until its link count is zero.
+// When the fileHandle is open, it contributes to the link_count and therefore the file
+// is not deleted and serves the data correctly.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {

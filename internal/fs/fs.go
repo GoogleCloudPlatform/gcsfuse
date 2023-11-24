@@ -1244,6 +1244,25 @@ func (fs *fileSystem) symlinkInodeOrDie(
 	return
 }
 
+// invalidateChildCacheIfExist invalidates the read file cache. This is used to
+// invalidate the cache after deletion of gcsObject.
+func (fs *fileSystem) invalidateChildCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
+	if fs.fileCacheHandler != nil {
+		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
+			bucketName := bucketOwnedDirInode.Bucket().Name()
+			// Invalidate the file cache entry if it exists.
+			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
+			if err != nil {
+				return fmt.Errorf("invalidateChildCacheIfExist: while invalidating the file cache: %v", err)
+			}
+		} else {
+			return fmt.Errorf("invalidateChildCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
+		}
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -1835,6 +1854,11 @@ func (fs *fileSystem) renameFile(
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
+
+	if err := fs.invalidateChildCacheIfExist(oldParent, oldObject.Name); err != nil {
+		return fmt.Errorf("renameFile: while invalidating cache for delete file: %v", err)
+	}
+
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1940,6 +1964,10 @@ func (fs *fileSystem) renameDir(
 		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
 			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
+
+		if err = fs.invalidateChildCacheIfExist(oldDir, o.Name); err != nil {
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
+		}
 	}
 
 	// We are done with both directories.
@@ -1996,17 +2024,9 @@ func (fs *fileSystem) Unlink(
 		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return err
 	}
-	if fs.fileCacheHandler != nil {
-		if bucketOwnedDirInode, ok := parent.(inode.BucketOwnedDirInode); ok {
-			bucketName := bucketOwnedDirInode.Bucket().Name()
-			// Invalidate the file cache entry if it exists.
-			err = fs.fileCacheHandler.InvalidateCache(fileName.GcsObjectName(), bucketName)
-			if err != nil {
-				return fmt.Errorf("unlink: while invalidating the file cache: %v", err)
-			}
-		} else {
-			return fmt.Errorf("unlink: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
-		}
+
+	if err := fs.invalidateChildCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
 	}
 
 	return

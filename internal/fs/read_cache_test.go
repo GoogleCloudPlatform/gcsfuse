@@ -38,7 +38,13 @@ import (
 const (
 	FileCacheSizeInMb     = 10
 	DefaultObjectName     = "foo.txt"
+	RenamedObjectName     = "bar.txt"
 	DefaultObjectSizeInMb = 5
+
+	NestedDefaultObjectName = "dir/foo.txt"
+	DefaultDir              = "dir"
+
+	RenamedDir = "renamed_dir"
 )
 
 var CacheLocation = path.Join(os.Getenv("HOME"), "cache-dir")
@@ -355,6 +361,58 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertNe(nil, err)
 	AssertTrue(os.IsNotExist(err))
 }
+
+func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
+	objectContent := generateRandomString(util.MiB)
+	objects := map[string]string{DefaultObjectName: objectContent}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	filePath := path.Join(mntDir, DefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	closeFile(file)
+	renamedPath := path.Join(mntDir, RenamedObjectName)
+
+	// Rename the object.
+	err = os.Rename(filePath, renamedPath)
+	AssertEq(nil, err)
+
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err))
+}
+
+func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
+	objectContent := generateRandomString(util.MiB)
+	objects := map[string]string{NestedDefaultObjectName: objectContent}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	filePath := path.Join(mntDir, NestedDefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	closeFile(file)
+	dir := path.Join(mntDir, DefaultDir)
+	renamedDir := path.Join(mntDir, RenamedDir)
+
+	// Rename dir.
+	err = os.Rename(dir, renamedDir)
+	AssertEq(nil, err)
+
+	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err))
+}
+
 func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
