@@ -99,9 +99,10 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 func TestLogRotation(t *testing.T) {
 	setup.SetupTestDirectory(testDirName)
 
-	// Perform log rotation once.
-	runParallelOperationsInMountedDirectoryTillLogRotation(t)
-
+	// Perform log rotation 4 times.
+	for i := 0; i < 4; i++ {
+		runParallelOperationsInMountedDirectoryTillLogRotation(t)
+	}
 	// Adding 1-second sleep here because there is slight delay in compression
 	// of log files.
 	time.Sleep(1 * time.Second)

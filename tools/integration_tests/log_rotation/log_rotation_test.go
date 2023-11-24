@@ -65,7 +65,8 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	logDirPath = path.Join("/tmp", logDirName)
+
+	logDirPath = setup.ValidateLogDirForMountedDirTests(logDirName)
 	logFilePath = path.Join(logDirPath, logFileName)
 	setup.RunTestsForMountedDirectoryFlag(m)
 
@@ -73,9 +74,11 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	logDirPath = setup.SetUpLogDir(logDirName)
+	// Set up directory for logs.
+	logDirPath = setup.SetUpLogDirForTestDirTests(logDirName)
 	logFilePath = path.Join(logDirPath, logFileName)
 
+	// Set up config files.
 	configFile1 := setup.YAMLConfigFile(
 		getMountConfigForLogRotation(maxFileSizeMB, logFileCount, true, logFilePath),
 		"config1.yaml")
