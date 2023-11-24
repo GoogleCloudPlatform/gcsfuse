@@ -47,8 +47,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  echo "running perf tests with trace logs"
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --config-file=/tmp/gcsfuse_config.yaml"
+  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
@@ -64,8 +63,6 @@ function install_requirements() {
   echo installing requirements
   echo Installing python3-pip
   sudo apt-get -y install python3-pip
-  echo Installing Bigquery module requirements...
-  pip install --require-hashes -r ./perfmetrics/scripts/bigquery/requirements.txt --user
   echo Installing libraries to run python script
   pip install google-cloud
   pip install google-cloud-vision
@@ -91,35 +88,16 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git reset --hard
  git checkout master
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
- echo writing config file without log rotation
-  mkdir /tmp/gcsfuse_integration_test_logs
-  echo "logging:
-          file-path: /tmp/gcsfuse_integration_test_logs/log1.txt
-          format: text
-          severity: trace
-         " > /tmp/gcsfuse_config.yaml
  execute_perf_test
 
 
  # Executing perf tests for PR branch
  echo checkout PR branch
- git reset --hard
  git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
- echo writing config file with log rotation
- echo "logging:
-          file-path: /tmp/gcsfuse_integration_test_logs/log2.txt
-          format: text
-          severity: trace
-          log-rotate:
-            max-file-size-mb: 200
-            file-count: 10
-            compress: true
-         " > /tmp/gcsfuse_config.yaml
  echo Mounting gcs bucket from pr branch and execute tests
  execute_perf_test
 
@@ -132,7 +110,6 @@ fi
 if [[ "$integrationTestsStr" == *"$EXECUTE_INTEGRATION_TEST_LABEL"* ]];
 then
   echo checkout PR branch
-  git reset --hard
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests...."
