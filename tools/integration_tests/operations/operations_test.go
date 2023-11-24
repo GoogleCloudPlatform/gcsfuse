@@ -88,13 +88,17 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
-	// Set up config file with create-empty-file: false.
+	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
 		WriteConfig: config.WriteConfig{
 			CreateEmptyFile: true,
 		},
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,
+			LogRotateConfig: config.LogRotateConfig{
+				MaxFileSizeMB: 10,
+				FileCount:     1,
+			},
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
