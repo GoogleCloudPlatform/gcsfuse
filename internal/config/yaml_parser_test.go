@@ -36,7 +36,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq("", mountConfig.LogConfig.Format)
 	ExpectEq("", mountConfig.LogConfig.FilePath)
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
@@ -86,7 +86,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	ExpectEq("text", mountConfig.LogConfig.Format)
 	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
@@ -111,5 +111,5 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "file-count should be atleast 1")))
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be atleast 1")))
 }

@@ -16,9 +16,9 @@ package config
 
 const (
 	// Default log rotation config values.
-	defaultMaxFileSizeMB = 512
-	defaultFileCount     = 10
-	defaultCompress      = false
+	defaultMaxFileSizeMB   = 512
+	defaultBackupFileCount = 10
+	defaultCompress        = false
 )
 
 type WriteConfig struct {
@@ -46,16 +46,16 @@ type MountConfig struct {
 // 3. compress: indicates whether the rotated log files should be compressed
 // using gzip. The default value is False.
 type LogRotateConfig struct {
-	MaxFileSizeMB int  `yaml:"max-file-size-mb"`
-	FileCount     int  `yaml:"file-count"`
-	Compress      bool `yaml:"compress"`
+	MaxFileSizeMB   int  `yaml:"max-file-size-mb"`
+	BackupFileCount int  `yaml:"backup-file-count"`
+	Compress        bool `yaml:"compress"`
 }
 
 func DefaultLogRotateConfig() LogRotateConfig {
 	return LogRotateConfig{
-		MaxFileSizeMB: defaultMaxFileSizeMB,
-		FileCount:     defaultFileCount,
-		Compress:      defaultCompress,
+		MaxFileSizeMB:   defaultMaxFileSizeMB,
+		BackupFileCount: defaultBackupFileCount,
+		Compress:        defaultCompress,
 	}
 }
 
