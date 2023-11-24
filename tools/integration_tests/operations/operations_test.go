@@ -95,6 +95,10 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,
+			LogRotateConfig: config.LogRotateConfig{
+				MaxFileSizeMB: 10,
+				FileCount:     1,
+			},
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
