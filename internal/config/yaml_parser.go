@@ -55,8 +55,8 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 	if config.MaxFileSizeMB <= 0 {
 		return fmt.Errorf("max-file-size-mb should be atleast 1")
 	}
-	if config.BackupFileCount <= 0 {
-		return fmt.Errorf("backup-file-count should be atleast 1")
+	if config.BackupFileCount < 0 {
+		return fmt.Errorf("backup-file-count should be 0 (to retain all backup files) or a positive value")
 	}
 	return nil
 }

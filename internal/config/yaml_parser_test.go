@@ -111,5 +111,5 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be atleast 1")))
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value")))
 }
