@@ -42,6 +42,5 @@ RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
 
 ENV PYTORCH_VERSION="v2"
-ENV PYTHON_VERSION="python3.10"
 
-ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION} ${PYTHON_VERSION}"]
+ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION}"]
