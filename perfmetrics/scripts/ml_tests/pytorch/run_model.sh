@@ -14,7 +14,6 @@
 # limitations under the License.
 
 PYTORCH_VESRION=$1
-PYTHON_VESRION=$2
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.3.linux-amd64.tar.gz -q
@@ -55,7 +54,7 @@ def pil_loader(path: str) -> Image.Image:
     return rgb_img
 " > bypassed_code.py
 
-folder_file="/opt/conda/lib/${PYTHON_VESRION}/site-packages/torchvision/datasets/folder.py"
+folder_file="/opt/conda/lib/3.10/site-packages/torchvision/datasets/folder.py"
 x=$(grep -n "def pil_loader(path: str) -> Image.Image:" $folder_file | cut -f1 -d ':')
 y=$(grep -n "def accimage_loader(path: str) -> Any:" $folder_file | cut -f1 -d ':')
 y=$((y - 2))
