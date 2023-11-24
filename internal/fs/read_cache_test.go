@@ -354,13 +354,15 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
 	closeFile(file)
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertEq(nil, err)
 
 	// Delete the object.
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
 
-	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
 	AssertTrue(os.IsNotExist(err))
@@ -379,13 +381,15 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertEq(nil, err)
 	closeFile(file)
 	renamedPath := path.Join(mntDir, RenamedObjectName)
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertEq(nil, err)
 
 	// Rename the object.
 	err = os.Rename(filePath, renamedPath)
 	AssertEq(nil, err)
 
-	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
 	AssertTrue(os.IsNotExist(err))
@@ -405,13 +409,15 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	closeFile(file)
 	dir := path.Join(mntDir, DefaultDir)
 	renamedDir := path.Join(mntDir, RenamedDir)
+	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
+	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertEq(nil, err)
 
 	// Rename dir.
 	err = os.Rename(dir, renamedDir)
 	AssertEq(nil, err)
 
-	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
 	AssertTrue(os.IsNotExist(err))
