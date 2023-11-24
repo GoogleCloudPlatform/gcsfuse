@@ -36,7 +36,7 @@ RUN git clone "https://github.com/facebookresearch/dino"
 #
 # WORKDIR "/pytorch_dino/"
 
-COPY perfmetrics/scripts/ml_tests/pytorch/setup_container.sh ./
+COPY perfmetrics/scripts/ml_tests/pytorch/run_model.sh ./
 
 RUN mkdir -p "run_artifacts"
 RUN mkdir -p "gcsfuse_data"
