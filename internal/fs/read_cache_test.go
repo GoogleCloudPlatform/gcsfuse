@@ -296,6 +296,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
 	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)
@@ -327,11 +328,14 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	defer closeFile(file)
 	AssertEq(nil, err)
 	_, err = file.Read(buf)
+	AssertEq(nil, err)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
-
+	AssertEq(nil, err)
 	// Read with old handle.
-	file.Seek(0, 0)
+	_, err = file.Seek(0, 0)
+	AssertEq(nil, err)
+
 	_, err = file.Read(buf)
 
 	AssertEq(nil, err)
