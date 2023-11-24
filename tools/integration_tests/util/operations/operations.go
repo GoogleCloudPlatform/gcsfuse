@@ -18,8 +18,21 @@ package operations
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"os/exec"
+	"time"
 )
+
+// GenerateRandomData generates random data that can be used to write to a file.
+func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	data := make([]byte, sizeInBytes)
+	_, err := r.Read(data)
+	if err != nil {
+		return nil, fmt.Errorf("r.Read(): %v", err)
+	}
+	return data, nil
+}
 
 // Executes any given tool (e.g. gsutil/gcloud) with given args.
 func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
