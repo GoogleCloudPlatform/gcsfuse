@@ -100,16 +100,20 @@ func TestMain(m *testing.M) {
 	// Run tests for testBucket
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
-	// Set up config file with create-empty-file: false.
+	// Set up config file with create-empty-file: true.
 	mountConfig := config.MountConfig{
 		WriteConfig: config.WriteConfig{
 			CreateEmptyFile: true,
 		},
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,
+			LogRotateConfig: config.LogRotateConfig{
+				MaxFileSizeMB: 10,
+				FileCount:     1,
+			},
 		},
 	}
-	configFile := setup.YAMLConfigFile(mountConfig)
+	configFile := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	// Set up flags to run tests on.
 	flags := [][]string{
 		// By default, creating emptyFile is disabled.
