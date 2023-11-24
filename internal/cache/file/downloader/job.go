@@ -309,8 +309,7 @@ func (job *Job) downloadObjectAsync() {
 					// Download job expects entry in file info cache for the file it is
 					// downloading. If the entry is deleted in between which is expected
 					// to happen at the time of eviction, then the job should be
-					// invalidated instead of failing because the failure is propagated by
-					// cache handle to user which is not ideal.
+					// marked INVALID instead of FAILED.
 					job.status.Name = INVALID
 					job.notifySubscribers()
 					job.mu.Unlock()
