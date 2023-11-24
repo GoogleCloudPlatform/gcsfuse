@@ -16,16 +16,14 @@ package log_rotation
 
 import (
 	"fmt"
-	"math/rand"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"os"
 	"path"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
@@ -38,31 +36,29 @@ const (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func generateRandomData(t *testing.T, sizeInBytes int64) []byte {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	data := make([]byte, sizeInBytes)
-	_, err := r.Read(data)
-	if err != nil {
-		t.Errorf("error while generating random data to write to file.")
-	}
-	return data
-}
-
 func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileName string) {
 	defer wg.Done()
 
-	testDirPath := path.Join(setup.MntDir(), testDirName)
 	// Generate random data to write to file.
-	randomData := generateRandomData(t, MiB)
-	// Setup file to write to.
+	randomData, err := operations.GenerateRandomData(5 * MiB)
+	if err != nil {
+		t.Errorf("operations.GenerateRandomData: %v", err)
+	}
+	// Setup file with 5 MiB content in test directory.
+	testDirPath := path.Join(setup.MntDir(), testDirName)
 	filePath := path.Join(testDirPath, fileName)
-	fh := operations.CreateFile(filePath, filePerms, t)
+	operations.CreateFileWithContent(filePath, filePerms, string(randomData), t)
 
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
 	for {
-		operations.WriteAt(string(randomData), 0, fh, t)
+		// Perform Read operation to generate logs.
+		_, err = operations.ReadFile(filePath)
+		if err != nil {
+			t.Errorf("ReadFile failed: %v", err)
+		}
 
+		// Break the loop when log file is rotated.
 		fi, err := operations.StatFile(logFilePath)
 		if err != nil {
 			t.Errorf("stat operation on file %s: %v", logFilePath, err)
@@ -73,14 +69,13 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 		}
 		lastLogFileSize = (*fi).Size()
 	}
-	operations.CloseFileShouldNotThrowError(fh, t)
 }
 
 func runParallelOperationsInMountedDirectoryTillLogRotation(t *testing.T) {
-	// Parallely perform operations on 10 files in-order to generate logs.
+	// Parallelly performs operations on 5 files in-order to generate logs.
 	var wg sync.WaitGroup
-	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	wg.Add(5)
+	for i := 0; i < 5; i++ {
 		go runOperationsOnFileTillLogRotation(t, &wg, fmt.Sprintf(testFileName+"-%d", i))
 	}
 	wg.Wait()
@@ -91,8 +86,8 @@ func validateLogFileSize(t *testing.T, dirEntry os.DirEntry) {
 	if err != nil {
 		t.Fatalf("log file size could not be fetched: %v", err)
 	}
-	if fi.Size() > MiB {
-		t.Errorf("log file size: expected (max): %d, actual: %d", MiB, fi.Size())
+	if fi.Size() > maxFileSizeMB*MiB {
+		t.Errorf("log file size: expected (max): %d, actual: %d", maxFileSizeMB*MiB, fi.Size())
 	}
 }
 
@@ -106,16 +101,20 @@ func TestLogRotation(t *testing.T) {
 	// Perform log rotation once.
 	runParallelOperationsInMountedDirectoryTillLogRotation(t)
 
-	// Validate that in the end we have one compressed rotated log file and one
-	// active log file.
+	// Adding 1-second sleep here because there is slight delay in compression
+	// of log files.
+	time.Sleep(1 * time.Second)
+
+	// Validate log files generated.
 	dirEntries := operations.ReadDirectory(logDirPath, t)
-	if len(dirEntries) != 2 {
-		t.Errorf("Expected log files in dirEntries folder: 2, got: %d", len(dirEntries))
+	if len(dirEntries) != logFileCount {
+		t.Errorf("Expected log files in dirEntries folder: %d, got: %d",
+			logFileCount, len(dirEntries))
 	}
 	rotatedCompressedFileCtr := 0
 	logFileCtr := 0
 	rotatedUncompressedFileCtr := 0
-	for i := 0; i < 2; i++ {
+	for i := 0; i < logFileCount; i++ {
 		if dirEntries[i].Name() == logFileName {
 			logFileCtr++
 			validateLogFileSize(t, dirEntries[i])
@@ -127,13 +126,12 @@ func TestLogRotation(t *testing.T) {
 		}
 	}
 
-	// validate only 1 log file is present.
-	if logFileCtr != 1 {
-		t.Errorf("expected countOfLogFile: 1, got: %d", logFileCtr)
+	if logFileCtr != activeLogFileCount {
+		t.Errorf("expected countOfLogFile: %d, got: %d", activeLogFileCount, logFileCtr)
 	}
-	// validate only 1 rotated log file is present.
+
 	rotatedLogFiles := rotatedCompressedFileCtr + rotatedUncompressedFileCtr
-	if rotatedLogFiles != 1 {
-		t.Errorf("expected rotated files: 1, got: %d", rotatedLogFiles)
+	if rotatedLogFiles != backupLogFileCount {
+		t.Errorf("expected rotated files: %d, got: %d", backupLogFileCount, rotatedLogFiles)
 	}
 }

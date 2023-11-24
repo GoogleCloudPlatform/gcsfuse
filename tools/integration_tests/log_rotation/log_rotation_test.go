@@ -27,9 +27,13 @@ import (
 )
 
 const (
-	testDirName = "LogRotationTest"
-	logFileName = "log.txt"
-	logDirName  = "gcsfuse_integration_test_logs"
+	testDirName        = "LogRotationTest"
+	logFileName        = "log.txt"
+	logDirName         = "gcsfuse_integration_test_logs"
+	maxFileSizeMB      = 2
+	activeLogFileCount = 1
+	backupLogFileCount = 2
+	logFileCount       = activeLogFileCount + backupLogFileCount
 )
 
 var logDirPath string
@@ -73,10 +77,10 @@ func TestMain(m *testing.M) {
 	logFilePath = path.Join(logDirPath, logFileName)
 
 	configFile1 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(1, 2, true, logFilePath),
+		getMountConfigForLogRotation(maxFileSizeMB, logFileCount, true, logFilePath),
 		"config1.yaml")
 	configFile2 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(1, 2, false, logFilePath),
+		getMountConfigForLogRotation(maxFileSizeMB, logFileCount, false, logFilePath),
 		"config2.yaml")
 
 	// Set up flags to run tests on.
