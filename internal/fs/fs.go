@@ -1244,6 +1244,30 @@ func (fs *fileSystem) symlinkInodeOrDie(
 	return
 }
 
+// invalidateChildFileCacheIfExist invalidates the file in read cache. This is used to
+// invalidate the file in read cache after deletion of original file.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
+	if fs.fileCacheHandler != nil {
+		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
+			bucketName := bucketOwnedDirInode.Bucket().Name()
+			// Invalidate the file cache entry if it exists.
+			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
+			if err != nil {
+				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %v", err)
+			}
+		} else {
+			// The parentInode is not owned by any bucket, which means it's the base
+			// directory that holds all the buckets' root directories. So, this op
+			// is to delete a bucket, which is not supported.
+			return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
+		}
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -1835,6 +1859,11 @@ func (fs *fileSystem) renameFile(
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
+		return fmt.Errorf("renameFile: while invalidating cache for delete file: %v", err)
+	}
+
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1940,6 +1969,10 @@ func (fs *fileSystem) renameDir(
 		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
 			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
+
+		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
+		}
 	}
 
 	// We are done with both directories.
@@ -1970,10 +2003,10 @@ func (fs *fileSystem) Unlink(
 
 	// if inode is a local file, mark it unlinked.
 	fileName := inode.NewFileName(parent.Name(), op.Name)
-	inode, ok := fs.localFileInodes[fileName]
+	fileInode, ok := fs.localFileInodes[fileName]
 	if ok {
 		fs.mu.Lock()
-		file := fs.fileInodeOrDie(inode.ID())
+		file := fs.fileInodeOrDie(fileInode.ID())
 		fs.mu.Unlock()
 		file.Lock()
 		defer file.Unlock()
@@ -1995,6 +2028,10 @@ func (fs *fileSystem) Unlink(
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return err
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
 	}
 
 	return
