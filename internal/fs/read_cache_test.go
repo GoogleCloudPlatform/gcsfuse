@@ -307,6 +307,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {
 	_, err = file.Read(buf)
 
 	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "input/output error"))
 }
 
 func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail() {
@@ -317,18 +318,12 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
+	defer closeFile(file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
-	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
-	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	AssertEq(nil, err)
-	defer closeFile(file)
-	AssertEq(nil, err)
-	_, err = file.Read(buf)
-	AssertEq(nil, err)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)

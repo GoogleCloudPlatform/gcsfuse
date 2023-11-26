@@ -277,11 +277,12 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGetsDelete
 	err := os.Remove(chrT.downloadPath)
 	AssertEq(nil, err)
 
-	// Insertion will happen and that leads to eviction.
+	// There is a fileInfoEntry in the fileInfoCache but the corresponding local file doesn't exist.
+	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
 	err = chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
@@ -356,7 +357,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 	_, err = chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
 
 	AssertNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.DataInconsistentErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {

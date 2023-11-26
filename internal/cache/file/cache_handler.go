@@ -124,7 +124,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		filePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
 		_, err := os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
-			return fmt.Errorf("%s: %s", util.DataInconsistentErrMsg, filePath)
+			return fmt.Errorf("addFileInfoEntryToCache: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
 		}
 
 		fileInfoData := fileInfo.(data.FileInfo)

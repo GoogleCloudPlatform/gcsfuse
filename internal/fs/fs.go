@@ -1244,19 +1244,21 @@ func (fs *fileSystem) symlinkInodeOrDie(
 	return
 }
 
-// invalidateChildCacheIfExist invalidates the read file cache. This is used to
-// invalidate the cache after deletion of gcsObject.
-func (fs *fileSystem) invalidateChildCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
+// invalidateChildFileCacheIfExist invalidates the file in read cache. This is used to
+// invalidate the file in read cache after deletion of original file.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
 	if fs.fileCacheHandler != nil {
 		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
 			bucketName := bucketOwnedDirInode.Bucket().Name()
 			// Invalidate the file cache entry if it exists.
 			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
 			if err != nil {
-				return fmt.Errorf("invalidateChildCacheIfExist: while invalidating the file cache: %v", err)
+				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %v", err)
 			}
 		} else {
-			return fmt.Errorf("invalidateChildCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
+			return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
 		}
 	}
 
@@ -1855,7 +1857,7 @@ func (fs *fileSystem) renameFile(
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
 
-	if err := fs.invalidateChildCacheIfExist(oldParent, oldObject.Name); err != nil {
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
 		return fmt.Errorf("renameFile: while invalidating cache for delete file: %v", err)
 	}
 
@@ -1965,7 +1967,7 @@ func (fs *fileSystem) renameDir(
 			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
 
-		if err = fs.invalidateChildCacheIfExist(oldDir, o.Name); err != nil {
+		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
 			return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
 		}
 	}
@@ -2025,7 +2027,7 @@ func (fs *fileSystem) Unlink(
 		return err
 	}
 
-	if err := fs.invalidateChildCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
 		return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
 	}
 
