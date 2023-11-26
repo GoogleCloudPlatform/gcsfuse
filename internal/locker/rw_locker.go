@@ -107,9 +107,9 @@ func (d *rwDebugger) Unlock() {
 }
 
 func (d *rwDebugger) RLock() {
-	d.locker.Lock()
+	d.locker.RLock()
 }
 
 func (d *rwDebugger) RUnlock() {
-	d.locker.Unlock()
+	d.locker.RUnlock()
 }
