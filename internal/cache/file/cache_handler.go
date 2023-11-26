@@ -114,8 +114,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 	}
 
 	addEntryToCache := false
-	// Todo - (raj-prince) - this lookUp should not change the LRU order.
-	fileInfo := chr.fileInfoCache.LookUp(fileInfoKeyName)
+	fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfo == nil {
 		addEntryToCache = true
 	} else {
