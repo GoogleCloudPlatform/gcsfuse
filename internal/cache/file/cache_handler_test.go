@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strconv"
@@ -437,6 +438,36 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryNotInCache() {
 	err := chrT.cacheHandler.InvalidateCache(minObject.Name, chrT.bucket.Name())
 
 	ExpectEq(nil, err)
+}
+
+func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
+	objectContent := []byte("content of object_1")
+	minObject := chrT.getMinObject("object_1", objectContent)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	AssertEq(nil, err)
+	buf := make([]byte, 3)
+	ctx := context.Background()
+	// Read to populate cache
+	_, err = cacheHandle.Read(ctx, minObject, 0, buf)
+	AssertEq(nil, err)
+	AssertEq(string(objectContent[:3]), string(buf))
+	AssertEq(nil, cacheHandle.Close())
+	// Open cache file before invalidation
+	objectPath := util.GetObjectPath(chrT.bucket.Name(), minObject.Name)
+	downloadPath := util.GetDownloadPath(chrT.cacheLocation, objectPath)
+	file, err := os.OpenFile(downloadPath, os.O_RDONLY, 0600)
+	AssertEq(nil, err)
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	AssertEq(string(objectContent[:3]), string(buf))
+
+	err = chrT.cacheHandler.InvalidateCache(minObject.Name, chrT.bucket.Name())
+
+	AssertEq(nil, err)
+	// Reading from the open file handle should fail as the file is truncated.
+	_, err = file.Read(buf)
+	AssertNe(nil, err)
+	AssertEq(io.EOF, err)
 }
 
 func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {

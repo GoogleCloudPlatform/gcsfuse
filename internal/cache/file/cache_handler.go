@@ -70,8 +70,8 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 }
 
 // cleanUpEvictedFile is a utility method called for the evicted/deleted fileInfo.
-// As part of execution, it stops and removes the download job, and deletes the cache
-// file.
+// As part of execution, it stops and truncates and removes the download job,
+// and deletes the cache file.
 func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
@@ -85,13 +85,19 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(key.BucketName, key.ObjectName))
-	err = os.Remove(localFilePath)
+	// Truncate the file to 0 size, so that even if there are open file handles
+	// and linux doesn't delete the file, the file will not take space.
+	err = os.Truncate(localFilePath, 0)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
 		} else {
-			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %v", localFilePath, err)
+			return fmt.Errorf("cleanUpEvictedFile: while truncating file: %s, error: %v", localFilePath, err)
 		}
+	}
+	err = os.Remove(localFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %v", localFilePath, err)
 	}
 
 	return nil
