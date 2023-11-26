@@ -913,7 +913,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectEq(jobStatus.Name, downloader.COMPLETED)
-	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
@@ -943,7 +943,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectEq(jobStatus.Name, downloader.COMPLETED)
-	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object, t.bucket)
+	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
@@ -995,6 +995,65 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFil
 	_, cacheHit, err = t.rr.ReadAt(buf, 0)
 
 	ExpectEq(nil, err)
+	ExpectTrue(cacheHit)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+}
+
+func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertTrue(cacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
+	err = t.rr.wrapped.fileCacheHandle.Close()
+	AssertEq(nil, err)
+	t.rr.wrapped.fileCacheHandle = nil
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	rc2 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
+
+	_, _, err = t.rr.ReadAt(buf, 0)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
+}
+
+func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc1)
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertTrue(cacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
+	// Delete the local cache file.
+	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	err = os.Remove(filePath)
+	AssertEq(nil, err)
+
+	// Read via cache only, as we have old fileHandle open and linux
+	// doesn't delete the file until the fileHandle count for the file is zero.
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
 	ExpectTrue(cacheHit)
 	ExpectTrue(reflect.DeepEqual(testContent, buf))
 	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)

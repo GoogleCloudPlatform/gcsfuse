@@ -73,7 +73,6 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 
 	// fileInfoCache with testFileInfoEntry
 	chrT.cache = lru.NewCache(HandlerCacheMaxSize)
-	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 
 	// Job manager
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, chrT.cacheLocation, DefaultSequentialReadSizeMb)
@@ -81,7 +80,11 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	// Mocked cached handler object.
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm)
 
+	// Follow consistency, local-cache file and entry in fileInfo cache should exist atomically.
+	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
+	_, err = chrT.cacheHandler.createLocalFileReadHandle(chrT.object.Name, chrT.bucket.Name())
+	AssertEq(nil, err)
 }
 
 func (chrT *cacheHandlerTest) TearDown() {
@@ -266,6 +269,22 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
 
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGetsDeleted() {
+	// Existing cacheHandle.
+	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
+	AssertEq(nil, cacheHandle1.validateCacheHandle())
+	// Delete the local cache file.
+	err := os.Remove(chrT.downloadPath)
+	AssertEq(nil, err)
+
+	// There is a fileInfoEntry in the fileInfoCache but the corresponding local file doesn't exist.
+	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
+	err = chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
+}
+
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
 	// Existing cacheHandle.
 	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
@@ -325,6 +344,20 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
 	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
 	ExpectEq(downloader.INVALID, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
+	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
+	_, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	AssertEq(nil, err)
+	// Delete the local cache file.
+	err = os.Remove(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), minObject.Name)))
+	AssertEq(nil, err)
+
+	_, err = chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+
+	AssertNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
@@ -390,7 +423,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryAlreadyInCache() {
 	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 	ExpectEq(nil, err)
 
-	err = chrT.cacheHandler.InvalidateCache(chrT.object, chrT.bucket)
+	err = chrT.cacheHandler.InvalidateCache(chrT.object.Name, chrT.bucket.Name())
 
 	ExpectEq(nil, err)
 	jobStatus := cacheHandle.fileDownloadJob.GetStatus()
@@ -401,7 +434,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryAlreadyInCache() {
 func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryNotInCache() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
 
-	err := chrT.cacheHandler.InvalidateCache(minObject, chrT.bucket)
+	err := chrT.cacheHandler.InvalidateCache(minObject.Name, chrT.bucket.Name())
 
 	ExpectEq(nil, err)
 }
@@ -417,7 +450,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {
 		defer wg.Done()
 		minObj := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
 
-		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
+		err := chrT.cacheHandler.InvalidateCache(minObj.Name, chrT.bucket.Name())
 
 		AssertEq(nil, err)
 	}
@@ -442,7 +475,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
 		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
-		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
+		err := chrT.cacheHandler.InvalidateCache(minObj.Name, chrT.bucket.Name())
 
 		AssertEq(nil, err)
 	}
@@ -467,7 +500,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
-		err := chrT.cacheHandler.InvalidateCache(minObj, chrT.bucket)
+		err := chrT.cacheHandler.InvalidateCache(minObj.Name, chrT.bucket.Name())
 
 		AssertEq(nil, err)
 	}
