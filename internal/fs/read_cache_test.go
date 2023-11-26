@@ -722,12 +722,10 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 
 func (t *FileCacheDestroyTest) TearDownTestSuite() {
 	// do nothing as fs is unmounted in the test itself
-	return
 }
 
 func (t *FileCacheDestroyTest) TearDown() {
 	// do nothing as fs is unmounted in the test itself
-	return
 }
 
 func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
