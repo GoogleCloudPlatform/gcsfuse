@@ -211,6 +211,8 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		return
 	}
 
+	isSeq := "unknown"
+
 	// Request log and start the execution timer.
 	requestId := uuid.New()
 	logger.Tracef("%.13v <- ReadFromCache(%s://%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
@@ -223,11 +225,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if err != nil {
 			requestOutput = fmt.Sprintf("(error: %v, %v)", err, executionTime)
 		} else {
-			seq := "unknown"
 			if rr.fileCacheHandle != nil {
-				seq = strconv.FormatBool(rr.fileCacheHandle.IsSequential(offset))
+				isSeq = strconv.FormatBool(rr.fileCacheHandle.IsSequential(offset))
 			}
-			requestOutput = fmt.Sprintf("(seq: %s, hit: %t, %v)", seq, cacheHit, executionTime)
+			requestOutput = fmt.Sprintf("(isSeq: %s, hit: %t, %v)", isSeq, cacheHit, executionTime)
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
@@ -241,6 +242,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			// We fall back to GCS if file size is greater than the cache size
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
+				return 0, false, nil
+			} else if strings.Contains(err.Error(), util.CacheMissWhenRandomReadErrMsg) {
+				// Fall back to GCS if it is a random read, downloadFileForRandomRead is
+				// False and there doesn't already exist file in cache.
+				isSeq = strconv.FormatBool(false)
 				return 0, false, nil
 			}
 

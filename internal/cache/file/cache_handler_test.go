@@ -360,6 +360,27 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_DownloadForRandom() {
+	minObject1 := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
+	cacheHandle1, err1 := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, false, 0)
+	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2 ..."))
+	cacheHandle2, err2 := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, false, 5)
+	minObject3 := chrT.getMinObject("object_3", []byte("content of object_3 ..."))
+	cacheHandle3, err3 := chrT.cacheHandler.GetCacheHandle(minObject3, chrT.bucket, true, 0)
+	minObject4 := chrT.getMinObject("object_4", []byte("content of object_4 ..."))
+	cacheHandle4, err4 := chrT.cacheHandler.GetCacheHandle(minObject4, chrT.bucket, true, 5)
+
+	ExpectEq(nil, err1)
+	ExpectEq(nil, cacheHandle1.validateCacheHandle())
+	ExpectNe(nil, err2)
+	ExpectEq(nil, cacheHandle2)
+	ExpectTrue(strings.Contains(err2.Error(), util.CacheMissWhenRandomReadErrMsg))
+	ExpectEq(nil, err3)
+	ExpectEq(nil, cacheHandle3.validateCacheHandle())
+	ExpectEq(nil, err4)
+	ExpectEq(nil, cacheHandle4.validateCacheHandle())
+}
+
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()

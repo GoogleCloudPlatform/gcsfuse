@@ -25,14 +25,15 @@ import (
 )
 
 const (
-	InvalidFileHandleErrMsg      = "invalid file handle"
-	InvalidFileDownloadJobErrMsg = "invalid download job"
-	InvalidCacheHandleErrMsg     = "invalid cache handle"
-	InvalidFileInfoCacheErrMsg   = "invalid file info cache"
-	ErrInSeekingFileHandleMsg    = "error while seeking file handle"
-	ErrInReadingFileHandleMsg    = "error while reading file handle"
-	FallbackToGCSErrMsg          = "read via gcs"
-	FileNotPresentInCacheErrMsg  = "file is not present in cache"
+	InvalidFileHandleErrMsg       = "invalid file handle"
+	InvalidFileDownloadJobErrMsg  = "invalid download job"
+	InvalidCacheHandleErrMsg      = "invalid cache handle"
+	InvalidFileInfoCacheErrMsg    = "invalid file info cache"
+	ErrInSeekingFileHandleMsg     = "error while seeking file handle"
+	ErrInReadingFileHandleMsg     = "error while reading file handle"
+	FallbackToGCSErrMsg           = "read via gcs"
+	FileNotPresentInCacheErrMsg   = "file is not present in cache"
+	CacheMissWhenRandomReadErrMsg = "downloadFileForRandomRead is false, read type random read and fileInfo entry is absent"
 )
 
 const (
