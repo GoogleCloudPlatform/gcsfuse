@@ -1258,6 +1258,9 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %v", err)
 			}
 		} else {
+			// The parentInode is not owned by any bucket, which means it's the base
+			// directory that holds all the buckets' root directories. So, this op
+			// is to delete a bucket, which is not supported.
 			return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
 		}
 	}
