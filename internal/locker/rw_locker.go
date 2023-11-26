@@ -78,7 +78,9 @@ func (c *rwChecker) RUnlock() {
 	c.locker.RUnlock()
 }
 
-// Note: rwDebugger doesn't check potential deadlock in case of read only lock.
+// Note: rwDebugger doesn't check potential deadlock in case of read only lock as
+// doing that is not straight forward because multiple readers can acquire locks
+// at the time same time and that needs keeping track of every different lock.
 type rwDebugger struct {
 	locker RWLocker
 	name   string
