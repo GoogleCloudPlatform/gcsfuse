@@ -62,7 +62,6 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, f
 }
 
 func (fch *CacheHandle) validateCacheHandle() error {
-	
 	if fch.fileHandle == nil {
 		return errors.New(util.InvalidFileHandleErrMsg)
 	}
@@ -82,8 +81,8 @@ func (fch *CacheHandle) validateCacheHandle() error {
 // downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
-			jobStatus.Name == downloader.INVALID ||
-			jobStatus.Name == downloader.FAILED {
+		jobStatus.Name == downloader.INVALID ||
+		jobStatus.Name == downloader.FAILED {
 		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %v", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
 		return errors.New(errMsg)
 	} else if jobStatus.Offset < requiredOffset {
