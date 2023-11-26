@@ -32,7 +32,7 @@ const (
 	ErrInSeekingFileHandleMsg    = "error while seeking file handle"
 	ErrInReadingFileHandleMsg    = "error while reading file handle"
 	FallbackToGCSErrMsg          = "read via gcs"
-	FileNotPresentInCacheErrMsg  = "data inconsistent - file is not present"
+	FileNotPresentInCacheErrMsg  = "file is not present in cache"
 )
 
 const (

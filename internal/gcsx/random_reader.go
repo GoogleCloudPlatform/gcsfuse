@@ -196,14 +196,13 @@ func (rr *randomReader) CheckInvariants() {
 // And it returns non-nil error in case something unexpected happens during the execution.
 // In this case, we must abort the Read operation.
 //
-// Important: What happens if the read cached file is deleted externally?
-// That means, for a given object we have fileInfo entry in the fileInfoCache but there is
-// no local cache file containing the object's content.
-// (a) If the fileCacheHandle is nil, it will return a data-inconsistent
-// (file is not present) error.
-// (b) If the fileCacheHandle is not nil, it will return the correct data from the
-// fileHandle contained inside fileCacheHandle.
-// This is because Linux does not delete a file until fileHandle count for a file is zero.
+// Important: What happens if the file in cache deleted externally?
+// That means, we have fileInfo entry in the fileInfoCache for that deleted file.
+// (a) If a new fileCacheHandle is created in that case it will return FileNotPresentInCache
+// error, given by fileCacheHandler.GetCacheHandle().
+// (b) If there is already an open fileCacheHandle then it means there is an open
+// fileHandle to file in cache. So, we will get the correct data from fileHandle
+// because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	p []byte,
 	offset int64) (n int, cacheHit bool, err error) {
