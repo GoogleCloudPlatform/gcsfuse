@@ -584,3 +584,35 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 	ExpectEq(downloader.INVALID, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
+
+func (chrT *cacheHandlerTest) Test_Destroy() {
+	minObject1 := chrT.getMinObject("object_1", []byte("content of object_1"))
+	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2"))
+	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, true, 0)
+	AssertEq(nil, err)
+	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, true, 1)
+	AssertEq(nil, err)
+	ctx := context.Background()
+	// Read to create and populate file in cache.
+	buf := make([]byte, 3)
+	_, _ = cacheHandle1.Read(ctx, minObject1, 4, buf)
+	_, _ = cacheHandle2.Read(ctx, minObject2, 4, buf)
+	AssertEq(nil, err)
+	err = cacheHandle1.Close()
+	AssertEq(nil, err)
+	err = cacheHandle2.Close()
+	AssertEq(nil, err)
+	job1 := cacheHandle1.fileDownloadJob
+	job2 := cacheHandle2.fileDownloadJob
+
+	err = chrT.cacheHandler.Destroy()
+
+	AssertEq(nil, err)
+	// Verify the cacheLocation is deleted.
+	_, err = os.Stat(chrT.cacheLocation)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	// Verify jobs are invalidated
+	AssertEq(downloader.INVALID, job1.GetStatus().Name)
+	AssertEq(downloader.INVALID, job2.GetStatus().Name)
+}

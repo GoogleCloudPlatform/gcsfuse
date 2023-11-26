@@ -95,3 +95,15 @@ func (jm *JobManager) RemoveJob(objectName string, bucketName string) {
 		delete(jm.jobs, objectPath)
 	}
 }
+
+// Destroy invalidates and deletes all the jobs that job manager is managing.
+//
+// Acquires and releases Lock(jm.mu)
+func (jm *JobManager) Destroy() {
+	jm.mu.Lock()
+	defer jm.mu.Unlock()
+	for objectPath, job := range jm.jobs {
+		job.Invalidate()
+		delete(jm.jobs, objectPath)
+	}
+}

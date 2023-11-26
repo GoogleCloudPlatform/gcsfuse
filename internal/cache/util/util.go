@@ -42,6 +42,7 @@ const (
 	KiB                    = 1024
 	DefaultFilePerm        = os.FileMode(0600)
 	FilePermWithAllowOther = os.FileMode(0644)
+	Cache                  = "cache"
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns

@@ -261,9 +261,15 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 	return nil
 }
 
-// Destroy destroys the internal state of CacheHandler correctly specifically evict all the
-// entries in the file info cache and clean up for the evicted entries.
-// TODO (raj-prince) to implement.
-func (chr *CacheHandler) Destroy() {
+// Destroy destroys the internal state of CacheHandler correctly destroying all
+// the download jobs and deleting all the files in cache.
+//
+// Acquires and releases Lock(chr.mu)
+func (chr *CacheHandler) Destroy() (err error) {
+	chr.mu.Lock()
+	defer chr.mu.Unlock()
 
+	chr.jobManager.Destroy()
+	err = os.RemoveAll(chr.cacheLocation)
+	return
 }
