@@ -63,6 +63,20 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	dt.fileSpec = data.FileSpec{Path: dt.fileCachePath(dt.bucket.Name(), dt.object.Name), Perm: util.DefaultFilePerm}
 	dt.cache = lru.NewCache(lruCacheSize)
 	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec)
+	fileInfoKey := data.FileInfoKey{
+		BucketName: storage.TestBucketName,
+		ObjectName: objectName,
+	}
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: dt.object.Generation,
+		FileSize:         dt.object.Size,
+		Offset:           0,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
 }
 
 func (dt *downloaderTest) verifyFile(content []byte) {
@@ -229,27 +243,20 @@ func (dt *downloaderTest) Test_updateFileInfoCache_UpdateEntry() {
 	AssertEq(dt.job.object.Size, fileInfo.FileSize)
 }
 
-// This test should fail when we shift to only updating fileInfoCache in Job.
-// This test should be removed when that happens.
 func (dt *downloaderTest) Test_updateFileInfoCache_InsertNew() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
-		ObjectName: DefaultObjectName,
+		ObjectName: dt.object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
-	dt.job.status.Offset = 1
+	value := dt.cache.Erase(fileInfoKeyName)
+	AssertTrue(value != nil)
 
 	err = dt.job.updateFileInfoCache()
 
-	AssertEq(nil, err)
-	// confirm fileInfoCache is updated with new offset.
-	lookupResult := dt.cache.LookUp(fileInfoKeyName)
-	AssertFalse(lookupResult == nil)
-	fileInfo := lookupResult.(data.FileInfo)
-	AssertEq(1, fileInfo.Offset)
-	AssertEq(dt.job.object.Generation, fileInfo.ObjectGeneration)
-	AssertEq(dt.job.object.Size, fileInfo.FileSize)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
 }
 
 func (dt *downloaderTest) Test_updateFileInfoCache_Fail() {
@@ -257,18 +264,23 @@ func (dt *downloaderTest) Test_updateFileInfoCache_Fail() {
 		BucketName: storage.TestBucketName,
 		ObjectName: DefaultObjectName,
 	}
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: dt.job.object.Generation,
+		FileSize:         dt.job.object.Size,
+		Offset:           0,
+	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
-	// set size of object more than MaxSize of cache.
-	dt.job.object.Size = 100
+	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
 
+	// change the size of object and then try to update file info cache.
+	dt.job.object.Size = 10
 	err = dt.job.updateFileInfoCache()
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg))
-	// confirm fileInfoCache is not updated.
-	lookupResult := dt.cache.LookUp(fileInfoKeyName)
-	AssertTrue(lookupResult == nil)
+	AssertTrue(strings.Contains(err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
 }
 
 // Note: We can't test Test_downloadObjectAsync_MoreThanSequentialReadSize as
@@ -339,22 +351,6 @@ func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
 	dt.verifyFile(objectContent)
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(objectSize))
-}
-
-func (dt *downloaderTest) Test_downloadObjectAsync_ErrorWhenFileCacheHasLessSize() {
-	objectName := "path/in/gcs/foo.txt"
-	objectSize := 50 * util.MiB
-	objectContent := testutil.GenerateRandomBytes(objectSize)
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
-
-	// start download
-	dt.job.downloadObjectAsync()
-
-	// check job failed
-	dt.job.mu.Lock()
-	defer dt.job.mu.Unlock()
-	AssertEq(FAILED, dt.job.status.Name)
-	AssertTrue(strings.Contains(dt.job.status.Err.Error(), "size of the entry is more than the cache's maxSize"))
 }
 
 func (dt *downloaderTest) Test_Download_WhenNotStarted() {
@@ -442,47 +438,48 @@ func (dt *downloaderTest) Test_Download_WhenAsyncFails() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
-	// set size of cache smaller than object size.
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	// In real world, object size will not change in between, we are changing it
+	// just to simulate the failure
+	dt.job.object.Size = uint64(objectSize - 10)
 
 	// Wait for whole download to be completed/failed.
 	ctx := context.Background()
-	jobStatus, err := dt.job.Download(ctx, int64(objectSize), true)
+	jobStatus, err := dt.job.Download(ctx, int64(objectSize-10), true)
 
 	AssertEq(nil, err)
 	// verify that jobStatus is failed
 	AssertEq(FAILED, jobStatus.Name)
 	AssertEq(ReadChunkSize, jobStatus.Offset)
-	AssertTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+	AssertTrue(strings.Contains(jobStatus.Err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
 }
 
 func (dt *downloaderTest) Test_Download_AlreadyFailed() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	dt.job.object.Size = uint64(objectSize - 1)
 	// Wait for whole download to be completed/failed.
-	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
+	jobStatus, err := dt.job.Download(context.Background(), int64(objectSize-1), true)
 	AssertEq(nil, err)
 	// verify that jobStatus is failed
 	AssertEq(FAILED, jobStatus.Name)
-	AssertEq(ReadChunkSize, jobStatus.Offset)
-	AssertTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+	AssertTrue(strings.Contains(jobStatus.Err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
 
 	// requesting again from download job which is in failed state
-	jobStatus, err = dt.job.Download(context.Background(), int64(objectSize), true)
+	jobStatus, err = dt.job.Download(context.Background(), int64(objectSize-1), true)
 
 	AssertEq(nil, err)
 	AssertEq(FAILED, jobStatus.Name)
-	AssertEq(ReadChunkSize, jobStatus.Offset)
-	AssertTrue(strings.Contains(jobStatus.Err.Error(), "size of the entry is more than the cache's maxSize"))
+	AssertTrue(strings.Contains(jobStatus.Err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
 }
 
 func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize-1))
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
 	// make the state as invalid
 	dt.job.mu.Lock()
 	dt.job.status.Name = INVALID
@@ -494,6 +491,30 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	AssertEq(nil, err)
 	AssertEq(INVALID, jobStatus.Name)
 	AssertEq(nil, jobStatus.Err)
+}
+
+func (dt *downloaderTest) Test_Download_FileInfoRemovedInBetween() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 20 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(),
+		ObjectName: objectName}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
+		AssertEq(nil, err)
+		AssertEq(INVALID, jobStatus.Name)
+		wg.Done()
+	}()
+
+	// delete fileinfo from file info cache
+	dt.job.fileInfoCache.Erase(fileInfoKeyName)
+
+	wg.Wait()
 }
 
 func (dt *downloaderTest) Test_Download_InvalidOffset() {
