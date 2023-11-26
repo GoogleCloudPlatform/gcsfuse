@@ -60,10 +60,9 @@ type Cache struct {
 	// INVARIANT: Contains all and only the elements of entries
 	index map[string]*list.Element
 
-	// All public methods of this Cache uses this mutex based locker while accessing/updating
-	// Cache's data. This means when one method is accessing/updating Cache's data,
-	// other methods will be blocked until the method in execution completes.
-	mu locker.Locker
+	// All public methods of this Cache uses this RW mutex based locker while
+	// accessing/updating Cache's data.
+	mu locker.RWLocker
 }
 
 type ValueType interface {
@@ -84,7 +83,7 @@ func NewCache(maxSize uint64) *Cache {
 	}
 
 	// Set up invariant checking.
-	c.mu = locker.New("LRUCache", c.checkInvariants)
+	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
 	return c
 }
 
@@ -222,9 +221,12 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 // LookUpWithoutChangingOrder looks up previously-inserted value for a given key
 // without changing the order of entries in the cache. Return nil if no value
 // is present.
+//
+// Note: Because this look up doesn't change the order, it only acquires and
+// releases read lock.
 func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	// Consult the index.
 	e, ok := c.index[key]
