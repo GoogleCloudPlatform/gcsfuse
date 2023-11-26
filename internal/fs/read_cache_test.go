@@ -280,7 +280,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {
+func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -294,6 +294,8 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {
 	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FormedCacheLocation, objectPath)
+	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	AssertEq(nil, err)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)
@@ -320,7 +322,7 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FormedCacheLocation, objectPath)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)
@@ -347,7 +349,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertEq(nil, err)
 	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FormedCacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
@@ -374,7 +376,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	closeFile(file)
 	renamedPath := path.Join(mntDir, RenamedObjectName)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FormedCacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
@@ -402,7 +404,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	dir := path.Join(mntDir, DefaultDir)
 	renamedDir := path.Join(mntDir, RenamedDir)
 	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FormedCacheLocation, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
