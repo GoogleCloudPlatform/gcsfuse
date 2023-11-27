@@ -20,6 +20,7 @@ print_usage() {
   printf "./run_read_cache_workload  "
   printf "[-e epoch] [-p pause_after_every_epoch_in_seconds] "
   printf "[-n number_of_files_per_thread] "
+  printf "[-t number_of_threads] "
   printf "[-r read_type (read | randread)] "
   printf "[-s file_size (in K, M, G E.g. 10K] "
   printf "[-b block_size (in K, M, G E.g. 20K] "
@@ -33,6 +34,7 @@ read_type=read
 pause_in_seconds=2
 block_size=1K
 file_size=1K
+num_of_threads=40
 
 while getopts he:p:n:r:d:s:b: flag
 do
@@ -61,15 +63,13 @@ if [[ -z "${WORKING_DIR}" ]]; then
   exit 1
 fi
 
-fio_job_path=x.fio
-
 if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
   echo "Please pass a valid read typr -r (read | randread)..."
   exit 1
 fi
 
 for i in $(seq $epoch); do
-   NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
+   NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
 
    # Wait after one epoch training.
    sleep $pause_in_seconds
