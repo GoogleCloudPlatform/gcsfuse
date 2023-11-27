@@ -63,7 +63,7 @@ func InitLogFile(logConfig config.LogConfig) error {
 		fileWriter = &lumberjack.Logger{
 			Filename:   f.Name(),
 			MaxSize:    logConfig.LogRotateConfig.MaxFileSizeMB,
-			MaxBackups: logConfig.LogRotateConfig.FileCount - 1,
+			MaxBackups: logConfig.LogRotateConfig.BackupFileCount,
 			Compress:   logConfig.LogRotateConfig.Compress,
 		}
 	} else {
