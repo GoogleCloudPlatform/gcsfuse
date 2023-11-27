@@ -5,15 +5,12 @@ direct=1
 fadvise_hint=0
 iodepth=64
 invalidate=1
-ramp_time=10s
-runtime=60s
-time_based=1
 nrfiles=${NRFILES}
 thread=1
 openfiles=1
 group_reporting=1
 allrandrepeat=1
-numjobs=40
+numjobs=${NUMJOBS}
 filename_format=$jobname.$jobnum.$filenum
 
 [Workload]
