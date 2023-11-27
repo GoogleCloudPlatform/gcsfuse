@@ -36,7 +36,7 @@ block_size=1K
 file_size=1K
 num_of_threads=40
 
-while getopts he:p:n:r:d:s:b: flag
+while getopts he:p:n:r:d:s:b:t: flag
 do
   case "${flag}" in
     e) epoch=${OPTARG};;
@@ -46,6 +46,7 @@ do
     d) workload_dir=${OPTARG};;
     s) file_size=${OPTARG};;
     b) block_size=${OPTARG};;
+    t) number_of_threads=${OPTARG};;
     h) print_usage
         exit 0 ;;
     *) print_usage
@@ -68,9 +69,13 @@ if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
   exit 1
 fi
 
+cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
+
 for i in $(seq $epoch); do
    NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
 
    # Wait after one epoch training.
    sleep $pause_in_seconds
 done
+
+cd -
