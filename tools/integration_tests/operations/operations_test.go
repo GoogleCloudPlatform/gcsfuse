@@ -108,8 +108,8 @@ func TestMain(m *testing.M) {
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,
 			LogRotateConfig: config.LogRotateConfig{
-				MaxFileSizeMB: 10,
-				FileCount:     1,
+				MaxFileSizeMB:   10,
+				BackupFileCount: 0, // to retain all backup log files.
 			},
 		},
 	}

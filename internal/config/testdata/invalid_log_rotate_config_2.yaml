@@ -3,4 +3,4 @@ write:
 logging:
   severity: error
   log-rotate:
-    file-count: -1
+    backup-file-count: -1

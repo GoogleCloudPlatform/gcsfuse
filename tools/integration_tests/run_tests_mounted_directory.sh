@@ -260,7 +260,7 @@ echo "logging:
         severity: trace
         log-rotate:
           max-file-size-mb: 2
-          file-count: 3
+          backup-file-count: 3
           compress: true
        " > /tmp/gcsfuse_config.yaml
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
