@@ -268,15 +268,15 @@ func (t *LoggerTest) TestInitLogFile() {
 	filePath, _ := os.UserHomeDir()
 	filePath += "/log.txt"
 	fileSize := 100
-	fileCount := 2
+	backupFileCount := 2
 	logConfig := config.LogConfig{
 		Severity: config.DEBUG,
 		Format:   format,
 		FilePath: filePath,
 		LogRotateConfig: config.LogRotateConfig{
-			MaxFileSizeMB: fileSize,
-			FileCount:     fileCount,
-			Compress:      true,
+			MaxFileSizeMB:   fileSize,
+			BackupFileCount: backupFileCount,
+			Compress:        true,
 		},
 	}
 
@@ -288,6 +288,6 @@ func (t *LoggerTest) TestInitLogFile() {
 	ExpectEq(format, defaultLoggerFactory.format)
 	ExpectEq(config.DEBUG, defaultLoggerFactory.level)
 	ExpectEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
-	ExpectEq(fileCount, defaultLoggerFactory.logRotateConfig.FileCount)
+	ExpectEq(backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
 	ExpectEq(true, defaultLoggerFactory.logRotateConfig.Compress)
 }
