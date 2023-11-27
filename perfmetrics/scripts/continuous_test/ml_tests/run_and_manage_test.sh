@@ -27,6 +27,11 @@ ZONE_NAME=$2
 ARTIFACTS_BUCKET_PATH=$3
 # Path of test script relative to $HOME inside test VM.
 TEST_SCRIPT_PATH=$4
+# pytorch version
+PYTORCH_VERSION=$5
+MACHINE_TYPE="a2-highgpu-2g"
+ACCELERATOR="count=2,type=nvidia-tesla-a100"
+RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus"
 
 function initialize_ssh_key () {
     echo "Delete existing ssh keys "
@@ -55,26 +60,35 @@ function delete_existing_vm_and_create_new () {
   echo "Wait for 30 seconds for old VM to be deleted"
   sleep 30s
 
+  # NVIDIA A100 40GB GPU type machine is currently unavailable due to global shortage.
+  # Create NVIDIA L4 machines which are available on us-west1-1 zone.
+  if [ $PYTORCH_VERSION == "v2" ];
+  then
+    MACHINE_TYPE="g2-standard-24"
+    ACCELERATOR="count=2,type=nvidia-l4"
+    RESERVATION="projects/$GCP_PROJECT/reservations/pytorch2-ai-ml-tests"
+  fi
+
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
   sudo gcloud compute instances create $VM_NAME \
-           --project=$GCP_PROJECT\
-           --zone=$ZONE_NAME \
-           --machine-type=a2-highgpu-2g \
-           --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
-           --metadata=enable-osconfig=TRUE,enable-oslogin=true \
-           --maintenance-policy=TERMINATE \
-           --provisioning-model=STANDARD \
-           --service-account=927584127901-compute@developer.gserviceaccount.com \
-           --scopes=https://www.googleapis.com/auth/cloud-platform \
-           --accelerator=count=2,type=nvidia-tesla-a100 \
-           --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
-           --no-shielded-secure-boot \
-           --shielded-vtpm \
-           --shielded-integrity-monitoring \
-           --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
-           --reservation-affinity=specific \
-           --reservation=projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus
+          --project=$GCP_PROJECT\
+          --zone=$ZONE_NAME \
+          --machine-type=$MACHINE_TYPE \
+          --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+          --metadata=enable-osconfig=TRUE,enable-oslogin=true \
+          --maintenance-policy=TERMINATE \
+          --provisioning-model=STANDARD \
+          --service-account=927584127901-compute@developer.gserviceaccount.com \
+          --scopes=https://www.googleapis.com/auth/cloud-platform \
+          --accelerator=$ACCELERATOR \
+          --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
+          --no-shielded-secure-boot \
+          --shielded-vtpm \
+          --shielded-integrity-monitoring \
+          --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
+          --reservation-affinity=specific \
+          --reservation=$RESERVATION
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
@@ -132,7 +146,7 @@ exit_status=0
 # Transitions:
 # START to START: If model run is not triggerred due to some error.
 # START to RUNNING: If model is successfully triggerred on GPU. This state is 
-#                   changed by setup_host.sh that runs inside docker container of test VM.
+# changed by setup_host.sh that runs inside docker container of test VM.
 if [ $current_status == "START" ];
 then
   echo "Update commit Id for the run"
