@@ -205,7 +205,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		// random read and entry for file doesn't already exist in fileInfoCache then
 		// no need to create file in cache.
 		if fileInfo == nil {
-			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredErrMsg)
+			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredForRandomReadErrMsg)
 		}
 	}
 

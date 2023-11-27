@@ -243,7 +243,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
-			} else if strings.Contains(err.Error(), util.CacheHandleNotRequiredErrMsg) {
+			} else if strings.Contains(err.Error(), util.CacheHandleNotRequiredForRandomReadErrMsg) {
 				// Fall back to GCS if it is a random read, downloadFileForRandomRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = strconv.FormatBool(false)
