@@ -16,7 +16,7 @@ curl, ca-certificates, lsb-release etc.
 This script contains the instruction to install gcsfuse, mount GCS-bucket
 using gcsfuse, and finally runs the pytorch dino model.
 
-### File: perfmetrics/scripts/continuous_test/pytorch/dino/build.sh
+### File: perfmetrics/scripts/continuous_test/pytorch/{v1_12 or v2}/dino/build.sh
 This is the parent script of the above two scripts. Firstly, it sets-up the host
 machine after that it creates the docker-image and finally it runs the container
 with the inststructions written in the setup_container.sh.
@@ -40,6 +40,6 @@ log.txt - Contains the model learning parameter value after each epoch.
 variable - with current working directory.
 3. Create a folder named "github" and clone the gcsfuse repo in that.
 4. Run the below script in the current working directory:
-   **source github/gcsfuse/permetrics/scripts/continuous_test/ml_tests/pytorch/dino/build.sh**
+   **source github/gcsfuse/permetrics/scripts/continuous_test/ml_tests/pytorch/{v1_12 or v2}/dino/build.sh**
 5. The above command first setups the host and then start running the model
 inside container.
