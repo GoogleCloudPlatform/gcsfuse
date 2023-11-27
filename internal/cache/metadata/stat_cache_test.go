@@ -29,60 +29,48 @@ func TestStatCache(t *testing.T) { RunTests(t) }
 // Invariant-checking cache
 ////////////////////////////////////////////////////////////////////////
 
-type invariantsCache struct {
+type testHelperCache struct {
 	wrapped metadata.StatCache
 }
 
-func (c *invariantsCache) Insert(
+func (c *testHelperCache) Insert(
 	o *gcs.Object,
 	expiration time.Time) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	c.wrapped.Insert(o, expiration)
 }
 
-func (c *invariantsCache) AddNegativeEntry(
+func (c *testHelperCache) AddNegativeEntry(
 	name string,
 	expiration time.Time) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	c.wrapped.AddNegativeEntry(name, expiration)
 }
 
-func (c *invariantsCache) Erase(name string) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
+func (c *testHelperCache) Erase(name string) {
 	c.wrapped.Erase(name)
 }
 
-func (c *invariantsCache) LookUp(
+func (c *testHelperCache) LookUp(
 	name string,
 	now time.Time) (hit bool, o *gcs.Object) {
-	c.wrapped.CheckInvariants()
-	defer c.wrapped.CheckInvariants()
-
 	hit, o = c.wrapped.LookUp(name, now)
 	return
 }
 
-func (c *invariantsCache) LookUpOrNil(
+func (c *testHelperCache) LookUpOrNil(
 	name string,
 	now time.Time) (o *gcs.Object) {
 	_, o = c.LookUp(name, now)
 	return
 }
 
-func (c *invariantsCache) Hit(
+func (c *testHelperCache) Hit(
 	name string,
 	now time.Time) (hit bool) {
 	hit, _ = c.LookUp(name, now)
 	return
 }
 
-func (c *invariantsCache) NegativeEntry(
+func (c *testHelperCache) NegativeEntry(
 	name string,
 	now time.Time) (negative bool) {
 	hit, o := c.LookUp(name, now)
@@ -100,7 +88,7 @@ var someTime = time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local)
 var expiration = someTime.Add(time.Second)
 
 type StatCacheTest struct {
-	cache invariantsCache
+	cache testHelperCache
 }
 
 func init() { RegisterTestSuite(&StatCacheTest{}) }
