@@ -609,7 +609,7 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 
 	AssertEq(nil, err)
 	// Verify the cacheLocation is deleted.
-	_, err = os.Stat(path.Join(chrT.cacheLocation, util.Cache))
+	_, err = os.Stat(path.Join(chrT.cacheLocation, util.FileCache))
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 	// Verify jobs are invalidated

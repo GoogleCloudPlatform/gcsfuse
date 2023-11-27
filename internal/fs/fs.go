@@ -240,7 +240,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
 	// gcsfuse related files.
-	cacheLocation = path.Join(cacheLocation, util.Cache)
+	cacheLocation = path.Join(cacheLocation, util.FileCache)
 
 	// When user passes allow_other flag, then other users should be able to
 	// read from cache
