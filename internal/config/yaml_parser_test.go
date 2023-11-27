@@ -37,7 +37,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq("", mountConfig.LogConfig.Format)
 	ExpectEq("", mountConfig.LogConfig.FilePath)
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 	AssertEq("", mountConfig.CacheLocation)
 	AssertEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
@@ -72,6 +72,20 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
 }
 
+func (t *YamlParserTest) TestReadConfigFile_ValidConfigWith0BackupFileCount() {
+	mountConfig, err := ParseConfigFile("testdata/valid_config_with_0_backup-file-count.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	ExpectEq(true, mountConfig.WriteConfig.CreateEmptyFile)
+	ExpectEq(ERROR, mountConfig.LogConfig.Severity)
+	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
+	ExpectEq("text", mountConfig.LogConfig.Format)
+	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	ExpectEq(0, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
+	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+}
+
 func (t *YamlParserTest) TestReadConfigFile_Invalid_UnexpectedField_Config() {
 	_, err := ParseConfigFile("testdata/invalid_unexpectedfield_config.yaml")
 
@@ -90,7 +104,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	ExpectEq("text", mountConfig.LogConfig.Format)
 	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.FileCount)
+	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 
 	// metadata-cache config
@@ -118,7 +132,7 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "file-count should be atleast 1")))
+		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value")))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
