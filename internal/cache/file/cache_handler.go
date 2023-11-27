@@ -190,6 +190,9 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
+	// If downloadForRandom is set to False, initialOffset is non-zero (i.e. random read)
+	// and entry for file doesn't already exist in fileInfoCache then no need to
+	// create file in cache.
 	if !downloadForRandom && initialOffset != 0 {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
@@ -201,9 +204,6 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		}
 
 		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
-		// If downloadForRandom is set to False and initialOffset is non-zero i.e.
-		// random read and entry for file doesn't already exist in fileInfoCache then
-		// no need to create file in cache.
 		if fileInfo == nil {
 			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredForRandomReadErrMsg)
 		}
@@ -222,8 +222,8 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, downloadForRandom, initialOffset), nil
 }
 
-// InvalidateCache removes the entry from the fileInfoCache, removes download job,
-// and delete local file in the cache.
+// InvalidateCache removes the file entry from the fileInfoCache and performs
+// clean up for the removed entry.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
