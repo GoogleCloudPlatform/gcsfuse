@@ -222,8 +222,8 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, downloadForRandom, initialOffset), nil
 }
 
-// InvalidateCache removes the file entry from the fileInfoCache and performs
-// clean up for the removed entry.
+// InvalidateCache removes the entry from the fileInfoCache, removes download job,
+// and delete local file in the cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) error {
