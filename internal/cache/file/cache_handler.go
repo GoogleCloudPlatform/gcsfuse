@@ -182,8 +182,8 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 // that contains the reference to downloader.Job and the local file handle. This method
 // is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
 // sequence guarded by (CacheHandler.mu). Note: It returns nil if downloadForRandom is
-// set to False and initialOffset is non-zero i.e. random read and entry for file
-// doesn't already exist in fileInfoCache.
+// set to False, initialOffset is non-zero (i.e. random read) and entry for file
+// doesn't already exist in fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, downloadForRandom bool, initialOffset int64) (*CacheHandle, error) {
