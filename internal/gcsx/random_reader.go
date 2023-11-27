@@ -17,35 +17,18 @@ package gcsx
 import (
 	"fmt"
 	"io"
-	"log"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/internal/monitor/tags"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-	"go.opencensus.io/stats"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"golang.org/x/net/context"
-)
-
-var (
-	// When a first read call is made by the user, we either fetch entire file or x number of bytes from GCS based on the request.
-	// Now depending on the pagesize multiple read calls will be issued by user to read the entire file. These
-	// requests will be served from the downloaded data.
-	// This metric captures only the requests made to GCS, not the subsequent page calls.
-	gcsReadCount = stats.Int64("gcs/read_count",
-		"Specifies the count of gcs reads made along with type",
-		stats.UnitDimensionless)
-	downloadBytesCount = stats.Int64("gcs/download_bytes_count",
-		"Cumulative number of bytes downloaded from GCS along with read type",
-		stats.UnitBytes)
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -65,32 +48,6 @@ const maxReadSize = 8 * MB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
-
-// Constants for read types - sequential/random
-const sequential = "Sequential"
-const random = "Random"
-
-// Initialize the metrics.
-func init() {
-	if err := view.Register(
-		&view.View{
-			Name:        "gcs/read_count",
-			Measure:     gcsReadCount,
-			Description: "Specifies the number of gcs reads made along with type- Sequential/Random",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-		&view.View{
-			Name:        "gcs/download_bytes_count",
-			Measure:     downloadBytesCount,
-			Description: "The cumulative number of bytes downloaded from GCS.",
-			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{tags.ReadType},
-		},
-	); err != nil {
-		log.Fatalf("Failed to register the view: %v", err)
-	}
-}
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -211,11 +168,12 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		return
 	}
 
-	isSeq := "unknown"
+	// By default, consider read type random if the offset is non-zero.
+	isSeq := offset == 0
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	logger.Tracef("%.13v <- ReadFromCache(%s://%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
+	logger.Tracef("%.13v <- ReadFromCache(%s:/%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
 	startTime := time.Now()
 
 	// Response log
@@ -226,13 +184,20 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			requestOutput = fmt.Sprintf("(error: %v, %v)", err, executionTime)
 		} else {
 			if rr.fileCacheHandle != nil {
-				isSeq = strconv.FormatBool(rr.fileCacheHandle.IsSequential(offset))
+				isSeq = rr.fileCacheHandle.IsSequential(offset)
 			}
-			requestOutput = fmt.Sprintf("(isSeq: %s, hit: %t, %v)", isSeq, cacheHit, executionTime)
+			requestOutput = fmt.Sprintf("(isSeq: %t, hit: %t, %v)", isSeq, cacheHit, executionTime)
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> ReadFromCache(%s://%s, offset: %d, size: %d): %s", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), requestOutput)
+		logger.Tracef("%.13v -> ReadFromCache(%s:/%s, offset: %d, size: %d): %s", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), requestOutput)
+
+		readType := util.Random
+		if isSeq {
+			readType = util.Sequential
+		}
+		// Capture file cache metrics to be exported via stackdriver
+		monitor.CaptureFileCacheMetrics(ctx, readType, n, cacheHit, executionTime.Nanoseconds())
 	}()
 
 	// Create fileCacheHandle if not already.
@@ -243,10 +208,10 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
-			} else if strings.Contains(err.Error(), util.CacheHandleNotRequiredForRandomReadErrMsg) {
+			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
 				// Fall back to GCS if it is a random read, downloadFileForRandomRead is
 				// False and there doesn't already exist file in cache.
-				isSeq = strconv.FormatBool(false)
+				isSeq = false
 				return 0, false, nil
 			}
 
@@ -263,14 +228,14 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	cacheHit = false
 	n = 0
 
-	if util.IsCacheHandleInvalid(err) {
+	if cacheutil.IsCacheHandleInvalid(err) {
 		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err = rr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
-	} else if !strings.Contains(err.Error(), util.FallbackToGCSErrMsg) {
+	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
 		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
 		return
 	}
@@ -481,9 +446,9 @@ func (rr *randomReader) startRead(
 	// optimise for random reads. Random reads will read data in chunks of
 	// (average read size in bytes rounded up to the next MB).
 	end := int64(rr.object.Size)
-	readType := sequential
+	readType := util.Sequential
 	if rr.seeks >= minSeeksForRandom {
-		readType = random
+		readType = util.Random
 		averageReadBytes := rr.totalReadBytes / rr.seeks
 		if averageReadBytes < maxReadSize {
 			randomReadSize := int64(((averageReadBytes / MB) + 1) * MB)
@@ -532,31 +497,7 @@ func (rr *randomReader) startRead(
 	rr.limit = end
 
 	requestedDataSize := end - start
-	captureMetrics(ctx, readType, requestedDataSize)
+	monitor.CaptureGCSReadMetrics(ctx, readType, requestedDataSize)
 
 	return
-}
-
-func captureMetrics(ctx context.Context, readType string, requestedDataSize int64) {
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-		},
-		gcsReadCount.M(1),
-	); err != nil {
-		// Error in recording gcsReadCount.
-		log.Fatalf("Cannot record gcsReadCount %v", err)
-	}
-
-	if err := stats.RecordWithTags(
-		ctx,
-		[]tag.Mutator{
-			tag.Upsert(tags.ReadType, readType),
-		},
-		downloadBytesCount.M(requestedDataSize),
-	); err != nil {
-		// Error in recording gcsReadCount.
-		log.Fatalf("Cannot record downloadBytesCount %v", err)
-	}
 }

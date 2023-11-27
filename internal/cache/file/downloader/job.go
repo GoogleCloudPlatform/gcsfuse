@@ -24,10 +24,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +44,7 @@ const (
 	INVALID     jobStatusName = "INVALID"
 )
 
-const ReadChunkSize = 8 * util.MiB
+const ReadChunkSize = 8 * cacheutil.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -234,7 +236,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
 	// Create and open cache file for writing object into it.
-	cacheFile, err := util.CreateFile(job.fileSpec, os.O_WRONLY)
+	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_WRONLY)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
 		job.failWhileDownloading(err)
@@ -251,8 +253,9 @@ func (job *Job) downloadObjectAsync() {
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
-	sequentialReadSize = int64(job.sequentialReadSizeMb) * util.MiB
+	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
 
+	ctx := context.Background()
 	for {
 		select {
 		case <-job.cancelCtx.Done():
@@ -262,7 +265,7 @@ func (job *Job) downloadObjectAsync() {
 				if newReader == nil {
 					newReaderLimit = min(start+sequentialReadSize, end)
 					newReader, err = job.bucket.NewReader(
-						job.cancelCtx,
+						ctx,
 						&gcs.ReadObjectRequest{
 							Name:       job.object.Name,
 							Generation: job.object.Generation,
@@ -277,6 +280,7 @@ func (job *Job) downloadObjectAsync() {
 						job.failWhileDownloading(err)
 						return
 					}
+					monitor.CaptureGCSReadMetrics(ctx, util.Sequential, newReaderLimit-start)
 				}
 
 				maxRead := min(ReadChunkSize, newReaderLimit-start)
