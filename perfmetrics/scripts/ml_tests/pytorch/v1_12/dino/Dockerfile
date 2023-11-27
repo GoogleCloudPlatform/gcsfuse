@@ -31,4 +31,4 @@ RUN mkdir -p "gcsfuse_data"
 
 ENV PYTORCH_VERSION="v1_12"
 
-ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION}]
+ENTRYPOINT ["/bin/bash", "-c", "./run_model.sh ${PYTORCH_VERSION}"]
