@@ -39,16 +39,16 @@ const (
 var logDirPath string
 var logFilePath string
 
-func getMountConfigForLogRotation(maxFileSizeMB, fileCount int, compress bool,
+func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool,
 	logFilePath string) config.MountConfig {
 	mountConfig := config.MountConfig{
 		LogConfig: config.LogConfig{
 			Severity: config.TRACE,
 			FilePath: logFilePath,
 			LogRotateConfig: config.LogRotateConfig{
-				MaxFileSizeMB: maxFileSizeMB,
-				FileCount:     fileCount,
-				Compress:      compress,
+				MaxFileSizeMB:   maxFileSizeMB,
+				BackupFileCount: backupFileCount,
+				Compress:        compress,
 			},
 		},
 	}
@@ -79,11 +79,12 @@ func TestMain(m *testing.M) {
 	logFilePath = path.Join(logDirPath, logFileName)
 
 	// Set up config files.
+	// TODO: add tests for backupLogFileCount = 0.
 	configFile1 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(maxFileSizeMB, logFileCount, true, logFilePath),
+		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, true, logFilePath),
 		"config1.yaml")
 	configFile2 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(maxFileSizeMB, logFileCount, false, logFilePath),
+		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, false, logFilePath),
 		"config2.yaml")
 
 	// Set up flags to run tests on.
