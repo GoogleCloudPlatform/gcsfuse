@@ -38,7 +38,6 @@ func TestIntegration(t *testing.T) { RunTests(t) }
 type IntegrationTest struct {
 	ctx context.Context
 
-	cache   metadata.StatCache
 	clock   timeutil.SimulatedClock
 	wrapped gcs.Bucket
 
@@ -55,12 +54,12 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 
 	// Set up dependencies.
 	const cacheCapacity = 100
-	t.cache = metadata.NewStatCache(cacheCapacity)
+	cache := metadata.NewStatCache(cacheCapacity)
 	t.wrapped = fake.NewFakeBucket(&t.clock, "some_bucket")
 
 	t.bucket = caching.NewFastStatBucket(
 		ttl,
-		t.cache,
+		cache,
 		&t.clock,
 		t.wrapped)
 }
