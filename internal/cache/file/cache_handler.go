@@ -103,6 +103,8 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 // In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
 // it cleans up (job and local cache file) for the old entry and adds the new entry with the
 // latest generation to the cache.
+//
+// Requires Lock(chr.mu)
 func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
@@ -179,12 +181,33 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 // the download job downloads the object content. Finally, it returns a CacheHandle
 // that contains the reference to downloader.Job and the local file handle. This method
 // is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
-// sequence guarded by (CacheHandler.mu)
+// sequence guarded by (CacheHandler.mu). Note: It returns nil if downloadForRandom is
+// set to False, initialOffset is non-zero (i.e. random read) and entry for file
+// doesn't already exist in fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, downloadForRandom bool, initialOffset int64) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
+
+	// If downloadForRandom is set to False, initialOffset is non-zero (i.e. random read)
+	// and entry for file doesn't already exist in fileInfoCache then no need to
+	// create file in cache.
+	if !downloadForRandom && initialOffset != 0 {
+		fileInfoKey := data.FileInfoKey{
+			BucketName: bucket.Name(),
+			ObjectName: object.Name,
+		}
+		fileInfoKeyName, err := fileInfoKey.Key()
+		if err != nil {
+			return nil, fmt.Errorf("addFileInfoEntryToCache: while creating key: %v", fileInfoKeyName)
+		}
+
+		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+		if fileInfo == nil {
+			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredForRandomReadErrMsg)
+		}
+	}
 
 	err := chr.addFileInfoEntryToCache(object, bucket)
 	if err != nil {

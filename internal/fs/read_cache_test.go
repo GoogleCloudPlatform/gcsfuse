@@ -273,12 +273,10 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
-	// ToDo(raj-prince): This is not correct behavior i.e. we are making space
-	// for file even in case of random reads when downloadFileForRandomRead is
-	// False.
-	stat, err := os.Stat(downloadPath)
-	AssertEq(nil, err)
-	AssertEq(0, stat.Size())
+	// Cache should not be populated
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShould() {

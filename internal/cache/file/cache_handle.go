@@ -62,7 +62,6 @@ func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, f
 }
 
 func (fch *CacheHandle) validateCacheHandle() error {
-
 	if fch.fileHandle == nil {
 		return errors.New(util.InvalidFileHandleErrMsg)
 	}
