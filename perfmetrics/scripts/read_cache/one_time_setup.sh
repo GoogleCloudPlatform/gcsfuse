@@ -40,7 +40,7 @@ export WORKING_DIR=$WD
 echo "export WORKING_DIR=$WD" >> ~/.bashrc
 
 # Install gcsfuse.
-go install github.com/googlecloudplatform/gcsfuse@read_cache_release
+CGO_ENABLED=0 go install github.com/googlecloudplatform/gcsfuse@read_cache_release
 
 # Install clone gcsfuse.
 if [ ! -d "./gcsfuse" ]; then
@@ -49,6 +49,14 @@ fi
 
 # Mount gcsfuse.
 $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh
+
+# Add some alias shortcut in ~/.bashrc file.
+cat >> ~/.bashrc << EOF
+alias mount_gcsfuse=$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/mount_gcsfuse.sh
+alias run_load_test=$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/run_load_test.sh
+alias run_individual_test=$WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/run_read_cache_fio_workload.sh
+EOF
+
 
 # Back to running directory.
 cd -
