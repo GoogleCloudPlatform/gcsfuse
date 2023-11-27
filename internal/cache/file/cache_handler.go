@@ -181,16 +181,15 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 // the download job downloads the object content. Finally, it returns a CacheHandle
 // that contains the reference to downloader.Job and the local file handle. This method
 // is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
-// sequence guarded by (CacheHandler.mu)
+// sequence guarded by (CacheHandler.mu). Note: It returns nil in case of random
+// read when downloadForRandom is set to False and there is no corresponding entry
+// in fileInfoCache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, downloadForRandom bool, initialOffset int64) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	// If downloadForRandom is set to False and initialOffset is non-zero i.e.
-	// random read and entry for file doesn't already exist in fileInfoCache then
-	// no need to create file in cache.
 	if !downloadForRandom && initialOffset != 0 {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
@@ -202,8 +201,11 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		}
 
 		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+		// If downloadForRandom is set to False and initialOffset is non-zero i.e.
+		// random read and entry for file doesn't already exist in fileInfoCache then
+		// no need to create file in cache.
 		if fileInfo == nil {
-			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheMissWhenRandomReadErrMsg)
+			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredErrMsg)
 		}
 	}
 

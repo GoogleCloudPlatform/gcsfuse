@@ -374,7 +374,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_DownloadForRandom() {
 	ExpectEq(nil, cacheHandle1.validateCacheHandle())
 	ExpectNe(nil, err2)
 	ExpectEq(nil, cacheHandle2)
-	ExpectTrue(strings.Contains(err2.Error(), util.CacheMissWhenRandomReadErrMsg))
+	ExpectTrue(strings.Contains(err2.Error(), util.CacheHandleNotRequiredErrMsg))
 	ExpectEq(nil, err3)
 	ExpectEq(nil, cacheHandle3.validateCacheHandle())
 	ExpectEq(nil, err4)
