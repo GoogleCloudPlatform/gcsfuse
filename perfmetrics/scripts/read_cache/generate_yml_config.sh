@@ -26,8 +26,8 @@ logging:
   file-path: /tmp/logfile.json
   format: text
   severity: error
-cache-location: "/tmp/read_cache/"
+cache-location: ${CACHE_LOCATION:-/tmp/read_cache/}
 file-cache:
   max-size-in-mb: ${MAX_SIZE_IN_MB:-100}
-  download-file-for-random-read: ${DOWNLOAD_FOR_RANDOM_READ:-True}
+  download-file-for-random-read: ${DOWNLOAD_FOR_RANDOM_READ:-false}
 EOF
