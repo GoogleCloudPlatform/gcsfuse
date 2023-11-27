@@ -989,12 +989,20 @@ func (fs *fileSystem) syncFile(
 	// same or another user. Silently ignore the syncFile call.
 	// This is in sync with non-local file behaviour.
 	if f.IsLocal() && f.IsUnlinked() {
-		return
+		return nil
 	}
 
 	// Sync the inode.
 	err = f.Sync(ctx)
 	if err != nil {
+		// Clobbering of local file inode means that the object exists in GCS at the
+		// time of syncing local file inode, hence we should no longer keep it in
+		// fs.localFileInodes.
+		if f.IsLocal() && strings.Contains(err.Error(), inode.FileClobberedErrMsg) {
+			fs.mu.Lock()
+			delete(fs.localFileInodes, f.Name())
+			fs.mu.Unlock()
+		}
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		return
 	}

@@ -192,6 +192,12 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 		return
 	}
 
+	// For localFile, if object exists in GCS then it means file is clobberred.
+	if f.IsLocal() {
+		b = true
+		return
+	}
+
 	// We are clobbered iff the generation doesn't match our source generation.
 	oGen := Generation{o.Generation, o.MetaGeneration}
 	b = f.SourceGeneration().Compare(oGen) != 0
