@@ -30,7 +30,6 @@ FIFTY_K=50000
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
 
 # For file-size = 1K and block-size = 1K
-fi
 ./mount_gcsfuse.sh -s 950 -c /mnt/disks/local_ssd
 workload_dir=$WORKING_DIR/gcs/1K
 mkdir -p $workload_dir
