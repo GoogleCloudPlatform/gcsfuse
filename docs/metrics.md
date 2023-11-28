@@ -33,8 +33,8 @@ Note: Both request_count and request_latencies allows grouping by gcs method typ
 cache along with read type - Sequential/Random.
 * **file_cache/read_latencies:** The cumulative distribution of the file cache read 
 latencies along with cache hit - true/false.
-* **file_cache/read_count:** Specifies the number of read requests made via file cache a
-long with type - Sequential/Random and cache hit - true/false.
+* **file_cache/read_count:** Specifies the number of read requests made via file cache 
+along with type - Sequential/Random and cache hit - true/false.
 
 
 # Usage
