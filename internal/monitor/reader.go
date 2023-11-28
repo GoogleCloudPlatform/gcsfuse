@@ -86,7 +86,7 @@ func init() {
 		&view.View{
 			Name:        "file_cache/read_latencies",
 			Measure:     fileCacheReadLatency,
-			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true or false",
+			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
 			Aggregation: ochttp.DefaultLatencyDistribution,
 			TagKeys:     []tag.Key{tags.CacheHit},
 		},

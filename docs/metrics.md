@@ -28,6 +28,15 @@ Read type specifies sequential or random read.
 
 Note: Both request_count and request_latencies allows grouping by gcs method type.
 
+## File cache metrics
+* **file_cache/read_bytes_count:** The cumulative number of bytes read from file 
+cache along with read type - Sequential/Random.
+* **file_cache/read_latencies:** The cumulative distribution of the file cache read 
+latencies along with cache hit - true/false.
+* **file_cache/read_count:** Specifies the number of read requests made via file cache a
+long with type - Sequential/Random and cache hit - true/false.
+
+
 # Usage
 1. We need to set **stackdriver-export-interval** flag to enable exporting metrics to 
 Google cloud monitoring. The value of this flag represents the interval with 
