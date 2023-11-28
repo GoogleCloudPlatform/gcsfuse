@@ -15,30 +15,32 @@
 
 set -e
 
-# Mount local_ssd at path /mnt/disks/local_ssd.
-sudo mdadm --create /dev/md0 --level=0 --raid-devices=16 \
-  /dev/disk/by-id/google-local-nvme-ssd-0 \
-  /dev/disk/by-id/google-local-nvme-ssd-1 \
-  /dev/disk/by-id/google-local-nvme-ssd-2 \
-  /dev/disk/by-id/google-local-nvme-ssd-3 \
-  /dev/disk/by-id/google-local-nvme-ssd-4 \
-  /dev/disk/by-id/google-local-nvme-ssd-5 \
-  /dev/disk/by-id/google-local-nvme-ssd-6 \
-  /dev/disk/by-id/google-local-nvme-ssd-7 \
-  /dev/disk/by-id/google-local-nvme-ssd-8 \
-  /dev/disk/by-id/google-local-nvme-ssd-9 \
-  /dev/disk/by-id/google-local-nvme-ssd-10 \
-  /dev/disk/by-id/google-local-nvme-ssd-11 \
-  /dev/disk/by-id/google-local-nvme-ssd-12 \
-  /dev/disk/by-id/google-local-nvme-ssd-13 \
-  /dev/disk/by-id/google-local-nvme-ssd-14 \
-  /dev/disk/by-id/google-local-nvme-ssd-15
+if [ ! -d "/mnt/disks/local_ssd" ]; then
+  # Mount local_ssd at path /mnt/disks/local_ssd.
+  sudo mdadm --create /dev/md0 --level=0 --raid-devices=16 \
+    /dev/disk/by-id/google-local-nvme-ssd-0 \
+    /dev/disk/by-id/google-local-nvme-ssd-1 \
+    /dev/disk/by-id/google-local-nvme-ssd-2 \
+    /dev/disk/by-id/google-local-nvme-ssd-3 \
+    /dev/disk/by-id/google-local-nvme-ssd-4 \
+    /dev/disk/by-id/google-local-nvme-ssd-5 \
+    /dev/disk/by-id/google-local-nvme-ssd-6 \
+    /dev/disk/by-id/google-local-nvme-ssd-7 \
+    /dev/disk/by-id/google-local-nvme-ssd-8 \
+    /dev/disk/by-id/google-local-nvme-ssd-9 \
+    /dev/disk/by-id/google-local-nvme-ssd-10 \
+    /dev/disk/by-id/google-local-nvme-ssd-11 \
+    /dev/disk/by-id/google-local-nvme-ssd-12 \
+    /dev/disk/by-id/google-local-nvme-ssd-13 \
+    /dev/disk/by-id/google-local-nvme-ssd-14 \
+    /dev/disk/by-id/google-local-nvme-ssd-15
 
-sudo mdadm --detail --prefer=by-id /dev/md0
-sudo mkfs.ext4 -F /dev/md0
-sudo mkdir -p /mnt/disks/local_ssd
-sudo mount /dev/md0 /mnt/disks/local_ssd
-sudo chmod a+w /mnt/disks/local_ssd
+  sudo mdadm --detail --prefer=by-id /dev/md0
+  sudo mkfs.ext4 -F /dev/md0
+  sudo mkdir -p /mnt/disks/local_ssd
+  sudo mount /dev/md0 /mnt/disks/local_ssd
+  sudo chmod a+w /mnt/disks/local_ssd
+fi
 
 # Check the mounting working.
 df -H
