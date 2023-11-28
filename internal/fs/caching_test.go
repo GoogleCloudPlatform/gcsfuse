@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
@@ -52,8 +53,9 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 
-	const statCacheCapacity = 1000
-	statCache := metadata.NewStatCache(statCacheCapacity)
+	const statCacheCapacity uint64 = 1000
+	sharedCache := lru.NewCache(metadata.StatCacheEntrySize() * statCacheCapacity)
+	statCache := metadata.NewStatCacheBucketView(sharedCache, "some_bucket")
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,

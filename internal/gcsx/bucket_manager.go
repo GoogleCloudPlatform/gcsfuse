@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
@@ -72,8 +73,9 @@ type BucketManager interface {
 }
 
 type bucketManager struct {
-	config        BucketConfig
-	storageHandle storage.StorageHandle
+	config          BucketConfig
+	storageHandle   storage.StorageHandle
+	sharedStatCache *lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -81,9 +83,18 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
+	var c *lru.Cache
+	if config.StatCacheCapacity > 0 {
+		// This conversion is temporary until config.StatCacheCapacity itself is replaced
+		// with config.StatCacheSizeMB, which is a planned change.
+		statCacheSize := uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
+		c = lru.NewCache(statCacheSize)
+	}
+
 	bm := &bucketManager{
-		config:        config,
-		storageHandle: storageHandle,
+		config:          config,
+		storageHandle:   storageHandle,
+		sharedStatCache: c,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -190,11 +201,10 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Enable cached StatObject results, if appropriate.
-	if bm.config.StatCacheTTL != 0 {
-		cacheCapacity := bm.config.StatCacheCapacity
+	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
 		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			metadata.NewStatCache(cacheCapacity),
+			metadata.NewStatCacheBucketView(bm.sharedStatCache, name),
 			timeutil.RealClock(),
 			b)
 	}

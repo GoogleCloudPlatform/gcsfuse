@@ -51,19 +51,27 @@ type StatCache interface {
 	LookUp(name string, now time.Time) (hit bool, o *gcs.Object)
 }
 
-// Create a new stat cache that holds the given number of entries, which must
-// be positive.
-func NewStatCache(capacity int) (sc StatCache) {
-	sizeOfEntry := entry{}.Size()
-	sc = &statCache{
-		c: lru.NewCache(uint64(capacity) * sizeOfEntry),
+// Create a new bucket-view to the passed shared-cache object.
+func NewStatCacheBucketView(_sharedCache *lru.Cache, _bucketName string) StatCache {
+	return &statCache{
+		sharedCache: _sharedCache,
+		bucketName:  _bucketName,
 	}
-
-	return
 }
 
+// statCache is a special type of StatCache which
+// shares its underlying cache map object with other
+// statCache objects (for dynamically mounts) through
+// a specific bucket-name. It does so by prepending its
+// bucket-name to its entry keys to make them unique
+// to it.
 type statCache struct {
-	c *lru.Cache
+	sharedCache *lru.Cache
+	// bucketName is the unique identifier for this
+	// statCache object among all statCache objects
+	// using the same shared lru.Cache object.
+	// It can be empty ("").
+	bucketName string
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -75,6 +83,10 @@ type entry struct {
 
 func (e entry) Size() uint64 {
 	return uint64(unsafe.Sizeof(gcs.Object{}) + unsafe.Sizeof(entry{}))
+}
+
+func StatCacheEntrySize() uint64 {
+	return entry{}.Size()
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -99,9 +111,22 @@ func shouldReplace(o *gcs.Object, existing entry) bool {
 	return true
 }
 
+func (sc *statCache) key(objectName string) string {
+	// path.Join(sc.bucketName, objectName) does not work
+	// because that normalizes the trailing "/"
+	// which breaks functionality by removing
+	// differentiation between files and directories.
+	if sc.bucketName != "" {
+		return sc.bucketName + "/" + objectName
+	}
+	return objectName
+}
+
 func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
+	name := sc.key(o.Name)
+
 	// Is there already a better entry?
-	if existing := sc.c.LookUp(o.Name); existing != nil {
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
 		if !shouldReplace(o, existing.(entry)) {
 			return
 		}
@@ -113,28 +138,34 @@ func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
 		expiration: expiration,
 	}
 
-	sc.c.Insert(o.Name, e)
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }
 
-func (sc *statCache) AddNegativeEntry(name string, expiration time.Time) {
+func (sc *statCache) AddNegativeEntry(objectName string, expiration time.Time) {
 	// Insert a negative entry.
 	e := entry{
 		o:          nil,
 		expiration: expiration,
 	}
 
-	sc.c.Insert(name, e)
+	name := sc.key(objectName)
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }
 
-func (sc *statCache) Erase(name string) {
-	sc.c.Erase(name)
+func (sc *statCache) Erase(objectName string) {
+	name := sc.key(objectName)
+	sc.sharedCache.Erase(name)
 }
 
 func (sc *statCache) LookUp(
-	name string,
+	objectName string,
 	now time.Time) (hit bool, o *gcs.Object) {
 	// Look up in the LRU cache.
-	value := sc.c.LookUp(name)
+	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {
 		return
 	}
@@ -143,7 +174,7 @@ func (sc *statCache) LookUp(
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
-		sc.Erase(name)
+		sc.Erase(objectName)
 		return
 	}
 
