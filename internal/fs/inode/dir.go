@@ -215,7 +215,9 @@ func NewDirInode(
 	}
 
 	// Set up the struct.
-	const typeCacheCapacity = 1 << 16
+	// Temporarily changing the typeCacheCapacity for read_cache_release branch.
+	// TODO (raj-prince): remove this once we will make it configurable.
+	const typeCacheCapacity = 1 << 22
 	typed := &dirInode{
 		bucket:                     bucket,
 		mtimeClock:                 mtimeClock,
