@@ -24,7 +24,7 @@ if [[ -z "${WORKING_DIR}" ]]; then
 fi
 
 num_of_threads=${1:-40}
-ONE_MILLION=100000
+ONE_MILLION=1000000
 FIFTY_K=50000
 
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
