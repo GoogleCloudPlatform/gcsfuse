@@ -73,3 +73,40 @@ number_of_files_per_thread=$((FIFTY_K / num_of_threads))
 
 # Go back to the old working directory.
 cd -
+
+
+gcloud compute instances create $vm_name
+  --project=gcs-fuse-test \
+  --zone=$region \
+  --machine-type=n2-standard-2 \
+  --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
+  --metadata=enable-osconfig=TRUE,enable-oslogin=true \
+  --maintenance-policy=MIGRATE \
+  --metadata-from-file=startup-script=one_time_setup.sh \
+  --provisioning-model=STANDARD \
+  --service-account=927584127901-compute@developer.gserviceaccount.com \
+  --scopes=https://www.googleapis.com/auth/cloud-platform \
+  --tags=http-server,https-server \
+  --create-disk=auto-delete=yes,boot=yes,device-name=$vm_name,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231101,mode=rw,size=100,type=projects/gcs-fuse-test/zones/us-central1-a/diskTypes/pd-balanced \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --no-shielded-secure-boot \
+  --shielded-vtpm \
+  --shielded-integrity-monitoring \
+  --labels=goog-ops-agent-policy=v2-x86-template-1-1-0,goog-ec-src=vm_add-gcloud \
+  --reservation-affinity=any
+
