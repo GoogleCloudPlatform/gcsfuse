@@ -20,7 +20,7 @@ print_usage() {
   printf "./mount_gcsfuse.sh  "
   printf "[-s max_size_in_mb] "
   printf "[-b bucket_name] "
-  printf "[-c cache_location"
+  printf "[-c cache_location] "
   printf "[-d (means download_for_random_read is true)] \n"
 }
 
@@ -34,12 +34,13 @@ stat_cache_ttl=168h # 1 week
 type_cache_ttl=168h # 1 week
 stat_cache_capacity=1200000 # 1 million + buffer 200k
 
-while getopts hds:b: flag
+while getopts hds:b:c: flag
 do
   case "${flag}" in
     s) max_size_in_mb=${OPTARG};;
     b) bucket_name=${OPTARG};;
     d) download_for_random_read=true;;
+    c) cache_location=${OPTARG};;
     h) print_usage
         exit 0 ;;
     *) print_usage
