@@ -254,6 +254,10 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 
+	// Note: If we are reading the file for the first time and read type is sequential
+	// then the file cache behavior is write-through i.e. data is first read from
+	// GCS, cached in file and then served from that file. Also, the cacheHit is
+	// true in that case.
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
