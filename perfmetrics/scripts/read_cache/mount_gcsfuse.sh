@@ -30,9 +30,9 @@ download_for_random_read=false
 max_size_in_mb=100
 cache_location=/tmp/read_cache/
 bucket_name=princer-read-cache-load-test
-stat_cache_ttl=100m
-type_cache_ttl=100m
-stat_cache_capacity=4994 # TODO(raj-prince) to update
+stat_cache_ttl=100000h
+type_cache_ttl=100000h
+stat_cache_capacity=2000000 # TODO(raj-prince) to update
 
 while getopts hds:b: flag
 do
