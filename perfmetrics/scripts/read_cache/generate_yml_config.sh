@@ -23,7 +23,6 @@ cat > $filename << EOF
 write:
   create-empty-file: true
 logging:
-  file-path: /tmp/logfile.json
   format: text
   severity: error
 cache-location: ${CACHE_LOCATION:-/tmp/read_cache/}
