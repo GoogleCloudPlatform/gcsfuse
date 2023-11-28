@@ -38,13 +38,13 @@ var (
 		"Cumulative number of bytes downloaded from GCS along with read type",
 		stats.UnitBytes)
 	fileCacheReadCount = stats.Int64("file_cache/read_count",
-		"Specifies the number of read requests made via file cache along with type- Sequential/Random",
+		"Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
 		stats.UnitDimensionless)
 	fileCacheReadBytesCount = stats.Int64("file_cache/read_bytes_count",
-		"The cumulative number of bytes read from file cache.",
+		"The cumulative number of bytes read from file cache along with read type - Sequential/Random",
 		stats.UnitBytes)
 	fileCacheReadLatency = stats.Float64("file_cache/read_latency",
-		"Latency of read from file cache",
+		"Latency of read from file cache along with cache hit - true or false",
 		stats.UnitMilliseconds)
 )
 
@@ -72,21 +72,21 @@ func init() {
 		&view.View{
 			Name:        "file_cache/read_count",
 			Measure:     fileCacheReadCount,
-			Description: "Specifies the number of read requests made via file cache along with type- Sequential/Random",
+			Description: "Specifies the number of read requests made via file cache along with type - Sequential/Random and cache hit - true/false",
 			Aggregation: view.Sum(),
 			TagKeys:     []tag.Key{tags.ReadType, tags.CacheHit},
 		},
 		&view.View{
 			Name:        "file_cache/read_bytes_count",
 			Measure:     fileCacheReadBytesCount,
-			Description: "The cumulative number of bytes read from file cache.",
+			Description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random",
 			Aggregation: view.Sum(),
 			TagKeys:     []tag.Key{tags.ReadType},
 		},
 		&view.View{
 			Name:        "file_cache/read_latencies",
 			Measure:     fileCacheReadLatency,
-			Description: "The cumulative distribution of the file cache read latencies.",
+			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true or false",
 			Aggregation: ochttp.DefaultLatencyDistribution,
 			TagKeys:     []tag.Key{tags.CacheHit},
 		},
