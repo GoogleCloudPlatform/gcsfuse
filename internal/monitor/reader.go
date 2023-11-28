@@ -44,7 +44,7 @@ var (
 		"The cumulative number of bytes read from file cache along with read type - Sequential/Random",
 		stats.UnitBytes)
 	fileCacheReadLatency = stats.Float64("file_cache/read_latency",
-		"Latency of read from file cache along with cache hit - true or false",
+		"Latency of read from file cache along with cache hit - true/false",
 		stats.UnitMilliseconds)
 )
 
