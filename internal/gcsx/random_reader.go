@@ -190,7 +190,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> %s", requestOutput)
+		logger.Tracef("%.13v -> %s", requestId, requestOutput)
 
 		readType := util.Random
 		if isSeq {
@@ -377,7 +377,7 @@ func (rr *randomReader) Destroy() {
 	}
 
 	if rr.fileCacheHandle != nil {
-		logger.Tracef("Closing cacheHandle:%p for object: %s/:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
