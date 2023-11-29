@@ -16,7 +16,7 @@
 PYTORCH_VESRION=$1
 
 # Install golang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.3.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.21.4.linux-amd64.tar.gz -q
 rm -rf /usr/local/go && tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 
