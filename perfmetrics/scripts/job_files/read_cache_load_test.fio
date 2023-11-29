@@ -9,10 +9,10 @@ nrfiles=${NRFILES}
 thread=1
 openfiles=1
 group_reporting=1
-allrandrepeat=1
 create_serialize=0
+allrandrepeat=1
 numjobs=${NUMJOBS}
-filename_format=$jobname.$jobnum.$filenum
+filename_format=$jobname.$jobnum/$filenum
 
 [Workload]
 directory=${DIR}

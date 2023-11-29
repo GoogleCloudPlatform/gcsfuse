@@ -72,10 +72,15 @@ fi
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
 
 for i in $(seq $epoch); do
-   NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
+  free -mh
 
-   # Wait after one epoch training.
-   sleep $pause_in_seconds
+  echo "[Epoch ${i}] start time:" `date +%s`
+  NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio
+  echo "[Epoch ${i}] end time:" `date +%s`
+
+  free -mh
+  sudo ./clean_kernel_cache.sh
+  sleep $pause_in_seconds
 done
 
 cd -
