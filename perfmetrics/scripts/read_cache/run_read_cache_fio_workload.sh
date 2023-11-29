@@ -75,7 +75,7 @@ for i in $(seq $epoch); do
   free -mh
 
   echo "[Epoch ${i}] start time:" `date +%s`
-  NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio ----alloc-size=1048576
+  NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio --alloc-size=1048576
   echo "[Epoch ${i}] end time:" `date +%s`
 
   free -mh
