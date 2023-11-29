@@ -137,7 +137,7 @@ func (job *Job) Cancel() {
 	if job.status.Name == DOWNLOADING || job.status.Name == NOT_STARTED {
 		job.cancelFunc()
 		job.status.Name = CANCELLED
-		logger.Tracef("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
+		logger.Tracef("Job:%p (%s:/%s) cancelled.", job, job.bucket.Name(), job.object.Name)
 		job.notifySubscribers()
 	}
 }
@@ -154,7 +154,7 @@ func (job *Job) Invalidate() {
 		job.cancelFunc()
 	}
 	job.status.Name = INVALID
-	logger.Tracef("Job:%p (%s://%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
+	logger.Tracef("Job:%p (%s:/%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
 	job.notifySubscribers()
 }
 
@@ -191,7 +191,7 @@ func (job *Job) notifySubscribers() {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) failWhileDownloading(downloadErr error) {
-	logger.Errorf("Job:%p (%s://%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
+	logger.Errorf("Job:%p (%s:/%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
 	job.mu.Lock()
 	job.status.Err = downloadErr
 	job.status.Name = FAILED
@@ -220,7 +220,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
 	}
 
-	logger.Tracef("Job:%p (%s://%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
+	logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %v", updatedFileInfo.Key, err))
@@ -255,7 +255,6 @@ func (job *Job) downloadObjectAsync() {
 	end = int64(job.object.Size)
 	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
 
-	ctx := context.Background()
 	for {
 		select {
 		case <-job.cancelCtx.Done():
@@ -265,7 +264,7 @@ func (job *Job) downloadObjectAsync() {
 				if newReader == nil {
 					newReaderLimit = min(start+sequentialReadSize, end)
 					newReader, err = job.bucket.NewReader(
-						ctx,
+						job.cancelCtx,
 						&gcs.ReadObjectRequest{
 							Name:       job.object.Name,
 							Generation: job.object.Generation,
@@ -280,7 +279,7 @@ func (job *Job) downloadObjectAsync() {
 						job.failWhileDownloading(err)
 						return
 					}
-					monitor.CaptureGCSReadMetrics(ctx, util.Sequential, newReaderLimit-start)
+					monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
 				}
 
 				maxRead := min(ReadChunkSize, newReaderLimit-start)

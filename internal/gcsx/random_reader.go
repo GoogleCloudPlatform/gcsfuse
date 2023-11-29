@@ -173,7 +173,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	logger.Tracef("%.13v <- ReadFromCache(%s:/%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
 	startTime := time.Now()
 
 	// Response log
@@ -181,16 +181,16 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		executionTime := time.Since(startTime)
 		var requestOutput string
 		if err != nil {
-			requestOutput = fmt.Sprintf("(error: %v, %v)", err, executionTime)
+			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
 		} else {
 			if rr.fileCacheHandle != nil {
 				isSeq = rr.fileCacheHandle.IsSequential(offset)
 			}
-			requestOutput = fmt.Sprintf("(isSeq: %t, hit: %t, %v)", isSeq, cacheHit, executionTime)
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
-		logger.Tracef("%.13v -> ReadFromCache(%s:/%s, offset: %d, size: %d): %s", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), requestOutput)
+		logger.Tracef("%.13v -> %s", requestOutput)
 
 		readType := util.Random
 		if isSeq {
@@ -229,7 +229,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
-		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err = rr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
@@ -377,7 +377,7 @@ func (rr *randomReader) Destroy() {
 	}
 
 	if rr.fileCacheHandle != nil {
-		logger.Tracef("Closing cacheHandle:%p for object: %s//:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
+		logger.Tracef("Closing cacheHandle:%p for object: %s/:%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
 		if err != nil {
 			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
