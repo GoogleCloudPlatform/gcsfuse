@@ -16,6 +16,7 @@ package downloader
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -296,12 +297,18 @@ func (job *Job) downloadObjectAsync() {
 		}
 	}(cacheFile)
 
+	notifyCancelled := func() {
+		job.mu.Lock()
+		job.status.Name = CANCELLED
+		job.notifySubscribers()
+		job.mu.Unlock()
+	}
+
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
 	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
 
-	ctx := context.Background()
 	for {
 		select {
 		case <-job.cancelCtx.Done():
@@ -311,7 +318,7 @@ func (job *Job) downloadObjectAsync() {
 				if newReader == nil {
 					newReaderLimit = min(start+sequentialReadSize, end)
 					newReader, err = job.bucket.NewReader(
-						ctx,
+						job.cancelCtx,
 						&gcs.ReadObjectRequest{
 							Name:       job.object.Name,
 							Generation: job.object.Generation,
@@ -322,6 +329,10 @@ func (job *Job) downloadObjectAsync() {
 							ReadCompressed: job.object.HasContentEncodingGzip(),
 						})
 					if err != nil {
+						if errors.Is(err, context.Canceled) {
+							notifyCancelled()
+							return
+						}
 						err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %v", start, newReaderLimit, err))
 						job.failWhileDownloading(err)
 						return
@@ -340,6 +351,10 @@ func (job *Job) downloadObjectAsync() {
 				// copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
 				if readErr != nil {
+					if errors.Is(readErr, context.Canceled) {
+						notifyCancelled()
+						return
+					}
 					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %v", readErr)
 					job.failWhileDownloading(err)
 					return
