@@ -6,7 +6,8 @@ set -e
 cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver..."
-source ml_tests/setup_host.sh
+DRIVER_VERSION="450.172.01"
+source ml_tests/setup_host.sh $DRIVER_VERSION
 
 cd "$HOME/github/gcsfuse/"
 mkdir container_artifacts && mkdir container_artifacts/logs && mkdir container_artifacts/output
