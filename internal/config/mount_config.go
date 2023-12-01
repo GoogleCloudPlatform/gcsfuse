@@ -20,7 +20,7 @@ const (
 	// Default log rotation config values.
 	defaultMaxFileSizeMB   = 512
 	defaultBackupFileCount = 10
-	defaultCompress        = false
+	defaultCompress        = true
 
 	// TtlInSecsUnsetSentinel is the value internally
 	// set for metada-cache:ttl-secs
