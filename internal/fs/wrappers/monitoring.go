@@ -92,7 +92,7 @@ func recordOp(ctx context.Context, method string, start time.Time, fsErr error) 
 		opsCount.M(1),
 	); err != nil {
 		// Error in recording opCount.
-		fmt.Printf("Cannot record file system op: %v", err)
+		logger.Errorf("Cannot record file system op: %v", err)
 	}
 
 	// Recording opErrorCount.
