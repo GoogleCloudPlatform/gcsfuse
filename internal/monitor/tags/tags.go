@@ -34,4 +34,7 @@ var (
 
 	// ReadType annotates the read operation with the type - Sequential/Random
 	ReadType = tag.MustNewKey("read_type")
+
+	// CacheHit annotates the read operation from file cache with true or false.
+	CacheHit = tag.MustNewKey("cache_hit")
 )

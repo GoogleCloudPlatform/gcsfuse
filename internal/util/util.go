@@ -28,6 +28,10 @@ import (
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
+// Constants for read types - Sequential/Random
+const Sequential = "Sequential"
+const Random = "Random"
+
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
 // ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
