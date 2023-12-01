@@ -24,10 +24,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +44,7 @@ const (
 	INVALID     jobStatusName = "INVALID"
 )
 
-const ReadChunkSize = 8 * util.MiB
+const ReadChunkSize = 8 * cacheutil.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -135,7 +137,7 @@ func (job *Job) Cancel() {
 	if job.status.Name == DOWNLOADING || job.status.Name == NOT_STARTED {
 		job.cancelFunc()
 		job.status.Name = CANCELLED
-		logger.Tracef("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
+		logger.Tracef("Job:%p (%s:/%s) cancelled.", job, job.bucket.Name(), job.object.Name)
 		job.notifySubscribers()
 	}
 }
@@ -152,7 +154,7 @@ func (job *Job) Invalidate() {
 		job.cancelFunc()
 	}
 	job.status.Name = INVALID
-	logger.Tracef("Job:%p (%s://%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
+	logger.Tracef("Job:%p (%s:/%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
 	job.notifySubscribers()
 }
 
@@ -189,7 +191,7 @@ func (job *Job) notifySubscribers() {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) failWhileDownloading(downloadErr error) {
-	logger.Errorf("Job:%p (%s://%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
+	logger.Errorf("Job:%p (%s:/%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
 	job.mu.Lock()
 	job.status.Err = downloadErr
 	job.status.Name = FAILED
@@ -218,7 +220,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
 	}
 
-	logger.Tracef("Job:%p (%s://%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
+	logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %v", updatedFileInfo.Key, err))
@@ -234,7 +236,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
 	// Create and open cache file for writing object into it.
-	cacheFile, err := util.CreateFile(job.fileSpec, os.O_WRONLY)
+	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_WRONLY)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
 		job.failWhileDownloading(err)
@@ -251,7 +253,7 @@ func (job *Job) downloadObjectAsync() {
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
-	sequentialReadSize = int64(job.sequentialReadSizeMb) * util.MiB
+	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
 
 	for {
 		select {
@@ -277,6 +279,7 @@ func (job *Job) downloadObjectAsync() {
 						job.failWhileDownloading(err)
 						return
 					}
+					monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
 				}
 
 				maxRead := min(ReadChunkSize, newReaderLimit-start)
