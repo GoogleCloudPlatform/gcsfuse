@@ -92,7 +92,7 @@ func init() {
 			TagKeys:     []tag.Key{tags.CacheHit},
 		},
 	); err != nil {
-		log.Fatalf("Failed to register the view: %v", err)
+		log.Fatalf("Failed to register the reader view: %v", err)
 	}
 }
 
