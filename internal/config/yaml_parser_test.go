@@ -37,7 +37,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq("", mountConfig.LogConfig.FilePath)
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
 	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {

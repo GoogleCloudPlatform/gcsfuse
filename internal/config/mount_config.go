@@ -18,7 +18,7 @@ const (
 	// Default log rotation config values.
 	defaultMaxFileSizeMB   = 512
 	defaultBackupFileCount = 10
-	defaultCompress        = false
+	defaultCompress        = true
 )
 
 type WriteConfig struct {
