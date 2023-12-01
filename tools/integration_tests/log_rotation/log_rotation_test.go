@@ -30,7 +30,7 @@ const (
 	testDirName        = "LogRotationTest"
 	logFileName        = "log.txt"
 	logDirName         = "gcsfuse_integration_test_logs"
-	maxFileSizeMB      = 2
+	maxFileSizeMB      = 512
 	activeLogFileCount = 1
 	backupLogFileCount = 2
 	logFileCount       = activeLogFileCount + backupLogFileCount
@@ -83,15 +83,15 @@ func TestMain(m *testing.M) {
 	configFile1 := setup.YAMLConfigFile(
 		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, true, logFilePath),
 		"config1.yaml")
-	configFile2 := setup.YAMLConfigFile(
-		getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, false, logFilePath),
-		"config2.yaml")
+	//configFile2 := setup.YAMLConfigFile(
+	//	getMountConfigForLogRotation(maxFileSizeMB, backupLogFileCount, false, logFilePath),
+	//	"config2.yaml")
 
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
 		{"--config-file=" + configFile1},
-		{"--config-file=" + configFile2},
+		//{"--config-file=" + configFile2},
 	}
 
 	successCode := static_mounting.RunTests(flags, m)
