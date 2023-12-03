@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -x # Verbose output.
 set -e
 
 print_usage() {
@@ -21,7 +22,8 @@ print_usage() {
   printf "[-s max_size_in_mb] "
   printf "[-b bucket_name] "
   printf "[-c cache_location] "
-  printf "[-d (means download_for_random_read is true)] \n"
+  printf "[-d (means download_for_random_read is true)] "
+  printf "[-l (start_logging on $WORKING_DIR/gcsfuse_logs.txt)] \n"
 }
 
 # Default value to edit, value via argument will override
@@ -29,24 +31,28 @@ print_usage() {
 download_for_random_read=false
 max_size_in_mb=100
 cache_location=/tmp/read_cache/
-bucket_name=princer-read-cache-load-test
+bucket_name=gcsfuse-read-cache-fio-load-test
 stat_cache_ttl=168h # 1 week
 type_cache_ttl=168h # 1 week
 stat_cache_capacity=1200000 # 1 million + buffer 200k
+enable_log=0
 
-while getopts hds:b:c: flag
+while getopts lhds:b:c: flag
 do
   case "${flag}" in
+
     s) max_size_in_mb=${OPTARG};;
     b) bucket_name=${OPTARG};;
     d) download_for_random_read=true;;
     c) cache_location=${OPTARG};;
     h) print_usage
         exit 0 ;;
+    l) enable_log=1 ;;
     *) print_usage
         exit 1 ;;
   esac
 done
+
 
 # Execute the shell from the read_cache scripts directory.
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
@@ -66,17 +72,26 @@ export DOWNLOAD_FOR_RANDOM_READ="${download_for_random_read}"
 export CACHE_LOCATION="${cache_location}"
 ./generate_yml_config.sh
 
+debug_flags=""
+if [ $enable_log -eq 1 ]; then
+  debug_flags="--debug_fuse --debug_gcs"
+fi
+
 # Mount gcsfuse
 echo "Mounting gcsfuse..."
 gcsfuse --stackdriver-export-interval 30s \
         --stat-cache-ttl $stat_cache_ttl \
         --stat-cache-capacity $stat_cache_capacity \
         --type-cache-ttl $type_cache_ttl \
-        --debug_fuse --debug_gcs \
+        $debug_flags \
         --log-file $WORKING_DIR/gcsfuse_logs.txt \
         --log-format text \
         --config-file ./config.yml \
         $bucket_name $mount_dir
+
+
+gcsfuseID=$(ps -ax | grep "gcsfuse" | head -n 1 | awk '{print $1}')
+echo "Running GCSFuse process-id: $gcsfuseID"
 
 # Back to old dir in the last.
 cd -
