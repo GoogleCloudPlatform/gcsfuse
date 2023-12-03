@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -x # Verbose output.
 set -e
 
 print_usage() {
@@ -31,7 +32,7 @@ print_usage() {
 epoch=2
 no_of_files_per_thread=1
 read_type=read
-pause_in_seconds=2
+pause_in_seconds=5
 block_size=1K
 file_size=1K
 num_of_threads=40
@@ -72,14 +73,16 @@ fi
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
 
 for i in $(seq $epoch); do
-  free -mh
 
   echo "[Epoch ${i}] start time:" `date +%s`
+  free -mh # Memory usage before workload start.
   NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio $WORKING_DIR/gcsfuse/perfmetrics/scripts/job_files/read_cache_load_test.fio --alloc-size=1048576
+  free -mh # Memory usage after workload completion.
   echo "[Epoch ${i}] end time:" `date +%s`
 
-  free -mh
-  sudo ./clean_kernel_cache.sh
+  # To free pagecache, dentries and inodes.
+  sudo sh -c "/usr/bin/echo 3 > /proc/sys/vm/drop_caches"
+
   sleep $pause_in_seconds
 done
 
