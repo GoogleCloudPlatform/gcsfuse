@@ -278,9 +278,10 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Note: There can only be one async download running for a job at a time.
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
-	// Close the job.doneCh in any case - completion/cancellation/failure of this
-	// goroutine.
+	// Close the job.doneCh and call job.canceFunc() in any case -
+	// completion/cancellation/failure of this goroutine.
 	defer close(job.doneCh)
+	defer job.cancelFunc()
 
 	// Create, open and truncate cache file for writing object into it.
 	cacheFile, err := util.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
