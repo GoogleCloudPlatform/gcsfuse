@@ -76,7 +76,7 @@ sed -i 's/define \+FIO_IO_U_PLAT_GROUP_NR \+\([0-9]\+\)/define FIO_IO_U_PLAT_GRO
 cd -
 
 # Install and validate go.
-version=1.21.1
+version=1.21.3
 wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go
 tar -xzf go_tar.tar.gz && sudo mv go /usr/local
