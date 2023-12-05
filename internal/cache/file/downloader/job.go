@@ -284,7 +284,7 @@ func (job *Job) downloadObjectAsync() {
 	defer job.cancelFunc()
 
 	// Create, open and truncate cache file for writing object into it.
-	cacheFile, err := util.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
+	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %v", err)
 		job.failWhileDownloading(err)
