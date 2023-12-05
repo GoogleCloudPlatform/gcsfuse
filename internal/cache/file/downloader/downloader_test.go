@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -192,4 +193,26 @@ func (dt *downloaderTest) Test_RemoveJob_Concurrent() {
 	_, ok := dt.jm.jobs[objectPath]
 	ExpectFalse(ok)
 	dt.jm.mu.Unlock()
+}
+
+func (dt *downloaderTest) Test_Destroy() {
+	objectSize := 50
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	// Create new jobs
+	objectName1 := "path/in/gcs/foo1.txt"
+	dt.initJobTest(objectName1, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	job1 := dt.jm.GetJob(&dt.object, dt.bucket)
+	objectName2 := "path/in/gcs/foo2.txt"
+	dt.initJobTest(objectName2, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	job2 := dt.jm.GetJob(&dt.object, dt.bucket)
+	objectName3 := "path/in/gcs/foo3.txt"
+	dt.initJobTest(objectName3, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize))
+	job3 := dt.jm.GetJob(&dt.object, dt.bucket)
+
+	dt.jm.Destroy()
+
+	// Verify all jobs are invalidated
+	AssertEq(INVALID, job1.GetStatus().Name)
+	AssertEq(INVALID, job2.GetStatus().Name)
+	AssertEq(INVALID, job3.GetStatus().Name)
 }
