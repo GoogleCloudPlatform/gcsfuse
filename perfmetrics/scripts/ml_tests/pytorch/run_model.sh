@@ -66,6 +66,106 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
+# (TulsiShah) TODO: Pytorch 2.0 compile mode has issues (https://github.com/pytorch/pytorch/issues/94599).
+# Which is fixed in pytorch version 2.1.0 (https://github.com/pytorch/pytorch/pull/100071)
+# We'll remove this workaround once we update our Docker image to use Pytorch 2.1.0 or greater version.
+if [ $PYTORCH_VESRION == "v2" ];
+then
+  allowed_functions_file="/opt/conda/lib/python3.10/site-packages/torch/_dynamo/allowed_functions.py"
+  # Update the pytorch library code to bypass the kernel-cache
+  echo "Updating the pytorch library code to Disallow_in_graph distributed API.."
+  echo "
+  def _disallowed_function_ids():
+             remove = [
+                 True,
+                 False,
+                 None,
+                 collections.OrderedDict,
+                 copy.copy,
+                 copy.deepcopy,
+                 inspect.signature,
+                 math.__package__,
+                 torch.__builtins__,
+                 torch.autocast_decrement_nesting,
+                 torch.autocast_increment_nesting,
+                 torch.autograd.grad,
+                 torch.clear_autocast_cache,
+                 torch.cuda.current_device,
+                 torch.cuda.amp.autocast_mode.autocast,
+                 torch.cpu.amp.autocast_mode.autocast,
+                 torch.distributions.constraints.is_dependent,
+                 torch.distributions.normal.Normal,
+                 torch.inference_mode,
+                 torch.set_anomaly_enabled,
+                 torch.set_autocast_cache_enabled,
+                 torch.set_autocast_cpu_dtype,
+                 torch.set_autocast_cpu_enabled,
+                 torch.set_autocast_enabled,
+                 torch.set_autocast_gpu_dtype,
+                 torch.autograd.profiler.profile,
+                 warnings.warn,
+                 torch._C._dynamo.eval_frame.unsupported,
+             ]
+             # extract all dtypes from torch
+             dtypes = [
+                 obj for obj in torch.__dict__.values() if isinstance(obj, type(torch.float32))
+             ]
+             remove += dtypes
+             storage = [
+                 obj
+                 for obj in torch.__dict__.values()
+                 if isinstance(obj, type(torch.FloatStorage))
+             ]
+             remove += storage
+
+             # Distributed APIs don't work well with torch.compile.
+             if torch.distributed.is_available():
+             remove.extend(
+                 torch.distributed.distributed_c10d.dynamo_unsupported_distributed_c10d_ops
+             )
+
+             return {id(x) for x in remove}
+  " > disallowed_function.py
+
+  x=$(grep -n "def _disallowed_function_ids():" $allowed_functions_file | cut -f1 -d ':')
+  y=$(grep -n "def _allowed_function_ids():" $allowed_functions_file | cut -f1 -d ':')
+  y=$((y - 3))
+  lines="$x,$y"
+  sed -i "$lines"'d' $allowed_functions_file
+  sed -i "$x"'r disallowed_function.py' $allowed_functions_file
+
+  distributed_c10d_file="/opt/conda/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py"
+  echo "# This ops are not friently to TorchDynamo. So, we decide to disallow these ops
+  # in FX graph, allowing them to run them on eager, with torch.compile.
+  dynamo_unsupported_distributed_c10d_ops = [
+       all_reduce_multigpu,
+       recv,
+       all_gather_object,
+       all_gather_coalesced,
+       all_to_all_single,
+       all_reduce,
+       gather_object,
+       all_to_all,
+       all_reduce_coalesced,
+       gather,
+       broadcast_object_list,
+       barrier,
+       reduce_multigpu,
+       scatter,
+       scatter_object_list,
+       reduce,
+       reduce_scatter_multigpu,
+       all_gather,
+       broadcast_multigpu,
+       all_gather_multigpu,
+       reduce_scatter,
+       all_gather_into_tensor,
+       broadcast,
+       reduce_scatter_tensor,
+       send,
+        ]" >> $distributed_c10d_file
+fi
+
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
