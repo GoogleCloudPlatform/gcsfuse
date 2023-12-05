@@ -21,6 +21,7 @@ import (
 	iofs "io/fs"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -236,6 +237,10 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if err != nil {
 		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %v", cacheLocation, err))
 	}
+	// Adding a new directory inside cacheLocation, so that at the time of Destroy
+	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
+	// gcsfuse related files.
+	cacheLocation = path.Join(cacheLocation, util.FileCache)
 
 	// When user passes allow_other flag, then other users should be able to
 	// read from cache
@@ -1274,6 +1279,9 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 
 func (fs *fileSystem) Destroy() {
 	fs.bucketManager.ShutDown()
+	if fs.fileCacheHandler != nil {
+		_ = fs.fileCacheHandler.Destroy()
+	}
 }
 
 func (fs *fileSystem) StatFS(
