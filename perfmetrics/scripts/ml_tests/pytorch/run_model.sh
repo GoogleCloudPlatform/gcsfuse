@@ -76,55 +76,55 @@ then
   echo "Updating the pytorch library code to Disallow_in_graph distributed API.."
   echo "
 def _disallowed_function_ids():
-             remove = [
-                 True,
-                 False,
-                 None,
-                 collections.OrderedDict,
-                 copy.copy,
-                 copy.deepcopy,
-                 inspect.signature,
-                 math.__package__,
-                 torch.__builtins__,
-                 torch.autocast_decrement_nesting,
-                 torch.autocast_increment_nesting,
-                 torch.autograd.grad,
-                 torch.clear_autocast_cache,
-                 torch.cuda.current_device,
-                 torch.cuda.amp.autocast_mode.autocast,
-                 torch.cpu.amp.autocast_mode.autocast,
-                 torch.distributions.constraints.is_dependent,
-                 torch.distributions.normal.Normal,
-                 torch.inference_mode,
-                 torch.set_anomaly_enabled,
-                 torch.set_autocast_cache_enabled,
-                 torch.set_autocast_cpu_dtype,
-                 torch.set_autocast_cpu_enabled,
-                 torch.set_autocast_enabled,
-                 torch.set_autocast_gpu_dtype,
-                 torch.autograd.profiler.profile,
-                 warnings.warn,
-                 torch._C._dynamo.eval_frame.unsupported,
-             ]
-             # extract all dtypes from torch
-             dtypes = [
-                 obj for obj in torch.__dict__.values() if isinstance(obj, type(torch.float32))
-             ]
-             remove += dtypes
-             storage = [
-                 obj
-                 for obj in torch.__dict__.values()
-                 if isinstance(obj, type(torch.FloatStorage))
-             ]
-             remove += storage
+  remove = [
+      True,
+      False,
+      None,
+      collections.OrderedDict,
+      copy.copy,
+      copy.deepcopy,
+      inspect.signature,
+      math.__package__,
+      torch.__builtins__,
+      torch.autocast_decrement_nesting,
+      torch.autocast_increment_nesting,
+      torch.autograd.grad,
+      torch.clear_autocast_cache,
+      torch.cuda.current_device,
+      torch.cuda.amp.autocast_mode.autocast,
+      torch.cpu.amp.autocast_mode.autocast,
+      torch.distributions.constraints.is_dependent,
+      torch.distributions.normal.Normal,
+      torch.inference_mode,
+      torch.set_anomaly_enabled,
+      torch.set_autocast_cache_enabled,
+      torch.set_autocast_cpu_dtype,
+      torch.set_autocast_cpu_enabled,
+      torch.set_autocast_enabled,
+      torch.set_autocast_gpu_dtype,
+      torch.autograd.profiler.profile,
+      warnings.warn,
+      torch._C._dynamo.eval_frame.unsupported,
+  ]
+  # extract all dtypes from torch
+  dtypes = [
+      obj for obj in torch.__dict__.values() if isinstance(obj, type(torch.float32))
+  ]
+  remove += dtypes
+  storage = [
+      obj
+      for obj in torch.__dict__.values()
+      if isinstance(obj, type(torch.FloatStorage))
+  ]
+  remove += storage
 
-             # Distributed APIs don't work well with torch.compile.
-             if torch.distributed.is_available():
-             remove.extend(
-                 torch.distributed.distributed_c10d.dynamo_unsupported_distributed_c10d_ops
-             )
+  # Distributed APIs don't work well with torch.compile.
+  if torch.distributed.is_available():
+      remove.extend(
+           torch.distributed.distributed_c10d.dynamo_unsupported_distributed_c10d_ops
+      )
 
-             return {id(x) for x in remove}
+  return {id(x) for x in remove}
 " > disallowed_function.py
 
   x=$(grep -n "def _disallowed_function_ids():" $allowed_functions_file | cut -f1 -d ':')
