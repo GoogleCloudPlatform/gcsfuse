@@ -174,7 +174,7 @@ func (job *Job) Cancel() {
 		// we shouldn't change the status to cancelled.
 		if job.status.Name != FAILED && job.status.Name != INVALID {
 			job.status.Name = CANCELLED
-			logger.Tracef("Job:%p (%s://%s) cancelled.", job, job.bucket.Name(), job.object.Name)
+			logger.Tracef("Job:%p (%s:/%s) cancelled.", job, job.bucket.Name(), job.object.Name)
 			job.notifySubscribers()
 		}
 	}
