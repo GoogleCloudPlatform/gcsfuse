@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"errors"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -590,13 +591,14 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2"))
 	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, true, 0)
 	AssertEq(nil, err)
-	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, true, 1)
+	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, true, 0)
 	AssertEq(nil, err)
 	ctx := context.Background()
 	// Read to create and populate file in cache.
 	buf := make([]byte, 3)
-	_, _ = cacheHandle1.Read(ctx, minObject1, 4, buf)
-	_, _ = cacheHandle2.Read(ctx, minObject2, 4, buf)
+	_, err = cacheHandle1.Read(ctx, minObject1, 4, buf)
+	AssertEq(nil, err)
+	_, err = cacheHandle2.Read(ctx, minObject2, 4, buf)
 	AssertEq(nil, err)
 	err = cacheHandle1.Close()
 	AssertEq(nil, err)
@@ -611,7 +613,7 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	// Verify the cacheLocation is deleted.
 	_, err = os.Stat(path.Join(chrT.cacheLocation, util.FileCache))
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	AssertTrue(errors.Is(err, os.ErrNotExist))
 	// Verify jobs are invalidated
 	AssertEq(downloader.INVALID, job1.GetStatus().Name)
 	AssertEq(downloader.INVALID, job2.GetStatus().Name)

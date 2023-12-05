@@ -261,8 +261,10 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 	return nil
 }
 
-// Destroy destroys the internal state of CacheHandler correctly destroying all
-// the download jobs and deleting all the files in cache.
+// Destroy destroys the job manager (i.e. invalidate all the jobs) and delete the
+// file cache directory (i.e. deleting all the files in cache). Note: This method
+// is expected to be called at the time of unmounting and because file info cache
+// is in-memory, it is not required to destroy it.
 //
 // Acquires and releases Lock(chr.mu)
 func (chr *CacheHandler) Destroy() (err error) {

@@ -700,7 +700,7 @@ func (t *FileCacheWithDefaultCacheLocation) DefaultLocationIsTempDir() {
 	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(os.TempDir(), util.FileCache))
 }
 
-// Test to check cache is deleted at the time pf unmounting.
+// Test to check cache is deleted at the time of unmounting.
 type FileCacheDestroyTest struct {
 	fsTest
 }
@@ -723,15 +723,15 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 }
 
 func (t *FileCacheDestroyTest) TearDownTestSuite() {
-	// do nothing as fs is unmounted in the test itself
+	// Do nothing as fs is unmounted in the test itself
 }
 
 func (t *FileCacheDestroyTest) TearDown() {
-	// do nothing as fs is unmounted in the test itself
+	// Do nothing as fs is unmounted in the test itself
 }
 
 func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
-	// read to populate cache
+	// Read to populate cache
 	objectContent := generateRandomString(50)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
