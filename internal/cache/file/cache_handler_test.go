@@ -17,6 +17,7 @@ package file
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"errors"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
