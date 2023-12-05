@@ -136,34 +136,34 @@ then
 
   distributed_c10d_file="/opt/conda/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py"
   echo "# This ops are not friendly to TorchDynamo. So, we decide to disallow these ops
-  # in FX graph, allowing them to run them on eager, with torch.compile.
-  dynamo_unsupported_distributed_c10d_ops = [
-       all_reduce_multigpu,
-       recv,
-       all_gather_object,
-       all_gather_coalesced,
-       all_to_all_single,
-       all_reduce,
-       gather_object,
-       all_to_all,
-       all_reduce_coalesced,
-       gather,
-       broadcast_object_list,
-       barrier,
-       reduce_multigpu,
-       scatter,
-       scatter_object_list,
-       reduce,
-       reduce_scatter_multigpu,
-       all_gather,
-       broadcast_multigpu,
-       all_gather_multigpu,
-       reduce_scatter,
-       all_gather_into_tensor,
-       broadcast,
-       reduce_scatter_tensor,
-       send,
-  ]" >> $distributed_c10d_file
+# in FX graph, allowing them to run them on eager, with torch.compile.
+dynamo_unsupported_distributed_c10d_ops = [
+      all_reduce_multigpu,
+      recv,
+      all_gather_object,
+      all_gather_coalesced,
+      all_to_all_single,
+      all_reduce,
+      gather_object,
+      all_to_all,
+      all_reduce_coalesced,
+      gather,
+      broadcast_object_list,
+      barrier,
+      reduce_multigpu,
+      scatter,
+      scatter_object_list,
+      reduce,
+      reduce_scatter_multigpu,
+      all_gather,
+      broadcast_multigpu,
+      all_gather_multigpu,
+      reduce_scatter,
+      all_gather_into_tensor,
+      broadcast,
+      reduce_scatter_tensor,
+      send,
+]" >> $distributed_c10d_file
 fi
 
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
