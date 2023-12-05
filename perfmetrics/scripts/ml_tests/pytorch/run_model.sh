@@ -75,7 +75,7 @@ then
   # Update the pytorch library code to bypass the kernel-cache
   echo "Updating the pytorch library code to Disallow_in_graph distributed API.."
   echo "
-  def _disallowed_function_ids():
+def _disallowed_function_ids():
              remove = [
                  True,
                  False,
@@ -125,7 +125,7 @@ then
              )
 
              return {id(x) for x in remove}
-  " > disallowed_function.py
+" > disallowed_function.py
 
   x=$(grep -n "def _disallowed_function_ids():" $allowed_functions_file | cut -f1 -d ':')
   y=$(grep -n "def _allowed_function_ids():" $allowed_functions_file | cut -f1 -d ':')
