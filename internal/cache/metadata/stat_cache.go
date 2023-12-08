@@ -52,20 +52,20 @@ type StatCache interface {
 }
 
 // Create a new bucket-view to the passed shared-cache object.
-func NewStatCacheBucketView(_sharedCache *lru.Cache, _bucketName string) StatCache {
-	return &statCache{
-		sharedCache: _sharedCache,
-		bucketName:  _bucketName,
+func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+	return &statCacheBucketView{
+		sharedCache: sc,
+		bucketName:  bn,
 	}
 }
 
-// statCache is a special type of StatCache which
+// statCacheBucketView is a special type of StatCache which
 // shares its underlying cache map object with other
-// statCache objects (for dynamically mounts) through
+// statCacheBucketView objects (for dynamically mounts) through
 // a specific bucket-name. It does so by prepending its
 // bucket-name to its entry keys to make them unique
 // to it.
-type statCache struct {
+type statCacheBucketView struct {
 	sharedCache *lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
@@ -111,7 +111,7 @@ func shouldReplace(o *gcs.Object, existing entry) bool {
 	return true
 }
 
-func (sc *statCache) key(objectName string) string {
+func (sc *statCacheBucketView) key(objectName string) string {
 	// path.Join(sc.bucketName, objectName) does not work
 	// because that normalizes the trailing "/"
 	// which breaks functionality by removing
@@ -122,7 +122,7 @@ func (sc *statCache) key(objectName string) string {
 	return objectName
 }
 
-func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
+func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 	name := sc.key(o.Name)
 
 	// Is there already a better entry?
@@ -143,7 +143,7 @@ func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
 	}
 }
 
-func (sc *statCache) AddNegativeEntry(objectName string, expiration time.Time) {
+func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	// Insert a negative entry.
 	e := entry{
 		o:          nil,
@@ -156,12 +156,12 @@ func (sc *statCache) AddNegativeEntry(objectName string, expiration time.Time) {
 	}
 }
 
-func (sc *statCache) Erase(objectName string) {
+func (sc *statCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
 }
 
-func (sc *statCache) LookUp(
+func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (hit bool, o *gcs.Object) {
 	// Look up in the LRU cache.

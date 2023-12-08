@@ -55,7 +55,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 
 	const statCacheCapacity uint64 = 1000
 	sharedCache := lru.NewCache(metadata.StatCacheEntrySize() * statCacheCapacity)
-	statCache := metadata.NewStatCacheBucketView(sharedCache, "some_bucket")
+	statCache := metadata.NewStatCacheBucketView(sharedCache, "")
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
