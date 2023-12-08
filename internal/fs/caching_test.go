@@ -454,7 +454,7 @@ type MultiBucketMountCachingTest struct {
 	fsTest
 }
 
-func getMultiMntBucketDirByName(bucketName string) string {
+func getMultiMountBucketDir(bucketName string) string {
 	return mntDir + "/" + bucketName
 }
 
@@ -489,7 +489,7 @@ func init() {
 func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
 	// ReadDir
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
-		entries, err := fusetesting.ReadDirPicky(getMultiMntBucketDirByName(bucketName))
+		entries, err := fusetesting.ReadDirPicky(getMultiMountBucketDir(bucketName))
 		AssertEq(nil, err)
 
 		ExpectThat(entries, ElementsAre())
@@ -499,8 +499,8 @@ func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
 func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
-	bucket2MntDir := getMultiMntBucketDirByName(bucket2Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket2MntDir := getMultiMountBucketDir(bucket2Name)
 
 	var fi os.FileInfo
 
@@ -554,7 +554,7 @@ func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
 	const contents = "taco"
 	var fi os.FileInfo
 	var err error
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 
 	// Create an object in GCS.
 	_, err = storageutil.CreateObject(
@@ -603,7 +603,7 @@ func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
@@ -634,7 +634,7 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
@@ -676,7 +676,7 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
 	const name = "test"
 	var fi os.FileInfo
 	var err error
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
@@ -702,7 +702,7 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
-	bucket1MntDir := getMultiMntBucketDirByName(bucket1Name)
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 	bucket1 := buckets[bucket1Name]
 
 	os.RemoveAll(path.Join(bucket1MntDir, name))
