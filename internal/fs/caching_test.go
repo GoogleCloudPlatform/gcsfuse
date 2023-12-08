@@ -56,8 +56,8 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
-	sharedCache := newLruCache(uint64(1000))
-	statCache := metadata.NewStatCacheBucketView(sharedCache, "")
+	lruCache := newLruCache(uint64(1000))
+	statCache := metadata.NewStatCache(lruCache)
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
