@@ -91,7 +91,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, false)
 
 	ExpectNe(nil, bucket.Syncer)
 	ExpectEq(nil, err)
@@ -116,7 +116,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName)
+	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false)
 
 	ExpectEq("Error in iterating through objects: storage: bucket doesn't exist", err.Error())
 	ExpectNe(nil, bucket.Syncer)

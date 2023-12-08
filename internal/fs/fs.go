@@ -198,7 +198,7 @@ func NewFileSystem(
 		root = makeRootForAllBuckets(fs)
 	} else {
 		logger.Info("Set up root directory for bucket " + cfg.BucketName)
-		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName, false)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}

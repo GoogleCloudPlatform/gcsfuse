@@ -66,7 +66,7 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -167,7 +167,9 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb SyncerBucket, err error) {
+	name string,
+	isMultibucketMount bool,
+) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
@@ -202,9 +204,16 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable cached StatObject results, if appropriate.
 	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
+		var statCache metadata.StatCache
+		if isMultibucketMount {
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+		} else {
+			statCache = metadata.NewStatCache(bm.sharedStatCache)
+		}
+
 		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			metadata.NewStatCacheBucketView(bm.sharedStatCache, name),
+			statCache,
 			timeutil.RealClock(),
 			b)
 	}
