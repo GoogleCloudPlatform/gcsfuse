@@ -66,8 +66,8 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
-# (TulsiShah) TODO: Pytorch 2.0 compile mode has issues (https://github.com/pytorch/pytorch/issues/94599).
-# Which is fixed in pytorch version 2.1.0 (https://github.com/pytorch/pytorch/pull/100071)
+# (TulsiShah) TODO: Pytorch 2.0 compile mode has issues (https://github.com/pytorch/pytorch/issues/94599),
+# which is fixed in pytorch version 2.1.0 (https://github.com/pytorch/pytorch/pull/100071).
 # We'll remove this workaround once we update our Docker image to use Pytorch 2.1.0 or greater version.
 if [ ${PYTORCH_VESRION} == "v2" ];
 then
