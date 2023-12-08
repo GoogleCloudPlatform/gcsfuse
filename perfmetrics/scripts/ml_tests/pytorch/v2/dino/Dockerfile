@@ -23,18 +23,16 @@ RUN pip3 install timm
 WORKDIR "/pytorch_dino/"
 
 RUN git clone "https://github.com/facebookresearch/dino"
-# (TulsiShah) TODO: The current docker image does not support the dino model with compile mode.
-#       We can unblock the below code whenever the docker image supports the same to run.
 
-# WORKDIR "/pytorch_dino/dino"
-# RUN echo '[remote "origin"]' >> .git/config
-# RUN echo '    fetch = +refs/pull/262/head:refs/remotes/origin/pr/262' >> .git/config
-#
-# RUN git fetch origin
-# RUN git diff origin/main origin/pr/262 > diff.patch
-# RUN git apply diff.patch
-#
-# WORKDIR "/pytorch_dino/"
+WORKDIR "/pytorch_dino/dino"
+RUN echo '[remote "origin"]' >> .git/config
+RUN echo '    fetch = +refs/pull/262/head:refs/remotes/origin/pr/262' >> .git/config
+
+RUN git fetch origin
+RUN git diff origin/main origin/pr/262 > diff.patch
+RUN git apply diff.patch
+
+WORKDIR "/pytorch_dino/"
 
 COPY perfmetrics/scripts/ml_tests/pytorch/run_model.sh ./
 
