@@ -65,7 +65,7 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 		if err != nil {
 			t.Logf("stat operation on file %s failed: %v", logFilePath, err)
 			if !retryStatLogFile {
-				t.FailNow()
+				t.Errorf("Stat retry exhausted on log file: %s", logFilePath)
 			}
 			retryStatLogFile = false
 			continue
