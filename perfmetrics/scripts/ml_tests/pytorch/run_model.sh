@@ -75,7 +75,7 @@ python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 # will be available.
 if [ ${PYTORCH_VESRION} == "v2" ];
 then
-  EPOCHS=35
+  EPOCHS=36
 
   allowed_functions_file="/opt/conda/lib/python3.10/site-packages/torch/_dynamo/allowed_functions.py"
   # Update the pytorch library code to bypass the kernel-cache
