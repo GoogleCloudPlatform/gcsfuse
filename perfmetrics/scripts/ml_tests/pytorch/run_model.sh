@@ -14,6 +14,7 @@
 # limitations under the License.
 
 PYTORCH_VESRION=$1
+EPOCHES=80
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.4.linux-amd64.tar.gz -q
@@ -71,6 +72,7 @@ python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 # We'll remove this workaround once we update our Docker image to use Pytorch 2.1.0 or greater version.
 if [ ${PYTORCH_VESRION} == "v2" ];
 then
+  EPOCHES=35
   allowed_functions_file="/opt/conda/lib/python3.10/site-packages/torch/_dynamo/allowed_functions.py"
   # Update the pytorch library code to bypass the kernel-cache
   echo "Updating the pytorch library code to Disallow_in_graph distributed API.."
@@ -190,7 +192,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
     --norm_last_layer False \
     --use_fp16 False \
     --clip_grad 0 \
-    --epochs 80 \
+    --epochs $EPOCHES \
     --global_crops_scale 0.25 1.0 \
     --local_crops_number 10 \
     --local_crops_scale 0.05 0.25 \
