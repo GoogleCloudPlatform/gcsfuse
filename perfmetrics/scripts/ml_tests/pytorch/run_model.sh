@@ -30,8 +30,16 @@ cd -
 # Create a directory for gcsfuse logs
 mkdir  run_artifacts/gcsfuse_logs
 
-config_filename=/pytorch_dino/gcsfuse/gcsfuse-config.yaml
+config_filename=/tmp/gcsfuse_config.yaml
 cat > $config_filename << EOF
+logging:
+  file-path: run_artifacts/gcsfuse.log
+  format: text
+  severity: trace
+  log-rotate:
+    max-file-size-mb: 1024
+    backup-file-count: 3
+    compress: true
 metadata-cache:
   ttl-secs: 1728000
 EOF
@@ -43,10 +51,6 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
-        --debug_fuse \
-        --debug_gcs \
-        --log-file run_artifacts/gcsfuse.log \
-        --log-format text \
         --config-file $config_filename \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 

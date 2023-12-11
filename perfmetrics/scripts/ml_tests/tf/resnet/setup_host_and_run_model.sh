@@ -20,8 +20,5 @@ sudo docker run --gpus all --name tf_model_container --privileged -d \
 -v $HOME/github/gcsfuse/container_artifacts/logs:/home/logs:rw,rshared \
 -v $HOME/github/gcsfuse/container_artifacts/output:/home/output:rw,rshared --shm-size=24g tf-dlc-gcsfuse:latest
 
-# Setup the log_rotation.
-source perfmetrics/scripts/ml_tests/setup_log_rotation.sh $HOME/github/gcsfuse/container_artifacts/logs/gcsfuse.log
-
 # Wait for the script completion as well as logs output.
 sudo docker logs -f tf_model_container
