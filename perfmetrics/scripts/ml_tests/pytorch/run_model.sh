@@ -31,16 +31,22 @@ cd -
 mkdir  run_artifacts/gcsfuse_logs
 
 echo "Mounting GCSFuse..."
+echo "logging:
+        file-path: run_artifacts/gcsfuse.log
+        format: text
+        severity: trace
+        log-rotate:
+          max-file-size-mb: 1024
+          backup-file-count: 3
+          compress: true
+       " > /tmp/gcsfuse_config.yaml
 nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stat-cache-ttl=1728000s \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
-        --debug_fuse \
-        --debug_gcs \
-        --log-file run_artifacts/gcsfuse.log \
-        --log-format text \
+        --config-file /tmp/gcsfuse_config.yaml \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
