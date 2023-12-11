@@ -14,7 +14,7 @@
 # limitations under the License.
 
 PYTORCH_VESRION=$1
-NUM_NUM_EPOCHS=80
+NUM_EPOCHS=80
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.4.linux-amd64.tar.gz -q
