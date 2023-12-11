@@ -45,6 +45,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
+        --config-file /tmp/gcsfuse_config.yaml \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
