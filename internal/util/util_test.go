@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	. "github.com/jacobsa/ogletest"
@@ -156,4 +157,52 @@ func (t *UtilTest) TestResolveConfigFilePaths() {
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
+}
+
+func (t *UtilTest) TestRoundDurationToNextMultiple() {
+	cases := []struct {
+		input  time.Duration
+		factor time.Duration
+		output time.Duration
+	}{
+		{
+			input:  -time.Second - time.Nanosecond,
+			factor: time.Second,
+			output: -time.Second,
+		},
+		{
+			input:  -time.Second,
+			factor: time.Second,
+			output: -time.Second,
+		},
+		{
+			input:  -time.Second + time.Nanosecond,
+			factor: time.Second,
+			output: 0,
+		},
+		{
+			input:  -time.Nanosecond,
+			factor: time.Second,
+			output: 0,
+		},
+		{
+			input:  0,
+			factor: time.Second,
+			output: 0,
+		},
+		{
+			input:  time.Nanosecond,
+			factor: time.Second,
+			output: time.Second,
+		},
+		{
+			input:  time.Second - time.Nanosecond,
+			factor: time.Second,
+			output: time.Second,
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.output, RoundDurationToNextMultiple(tc.input, tc.factor))
+	}
 }
