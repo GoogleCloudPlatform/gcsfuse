@@ -14,3 +14,4 @@ file-cache:
   cache-file-for-range-read: true
 metadata-cache:
   ttl-secs: 5
+  type-cache-max-size-mb-per-dir: 1
