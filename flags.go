@@ -464,6 +464,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
+	userStatCacheTTL := util.RoundDurationToNextMultiple(c.Duration("stat-cache-ttl"), time.Second)
+	userTypeCacheTTL := util.RoundDurationToNextMultiple(c.Duration("type-cache-ttl"), time.Second)
+	minTTL := util.MinDuration(userStatCacheTTL, userTypeCacheTTL)
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
@@ -492,8 +495,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		StatCacheTTL:               minTTL,
+		TypeCacheTTL:               minTTL,
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),

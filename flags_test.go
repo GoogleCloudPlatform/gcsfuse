@@ -215,16 +215,16 @@ func (t *FlagsTest) Strings() {
 
 func (t *FlagsTest) Durations() {
 	args := []string{
-		"--stat-cache-ttl", "1m17s",
-		"--type-cache-ttl", "19ns",
+		"--stat-cache-ttl", "1m17s100ms",
+		"--type-cache-ttl", "50s900ms",
 		"--http-client-timeout", "800ms",
 		"--max-retry-duration", "-1s",
 		"--max-retry-sleep", "30s",
 	}
 
 	f := parseArgs(args)
-	ExpectEq(77*time.Second, f.StatCacheTTL)
-	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
+	ExpectEq(51*time.Second, f.StatCacheTTL)
+	ExpectEq(51*time.Second, f.TypeCacheTTL)
 	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
 	ExpectEq(-1*time.Second, f.MaxRetryDuration)
 	ExpectEq(30*time.Second, f.MaxRetrySleep)

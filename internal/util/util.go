@@ -101,6 +101,7 @@ func minInt64(a, b int64) int64 {
 	return a
 }
 
+// MinDuration returns the minimum of the two given durations.
 func MinDuration(a, b time.Duration) time.Duration {
 	return time.Duration(minInt64(a.Nanoseconds(), b.Nanoseconds()))
 }
