@@ -111,6 +111,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// metadata-cache config
 	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	ExpectEq(1, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -157,4 +158,19 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
 	AssertEq(TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCacheSize() {
+	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-size.yaml")
+
+	AssertNe(nil, err)
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsInvalidValueError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheSizeNotSet() {
+	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_type-cache-size_unset.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(TypeCacheMaxSizeInMbPerDirectoryUnset, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
 }
