@@ -14,6 +14,16 @@
 
 package config
 
+const (
+	// DefaultMetadataCacheTtlInSeconds is the value used for
+	// ttl for metadata-cache when it is not
+	// set in the config file.
+	DefaultMetadataCacheTtlInSeconds int64 = 60
+	// TtlInSecsUnset is set when metada-cache:ttl-secs is not set
+	// in the gcsfuse mount config file.
+	TtlInSecsUnset int64 = -3
+)
+
 type WriteConfig struct {
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 }
@@ -31,11 +41,21 @@ type FileCacheConfig struct {
 	DownloadFileForRandomRead bool  `yaml:"download-file-for-random-read"`
 }
 
+type MetadataCacheConfig struct {
+	// TtlInSeconds can be -1 for no-ttl, 0 for
+	// no cache and > 0 for ttl-controlled metadata-cache.
+	// If it is not set in the yaml config file,
+	// its default value is taken as -3, which is an unsupported
+	// value, and is replaced by DefaultTtlInSecs.
+	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
+}
+
 type MountConfig struct {
-	WriteConfig     `yaml:"write"`
-	LogConfig       `yaml:"logging"`
-	FileCacheConfig `yaml:"file-cache"`
-	CacheLocation   `yaml:"cache-location"`
+	WriteConfig         `yaml:"write"`
+	LogConfig           `yaml:"logging"`
+	FileCacheConfig     `yaml:"file-cache"`
+	CacheLocation       `yaml:"cache-location"`
+	MetadataCacheConfig `yaml:"metadata-cache"`
 }
 
 func NewMountConfig() *MountConfig {
@@ -46,6 +66,9 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
 		MaxSizeInMB: 0,
+	}
+	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
+		TtlInSeconds: TtlInSecsUnset,
 	}
 	return mountConfig
 }

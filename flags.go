@@ -29,7 +29,13 @@ import (
 )
 
 // Defines the max value supported by sequential-read-size-mb flag.
-const maxSequentialReadSizeMb = 1024
+const (
+	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
+	maxSequentialReadSizeMb = 1024
+	// DefaultStatCacheTTL is the value used in absence of
+	// mount flag stat-cache-ttl.
+	DefaultStatCacheTTL time.Duration = time.Minute
+)
 
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {

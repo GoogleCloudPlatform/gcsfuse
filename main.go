@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -203,6 +204,12 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+
+	// if metadata-cache:ttl-secs has been set in config-file, then
+	// switch to that as that takes predence over stat-cache-ttl .
+	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnset {
+		flags.StatCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
+	}
 
 	err = util.ResolveConfigFilePaths(mountConfig)
 	if err != nil {
