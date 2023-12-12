@@ -15,6 +15,7 @@
 package util
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -204,5 +205,89 @@ func (t *UtilTest) TestRoundDurationToNextMultiple() {
 
 	for _, tc := range cases {
 		AssertEq(tc.output, RoundDurationToNextMultiple(tc.input, tc.factor))
+	}
+}
+
+func (t *UtilTest) TestMinInt64() {
+	cases := []struct {
+		input1, input2 int64
+		output         int64
+	}{
+		{
+			input1: math.MinInt64,
+			input2: math.MinInt64,
+			output: math.MinInt64,
+		},
+		{
+			input1: math.MinInt64,
+			input2: math.MinInt64 + 1,
+			output: math.MinInt64,
+		},
+		{
+			input1: math.MinInt64,
+			input2: math.MaxInt64,
+			output: math.MinInt64,
+		},
+		{
+			input1: math.MaxInt64,
+			input2: math.MaxInt64,
+			output: math.MaxInt64,
+		},
+		{
+			input1: math.MaxInt64,
+			input2: math.MaxInt64 - 1,
+			output: math.MaxInt64 - 1,
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.output, minInt64(tc.input1, tc.input2))
+	}
+}
+
+func (t *UtilTest) TestMinDuration() {
+	cases := []struct {
+		input1, input2 time.Duration
+		output         time.Duration
+	}{
+		{
+			input1: 0,
+			input2: 0,
+			output: 0,
+		},
+		{
+			input1: 0,
+			input2: time.Nanosecond,
+			output: 0,
+		},
+		{
+			input1: 0,
+			input2: -time.Nanosecond,
+			output: -time.Nanosecond,
+		},
+		{
+			input1: time.Nanosecond,
+			input2: time.Nanosecond,
+			output: time.Nanosecond,
+		},
+		{
+			input1: -time.Nanosecond,
+			input2: -time.Nanosecond,
+			output: -time.Nanosecond,
+		},
+		{
+			input1: time.Second,
+			input2: time.Millisecond,
+			output: time.Millisecond,
+		},
+		{
+			input1: time.Millisecond,
+			input2: time.Microsecond,
+			output: time.Microsecond,
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.output, MinDuration(tc.input1, tc.input2))
 	}
 }

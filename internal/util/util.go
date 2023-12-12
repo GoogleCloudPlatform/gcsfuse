@@ -93,3 +93,14 @@ func RoundDurationToNextMultiple(dur time.Duration, factor time.Duration) time.D
 	}
 	return factor * time.Duration(int64(math.Ceil(float64(dur)/float64(factor))))
 }
+
+func minInt64(a, b int64) int64 {
+	if b < a {
+		return b
+	}
+	return a
+}
+
+func MinDuration(a, b time.Duration) time.Duration {
+	return time.Duration(minInt64(a.Nanoseconds(), b.Nanoseconds()))
+}
