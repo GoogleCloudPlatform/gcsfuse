@@ -52,6 +52,7 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 
 	// Keep performing operations in mounted directory until log file is rotated.
 	var lastLogFileSize int64 = 0
+	var retryStatLogFile = true
 	for {
 		// Perform Read operation to generate logs.
 		_, err = operations.ReadFile(filePath)
@@ -62,7 +63,12 @@ func runOperationsOnFileTillLogRotation(t *testing.T, wg *sync.WaitGroup, fileNa
 		// Break the loop when log file is rotated.
 		fi, err := operations.StatFile(logFilePath)
 		if err != nil {
-			t.Errorf("stat operation on file %s: %v", logFilePath, err)
+			t.Logf("stat operation on file %s failed: %v", logFilePath, err)
+			if !retryStatLogFile {
+				t.Errorf("Stat retry exhausted on log file: %s", logFilePath)
+			}
+			retryStatLogFile = false
+			continue
 		}
 		if (*fi).Size() < lastLogFileSize {
 			// Log file got rotated as current log file size < last log file size.
