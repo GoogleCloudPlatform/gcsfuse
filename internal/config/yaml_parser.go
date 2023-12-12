@@ -35,6 +35,7 @@ const (
 	OFF     LogSeverity = "OFF"
 
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
+	TypeCacheSizeNegativeError            = "the value of type-cache-max-size-mb-per-dir for metadata-cache can't be less than 0"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -60,6 +61,9 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
+		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
+	}
+	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < 0 {
 		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 	}
 	return nil
