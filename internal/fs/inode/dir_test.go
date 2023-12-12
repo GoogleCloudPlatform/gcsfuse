@@ -104,7 +104,8 @@ func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool)
 		typeCacheTTL,
 		&t.bucket,
 		&t.clock,
-		&t.clock)
+		&t.clock,
+		1000)
 
 	t.in.Lock()
 }
