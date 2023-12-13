@@ -57,7 +57,7 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	// Set up dependencies.
 	const cacheCapacity = 100
 	lruCache := lru.NewCache(cacheCapacity * metadata.StatCacheEntrySize())
-	cache := metadata.NewStatCache(lruCache)
+	cache := metadata.NewStatCacheBucketView(lruCache, "")
 	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName)
 
 	t.bucket = caching.NewFastStatBucket(

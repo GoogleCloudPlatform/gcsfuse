@@ -57,7 +57,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	lruCache := newLruCache(uint64(1000))
-	statCache := metadata.NewStatCache(lruCache)
+	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,

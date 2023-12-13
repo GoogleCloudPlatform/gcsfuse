@@ -52,22 +52,12 @@ type StatCache interface {
 }
 
 // Create a new bucket-view to the passed shared-cache object.
-// This should be used for dynamic-mount, i.e.
-// mount for a multiple buckets.
+// For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
+// For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
-	}
-}
-
-// Create a new dedicated shared-cache object.
-// This keeps bucketName as "".
-// This should be used for static-mount, i.e.
-// mount for a single bucket.
-func NewStatCache(lruCache *lru.Cache) StatCache {
-	return &statCacheBucketView{
-		sharedCache: lruCache,
 	}
 }
 

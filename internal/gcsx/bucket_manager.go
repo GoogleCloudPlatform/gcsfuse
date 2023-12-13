@@ -208,7 +208,7 @@ func (bm *bucketManager) SetUpBucket(
 		if isMultibucketMount {
 			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
 		} else {
-			statCache = metadata.NewStatCache(bm.sharedStatCache)
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
 		}
 
 		b = caching.NewFastStatBucket(
