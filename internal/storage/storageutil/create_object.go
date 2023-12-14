@@ -35,3 +35,17 @@ func CreateObject(
 
 	return bucket.CreateObject(ctx, req)
 }
+
+// Deletes the supplied object in the given bucket.
+func DeleteObject(
+	ctx context.Context,
+	bucket gcs.Bucket,
+	obj *gcs.Object) error {
+	req := &gcs.DeleteObjectRequest{
+		Name:                       obj.Name,
+		Generation:                 obj.Generation,
+		MetaGenerationPrecondition: &obj.MetaGeneration,
+	}
+
+	return bucket.DeleteObject(ctx, req)
+}

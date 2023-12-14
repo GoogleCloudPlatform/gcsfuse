@@ -145,6 +145,8 @@ func (t *CachingTest) FileChangedRemotely() {
 	err = ioutil.WriteFile(path.Join(mntDir, name), []byte("taco"), 0500)
 	AssertEq(nil, err)
 
+	defer os.Remove(path.Join(mntDir, name))
+
 	// Overwrite the object in GCS.
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -501,15 +503,18 @@ func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 	const contents = "taco"
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 	bucket2MntDir := getMultiMountBucketDir(bucket2Name)
+	bucket1 := uncachedBuckets[bucket1Name]
 
 	var fi os.FileInfo
 
 	// Create an object in GCS.
-	_, err := storageutil.CreateObject(
+	obj, err := storageutil.CreateObject(
 		ctx,
-		uncachedBuckets[bucket1Name],
+		bucket1,
 		name,
 		[]byte(contents))
+
+	defer storageutil.DeleteObject(ctx, bucket1, obj)
 
 	AssertEq(nil, err)
 
@@ -546,38 +551,31 @@ func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 	b, err = os.ReadFile(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(b))
-
-	AssertEq(nil, os.Remove(path.Join(bucket1MntDir, name)))
 }
 
 func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
 	const name = "foo"
-	const contents = "taco"
 	var fi os.FileInfo
 	var err error
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
-
-	// Create an object in GCS.
-	_, err = storageutil.CreateObject(
-		ctx,
-		uncachedBuckets[bucket1Name],
-		name,
-		[]byte(contents))
-
-	AssertEq(nil, err)
+	bucket1 := uncachedBuckets[bucket1Name]
 
 	// Create a file via the file system.
 	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0500)
 	AssertEq(nil, err)
 
+	defer os.Remove(path.Join(bucket1MntDir, name))
+
 	// Overwrite the object in GCS.
-	_, err = storageutil.CreateObject(
+	obj, err := storageutil.CreateObject(
 		ctx,
-		uncachedBuckets[bucket1Name],
+		bucket1,
 		name,
 		[]byte("burrito"))
 
 	AssertEq(nil, err)
+
+	defer storageutil.DeleteObject(ctx, bucket1, obj)
 
 	// Because we are caching, the file should still appear to be the local
 	// version.
@@ -596,8 +594,6 @@ func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
 	b, err := os.ReadFile(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(b))
-
-	AssertEq(nil, os.Remove(path.Join(bucket1MntDir, name)))
 }
 
 func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
@@ -605,13 +601,14 @@ func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
 	var fi os.FileInfo
 	var err error
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS.
-	err = uncachedBuckets[bucket1Name].DeleteObject(
+	err = bucket1.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
 
@@ -627,8 +624,6 @@ func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
 
 	_, err = os.Stat(path.Join(bucket1MntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// AssertEq(nil, os.RemoveAll(path.Join(bucket1MntDir, name)))
 }
 
 func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
@@ -636,19 +631,24 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 	var fi os.FileInfo
 	var err error
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
 
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
 
+	defer os.RemoveAll(path.Join(bucket1MntDir, name))
+
 	// Create a file with the same name via GCS.
 	_, err = storageutil.CreateObject(
 		ctx,
-		uncachedBuckets[bucket1Name],
+		bucket1,
 		name,
 		[]byte("taco"))
 
 	AssertEq(nil, err)
+
+	defer os.Remove(path.Join(bucket1MntDir, name))
 
 	// Because the file system is caching types, it will fail to find the file
 	// when statting.
@@ -669,8 +669,6 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 	fi, err = os.Stat(path.Join(bucket1MntDir, name+inode.ConflictingFileNameSuffix))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
-
-	AssertEq(nil, os.RemoveAll(path.Join(bucket1MntDir, name)))
 }
 
 func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
@@ -684,19 +682,19 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
 	AssertEq(nil, err)
 
 	// Delete it and recreate as a file.
-	err = os.Remove(path.Join(bucket1MntDir, name))
+	err = os.RemoveAll(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
 
 	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0400)
 	AssertEq(nil, err)
+
+	defer os.Remove(path.Join(bucket1MntDir, name))
 
 	// All caches should have been updated.
 	fi, err = os.Stat(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
 	ExpectEq(len("taco"), fi.Size())
-
-	AssertEq(nil, os.RemoveAll(path.Join(bucket1MntDir, name)))
 }
 
 func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
@@ -706,12 +704,12 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
 	bucket1 := buckets[bucket1Name]
 
-	os.RemoveAll(path.Join(bucket1MntDir, name))
-
 	// Create a directory via the file system.
 	fmt.Printf("Mkdir\n")
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
+
+	defer os.RemoveAll(path.Join(bucket1MntDir, name))
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
@@ -743,6 +741,4 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	fi, err = os.Stat(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
 	ExpectFalse(fi.IsDir())
-
-	AssertEq(nil, os.RemoveAll(path.Join(bucket1MntDir, name)))
 }
