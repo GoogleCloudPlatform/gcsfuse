@@ -15,7 +15,6 @@
 package fs_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -271,13 +270,11 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	var err error
 
 	// Create a directory via the file system.
-	fmt.Printf("Mkdir\n")
 	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
-	fmt.Printf("DeleteObject\n")
 	err = bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
@@ -285,7 +282,6 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
-	fmt.Printf("CreateObject\n")
 	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
@@ -295,7 +291,6 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Because the file system is caching types, it will fail to find the name.
-	fmt.Printf("Stat\n")
 	_, err = os.Stat(path.Join(mntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
@@ -705,7 +700,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	bucket1 := buckets[bucket1Name]
 
 	// Create a directory via the file system.
-	fmt.Printf("Mkdir\n")
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
 
@@ -713,7 +707,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
-	fmt.Printf("DeleteObject\n")
 	err = bucket1.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
@@ -721,7 +714,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
-	fmt.Printf("CreateObject\n")
 	_, err = storageutil.CreateObject(
 		ctx,
 		bucket1,
@@ -731,7 +723,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Because the file system is caching types, it will fail to find the name.
-	fmt.Printf("Stat\n")
 	_, err = os.Stat(path.Join(bucket1MntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
