@@ -47,7 +47,7 @@ do
     d) workload_dir=${OPTARG};;
     s) file_size=${OPTARG};;
     b) block_size=${OPTARG};;
-    t) number_of_threads=${OPTARG};;
+    t) num_of_threads=${OPTARG};;
     h) print_usage
         exit 0 ;;
     *) print_usage
