@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
@@ -48,14 +49,16 @@ func init() { RegisterTestSuite(&IntegrationTest{}) }
 
 func (t *IntegrationTest) SetUp(ti *TestInfo) {
 	t.ctx = context.Background()
+	bucketName := "some_bucket"
 
 	// Set up a fixed, non-zero time.
 	t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
 	// Set up dependencies.
 	const cacheCapacity = 100
-	cache := metadata.NewStatCache(cacheCapacity)
-	t.wrapped = fake.NewFakeBucket(&t.clock, "some_bucket")
+	lruCache := lru.NewCache(cacheCapacity * metadata.StatCacheEntrySize())
+	cache := metadata.NewStatCacheBucketView(lruCache, "")
+	t.wrapped = fake.NewFakeBucket(&t.clock, bucketName)
 
 	t.bucket = caching.NewFastStatBucket(
 		ttl,

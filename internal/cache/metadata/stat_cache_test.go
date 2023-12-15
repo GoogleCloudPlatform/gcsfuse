@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
@@ -26,7 +27,7 @@ import (
 func TestStatCache(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
-// Invariant-checking cache
+// Test-helper cache wrappers
 ////////////////////////////////////////////////////////////////////////
 
 type testHelperCache struct {
@@ -78,6 +79,11 @@ func (c *testHelperCache) NegativeEntry(
 	return
 }
 
+type testMultiBucketCacheHelper struct {
+	fruits testHelperCache
+	spices testHelperCache
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -91,10 +97,26 @@ type StatCacheTest struct {
 	cache testHelperCache
 }
 
-func init() { RegisterTestSuite(&StatCacheTest{}) }
+type MultiBucketStatCacheTest struct {
+	multiBucketCache testMultiBucketCacheHelper
+}
+
+func init() {
+	RegisterTestSuite(&StatCacheTest{})
+	RegisterTestSuite(&MultiBucketStatCacheTest{})
+}
 
 func (t *StatCacheTest) SetUp(ti *TestInfo) {
-	t.cache.wrapped = metadata.NewStatCache(capacity)
+	cache := lru.NewCache(capacity * metadata.StatCacheEntrySize())
+	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
+	// that if you are using a cache for a single bucket, then
+	// its prepending bucketName can be left empty("") without any problem.
+}
+
+func (t *MultiBucketStatCacheTest) SetUp(ti *TestInfo) {
+	sharedCache := lru.NewCache(capacity * metadata.StatCacheEntrySize())
+	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
+	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -275,4 +297,82 @@ func (t *StatCacheTest) Overwrite_NegativeWithNegative() {
 	t.cache.AddNegativeEntry(name, expiration)
 
 	ExpectTrue(t.cache.NegativeEntry(name, someTime))
+}
+
+// ///////////////////////////////////////////////////////////////
+// ////// Tests for multi-bucket cache scenarios /////////////////
+// ///////////////////////////////////////////////////////////////
+var (
+	apple    = &gcs.Object{Name: "apple"}
+	orange   = &gcs.Object{Name: "orange"}
+	cardamom = &gcs.Object{Name: "cardamom"}
+)
+
+func (t *MultiBucketStatCacheTest) CreateEntriesWithSameNameInDifferentBuckets() {
+	AssertEq(3, capacity)
+
+	cache := &t.multiBucketCache
+	fruits := &cache.fruits
+	spices := &cache.spices
+
+	spices.AddNegativeEntry("apple", expiration)
+	// the following should not overwrite the previous entry.
+	fruits.Insert(apple, expiration)
+
+	// Before expiration
+	justBefore := expiration.Add(-time.Nanosecond)
+	ExpectEq(apple, fruits.LookUpOrNil("apple", justBefore))
+	ExpectTrue(spices.NegativeEntry("apple", justBefore))
+}
+
+func (t *MultiBucketStatCacheTest) FillUpToCapacity() {
+	AssertEq(3, capacity)
+
+	cache := &t.multiBucketCache
+	fruits := &cache.fruits
+	spices := &cache.spices
+
+	fruits.Insert(apple, expiration)
+	fruits.Insert(orange, expiration)
+	spices.Insert(cardamom, expiration)
+
+	// Before expiration
+	justBefore := expiration.Add(-time.Nanosecond)
+	ExpectEq(apple, fruits.LookUpOrNil("apple", justBefore))
+	ExpectEq(orange, fruits.LookUpOrNil("orange", justBefore))
+	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", justBefore))
+
+	// At expiration
+	ExpectEq(apple, fruits.LookUpOrNil("apple", expiration))
+	ExpectEq(orange, fruits.LookUpOrNil("orange", expiration))
+	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", justBefore))
+
+	// After expiration
+	justAfter := expiration.Add(time.Nanosecond)
+	ExpectFalse(fruits.Hit("apple", justAfter))
+	ExpectFalse(fruits.Hit("orange", justAfter))
+	ExpectFalse(spices.Hit("cardamom", justAfter))
+}
+
+func (t *MultiBucketStatCacheTest) ExpiresLeastRecentlyUsed() {
+	AssertEq(3, capacity)
+
+	cache := &t.multiBucketCache
+	fruits := &cache.fruits
+	spices := &cache.spices
+
+	fruits.Insert(apple, expiration)
+	fruits.Insert(orange, expiration)                      // Least recent
+	spices.Insert(cardamom, expiration)                    // Second most recent
+	AssertEq(apple, fruits.LookUpOrNil("apple", someTime)) // Most recent
+
+	// Insert another.
+	saffron := &gcs.Object{Name: "saffron"}
+	spices.Insert(saffron, expiration)
+
+	// See what's left.
+	ExpectFalse(fruits.Hit("orange", someTime))
+	ExpectEq(apple, fruits.LookUpOrNil("apple", someTime))
+	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", someTime))
+	ExpectEq(saffron, spices.LookUpOrNil("saffron", someTime))
 }

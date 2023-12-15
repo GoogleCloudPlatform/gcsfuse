@@ -15,12 +15,13 @@
 package fs_test
 
 import (
-	"fmt"
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
@@ -43,6 +44,10 @@ var (
 	uncachedBucket gcs.Bucket
 )
 
+func newLruCache(capacity uint64) *lru.Cache {
+	return lru.NewCache(metadata.StatCacheEntrySize() * capacity)
+}
+
 type cachingTestCommon struct {
 	fsTest
 }
@@ -51,9 +56,8 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
-
-	const statCacheCapacity = 1000
-	statCache := metadata.NewStatCache(statCacheCapacity)
+	lruCache := newLruCache(uint64(1000))
+	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,
@@ -265,13 +269,11 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	var err error
 
 	// Create a directory via the file system.
-	fmt.Printf("Mkdir\n")
 	err = os.Mkdir(path.Join(mntDir, name), 0700)
 	AssertEq(nil, err)
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
-	fmt.Printf("DeleteObject\n")
 	err = bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{Name: name + "/"})
@@ -279,7 +281,6 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Create a file with the same name via GCS, again updating the bucket cache.
-	fmt.Printf("CreateObject\n")
 	_, err = storageutil.CreateObject(
 		ctx,
 		bucket,
@@ -289,7 +290,6 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 	AssertEq(nil, err)
 
 	// Because the file system is caching types, it will fail to find the name.
-	fmt.Printf("Stat\n")
 	_, err = os.Stat(path.Join(mntDir, name))
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
@@ -431,4 +431,308 @@ func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
 	AssertEq(nil, err)
 	ExpectEq("foo"+inode.ConflictingFileNameSuffix, fi.Name())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
+}
+
+////////////////////////////////////////////////////////////////////////
+// Multi-bucket mount tests
+////////////////////////////////////////////////////////////////////////
+
+const (
+	bucket1Name string = "fruits"
+	bucket2Name string = "spices"
+)
+
+var (
+	uncachedBuckets map[string]gcs.Bucket
+)
+
+type MultiBucketMountCachingTest struct {
+	fsTest
+}
+
+func getMultiMountBucketDir(bucketName string) string {
+	return mntDir + "/" + bucketName
+}
+
+func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
+	sharedCache := newLruCache(uint64(1000))
+	uncachedBuckets = make(map[string]gcs.Bucket)
+	buckets = make(map[string]gcs.Bucket)
+
+	// Create uncached buckets and wrap them in stat caching layer
+	// for the purposes of the file system.
+	for _, bucketName := range []string{bucket1Name, bucket2Name} {
+		uncachedBuckets[bucketName] = fake.NewFakeBucket(timeutil.RealClock(), bucketName)
+		statCache := metadata.NewStatCacheBucketView(sharedCache, bucketName)
+		buckets[bucketName] = caching.NewFastStatBucket(
+			ttl,
+			statCache,
+			&cacheClock,
+			uncachedBuckets[bucketName])
+	}
+
+	// Enable directory type caching.
+	t.serverCfg.DirTypeCacheTTL = ttl
+
+	// Call through.
+	t.fsTest.SetUpTestSuite()
+}
+
+func init() {
+	RegisterTestSuite(&MultiBucketMountCachingTest{})
+}
+
+func (t *MultiBucketMountCachingTest) TearDown() {
+	for _, bucketName := range []string{bucket1Name, bucket2Name} {
+		bucket := buckets[bucketName]
+		AssertEq(nil, storageutil.DeleteAllObjects(context.Background(), bucket))
+
+		bucketMntDir := getMultiMountBucketDir(bucketName)
+		f, _ := os.Open(bucketMntDir)
+		files, _ := f.ReadDir(0)
+		for _, v := range files {
+			if v.IsDir() {
+				AssertEq(nil, os.RemoveAll(v.Name()))
+			} else {
+				AssertEq(nil, os.Remove(v.Name()))
+			}
+		}
+	}
+}
+
+func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
+	// ReadDir
+	for _, bucketName := range []string{bucket1Name, bucket2Name} {
+		entries, err := fusetesting.ReadDirPicky(getMultiMountBucketDir(bucketName))
+		AssertEq(nil, err)
+
+		ExpectThat(entries, ElementsAre())
+	}
+}
+
+func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
+	const name = "foo"
+	const contents = "taco"
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket2MntDir := getMultiMountBucketDir(bucket2Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	var fi os.FileInfo
+
+	// Create an object in GCS.
+	_, err := storageutil.CreateObject(
+		ctx,
+		bucket1,
+		name,
+		[]byte(contents))
+
+	AssertEq(nil, err)
+
+	// It should immediately show up in a listing.
+	entries, err := fusetesting.ReadDirPicky(bucket1MntDir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq(name, fi.Name())
+	ExpectEq(len(contents), fi.Size())
+
+	// we should not be able to stat it in the bucket2 mount directory
+	_, err = os.Stat(path.Join(bucket2MntDir, name))
+	AssertNe(nil, err)
+	AssertThat(err, Error(HasSubstr("no such file or directory")))
+
+	// And we should be able to stat it in bucket1 mount directory.
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+
+	ExpectEq(name, fi.Name())
+	ExpectEq(len(contents), fi.Size())
+
+	// And read it.
+	b, err := os.ReadFile(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectEq(contents, string(b))
+
+	// And overwrite it, and read it back again.
+	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("burrito"), 0500)
+	AssertEq(nil, err)
+
+	b, err = os.ReadFile(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectEq("burrito", string(b))
+}
+
+func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	// Create a file via the file system.
+	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0500)
+	AssertEq(nil, err)
+
+	// Overwrite the object in GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket1,
+		name,
+		[]byte("burrito"))
+
+	AssertEq(nil, err)
+
+	// Because we are caching, the file should still appear to be the local
+	// version.
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectEq(len("taco"), fi.Size())
+
+	// After the TTL elapses, we should see the new version.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectEq(len("burrito"), fi.Size())
+
+	// Reading should work as expected.
+	b, err := os.ReadFile(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectEq("burrito", string(b))
+}
+
+func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
+	AssertEq(nil, err)
+
+	// Remove the backing object in GCS.
+	err = bucket1.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{Name: name + "/"})
+
+	AssertEq(nil, err)
+
+	// Because we are caching, the directory should still appear to exist.
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	// After the TTL elapses, we should see it disappear.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	_, err = os.Stat(path.Join(bucket1MntDir, name))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := uncachedBuckets[bucket1Name]
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
+	AssertEq(nil, err)
+
+	// Create a file with the same name via GCS.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket1,
+		name,
+		[]byte("taco"))
+
+	AssertEq(nil, err)
+
+	// Because the file system is caching types, it will fail to find the file
+	// when statting.
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	_, err = os.Stat(path.Join(bucket1MntDir, name+inode.ConflictingFileNameSuffix))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see both.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, name+inode.ConflictingFileNameSuffix))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
+}
+
+func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
+	const name = "test"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
+	AssertEq(nil, err)
+
+	// Delete it and recreate as a file.
+	err = os.RemoveAll(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+
+	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// All caches should have been updated.
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
+	ExpectEq(len("taco"), fi.Size())
+}
+
+func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
+	const name = "foo"
+	var fi os.FileInfo
+	var err error
+	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
+	bucket1 := buckets[bucket1Name]
+
+	// Create a directory via the file system.
+	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
+	AssertEq(nil, err)
+
+	// Remove the backing object in GCS, updating the bucket cache (but not the
+	// file system type cache)
+	err = bucket1.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{Name: name + "/"})
+
+	AssertEq(nil, err)
+
+	// Create a file with the same name via GCS, again updating the bucket cache.
+	_, err = storageutil.CreateObject(
+		ctx,
+		bucket1,
+		name,
+		[]byte("taco"))
+
+	AssertEq(nil, err)
+
+	// Because the file system is caching types, it will fail to find the name.
+	_, err = os.Stat(path.Join(bucket1MntDir, name))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// After the TTL elapses, we should see it turn into a file.
+	cacheClock.AdvanceTime(ttl + time.Millisecond)
+
+	fi, err = os.Stat(path.Join(bucket1MntDir, name))
+	AssertEq(nil, err)
+	ExpectFalse(fi.IsDir())
 }
