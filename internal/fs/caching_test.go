@@ -15,6 +15,7 @@
 package fs_test
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -143,8 +144,6 @@ func (t *CachingTest) FileChangedRemotely() {
 	// Create a file via the file system.
 	err = ioutil.WriteFile(path.Join(mntDir, name), []byte("taco"), 0500)
 	AssertEq(nil, err)
-
-	defer os.Remove(path.Join(mntDir, name))
 
 	// Overwrite the object in GCS.
 	_, err = storageutil.CreateObject(
@@ -483,6 +482,24 @@ func init() {
 	RegisterTestSuite(&MultiBucketMountCachingTest{})
 }
 
+func (t *MultiBucketMountCachingTest) TearDown() {
+	for _, bucketName := range []string{bucket1Name, bucket2Name} {
+		bucket := buckets[bucketName]
+		AssertEq(nil, storageutil.DeleteAllObjects(context.Background(), bucket))
+
+		bucketMntDir := getMultiMountBucketDir(bucketName)
+		f, _ := os.Open(bucketMntDir)
+		files, _ := f.ReadDir(0)
+		for _, v := range files {
+			if v.IsDir() {
+				AssertEq(nil, os.RemoveAll(v.Name()))
+			} else {
+				AssertEq(nil, os.Remove(v.Name()))
+			}
+		}
+	}
+}
+
 func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
 	// ReadDir
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
@@ -503,13 +520,11 @@ func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 	var fi os.FileInfo
 
 	// Create an object in GCS.
-	obj, err := storageutil.CreateObject(
+	_, err := storageutil.CreateObject(
 		ctx,
 		bucket1,
 		name,
 		[]byte(contents))
-
-	defer storageutil.DeleteObject(ctx, bucket1, obj)
 
 	AssertEq(nil, err)
 
@@ -559,18 +574,14 @@ func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
 	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0500)
 	AssertEq(nil, err)
 
-	defer os.Remove(path.Join(bucket1MntDir, name))
-
 	// Overwrite the object in GCS.
-	obj, err := storageutil.CreateObject(
+	_, err = storageutil.CreateObject(
 		ctx,
 		bucket1,
 		name,
 		[]byte("burrito"))
 
 	AssertEq(nil, err)
-
-	defer storageutil.DeleteObject(ctx, bucket1, obj)
 
 	// Because we are caching, the file should still appear to be the local
 	// version.
@@ -632,8 +643,6 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
 
-	defer os.RemoveAll(path.Join(bucket1MntDir, name))
-
 	// Create a file with the same name via GCS.
 	_, err = storageutil.CreateObject(
 		ctx,
@@ -642,8 +651,6 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 		[]byte("taco"))
 
 	AssertEq(nil, err)
-
-	defer os.Remove(path.Join(bucket1MntDir, name))
 
 	// Because the file system is caching types, it will fail to find the file
 	// when statting.
@@ -683,8 +690,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
 	err = os.WriteFile(path.Join(bucket1MntDir, name), []byte("taco"), 0400)
 	AssertEq(nil, err)
 
-	defer os.Remove(path.Join(bucket1MntDir, name))
-
 	// All caches should have been updated.
 	fi, err = os.Stat(path.Join(bucket1MntDir, name))
 	AssertEq(nil, err)
@@ -702,8 +707,6 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
 	// Create a directory via the file system.
 	err = os.Mkdir(path.Join(bucket1MntDir, name), 0700)
 	AssertEq(nil, err)
-
-	defer os.RemoveAll(path.Join(bucket1MntDir, name))
 
 	// Remove the backing object in GCS, updating the bucket cache (but not the
 	// file system type cache)
