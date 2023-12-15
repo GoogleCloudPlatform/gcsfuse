@@ -85,7 +85,7 @@ type fakeBucketManager struct {
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool) (sb gcsx.SyncerBucket, err error) {
 	bm.setupTimes++
 
 	var ok bool

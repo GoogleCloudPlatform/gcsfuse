@@ -91,7 +91,32 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName)
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, false)
+
+	ExpectNe(nil, bucket.Syncer)
+	ExpectEq(nil, err)
+}
+
+func (t *BucketManagerTest) TestSetUpBucketMethod_IsMultiBucketMountTrue() {
+	var bm bucketManager
+	bucketConfig := BucketConfig{
+		BillingProject:                     "BillingProject",
+		OnlyDir:                            "OnlyDir",
+		EgressBandwidthLimitBytesPerSecond: 7,
+		OpRateLimitHz:                      11,
+		StatCacheCapacity:                  100,
+		StatCacheTTL:                       20 * time.Second,
+		EnableMonitoring:                   true,
+		DebugGCS:                           true,
+		AppendThreshold:                    2,
+		TmpObjectPrefix:                    "TmpObjectPrefix",
+	}
+	ctx := context.Background()
+	bm.storageHandle = t.storageHandle
+	bm.config = bucketConfig
+	bm.gcCtx = ctx
+
+	bucket, err := bm.SetUpBucket(context.Background(), TestBucketName, true)
 
 	ExpectNe(nil, bucket.Syncer)
 	ExpectEq(nil, err)
@@ -116,7 +141,32 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	bm.config = bucketConfig
 	bm.gcCtx = ctx
 
-	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName)
+	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false)
+
+	ExpectEq("Error in iterating through objects: storage: bucket doesn't exist", err.Error())
+	ExpectNe(nil, bucket.Syncer)
+}
+
+func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiBucketMountTrue() {
+	var bm bucketManager
+	bucketConfig := BucketConfig{
+		BillingProject:                     "BillingProject",
+		OnlyDir:                            "OnlyDir",
+		EgressBandwidthLimitBytesPerSecond: 7,
+		OpRateLimitHz:                      11,
+		StatCacheCapacity:                  100,
+		StatCacheTTL:                       20 * time.Second,
+		EnableMonitoring:                   true,
+		DebugGCS:                           true,
+		AppendThreshold:                    2,
+		TmpObjectPrefix:                    "TmpObjectPrefix",
+	}
+	ctx := context.Background()
+	bm.storageHandle = t.storageHandle
+	bm.config = bucketConfig
+	bm.gcCtx = ctx
+
+	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true)
 
 	ExpectEq("Error in iterating through objects: storage: bucket doesn't exist", err.Error())
 	ExpectNe(nil, bucket.Syncer)
