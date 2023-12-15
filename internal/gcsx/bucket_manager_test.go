@@ -97,7 +97,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethod() {
 	ExpectEq(nil, err)
 }
 
-func (t *BucketManagerTest) TestSetUpBucketMethod2() {
+func (t *BucketManagerTest) TestSetUpBucketMethod_IsMultiBucketMountTrue() {
 	var bm bucketManager
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
@@ -147,7 +147,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 	ExpectNe(nil, bucket.Syncer)
 }
 
-func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist2() {
+func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiBucketMountTrue() {
 	var bm bucketManager
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
