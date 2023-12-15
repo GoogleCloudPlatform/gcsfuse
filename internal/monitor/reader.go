@@ -47,6 +47,10 @@ var (
 	fileCacheReadLatency = stats.Float64("file_cache/read_latency",
 		"Latency of read from file cache along with cache hit - true/false",
 		stats.UnitMilliseconds)
+
+	fileCacheSeekLatency = stats.Float64("file_cache/seek_latency",
+		"Latency of seek in the filecache read call.",
+		stats.UnitMilliseconds)
 )
 
 const NanosecondsInOneMillisecond = 1000000
@@ -88,6 +92,13 @@ func init() {
 			Name:        "file_cache/read_latencies",
 			Measure:     fileCacheReadLatency,
 			Description: "The cumulative distribution of the file cache read latencies along with cache hit - true/false",
+			Aggregation: ochttp.DefaultLatencyDistribution,
+			TagKeys:     []tag.Key{tags.CacheHit},
+		},
+		&view.View{
+			Name:        "file_cache/seek_latencies",
+			Measure:     fileCacheReadLatency,
+			Description: "The cumulative distribution of the file cache seek latencies along with cache hit - true/false",
 			Aggregation: ochttp.DefaultLatencyDistribution,
 			TagKeys:     []tag.Key{tags.CacheHit},
 		},
@@ -154,5 +165,20 @@ func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize 
 	); err != nil {
 		// Error in recording fileCacheReadLatency.
 		logger.Errorf("Cannot record fileCacheReadLatency %v", err)
+	}
+}
+
+func CaptureFileCacheSeekMetrics(ctx context.Context, seekLatencyNs int64) {
+
+	seekLatencyMs := float64(seekLatencyNs) / float64(NanosecondsInOneMillisecond)
+	if err := stats.RecordWithTags(
+		ctx,
+		[]tag.Mutator{
+			tag.Upsert(tags.CacheHit, strconv.FormatBool(true)),
+		},
+		fileCacheSeekLatency.M(seekLatencyMs),
+	); err != nil {
+		// Error in recording fileCacheSeekLatency.
+		logger.Errorf("Cannot record fileCacheSeekLatency %v", err)
 	}
 }

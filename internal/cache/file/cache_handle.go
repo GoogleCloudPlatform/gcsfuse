@@ -18,8 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"io"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -187,12 +189,16 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		return 0, false, err
 	}
 
+	seekStart := time.Now()
 	// We are here means, we have the data downloaded which kernel has asked for.
 	n, err = fch.fileHandle.ReadAt(dst, offset)
 	requestedNumBytes := int(requiredOffset - offset)
 	// dst buffer has fixed size of 1 MiB even when the offset is such that
 	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
 	// which should be ignored.
+	seekDuration := time.Since(seekStart)
+	monitor.CaptureFileCacheSeekMetrics(ctx, seekDuration.Nanoseconds())
+
 	if err == io.EOF || err == io.ErrUnexpectedEOF {
 		if n != requestedNumBytes {
 			// Ensure that the number of bytes read into dst buffer is equal to what is
