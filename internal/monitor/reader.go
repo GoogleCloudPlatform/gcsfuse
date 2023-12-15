@@ -97,7 +97,7 @@ func init() {
 		},
 		&view.View{
 			Name:        "file_cache/seek_latencies",
-			Measure:     fileCacheReadLatency,
+			Measure:     fileCacheSeekLatency,
 			Description: "The cumulative distribution of the file cache seek latencies along with cache hit - true/false",
 			Aggregation: ochttp.DefaultLatencyDistribution,
 			TagKeys:     []tag.Key{tags.CacheHit},
