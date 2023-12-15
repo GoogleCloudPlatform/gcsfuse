@@ -21,6 +21,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
@@ -65,15 +66,16 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
 }
 
 type bucketManager struct {
-	config        BucketConfig
-	storageHandle storage.StorageHandle
+	config          BucketConfig
+	storageHandle   storage.StorageHandle
+	sharedStatCache *lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -81,9 +83,18 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
+	var c *lru.Cache
+	if config.StatCacheCapacity > 0 {
+		// This conversion is temporary until config.StatCacheCapacity itself is replaced
+		// with config.StatCacheSizeMB, which is a planned change.
+		statCacheSize := uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
+		c = lru.NewCache(statCacheSize)
+	}
+
 	bm := &bucketManager{
-		config:        config,
-		storageHandle: storageHandle,
+		config:          config,
+		storageHandle:   storageHandle,
+		sharedStatCache: c,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -156,7 +167,9 @@ func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb SyncerBucket, err error) {
+	name string,
+	isMultibucketMount bool,
+) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
@@ -190,11 +203,17 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Enable cached StatObject results, if appropriate.
-	if bm.config.StatCacheTTL != 0 {
-		cacheCapacity := bm.config.StatCacheCapacity
+	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
+		var statCache metadata.StatCache
+		if isMultibucketMount {
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+		} else {
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
+		}
+
 		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			metadata.NewStatCache(cacheCapacity),
+			statCache,
 			timeutil.RealClock(),
 			b)
 	}
