@@ -89,8 +89,8 @@ gcsfuse --stackdriver-export-interval 30s \
         --config-file ./config.yml \
         $bucket_name $mount_dir
 
-
-gcsfuseID=$(ps -ax | grep "gcsfuse" | head -n 1 | awk '{print $1}')
+# Using "gcsfuse --foreground" as grep search query to uniquely identify gcsfuse running process.
+gcsfuseID=$(ps -ax | grep "gcsfuse --foreground" | head -n 1 | awk '{print $1}')
 echo "Running GCSFuse process-id: $gcsfuseID"
 
 # Back to old dir in the last.
