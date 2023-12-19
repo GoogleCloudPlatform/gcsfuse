@@ -543,6 +543,11 @@ func validateFlags(flags *flagStorage) (err error) {
 	if !flags.ClientProtocol.IsValid() {
 		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
+
+	if flags.StatCacheTTL != flags.TypeCacheTTL {
+		err = fmt.Errorf("internal values of StatCacheTTL (%v) and TypeCacheTTL (%v) don't match", flags.StatCacheTTL, flags.TypeCacheTTL)
+	}
+
 	return
 }
 
