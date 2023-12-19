@@ -166,6 +166,7 @@ func (t *UtilTest) TestRoundDurationToNextMultiple() {
 		factor time.Duration
 		output time.Duration
 	}{
+		// Following are test cases for rounding up to the next multiple of a second.
 		{
 			input:  -time.Second - time.Nanosecond,
 			factor: time.Second,
@@ -200,6 +201,53 @@ func (t *UtilTest) TestRoundDurationToNextMultiple() {
 			input:  time.Second - time.Nanosecond,
 			factor: time.Second,
 			output: time.Second,
+		},
+		// Following are test cases for rounding up to the next multiple of a fraction of a second.
+		{
+			input:  -time.Second,
+			factor: 300 * time.Millisecond,
+			output: -900 * time.Millisecond,
+		},
+		{
+			input:  time.Second,
+			factor: 300 * time.Millisecond,
+			output: 1200 * time.Millisecond,
+		},
+		{
+			input:  500 * time.Millisecond,
+			factor: 250 * time.Millisecond,
+			output: 500 * time.Millisecond,
+		},
+		{
+			input:  -500 * time.Millisecond,
+			factor: 250 * time.Millisecond,
+			output: -500 * time.Millisecond,
+		},
+		// Following are test cases for rounding up to the next multiple of larger than a second.
+		{
+			input:  -time.Second,
+			factor: 1300 * time.Millisecond,
+			output: 0,
+		},
+		{
+			input:  -time.Second - 300*time.Millisecond,
+			factor: 1300 * time.Millisecond,
+			output: -1300 * time.Millisecond,
+		},
+		{
+			input:  time.Second,
+			factor: 1300 * time.Millisecond,
+			output: 1300 * time.Millisecond,
+		},
+		{
+			input:  time.Second + 300*time.Millisecond,
+			factor: 1300 * time.Millisecond,
+			output: 1300 * time.Millisecond,
+		},
+		{
+			input:  time.Second + 300*time.Millisecond + time.Nanosecond,
+			factor: 1300 * time.Millisecond,
+			output: 2*time.Second + 600*time.Millisecond,
 		},
 	}
 

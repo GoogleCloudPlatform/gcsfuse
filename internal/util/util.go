@@ -86,7 +86,9 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 // RoundDurationToNextMultiple returns the next multiple of factor
 // greater than or equal to the given input duration.
 // It works even if duration is negative.
-// If panics if factor is 0 or negative.
+// factor can be any positive duration, 1ns, 1us, 1ms, 1s, 1m, 1h
+// or positive real-number multiple of any of these.
+// However, if factor is 0 or negative, this function will panic.
 func RoundDurationToNextMultiple(duration time.Duration, factor time.Duration) time.Duration {
 	if factor <= 0 {
 		panic("factor <= 0 not supported")
