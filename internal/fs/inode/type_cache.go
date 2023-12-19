@@ -16,13 +16,23 @@ package inode
 
 import (
 	"time"
+	unsafe "unsafe"
 
-	"github.com/jacobsa/util/lrucache"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+)
+
+const (
+	// TODO: replace this with a constant in util!
+	MiBtoBytes = 1024 * 1024
 )
 
 type cacheEntry struct {
 	expiry    time.Time
 	inodeType Type
+}
+
+func (ce cacheEntry) Size() uint64 {
+	return uint64(unsafe.Sizeof(cacheEntry{}))
 }
 
 // A cache that maps from a name to information about the type of the object
@@ -50,27 +60,24 @@ type typeCache struct {
 	//
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
-	entries lrucache.Cache
+	entries *lru.Cache
 }
 
 // Create a cache whose information expires with the supplied TTL. If the TTL
 // is zero, nothing will ever be cached.
-func newTypeCache(perTypeCapacity int, ttl time.Duration) typeCache {
+func newTypeCache(sizeInMb int, ttl time.Duration) typeCache {
+	if sizeInMb <= 0 {
+		panic("unhandled scenario: type-cache-max-size-mb-per-dir <= 0")
+	}
 	return typeCache{
 		ttl:     ttl,
-		entries: lrucache.New(perTypeCapacity),
+		entries: lru.NewCache(uint64(MiBtoBytes) * uint64(sizeInMb)),
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
-
-// Panic if any internal invariants have been violated. The careful user can
-// arrange to call this at crucial moments.
-func (tc *typeCache) CheckInvariants() {
-	tc.entries.CheckInvariants()
-}
 
 // Insert inserts a record to the cache.
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
