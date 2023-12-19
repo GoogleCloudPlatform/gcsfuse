@@ -85,13 +85,13 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 
 // RoundDurationToNextMultiple returns the next multiple of factor
 // greater than or equal to the given input duration.
-// It works even if dur is negative.
+// It works even if duration is negative.
 // If panics if factor is 0 or negative.
-func RoundDurationToNextMultiple(dur time.Duration, factor time.Duration) time.Duration {
+func RoundDurationToNextMultiple(duration time.Duration, factor time.Duration) time.Duration {
 	if factor <= 0 {
-		panic("Denominator is 0. Dividing by zero!")
+		panic("factor <= 0 not supported")
 	}
-	return factor * time.Duration(int64(math.Ceil(float64(dur)/float64(factor))))
+	return factor * time.Duration(int64(math.Ceil(float64(duration)/float64(factor))))
 }
 
 func minInt64(a, b int64) int64 {
