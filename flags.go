@@ -208,13 +208,13 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes.",
+				Usage: "How long to cache StatObject results and inode attributes. It is on its way to be deprecated in the next few releases and will be replaced with metadata-config:ttl-secs in the gcsfuse config-file. For now, for backward compatibility, a minimum of stat-cache-ttl and type-cache-ttl values are taken, the result is rounded up to the next higher multiple of seconds and that is used as ttl for both stat-cache and type-cache.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. It is on its way to be deprecated in the next few releases and will be replaced with metadata-config:ttl-secs in the gcsfuse config-file. For now, for backward compatibility, a minimum of stat-cache-ttl and type-cache-ttl values are taken, the result is rounded up to the next higher multiple of seconds and that is used as ttl for both stat-cache and type-cache.",
 			},
 
 			cli.DurationFlag{
