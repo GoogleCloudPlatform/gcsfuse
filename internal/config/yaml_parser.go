@@ -80,16 +80,8 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
-<<<<<<< HEAD
 	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
 		return fmt.Errorf(TypeCacheSizeNegativeError)
-=======
-
-	if TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel != metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory {
-		if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < 0 {
-			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
-		}
->>>>>>> 8f591ff81 (Add util MiBToBytes)
 	}
 
 	return nil
