@@ -15,10 +15,6 @@
 package config
 
 const (
-	// DefaultMetadataCacheTtlInSeconds is the value used for
-	// ttl for metadata-cache when it is not
-	// set in the config file.
-	DefaultMetadataCacheTtlInSeconds int64 = 60
 	// TtlInSecsUnset is set when metada-cache:ttl-secs is not set
 	// in the gcsfuse mount config file.
 	TtlInSecsUnset int64 = -3
