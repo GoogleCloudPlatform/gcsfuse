@@ -464,9 +464,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
-	userStatCacheTTL := util.RoundDurationToNextMultiple(c.Duration("stat-cache-ttl"), time.Second)
-	userTypeCacheTTL := util.RoundDurationToNextMultiple(c.Duration("type-cache-ttl"), time.Second)
-	minTTL := util.MinDuration(userStatCacheTTL, userTypeCacheTTL)
+	userStatCacheTTL := c.Duration("stat-cache-ttl")
+	userTypeCacheTTL := c.Duration("type-cache-ttl")
+	minTTL := util.RoundDurationToNextMultiple(util.MinDuration(userStatCacheTTL, userTypeCacheTTL), time.Second)
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
