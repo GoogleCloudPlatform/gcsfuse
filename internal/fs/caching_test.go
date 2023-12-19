@@ -486,17 +486,6 @@ func (t *MultiBucketMountCachingTest) TearDown() {
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
 		bucket := buckets[bucketName]
 		AssertEq(nil, storageutil.DeleteAllObjects(context.Background(), bucket))
-
-		bucketMntDir := getMultiMountBucketDir(bucketName)
-		f, _ := os.Open(bucketMntDir)
-		files, _ := f.ReadDir(0)
-		for _, v := range files {
-			if v.IsDir() {
-				AssertEq(nil, os.RemoveAll(v.Name()))
-			} else {
-				AssertEq(nil, os.Remove(v.Name()))
-			}
-		}
 	}
 }
 
