@@ -54,7 +54,9 @@ They are discussed in this section, along with their trade-offs and the situatio
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
 
-Important: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. ```--stat-cache-ttl``` and ```--type-cache-ttl``` are on their way to be deprecated in the next few releases and will be replaced with ```metadata-config: ttl-secs``` in the gcsfuse config-file. So, you might want to switch to them. For now, for backward compatibility, a minimum of ```stat-cache-ttl``` and ```type-cache-ttl``` is taken, rounded to next higher multiple of seconds, and is used as TTL for both stat-cache and type-cache. 
+**Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
+
+**Note**: ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-config: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-config: ttl-secs```. For now, for backward compatibility, the minimum of ```stat-cache-ttl``` and ```type-cache-ttl```, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-config: ttl-secs``` is not set.
 
 **Stat caching**
 
