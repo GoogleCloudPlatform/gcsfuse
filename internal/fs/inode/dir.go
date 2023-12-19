@@ -209,7 +209,7 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheCapacity int) (d DirInode) {
+	typeCacheSizeInMbPerDirectory int) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
@@ -224,7 +224,7 @@ func NewDirInode(
 		enableNonexistentTypeCache: enableNonexistentTypeCache,
 		name:                       name,
 		attrs:                      attrs,
-		cache:                      newTypeCache(typeCacheCapacity, typeCacheTTL),
+		cache:                      newTypeCache(typeCacheSizeInMbPerDirectory, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -245,9 +245,6 @@ func (d *dirInode) checkInvariants() {
 	if !d.name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
-
-	// cache.CheckInvariants() does not panic.
-	d.cache.CheckInvariants()
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
