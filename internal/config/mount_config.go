@@ -14,10 +14,12 @@
 
 package config
 
+import "math"
+
 const (
 	// TtlInSecsUnset is set when metada-cache:ttl-secs is not set
 	// in the gcsfuse mount config file.
-	TtlInSecsUnset int64 = -3
+	TtlInSecsUnset int64 = math.MinInt64
 )
 
 type WriteConfig struct {
@@ -38,11 +40,13 @@ type FileCacheConfig struct {
 }
 
 type MetadataCacheConfig struct {
-	// TtlInSeconds can be -1 for no-ttl, 0 for
+	// TtlInSeconds is the ttl
+	// value in seconds, to be used for stat-cache and type-cache.
+	// It can be -1 for no-ttl, 0 for
 	// no cache and > 0 for ttl-controlled metadata-cache.
+	// Any value set below -1 will throw an error.
 	// If it is not set in the yaml config file,
-	// its default value is taken as -3, which is an unsupported
-	// value, and is replaced by DefaultTtlInSecs.
+	// its default value is set to TtlInSecsUnset.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
 }
 

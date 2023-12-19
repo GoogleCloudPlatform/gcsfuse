@@ -83,8 +83,8 @@ func (t *FlagsTest) Defaults() {
 
 	// Tuning
 	ExpectEq(4096, f.StatCacheCapacity)
-	ExpectEq(DefaultStatCacheTTL, f.StatCacheTTL)
-	ExpectEq(DefaultTypeCacheTTL, f.TypeCacheTTL)
+	ExpectEq(DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
+	ExpectEq(DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	ExpectEq(0, f.HttpClientTimeout)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)

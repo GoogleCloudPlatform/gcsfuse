@@ -15,6 +15,7 @@
 package config
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -116,5 +117,5 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(-3, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	AssertEq(math.MinInt64, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
