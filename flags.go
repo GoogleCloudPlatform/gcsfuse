@@ -32,8 +32,9 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatOrTypeCacheTTL is the value used in absence of
-	// mount flag stat-cache-ttl.
+	// DefaultStatOrTypeCacheTTL is the default value used for
+	// stat-cache-ttl or type-cache if they have not been set
+	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 )
 
