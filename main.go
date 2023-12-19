@@ -209,8 +209,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// switch metadata cache ttls (stat-cache-ttl and type-cache-tll)
 	// to that as that takes precedence over both.
 	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnset {
-		flags.StatCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
-		flags.TypeCacheTTL = flags.StatCacheTTL
+		flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
 	}
 
 	err = util.ResolveConfigFilePaths(mountConfig)

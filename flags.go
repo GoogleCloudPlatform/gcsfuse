@@ -389,8 +389,7 @@ type flagStorage struct {
 	// Tuning
 	MaxRetrySleep              time.Duration
 	StatCacheCapacity          int
-	StatCacheTTL               time.Duration
-	TypeCacheTTL               time.Duration
+	StatOrTypeCacheTTL         time.Duration
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -502,8 +501,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               minTTL,
-		TypeCacheTTL:               minTTL,
+		StatOrTypeCacheTTL:         minTTL,
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
@@ -549,10 +547,6 @@ func validateFlags(flags *flagStorage) (err error) {
 
 	if !flags.ClientProtocol.IsValid() {
 		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
-	}
-
-	if flags.StatCacheTTL != flags.TypeCacheTTL {
-		err = fmt.Errorf("internal values of StatCacheTTL (%v) and TypeCacheTTL (%v) don't match", flags.StatCacheTTL, flags.TypeCacheTTL)
 	}
 
 	return
