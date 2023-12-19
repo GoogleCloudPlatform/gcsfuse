@@ -207,7 +207,8 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// if metadata-cache:ttl-secs has been set in config-file, then
 	// switch metadata cache ttls (stat-cache-ttl and type-cache-tll)
-	// to that as that takes precedence over both.
+	// to that as that takes precedence over both stat-cache-ttl and
+	// type-cache-tll.
 	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnset {
 		flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
 	}
