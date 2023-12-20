@@ -203,11 +203,13 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	defer closeFile(fileHandle1)
 	AssertEq(nil, err)
 	_, err = fileHandle1.ReadAt(buf, 0)
+	AssertEq(nil, err)
 	AssertEq(string(buf), objectContent1[0:len(buf)])
 	fileHandle2, err := os.OpenFile(path.Join(mntDir, objectName2), os.O_RDONLY|syscall.O_DIRECT, 0644)
 	defer closeFile(fileHandle2)
 	AssertEq(nil, err)
 	_, err = fileHandle2.ReadAt(buf, 0)
+	AssertEq(nil, err)
 	AssertEq(string(buf), objectContent2[0:len(buf)])
 	// Assert cache files are created.
 	objectPath1 := util.GetObjectPath(bucket.Name(), objectName1)
@@ -227,6 +229,7 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	defer closeFile(fileHandle3)
 	AssertEq(nil, err)
 	_, err = fileHandle3.ReadAt(buf, 0)
+	AssertEq(nil, err)
 	AssertEq(string(buf), objectContent3[0:len(buf)])
 
 	// Cache for file 2 should be evicted.
