@@ -60,6 +60,7 @@ cache-location: ./cache-dir
   # Running FIO test
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
+  sleep 10s
 }
 
 function install_requirements() {
