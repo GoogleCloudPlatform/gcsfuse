@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -466,7 +467,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
 	userStatCacheTTL := c.Duration("stat-cache-ttl")
 	userTypeCacheTTL := c.Duration("type-cache-ttl")
-	minTTL := util.RoundDurationToNextMultiple(util.MinDuration(userStatCacheTTL, userTypeCacheTTL), time.Second)
+	minTTL := time.Second * time.Duration(uint64(math.Ceil(math.Min(userStatCacheTTL.Seconds(), userTypeCacheTTL.Seconds()))))
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
