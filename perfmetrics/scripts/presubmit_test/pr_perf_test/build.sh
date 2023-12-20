@@ -47,7 +47,12 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+  echo "file-cache:
+       max-size-in-mb: -1
+       download-file-for-random-read: true
+cache-location: ./cache-dir
+       " > /tmp/gcsfuse_config.yaml
+  GCSFUSE_FLAGS="--config-file /tmp/gcsfuse_config.yaml --implicit-dirs --max-conns-per-host 100"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
@@ -78,7 +83,7 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git checkout master
+ git checkout read_cache_release
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
