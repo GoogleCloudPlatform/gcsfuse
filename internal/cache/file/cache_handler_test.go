@@ -470,7 +470,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 	buf := make([]byte, 3)
 	ctx := context.Background()
 	// Read to populate cache
-	_, err = cacheHandle.Read(ctx, minObject, 0, buf)
+	_, err = cacheHandle.Read(ctx, chrT.bucket, minObject, 0, buf)
 	AssertEq(nil, err)
 	AssertEq(string(objectContent[:3]), string(buf))
 	AssertEq(nil, cacheHandle.Close())
@@ -596,9 +596,9 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	ctx := context.Background()
 	// Read to create and populate file in cache.
 	buf := make([]byte, 3)
-	_, err = cacheHandle1.Read(ctx, minObject1, 4, buf)
+	_, err = cacheHandle1.Read(ctx, chrT.bucket, minObject1, 4, buf)
 	AssertEq(nil, err)
-	_, err = cacheHandle2.Read(ctx, minObject2, 4, buf)
+	_, err = cacheHandle2.Read(ctx, chrT.bucket, minObject2, 4, buf)
 	AssertEq(nil, err)
 	err = cacheHandle1.Close()
 	AssertEq(nil, err)
