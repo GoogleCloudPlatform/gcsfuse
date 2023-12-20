@@ -17,6 +17,7 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,6 +32,9 @@ const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 // Constants for read types - Sequential/Random
 const Sequential = "Sequential"
 const Random = "Random"
+
+const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
+const BytesInMaxMiBsInUint64 uint64 = MaxMiBsInUint64 << 20
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
@@ -92,3 +96,27 @@ func Stringify(input any) string {
 	}
 	return string(inputBytes)
 }
+
+// MibToBytes returns the bytes equivalent
+// of given no.s of MiBs (Mibi Bytes).
+// For reference, each MiB = 2^20 bytes.
+// It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
+// as inputs, and panics for higher inputs.
+func MibToBytes(bytes uint64) uint64 {
+	if bytes > MaxMiBsInUint64 {
+		panic("Inputs above (2^44 - 1) not supported.")
+	}
+	return bytes << 20
+}
+
+// BytesToHigherMiBs returns the MiBs (Mibi Bytes) equivalent
+// of given no.s of bytes. If bytes is no an exact number of MiBs,
+// then it returns the next higher no. of MiBs.
+// For reference, each MiB = 2^20 bytes.
+func BytesToHigherMiBs(bytes uint64) uint64 {
+	if bytes > BytesInMaxMiBsInUint64 {
+		return MaxMiBsInUint64 + 1
+	}
+	return (bytes + 0xFFFFF) >> 20
+}
+
