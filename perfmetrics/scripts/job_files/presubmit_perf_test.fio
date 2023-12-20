@@ -85,34 +85,4 @@ filesize=50M
 rw=randwrite
 numjobs=40
 
-[1gb_read]
-stonewall
-startdelay=1520
-directory=gcs/1gb
-filesize=1G
-rw=read
-numjobs=40
 
-[1gb_write]
-stonewall
-startdelay=1710
-directory=gcs/1gb
-filesize=1G
-rw=write
-numjobs=40
-
-[1gb_randread]
-stonewall
-startdelay=1900
-directory=gcs/1gb
-filesize=1G
-rw=randread
-numjobs=40
-
-[1gb_randwrite]
-stonewall
-startdelay=2090
-directory=gcs/1gb
-filesize=1G
-rw=randwrite
-numjobs=40
