@@ -48,7 +48,7 @@ git fetch origin -q
 function execute_perf_test() {
   mkdir -p gcs
   echo "file-cache:
-       max-size-in-mb: -1
+       max-size-in-mb: 40960
        download-file-for-random-read: true
 cache-location: ./tmp/cache-dir
        " > /tmp/gcsfuse_config.yaml
