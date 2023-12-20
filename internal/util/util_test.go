@@ -16,6 +16,7 @@ package util
 
 import (
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -207,3 +208,68 @@ type customTypeForError struct {
 func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
+
+func (t *UtilTest) TestMibToBytes() {
+	cases := []struct {
+		mib   uint64
+		bytes uint64
+	}{
+		{
+			mib:   0,
+			bytes: 0,
+		},
+		{
+			mib:   1,
+			bytes: 1048576,
+		},
+		{
+			mib:   5,
+			bytes: 5242880,
+		},
+		{
+			mib:   1024,
+			bytes: 1073741824,
+		},
+		{
+			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
+			bytes: 0xFFFFFFFFFFF00000, // 2^20 * (2^44 - 1)
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.bytes, MibToBytes(tc.mib))
+	}
+}
+
+func (t *UtilTest) TestBytesToHigherMiBs() {
+	cases := []struct {
+		bytes uint64
+		mib   uint64
+	}{
+		{
+			bytes: 0,
+			mib:   0,
+		},
+		{
+			bytes: 1048576,
+			mib:   1,
+		},
+		{
+			bytes: 1,
+			mib:   1,
+		},
+		{
+			bytes: 0xFFFFFFFFFFF00000, // 2^20 * (2^44 - 1)
+			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
+		},
+		{
+			bytes: math.MaxUint64, // (2^64 - 1)
+			mib:   0x100000000000, // 2^44
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.mib, BytesToHigherMiBs(tc.bytes))
+	}
+}
+
