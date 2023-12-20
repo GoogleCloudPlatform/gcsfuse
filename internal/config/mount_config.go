@@ -33,7 +33,7 @@ const (
 	// metadata-cache:type-cache-max-size-mb-per-dir
 	// is not set
 	// in the gcsfuse mount config file.
-	TypeCacheMaxSizeInMbPerDirectoryUnset int = math.MinInt
+	TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel int = math.MinInt
 	// DefaultTypeCacheMaxSizeInMbPerDirectory is maximum size of
 	// type-cache per directory in MiBs.
 	// This is the value to be used if the user
@@ -127,8 +127,8 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds: TtlInSecsUnsetSentinel,
-		TypeCacheMaxSizeMbPerDirectory: TypeCacheMaxSizeInMbPerDirectoryUnset,
+		TtlInSeconds:                   TtlInSecsUnsetSentinel,
+		TypeCacheMaxSizeMbPerDirectory: TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel,
 	}
 	return mountConfig
 }

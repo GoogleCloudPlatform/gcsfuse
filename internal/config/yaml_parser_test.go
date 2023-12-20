@@ -172,5 +172,5 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheSizeNot
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(TypeCacheMaxSizeInMbPerDirectoryUnset, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
+	AssertEq(TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
 }
