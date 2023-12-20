@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -208,13 +209,13 @@ func newApp() (app *cli.App) {
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache StatObject results and inode attributes.",
+				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: time.Minute,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
@@ -464,6 +465,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
+	userStatCacheTTL := c.Duration("stat-cache-ttl")
+	userTypeCacheTTL := c.Duration("type-cache-ttl")
+	minTTL := time.Second * time.Duration(uint64(math.Ceil(math.Min(userStatCacheTTL.Seconds(), userTypeCacheTTL.Seconds()))))
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
@@ -492,8 +496,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		StatCacheTTL:               minTTL,
+		TypeCacheTTL:               minTTL,
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
@@ -540,6 +544,11 @@ func validateFlags(flags *flagStorage) (err error) {
 	if !flags.ClientProtocol.IsValid() {
 		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
+
+	if flags.StatCacheTTL != flags.TypeCacheTTL {
+		err = fmt.Errorf("internal values of StatCacheTTL (%v) and TypeCacheTTL (%v) don't match", flags.StatCacheTTL, flags.TypeCacheTTL)
+	}
+
 	return
 }
 
