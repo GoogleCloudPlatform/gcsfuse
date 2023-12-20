@@ -537,6 +537,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
 	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	AssertEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, ReadContentSize)
 	fileInfoKey := data.FileInfoKey{
@@ -561,6 +562,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
 	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	AssertEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, ReadContentSize)
 	fileInfoKey := data.FileInfoKey{
@@ -589,6 +591,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoOffsetChanged() {
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
 	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	AssertEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, ReadContentSize)
 	fileInfoKey := data.FileInfoKey{
