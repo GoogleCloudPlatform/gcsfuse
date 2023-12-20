@@ -57,6 +57,7 @@ cache-location: ./tmp/cache-dir
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
+  git checkout change_lru_order
   # Running FIO test
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
