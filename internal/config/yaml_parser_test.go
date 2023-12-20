@@ -171,7 +171,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCache
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-size.yaml")
 
 	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(TypeCacheSizeNegativeError)))
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(TypeCacheMaxSizeMbPerDirInvalidValueError)))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheSizeNotSet() {
