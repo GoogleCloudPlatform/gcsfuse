@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"time"
 
@@ -82,19 +83,31 @@ type bucketManager struct {
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
-	if config.StatCacheCapacity > 0 {
-		// This conversion is temporary until config.StatCacheCapacity itself is replaced
-		// with config.StatCacheSizeMB, which is a planned change.
-		statCacheSize := uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
-		c = lru.NewCache(statCacheSize)
+func createStatCacheLru(statCacheCapacity int) *lru.Cache {
+	var statCacheSize uint64
+	if statCacheCapacity > 0 {
+		// This conversion from capacity to size will not be needed when
+		/// StatCacheCapacity is replaced with StatCacheSizeMB
+		statCacheSize = uint64(statCacheCapacity) * metadata.StatCacheEntrySize()
+	} else if statCacheCapacity == -1 {
+		// stat-cache-capacity at -1 implies that the stat-cache
+		// size is unlimited. Using MaxUint64
+		// here to represent infinity for all practical purposes.
+		statCacheSize = math.MaxUint64
 	}
 
+	var c *lru.Cache
+	if statCacheSize > 0 {
+		c = lru.NewCache(statCacheSize)
+	}
+	return c
+}
+
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	bm := &bucketManager{
 		config:          config,
 		storageHandle:   storageHandle,
-		sharedStatCache: c,
+		sharedStatCache: createStatCacheLru(config.StatCacheCapacity),
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm

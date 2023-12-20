@@ -42,6 +42,30 @@ func (t *BucketManagerTest) TearDown() {
 	t.fakeStorage.ShutDown()
 }
 
+func (t *BucketManagerTest) TestCreateStatCacheLru() {
+	inputs := []struct {
+		capacity int
+		isNil    bool
+	}{
+		{
+			capacity: 0,
+			isNil:    true,
+		},
+		{
+			capacity: -1,
+			isNil:    false,
+		},
+		{
+			capacity: 10,
+			isNil:    false,
+		},
+	}
+
+	for _, input := range inputs {
+		AssertEq(input.isNil, createStatCacheLru(input.capacity) == nil)
+	}
+}
+
 func (t *BucketManagerTest) TestNewBucketManagerMethod() {
 	bucketConfig := BucketConfig{
 		BillingProject:                     "BillingProject",
