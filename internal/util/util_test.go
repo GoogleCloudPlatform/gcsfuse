@@ -157,3 +157,35 @@ func (t *UtilTest) TestResolveConfigFilePaths() {
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
 }
+
+func (t *UtilTest) TestMibToBytes() {
+	cases := []struct {
+		mib   uint64
+		bytes uint64
+	}{
+		{
+			mib:   0,
+			bytes: 0,
+		},
+		{
+			mib:   1,
+			bytes: 1048576,
+		},
+		{
+			mib:   5,
+			bytes: 5242880,
+		},
+		{
+			mib:   1024,
+			bytes: 1073741824,
+		},
+		{
+			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
+			bytes: 0xFFFFFFFFFFF00000, // 2^20 * (2^44 - 1)
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.bytes, MibToBytes(tc.mib))
+	}
+}
