@@ -92,3 +92,16 @@ func Stringify(input any) string {
 	}
 	return string(inputBytes)
 }
+
+// MibToBytes returns the bytes equivalent
+// of given no.s of MiBs (Mibi Bytes).
+// For reference, each MiB = 2^20 bytes.
+// It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
+// as inputs, and panics for higher inputs.
+func MibToBytes(mib uint64) uint64 {
+	if mib > 0xFFFFFFFFFFF {
+		panic("Inputs above (2^44 - 1) not supported.")
+	}
+	return mib << 20
+}
+
