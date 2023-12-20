@@ -15,15 +15,12 @@
 package inode
 
 import (
+	"math"
 	"time"
 	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-)
-
-const (
-	// TODO: replace this with a constant in util!
-	MiBtoBytes = 1024 * 1024
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 type cacheEntry struct {
@@ -65,13 +62,17 @@ type typeCache struct {
 
 // Create a cache whose information expires with the supplied TTL. If the TTL
 // is zero, nothing will ever be cached.
-func newTypeCache(sizeInMb int, ttl time.Duration) typeCache {
-	if sizeInMb <= 0 {
-		panic("unhandled scenario: type-cache-max-size-mb-per-dir <= 0")
+func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
+	if sizeInMB < -1 {
+		panic("unhandled scenario: type-cache-max-size-mb-per-dir < -1")
+	}
+	var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1, increasing 
+	if sizeInMB > 0 {
+		lruSizeInBytesToUse = util.MibToBytes(uint64(sizeInMB))
 	}
 	return typeCache{
 		ttl:     ttl,
-		entries: lru.NewCache(uint64(MiBtoBytes) * uint64(sizeInMb)),
+		entries: lru.NewCache(lruSizeInBytesToUse),
 	}
 }
 

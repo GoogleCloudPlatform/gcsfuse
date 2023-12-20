@@ -35,8 +35,8 @@ const (
 	OFF     LogSeverity = "OFF"
 
 	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
-	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
-	TypeCacheSizeNegativeError            = "the value of type-cache-max-size-mb-per-dir for metadata-cache can't be less than 0"
+	MetadataCacheTtlSecsInvalidValueError     = "the value of ttl-secs for metadata-cache can't be less than -1"
+	TypeCacheMaxSizeMbPerDirInvalidValueError = "the value of type-cache-max-size-mb-per-dir for metadata-cache can't be less than -1"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -75,8 +75,8 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 	}
 
-	if TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel != metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory {
-		if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < 0 {
+	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory != TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel {
+		if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
 			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 		}
 	}
