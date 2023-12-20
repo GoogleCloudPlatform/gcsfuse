@@ -50,7 +50,7 @@ function execute_perf_test() {
   echo "file-cache:
        max-size-in-mb: -1
        download-file-for-random-read: true
-cache-location: ./cache-dir
+cache-location: ./tmp/cache-dir
        " > /tmp/gcsfuse_config.yaml
   GCSFUSE_FLAGS="--config-file /tmp/gcsfuse_config.yaml --implicit-dirs --max-conns-per-host 100"
   BUCKET_NAME=presubmit-perf-tests
