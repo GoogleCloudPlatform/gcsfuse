@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"time"
 
@@ -83,11 +84,21 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
+	var statCacheSize uint64
 	if config.StatCacheCapacity > 0 {
-		// This conversion is temporary until config.StatCacheCapacity itself is replaced
+		// This conversion from capacity to size is temporary until
+		// config.StatCacheCapacity itself is replaced
 		// with config.StatCacheSizeMB, which is a planned change.
-		statCacheSize := uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
+		statCacheSize = uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
+	} else if config.StatCacheCapacity == -1 {
+		// stat-cache-capacity at -1 implies that the stat-cache
+		// size is unlimited. Using MaxUint64
+		// here to represent infinity for all practical purposes.
+		statCacheSize = math.MaxUint64
+	}
+
+	var c *lru.Cache
+	if statCacheSize > 0 {
 		c = lru.NewCache(statCacheSize)
 	}
 
