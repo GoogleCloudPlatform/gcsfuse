@@ -22,6 +22,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"path"
@@ -210,7 +211,12 @@ func runCLIApp(c *cli.Context) (err error) {
 	// to that as that takes precedence over both stat-cache-ttl and
 	// type-cache-tll.
 	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnset {
-		flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
+		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
+		if mountConfig.MetadataCacheConfig.TtlInSeconds == -1 {
+			flags.StatOrTypeCacheTTL = time.Duration(math.MaxInt64)
+		} else {
+			flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
+		}
 	}
 
 	err = util.ResolveConfigFilePaths(mountConfig)
