@@ -32,9 +32,17 @@ const (
 	defaultBackupFileCount = 10
 	defaultCompress        = true
 
+<<<<<<< HEAD
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
+=======
+	// TtlInSecsUnset is set when
+	// metadata-cache:type-cache-max-size-mb-per-dir
+	// is not set
+	// in the gcsfuse mount config file.
+	TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel int = math.MinInt
+>>>>>>> 8f591ff81 (Add util MiBToBytes)
 	// DefaultTypeCacheMaxSizeInMbPerDirectory is maximum size of
 	// type-cache per directory in MiBs.
 	// This is the value to be used if the user
@@ -129,7 +137,11 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:                   TtlInSecsUnsetSentinel,
+<<<<<<< HEAD
 		TypeCacheMaxSizeMbPerDirectory: DefaultTypeCacheMaxSizeInMbPerDirectory,
+=======
+		TypeCacheMaxSizeMbPerDirectory: TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel,
+>>>>>>> 8f591ff81 (Add util MiBToBytes)
 	}
 	return mountConfig
 }
