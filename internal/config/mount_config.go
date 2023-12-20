@@ -23,7 +23,7 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel int64 = math.MinInt64
-	// TtlInSecsUnset is the value internally set for
+	// TypeCacheMaxSizeInMbPerDirectoryUnset is the value internally set for
 	// metadata-cache:type-cache-max-size-mb-per-dir
 	// when it is not set in the gcsfuse mount config file.
 	// The constant value has been chosen deliberately to

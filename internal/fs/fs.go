@@ -701,7 +701,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.TypeCacheMaxSizeMbPerDirectory)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -724,7 +724,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.TypeCacheMaxSizeMbPerDirectory)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMbPerDirectory)
 
 	case inode.IsSymlink(ic.Object):
 		in = inode.NewSymlinkInode(
