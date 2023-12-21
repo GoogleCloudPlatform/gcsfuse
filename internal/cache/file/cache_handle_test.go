@@ -377,6 +377,86 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
+func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: cht.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           cht.object.Size,
+	}
+	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+
+	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0)
+
+	AssertEq(nil, err)
+}
+
+func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoNotPresent() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: cht.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+
+	_ = cht.cache.Erase(fileInfoKeyName)
+	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0)
+
+	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
+	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+}
+
+func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationChanged() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: cht.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation + 1,
+		FileSize:         cht.object.Size,
+		Offset:           cht.object.Size,
+	}
+	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+
+	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, int64(cht.object.Size-1))
+
+	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfo.ObjectGeneration)
+	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+}
+
+func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoHasLessOffset() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: cht.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           cht.object.Size - 5,
+	}
+	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+
+	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, int64(cht.object.Size))
+
+	expectedErr := fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, cht.object.Size, fileInfo.Offset)
+	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+}
+
 func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size + 1)

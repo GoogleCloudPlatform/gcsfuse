@@ -93,6 +93,44 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	return err
 }
 
+// checkEntryInFileInfoCache checks if entry is present for a given object in
+// file info cache with same generation and offset at least equal to
+// requiredOffset. It returns nil if entry is present, otherwise returns an error
+// with appropriate message.
+func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset int64) error {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: bucket.Name(),
+		ObjectName: object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		return fmt.Errorf("read: while creating key: %v", fileInfoKeyName)
+	}
+	// Look up of file being read in file info cache is required to update the LRU
+	// order on every read request from kernel i.e. with every read request from
+	// kernel, the file being read becomes most recently used.
+	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
+
+	// The offset and generation checks below are required because it may happen
+	// that file being read is evicted from cache during or after reading the
+	// required offset from local cached file to `dst` buffer in previous code
+	// block.
+	if fileInfo == nil {
+		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
+		return err
+	}
+	fileInfoData := fileInfo.(data.FileInfo)
+	if requiredOffset > int64(fileInfoData.Offset) {
+		err = fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, requiredOffset, fileInfoData.Offset)
+		return err
+	} else if fileInfoData.ObjectGeneration != object.Generation {
+		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
+		return err
+	}
+
+	return nil
+}
+
 // Read attempts to read the data from the cached location.
 // For sequential reads, it will wait to download the requested chunk
 // if it is not already present. For random reads, it does not wait for
@@ -151,7 +189,9 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	// We are here means, we have the data downloaded which kernel has asked for.
 	n, err = fch.fileHandle.ReadAt(dst, offset)
 	requestedNumBytes := int(requiredOffset - offset)
-	// Returns io.ErrUnexpectedEOF when buffer size is more than content to be read.
+	// dst buffer has fixed size of 1 MiB even when the offset is such that
+	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
+	// which should be ignored.
 	if err == io.EOF || err == io.ErrUnexpectedEOF {
 		err = nil
 	}
@@ -159,37 +199,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
 		return 0, errors.New(errMsg)
 	} else if n != requestedNumBytes {
+		// Ensure that the number of bytes read into dst buffer is equal to what is
+		// requested. It will also help catch cases where file in cache is truncated
+		// externally to size offset + x where x < requestedNumBytes.
 		errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
 		return 0, errors.New(errMsg)
 	}
 
-	fileInfoKey := data.FileInfoKey{
-		BucketName: bucket.Name(),
-		ObjectName: object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
+	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)
 	if err != nil {
-		return 0, fmt.Errorf("read: while creating key: %v", fileInfoKeyName)
-	}
-	// Look up of file being read in file info cache is required to update the LRU
-	// order on every read request from kernel i.e. with every read request from
-	// kernel, the file being read becomes most recently used.
-	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
-
-	// The offset and generation checks below are required because it may happen
-	// that file being read is evicted from cache during or after reading the
-	// required offset from local cached file to `dst` buffer in previous code
-	// block.
-	if fileInfo == nil {
-		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
-		return 0, err
-	}
-	fileInfoData := fileInfo.(data.FileInfo)
-	if requiredOffset > int64(fileInfoData.Offset) {
-		err = fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, requiredOffset, fileInfoData.Offset)
-		return 0, err
-	} else if fileInfoData.ObjectGeneration != object.Generation {
-		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
 		return 0, err
 	}
 
