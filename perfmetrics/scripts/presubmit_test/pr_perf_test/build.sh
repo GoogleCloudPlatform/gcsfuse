@@ -47,21 +47,14 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  echo "file-cache:
-       max-size-in-mb: 40960
-       download-file-for-random-read: true
-cache-location: ./tmp/cache-dir
-       " > /tmp/gcsfuse_config.yaml
-  GCSFUSE_FLAGS="--config-file /tmp/gcsfuse_config.yaml --implicit-dirs --max-conns-per-host 100"
+  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
-  git checkout change_lru_order
   # Running FIO test
   ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
-  sleep 10s
 }
 
 function install_requirements() {
@@ -85,7 +78,7 @@ if [[ "$perfTestStr" == *"$EXECUTE_PERF_TEST_LABEL"* ]];
 then
  # Executing perf tests for master branch
  install_requirements
- git checkout read_cache_release
+ git checkout master
  # Store results
  touch result.txt
  echo Mounting gcs bucket for master branch and execute tests
