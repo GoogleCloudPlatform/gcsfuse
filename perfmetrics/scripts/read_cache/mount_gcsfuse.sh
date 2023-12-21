@@ -64,6 +64,13 @@ mkdir -p $mount_dir
 if mountpoint -q -- "$mount_dir"; then
   echo "Unmounting previous mount..."
   umount $mount_dir
+
+  # Allowing sufficient time for the completion of the previous unmount process.
+  # Why? - Intermittent failures have been observed in the file-cache flow, particularly
+  # when the next mount occurs immediately after the unmount. By default, the unmount happens
+  # lazily, and during this process, the cache folder is deleted. This lazy deletion causes
+  # issues in the subsequent mount process.
+  sleep 10
 fi
 
 # Generate yml config.
