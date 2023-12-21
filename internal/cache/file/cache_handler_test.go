@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -226,7 +225,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfAlready() {
 	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_StaleEntry() {
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_GenerationChanged() {
 	// Existing cacheHandle.
 	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
 	AssertEq(nil, cacheHandle1.validateCacheHandle())
@@ -237,20 +236,6 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_StaleEntry() {
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
-}
-
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_InvalidEntry() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
-
-	chrT.object.Generation = chrT.object.Generation - 1
-
-	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
-
-	ExpectNe(nil, err)
-	errMsg := fmt.Sprintf("cache generation %d is more than object generation", chrT.object.Generation+1)
-	ExpectTrue(strings.Contains(err.Error(), errMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
@@ -287,7 +272,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGetsDelete
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneration() {
 	// Existing cacheHandle.
 	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 	AssertEq(nil, err)
@@ -302,17 +287,6 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsStaleEntry() 
 	ExpectEq(jobStatusOfOldHandle.Name, downloader.INVALID)
 	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
 	ExpectEq(jobStatusOfNewHandle.Name, downloader.NOT_STARTED)
-}
-
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsInvalidEntry() {
-	//  Cache contains higher generation
-	chrT.object.Generation = chrT.object.Generation - 1
-
-	_, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
-
-	ExpectNe(nil, err)
-	errMsg := fmt.Sprintf("cache generation %d is more than object generation", chrT.object.Generation+1)
-	ExpectTrue(strings.Contains(err.Error(), errMsg))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryAlreadyInCache() {

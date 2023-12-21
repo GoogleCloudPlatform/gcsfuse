@@ -139,8 +139,12 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 			return fmt.Errorf("addFileInfoEntryToCache: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
 		}
 
+		// Evict object in cache if the generation of object in cache is different
+		// from the generation of object in inode (we can't compare generations and
+		// decide to evict or not because generations are not always increasing:
+		// https://cloud.google.com/storage/docs/metadata#generation-number)
 		fileInfoData := fileInfo.(data.FileInfo)
-		if fileInfoData.ObjectGeneration < object.Generation {
+		if fileInfoData.ObjectGeneration != object.Generation {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
 				erasedFileInfo := erasedVal.(data.FileInfo)
@@ -150,8 +154,6 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 				}
 			}
 			addEntryToCache = true
-		} else if fileInfoData.ObjectGeneration > object.Generation {
-			return fmt.Errorf("addFileInfoEntryToCache: cache generation %d is more than object generation: %d", fileInfoData.ObjectGeneration, object.Generation)
 		}
 	}
 
