@@ -66,10 +66,13 @@ if mountpoint -q -- "$mount_dir"; then
   umount $mount_dir
 
   # Allowing sufficient time for the completion of the previous unmount process.
-  # Why? - Intermittent failures have been observed in the file-cache flow, particularly
-  # when the next mount occurs immediately after the unmount. By default, the unmount happens
-  # lazily, and during this process, the cache folder is deleted. This lazy deletion causes
-  # issues in the subsequent mount process.
+  # Why? - Sporadic failures have been observed within the file-cache flow, particularly
+  # when the subsequent mount operation immediately follows the unmount operation. By default,
+  # the unmount process occurs lazily, during which time the cache folder is deleted.
+  # This lazy deletion creates challenges in the subsequent mount process. Specifically,
+  # it is possible that the lazy deletion will delete a file after it has been created during
+  # the next mount operation. This results in an inconsistency where the fileInfoCache contains
+  # an entry for a file that is no longer present on the system.
   sleep 10
 fi
 
