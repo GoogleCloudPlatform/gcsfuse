@@ -56,8 +56,6 @@ The default behavior is appropriate, and brings significant performance benefits
 
 **Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
 
-**Note**: ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```. For now, for backward compatibility, the minimum of ```stat-cache-ttl``` and ```type-cache-ttl```, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
-
 **Stat caching**
 
 The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ```ls -l```, take quite a long time.
@@ -104,6 +102,8 @@ The behavior of type cache is controlled by the following flags/config parameter
 Warning: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
 - The type (file or directory) for any given path never changes.
+
+**Note**: ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```. For now, for backward compatibility, the minimum of ```stat-cache-ttl``` and ```type-cache-ttl```, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
 
 # Files and Directories
 
