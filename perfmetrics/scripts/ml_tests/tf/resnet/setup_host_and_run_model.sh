@@ -13,7 +13,7 @@ cd "$HOME/github/gcsfuse/"
 mkdir container_artifacts && mkdir container_artifacts/logs && mkdir container_artifacts/output
 
 echo "Building tf DLC docker image containing all tensorflow libraries..."
-sudo docker build . -f perfmetrics/scripts/ml_tests/tf/resnet/Dockerfile -t tf-dlc-gcsfuse --build-arg DLC_IMAGE_NAME=tf2-gpu.2-12.py310
+sudo docker build . -f perfmetrics/scripts/ml_tests/tf/resnet/Dockerfile -t tf-dlc-gcsfuse --build-arg DLC_IMAGE_NAME=tf-gpu.2-13
 
 echo "Running the docker image build in the previous step..."
 sudo docker run --gpus all --name tf_model_container --privileged -d \

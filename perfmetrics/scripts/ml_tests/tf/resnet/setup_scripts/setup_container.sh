@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Installs go1.21 on the container, builds gcsfuse using log_rotation file
-# and installs tf-models-official v2.12.0, makes update to include clear_kernel_cache
+# and installs tf-models-official v2.13.2, makes update to include clear_kernel_cache
 # and epochs functionality, and runs the model
 
 # Install go lang
@@ -34,7 +34,7 @@ nohup gcsfuse/gcsfuse --foreground \
       ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
-pip3 install --user tf-models-official==2.12.1
+pip3 install --user tf-models-official==2.13.2
 
 echo "Updating the tensorflow library code to bypass the kernel-cache..."
 # Fail building the container image if train_lib.py and controller.py are not at expected location.
