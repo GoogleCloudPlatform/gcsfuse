@@ -74,13 +74,9 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
 		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 	}
-
-	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory != TypeCacheMaxSizeInMbPerDirectoryUnsetSentinel {
-		if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
-			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
-		}
+	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
+		return fmt.Errorf(TypeCacheMaxSizeMbPerDirInvalidValueError)
 	}
-
 	return nil
 }
 

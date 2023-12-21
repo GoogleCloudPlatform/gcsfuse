@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"fmt"
 	"math"
 	"time"
 	unsafe "unsafe"
@@ -63,17 +64,20 @@ type typeCache struct {
 // Create a cache whose information expires with the supplied TTL. If the TTL
 // is zero, nothing will ever be cached.
 func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
-	if sizeInMB < -1 {
-		panic("unhandled scenario: type-cache-max-size-mb-per-dir < -1")
+	if ttl > 0 && sizeInMB != 0 {
+		if sizeInMB < -1 {
+			panic("unhandled scenario: type-cache-max-size-mb-per-dir < -1")
+		}
+		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1, increasing
+		if sizeInMB > 0 {
+			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
+		}
+		return typeCache{
+			ttl:     ttl,
+			entries: lru.NewCache(lruSizeInBytesToUse),
+		}
 	}
-	var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1, increasing 
-	if sizeInMB > 0 {
-		lruSizeInBytesToUse = util.MibToBytes(uint64(sizeInMB))
-	}
-	return typeCache{
-		ttl:     ttl,
-		entries: lru.NewCache(lruSizeInBytesToUse),
-	}
+	return typeCache{}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -82,23 +86,30 @@ func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
 
 // Insert inserts a record to the cache.
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
-	// Are we disabled?
-	if tc.ttl == 0 {
-		return
+	if tc.entries != nil {
+		_, err := tc.entries.Insert(name, cacheEntry{
+			expiry:    now.Add(tc.ttl),
+			inodeType: it,
+		})
+		if err != nil {
+			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))
+		}
 	}
-	tc.entries.Insert(name, cacheEntry{
-		expiry:    now.Add(tc.ttl),
-		inodeType: it,
-	})
 }
 
 // Erase erases all information about the supplied name.
 func (tc *typeCache) Erase(name string) {
-	tc.entries.Erase(name)
+	if tc.entries != nil {
+		tc.entries.Erase(name)
+	}
 }
 
 // Get gets the record for the given name.
 func (tc *typeCache) Get(now time.Time, name string) Type {
+	if tc.entries == nil {
+		return UnknownType
+	}
+
 	val := tc.entries.LookUp(name)
 	if val == nil {
 		return UnknownType
