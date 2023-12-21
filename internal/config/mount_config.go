@@ -17,11 +17,12 @@ package config
 import "math"
 
 const (
-	// TtlInSecsUnset is the value internally set for metada-cache:ttl-secs
+	// TtlInSecsUnsetSentinel is the value internally
+	// set for metada-cache:ttl-secs
 	// when it is not set in the gcsfuse mount config file.
-	// The constant value has been chosen deliberately to
+	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
-	TtlInSecsUnset int64 = math.MinInt64
+	TtlInSecsUnsetSentinel int64 = math.MinInt64
 )
 
 type WriteConfig struct {
@@ -68,7 +69,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds: TtlInSecsUnset,
+		TtlInSeconds: TtlInSecsUnsetSentinel,
 	}
 	return mountConfig
 }

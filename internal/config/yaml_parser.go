@@ -59,7 +59,7 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 }
 
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
-	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnset {
+	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
 		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 	}
 	return nil

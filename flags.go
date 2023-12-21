@@ -33,7 +33,7 @@ const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
 	// DefaultStatOrTypeCacheTTL is the default value used for
-	// stat-cache-ttl or type-cache if they have not been set
+	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 )
