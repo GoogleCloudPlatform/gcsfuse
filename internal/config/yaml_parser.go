@@ -83,7 +83,6 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
 		return fmt.Errorf(TypeCacheMaxSizeMbPerDirInvalidValueError)
 	}
-
 	return nil
 }
 
