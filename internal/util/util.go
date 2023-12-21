@@ -16,6 +16,7 @@ package util
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,6 +31,8 @@ const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 // Constants for read types - Sequential/Random
 const Sequential = "Sequential"
 const Random = "Random"
+
+const MaxMiBsInMaxUint64 uint64 = math.MaxUint64 >> 20
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
@@ -81,13 +84,13 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 	return
 }
 
-// MibToBytes returns the bytes equivalent
+// MiBsToBytes returns the bytes equivalent
 // of given no.s of MiBs (Mibi Bytes).
 // For reference, each MiB = 2^20 bytes.
-// It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
+// It supports only upto MaxMiBsInMaxUint64 (2^44-1) MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
-func MibToBytes(mib uint64) uint64 {
-	if mib > 0xFFFFFFFFFFF {
+func MiBsToBytes(mib uint64) uint64 {
+	if mib > MaxMiBsInMaxUint64 {
 		panic("Inputs above (2^44 - 1) not supported.")
 	}
 	return mib << 20

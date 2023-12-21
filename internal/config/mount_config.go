@@ -23,12 +23,10 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel int64 = math.MinInt64
-	// TypeCacheMaxSizeInMbPerDirectoryUnset is the value internally set for
+	// DefaultTypeCacheMaxSizeInMbPerDirectory is the value internally set for
 	// metadata-cache:type-cache-max-size-mb-per-dir
 	// when it is not set in the gcsfuse mount config file.
-	// The constant value has been chosen deliberately to
-	// to be improbable for a user to explicitly set.
-	TypeCacheMaxSizeInMbPerDirectoryUnset int = math.MinInt
+	DefaultTypeCacheMaxSizeInMbPerDirectory int = 16
 )
 
 type WriteConfig struct {
@@ -80,8 +78,8 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds: TtlInSecsUnsetSentinel,
-		TypeCacheMaxSizeMbPerDirectory: TypeCacheMaxSizeInMbPerDirectoryUnset,
+		TtlInSeconds:                   TtlInSecsUnsetSentinel,
+		TypeCacheMaxSizeMbPerDirectory: DefaultTypeCacheMaxSizeInMbPerDirectory,
 	}
 	return mountConfig
 }
