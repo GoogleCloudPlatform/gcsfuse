@@ -29,7 +29,7 @@ cd -
 # Create a directory for gcsfuse logs
 mkdir  run_artifacts/gcsfuse_logs
 
-config_filename=/pytorch_dino/gcsfuse/gcsfuse-config.yml
+config_filename=/pytorch_dino/gcsfuse/gcsfuse-config.yaml
 cat > $config_filename << EOF
 metadata-cache:
   ttl-secs: 1728000
