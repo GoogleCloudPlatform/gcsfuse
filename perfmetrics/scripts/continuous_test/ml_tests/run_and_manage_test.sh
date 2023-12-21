@@ -161,7 +161,7 @@ then
   echo "Trigger the build script on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 10 minutes for test VM to setup for test and to change the status from START to RUNNING."
-  sleep 180s
+  sleep 600s
 
   # If the model is still not running after waiting, then the build should fail.
   if [ $(get_run_status) != "RUNNING" ];
