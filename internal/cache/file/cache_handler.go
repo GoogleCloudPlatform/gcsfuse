@@ -111,9 +111,9 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 // addFileInfoEntryToCache adds a data.FileInfo entry for the given object and bucket
 // in the file info cache if it does not already exist. It also cleans up for entries
 // that are evicted at the time of adding new entry.
-// In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
-// it cleans up (job and local cache file) for the old entry and adds the new entry with the
-// latest generation to the cache.
+// In case the cache contains the data.FileInfo entry with different generation,
+// it cleans up (job and local cache file) the old entry and adds the new entry with the
+// given generation to the cache.
 //
 // Requires Lock(chr.mu)
 func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {
@@ -139,8 +139,12 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 			return fmt.Errorf("addFileInfoEntryToCache: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
 		}
 
+		// Evict object in cache if the generation of object in cache is different
+		// from the generation of object in inode (we can't compare generations and
+		// decide to evict or not because generations are not always increasing:
+		// https://cloud.google.com/storage/docs/metadata#generation-number)
 		fileInfoData := fileInfo.(data.FileInfo)
-		if fileInfoData.ObjectGeneration < object.Generation {
+		if fileInfoData.ObjectGeneration != object.Generation {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
 				erasedFileInfo := erasedVal.(data.FileInfo)
@@ -150,8 +154,6 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 				}
 			}
 			addEntryToCache = true
-		} else if fileInfoData.ObjectGeneration > object.Generation {
-			return fmt.Errorf("addFileInfoEntryToCache: cache generation %d is more than object generation: %d", fileInfoData.ObjectGeneration, object.Generation)
 		}
 	}
 
