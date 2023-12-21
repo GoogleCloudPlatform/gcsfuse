@@ -29,9 +29,15 @@ cd -
 # Create a directory for gcsfuse logs
 mkdir  run_artifacts/gcsfuse_logs
 
+config_filename=/pytorch_dino/gcsfuse/gcsfuse-config.yml
+cat > $config_filename << EOF
+metadata-cache:
+  ttl-secs: 1728000
+EOF
+echo "Created config-file at "$config_filename
+
 echo "Mounting GCSFuse..."
-nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
-        --stat-cache-ttl=1728000s \
+nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
@@ -40,6 +46,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --debug_gcs \
         --log-file run_artifacts/gcsfuse.log \
         --log-format text \
+        --config-file $config_filename \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
