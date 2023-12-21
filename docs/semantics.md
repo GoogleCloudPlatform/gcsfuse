@@ -73,8 +73,8 @@ The behavior of stat cache is controlled by the following flags/config parameter
     - This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though caching were disabled
 
 2. Stat-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
-   1. ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache. If this is <-1, then an error is thrown on mount. If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
-   2. ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
+   * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache. If this is <-1, then an error is thrown on mount. If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
+   * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
    
    Positive and negative stat results will be cached for the specified amount of time.
 
@@ -97,16 +97,9 @@ The negative result for ```foo/``` will be cached, but that only helps with the 
 To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When type cache is enabled, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
 
 The behavior of type cache is controlled by the following flags/config parameters:
-1. Type-cache capacity: The size of the type cache is **not configurable**. By default the type cache will hold up to 32768 items per directory. If you have folders containing more than 32768 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
-    - ListObjects will return information on the items within the folder. Each item's data is cached
-    - Because there are more objects than cache capacity, the earliest entries will be evicted
-    - The linux kernel then asks for a little more information on each file.
-    - As the earliest cache entries were evicted, this is a fresh List request
-    - This cycle repeats and sends a List request for every page in the folder, as though caching were disabled
-
-2. Type-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to inode type attributes. It can be set in one of the following two ways.
-   1. ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
-   2. ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
+1.  Type-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to inode type attributes. It can be set in one of the following two ways.
+    * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
+    * ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
 
 Warning: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
