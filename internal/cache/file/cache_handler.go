@@ -111,9 +111,9 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 // addFileInfoEntryToCache adds a data.FileInfo entry for the given object and bucket
 // in the file info cache if it does not already exist. It also cleans up for entries
 // that are evicted at the time of adding new entry.
-// In case if the cache contains the stale data.FileInfo entry (generation < object.generation)
-// it cleans up (job and local cache file) for the old entry and adds the new entry with the
-// latest generation to the cache.
+// In case the cache contains the data.FileInfo entry with different generation,
+// it cleans up (job and local cache file) the old entry and adds the new entry with the
+// given generation to the cache.
 //
 // Requires Lock(chr.mu)
 func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {

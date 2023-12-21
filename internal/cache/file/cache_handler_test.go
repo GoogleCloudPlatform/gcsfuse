@@ -276,7 +276,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneratio
 	// Existing cacheHandle.
 	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 	AssertEq(nil, err)
-	// Upgrade the version of the object, but cache still keeps old generation
+	// Change the version of the object, but cache still keeps old generation
 	chrT.object.Generation = chrT.object.Generation + 1
 
 	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
