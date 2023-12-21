@@ -278,7 +278,7 @@ func newApp() (app *cli.App) {
 				Name: "enable-nonexistent-type-cache",
 				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
 					" will be created. This also means new file/dir created might not be seen. For example, if this" +
-					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" flag is set, and metadata-cache:ttl-secs (in config-file) or flag type-cache-ttl are set, then if we create the same file/node" +
 					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
