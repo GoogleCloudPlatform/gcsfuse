@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"fmt"
 	"math"
 	"time"
 	unsafe "unsafe"
@@ -86,10 +87,13 @@ func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
 // Insert inserts a record to the cache.
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 	if tc.entries != nil {
-		tc.entries.Insert(name, cacheEntry{
+		_, err := tc.entries.Insert(name, cacheEntry{
 			expiry:    now.Add(tc.ttl),
 			inodeType: it,
 		})
+		if err != nil {
+			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))
+		}
 	}
 }
 
