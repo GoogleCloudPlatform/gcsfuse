@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"path"
 	"time"
 
@@ -89,11 +88,6 @@ func createStatCacheLru(statCacheCapacity int) *lru.Cache {
 		// This conversion from capacity to size will not be needed when
 		/// StatCacheCapacity is replaced with StatCacheSizeMB
 		statCacheSize = uint64(statCacheCapacity) * metadata.StatCacheEntrySize()
-	} else if statCacheCapacity == -1 {
-		// stat-cache-capacity at -1 implies that the stat-cache
-		// size is unlimited. Using MaxUint64
-		// here to represent infinity for all practical purposes.
-		statCacheSize = math.MaxUint64
 	}
 
 	var c *lru.Cache

@@ -52,10 +52,6 @@ func (t *BucketManagerTest) TestCreateStatCacheLru() {
 			isNil:    true,
 		},
 		{
-			capacity: -1,
-			isNil:    false,
-		},
-		{
 			capacity: 10,
 			isNil:    false,
 		},

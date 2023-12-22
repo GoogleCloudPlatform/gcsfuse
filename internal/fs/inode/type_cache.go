@@ -54,7 +54,7 @@ type typeCache struct {
 }
 
 // Create a cache whose information expires with the supplied TTL. If the TTL
-// is zero, nothing will ever be cached.
+// or size, either is zero, nothing will ever be cached.
 func newTypeCache(perTypeCapacity int, ttl time.Duration) typeCache {
 	return typeCache{
 		ttl:     ttl,
