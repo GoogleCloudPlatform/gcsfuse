@@ -120,11 +120,11 @@ func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs
 		return err
 	}
 	fileInfoData := fileInfo.(data.FileInfo)
-	if requiredOffset > int64(fileInfoData.Offset) {
-		err = fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, requiredOffset, fileInfoData.Offset)
-		return err
-	} else if fileInfoData.ObjectGeneration != object.Generation {
+	if fileInfoData.ObjectGeneration != object.Generation {
 		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
+		return err
+	} else if requiredOffset > int64(fileInfoData.Offset) {
+		err = fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, requiredOffset, fileInfoData.Offset)
 		return err
 	}
 
