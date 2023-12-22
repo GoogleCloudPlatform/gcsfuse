@@ -64,22 +64,25 @@ The default behavior is appropriate, and brings significant performance benefits
 
 **Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
 
-**Note**: ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```. For now, for backward compatibility, the minimum of ```stat-cache-ttl``` and ```type-cache-ttl```, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
-
 **Stat caching**
 
 The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ```ls -l```, take quite a long time.
 
-To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the ```--stat-cache-ttl``` flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
+To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
 
-```--stat-cache-ttl``` also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
+The behavior of stat cache is controlled by the following flags/config parameters:
+1. Stat-cache capacity: The size of the stat cache can be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
+    - ListObjects will return information on the items within the folder. Each item's data is cached
+    - Because there are more objects than cache capacity, the earliest entries will be evicted
+    - The linux kernel then asks for a little more information on each file.
+    - As the earliest cache entries were evicted, this is a fresh GetObjectDetails request
+    - This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though caching were disabled
 
-The size of the stat cache can also be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
-- ListObjects will return information on the items within the folder. Each item's data is cached
-- Because there are more objects than cache capacity, the earliest entries will be evicted
-- The linux kernel then asks for a little more information on each file.
-- As the earliest cache entries were evicted, this is a fresh GetObjectDetails request
-- This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though caching were disabled
+2. Stat-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
+   * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache. If this is <-1, then an error is thrown on mount. If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
+   * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
+   
+   Positive and negative stat results will be cached for the specified amount of time.
 
 Warning: Using stat caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
@@ -90,18 +93,25 @@ Warning: Using stat caching breaks the consistency guarantees discussed in this 
 
 Because Cloud Storage does not forbid an object named ```foo``` from existing next to an object named ```foo/``` (see the Name conflicts section), when Cloud Storage FUSE is asked to look up the name "foo" it must stat both objects.
 
-Stat cache enabled with ```--stat-cache-ttl``` can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named ```foo/```, and the stat cache is enabled. When the user runs ```ls -l```, the following happens:
+Stat cache can help with this, but it does not help until after the first request. For example, assume that there is an object named foo but not one named ```foo/```, and the stat cache is enabled. When the user runs ```ls -l```, the following happens:
 - The objects in the bucket are listed. This causes a stat cache entry for ```foo``` to be created.
 - ```ls``` asks to stat the name ```foo```, causing a lookup request to be sent for that name.
 - Cloud Storage FUSE sends Cloud Storage stat requests for the object named ```foo``` and the object named ```foo/```. The first will hit in the stat cache, but the second will have to go all the way to Cloud Storage to receive a negative result.
 
 The negative result for ```foo/``` will be cached, but that only helps with the second invocation of ```ls -l```.
 
-To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When ```--type-cache-ttl``` is set, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
+To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When type cache is enabled, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
+
+The behavior of type cache is controlled by the following flags/config parameters:
+1.  Type-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to inode type attributes. It can be set in one of the following two ways.
+    * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
+    * ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
 
 Warning: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
 - The type (file or directory) for any given path never changes.
+
+**Note**: ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```. For now, for backward compatibility, the minimum of ```stat-cache-ttl``` and ```type-cache-ttl```, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
 
 # Files and Directories
 

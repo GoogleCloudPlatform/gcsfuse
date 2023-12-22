@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -105,6 +106,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
 	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+
+	// metadata-cache config
+	AssertEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -138,3 +142,17 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-in-mb for file-cache can't be less than -1"))
 }
 
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
+	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
+
+	AssertNe(nil, err)
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsInvalidValueError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
+	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_ttl-unset.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
+}
