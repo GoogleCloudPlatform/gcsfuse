@@ -62,8 +62,7 @@ type MetadataCacheConfig struct {
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
 	// TypeCacheMaxSizeMb is the upper limit
 	// on the maximum size of type-cache maps,
-	// which are currently
-	// maintained at per-directory level.
+	// which is maintained at gcsfuse-mount-level.
 	TypeCacheMaxSizeMb int `yaml:"type-cache-max-size-mb,omitempty"`
 }
 

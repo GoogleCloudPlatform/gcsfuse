@@ -94,7 +94,7 @@ func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
 	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeInMb, typeCacheTTL)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMbPerDirectory int, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMb int, typeCacheTTL time.Duration) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -113,7 +113,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMbPerDirectory)
+		typeCacheMaxSizeMb)
 
 	t.d = t.in.(*dirInode)
 	AssertNe(nil, t.d)
