@@ -193,16 +193,18 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
 	// which should be ignored.
 	if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if n != requestedNumBytes {
+			// Ensure that the number of bytes read into dst buffer is equal to what is
+			// requested. It will also help catch cases where file in cache is truncated
+			// externally to size offset + x where x < requestedNumBytes.
+			errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
+			return 0, errors.New(errMsg)
+		}
 		err = nil
 	}
+
 	if err != nil {
 		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
-		return 0, errors.New(errMsg)
-	} else if n != requestedNumBytes {
-		// Ensure that the number of bytes read into dst buffer is equal to what is
-		// requested. It will also help catch cases where file in cache is truncated
-		// externally to size offset + x where x < requestedNumBytes.
-		errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
 		return 0, errors.New(errMsg)
 	}
 
