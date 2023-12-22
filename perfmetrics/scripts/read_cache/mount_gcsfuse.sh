@@ -32,8 +32,7 @@ download_for_random_read=false
 max_size_in_mb=100
 cache_location=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
-stat_cache_ttl=168h # 1 week
-type_cache_ttl=168h # 1 week
+stat_or_type_cache_ttl_secs=6048000 # 168h or 1 week
 stat_cache_capacity=1200000 # 1 million + buffer 200k
 enable_log=0
 
@@ -80,6 +79,7 @@ fi
 export MAX_SIZE_IN_MB="${max_size_in_mb}"
 export DOWNLOAD_FOR_RANDOM_READ="${download_for_random_read}"
 export CACHE_LOCATION="${cache_location}"
+export TTL_SECS="${stat_or_type_cache_ttl_secs}"
 ./generate_yml_config.sh
 
 debug_flags=""
@@ -90,9 +90,7 @@ fi
 # Mount gcsfuse
 echo "Mounting gcsfuse..."
 gcsfuse --stackdriver-export-interval 30s \
-        --stat-cache-ttl $stat_cache_ttl \
         --stat-cache-capacity $stat_cache_capacity \
-        --type-cache-ttl $type_cache_ttl \
         $debug_flags \
         --log-file $WORKING_DIR/gcsfuse_logs.txt \
         --log-format text \

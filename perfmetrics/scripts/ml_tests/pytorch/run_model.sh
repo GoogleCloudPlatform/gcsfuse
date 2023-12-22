@@ -37,7 +37,8 @@ then
   TEST_BUCKET="gcsfuse-ml-data-asia-northeast1"
 fi
 
-echo "Mounting GCSFuse..."
+config_filename=/tmp/gcsfuse_config.yaml
+
 echo "logging:
         file-path: run_artifacts/gcsfuse.log
         format: text
@@ -46,9 +47,13 @@ echo "logging:
           max-file-size-mb: 1024
           backup-file-count: 3
           compress: true
+metadata-cache:
+  ttl-secs: 1728000
        " > /tmp/gcsfuse_config.yaml
-nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
-        --stat-cache-ttl=1728000s \
+
+echo "Created config-file at "$config_filename
+echo "Mounting GCSFuse..."
+nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \

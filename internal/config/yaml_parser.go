@@ -35,6 +35,8 @@ const (
 	OFF     LogSeverity = "OFF"
 
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
+
+	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -64,6 +66,13 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 func (fileCacheConfig *FileCacheConfig) validate() error {
 	if fileCacheConfig.MaxSizeInMB < -1 {
 		return fmt.Errorf("the value of max-size-in-mb for file-cache can't be less than -1")
+	}
+	return nil
+}
+
+func (metadataCacheConfig *MetadataCacheConfig) validate() error {
+	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
+		return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 	}
 	return nil
 }
@@ -107,6 +116,10 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 
 	if err = mountConfig.FileCacheConfig.validate(); err != nil {
 		return mountConfig, fmt.Errorf("error parsing file-cache configs: %v", err)
+	}
+
+	if err = mountConfig.MetadataCacheConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %v", err)
 	}
 	return
 }
