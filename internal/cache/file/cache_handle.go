@@ -94,9 +94,8 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 }
 
 // checkEntryInFileInfoCache checks if entry is present for a given object in
-// file info cache with same generation and offset at least equal to
-// requiredOffset. It returns nil if entry is present, otherwise returns an error
-// with appropriate message.
+// file info cache with same generation. It returns nil if entry is present,
+// otherwise returns an error with appropriate message.
 func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset int64) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
@@ -111,20 +110,17 @@ func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs
 	// kernel, the file being read becomes most recently used.
 	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
 
-	// The offset and generation checks below are required because it may happen
-	// that file being read is evicted from cache during or after reading the
-	// required offset from local cached file to `dst` buffer in previous code
-	// block.
+	// The generation check below is required because it may happen that file
+	// being read is evicted from cache during or after reading the required offset
+	// from local cached file to `dst` buffer.
 	if fileInfo == nil {
 		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 		return err
 	}
+
 	fileInfoData := fileInfo.(data.FileInfo)
 	if fileInfoData.ObjectGeneration != object.Generation {
 		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
-		return err
-	} else if requiredOffset > int64(fileInfoData.Offset) {
-		err = fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, requiredOffset, fileInfoData.Offset)
 		return err
 	}
 

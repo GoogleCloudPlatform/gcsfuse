@@ -435,28 +435,6 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationCha
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoHasLessOffset() {
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	fileInfo := data.FileInfo{
-		Key:              fileInfoKey,
-		ObjectGeneration: cht.object.Generation,
-		FileSize:         cht.object.Size,
-		Offset:           cht.object.Size - 5,
-	}
-	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
-	AssertEq(nil, err)
-
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, int64(cht.object.Size))
-
-	expectedErr := fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, cht.object.Size, fileInfo.Offset)
-	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
-}
-
 func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size + 1)
@@ -661,34 +639,5 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration)
-	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
-}
-
-func (cht *cacheHandleTest) Test_Read_FileInfoOffsetChanged() {
-	dst := make([]byte, ReadContentSize)
-	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.downloadFileForRandomRead = true
-	// First let the cache populated (we are doing this so that we can externally
-	// modify file info cache for this unit test without hampering download job).
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
-	AssertEq(nil, err)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectGe(jobStatus.Offset, ReadContentSize)
-	fileInfoKey := data.FileInfoKey{
-		BucketName: cht.bucket.Name(),
-		ObjectName: cht.object.Name,
-	}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	fileInfo := cht.cache.LookUp(fileInfoKeyName)
-	fileInfoData := fileInfo.(data.FileInfo)
-
-	// Update the file info entry offset and again perform read
-	fileInfoData.Offset = 1
-	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfoData)
-	AssertEq(nil, err)
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
-
-	expectedErr := fmt.Errorf("%v: required offset: %v is greater than offset in cache: %v", util.FallbackToGCSErrMsg, ReadContentSize, fileInfoData.Offset)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 }
