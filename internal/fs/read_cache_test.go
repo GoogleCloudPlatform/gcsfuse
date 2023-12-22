@@ -184,6 +184,63 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	AssertTrue(reflect.DeepEqual(cachedContent[offsetForRandom:offsetForRandom+util.MiB], buf))
 }
 
+func (t *FileCacheTest) ReadShouldChangeLRU() {
+	objectName1 := DefaultObjectName + "1"
+	objectContent1 := generateRandomString(DefaultObjectSizeInMb * util.MiB)
+	objectName2 := DefaultObjectName + "2"
+	objectContent2 := generateRandomString((FileCacheSizeInMb - DefaultObjectSizeInMb) * util.MiB)
+	objectName3 := DefaultObjectName + "3"
+	objectContent3 := generateRandomString(DefaultObjectSizeInMb * util.MiB)
+	// Check that file 3 size should be <= min(file size 1, file size 2)
+	AssertLe(len(objectContent3), len(objectContent1))
+	AssertLe(len(objectContent3), len(objectContent2))
+	objects := map[string]string{objectName1: objectContent1, objectName2: objectContent2, objectName3: objectContent3}
+	err := t.createObjects(objects)
+	AssertEq(nil, err)
+	// Open and read files for object 1 & 2, filet 1 should be LRU after that.
+	buf := make([]byte, 10)
+	fileHandle1, err := os.OpenFile(path.Join(mntDir, objectName1), os.O_RDONLY|syscall.O_DIRECT, 0644)
+	defer closeFile(fileHandle1)
+	AssertEq(nil, err)
+	_, err = fileHandle1.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertEq(string(buf), objectContent1[0:len(buf)])
+	fileHandle2, err := os.OpenFile(path.Join(mntDir, objectName2), os.O_RDONLY|syscall.O_DIRECT, 0644)
+	defer closeFile(fileHandle2)
+	AssertEq(nil, err)
+	_, err = fileHandle2.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertEq(string(buf), objectContent2[0:len(buf)])
+	// Assert cache files are created.
+	objectPath1 := util.GetObjectPath(bucket.Name(), objectName1)
+	downloadPath1 := util.GetDownloadPath(FileCacheLocation, objectPath1)
+	objectPath2 := util.GetObjectPath(bucket.Name(), objectName2)
+	downloadPath2 := util.GetDownloadPath(FileCacheLocation, objectPath2)
+	_, err = os.Stat(downloadPath1)
+	AssertEq(nil, err)
+	_, err = os.Stat(downloadPath2)
+	AssertEq(nil, err)
+
+	// Read file 1, so file 2 becomes LRU and then read file 3. Doing this should
+	// evict file 2 and not file 1.
+	_, err = fileHandle1.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertEq(string(buf), objectContent1[0:len(buf)])
+	fileHandle3, err := os.OpenFile(path.Join(mntDir, objectName3), os.O_RDONLY|syscall.O_DIRECT, 0644)
+	defer closeFile(fileHandle3)
+	AssertEq(nil, err)
+	_, err = fileHandle3.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	AssertEq(string(buf), objectContent3[0:len(buf)])
+
+	// Cache for file 2 should be evicted.
+	_, err = os.Stat(downloadPath2)
+	AssertTrue(os.IsNotExist(err))
+	// Cache for file 1 shouldn't be evicted.
+	_, err = os.Stat(downloadPath1)
+	AssertEq(nil, err)
+}
+
 func (t *FileCacheTest) SequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheLocation)
 }

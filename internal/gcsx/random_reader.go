@@ -219,7 +219,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 	}
 
-	n, err = rr.fileCacheHandle.Read(ctx, rr.object, offset, p)
+	n, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
 	if err == nil {
 		cacheHit = true
 		return

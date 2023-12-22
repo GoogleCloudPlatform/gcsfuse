@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
@@ -92,12 +93,46 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	return err
 }
 
+// checkEntryInFileInfoCache checks if entry is present for a given object in
+// file info cache with same generation. It returns nil if entry is present,
+// otherwise returns an error with appropriate message.
+func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset int64) error {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: bucket.Name(),
+		ObjectName: object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	if err != nil {
+		return fmt.Errorf("read: while creating key: %v", fileInfoKeyName)
+	}
+	// Look up of file being read in file info cache is required to update the LRU
+	// order on every read request from kernel i.e. with every read request from
+	// kernel, the file being read becomes most recently used.
+	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
+
+	// The generation check below is required because it may happen that file
+	// being read is evicted from cache during or after reading the required offset
+	// from local cached file to `dst` buffer.
+	if fileInfo == nil {
+		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
+		return err
+	}
+
+	fileInfoData := fileInfo.(data.FileInfo)
+	if fileInfoData.ObjectGeneration != object.Generation {
+		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
+		return err
+	}
+
+	return nil
+}
+
 // Read attempts to read the data from the cached location.
 // For sequential reads, it will wait to download the requested chunk
 // if it is not already present. For random reads, it does not wait for
 // download. Additionally, for random reads, the download will not be
 // initiated if fch.downloadFileForRandomRead is false.
-func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset int64, dst []byte) (n int, err error) {
+func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
@@ -148,28 +183,29 @@ func (fch *CacheHandle) Read(ctx context.Context, object *gcs.MinObject, offset 
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
-	_, err = fch.fileHandle.Seek(offset, 0)
-	if err != nil {
-		errMsg := fmt.Sprintf("%s: while seeking for %d offset in local file: %v", util.ErrInSeekingFileHandleMsg, offset, err)
-		return 0, errors.New(errMsg)
-	}
-
-	n, err = io.ReadFull(fch.fileHandle, dst)
-	// Returns io.ErrUnexpectedEOF when buffer size is more than content to be read.
+	n, err = fch.fileHandle.ReadAt(dst, offset)
+	requestedNumBytes := int(requiredOffset - offset)
+	// dst buffer has fixed size of 1 MiB even when the offset is such that
+	// offset + 1 MiB > object size. In that case, io.ErrUnexpectedEOF is thrown
+	// which should be ignored.
 	if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if n != requestedNumBytes {
+			// Ensure that the number of bytes read into dst buffer is equal to what is
+			// requested. It will also help catch cases where file in cache is truncated
+			// externally to size offset + x where x < requestedNumBytes.
+			errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
+			return 0, errors.New(errMsg)
+		}
 		err = nil
 	}
+
 	if err != nil {
 		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
 		return 0, errors.New(errMsg)
 	}
 
-	// The job state may change while reading data from the local downloaded file. This may be
-	// due to a failure in the download job, or cache eviction due to another file. In this case,
-	// we will check the job state again after reading the data, and fall back to the normal flow
-	// if job status is invalid or failed.
-	jobStatus = fch.fileDownloadJob.GetStatus()
-	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
+	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)
+	if err != nil {
 		return 0, err
 	}
 
