@@ -29,7 +29,14 @@ import (
 )
 
 // Defines the max value supported by sequential-read-size-mb flag.
-const maxSequentialReadSizeMb = 1024
+const (
+	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
+	maxSequentialReadSizeMb = 1024
+	// DefaultStatOrTypeCacheTTL is the default value used for
+	// stat-cache-ttl or type-cache-ttl if they have not been set
+	// by the user.
+	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+)
 
 // Set up custom help text for gcsfuse; in particular the usage section.
 func init() {
@@ -208,13 +215,13 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
-				Value: time.Minute,
+				Value: DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
-				Value: time.Minute,
+				Value: DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
@@ -271,7 +278,7 @@ func newApp() (app *cli.App) {
 				Name: "enable-nonexistent-type-cache",
 				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
 					" will be created. This also means new file/dir created might not be seen. For example, if this" +
-					" flag is set, and flag type-cache-ttl is set to 10 minutes, then if we create the same file/node" +
+					" flag is set, and metadata-cache:ttl-secs (in config-file) or flag type-cache-ttl are set, then if we create the same file/node" +
 					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
@@ -383,8 +390,7 @@ type flagStorage struct {
 	// Tuning
 	MaxRetrySleep              time.Duration
 	StatCacheCapacity          int
-	StatCacheTTL               time.Duration
-	TypeCacheTTL               time.Duration
+	StatOrTypeCacheTTL         time.Duration
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -496,8 +502,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               minTTL,
-		TypeCacheTTL:               minTTL,
+		StatOrTypeCacheTTL:         minTTL,
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
@@ -543,10 +548,6 @@ func validateFlags(flags *flagStorage) (err error) {
 
 	if !flags.ClientProtocol.IsValid() {
 		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
-	}
-
-	if flags.StatCacheTTL != flags.TypeCacheTTL {
-		err = fmt.Errorf("internal values of StatCacheTTL (%v) and TypeCacheTTL (%v) don't match", flags.StatCacheTTL, flags.TypeCacheTTL)
 	}
 
 	return

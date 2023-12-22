@@ -8,3 +8,5 @@ cache-location: "/tmp/read_cache/"
 file-cache:
   max-size-in-mb: 100
   download-file-for-random-read: true
+metadata-cache:
+  ttl-secs: 5

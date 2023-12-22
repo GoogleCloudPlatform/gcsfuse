@@ -22,10 +22,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -203,6 +205,19 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+
+	// if metadata-cache:ttl-secs has been set in config-file, then
+	// switch metadata cache ttls (stat-cache-ttl and type-cache-tll)
+	// to that as that takes precedence over both stat-cache-ttl and
+	// type-cache-tll.
+	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnsetSentinel {
+		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
+		if mountConfig.MetadataCacheConfig.TtlInSeconds == -1 {
+			flags.StatOrTypeCacheTTL = time.Duration(math.MaxInt64)
+		} else {
+			flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
+		}
+	}
 
 	err = util.ResolveConfigFilePaths(mountConfig)
 	if err != nil {
