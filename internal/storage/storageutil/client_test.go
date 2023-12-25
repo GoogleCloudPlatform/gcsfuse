@@ -15,13 +15,13 @@
 package storageutil
 
 import (
-	"golang.org/x/oauth2"
 	"net/http"
 	"net/url"
 	"testing"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"golang.org/x/oauth2"
 )
 
 func TestClient(t *testing.T) { RunTests(t) }
