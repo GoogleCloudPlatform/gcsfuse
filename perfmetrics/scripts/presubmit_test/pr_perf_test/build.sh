@@ -24,6 +24,7 @@ sudo apt-get install git
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 echo "Branch name: " $BRANCH_NAME
+commitId=$(git log read_cache_release --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 #echo "Building and installing gcsfuse..."
 #chmod +x perfmetrics/scripts/build_and_install_package.sh
 #./perfmetrics/scripts/build_and_install_package.sh
