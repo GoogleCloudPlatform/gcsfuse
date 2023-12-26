@@ -23,6 +23,7 @@ echo "Installing git"
 sudo apt-get install git
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
+echo "Branch name: " $BRANCH_NAME
 #echo "Building and installing gcsfuse..."
 #chmod +x perfmetrics/scripts/build_and_install_package.sh
 #./perfmetrics/scripts/build_and_install_package.sh
