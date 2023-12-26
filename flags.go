@@ -16,8 +16,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -562,4 +564,21 @@ func (oi *OctalInt) Set(value string) (err error) {
 
 func (oi OctalInt) String() string {
 	return fmt.Sprintf("%o", oi)
+}
+
+func (fs *flagStorage) LogAllFlags() {
+	logger.Info(fs.toString())
+}
+
+func (fs *flagStorage) toString() string {
+	elem := reflect.ValueOf(fs).Elem()
+	var result []string
+
+	for index := 0; index < elem.NumField(); index++ {
+		fieldName := elem.Type().Field(index).Name
+		fieldValue := elem.Field(index).Interface()
+		result = append(result, fmt.Sprintf("%s=%v", fieldName, fieldValue))
+	}
+
+	return strings.Join(result, ", ")
 }
