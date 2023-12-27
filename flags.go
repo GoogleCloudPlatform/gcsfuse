@@ -569,17 +569,34 @@ func (oi OctalInt) String() string {
 
 func (fs *flagStorage) LogAllFlags() {
 	logger.Info("Loading following config for gcsfuse: ")
-	logger.Info(fs.toString())
+	logger.Info(Stringify(fs))
 }
 
-func (fs *flagStorage) toString() string {
-	elem := reflect.ValueOf(fs).Elem()
+func Stringify(input interface{}) string {
+	v := reflect.ValueOf(input)
+
+	if v.Kind() != reflect.Ptr {
+		fmt.Errorf("Not Supported Type; is %s", input)
+		return ""
+	}
+	elem := v.Elem()
+	if elem.Kind() != reflect.Struct {
+		fmt.Errorf("Not Supported Type; is %s", elem.Kind())
+		return ""
+	}
+	//	elem := value.Elem()
 	var result []string
 
 	for index := 0; index < elem.NumField(); index++ {
 		fieldName := elem.Type().Field(index).Name
 		fieldValue := elem.Field(index).Interface()
-		result = append(result, fmt.Sprintf("%s=%v", fieldName, fieldValue))
+
+		if elem.Field(index).Kind() == reflect.Struct {
+			nestedValue := Stringify(elem.Field(index).Interface())
+			fieldValue = fmt.Sprintf("{ %s }", nestedValue)
+		}
+
+		result = append(result, fmt.Sprintf("%s = %v", fieldName, fieldValue))
 	}
 
 	return strings.Join(result, ", ")
