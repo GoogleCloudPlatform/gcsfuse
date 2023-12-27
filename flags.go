@@ -18,12 +18,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -565,39 +562,4 @@ func (oi *OctalInt) Set(value string) (err error) {
 
 func (oi OctalInt) String() string {
 	return fmt.Sprintf("%o", oi)
-}
-
-func (fs *flagStorage) LogAllFlags() {
-	logger.Info("Loading following config for gcsfuse: ")
-	logger.Info(Stringify(fs))
-}
-
-func Stringify(input interface{}) string {
-	v := reflect.ValueOf(input)
-
-	if v.Kind() != reflect.Ptr {
-		fmt.Errorf("Not Supported Type; is %s", input)
-		return ""
-	}
-	elem := v.Elem()
-	if elem.Kind() != reflect.Struct {
-		fmt.Errorf("Not Supported Type; is %s", elem.Kind())
-		return ""
-	}
-	//	elem := value.Elem()
-	var result []string
-
-	for index := 0; index < elem.NumField(); index++ {
-		fieldName := elem.Type().Field(index).Name
-		fieldValue := elem.Field(index).Interface()
-
-		if elem.Field(index).Kind() == reflect.Struct {
-			nestedValue := Stringify(elem.Field(index).Interface())
-			fieldValue = fmt.Sprintf("{ %s }", nestedValue)
-		}
-
-		result = append(result, fmt.Sprintf("%s = %v", fieldName, fieldValue))
-	}
-
-	return strings.Join(result, ", ")
 }

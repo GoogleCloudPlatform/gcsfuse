@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -359,22 +358,4 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
-}
-
-func (t *FlagsTest) TestVerifyFlagStorageToStringIsReturningAllFlags() {
-	mountOptions := map[string]string{
-		"1": "one",
-		"2": "two",
-		"3": "three",
-	}
-	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http4"),
-		MountOptions:         mountOptions,
-	}
-
-	actual := Stringify(flags)
-
-	expected := "AppName = , Foreground = false, ConfigFile = , MountOptions = map[1:one 2:two 3:three], DirMode = ----------, FileMode = ----------, Uid = 0, Gid = 0, ImplicitDirs = false, OnlyDir = , RenameDirLimit = 0, CustomEndpoint = <nil>, BillingProject = , KeyFile = , TokenUrl = , ReuseTokenFromUrl = false, EgressBandwidthLimitBytesPerSecond = 0, OpRateLimitHz = 0, SequentialReadSizeMb = 10, MaxRetrySleep = 0s, StatCacheCapacity = 0, StatCacheTTL = 0s, TypeCacheTTL = 0s, HttpClientTimeout = 0s, MaxRetryDuration = 0s, RetryMultiplier = 0, LocalFileCache = false, TempDir = , ClientProtocol = http4, MaxConnsPerHost = 0, MaxIdleConnsPerHost = 0, EnableNonexistentTypeCache = false, StackdriverExportInterval = 0s, OtelCollectorAddress = , LogFile = , LogFormat = , ExperimentalEnableJsonRead = false, DebugFuseErrors = false, DebugFuse = false, DebugFS = false, DebugGCS = false, DebugHTTP = false, DebugInvariants = false, DebugMutex = false"
-	AssertEq(strings.TrimSpace(expected), strings.TrimSpace(actual))
 }
