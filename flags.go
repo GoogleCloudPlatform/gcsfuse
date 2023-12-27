@@ -567,6 +567,7 @@ func (oi OctalInt) String() string {
 }
 
 func (fs *flagStorage) LogAllFlags() {
+	logger.Info("Loading following config for gcsfuse: ")
 	logger.Info(fs.toString())
 }
 
