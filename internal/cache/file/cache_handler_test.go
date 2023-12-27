@@ -448,10 +448,6 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 	AssertEq(nil, err)
 	ExpectEq(false, cacheHit)
 	AssertEq(string(objectContent[:3]), string(buf))
-	_, cacheHit, err = cacheHandle.Read(ctx, chrT.bucket, minObject, 0, buf)
-	AssertEq(nil, err)
-	ExpectEq(true, cacheHit)
-	AssertEq(string(objectContent[:3]), string(buf))
 	AssertEq(nil, cacheHandle.Close())
 	// Open cache file before invalidation
 	objectPath := util.GetObjectPath(chrT.bucket.Name(), minObject.Name)

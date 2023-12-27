@@ -94,7 +94,6 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	AssertEq(nil, err)
 	_, err = io.ReadFull(cht.cacheHandle.fileHandle, buf)
 	AssertEq(nil, err)
-	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
 
@@ -536,7 +535,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHitInCan
 	ExpectTrue(jobStatus.Name == downloader.CANCELLED)
 	ExpectGe(jobStatus.Offset, offset)
 	ExpectEq(nil, err)
-	ExpectFalse(cacheHit)
+	ExpectTrue(cacheHit)
 	cht.verifyContentRead(offset, dst)
 }
 
@@ -623,8 +622,8 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
-	AssertFalse(cacheHit)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+	AssertFalse(cacheHit)
 }
 
 func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
@@ -656,4 +655,28 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 	AssertFalse(cacheHit)
+}
+
+func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.downloadFileForRandomRead = true
+
+	// First read should be cache miss.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectGe(jobStatus.Offset, offset)
+	ExpectEq(n, ReadContentSize)
+	cht.verifyContentRead(offset, dst[:n])
+	ExpectFalse(cacheHit)
+	ExpectEq(nil, err)
+
+	// Second read should be cache hit.
+	n, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	ExpectEq(n, ReadContentSize)
+	ExpectTrue(cacheHit)
+	ExpectEq(nil, err)
 }

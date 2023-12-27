@@ -710,12 +710,6 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialFullObject() {
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent, buf))
-
-	_, cacheHit, err = t.rr.ReadAt(buf, 0)
-
-	ExpectTrue(cacheHit)
-	ExpectEq(nil, err)
-	ExpectTrue(reflect.DeepEqual(testContent, buf))
 }
 
 func (t *RandomReaderTest) Test_ReadAt_SequentialRangeRead() {
@@ -733,12 +727,6 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialRangeRead() {
 	_, cacheHit, err := t.rr.ReadAt(buf, int64(start))
 
 	ExpectFalse(cacheHit)
-	ExpectEq(nil, err)
-	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
-
-	_, cacheHit, err = t.rr.ReadAt(buf, int64(start))
-
-	ExpectTrue(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
 }
@@ -767,7 +755,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanRea
 	// Assuming start2 offset download in progress
 	_, cacheHit, err = t.rr.ReadAt(buf2, int64(start2))
 
-	ExpectFalse(cacheHit)
+	ExpectTrue(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start2:end2], buf2))
 }
@@ -883,7 +871,7 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetLes
 	_, cacheHit, err = t.rr.ReadAt(buf3, int64(start3))
 
 	ExpectEq(nil, err)
-	ExpectFalse(cacheHit)
+	ExpectTrue(cacheHit)
 	ExpectTrue(reflect.DeepEqual(testContent[start3:end3], buf3))
 }
 
@@ -897,7 +885,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	buf := make([]byte, objectSize)
 	_, cacheHit, err := t.rr.ReadAt(buf, 0)
 	AssertEq(nil, err)
-	AssertFalse(cacheHit)
+	ExpectFalse(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()

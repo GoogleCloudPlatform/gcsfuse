@@ -263,7 +263,7 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 	// data was served from cache.
-	if n != 0 {
+	if n == len(p) {
 		return
 	}
 
