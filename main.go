@@ -190,7 +190,8 @@ func stringify(input any) string {
 	inputBytes, err := json.Marshal(input)
 
 	if err != nil {
-		logger.Errorf("Cannot marshal %v", err)
+		logger.Errorf("Error in stringify %v", err)
+		return ""
 	}
 	return string(inputBytes)
 }
