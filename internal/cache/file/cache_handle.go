@@ -161,25 +161,26 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		requiredOffset = objSize
 	}
 
+	jobStatus := fch.fileDownloadJob.GetStatus()
 	// If downloadFileForRandomRead is false and readType is random, download will not be initiated.
 	if !fch.downloadFileForRandomRead && !isSequentialRead {
-		jobStatus := fch.fileDownloadJob.GetStatus()
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 			return 0, false, err
 		}
 	}
 
+	if jobStatus.Offset >= offset+requiredOffset {
+		cacheHit = true
+	}
+
 	fch.prevOffset = offset
 
-	jobStatus, err := fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
+	jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 	if err != nil {
 		n = 0
 		cacheHit = false
 		err = fmt.Errorf("read: while downloading through job: %v", err)
 		return
-	}
-	if jobStatus.Name == downloader.COMPLETED {
-		cacheHit = true
 	}
 
 	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
