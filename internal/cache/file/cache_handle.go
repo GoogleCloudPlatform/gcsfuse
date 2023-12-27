@@ -169,7 +169,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		}
 	}
 
-	if jobStatus.Offset >= offset+requiredOffset {
+	if jobStatus.Offset >= requiredOffset {
 		cacheHit = true
 	}
 
