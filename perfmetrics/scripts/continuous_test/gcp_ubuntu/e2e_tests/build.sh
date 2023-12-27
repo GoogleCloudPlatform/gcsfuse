@@ -26,7 +26,7 @@ commitId=$(git log origin/$BRANCH_NAME --before='yesterday 23:59:59' --max-count
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
 # To execute tests for a specific branch, ensure you've checked out from that branch first.
-git checkout $BRANCH_NAME
+git checkout origin/$BRANCH_NAME
 
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
