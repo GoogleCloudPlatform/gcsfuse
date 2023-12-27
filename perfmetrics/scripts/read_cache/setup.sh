@@ -83,7 +83,7 @@ CGO_ENABLED=0 go install github.com/googlecloudplatform/gcsfuse@read_cache_relea
 
 # Clone gcsfuse to get fio load test script.
 if [ ! -d "./gcsfuse" ]; then
-  git clone -b  fio_load_test_script https://github.com/GoogleCloudPlatform/gcsfuse.git
+  git clone -b  read_cache_release https://github.com/GoogleCloudPlatform/gcsfuse.git
 fi
 
 # Mount gcsfuse.
