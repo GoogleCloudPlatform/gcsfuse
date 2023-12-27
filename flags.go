@@ -16,13 +16,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"net/url"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
