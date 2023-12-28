@@ -20,7 +20,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -186,15 +185,6 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
-func stringify(input any) string {
-	inputBytes, err := json.Marshal(input)
-
-	if err != nil {
-		logger.Warnf("Error in stringify %v", err)
-		return ""
-	}
-	return string(inputBytes)
-}
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -234,8 +224,8 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
-	logger.Infof("GCSFuse mount command flags: %s", stringify(*flags))
-	logger.Infof("GCSFuse mount config flags: %s", stringify(*mountConfig))
+	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
+	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.

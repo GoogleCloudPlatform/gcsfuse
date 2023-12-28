@@ -15,6 +15,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -75,4 +76,14 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 		return
 	}
 	return
+}
+
+func Stringify(input any) string {
+	inputBytes, err := json.Marshal(input)
+
+	if err != nil {
+		logger.Warnf("Error in Stringify %v", err)
+		return ""
+	}
+	return string(inputBytes)
 }
