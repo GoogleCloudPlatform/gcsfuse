@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
@@ -78,7 +79,7 @@ func (t *DirHandleTest) resetDirHandle() {
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		0,
+		metadata.NewTypeCacheBucketView(metadata.NewTypeCache(0, 0), ""),
 	)
 
 	t.dh = NewDirHandle(

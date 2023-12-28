@@ -187,6 +187,9 @@ type typeCacheBucketView struct {
 }
 
 func NewTypeCacheBucketView(stc TypeCache, bn string) TypeCache {
+	if stc == nil {
+		panic("The passed shared-type-cache is nil")
+	}
 	return &typeCacheBucketView{sharedTypeCache: stc, bucketName: bn}
 }
 
