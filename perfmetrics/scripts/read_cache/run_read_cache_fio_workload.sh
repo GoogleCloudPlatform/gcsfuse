@@ -73,7 +73,8 @@ fi
 # Specially for gcsfuse mounted dir: the purpose of this approach is to efficiently
 # populate the gcsfuse metadata cache by utilizing the list call, which internally
 # works like bulk stat call rather than making individual stat calls.
-time ls -R $workload_dir
+# And to reduce the logs moving the command standard-output to /dev/null.
+time ls -R $workload_dir 1> /dev/null
 
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
 
