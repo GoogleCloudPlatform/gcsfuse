@@ -19,6 +19,13 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path"
+	"reflect"
+	"strings"
+	"testing"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -29,12 +36,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
-	"io"
-	"os"
-	"path"
-	"reflect"
-	"strings"
-	"testing"
 )
 
 const CacheMaxSize = 100 * util.MiB
