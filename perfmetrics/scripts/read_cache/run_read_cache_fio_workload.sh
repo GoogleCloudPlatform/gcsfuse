@@ -70,6 +70,9 @@ if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
   exit 1
 fi
 
+# Cleaning the pagecache, dentries and inode cache before the starting the workload.
+sudo sh -c "/usr/bin/echo 3 > /proc/sys/vm/drop_caches"
+
 # Specially for gcsfuse mounted dir: the purpose of this approach is to efficiently
 # populate the gcsfuse metadata cache by utilizing the list call, which internally
 # works like bulk stat call rather than making individual stat calls.
@@ -94,7 +97,6 @@ for i in $(seq $epoch); do
   # entry for the stat cache.
   # So just to stop the execution of  “ls -R workload_dir” command at the start
   # of every epoch, not clearing the inodes.
-
   sudo sh -c "/usr/bin/echo 1 > /proc/sys/vm/drop_caches"
 
   sleep $pause_in_seconds
