@@ -80,8 +80,16 @@ for i in $(seq $epoch); do
   free -mh # Memory usage after workload completion.
   echo "[Epoch ${i}] end time:" `date +%s`
 
-  # To free pagecache, dentries and inodes.
-  sudo sh -c "/usr/bin/echo 3 > /proc/sys/vm/drop_caches"
+  # To free pagecache.
+  # Intentionally not clearing dentries and inodes: clearing them
+  # will necessitate the repopulation of the type cache in gcsfuse 2nd epoch onwards.
+  # Since we use "ls -R workload_dir" to populate the cache (sort of hack to fill the cache quickly)
+  # efficiently in the first epoch, it does not populate the negative
+  # entry for the stat cache.
+  # So just to stop the execution of  “ls -R workload_dir” command at the start
+  # of every epoch, not clearing the inodes.
+
+  sudo sh -c "/usr/bin/echo 1 > /proc/sys/vm/drop_caches"
 
   sleep $pause_in_seconds
 done
