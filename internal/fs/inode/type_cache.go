@@ -25,6 +25,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
+// TypeCache is interface to expose typeCache
+// outside of the inode package, to allow
+// it to be shared at the mount-level.
+type TypeCache interface {
+	Insert(now time.Time, name string, it Type)
+	Erase(name string)
+	Get(now time.Time, name string) Type
+}
+
 type cacheEntry struct {
 	expiry    time.Time
 	inodeType Type
