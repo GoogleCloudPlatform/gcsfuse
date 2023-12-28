@@ -33,7 +33,7 @@ max_size_in_mb=100
 cache_location=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
 stat_or_type_cache_ttl_secs=6048000 # 168h or 1 week
-stat_cache_capacity=1200000 # 1 million + buffer 200k
+stat_cache_capacity=3200000 # 2 million + buffer 1.2 million
 enable_log=0
 
 while getopts lhds:b:c: flag
