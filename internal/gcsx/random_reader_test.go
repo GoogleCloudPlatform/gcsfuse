@@ -704,10 +704,14 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialFullObject() {
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
 	buf := make([]byte, objectSize)
-
 	_, cacheHit, err := t.rr.ReadAt(buf, 0)
-
 	ExpectFalse(cacheHit)
+	ExpectEq(nil, err)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+
+	ExpectTrue(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent, buf))
 }
@@ -771,15 +775,19 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	t.mockNewReaderCallForTestBucket(uint64(start), objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
 	buf := make([]byte, end-start)
-
 	_, cacheHit, err := t.rr.ReadAt(buf, int64(start))
-
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.NOT_STARTED)
+
+	// Second read call should be a cache miss
+	_, cacheHit, err = t.rr.ReadAt(buf, int64(start))
+
+	ExpectEq(nil, err)
+	ExpectFalse(cacheHit)
 }
 
 func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownloadForRandomIsTrue() {
@@ -795,15 +803,20 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc2) // Mock for download job's NewReader call
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
 	buf := make([]byte, end-start)
-
 	_, cacheHit, err := t.rr.ReadAt(buf, int64(start))
-
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
+
+	time.Sleep(20 * time.Millisecond)
+	// Second read call should be a cache hit
+	_, cacheHit, err = t.rr.ReadAt(buf, int64(start))
+
+	ExpectEq(nil, err)
+	ExpectTrue(cacheHit)
 }
 
 func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThanReadChunkSize() {
@@ -905,7 +918,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	ExpectEq(nil, t.rr.wrapped.fileCacheHandle)
 }
 
-func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob() {
+func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
@@ -942,7 +955,7 @@ func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidJob
 	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
 }
 
-func (t *RandomReaderTest) Test_ReadAt_CacheHitNextToCacheMissIncaseOfInvalidFileHandle() {
+func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFileHandle() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
@@ -1046,10 +1059,15 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc)
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
 	buf := make([]byte, objectSize)
-
+	// First read will be a cache miss.
 	_, cacheHit, err := t.rr.wrapped.tryReadingFromFileCache(t.rr.ctx, buf, 0)
-
 	ExpectFalse(cacheHit)
+	ExpectEq(nil, err)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+
+	// Second read will be a cache hit.
+	_, cacheHit, err = t.rr.wrapped.tryReadingFromFileCache(t.rr.ctx, buf, 0)
+	ExpectTrue(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent, buf))
 }

@@ -263,7 +263,7 @@ func (rr *randomReader) ReadAt(
 		return
 	}
 	// data was served from cache.
-	if n == len(p) {
+	if n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
 		return
 	}
 

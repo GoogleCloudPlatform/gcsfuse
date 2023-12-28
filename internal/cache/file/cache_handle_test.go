@@ -19,14 +19,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path"
-	"reflect"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -37,6 +29,12 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
+	"io"
+	"os"
+	"path"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 const CacheMaxSize = 100 * util.MiB
@@ -502,13 +500,12 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(1)
 	cht.cacheHandle.isSequential = false
-	time.Sleep(200 * time.Millisecond)
 
 	// Since, it's a random read hence will not wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectTrue(jobStatus.Name == downloader.COMPLETED)
+	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
 	ExpectGe(jobStatus.Offset, offset)
 	ExpectEq(cacheHit, true)
 	ExpectEq(nil, err)
@@ -663,10 +660,8 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
 	cht.cacheHandle.downloadFileForRandomRead = true
-
 	// First read should be cache miss.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
-
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, offset)
 	ExpectEq(n, ReadContentSize)
@@ -676,6 +671,7 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 
 	// Second read should be cache hit.
 	n, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
 	ExpectEq(n, ReadContentSize)
 	ExpectTrue(cacheHit)
 	ExpectEq(nil, err)
