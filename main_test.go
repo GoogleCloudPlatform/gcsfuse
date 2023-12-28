@@ -118,8 +118,8 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 
 func (t *MainTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 
-	customInstance := CustomType{
-		Value: "example",
+	customInstance := customType{
+		value: "example",
 	}
 
 	actual := stringify(customInstance)
@@ -128,11 +128,11 @@ func (t *MainTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 	AssertEq(strings.TrimSpace(expected), strings.TrimSpace(actual))
 }
 
-type CustomType struct {
-	Value string
+type customType struct {
+	value string
 }
 
 // MarshalJSON returns an error to simulate a failure during JSON marshaling
-func (c CustomType) MarshalJSON() ([]byte, error) {
+func (c customType) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
