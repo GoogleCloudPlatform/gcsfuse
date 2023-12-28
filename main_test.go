@@ -117,7 +117,6 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 }
 
 func (t *MainTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
-
 	customInstance := customType{
 		value: "example",
 	}
