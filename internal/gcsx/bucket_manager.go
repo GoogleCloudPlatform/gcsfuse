@@ -161,6 +161,11 @@ func setUpRateLimiting(
 func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
 	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 
+	// Enable monitoring
+	if bm.config.EnableMonitoring {
+		b = monitor.NewMonitoringBucket(b)
+	}
+
 	b = storage.NewDebugBucket(b)
 	return
 }
@@ -220,11 +225,6 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable content type awareness
 	b = NewContentTypeBucket(b)
-
-	// Enable monitoring
-	if bm.config.EnableMonitoring {
-		b = monitor.NewMonitoringBucket(b)
-	}
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
