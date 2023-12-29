@@ -70,11 +70,6 @@ if [[ "${read_type}" != "read" && "${read_type}" != "randread" ]]; then
   exit 1
 fi
 
-# Specially for gcsfuse mounted dir: the purpose of this approach is to efficiently
-# populate the gcsfuse metadata cache by utilizing the list call, which internally
-# works like bulk stat call rather than making individual stat calls.
-time ls -R $workload_dir
-
 cd $WORKING_DIR/gcsfuse/perfmetrics/scripts/read_cache/
 
 for i in $(seq $epoch); do
