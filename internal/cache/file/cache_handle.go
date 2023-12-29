@@ -132,14 +132,14 @@ func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs
 // if it is not already present. For random reads, it does not wait for
 // download. Additionally, for random reads, the download will not be
 // initiated if fch.downloadFileForRandomRead is false.
-func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, err error) {
+func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
 		return
 	}
 
 	if offset < 0 || offset >= int64(object.Size) {
-		return 0, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.Size)
+		return 0, false, fmt.Errorf("wrong offset requested: %d, object size: %d", offset, object.Size)
 	}
 
 	// Checking before updating the previous offset.
@@ -161,25 +161,30 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		requiredOffset = objSize
 	}
 
+	jobStatus := fch.fileDownloadJob.GetStatus()
 	// If downloadFileForRandomRead is false and readType is random, download will not be initiated.
 	if !fch.downloadFileForRandomRead && !isSequentialRead {
-		jobStatus := fch.fileDownloadJob.GetStatus()
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
-			return 0, err
+			return 0, false, err
 		}
+	}
+
+	if jobStatus.Offset >= requiredOffset {
+		cacheHit = true
 	}
 
 	fch.prevOffset = offset
 
-	jobStatus, err := fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
+	jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
 	if err != nil {
 		n = 0
+		cacheHit = false
 		err = fmt.Errorf("read: while downloading through job: %v", err)
 		return
 	}
 
 	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
@@ -194,19 +199,19 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 			// requested. It will also help catch cases where file in cache is truncated
 			// externally to size offset + x where x < requestedNumBytes.
 			errMsg := fmt.Sprintf("%s, number of bytes read from file in cache: %v are not equal to requested: %v", util.ErrInReadingFileHandleMsg, n, requestedNumBytes)
-			return 0, errors.New(errMsg)
+			return 0, false, errors.New(errMsg)
 		}
 		err = nil
 	}
 
 	if err != nil {
 		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
-		return 0, errors.New(errMsg)
+		return 0, false, errors.New(errMsg)
 	}
 
 	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	return
