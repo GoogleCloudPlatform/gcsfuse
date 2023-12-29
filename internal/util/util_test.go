@@ -18,7 +18,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -189,7 +188,7 @@ func (t *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 	actual := Stringify(customInstance)
 
 	expected := ""
-	AssertEq(strings.TrimSpace(expected), strings.TrimSpace(actual))
+	AssertEq(expected, actual)
 }
 
 type customTypeForSuccess struct {
