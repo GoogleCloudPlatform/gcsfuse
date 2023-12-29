@@ -15,6 +15,7 @@
 package util
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -156,4 +157,53 @@ func (t *UtilTest) TestResolveConfigFilePaths() {
 	homeDir, err := os.UserHomeDir()
 	AssertEq(nil, err)
 	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
+}
+
+func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
+	sampleMap := map[string]int{
+		"1": 1,
+		"2": 2,
+		"3": 3,
+	}
+	sampleNestedValue := nestedCustomType{
+		SomeField: 10,
+		SomeOther: sampleMap,
+	}
+	customObject := &customTypeForSuccess{
+		Value:       "test_value",
+		NestedValue: sampleNestedValue,
+	}
+
+	actual := Stringify(customObject)
+
+	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
+	AssertEq(expected, actual)
+}
+
+func (t *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
+	customInstance := customTypeForError{
+		value: "example",
+	}
+
+	actual := Stringify(customInstance)
+
+	expected := ""
+	AssertEq(expected, actual)
+}
+
+type customTypeForSuccess struct {
+	Value       string
+	NestedValue nestedCustomType
+}
+type nestedCustomType struct {
+	SomeField int
+	SomeOther map[string]int
+}
+type customTypeForError struct {
+	value string
+}
+
+// MarshalJSON returns an error to simulate a failure during JSON marshaling
+func (c customTypeForError) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("intentional error during JSON marshaling")
 }
