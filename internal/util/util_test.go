@@ -166,7 +166,6 @@ func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarsh
 		"2": 2,
 		"3": 3,
 	}
-
 	sampleNestedValue := nestedCustomType{
 		SomeField: 10,
 		SomeOther: sampleMap,

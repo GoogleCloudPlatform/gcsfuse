@@ -78,6 +78,7 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 	return
 }
 
+// Returns empty String in case of failure in marshalling the passed input.
 func Stringify(input any) string {
 	inputBytes, err := json.Marshal(input)
 
