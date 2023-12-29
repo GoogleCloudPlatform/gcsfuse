@@ -93,7 +93,6 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	AssertEq(nil, err)
 	_, err = io.ReadFull(cht.cacheHandle.fileHandle, buf)
 	AssertEq(nil, err)
-	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
 
@@ -439,10 +438,11 @@ func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size + 1)
 
-	n, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	ExpectNe(nil, err)
 	ExpectEq(0, n)
+	ExpectFalse(cacheHit)
 	ExpectTrue(strings.Contains(err.Error(), "wrong offset requested"))
 }
 
@@ -451,9 +451,10 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileHandle() {
 	offset := int64(5)
 	cht.cacheHandle.fileHandle = nil
 
-	n, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 	ExpectNe(nil, err)
 	ExpectEq(0, n)
+	ExpectFalse(cacheHit)
 	ExpectEq(util.InvalidFileHandleErrMsg, err.Error())
 }
 
@@ -464,11 +465,12 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 	cht.cacheHandle.downloadFileForRandomRead = true
 
 	// Since, it's a random read hence will not wait to download till requested offset.
-	n, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectLt(jobStatus.Offset, offset)
 	ExpectEq(n, 0)
+	ExpectFalse(cacheHit)
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
@@ -479,12 +481,13 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
 	cht.cacheHandle.isSequential = false
 
 	// Since, it's a random read hence will not wait to download till requested offset.
-	n, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectEq(jobStatus.Name, downloader.NOT_STARTED)
 	ExpectLt(jobStatus.Offset, offset)
 	ExpectEq(n, 0)
+	ExpectFalse(cacheHit)
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
@@ -500,11 +503,12 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
 	cht.cacheHandle.isSequential = false
 
 	// Since, it's a random read hence will not wait to download till requested offset.
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
 	ExpectGe(jobStatus.Offset, offset)
+	ExpectEq(cacheHit, true)
 	ExpectEq(nil, err)
 	cht.verifyContentRead(offset, dst)
 }
@@ -523,12 +527,13 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHitInCan
 	cht.cacheHandle.isSequential = false
 
 	// Since, it's a random read hence will not wait to download till requested offset.
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.CANCELLED)
 	ExpectGe(jobStatus.Offset, offset)
 	ExpectEq(nil, err)
+	ExpectTrue(cacheHit)
 	cht.verifyContentRead(offset, dst)
 }
 
@@ -540,9 +545,10 @@ func (cht *cacheHandleTest) Test_Read_Sequential() {
 	cht.cacheHandle.downloadFileForRandomRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectFalse(cacheHit)
 	ExpectGe(jobStatus.Offset, offset)
 	cht.verifyContentRead(offset, dst)
 	ExpectEq(nil, err)
@@ -554,18 +560,20 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.downloadFileForRandomRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	AssertGe(jobStatus.Offset, firstReqOffset)
 	AssertEq(nil, err)
+	ExpectFalse(cacheHit)
 	AssertEq(cht.cacheHandle.isSequential, true)
 
 	secondReqOffset := int64(cht.object.Size - ReadContentSize) // type will change to random.
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, secondReqOffset, dst)
+	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, secondReqOffset, dst)
 
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectLe(jobStatus.Offset, secondReqOffset)
 	ExpectNe(nil, err)
+	ExpectFalse(cacheHit)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 	ExpectEq(cht.cacheHandle.isSequential, false)
 }
@@ -580,10 +588,11 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 	cht.cacheHandle.downloadFileForRandomRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, offset)
+	ExpectFalse(cacheHit)
 	cht.verifyContentRead(offset, dst[:len(dst)-extraBuffer])
 	ExpectEq(nil, err)
 }
@@ -594,7 +603,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	cht.cacheHandle.downloadFileForRandomRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 	AssertEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, ReadContentSize)
@@ -604,13 +613,15 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
+	ExpectFalse(cacheHit)
 
 	// Delete the file info entry and again perform read
 	_ = cht.cache.Erase(fileInfoKeyName)
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+	AssertFalse(cacheHit)
 }
 
 func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
@@ -619,8 +630,9 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	cht.cacheHandle.downloadFileForRandomRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
-	_, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 	AssertEq(nil, err)
+	AssertFalse(cacheHit)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, ReadContentSize)
 	fileInfoKey := data.FileInfoKey{
@@ -636,8 +648,32 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	fileInfoData.ObjectGeneration = 1
 	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfoData)
 	AssertEq(nil, err)
-	_, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+	AssertFalse(cacheHit)
+}
+
+func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.downloadFileForRandomRead = true
+	// First read should be cache miss.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectGe(jobStatus.Offset, offset)
+	ExpectEq(n, ReadContentSize)
+	cht.verifyContentRead(offset, dst[:n])
+	ExpectFalse(cacheHit)
+	ExpectEq(nil, err)
+
+	// Second read should be cache hit.
+	n, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	ExpectEq(n, ReadContentSize)
+	ExpectTrue(cacheHit)
+	ExpectEq(nil, err)
 }
