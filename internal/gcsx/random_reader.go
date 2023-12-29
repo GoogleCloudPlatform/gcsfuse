@@ -219,9 +219,8 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 	}
 
-	n, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
+	n, cacheHit, err = rr.fileCacheHandle.Read(ctx, rr.bucket, rr.object, offset, p)
 	if err == nil {
-		cacheHit = true
 		return
 	}
 
@@ -256,14 +255,15 @@ func (rr *randomReader) ReadAt(
 
 	// Note: If we are reading the file for the first time and read type is sequential
 	// then the file cache behavior is write-through i.e. data is first read from
-	// GCS, cached in file and then served from that file. Also, the cacheHit is
-	// true in that case.
+	// GCS, cached in file and then served from that file. But the cacheHit is
+	// false in that case.
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
 		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
 		return
 	}
-	if cacheHit {
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
 		return
 	}
 
