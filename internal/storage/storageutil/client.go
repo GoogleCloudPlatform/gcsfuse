@@ -17,6 +17,7 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -64,6 +65,13 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	}
 
 	tokenSrc, err := createTokenSource(storageClientConfig)
+
+	token, err := tokenSrc.Token()
+	if err!= nil{
+		log.Printf("Error in getting token: %v",err)
+	}
+	expiryTokenSrc := oauth2.ReuseTokenSourceWithExpiry(token,tokenSrc,10*time.Second)
+
 	if err != nil {
 		err = fmt.Errorf("while fetching tokenSource: %w", err)
 		return
@@ -73,7 +81,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	httpClient = &http.Client{
 		Transport: &oauth2.Transport{
 			Base:   transport,
-			Source: tokenSrc,
+			Source: expiryTokenSrc,
 		},
 		Timeout: storageClientConfig.HttpClientTimeout,
 	}
