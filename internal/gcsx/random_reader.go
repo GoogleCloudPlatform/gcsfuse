@@ -262,8 +262,8 @@ func (rr *randomReader) ReadAt(
 		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
 		return
 	}
-	// data was served from cache.
-	if n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+	// Data was served from cache.
+	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
 		return
 	}
 

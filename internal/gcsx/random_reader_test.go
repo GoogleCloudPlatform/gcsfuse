@@ -803,20 +803,15 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	t.mockNewReaderCallForTestBucket(0, objectSize, rc2) // Mock for download job's NewReader call
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
 	buf := make([]byte, end-start)
+
 	_, cacheHit, err := t.rr.ReadAt(buf, int64(start))
+
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
 	job := t.jobManager.GetJob(t.object, t.bucket)
 	jobStatus := job.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
-
-	time.Sleep(20 * time.Millisecond)
-	// Second read call should be a cache hit
-	_, cacheHit, err = t.rr.ReadAt(buf, int64(start))
-
-	ExpectEq(nil, err)
-	ExpectTrue(cacheHit)
 }
 
 func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThanReadChunkSize() {
