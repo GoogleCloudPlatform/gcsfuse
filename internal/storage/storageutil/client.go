@@ -107,7 +107,7 @@ func getTokenWithExpiry(tokenSrc oauth2.TokenSource)(expiryTokenSrc oauth2.Token
 		return nil, err
 	}
 
-	expiryTokenSrc = oauth2.ReuseTokenSourceWithExpiry(token,tokenSrc,10*time.Second)
+	expiryTokenSrc = oauth2.ReuseTokenSourceWithExpiry(token,tokenSrc,20*time.Second)
 
   return expiryTokenSrc,nil
 }
