@@ -15,11 +15,11 @@
 package storageutil
 
 import (
-	"net/url"
-	"testing"
-
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"golang.org/x/oauth2"
+	"net/url"
+	"testing"
 )
 
 func TestClient(t *testing.T) { RunTests(t) }
@@ -75,4 +75,13 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	ExpectNe(nil, httpClient)
 	ExpectNe(nil, httpClient.Transport)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func TestGetTokenWithExpiry_Success(t *testing.T) {
+	mockToken := oauth2.StaticTokenSource(&oauth2.Token{})
+	expiryTokenSrc, err := getTokenWithExpiry(mockToken)
+
+	// Assert that the returned token source is a ReuseTokenSourceWithExpiry
+	AssertEq(nil,err)
+  AssertNe(nil,expiryTokenSrc)
 }

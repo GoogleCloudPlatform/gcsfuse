@@ -17,7 +17,6 @@ package storageutil
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -65,16 +64,9 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	}
 
 	tokenSrc, err := createTokenSource(storageClientConfig)
-
-	token, err := tokenSrc.Token()
-	if err!= nil{
-		log.Printf("Error in getting token: %v",err)
-	}
-	expiryTokenSrc := oauth2.ReuseTokenSourceWithExpiry(token,tokenSrc,10*time.Second)
-
+  expiryTokenSrc, err := getTokenWithExpiry(tokenSrc)
 	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
-		return
+		err = fmt.Errorf("while fetching token with expiry: %w", err)
 	}
 
 	// Custom http client for Go Client.
@@ -104,4 +96,18 @@ func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
+}
+
+// getTokenWithExpiry fetches a token from the given TokenSource, wraps it in a TokenSource that expires
+// after a specified duration, and returns the wrapped TokenSource.
+func getTokenWithExpiry(tokenSrc oauth2.TokenSource)(expiryTokenSrc oauth2.TokenSource, err error){
+	token, err := tokenSrc.Token()
+	if err != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", err)
+		return nil, err
+	}
+
+	expiryTokenSrc = oauth2.ReuseTokenSourceWithExpiry(token,tokenSrc,10*time.Second)
+
+  return expiryTokenSrc,nil
 }
