@@ -589,15 +589,15 @@ func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
 
 // A collection of tests for a file system where the file cache is enabled
 // with download-file-for-random-read set to True.
-type FileCacheWithDownloadForRandomRead struct {
+type FileCacheWithCacheForRangeRead struct {
 	fsTest
 }
 
 func init() {
-	RegisterTestSuite(&FileCacheWithDownloadForRandomRead{})
+	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
 }
 
-func (t *FileCacheWithDownloadForRandomRead) SetUpTestSuite() {
+func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -610,13 +610,13 @@ func (t *FileCacheWithDownloadForRandomRead) SetUpTestSuite() {
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *FileCacheWithDownloadForRandomRead) TearDown() {
+func (t *FileCacheWithCacheForRangeRead) TearDown() {
 	t.fsTest.TearDown()
 	err := os.RemoveAll(FileCacheLocation)
 	AssertEq(nil, err)
 }
 
-func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 	hundredKiB := 100 * util.KiB
 	tenKiB := 10 * util.KiB
 	objectContent := generateRandomString(hundredKiB)
@@ -649,23 +649,23 @@ func (t *FileCacheWithDownloadForRandomRead) RandomReadShouldPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheWithDownloadForRandomRead) SequentialReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) SequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheLocation)
 }
 
-func (t *FileCacheWithDownloadForRandomRead) CacheFilePermissionWithAllowOther() {
+func (t *FileCacheWithCacheForRangeRead) CacheFilePermissionWithAllowOther() {
 	cacheFilePermissionTest(&t.fsTest, util.FilePermWithAllowOther)
 }
 
-func (t *FileCacheWithDownloadForRandomRead) WriteShouldNotPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) WriteShouldNotPopulateCache() {
 	writeShouldNotPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheWithDownloadForRandomRead) SequentialToRandomReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) SequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheWithDownloadForRandomRead) NewGenerationShouldRebuildCache() {
+func (t *FileCacheWithCacheForRangeRead) NewGenerationShouldRebuildCache() {
 	objectContent := generateRandomString(2 * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
