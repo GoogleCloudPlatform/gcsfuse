@@ -82,6 +82,6 @@ func TestGetTokenWithExpiry_Success(t *testing.T) {
 	expiryTokenSrc, err := getTokenWithExpiry(mockToken)
 
 	// Assert that the returned token source is a ReuseTokenSourceWithExpiry
-	AssertEq(nil,err)
-  AssertNe(nil,expiryTokenSrc)
+	ExpectEq(nil,err)
+  ExpectNe(nil,expiryTokenSrc)
 }
