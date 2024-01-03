@@ -67,7 +67,8 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	if err != nil {
 		err = fmt.Errorf("while fetching tokenSource: %w", err)
 	}
-  expiryTokenSrc, err := getTokenWithExpiry(tokenSrc)
+
+	expiryTokenSrc, err := getTokenWithExpiry(tokenSrc)
 	if err != nil {
 		err = fmt.Errorf("while fetching token with expiry: %w", err)
 	}
