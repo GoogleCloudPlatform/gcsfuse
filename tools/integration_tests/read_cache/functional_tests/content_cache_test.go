@@ -1,11 +1,13 @@
 package functional_tests_test
 
 import (
+	"encoding/json"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_suite"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -22,8 +24,7 @@ type testStruct struct {
 }
 
 func createReadCacheConfigFile() string {
-	//cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
-	cacheLocationPath = "/tmp/cache_temp"
+	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
 	mountConfig2 := config.MountConfig{
@@ -89,7 +90,7 @@ func (s *testStruct) Teardown(t *testing.T) {
 
 func (s *testStruct) TestSecondReadIsCacheHit(t *testing.T) {
 	// Read file 1st iteration.
-	_, err := operations.ReadFile(path.Join(testDirPath, testFileName))
+	_, err := operations.ReadFileForCache(path.Join(testDirPath, testFileName))
 	if err != nil {
 		t.Errorf("Failed to read file in first iteration: %v", err)
 	}
@@ -103,7 +104,7 @@ func (s *testStruct) TestSecondReadIsCacheHit(t *testing.T) {
 	}
 
 	// Read file 2nd iteration.
-	_, err = operations.ReadFile(path.Join(testDirPath, testFileName))
+	_, err = operations.ReadFileForCache(path.Join(testDirPath, testFileName))
 	if err != nil {
 		t.Errorf("Failed to read file in first iteration: %v", err)
 	}
@@ -112,11 +113,43 @@ func (s *testStruct) TestSecondReadIsCacheHit(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to fetch path to log parser script: %v", err)
 	}
-	_, err = operations.ExecuteToolCommandf("python3", "%s %s %s", parserScriptPath, setup.LogFile(), path.Join(setup.TestDir(), "parsed_logs.json"))
+	outputJsonFile := path.Join(setup.TestDir(), "parsed_logs.json")
+	_, err = operations.ExecuteToolCommandf("python3", "%s %s %s", parserScriptPath, setup.LogFile(), outputJsonFile)
 	if err != nil {
 		t.Errorf("Failed to parse logs %s: %v", setup.LogFile(), err)
 	}
 
+	// Read Parsed logs
+	parsedJson := getJsonForValidation(t, outputJsonFile)
+
+	Read1Logs := parsedJson["2"]["chunks"].([]map[string]interface{})
+	Read2Logs := parsedJson["3"]["chunks"].([]map[string]interface{})
+	t.Logf("%v \n\n %v", Read1Logs, Read2Logs)
+
+	if Read1Logs[0]["cache_hit"] != false {
+		t.Errorf("Expected Read1 CacheHit = false, Got = %s", Read1Logs[0]["cache_hit"])
+	}
+
+	if Read2Logs[0]["cache_hit"] != true {
+		t.Errorf("Expected Read1 CacheHit = true, Got = %s", Read1Logs[0]["cache_hit"])
+	}
+}
+
+func getJsonForValidation(t *testing.T, filename string) map[string]map[string]interface{} {
+	// Read the entire file into a byte slice
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		t.Errorf("Failed to read parsed json file")
+	}
+
+	// Unmarshal the JSON byte slice into a map
+	var data map[string]map[string]interface{}
+	err = json.Unmarshal(file, &data)
+	if err != nil {
+		t.Errorf("could not unmarshal json file")
+	}
+
+	return data
 }
 
 //func (s *testStruct) TestSomethingElse(t *testing.T) {

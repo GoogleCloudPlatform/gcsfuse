@@ -105,6 +105,37 @@ func ReadFile(filePath string) (content []byte, err error) {
 	return
 }
 
+func ReadFileForCache(filePath string) (content []byte, err error) {
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
+	if err != nil {
+		err = fmt.Errorf("Error in the opening the file %v", err)
+		return
+	}
+
+	// Closing file at the end.
+	defer CloseFile(file)
+
+	// Create a buffer to hold the read data
+	buffer := make([]byte, 1024*1024)
+
+	// Read the file's contents in chunks
+	for {
+		// Read a chunk of data
+		n, err := file.Read(buffer)
+		if err != nil && err != io.EOF {
+			panic(err) // Handle the error appropriately
+		}
+
+		// If we've reached the end of the file, break out of the loop
+		if n == 0 {
+			break
+		}
+
+		// Process the read data (e.g., print it to the console)
+	}
+	return
+}
+
 func RenameFile(fileName string, newFileName string) (err error) {
 	if _, err = os.Stat(newFileName); err == nil {
 		err = fmt.Errorf("Renamed file %s already present", newFileName)
