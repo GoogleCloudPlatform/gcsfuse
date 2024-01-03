@@ -25,43 +25,50 @@ def read_file_line_by_line(filename):
 
 
 dictionary = dict()
-
-
 def parse(log_line):
   data = json.loads(log_line)
-  matches = ["fuse_debug", "FileCache", "Job"]
+  matches = ["FileCache OK"]
 
-  # Filters out read cache logs
+  # Filters out read cache logs.
   if any(x in data["msg"] for x in matches):
     # Remove any redundant spaces from the logs.
     data["msg"] = re.sub("\s\s+", " ", data["msg"])
     # Split on spaces.
     split_data = data["msg"].split(" ")
-    if split_data[0] == "fuse_debug:":
-      parse_fuse_debug(dictionary, split_data)
-
-    print(split_data)
+    parse_cache_log(data, split_data)
 
 
-def parse_fuse_debug(dictionary, split_data):
-  op_id = split_data[2]
-  temp_dict = dict()
-  if dictionary.get(op_id) != "":
-    temp_dict = dictionary.get(op_id)
+def parse_cache_log(data, split_msg):
+  startTimestamp = data["time"]["timestampSeconds"]
+  op_id = split_msg[0]
+  is_sequential = split_msg[5]
+  cache_hit = split_msg[7]
+  handle = split_msg[9][11:]
+  inode = split_msg[10][6:]
+  offset = split_msg[11][7:]
+  pid = split_msg[12][4:len(split_msg[12]) - 1]
+  size = split_msg[13][5:len(split_msg[13]) - 2]
+  object_name = split_msg[15][:len(split_msg[15]) - 1]
+  print("startTimestamp", startTimestamp, "op_id: ", op_id, "is_sequential: ",
+        is_sequential, "cache_hit: ", cache_hit, "handle: ", handle, "inode: ",
+        inode, "offset: ", offset, "pid: ", pid, "size", size, "object",
+        object_name)
 
-  if temp_dict.get("op_id") == split_data[2] and temp_dict.get(
-      "operation") == "LookUpInode":
-    temp_dict["inode"] = split_data[7][:len(split_data[7]) - 1]
-    # print(temp_dict)
-    dictionary[op_id] = temp_dict
+  if dictionary.get("handle") is None:
+    print("not in dict")
+    dictionary["handle"] = handle
+    dictionary["start_time"] = startTimestamp
+    dictionary["process_id"] = pid
+    dictionary["inode_id"] = inode
+    dictionary["object_name"] = object_name
+    dictionary["chunks"] = {
+        "start_time": startTimestamp,
+        "start_offset": offset,
+        "size": size,
+        "cache_hit": cache_hit,
+        "is_sequential": is_sequential
+    }
     print(dictionary)
-    return
-  temp_dict["op_id"] = split_data[2]
-  temp_dict["operation"] = split_data[5]
-  dictionary[op_id] = temp_dict
-  print(dictionary)
 
-
-print(log_file_path)
 for line in read_file_line_by_line(log_file_path):
   parse(line)
