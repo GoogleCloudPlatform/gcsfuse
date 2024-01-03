@@ -296,6 +296,7 @@ func RunTestsForMountedDirectoryFlag(m *testing.M) {
 		successCode := ExecuteTest(m)
 		os.Exit(successCode)
 	}
+	log.Print("not running tests on mounted directory.")
 }
 
 func SetUpTestDirForTestBucketFlag() {

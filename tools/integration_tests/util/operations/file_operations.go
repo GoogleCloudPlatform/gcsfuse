@@ -609,3 +609,10 @@ func SyncFile(fh *os.File, t *testing.T) {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
 }
+
+func CreateFileWithContent(filePath string, filePerms os.FileMode,
+	content string, t *testing.T) {
+	fh := CreateFile(filePath, filePerms, t)
+	WriteAt(content, 0, fh, t)
+	CloseFile(fh)
+}
