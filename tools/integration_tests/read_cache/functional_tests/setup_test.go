@@ -1,9 +1,6 @@
-package functional_tests
+package functional_tests_test
 
 import (
-	"context"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 
 	"os"
@@ -12,12 +9,12 @@ import (
 )
 
 const (
-	testDirName = "LocalFileTest"
+	testDirName = "ReadCacheTest"
 )
 
 var (
-	testDirPath string
-	ctx         context.Context
+	testDirPath       string
+	cacheLocationPath string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -35,12 +32,7 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Set up flags to run tests on.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flags := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"}}
-
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := m.Run()
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
