@@ -188,7 +188,7 @@ func NewFileSystem(
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
-		downloadFileForRandomRead:  cfg.MountConfig.FileCacheConfig.DownloadFileForRandomRead,
+		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
@@ -463,9 +463,9 @@ type fileSystem struct {
 	// file cache is enabled at the time of mounting.
 	fileCacheHandler *file.CacheHandler
 
-	// downloadFileForRandomRead when true downloads file into cache even for
+	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
-	downloadFileForRandomRead bool
+	cacheFileForRangeRead bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1614,7 +1614,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.downloadFileForRandomRead)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2117,7 +2117,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.downloadFileForRandomRead)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them

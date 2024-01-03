@@ -64,8 +64,8 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:               FileCacheSizeInMb,
-			DownloadFileForRandomRead: false,
+			MaxSizeInMB:           FileCacheSizeInMb,
+			CacheFileForRangeRead: false,
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
@@ -601,8 +601,8 @@ func (t *FileCacheWithDownloadForRandomRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:               -1,
-			DownloadFileForRandomRead: true,
+			MaxSizeInMB:           -1,
+			CacheFileForRangeRead: true,
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
@@ -739,8 +739,8 @@ func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:               -1,
-			DownloadFileForRandomRead: true,
+			MaxSizeInMB:           -1,
+			CacheFileForRangeRead: true,
 		},
 	}
 	t.serverCfg.AllowOther = true
@@ -770,8 +770,8 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:               -1,
-			DownloadFileForRandomRead: true,
+			MaxSizeInMB:           -1,
+			CacheFileForRangeRead: true,
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}

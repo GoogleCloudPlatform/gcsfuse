@@ -37,7 +37,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertEq("", mountConfig.LogConfig.FilePath)
 	AssertEq("", mountConfig.CacheLocation)
 	AssertEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
-	AssertEq(false, mountConfig.FileCacheConfig.DownloadFileForRandomRead)
+	AssertEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
