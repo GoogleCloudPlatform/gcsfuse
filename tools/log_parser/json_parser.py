@@ -25,6 +25,8 @@ def read_file_line_by_line(filename):
 
 
 dictionary = dict()
+
+
 def parse(log_line):
   data = json.loads(log_line)
   matches = ["FileCache OK"]
@@ -54,21 +56,37 @@ def parse_cache_log(data, split_msg):
         inode, "offset: ", offset, "pid: ", pid, "size", size, "object",
         object_name)
 
-  if dictionary.get("handle") is None:
-    print("not in dict")
-    dictionary["handle"] = handle
-    dictionary["start_time"] = startTimestamp
-    dictionary["process_id"] = pid
-    dictionary["inode_id"] = inode
-    dictionary["object_name"] = object_name
-    dictionary["chunks"] = {
+  if dictionary.get(handle) is None:
+    dictionary[handle] = {
+        "handle": handle,
         "start_time": startTimestamp,
-        "start_offset": offset,
-        "size": size,
-        "cache_hit": cache_hit,
-        "is_sequential": is_sequential
+        "process_id": pid,
+        "inode_id": inode,
+        "object_name": object_name,
+        "chunks": [{
+            "start_time": startTimestamp,
+            "start_offset": offset,
+            "size": size,
+            "cache_hit": cache_hit,
+            "is_sequential": is_sequential
+        }]
     }
-    print(dictionary)
+  else:
+    chunks = dictionary.get(handle)["chunks"]
+    chunks.append({"start_time": startTimestamp,
+                   "start_offset": offset,
+                   "size": size,
+                   "cache_hit": cache_hit,
+                   "is_sequential": is_sequential}
+                  )
+    dictionary.get(handle)["chunks"] = chunks
+
 
 for line in read_file_line_by_line(log_file_path):
   parse(line)
+
+# Serializing json
+json_object = json.dumps(dictionary, indent=4)
+# Writing to sample.json
+with open(output_file_name, "w") as outfile:
+  outfile.write(json_object)
