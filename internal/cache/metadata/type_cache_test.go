@@ -26,6 +26,7 @@ import (
 const (
 	TTL             time.Duration = time.Millisecond
 	TypeCacheSizeMb               = 1
+	pathToObject                  = "path/to/object"
 )
 
 var (
@@ -62,6 +63,7 @@ func init() {
 	RegisterTestSuite(&TypeCacheTest{})
 	RegisterTestSuite(&ZeroSizeTypeCacheTest{})
 	RegisterTestSuite(&ZeroTtlTypeCacheTest{})
+	RegisterTestSuite(&TypeCacheBucketViewTest{})
 }
 
 func (t *TypeCacheTest) SetUp(ti *TestInfo) {
@@ -87,6 +89,24 @@ func (t *ZeroSizeTypeCacheTest) TearDown() {
 func (t *ZeroTtlTypeCacheTest) TearDown() {
 }
 
+type TypeCacheBucketViewTest struct {
+	sharedCache TypeCache
+	cacheViews  map[string]*typeCacheBucketView
+	ttl         time.Duration
+}
+
+func (t *TypeCacheBucketViewTest) SetUp(ti *TestInfo) {
+	t.sharedCache = createNewTypeCache(1, t.ttl)
+	t.cacheViews = map[string]*typeCacheBucketView{}
+	names := []string{"a", "b"}
+	for _, name := range names {
+		t.cacheViews[name] = createNewTypeCacheBucketView(t.sharedCache, name)
+	}
+}
+
+func (t *TypeCacheBucketViewTest) TearDown() {
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -98,6 +118,13 @@ func createNewTypeCache(sizeInMB int, ttl time.Duration) *typeCache {
 	return tc.(*typeCache)
 }
 
+func createNewTypeCacheBucketView(tc TypeCache, name string) *typeCacheBucketView {
+	tcbv := NewTypeCacheBucketView(tc, name)
+	AssertNe(nil, tcbv)
+	AssertNe(nil, tcbv.(*typeCacheBucketView))
+	return tcbv.(*typeCacheBucketView)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests for regulat TypeCache - TypeCacheTest
 ////////////////////////////////////////////////////////////////////////
@@ -107,25 +134,21 @@ func (t *TypeCacheTest) TestNewTypeCache() {
 		sizeInMb           int
 		ttl                time.Duration
 		entriesShouldBeNil bool
-	}{
-		{
-			sizeInMb:           0,
-			ttl:                time.Second,
-			entriesShouldBeNil: true,
-		},
-		{
-			sizeInMb:           1,
-			ttl:                0,
-			entriesShouldBeNil: true,
-		},
-		{
-			sizeInMb: -1,
-			ttl:      time.Second,
-		},
-		{
-			sizeInMb: 1,
-			ttl:      time.Second,
-		}}
+	}{{
+		sizeInMb:           0,
+		ttl:                time.Second,
+		entriesShouldBeNil: true,
+	}, {
+		sizeInMb:           1,
+		ttl:                0,
+		entriesShouldBeNil: true,
+	}, {
+		sizeInMb: -1,
+		ttl:      time.Second,
+	}, {
+		sizeInMb: 1,
+		ttl:      time.Second,
+	}}
 
 	for _, input := range input {
 		tc := createNewTypeCache(input.sizeInMb, input.ttl)
@@ -209,4 +232,11 @@ func (t *ZeroTtlTypeCacheTest) TestGetFromEmptyTypeCache() {
 func (t *ZeroTtlTypeCacheTest) TestGetInsertedEntry() {
 	t.cache.Insert(now, "abcd", RegularFileType)
 	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Tests for TypeCache created with bucket-views - TypeCacheBucketViewTest
+//////////////////////////////////////////////////////////////////////////
+
+func (t *TypeCacheBucketViewTest) TestNewTypeCacheBucketView() {
 }
