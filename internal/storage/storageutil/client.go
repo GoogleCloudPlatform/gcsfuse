@@ -107,7 +107,7 @@ func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 func getTokenWithExpiry(tokenSrc oauth2.TokenSource)(expiryTokenSrc oauth2.TokenSource, err error){
 	token, err := tokenSrc.Token()
 	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
+		err = fmt.Errorf("while fetching token: %w", err)
 		return nil, err
 	}
 
