@@ -96,7 +96,7 @@ func (s *testStruct) TestSecondReadIsCacheHit(t *testing.T) {
 	// Validate that the file is now present in cache directory
 	fileInfo, err := operations.StatFile(path.Join(cacheLocationPath, "gcsfuse-file-cache", setup.TestBucket(), testDirName, testFileName))
 	if err != nil {
-		t.Errorf("Failed to find cache file at location %v", cacheLocationPath)
+		t.Errorf("Failed to find cache file at location %v err: %v", cacheLocationPath, err)
 	}
 	if (*fileInfo).Size() != 5*MiB {
 		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", 5*MiB, (*fileInfo).Size())
