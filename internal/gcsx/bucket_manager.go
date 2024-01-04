@@ -154,17 +154,6 @@ func setUpRateLimiting(
 	return
 }
 
-// Configure a bucket based on the supplied config.
-//
-// Special case: if the bucket name is canned.FakeBucketName, set up a fake
-// bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
-	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
-
-	b = storage.NewDebugBucket(b)
-	return
-}
-
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string,
@@ -175,12 +164,16 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.SetUpGcsBucket(name)
-		if err != nil {
-			err = fmt.Errorf("OpenBucket: %w", err)
-			return
-		}
+		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 	}
+
+	// Enable monitoring.
+	if bm.config.EnableMonitoring {
+		b = monitor.NewMonitoringBucket(b)
+	}
+
+	// Enable gcs logs.
+	b = storage.NewDebugBucket(b)
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
@@ -220,11 +213,6 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Enable content type awareness
 	b = NewContentTypeBucket(b)
-
-	// Enable monitoring
-	if bm.config.EnableMonitoring {
-		b = monitor.NewMonitoringBucket(b)
-	}
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {
