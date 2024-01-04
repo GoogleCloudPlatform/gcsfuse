@@ -24,7 +24,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -2139,15 +2138,6 @@ func (fs *fileSystem) ReadFile(
 	ctx = context.WithValue(ctx, "readOp", op)
 
 	// Find the handle and lock it.
-	v := map[string]string{
-		"PID":    strconv.Itoa(int(op.OpContext.Pid)),
-		"Inode":  strconv.FormatUint(uint64(op.Inode), 10),
-		"Handle": strconv.FormatUint(uint64(op.Handle), 10),
-		"Offset": strconv.FormatInt(op.Offset, 10),
-		"Size":   strconv.FormatInt(op.Size, 10),
-	}
-	ctx = context.WithValue(ctx, "readOp", v)
-
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.Unlock()
