@@ -47,6 +47,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == mountpkg.HTTP1 {
 		transport = &http.Transport{
+			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
 			// This disables HTTP/2 in transport.
@@ -57,6 +58,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
+			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: true,
