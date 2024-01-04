@@ -136,7 +136,7 @@ func (s *testStruct) TestSecondReadIsCacheHit(t *testing.T) {
 	//Read2Logs := parsedJson["3"]["chunks"].([]map[string]interface{})
 	//t.Logf("%v \n\n %v", Read1Logs, Read2Logs)
 
-	if Read1Logs[0]["cache_hit"].(string) != "false," {
+	if Read1Logs[0]["cache_hit"].(string) != "false" {
 		t.Errorf("Expected Read1 CacheHit = false, Got = %s", Read1Logs[0]["cache_hit"])
 	}
 

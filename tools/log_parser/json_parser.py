@@ -88,7 +88,7 @@ def parse_cache_log(json_log, tokenized_logs, dictionary):
   Yields:
       nil
   """
-  startTimestamp = json_log['time']['timestampSeconds']
+  start_timestamp = json_log['time']['timestampNanos']
   is_sequential = tokenized_logs[5][:-1]  # Remove trailing ","
   cache_hit = tokenized_logs[7][:-1]  # Remove trailing ","
   handle = tokenized_logs[9][11:]  # Remove "map[Handle:" prefix
@@ -98,30 +98,22 @@ def parse_cache_log(json_log, tokenized_logs, dictionary):
   size = tokenized_logs[13][5:-2]  # Remove "Size" prefix and "])" suffix
   object_name = tokenized_logs[15][:- 1]  # Remove trailing ")"
 
-  if dictionary.get(handle) is None:
-    dictionary[handle] = {
-        "handle": handle,
-        "start_time": startTimestamp,
-        "process_id": pid,
-        "inode_id": inode,
-        "object_name": object_name,
-        "chunks": [{
-            "start_time": startTimestamp,
-            "start_offset": offset,
-            "size": size,
-            "cache_hit": cache_hit,
-            "is_sequential": is_sequential
-        }]
-    }
-  else:
-    chunks = dictionary.get(handle)["chunks"]
-    chunks.append({"start_time": startTimestamp,
-                   "start_offset": offset,
-                   "size": size,
-                   "cache_hit": cache_hit,
-                   "is_sequential": is_sequential}
-                  )
-    dictionary.get(handle)["chunks"] = chunks
+  chunk_data = {
+      "start_time": start_timestamp,
+      "start_offset": offset,
+      "size": size,
+      "cache_hit": cache_hit,
+      "is_sequential": is_sequential,
+  }
+
+  dictionary.setdefault(handle, {
+      "handle": handle,
+      "start_time": start_timestamp,
+      "process_id": pid,
+      "inode_id": inode,
+      "object_name": object_name,
+      "chunks": []
+  })["chunks"].append(chunk_data)
 
 
 def main():
