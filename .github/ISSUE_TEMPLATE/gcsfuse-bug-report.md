@@ -28,4 +28,8 @@ Steps to reproduce the behavior:
 Add any other context about the problem here.
 
 **SLO:**
-24 hrs to respond and 7 days to close the issue.
+SLO: We strive to respond to all bug reports within 24 business hours during our 
+standard business hours of Monday to Friday, 9:00 AM to 5:00 PM [IST Time zone]. 
+We will then work diligently to resolve the issue, providing updates and mitigation
+steps as available. However, the resolution timeframe may vary depending on the 
+complexity of the issue and our development roadmap.
