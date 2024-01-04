@@ -61,6 +61,7 @@ def filter_and_parse_log_line(log_line, dictionary):
   Filters out Filecache logs and parses them.
   Args:
       log_line (str): single json format logs written by GCSFuse.
+      dictionary (dict): stores the structured logs.
   Yields:
       nil
   """
@@ -77,21 +78,25 @@ def filter_and_parse_log_line(log_line, dictionary):
     parse_cache_log(json_log, tokenized_logs, dictionary)
 
 
-def parse_cache_log(data, tokenized_logs, dictionary):
-  startTimestamp = data["time"]["timestampSeconds"]
-  op_id = tokenized_logs[0]
-  is_sequential = tokenized_logs[5]
-  cache_hit = tokenized_logs[7]
-  handle = tokenized_logs[9][11:]
-  inode = tokenized_logs[10][6:]
-  offset = tokenized_logs[11][7:]
-  pid = tokenized_logs[12][4:len(tokenized_logs[12]) - 1]
-  size = tokenized_logs[13][5:len(tokenized_logs[13]) - 2]
-  object_name = tokenized_logs[15][:len(tokenized_logs[15]) - 1]
-  print("startTimestamp", startTimestamp, "op_id: ", op_id, "is_sequential: ",
-        is_sequential, "cache_hit: ", cache_hit, "handle: ", handle, "inode: ",
-        inode, "offset: ", offset, "pid: ", pid, "size", size, "object",
-        object_name)
+def parse_cache_log(json_log, tokenized_logs, dictionary):
+  """
+  Parses tokenized GCSFuse logs to get the required structure.
+  Args:
+      json_log (dict): single json format logs written by GCSFuse.
+      tokenized_logs (list): list containing tokens from GCSFuse log message.
+      dictionary (dict): stores the structured logs.
+  Yields:
+      nil
+  """
+  startTimestamp = json_log['time']['timestampSeconds']
+  is_sequential = tokenized_logs[5][:-1]  # Remove trailing ","
+  cache_hit = tokenized_logs[7][:-1]  # Remove trailing ","
+  handle = tokenized_logs[9][11:]  # Remove "map[Handle:" prefix
+  inode = tokenized_logs[10][6:]  # Remove "Inode:" prefix
+  offset = tokenized_logs[11][7:]  # Remove "Offset:" prefix
+  pid = tokenized_logs[12][4:]  # Remove "PID:" prefix
+  size = tokenized_logs[13][5:-2]  # Remove "Size" prefix and "])" suffix
+  object_name = tokenized_logs[15][:- 1]  # Remove trailing ")"
 
   if dictionary.get(handle) is None:
     dictionary[handle] = {
