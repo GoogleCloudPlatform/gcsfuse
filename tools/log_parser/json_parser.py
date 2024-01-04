@@ -91,12 +91,12 @@ def parse_cache_log(json_log, tokenized_logs, dictionary):
   start_timestamp = json_log['time']['timestampNanos']
   is_sequential = tokenized_logs[5][:-1]  # Remove trailing ","
   cache_hit = tokenized_logs[7][:-1]  # Remove trailing ","
-  handle = tokenized_logs[9][11:]  # Remove "map[Handle:" prefix
-  inode = tokenized_logs[10][6:]  # Remove "Inode:" prefix
-  offset = tokenized_logs[11][7:]  # Remove "Offset:" prefix
-  pid = tokenized_logs[12][4:]  # Remove "PID:" prefix
-  size = tokenized_logs[13][5:-2]  # Remove "Size" prefix and "])" suffix
-  object_name = tokenized_logs[15][:- 1]  # Remove trailing ")"
+  pid = tokenized_logs[9][:-1]  # Remove trailing ","
+  inode = tokenized_logs[11][:-1]  # Remove trailing ","
+  handle = tokenized_logs[13][:-1]  # Remove trailing ","
+  offset = tokenized_logs[15][:-1]  # Remove trailing ","
+  size = tokenized_logs[17][:-1]  # Remove trailing ","
+  object_name = tokenized_logs[19][:- 1]  # Remove trailing ")"
 
   chunk_data = {
       "start_time": start_timestamp,
