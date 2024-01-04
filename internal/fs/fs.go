@@ -2136,9 +2136,9 @@ func (fs *fileSystem) ReadFile(
 
 	// Save PID, Inode and Handle in Read operation context for access in logs.
 	v := map[string]uint64{
-		"PID":    uint64(op.OpContext.Pid),
-		"Inode":  uint64(op.Inode),
-		"Handle": uint64(op.Handle),
+		gcsx.PID:    uint64(op.OpContext.Pid),
+		gcsx.Inode:  uint64(op.Inode),
+		gcsx.Handle: uint64(op.Handle),
 	}
 	ctx = context.WithValue(ctx, "readOp", v)
 

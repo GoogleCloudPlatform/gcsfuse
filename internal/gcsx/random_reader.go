@@ -49,6 +49,12 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
+const (
+	PID    = "PID"
+	Inode  = "Inode"
+	Handle = "Handle"
+)
+
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
@@ -189,7 +195,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			readOp := ctx.Value("readOp").(map[string]uint64)
 			requestOutput = fmt.Sprintf("FileCache OK (isSeq: %t, hit: %t, "+
 				"PID: %d, Inode: %d, Handle: %d, Offset: %d, Size: %d, object: %s/%s) (%v)",
-				isSeq, cacheHit, readOp["PID"], readOp["Inode"], readOp["Handle"], offset,
+				isSeq, cacheHit, readOp[PID], readOp[Inode], readOp[Handle], offset,
 				len(p), rr.bucket.Name(), rr.object.Name, executionTime)
 		}
 

@@ -158,7 +158,12 @@ var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
-	t.rr.ctx = ti.Ctx
+	v := map[string]uint64{
+		PID:    1,
+		Inode:  2,
+		Handle: 3,
+	}
+	t.rr.ctx = context.WithValue(ti.Ctx, "readOp", v)
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
