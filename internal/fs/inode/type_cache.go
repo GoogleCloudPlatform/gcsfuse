@@ -21,6 +21,7 @@ import (
 	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
@@ -94,6 +95,7 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 		if err != nil {
 			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))
 		}
+		logger.Debugf("TypeCache: Inserted %s as %s", name, it.String())
 	}
 }
 
@@ -101,6 +103,7 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 func (tc *typeCache) Erase(name string) {
 	if tc.entries != nil {
 		tc.entries.Erase(name)
+		logger.Debugf("TypeCache: Erased entry for %s", name)
 	}
 }
 
@@ -110,15 +113,21 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 		return UnknownType
 	}
 
+	logger.Debugf("TypeCache: Fetching entry for %s ...", name)
+
 	val := tc.entries.LookUp(name)
 	if val == nil {
+		logger.Debugf("                                     ... Not found!")
 		return UnknownType
 	}
 
 	entry := val.(cacheEntry)
 
+	logger.Debugf("                                     ... Found as %s", entry.inodeType.String())
+
 	// Has the entry expired?
 	if entry.expiry.Before(now) {
+		logger.Debugf("TypeCache: Erasing entry for %s because of TTL expiration", name)
 		tc.entries.Erase(name)
 		return UnknownType
 	}
