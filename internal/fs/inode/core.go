@@ -32,6 +32,25 @@ var (
 	NonexistentType Type = 5
 )
 
+func (t Type) String() string {
+	switch t {
+	case UnknownType:
+		return "UnknownType"
+	case SymlinkType:
+		return "SymlinkType"
+	case RegularFileType:
+		return "RegularFileType"
+	case ExplicitDirType:
+		return "ExplicitDirType"
+	case ImplicitDirType:
+		return "ImplicitDirType"
+	case NonexistentType:
+		return "NonexistentType"
+	}
+
+	return "Invalid value of Type"
+}
+
 // Core contains critical information about an inode before its creation.
 type Core struct {
 	// The full name of the file or directory. Required for all inodes.
