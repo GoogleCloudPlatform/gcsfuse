@@ -5,11 +5,3 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
-- package-ecosystem: docker
-  directory: "/tools/package_gcsfuse_docker"
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: "/tools/containerize_gcsfuse_docker"
-  schedule:
-    interval: weekly
