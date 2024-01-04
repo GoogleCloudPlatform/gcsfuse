@@ -2133,6 +2133,15 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+
+	// Save PID, Inode and Handle in Read operation context for access in logs.
+	v := map[string]uint64{
+		"PID":    uint64(op.OpContext.Pid),
+		"Inode":  uint64(op.Inode),
+		"Handle": uint64(op.Handle),
+	}
+	ctx = context.WithValue(ctx, "readOp", v)
+
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)

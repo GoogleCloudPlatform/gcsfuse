@@ -186,7 +186,11 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			if rr.fileCacheHandle != nil {
 				isSeq = rr.fileCacheHandle.IsSequential(offset)
 			}
-			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
+			readOp := ctx.Value("readOp").(map[string]uint64)
+			requestOutput = fmt.Sprintf("FileCache OK (isSeq: %t, hit: %t, "+
+				"PID: %d, Inode: %d, Handle: %d, Offset: %d, Size: %d, object: %s/%s) (%v)",
+				isSeq, cacheHit, readOp["PID"], readOp["Inode"], readOp["Handle"], offset,
+				len(p), rr.bucket.Name(), rr.object.Name, executionTime)
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
