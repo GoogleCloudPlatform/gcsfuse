@@ -156,4 +156,3 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	AssertNe(nil, mountConfig)
 	AssertEq(TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
-

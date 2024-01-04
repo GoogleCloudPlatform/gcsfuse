@@ -13,7 +13,7 @@
 // limitations under the License.
 
 package config
-	   
+
 import "math"
 
 const (
