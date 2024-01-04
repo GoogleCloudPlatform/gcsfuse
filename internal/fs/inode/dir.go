@@ -438,6 +438,11 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 // See also the notes on DirInode.LookUpChild.
 const ConflictingFileNameSuffix = "\n"
 
+func (d *dirInode) fullObjectPathInBucket(name string) string {
+	// assuming that d.name.objectName already has a trailing "/"
+	return d.name.objectName + name
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	// Is this a conflict marker name?
@@ -462,7 +467,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	b := syncutil.NewBundle(ctx)
 
-	cachedType := d.cache.Get(d.cacheClock.Now(), name)
+	cachedType := d.cache.Get(d.cacheClock.Now(), d.fullObjectPathInBucket(name))
 	switch cachedType {
 	case ImplicitDirType:
 		dirResult = &Core{
@@ -497,9 +502,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if result != nil {
-		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
+		d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), result.Type())
 	} else if d.enableNonexistentTypeCache && cachedType == UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
+		d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), NonexistentType)
 	}
 
 	return result, nil
@@ -570,7 +575,7 @@ func (d *dirInode) readObjects(
 	defer func() {
 		now := d.cacheClock.Now()
 		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+			d.cache.Insert(now, d.fullObjectPathInBucket(path.Base(fullName.LocalName())), c.Type())
 		}
 	}()
 
@@ -669,7 +674,7 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
+	d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), RegularFileType)
 	return &Core{
 		Bucket:   d.Bucket(),
 		FullName: fullName,
@@ -691,7 +696,7 @@ func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
 	// Erase any existing type information for this name.
-	d.cache.Erase(name)
+	d.cache.Erase(d.fullObjectPathInBucket(name))
 	fullName := NewFileName(d.Name(), name)
 
 	// Clone over anything that might already exist for the name.
@@ -712,7 +717,7 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.O
 		FullName: fullName,
 		Object:   o,
 	}
-	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), c.Type())
 	return c, nil
 }
 
@@ -728,7 +733,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, SymlinkType)
+	d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), SymlinkType)
 
 	return &Core{
 		Bucket:   d.Bucket(),
@@ -745,7 +750,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, ExplicitDirType)
+	d.cache.Insert(d.cacheClock.Now(), d.fullObjectPathInBucket(name), ExplicitDirType)
 
 	return &Core{
 		Bucket:   d.Bucket(),
@@ -760,7 +765,7 @@ func (d *dirInode) DeleteChildFile(
 	name string,
 	generation int64,
 	metaGeneration *int64) (err error) {
-	d.cache.Erase(name)
+	d.cache.Erase(d.fullObjectPathInBucket(name))
 	childName := NewFileName(d.Name(), name)
 
 	err = d.bucket.DeleteObject(
@@ -775,7 +780,7 @@ func (d *dirInode) DeleteChildFile(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
-	d.cache.Erase(name)
+	d.cache.Erase(d.fullObjectPathInBucket(name))
 
 	return
 }
@@ -785,7 +790,7 @@ func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
 	isImplicitDir bool) (err error) {
-	d.cache.Erase(name)
+	d.cache.Erase(d.fullObjectPathInBucket(name))
 
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
@@ -807,7 +812,7 @@ func (d *dirInode) DeleteChildDir(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
-	d.cache.Erase(name)
+	d.cache.Erase(d.fullObjectPathInBucket(name))
 
 	return
 }
