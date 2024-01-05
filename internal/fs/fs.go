@@ -2133,6 +2133,10 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+
+	// Save readOp in context for access in logs.
+	ctx = context.WithValue(ctx, "readOp", op)
+
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)

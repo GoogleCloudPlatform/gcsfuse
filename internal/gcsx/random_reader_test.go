@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
@@ -158,7 +159,8 @@ var _ SetUpInterface = &RandomReaderTest{}
 var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
-	t.rr.ctx = ti.Ctx
+	readOp := fuseops.ReadFileOp{Handle: 1}
+	t.rr.ctx = context.WithValue(ti.Ctx, "readOp", &readOp)
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
