@@ -2134,13 +2134,8 @@ func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 
-	// Save PID, Inode and Handle in Read operation context for access in logs.
-	v := map[string]uint64{
-		gcsx.PID:    uint64(op.OpContext.Pid),
-		gcsx.Inode:  uint64(op.Inode),
-		gcsx.Handle: uint64(op.Handle),
-	}
-	ctx = context.WithValue(ctx, "readOp", v)
+	// Save readOp in context for access in logs.
+	ctx = context.WithValue(ctx, "readOp", op)
 
 	// Find the handle and lock it.
 	fs.mu.Lock()

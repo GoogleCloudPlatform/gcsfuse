@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 
@@ -48,12 +49,6 @@ const maxReadSize = 8 * MB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
-
-const (
-	PID    = "PID"
-	Inode  = "Inode"
-	Handle = "Handle"
-)
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -179,7 +174,8 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
+	readOp := ctx.Value("readOp").(*fuseops.ReadFileOp)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
 
 	// Response log
@@ -192,11 +188,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 			if rr.fileCacheHandle != nil {
 				isSeq = rr.fileCacheHandle.IsSequential(offset)
 			}
-			readOp := ctx.Value("readOp").(map[string]uint64)
-			requestOutput = fmt.Sprintf("FileCache OK (isSeq: %t, hit: %t, "+
-				"PID: %d, Inode: %d, Handle: %d, Offset: %d, Size: %d, object: %s/%s) (%v)",
-				isSeq, cacheHit, readOp[PID], readOp[Inode], readOp[Handle], offset,
-				len(p), rr.bucket.Name(), rr.object.Name, executionTime)
+			requestOutput = fmt.Sprintf("OK (isSeq: %t, hit: %t) (%v)", isSeq, cacheHit, executionTime)
 		}
 
 		// Here rr.fileCacheHandle will not be nil since we return from the above in those cases.
