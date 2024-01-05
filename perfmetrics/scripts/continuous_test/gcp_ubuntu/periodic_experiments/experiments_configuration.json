@@ -18,7 +18,7 @@
       "config_file_flags_as_json": {
         "file-cache": {
           "max-size-in-mb": -1,
-          "download-file-for-random-read": true
+          "cache-file-for-range-read": true
         }
       },
       "branch": "read_cache_release",
@@ -30,7 +30,7 @@
       "config_file_flags_as_json": {
         "file-cache": {
           "max-size-in-mb": -1,
-          "download-file-for-random-read": false
+          "cache-file-for-range-read": false
         }
       },
       "branch": "read_cache_release",

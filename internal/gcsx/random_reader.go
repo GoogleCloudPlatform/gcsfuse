@@ -75,17 +75,17 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, downloadFileForRandomRead bool) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) RandomReader {
 	return &randomReader{
-		object:                    o,
-		bucket:                    bucket,
-		start:                     -1,
-		limit:                     -1,
-		seeks:                     0,
-		totalReadBytes:            0,
-		sequentialReadSizeMb:      sequentialReadSizeMb,
-		fileCacheHandler:          fileCacheHandler,
-		downloadFileForRandomRead: downloadFileForRandomRead,
+		object:                o,
+		bucket:                bucket,
+		start:                 -1,
+		limit:                 -1,
+		seeks:                 0,
+		totalReadBytes:        0,
+		sequentialReadSizeMb:  sequentialReadSizeMb,
+		fileCacheHandler:      fileCacheHandler,
+		cacheFileForRangeRead: cacheFileForRangeRead,
 	}
 }
 
@@ -118,9 +118,9 @@ type randomReader struct {
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
 
-	// downloadFileForRandomRead is also valid for cache workflow, if true, object content
+	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
-	downloadFileForRandomRead bool
+	cacheFileForRangeRead bool
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
@@ -202,14 +202,14 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
-		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.downloadFileForRandomRead, offset)
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
 				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
 			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
-				// Fall back to GCS if it is a random read, downloadFileForRandomRead is
+				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
 				// False and there doesn't already exist file in cache.
 				isSeq = false
 				return 0, false, nil

@@ -39,7 +39,7 @@ const MaxReadableByteFromFile = 500 * OneMB
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
-	// Set up config file for file cache with download-file-for-random-read: false
+	// Set up config file for file cache with cache-file-for-range-read: false
 	mountConfig1 := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as high because the operations are performed on large

@@ -38,9 +38,9 @@ type CacheHandle struct {
 	// fileInfoCache contains the reference of fileInfo cache.
 	fileInfoCache *lru.Cache
 
-	// downloadFileForRandomRead if true, object content will be downloaded for random
+	// cacheFileForRangeRead if true, object content will be downloaded for random
 	// reads as well too.
-	downloadFileForRandomRead bool
+	cacheFileForRangeRead bool
 
 	// isSequential saves if the current read performed via cache handle is sequential or
 	// random.
@@ -51,14 +51,14 @@ type CacheHandle struct {
 	prevOffset int64
 }
 
-func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, downloadFileForRandomRead bool, initialOffset int64) *CacheHandle {
+func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
-		fileHandle:                localFileHandle,
-		fileDownloadJob:           fileDownloadJob,
-		fileInfoCache:             fileInfoCache,
-		downloadFileForRandomRead: downloadFileForRandomRead,
-		isSequential:              initialOffset == 0,
-		prevOffset:                initialOffset,
+		fileHandle:            localFileHandle,
+		fileDownloadJob:       fileDownloadJob,
+		fileInfoCache:         fileInfoCache,
+		cacheFileForRangeRead: cacheFileForRangeRead,
+		isSequential:          initialOffset == 0,
+		prevOffset:            initialOffset,
 	}
 }
 
@@ -131,7 +131,7 @@ func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs
 // For sequential reads, it will wait to download the requested chunk
 // if it is not already present. For random reads, it does not wait for
 // download. Additionally, for random reads, the download will not be
-// initiated if fch.downloadFileForRandomRead is false.
+// initiated if fch.cacheFileForRangeRead is false.
 func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs.MinObject, offset int64, dst []byte) (n int, cacheHit bool, err error) {
 	err = fch.validateCacheHandle()
 	if err != nil {
@@ -162,8 +162,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	jobStatus := fch.fileDownloadJob.GetStatus()
-	// If downloadFileForRandomRead is false and readType is random, download will not be initiated.
-	if !fch.downloadFileForRandomRead && !isSequentialRead {
+	// If cacheFileForRangeRead is false and readType is random, download will not be initiated.
+	if !fch.cacheFileForRangeRead && !isSequentialRead {
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 			return 0, false, err
 		}

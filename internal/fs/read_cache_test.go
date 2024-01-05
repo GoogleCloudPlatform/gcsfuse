@@ -51,7 +51,7 @@ var CacheLocation = path.Join(os.Getenv("HOME"), "cache-dir")
 var FileCacheLocation = path.Join(CacheLocation, util.FileCache)
 
 // A collection of tests for a file system where the file cache is enabled
-// with download-file-for-random-read set to False.
+// with cache-file-for-range-read set to False.
 type FileCacheTest struct {
 	fsTest
 }
@@ -588,7 +588,7 @@ func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
 }
 
 // A collection of tests for a file system where the file cache is enabled
-// with download-file-for-random-read set to True.
+// with cache-file-for-range-read set to True.
 type FileCacheWithCacheForRangeRead struct {
 	fsTest
 }
