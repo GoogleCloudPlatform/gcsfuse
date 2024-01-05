@@ -5,3 +5,14 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
+- package-ecosystem: gomod
+  directory: "/"
+  allow:
+  - dependency-type: "all"
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: weekly
+open-pull-requests-limit: 10
