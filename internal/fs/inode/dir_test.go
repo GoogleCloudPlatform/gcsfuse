@@ -46,7 +46,7 @@ const dirInodeID = 17
 const dirInodeName = "foo/bar/"
 const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
-const typeCacheMaxSizeMbPerDirectory = 16
+const typeCacheMaxSizeMbPerDirectory = 32
 
 type DirTest struct {
 	ctx    context.Context

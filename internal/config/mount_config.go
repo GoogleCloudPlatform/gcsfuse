@@ -40,7 +40,7 @@ const (
 	// This is the value to be used if the user
 	// did not the value of metadata-cache:type-cache-max-size-mb-per-dir
 	// in config file.
-	DefaultTypeCacheMaxSizeInMbPerDirectory int = 16
+	DefaultTypeCacheMaxSizeInMbPerDirectory int = 32
 )
 
 type WriteConfig struct {
