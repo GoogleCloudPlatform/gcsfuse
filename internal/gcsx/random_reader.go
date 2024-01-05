@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 
@@ -173,7 +174,8 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p))
+	readOp := ctx.Value("readOp").(*fuseops.ReadFileOp)
+	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
 
 	// Response log
