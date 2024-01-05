@@ -31,7 +31,7 @@ type cacheEntry struct {
 }
 
 func (ce cacheEntry) Size() uint64 {
-	return uint64(unsafe.Sizeof(cacheEntry{}))
+	return uint64(unsafe.Sizeof(ce))
 }
 
 // A cache that maps from a name to information about the type of the object
@@ -127,7 +127,7 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 
 	// Has the entry expired?
 	if entry.expiry.Before(now) {
-		logger.Debugf("TypeCache: Erasing entry for %s because of TTL expiration", name)
+		logger.Tracef("TypeCache: Erasing entry for %s because of TTL expiration", name)
 		tc.entries.Erase(name)
 		return UnknownType
 	}
