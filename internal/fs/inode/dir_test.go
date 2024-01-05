@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -46,7 +47,6 @@ const dirInodeID = 17
 const dirInodeName = "foo/bar/"
 const dirMode os.FileMode = 0712 | os.ModeDir
 const typeCacheTTL = time.Second
-const typeCacheMaxSizeMbPerDirectory = 32
 
 type DirTest struct {
 	ctx    context.Context
@@ -89,7 +89,11 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool) {
+func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeInMbPerDirectory, typeCacheTTL)
+}
+
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMbPerDirectory int, typeCacheTTL time.Duration) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -635,6 +639,72 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+}
+
+func (t *DirTest) LookUpChild_TypeCacheEnabled() {
+	inputs := []struct {
+		typeCacheSizeInMb int
+		typeCacheTTL      time.Duration
+	}{{
+		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMbPerDirectory,
+		typeCacheTTL:      time.Second,
+	}, {
+		typeCacheSizeInMb: -1,
+		typeCacheTTL:      time.Second,
+	}}
+
+	for _, input := range inputs {
+		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheSizeInMb, input.typeCacheTTL)
+
+		const name = "qux"
+		objName := path.Join(dirInodeName, name)
+
+		// Create a backing object.
+		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+
+		AssertEq(nil, err)
+		AssertNe(nil, o)
+
+		// Look up nonexistent object, return nil
+		result, err := t.in.LookUpChild(t.ctx, name)
+
+		AssertEq(nil, err)
+		AssertNe(nil, result)
+		ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	}
+}
+
+func (t *DirTest) LookUpChild_TypeCacheDisabled() {
+	inputs := []struct {
+		typeCacheSizeInMb int
+		typeCacheTTL      time.Duration
+	}{{
+		typeCacheSizeInMb: 0,
+		typeCacheTTL:      time.Second,
+	}, {
+		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMbPerDirectory,
+		typeCacheTTL:      0,
+	}}
+
+	for _, input := range inputs {
+		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheSizeInMb, input.typeCacheTTL)
+
+		const name = "qux"
+		objName := path.Join(dirInodeName, name)
+
+		// Create a backing object.
+		o, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+
+		AssertEq(nil, err)
+		AssertNe(nil, o)
+
+		// Look up nonexistent object, return nil
+		result, err := t.in.LookUpChild(t.ctx, name)
+
+		AssertEq(nil, err)
+		AssertNe(nil, result)
+		ExpectEq(UnknownType, t.getTypeFromCache(name))
+	}
 }
 
 func (t *DirTest) ReadDescendants_Empty() {
