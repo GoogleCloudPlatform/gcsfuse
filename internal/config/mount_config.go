@@ -32,7 +32,7 @@ const (
 	// DefaultTypeCacheMaxSizeInMbPerDirectory is the value internally set for
 	// metadata-cache:type-cache-max-size-mb-per-dir
 	// when it is not set in the gcsfuse mount config file.
-	DefaultTypeCacheMaxSizeInMbPerDirectory int = 16
+	DefaultTypeCacheMaxSizeInMbPerDirectory int = 32
 )
 
 type WriteConfig struct {
