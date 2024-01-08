@@ -19,6 +19,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
@@ -116,7 +117,7 @@ be interacting with the file system.`)
 		}
 
 		bucketCfg.StatCacheMaxSizeMiB = util.BytesToHigherMiBs(
-			uint64(flags.StatCacheCapacity))
+			uint64(flags.StatCacheCapacity) * metadata.StatCacheEntrySize())
 	}
 
 	_, allowOther := flags.MountOptions["allow_other"]
