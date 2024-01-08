@@ -34,7 +34,7 @@ require (
 
 require (
 	cloud.google.com/go v0.110.8 // indirect
-	cloud.google.com/go/compute v1.23.1 // indirect
+	cloud.google.com/go/compute v1.23.3 // indirect
 	cloud.google.com/go/iam v1.1.3 // indirect
 	cloud.google.com/go/monitoring v1.16.1 // indirect
 	cloud.google.com/go/pubsub v1.33.0 // indirect
