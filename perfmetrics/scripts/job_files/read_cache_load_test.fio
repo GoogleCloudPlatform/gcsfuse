@@ -10,7 +10,8 @@ thread=1
 openfiles=1
 group_reporting=1
 create_serialize=0
-allrandrepeat=1
+allrandrepeat=0
+file_service_type=random
 numjobs=${NUMJOBS}
 filename_format=$jobname.$jobnum/$filenum
 
