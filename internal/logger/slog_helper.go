@@ -30,10 +30,11 @@ const (
 	LevelWarn  = slog.LevelWarn
 	LevelError = slog.LevelError
 	// LevelOff value is set to 12, so that nothing is logged.
-	LevelOff = slog.Level(12)
-
-	timestampSecondsKey = "timestampSeconds"
-	timestampNanosKey   = "timestampNanos"
+	LevelOff     = slog.Level(12)
+	messageKey   = "message"
+	timestampKey = "timestamp"
+	secondsKey   = "seconds"
+	nanosKey     = "nanos"
 )
 
 func setLoggingLevel(level config.LogSeverity, programLevel *slog.LevelVar) {
@@ -82,6 +83,9 @@ func customiseLevels(a *slog.Attr) {
 
 // AddPrefixToMessage adds the prefix to the log message.
 func addPrefixToMessage(a *slog.Attr, prefix string) {
+	// Change key name to "message" so that it is compatible with fluentD.
+	a.Key = messageKey
+	// Add prefix to the message.
 	message := a.Value.Any().(string)
 	var sb strings.Builder
 	sb.WriteString(prefix)
@@ -91,13 +95,13 @@ func addPrefixToMessage(a *slog.Attr, prefix string) {
 
 // CustomiseTimeFormat converts the time to below specified format:
 // 1. for json logs:
-// "time":{"timestampSeconds":1694164762,"timestampNanos":1694164762084862036}
+// "timestamp":{"seconds":1704697907,"nanos":553918512}
 // 2. for text logs:
 // time="08/09/2023 09:24:54.437193"
 func customiseTimeFormat(a *slog.Attr, format string) {
 	currTime := a.Value.Any().(time.Time).Round(0)
 	if format == "json" {
-		*a = slog.Group(slog.TimeKey, timestampSecondsKey, currTime.Unix(), timestampNanosKey, currTime.UnixNano())
+		*a = slog.Group(timestampKey, secondsKey, currTime.Unix(), nanosKey, currTime.Nanosecond())
 	} else {
 		a.Value = slog.StringValue(currTime.Round(0).Format("02/01/2006 03:04:05.000000"))
 	}
