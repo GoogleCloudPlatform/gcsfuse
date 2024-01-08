@@ -36,6 +36,8 @@ const (
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	DefaultStatCacheCapacity = 4096
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -209,7 +211,7 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: 4096,
+				Value: DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
 			},
 
