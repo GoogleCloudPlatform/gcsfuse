@@ -28,7 +28,7 @@ logging:
 cache-location: ${CACHE_LOCATION:-/tmp/read_cache/}
 file-cache:
   max-size-in-mb: ${MAX_SIZE_IN_MB:-100}
-  download-file-for-random-read: ${DOWNLOAD_FOR_RANDOM_READ:-false}
+  cache-file-for-range-read: ${CACHE_FILE_FOR_RANGE_READ-false}
 metadata-cache:
   ttl-secs: ${TTL_SECS}
 EOF

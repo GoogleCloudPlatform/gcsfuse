@@ -33,7 +33,7 @@ const (
 	ErrInReadingFileHandleMsg                 = "error while reading file handle"
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
-	CacheHandleNotRequiredForRandomReadErrMsg = "downloadFileForRandomRead is false, read type random read and fileInfo entry is absent"
+	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
 )
 
 const (
