@@ -34,6 +34,13 @@ const (
 
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
+
+	// StatCacheMaxSizeInMbUnsetSentinel is the value internally
+	// set for metada-cache:stat-cache-max-size-mb
+	// when it is not set in the gcsfuse mount config file.
+	// The constant value has been chosen deliberately
+	// to be improbable for a user to explicitly set.
+	StatCacheMaxSizeInMbUnsetSentinel int64 = math.MinInt64
 )
 
 type WriteConfig struct {
@@ -61,6 +68,15 @@ type MetadataCacheConfig struct {
 	// no cache and > 0 for ttl-controlled metadata-cache.
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
+
+	// StatCacheMaxSizeInMb is the maximum size of stat-cache
+	// in MiBs.
+	// It can also be set to -1 for no-size-limit, 0 for
+	// no cache. Values below -1 are not supported.
+	// Any value set below -1 will return an error.
+	// If it is not set, then the value of flag
+	//  stat-cache-capacity is used instead.
+	StatCacheMaxSizeInMb int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
 type MountConfig struct {
@@ -106,7 +122,8 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds: TtlInSecsUnsetSentinel,
+		TtlInSeconds:         TtlInSecsUnsetSentinel,
+		StatCacheMaxSizeInMb: StatCacheMaxSizeInMbUnsetSentinel,
 	}
 	return mountConfig
 }

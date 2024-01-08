@@ -34,7 +34,7 @@ max_size_in_mb=100
 cache_location=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
 stat_or_type_cache_ttl_secs=6048000 # 168h or 1 week
-stat_cache_capacity=4096
+stat_cache_max_size_mb=2
 enable_log=0
 
 while getopts lhds:b:c:m: flag
@@ -82,6 +82,7 @@ export MAX_SIZE_IN_MB="${max_size_in_mb}"
 export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
 export CACHE_LOCATION="${cache_location}"
 export TTL_SECS="${stat_or_type_cache_ttl_secs}"
+export STAT_CACHE_MAX_SIZE_MB="${stat_cache_max_size_mb}"
 ./generate_yml_config.sh
 
 debug_flags=""
@@ -92,7 +93,6 @@ fi
 # Mount gcsfuse
 echo "Mounting gcsfuse..."
 gcsfuse --stackdriver-export-interval 30s \
-        --stat-cache-capacity $stat_cache_capacity \
         $debug_flags \
         --log-file $WORKING_DIR/gcsfuse_logs.txt \
         --log-format text \

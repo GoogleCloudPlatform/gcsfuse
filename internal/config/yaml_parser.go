@@ -37,6 +37,7 @@ const (
 	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
+	StatCacheMaxSizeInMbInvalidValueError = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -78,6 +79,9 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		if metadataCacheConfig.TtlInSeconds > MaxSupportedTtlInSeconds {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
+	}
+	if metadataCacheConfig.StatCacheMaxSizeInMb < -1 && metadataCacheConfig.StatCacheMaxSizeInMb != StatCacheMaxSizeInMbUnsetSentinel {
+		return fmt.Errorf(StatCacheMaxSizeInMbInvalidValueError)
 	}
 	return nil
 }

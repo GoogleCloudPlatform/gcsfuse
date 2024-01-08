@@ -111,6 +111,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// metadata-cache config
 	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	ExpectEq(32, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMb)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -164,4 +165,19 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
 
 	AssertNe(nil, err)
 	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsTooHighError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidStatCacheSize() {
+	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_stat_cache_size.yaml")
+
+	AssertNe(nil, err)
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeInMbInvalidValueError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNotSet() {
+	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_stat_cache_size_unset.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(StatCacheMaxSizeInMbUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMb)
 }

@@ -63,7 +63,14 @@ The cost of the consistency guarantees discussed in the rest of this document is
 To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
 
 The behavior of stat cache is controlled by the following flags/config parameters:
-1. Stat-cache capacity: The size of the stat cache can be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
+1. Stat-cache capacity/size: It controls the maximum number/memory-size of the stat-cache entries. It ca be configured in the following two ways.
+   1. `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter to be set through the config-file. It sets the stat-cache size in MiBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting. 
+   If this is missing, then `--stat-cache-capacity` is used.
+   1. `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count. 
+   This is ignored if user sets `metadata-cache:stat-cache-max-size-mb` .
+   This can be set to 0 for disabling stat-cache and >0 for setting a finite stat-cache size. If this is not set, the stat cache capacity will default to 1048576 (2^20) items (or ~320 MiBs). 
+   
+   If you have more objects (folders or files) than that in your bucket that you want to access, then you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
     - ListObjects will return information on the items within the folder. Each item's data is cached
     - Because there are more objects than cache capacity, the earliest entries will be evicted
     - The linux kernel then asks for a little more information on each file.
