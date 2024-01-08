@@ -16,7 +16,7 @@ package json_parser
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -29,15 +29,15 @@ func parseToInt64(token string) (int64, error) {
 	return res, nil
 }
 
-func readFileLineByLine(filename string) ([]string, error) {
-	content, err := os.ReadFile(filename)
+func readFileLineByLine(reader io.Reader) ([]string, error) {
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
 	return strings.Split(string(content), "\n"), nil
 }
 
-func parseReadFileLog(startTimeStamp int64, logs []string,
+func parseReadFileLog(startTimeStampSec, startTimeStampNanos int64, logs []string,
 	structuredLogs map[int64]*StructuredLogEntry) error {
 
 	// Fetch file handle, process id and inode id from the logs.
@@ -60,18 +60,19 @@ func parseReadFileLog(startTimeStamp int64, logs []string,
 	_, ok := structuredLogs[handle]
 	if !ok {
 		structuredLogs[handle] = &StructuredLogEntry{
-			Handle:    handle,
-			StartTime: startTimeStamp,
-			ProcessID: pid,
-			InodeID:   inodeID,
-			Chunks:    []ChunkData{},
+			Handle:           handle,
+			StartTimeSeconds: startTimeStampSec,
+			StartTimeNanos:   startTimeStampNanos,
+			ProcessID:        pid,
+			InodeID:          inodeID,
+			Chunks:           []ChunkData{},
 		}
 	}
 
 	return nil
 }
 
-func parseFileCacheLog(startTimeStamp int64, logs []string,
+func parseFileCacheLog(startTimeStampSec, startTimeStampNanos int64, logs []string,
 	structuredLogs map[int64]*StructuredLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
@@ -81,7 +82,7 @@ func parseFileCacheLog(startTimeStamp int64, logs []string,
 	if err != nil {
 		return fmt.Errorf("file handle: %v", err)
 	}
-	size, err := parseToInt64(logs[6][:len(logs[6])-1]) //Remove trailing ","
+	size, err := parseToInt64(logs[6])
 	if err != nil {
 		return fmt.Errorf("size: %v", err)
 	}
@@ -93,7 +94,7 @@ func parseFileCacheLog(startTimeStamp int64, logs []string,
 	// Fetch the log entry for the particular file handle from the structuredLogs map.
 	logEntry, ok := structuredLogs[handle]
 	if !ok {
-		return fmt.Errorf("LogEntry for handle %d not found", handle)
+		return fmt.Errorf("ReadFile LogEntry for handle %d not found", handle)
 	}
 
 	// For the first file cache log, log entry will not have object and bucket
@@ -107,10 +108,11 @@ func parseFileCacheLog(startTimeStamp int64, logs []string,
 
 	// Create chunk data entry and append it to the filecache logs.
 	chunkData := ChunkData{
-		StartTime:   startTimeStamp,
-		StartOffset: startOffset,
-		Size:        size,
-		OpID:        opID,
+		StartTimeSeconds: startTimeStampSec,
+		StartTimeNanos:   startTimeStampNanos,
+		StartOffset:      startOffset,
+		Size:             size,
+		OpID:             opID,
 	}
 	logEntry.Chunks = append(logEntry.Chunks, chunkData)
 
@@ -126,13 +128,17 @@ func parseFileCacheResponseLog(logs []string,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
 	opID := logs[0]
-	handle := opReverseMap[opID].handle
-	chunkIndex := opReverseMap[opID].chunkIndex
+	handleAndChunkIndex, ok := opReverseMap[opID]
+	if !ok {
+		return fmt.Errorf("FileCache log entry not found for opID %s", opID)
+	}
+	handle := handleAndChunkIndex.handle
+	chunkIndex := handleAndChunkIndex.chunkIndex
 
 	// Fetch the log entry for the particular file handle from the structuredLogs map.
 	logEntry, ok := structuredLogs[handle]
 	if !ok {
-		return fmt.Errorf("LogEntry for handle %d not found", handle)
+		return fmt.Errorf("ReadFile LogEntry for handle %d not found", handle)
 	}
 
 	// Populate chunk IsSequential, CacheHit and Execution time

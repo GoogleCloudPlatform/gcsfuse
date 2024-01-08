@@ -17,6 +17,7 @@ package json_parser
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -32,7 +33,8 @@ func filterAndParseLogLine(logLine string,
 	}
 
 	// Get timestamp from the jsonLog
-	timestamp := int64(jsonLog["time"].(map[string]interface{})["timestampNanos"].(float64))
+	timestampSeconds := int64(jsonLog["timestamp"].(map[string]interface{})["seconds"].(float64))
+	timestampNanos := int64(jsonLog["timestamp"].(map[string]interface{})["nanos"].(float64))
 	// Normalize whitespace in the log message.
 	logMessage := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["msg"].(string), " "))
 	// Tokenize log message.
@@ -41,11 +43,11 @@ func filterAndParseLogLine(logLine string,
 	// Parse the logs based on type.
 	switch {
 	case strings.Contains(logMessage, "ReadFile"):
-		if err := parseReadFileLog(timestamp, tokenizedLogs, structuredLogs); err != nil {
+		if err := parseReadFileLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs); err != nil {
 			return fmt.Errorf("parseReadFileLog failed: %v", err)
 		}
 	case strings.Contains(logMessage, "FileCache"):
-		if err := parseFileCacheLog(timestamp, tokenizedLogs, structuredLogs, opReverseMap); err != nil {
+		if err := parseFileCacheLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs, opReverseMap); err != nil {
 			return fmt.Errorf("parseFileCacheLog failed: %v", err)
 		}
 	case strings.Contains(logMessage, "OK (isSeq") && !strings.Contains(logMessage, "fuse_debug"):
@@ -85,12 +87,12 @@ into map of following structure:
 		...
 	}
 */
-func ParseLogFile(logFilePath string) (map[int64]*StructuredLogEntry, error) {
+func ParseLogFile(reader io.Reader) (map[int64]*StructuredLogEntry, error) {
 	// structuredLogs map stores is a mapping between file handle and StructuredLogEntry.
 	structuredLogs := make(map[int64]*StructuredLogEntry)
 	opReverseMap := make(map[string]*handleAndChunkIndex)
 
-	lines, err := readFileLineByLine(logFilePath)
+	lines, err := readFileLineByLine(reader)
 	if err != nil {
 		fmt.Println("Error reading log file:", err)
 		os.Exit(1)
