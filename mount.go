@@ -106,16 +106,16 @@ be interacting with the file system.`)
 		}
 
 		if mountConfig.StatCacheMaxSizeInMb == -1 {
-			bucketCfg.StatCacheMaxSizeMb = math.MaxUint64
+			bucketCfg.StatCacheMaxSizeMiB = math.MaxUint64
 		} else {
-			bucketCfg.StatCacheMaxSizeMb = uint64(mountConfig.StatCacheMaxSizeInMb)
+			bucketCfg.StatCacheMaxSizeMiB = uint64(mountConfig.StatCacheMaxSizeInMb)
 		}
 	} else {
 		if flags.StatCacheCapacity < 0 {
 			return nil, fmt.Errorf("stat-cache-capacity can't be less than 0")
 		}
 
-		bucketCfg.StatCacheMaxSizeMb = util.BytesToHigherMiBs(
+		bucketCfg.StatCacheMaxSizeMiB = util.BytesToHigherMiBs(
 			uint64(flags.StatCacheCapacity))
 	}
 
