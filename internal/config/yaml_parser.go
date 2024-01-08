@@ -98,11 +98,11 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	}
 
 	if err = mountConfig.FileCacheConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing file-cache configs: %v", err)
+		return mountConfig, fmt.Errorf("error parsing file-cache configs: %w", err)
 	}
 
 	if err = mountConfig.MetadataCacheConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %v", err)
+		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %w", err)
 	}
 	return
 }

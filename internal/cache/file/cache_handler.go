@@ -76,7 +76,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
 	if err != nil {
-		return fmt.Errorf("cleanUpEvictedFile: while performing post eviction: %v", err)
+		return fmt.Errorf("cleanUpEvictedFile: while performing post eviction: %w", err)
 	}
 
 	// Removing Job doesn't delete the job object itself but invalidates the job and
@@ -90,18 +90,18 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	err = os.Truncate(localFilePath, 0)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of truncating: %v", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of truncating: w", err)
 			return nil
 		} else {
-			return fmt.Errorf("cleanUpEvictedFile: while truncating file: %s, error: %v", localFilePath, err)
+			return fmt.Errorf("cleanUpEvictedFile: while truncating file: %s, error: %w", localFilePath, err)
 		}
 	}
 	err = os.Remove(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of deleting: %v", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of deleting: %w", err)
 		} else {
-			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %v", localFilePath, err)
+			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %w", localFilePath, err)
 		}
 	}
 
@@ -150,7 +150,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 				erasedFileInfo := erasedVal.(data.FileInfo)
 				err := chr.cleanUpEvictedFile(&erasedFileInfo)
 				if err != nil {
-					return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %v", erasedFileInfo.Key.ObjectName, err)
+					return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %w", erasedFileInfo.Key.ObjectName, err)
 				}
 			}
 			addEntryToCache = true
@@ -167,14 +167,14 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
 		if err != nil {
-			return fmt.Errorf("addFileInfoEntryToCache: while inserting into the cache: %v", err)
+			return fmt.Errorf("addFileInfoEntryToCache: while inserting into the cache: %w", err)
 		}
 
 		for _, val := range evictedValues {
 			fileInfo := val.(data.FileInfo)
 			err := chr.cleanUpEvictedFile(&fileInfo)
 			if err != nil {
-				return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %v", fileInfo.Key.ObjectName, err)
+				return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %w", fileInfo.Key.ObjectName, err)
 			}
 		}
 	} else {
@@ -224,12 +224,12 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 
 	err := chr.addFileInfoEntryToCache(object, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %v", err)
+		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %w", err)
 	}
 
 	localFileReadHandle, err := chr.createLocalFileReadHandle(object.Name, bucket.Name())
 	if err != nil {
-		return nil, fmt.Errorf("GetCacheHandle: while create local-file read handle: %v", err)
+		return nil, fmt.Errorf("GetCacheHandle: while create local-file read handle: %w", err)
 	}
 
 	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, cacheForRangeRead, initialOffset), nil
@@ -257,7 +257,7 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 		fileInfo := erasedVal.(data.FileInfo)
 		err := chr.cleanUpEvictedFile(&fileInfo)
 		if err != nil {
-			return fmt.Errorf("InvalidateCache: while performing clean-up for evicted  %s object, error: %v", fileInfo.Key.ObjectName, err)
+			return fmt.Errorf("InvalidateCache: while performing clean-up for evicted  %s object, error: %w", fileInfo.Key.ObjectName, err)
 		}
 	}
 	return nil
