@@ -336,7 +336,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_DownloadForRandom() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_CacheForRangeRead() {
 	minObject1 := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
 	cacheHandle1, err1 := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, false, 0)
 	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2 ..."))

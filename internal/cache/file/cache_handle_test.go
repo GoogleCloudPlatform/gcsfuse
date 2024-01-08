@@ -462,7 +462,7 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a random read hence will not wait to download till requested offset.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -542,7 +542,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -558,7 +558,7 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	dst := make([]byte, ReadContentSize)
 	firstReqOffset := int64(0)
 	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
@@ -585,7 +585,7 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
@@ -600,7 +600,7 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	dst := make([]byte, ReadContentSize)
 	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
@@ -627,7 +627,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	dst := make([]byte, ReadContentSize)
 	cht.cacheHandle.isSequential = true
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 	// First let the cache populated (we are doing this so that we can externally
 	// modify file info cache for this unit test without hampering download job).
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
@@ -660,7 +660,7 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
-	cht.cacheHandle.downloadFileForRandomRead = true
+	cht.cacheHandle.cacheFileForRangeRead = true
 	// First read should be cache miss.
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()

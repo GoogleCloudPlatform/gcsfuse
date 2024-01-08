@@ -42,16 +42,16 @@ type FileHandle struct {
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
 
-	// downloadFileForRandomRead is also valid for cache workflow, if true, object content
+	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
-	downloadFileForRandomRead bool
+	cacheFileForRangeRead bool
 }
 
-func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, downloadFileForRandomRead bool) (fh *FileHandle) {
+func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) (fh *FileHandle) {
 	fh = &FileHandle{
-		inode:                     inode,
-		fileCacheHandler:          fileCacheHandler,
-		downloadFileForRandomRead: downloadFileForRandomRead,
+		inode:                 inode,
+		fileCacheHandler:      fileCacheHandler,
+		cacheFileForRangeRead: cacheFileForRangeRead,
 	}
 
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
@@ -170,7 +170,7 @@ func (fh *FileHandle) tryEnsureReader(ctx context.Context, sequentialReadSizeMb 
 	}
 
 	// Attempt to create an appropriate reader.
-	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.downloadFileForRandomRead)
+	rr := gcsx.NewRandomReader(fh.inode.Source(), fh.inode.Bucket(), sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead)
 
 	fh.reader = rr
 	return
