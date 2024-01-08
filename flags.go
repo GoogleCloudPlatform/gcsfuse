@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -392,7 +391,8 @@ type flagStorage struct {
 	// Tuning
 	MaxRetrySleep              time.Duration
 	StatCacheCapacity          int
-	StatOrTypeCacheTTL         time.Duration
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -473,9 +473,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
-	userStatCacheTTL := c.Duration("stat-cache-ttl")
-	userTypeCacheTTL := c.Duration("type-cache-ttl")
-	minTTL := time.Second * time.Duration(uint64(math.Ceil(math.Min(userStatCacheTTL.Seconds(), userTypeCacheTTL.Seconds()))))
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
@@ -504,7 +501,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatOrTypeCacheTTL:         minTTL,
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
