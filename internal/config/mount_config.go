@@ -38,6 +38,13 @@ const (
 	// DefaultTypeCacheMaxEntries is the default vlaue of type-cache-max-entries.
 	// The value is set high at 1,048,476 (2^20) as it is not supposed to be set by users.
 	DefaultTypeCacheMaxEntries int = 2 << 20
+
+	// StatCacheMaxSizeInMiBsUnsetSentinel is the value internally
+	// set for metada-cache:stat-cache-max-size-mb
+	// when it is not set in the gcsfuse mount config file.
+	// The constant value has been chosen deliberately
+	// to be improbable for a user to explicitly set.
+	StatCacheMaxSizeInMiBsUnsetSentinel int64 = math.MinInt64
 )
 
 type WriteConfig struct {
@@ -69,6 +76,15 @@ type MetadataCacheConfig struct {
 	// on the maximum number of type-cache entries,
 	// which are maintained at per-directory level.
 	TypeCacheMaxEntries int `yaml:"type-cache-max-entries,omitempty"`
+
+	// StatCacheMaxSizeInMiBs is the maximum size of stat-cache
+	// in MiBs.
+	// It can also be set to -1 for no-size-limit, 0 for
+	// no cache. Values below -1 are not supported.
+	// Any value set below -1 will return an error.
+	// If it is not set, then the value of flag
+	// stat-cache-capacity is used instead.
+	StatCacheMaxSizeInMiBs int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
 type MountConfig struct {
@@ -116,6 +132,7 @@ func NewMountConfig() *MountConfig {
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:        TtlInSecsUnsetSentinel,
 		TypeCacheMaxEntries: DefaultTypeCacheMaxEntries,
+		StatCacheMaxSizeInMiBs: StatCacheMaxSizeInMiBsUnsetSentinel,
 	}
 	return mountConfig
 }

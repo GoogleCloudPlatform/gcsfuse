@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -32,8 +33,6 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	DefaultStatCacheCapacity = 4096
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -207,8 +206,8 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: DefaultStatCacheCapacity,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+				Value: mount.DefaultStatCacheCapacity,
+				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag will be deprecated in the future and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 320 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{
@@ -424,6 +423,8 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	if err != nil {
 		return
 	}
+
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", flagKey, flagValue, resolvedPath)
 
 	err = c.Set(flagKey, resolvedPath)
 	return

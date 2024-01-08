@@ -31,4 +31,5 @@ file-cache:
   cache-file-for-range-read: ${CACHE_FILE_FOR_RANGE_READ-false}
 metadata-cache:
   ttl-secs: ${TTL_SECS}
+  stat-cache-max-size-mb: ${STAT_CACHE_MAX_SIZE_MB}
 EOF
