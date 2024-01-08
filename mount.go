@@ -19,10 +19,10 @@ import (
 	"math"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -115,7 +115,8 @@ be interacting with the file system.`)
 			return nil, fmt.Errorf("stat-cache-capacity can't be less than 0")
 		}
 
-		bucketCfg.StatCacheMaxSizeMb = ((uint64(flags.StatCacheCapacity) * metadata.StatCacheEntrySize()) + (1<<20 - 1)) >> 20
+		bucketCfg.StatCacheMaxSizeMb = util.BytesToHigherMiBs(
+			uint64(flags.StatCacheCapacity))
 	}
 
 	_, allowOther := flags.MountOptions["allow_other"]

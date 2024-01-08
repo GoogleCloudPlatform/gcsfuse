@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -85,7 +86,7 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheMaxSizeMb > 0 {
-		c = lru.NewCache(config.StatCacheMaxSizeMb << 20) // Use util.MiBsToBytes when it's available.
+		c = lru.NewCache(util.MibToBytes(config.StatCacheMaxSizeMb))
 	}
 
 	bm := &bucketManager{
