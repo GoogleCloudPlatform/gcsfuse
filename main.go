@@ -242,6 +242,14 @@ func runCLIApp(c *cli.Context) (err error) {
 	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
 	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
 
+	if flags.StatCacheCapacity != DefaultStatCacheCapacity {
+		logger.Warnf("Old flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
+	}
+
+	if flags.StatOrTypeCacheTTL != DefaultStatOrTypeCacheTTL {
+		logger.Warnf("Old flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+	}
+
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
 	if !flags.Foreground {
