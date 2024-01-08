@@ -38,8 +38,8 @@ type LogConfig struct {
 type CacheLocation string
 
 type FileCacheConfig struct {
-	MaxSizeInMB               int64 `yaml:"max-size-in-mb"`
-	DownloadFileForRandomRead bool  `yaml:"download-file-for-random-read"`
+	MaxSizeInMB           int64 `yaml:"max-size-in-mb"`
+	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 }
 
 type MetadataCacheConfig struct {

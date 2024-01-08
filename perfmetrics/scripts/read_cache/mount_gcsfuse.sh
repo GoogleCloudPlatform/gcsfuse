@@ -22,14 +22,14 @@ print_usage() {
   printf "[-s max_size_in_mb] "
   printf "[-b bucket_name] "
   printf "[-c cache_location] "
-  printf "[-d (means download_for_random_read is true)] "
+  printf "[-d (means cache_file_for_range_read is true)] "
   printf "[-m (means metadata cache capacity)] "
   printf "[-l (start_logging on $WORKING_DIR/gcsfuse_logs.txt)] \n"
 }
 
 # Default value to edit, value via argument will override
 # these values if provided.
-download_for_random_read=false
+cache_file_for_range_read=false
 max_size_in_mb=100
 cache_location=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
@@ -43,7 +43,7 @@ do
 
     s) max_size_in_mb=${OPTARG};;
     b) bucket_name=${OPTARG};;
-    d) download_for_random_read=true;;
+    d) cache_file_for_range_read=true;;
     c) cache_location=${OPTARG};;
     m) stat_cache_capacity=${OPTARG};;
     h) print_usage
@@ -79,7 +79,7 @@ fi
 
 # Generate yml config.
 export MAX_SIZE_IN_MB="${max_size_in_mb}"
-export DOWNLOAD_FOR_RANDOM_READ="${download_for_random_read}"
+export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
 export CACHE_LOCATION="${cache_location}"
 export TTL_SECS="${stat_or_type_cache_ttl_secs}"
 ./generate_yml_config.sh

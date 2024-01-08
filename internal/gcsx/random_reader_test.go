@@ -766,10 +766,10 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanRea
 	ExpectTrue(reflect.DeepEqual(testContent[start2:end2], buf2))
 }
 
-func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownloadForRandomIsFalse() {
+func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRangeReadIsFalse() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	t.rr.wrapped.downloadFileForRandomRead = false
+	t.rr.wrapped.cacheFileForRangeRead = false
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
@@ -792,10 +792,10 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownl
 	ExpectFalse(cacheHit)
 }
 
-func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenDownloadForRandomIsTrue() {
+func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRangeReadIsTrue() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	t.rr.wrapped.downloadFileForRandomRead = true
+	t.rr.wrapped.cacheFileForRangeRead = true
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
@@ -1071,7 +1071,7 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-	t.rr.wrapped.downloadFileForRandomRead = false
+	t.rr.wrapped.cacheFileForRangeRead = false
 	start := 5
 	end := 10
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))

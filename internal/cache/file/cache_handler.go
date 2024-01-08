@@ -194,19 +194,19 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 // the download job downloads the object content. Finally, it returns a CacheHandle
 // that contains the reference to downloader.Job and the local file handle. This method
 // is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
-// sequence guarded by (CacheHandler.mu). Note: It returns nil if downloadForRandom is
+// sequence guarded by (CacheHandler.mu). Note: It returns nil if cacheForRangeRead is
 // set to False, initialOffset is non-zero (i.e. random read) and entry for file
 // doesn't already exist in fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, downloadForRandom bool, initialOffset int64) (*CacheHandle, error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	// If downloadForRandom is set to False, initialOffset is non-zero (i.e. random read)
+	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
 	// and entry for file doesn't already exist in fileInfoCache then no need to
 	// create file in cache.
-	if !downloadForRandom && initialOffset != 0 {
+	if !cacheForRangeRead && initialOffset != 0 {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
 			ObjectName: object.Name,
@@ -232,7 +232,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		return nil, fmt.Errorf("GetCacheHandle: while create local-file read handle: %v", err)
 	}
 
-	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, downloadForRandom, initialOffset), nil
+	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, cacheForRangeRead, initialOffset), nil
 }
 
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean
