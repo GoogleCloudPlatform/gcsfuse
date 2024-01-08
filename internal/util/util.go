@@ -22,9 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -73,50 +70,41 @@ func ResolveFilePath(filePath string, configKey string) (resolvedPath string, er
 		return
 	}
 
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
 	return resolvedPath, nil
 }
 
-// ResolveConfigFilePaths resolved the config file paths specified in the config file.
-func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
-	config.LogConfig.FilePath, err = ResolveFilePath(config.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-	return
-}
-
 // Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
-func Stringify(input any) string {
+func Stringify(input any) (string, error) {
 	inputBytes, err := json.Marshal(input)
 
 	if err != nil {
-		logger.Warnf("Error in Stringify %v", err)
-		return ""
+		return "", fmt.Errorf("error in Stringify %w", err)
 	}
-	return string(inputBytes)
+	return string(inputBytes), nil
 }
 
-// MibToBytes returns the bytes equivalent
+// MiBsToBytes returns the bytes equivalent
 // of given no.s of MiBs (Mibi Bytes).
 // For reference, each MiB = 2^20 bytes.
 // It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
-func MibToBytes(bytes uint64) uint64 {
-	if bytes > MaxMiBsInUint64 {
+func MiBsToBytes(mibs uint64) uint64 {
+	if mibs > MaxMiBsInUint64 {
 		panic("Inputs above (2^44 - 1) not supported.")
 	}
-	return bytes << 20
+	return mibs << 20
 }
 
 // BytesToHigherMiBs returns the MiBs (Mibi Bytes) equivalent
-// of given no.s of bytes. If bytes is no an exact number of MiBs,
+// of given no.s of bytes. If bytes is not an exact number of MiBs,
 // then it returns the next higher no. of MiBs.
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
 	if bytes > BytesInMaxMiBsInUint64 {
 		return MaxMiBsInUint64 + 1
 	}
-	return (bytes + 0xFFFFF) >> 20
+	var bytesInOneMiB uint64 = 1 << 20
+	// Adding (bytesInOneMiB - 1), and then dividing by bytesInOneMiB,
+	// to calculate the next MiB value corresponding to the given bytes.
+	return (bytes + (bytesInOneMiB - 1)) >> 20
 }
-

@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -146,20 +145,6 @@ func (t *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
-func (t *UtilTest) TestResolveConfigFilePaths() {
-	mountConfig := &config.MountConfig{}
-	mountConfig.LogConfig = config.LogConfig{
-		FilePath: "~/test.txt",
-	}
-
-	err := ResolveConfigFilePaths(mountConfig)
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
-}
-
 func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
 	sampleMap := map[string]int{
 		"1": 1,
@@ -175,7 +160,7 @@ func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarsh
 		NestedValue: sampleNestedValue,
 	}
 
-	actual := Stringify(customObject)
+	actual, _ := Stringify(customObject)
 
 	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
 	AssertEq(expected, actual)
@@ -186,7 +171,7 @@ func (t *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 		value: "example",
 	}
 
-	actual := Stringify(customInstance)
+	actual, _ := Stringify(customInstance)
 
 	expected := ""
 	AssertEq(expected, actual)
@@ -209,7 +194,7 @@ func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
 
-func (t *UtilTest) TestMibToBytes() {
+func (t *UtilTest) TestMiBsToBytes() {
 	cases := []struct {
 		mib   uint64
 		bytes uint64
@@ -237,7 +222,7 @@ func (t *UtilTest) TestMibToBytes() {
 	}
 
 	for _, tc := range cases {
-		AssertEq(tc.bytes, MibToBytes(tc.mib))
+		AssertEq(tc.bytes, MiBsToBytes(tc.mib))
 	}
 }
 
@@ -272,4 +257,3 @@ func (t *UtilTest) TestBytesToHigherMiBs() {
 		AssertEq(tc.mib, BytesToHigherMiBs(tc.bytes))
 	}
 }
-
