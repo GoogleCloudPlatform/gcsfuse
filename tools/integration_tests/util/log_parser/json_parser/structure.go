@@ -38,6 +38,7 @@ type ChunkData struct {
 	IsSequential     bool
 	OpID             string
 	ExecutionTime    string
+	error            string
 }
 
 ////////////////////////////////////////////////////////////////////////

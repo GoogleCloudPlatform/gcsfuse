@@ -92,7 +92,7 @@ func ParseLogFile(reader io.Reader) (map[int64]*StructuredLogEntry, error) {
 	structuredLogs := make(map[int64]*StructuredLogEntry)
 	opReverseMap := make(map[string]*handleAndChunkIndex)
 
-	lines, err := readFileLineByLine(reader)
+	lines, err := loadLogLines(reader)
 	if err != nil {
 		fmt.Println("Error reading log file:", err)
 		os.Exit(1)
