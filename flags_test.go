@@ -16,12 +16,14 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -358,4 +360,118 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) TestMetadataCacheTTL() {
+	inputs := []struct {
+		// equivalent of user-setting of --stat-cache-ttl
+		statCacheTTL time.Duration
+
+		// equivalent of user-setting of --type-cache-ttl
+		typeCacheTTL time.Duration
+
+		// equivalent of user-setting of metadata-cache:ttl-secs in --config-file
+		ttlInSeconds             int64
+		expectedMetadataCacheTTL time.Duration
+	}{
+		{
+			// most common scenario, when user doesn't set any of the TTL config parameters.
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: DefaultStatOrTypeCacheTTL,
+		},
+		{
+			// scenario where user sets only metadata-cache:ttl-secs and sets it to -1
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             -1,
+			expectedMetadataCacheTTL: time.Duration(math.MaxInt64),
+		},
+		{
+			// scenario where user sets only metadata-cache:ttl-secs and sets it to 0
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             0,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// scenario where user sets only metadata-cache:ttl-secs and sets it to a positive value
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             30,
+			expectedMetadataCacheTTL: 30 * time.Second,
+		},
+		{
+			// scenario where user sets only metadata-cache:ttl-secs and sets it to its highest supported value
+			statCacheTTL: DefaultStatOrTypeCacheTTL,
+			typeCacheTTL: DefaultStatOrTypeCacheTTL,
+			ttlInSeconds: config.MaxSupportedTtlInSeconds,
+
+			// math.MaxInt64 is not a multiple of 1e9, so time.Duration(math.MaxInt64) is not
+			// an exact multiple of seconds. Since ttlInSeconds will always set time in
+			// multiple of seconds, we also need to round time.Duration(math.MaxInt64) to
+			// multiple of seconds, for comparison.
+			expectedMetadataCacheTTL: time.Duration((math.MaxInt64 / int64(time.Second)) * int64(time.Second)),
+		},
+		{
+			// scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 1.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             10800,
+			expectedMetadataCacheTTL: 3 * time.Hour,
+		},
+		{
+			// scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 2.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             1800,
+			expectedMetadataCacheTTL: 30 * time.Minute,
+		},
+		{
+			// scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 3.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             0,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 4.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             -1,
+			expectedMetadataCacheTTL: time.Duration(math.MaxInt64),
+		},
+		{
+			// old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 1.
+			statCacheTTL:             0,
+			typeCacheTTL:             0,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 2. Stat-cache enabled, but not type-cache.
+			statCacheTTL:             time.Hour,
+			typeCacheTTL:             0,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 3. Type-cache enabled, but not stat-cache.
+			statCacheTTL:             0,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 4. Both Type-cache and stat-cache enabled. The lower of the two TTLs is taken.
+			statCacheTTL:             time.Second,
+			typeCacheTTL:             time.Minute,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: time.Second,
+		},
+	}
+	for _, input := range inputs {
+		AssertEq(input.expectedMetadataCacheTTL, metadataCacheTTL(input.statCacheTTL, input.typeCacheTTL, input.ttlInSeconds))
+	}
 }

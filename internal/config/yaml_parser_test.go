@@ -158,3 +158,10 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	AssertNe(nil, mountConfig)
 	AssertEq(TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
+	_, err := ParseConfigFile("testdata/metadata_cache_config_ttl_too_high.yaml")
+
+	AssertNe(nil, err)
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsTooHighError)))
+}

@@ -16,12 +16,14 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
@@ -572,4 +574,21 @@ func (oi *OctalInt) Set(value string) (err error) {
 
 func (oi OctalInt) String() string {
 	return fmt.Sprintf("%o", oi)
+}
+
+func metadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
+	// if metadata-cache:ttl-secs has been set in config-file, then
+	// it overrides both stat-cache-ttl and type-cache-tll.
+	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
+		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
+		if ttlInSeconds == -1 {
+			metadataCacheTTL = time.Duration(math.MaxInt64)
+		} else {
+			metadataCacheTTL = time.Second * time.Duration(ttlInSeconds)
+		}
+	} else {
+		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
+	}
+
+	return
 }
