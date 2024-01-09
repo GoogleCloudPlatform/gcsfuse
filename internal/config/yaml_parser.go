@@ -34,7 +34,7 @@ const (
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
 
-	parseConfigFileErrMsgFormat = "error parsing config file: %v"
+	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
 
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 )

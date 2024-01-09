@@ -69,7 +69,8 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
 		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
@@ -82,8 +83,6 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags...)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
@@ -103,6 +102,11 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
+
+	// Setup config file for tests when --testbucket flag is enabled.
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags...)
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
