@@ -25,6 +25,9 @@ echo "Building and installing gcsfuse..."
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
+# To execute tests for a specific commitId, ensure you've checked out from that commitId first.
+git checkout $commitId
+
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
 ./perfmetrics/scripts/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
