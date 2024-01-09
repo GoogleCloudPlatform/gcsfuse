@@ -17,7 +17,7 @@
 set -e
 
 VM_NAME="pytorch-dino-read-cache-release-7d"
-ZONE_NAME="us-west1-b"
+ZONE_NAME="us-west1-a"
 ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/read_cache_release/v1_12/dino"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/pytorch/v1_12/dino/setup_host_and_run_container.sh"
 PYTORCH_VERSION="v1_12"
