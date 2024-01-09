@@ -92,3 +92,28 @@ func Stringify(input any) string {
 	}
 	return string(inputBytes)
 }
+
+// HasReadWritePerms returns true only if file or directory on given path has both read and write permissions
+// and returns error in case unable to get permission details
+func HasReadWritePerms(absolutePath string) (bool, error) {
+	fileInfo, err := os.Stat(absolutePath)
+
+	// Check is stat check ran into any errors
+	if err != nil {
+		return false, err
+	}
+	//
+	//// Check if the file is a directory
+	//if !fileInfo.IsDir() {
+	//	return false, fmt.Errorf("%s is not a directory", absolutePath)
+	//}
+
+	// Check read/write permissions
+	// FileMode.Perm() returns the permission bits of the file mode
+	// and os.ReadPermission is a constant representing read-only access
+	// and os.WritePermission is a constant representing write-only access
+	readPermission := fileInfo.Mode()&os.ReadPermission == os.ReadPermission
+	writePermission := fileInfo.Mode()&os.WritePermission == os.WritePermission
+
+	return readPermission && writePermission, nil
+}

@@ -17,6 +17,7 @@ package fs
 import (
 	"errors"
 	"fmt"
+	util2 "github.com/googlecloudplatform/gcsfuse/internal/util"
 	"io"
 	iofs "io/fs"
 	"math"
@@ -237,6 +238,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if err != nil {
 		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
 	}
+
+	//TODO: Ankita - Checking cache location permissions
+	util2.HasReadWritePerms(cacheLocation)
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
 	// gcsfuse related files.
