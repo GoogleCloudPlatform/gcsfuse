@@ -85,31 +85,6 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --config-file $config_filename \
        gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
-# Generate yml config.
-export MAX_SIZE_IN_MB="${max_size_in_mb}"
-export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
-export CACHE_LOCATION="${cache_location}"
-export TTL_SECS="${stat_or_type_cache_ttl_secs}"
-filename=config.yml
-cat > $filename << EOF
-write:
-  create-empty-file: true
-logging:
-  format: text
-  severity: error
-cache-location: ${CACHE_LOCATION:-/tmp/read_cache/}
-file-cache:
-  max-size-in-mb: ${MAX_SIZE_IN_MB:-100}
-  cache-file-for-range-read: ${CACHE_FILE_FOR_RANGE_READ-false}
-metadata-cache:
-  ttl-secs: ${TTL_SECS}
-EOF
-
-debug_flags=""
-if [ $enable_log -eq 1 ]; then
-  debug_flags="--debug_fuse --debug_gcs"
-fi
-
 # Update the pytorch library code to bypass the kernel-cache
 echo "Updating the pytorch library code to bypass the kernel-cache..."
 echo "
