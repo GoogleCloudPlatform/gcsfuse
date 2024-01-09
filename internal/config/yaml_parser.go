@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 
@@ -38,6 +39,10 @@ const (
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
 	StatCacheMaxSizeInMbInvalidValueError = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+
+	StatCacheMaxSizeInMbTooHighError = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+
+	MaxSupportedStatCacheMaxSizeInMb = math.MaxUint64 >> 20
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -80,8 +85,14 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
-	if metadataCacheConfig.StatCacheMaxSizeInMb < -1 && metadataCacheConfig.StatCacheMaxSizeInMb != StatCacheMaxSizeInMbUnsetSentinel {
-		return fmt.Errorf(StatCacheMaxSizeInMbInvalidValueError)
+
+	if metadataCacheConfig.StatCacheMaxSizeInMb != StatCacheMaxSizeInMbUnsetSentinel {
+		if metadataCacheConfig.StatCacheMaxSizeInMb < -1 {
+			return fmt.Errorf(StatCacheMaxSizeInMbInvalidValueError)
+		}
+		if metadataCacheConfig.StatCacheMaxSizeInMb > int64(MaxSupportedStatCacheMaxSizeInMb) {
+			return fmt.Errorf(StatCacheMaxSizeInMbTooHighError)
+		}
 	}
 	return nil
 }

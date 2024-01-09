@@ -64,7 +64,7 @@ To alleviate this slowness, Cloud Storage FUSE supports using cached data where 
 
 The behavior of stat cache is controlled by the following flags/config parameters:
 1. Stat-cache capacity/size: It controls the maximum number/memory-size of the stat-cache entries. It can be configured in the following two ways.
-   1. `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter to be set through the config-file. It sets the stat-cache size in MiBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting. 
+   1. `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter to be set through the config-file. It sets the stat-cache size in MiBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting. Tha maximum supported value of this parameter is 17592186044415 (2^44 - 1) .
    If this is missing, then `--stat-cache-capacity` is used.
    2. `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count. 
    This is ignored if user sets `metadata-cache:stat-cache-max-size-mb` .
