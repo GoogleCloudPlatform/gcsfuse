@@ -1,6 +1,9 @@
 # Experiment Configuration JSON File README
 
-**NOTE**: If you modify a flag name within the development branch, ensure you also update the corresponding flag name within the experiments_configuration.json file located in the master branch. This synchronization is crucial for running tests correctly.
+**NOTE**: If you modify a flag name within the development branch, ensure you also 
+update the corresponding flag name within the [experiments_configuration.json](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/continuous_test/gcp_ubuntu/periodic_experiments/experiments_configuration.json) 
+file located in the master branch. This synchronization is crucial for running tests correctly.
+
 ## This JSON file contains configurations for different experiments.
 ### Configuration Format:
 ```
