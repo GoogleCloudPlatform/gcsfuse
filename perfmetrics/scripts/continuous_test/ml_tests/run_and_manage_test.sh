@@ -29,9 +29,9 @@ ARTIFACTS_BUCKET_PATH=$3
 TEST_SCRIPT_PATH=$4
 # pytorch version
 PYTORCH_VERSION=$5
-MACHINE_TYPE="a2-highgpu-2g"
-ACCELERATOR="count=2,type=nvidia-tesla-a100"
-RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus"
+MACHINE_TYPE="g2-standard-24"
+ACCELERATOR="count=2,type=nvidia-l4"
+RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-release-branch-2gpus"
 
 function initialize_ssh_key () {
     echo "Delete existing ssh keys "
@@ -59,15 +59,6 @@ function delete_existing_vm_and_create_new () {
 
   echo "Wait for 30 seconds for old VM to be deleted"
   sleep 30s
-
-  # NVIDIA A100 40GB GPU type machine is currently unavailable due to global shortage.
-  # Create NVIDIA L4 machines which are available on us-west1-1 zone.
-  if [ $PYTORCH_VERSION == "v2" ];
-  then
-    MACHINE_TYPE="g2-standard-24"
-    ACCELERATOR="count=2,type=nvidia-l4"
-    RESERVATION="projects/$GCP_PROJECT/reservations/pytorch2-ai-ml-tests"
-  fi
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
   # The below command creates VM using the reservation 'ai-ml-tests'
@@ -157,7 +148,7 @@ then
   delete_existing_vm_and_create_new
   
   echo "Clone the gcsfuse repo on test VM"
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout master;"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout run_model_on_read_cache_branch;"
   echo "Trigger the build script on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 10 minutes for test VM to setup for test and to change the status from START to RUNNING."
