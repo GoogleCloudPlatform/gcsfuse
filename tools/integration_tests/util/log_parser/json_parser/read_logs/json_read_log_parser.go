@@ -36,7 +36,7 @@ func filterAndParseLogLine(logLine string,
 	timestampSeconds := int64(jsonLog["timestamp"].(map[string]interface{})["seconds"].(float64))
 	timestampNanos := int64(jsonLog["timestamp"].(map[string]interface{})["nanos"].(float64))
 	// Normalize whitespace in the log message.
-	logMessage := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["msg"].(string), " "))
+	logMessage := strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(jsonLog["message"].(string), " "))
 	// Tokenize log message.
 	tokenizedLogs := strings.Split(logMessage, " ")
 
@@ -97,6 +97,8 @@ func ParseReadLogsFromLogFile(reader io.Reader) (map[int64]*StructuredReadLogEnt
 		fmt.Println("Error reading log file:", err)
 		os.Exit(1)
 	}
+
+	fmt.Println("Read file")
 
 	for _, line := range lines {
 		if err := filterAndParseLogLine(line, structuredLogs, opReverseMap); err != nil {
