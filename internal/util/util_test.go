@@ -239,4 +239,3 @@ func (t *UtilTest) TestMiBsToBytes() {
 		AssertEq(tc.bytes, MiBsToBytes(tc.mib))
 	}
 }
-
