@@ -84,8 +84,8 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.INVALID ||
 		jobStatus.Name == downloader.FAILED {
-		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %v", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
-		return errors.New(errMsg)
+		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		return err
 	} else if jobStatus.Offset < requiredOffset {
 		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
 		return err
@@ -179,7 +179,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	if err != nil {
 		n = 0
 		cacheHit = false
-		err = fmt.Errorf("read: while downloading through job: %v", err)
+		err = fmt.Errorf("read: while downloading through job: %w", err)
 		return
 	}
 
@@ -205,8 +205,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	if err != nil {
-		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %v", util.ErrInReadingFileHandleMsg, offset, err)
-		return 0, false, errors.New(errMsg)
+		err = fmt.Errorf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandleMsg, offset, err)
+		return 0, false, err
 	}
 
 	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)
@@ -240,7 +240,7 @@ func (fch *CacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
 		err = fch.fileHandle.Close()
 		if err != nil {
-			err = fmt.Errorf("cacheHandle.Close(): while closing read file handle: %v", err)
+			err = fmt.Errorf("cacheHandle.Close(): while closing read file handle: %w", err)
 		}
 		fch.fileHandle = nil
 	}
