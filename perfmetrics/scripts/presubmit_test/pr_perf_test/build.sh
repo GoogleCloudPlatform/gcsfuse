@@ -23,7 +23,6 @@ echo "Installing git"
 sudo apt-get install git
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
-git pull -r
 echo "Install command-line JSON processing tool"
 sudo apt-get install jq -y
 echo "Branch name: " $BRANCH_NAME
