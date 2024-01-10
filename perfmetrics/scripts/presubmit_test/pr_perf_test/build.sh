@@ -24,6 +24,8 @@ sudo apt-get install git
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 git pull -r
+echo "Install command-line JSON processing tool"
+sudo apt-get install jq -y
 echo "Branch name: " $BRANCH_NAME
 commitId=$(git log $BRANCH_NAME --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 #echo "Building and installing gcsfuse..."
