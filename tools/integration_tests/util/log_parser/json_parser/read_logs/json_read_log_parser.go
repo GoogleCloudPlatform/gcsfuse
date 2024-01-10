@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package json_parser
+package read_logs
 
 import (
 	"encoding/json"
@@ -24,7 +24,7 @@ import (
 )
 
 func filterAndParseLogLine(logLine string,
-	structuredLogs map[int64]*StructuredLogEntry,
+	structuredLogs map[int64]*StructuredReadLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
 	jsonLog := make(map[string]interface{})
@@ -47,8 +47,8 @@ func filterAndParseLogLine(logLine string,
 			return fmt.Errorf("parseReadFileLog failed: %v", err)
 		}
 	case strings.Contains(logMessage, "FileCache"):
-		if err := parseFileCacheLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs, opReverseMap); err != nil {
-			return fmt.Errorf("parseFileCacheLog failed: %v", err)
+		if err := parseFileCacheRequestLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs, opReverseMap); err != nil {
+			return fmt.Errorf("parseFileCacheRequestLog failed: %v", err)
 		}
 	case strings.Contains(logMessage, "OK (isSeq") && !strings.Contains(logMessage, "fuse_debug"):
 		if err := parseFileCacheResponseLog(tokenizedLogs, structuredLogs, opReverseMap); err != nil {
@@ -59,7 +59,7 @@ func filterAndParseLogLine(logLine string,
 }
 
 /*
-ParseLogFile is originally written for read cache logs parsing for functional tests.
+ParseReadLogsFromLogFile is originally written for read cache logs parsing for functional tests.
 This method takes gcsfuse logs file path (json format) as input and parses it
 into map of following structure:
 
@@ -87,9 +87,9 @@ into map of following structure:
 		...
 	}
 */
-func ParseLogFile(reader io.Reader) (map[int64]*StructuredLogEntry, error) {
-	// structuredLogs map stores is a mapping between file handle and StructuredLogEntry.
-	structuredLogs := make(map[int64]*StructuredLogEntry)
+func ParseReadLogsFromLogFile(reader io.Reader) (map[int64]*StructuredReadLogEntry, error) {
+	// structuredLogs map stores is a mapping between file handle and StructuredReadLogEntry.
+	structuredLogs := make(map[int64]*StructuredReadLogEntry)
 	opReverseMap := make(map[string]*handleAndChunkIndex)
 
 	lines, err := loadLogLines(reader)

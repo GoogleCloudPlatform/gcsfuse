@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package json_parser
+package read_logs
 
-// StructuredLogEntry stores the structured format to be created from logs.
-type StructuredLogEntry struct {
+// StructuredReadLogEntry stores the structured format to be created from logs.
+type StructuredReadLogEntry struct {
 	Handle           int64
 	StartTimeSeconds int64
 	StartTimeNanos   int64
@@ -25,11 +25,11 @@ type StructuredLogEntry struct {
 	ObjectName       string
 	// It can be safely assumed that the Chunks will be sorted on timestamp as logs
 	// are parsed in the order of timestamps.
-	Chunks []ChunkData
+	Chunks []ReadChunkData
 }
 
-// ChunkData stores the format of chunk to be stored StructuredLogEntry.
-type ChunkData struct {
+// ReadChunkData stores the format of chunk to be stored StructuredReadLogEntry.
+type ReadChunkData struct {
 	StartTimeSeconds int64
 	StartTimeNanos   int64
 	StartOffset      int64
@@ -38,7 +38,6 @@ type ChunkData struct {
 	IsSequential     bool
 	OpID             string
 	ExecutionTime    string
-	error            string
 }
 
 ////////////////////////////////////////////////////////////////////////

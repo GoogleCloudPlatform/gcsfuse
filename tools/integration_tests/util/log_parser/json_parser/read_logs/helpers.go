@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package json_parser
+package read_logs
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ func loadLogLines(reader io.Reader) ([]string, error) {
 // (handle, processId, inodeId) corresponding to the file handle in the
 // structuredLogs map.
 func parseReadFileLog(startTimeStampSec, startTimeStampNanos int64, logs []string,
-	structuredLogs map[int64]*StructuredLogEntry) error {
+	structuredLogs map[int64]*StructuredReadLogEntry) error {
 
 	// Fetch file handle, process id and inode id from the logs.
 	handle, err := parseToInt64(logs[11][:len(logs[11])-1]) //Remove trailing ","
@@ -62,19 +62,19 @@ func parseReadFileLog(startTimeStampSec, startTimeStampNanos int64, logs []strin
 	// If log entry doesn't exist, add it to the map.
 	_, ok := structuredLogs[handle]
 	if !ok {
-		structuredLogs[handle] = &StructuredLogEntry{
+		structuredLogs[handle] = &StructuredReadLogEntry{
 			Handle:           handle,
 			StartTimeSeconds: startTimeStampSec,
 			StartTimeNanos:   startTimeStampNanos,
 			ProcessID:        pid,
 			InodeID:          inodeID,
-			Chunks:           []ChunkData{},
+			Chunks:           []ReadChunkData{},
 		}
 	}
 	return nil
 }
 
-// parseFileCacheLog parses a tokenized file cache log message and performs the
+// parseFileCacheRequestLog parses a tokenized file cache log message and performs the
 // following operations:
 // 1. Populates object and bucket name in the structured log entry in case of
 // first Filecache log for the read operation.
@@ -84,10 +84,10 @@ func parseReadFileLog(startTimeStampSec, startTimeStampNanos int64, logs []strin
 // chunk index in a map, to be re-used while mapping file cache response logs to
 // read chunk.
 //
-// Note: It is expected that parseFileCacheLog will always come after ReadFile
+// Note: It is expected that parseFileCacheRequestLog will always come after ReadFile
 // log. If corresponding ReadFile log is missing, this function throws an error.
-func parseFileCacheLog(startTimeStampSec, startTimeStampNanos int64, logs []string,
-	structuredLogs map[int64]*StructuredLogEntry,
+func parseFileCacheRequestLog(startTimeStampSec, startTimeStampNanos int64, logs []string,
+	structuredLogs map[int64]*StructuredReadLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
 	// Fetch file handle from the tokenized logs.
@@ -122,7 +122,7 @@ func parseFileCacheLog(startTimeStampSec, startTimeStampNanos int64, logs []stri
 	}
 
 	// Create chunk data entry and append it to the filecache logs.
-	chunkData := ChunkData{
+	chunkData := ReadChunkData{
 		StartTimeSeconds: startTimeStampSec,
 		StartTimeNanos:   startTimeStampNanos,
 		StartOffset:      startOffset,
@@ -145,7 +145,7 @@ func parseFileCacheLog(startTimeStampSec, startTimeStampNanos int64, logs []stri
 // 2. Fetches IsSequential, CacheHit and Execution time from the log and
 // populates it in the chunk.
 func parseFileCacheResponseLog(logs []string,
-	structuredLogs map[int64]*StructuredLogEntry,
+	structuredLogs map[int64]*StructuredReadLogEntry,
 	opReverseMap map[string]*handleAndChunkIndex) error {
 
 	opID := logs[0]

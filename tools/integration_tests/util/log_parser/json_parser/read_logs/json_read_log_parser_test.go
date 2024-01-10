@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package json_parser_test
+package read_logs_test
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -41,7 +41,7 @@ const (
 	handleId              = 29
 )
 
-var chunkData = json_parser.ChunkData{
+var chunkData = read_logs.ReadChunkData{
 	StartTimeSeconds: chunkTimestampSeconds,
 	StartTimeNanos:   chunkTimestampNanos,
 	StartOffset:      0,
@@ -55,7 +55,7 @@ var chunkData = json_parser.ChunkData{
 type testCase struct {
 	name        string // Name of the test case
 	reader      io.Reader
-	expected    map[int64]*json_parser.StructuredLogEntry
+	expected    map[int64]*read_logs.StructuredReadLogEntry
 	errorString string
 }
 
@@ -68,7 +68,7 @@ func TestParseLogFileSuccessful(t *testing.T) {
 {"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
 {"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
-			expected: map[int64]*json_parser.StructuredLogEntry{
+			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				handleId: {
 					Handle:           handleId,
 					StartTimeSeconds: readTimestampSeconds,
@@ -77,7 +77,7 @@ func TestParseLogFileSuccessful(t *testing.T) {
 					InodeID:          inodeId,
 					BucketName:       bucketName,
 					ObjectName:       fileName,
-					Chunks: []json_parser.ChunkData{
+					Chunks: []read_logs.ReadChunkData{
 						chunkData,
 					},
 				},
@@ -98,7 +98,7 @@ func TestParseLogFileSuccessful(t *testing.T) {
 {"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
 {"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
-			expected: map[int64]*json_parser.StructuredLogEntry{
+			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				29: {
 					Handle:           29,
 					StartTimeSeconds: readTimestampSeconds,
@@ -107,7 +107,7 @@ func TestParseLogFileSuccessful(t *testing.T) {
 					InodeID:          inodeId,
 					BucketName:       bucketName,
 					ObjectName:       fileName,
-					Chunks: []json_parser.ChunkData{
+					Chunks: []read_logs.ReadChunkData{
 						chunkData, chunkData, chunkData,
 					},
 				},
@@ -119,18 +119,18 @@ func TestParseLogFileSuccessful(t *testing.T) {
 {"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","msg":"fuse_debug: Op 0x00000184        connection.go:415] <- FlushFile (inode 6, PID 2382526)"}
 {"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","msg":"fuse_debug: Op 0x00000184        connection.go:497] -> OK ()"}`),
 			),
-			expected: make(map[int64]*json_parser.StructuredLogEntry),
+			expected: make(map[int64]*read_logs.StructuredReadLogEntry),
 		},
 		{
 			name:     "Test file cache logs with no JSON logs",
 			reader:   bytes.NewReader([]byte(`hello 123`)),
-			expected: make(map[int64]*json_parser.StructuredLogEntry),
+			expected: make(map[int64]*read_logs.StructuredReadLogEntry),
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := json_parser.ParseLogFile(tc.reader)
+			actual, err := read_logs.ParseReadLogsFromLogFile(tc.reader)
 			AssertEq(nil, err)
 			AssertTrue(reflect.DeepEqual(actual, tc.expected))
 		})
@@ -145,7 +145,7 @@ func TestParseLogFileUnsuccessful(t *testing.T) {
 {"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
 {"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
-			errorString: fmt.Sprintf("parseFileCacheLog failed: ReadFile LogEntry for handle %d not found", handleId),
+			errorString: fmt.Sprintf("parseFileCacheRequestLog failed: ReadFile LogEntry for handle %d not found", handleId),
 		},
 		{
 			name: "Test file cache response log without file cache log",
@@ -174,7 +174,7 @@ func TestParseLogFileUnsuccessful(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := json_parser.ParseLogFile(tc.reader)
+			_, err := read_logs.ParseReadLogsFromLogFile(tc.reader)
 			AssertNe(nil, err)
 			AssertTrue(strings.Contains(err.Error(), tc.errorString))
 		})
