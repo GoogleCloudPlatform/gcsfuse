@@ -160,7 +160,7 @@ var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	readOp := fuseops.ReadFileOp{Handle: 1}
-	t.rr.ctx = context.WithValue(ti.Ctx, "readOp", &readOp)
+	t.rr.ctx = context.WithValue(ti.Ctx, ReadOp, &readOp)
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
