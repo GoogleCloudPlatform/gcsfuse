@@ -48,7 +48,7 @@ func (dt *downloaderTest) getMinObject(objectName string) gcs.MinObject {
 	object, err := dt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
 		ForceFetchFromGcs: true})
 	if err != nil {
-		panic(fmt.Errorf("error whlie stating object: %v", err))
+		panic(fmt.Errorf("error whlie stating object: %w", err))
 	}
 
 	return storageutil.ConvertObjToMinObject(object)

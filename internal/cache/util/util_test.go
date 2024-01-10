@@ -48,7 +48,7 @@ func (ut *utilTest) SetUp(*TestInfo) {
 	ut.flag = os.O_RDWR
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		panic(fmt.Errorf("error while finding home directory: %v", err))
+		panic(fmt.Errorf("error while finding home directory: %w", err))
 	}
 	ut.fileSpec = data.FileSpec{
 		Path: path.Join(homeDir, FileDir, FileName),
