@@ -109,7 +109,7 @@ sed -i "$x"'r bypassed_code.py' $folder_file
 # nproc_per_node - by downloading the model in single thread environment.
 python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/read_cache_release/${PYTORCH_VESRION}/dino"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
