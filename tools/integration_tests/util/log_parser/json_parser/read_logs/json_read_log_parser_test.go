@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -60,6 +61,8 @@ type testCase struct {
 }
 
 func TestParseLogFileSuccessful(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	tests := []testCase{
 		{
 			name: "Test file cache logs with 1 chunk",
@@ -138,6 +141,8 @@ func TestParseLogFileSuccessful(t *testing.T) {
 }
 
 func TestParseLogFileUnsuccessful(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	tests := []testCase{
 		{
 			name: "Test file cache logs without Read File log",
