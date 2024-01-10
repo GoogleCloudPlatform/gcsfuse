@@ -22,7 +22,7 @@ import (
 )
 
 // Interface defines Tester's methods for use in this package.
-type Interface interface {
+type Testable interface {
 	Setup(*testing.T)
 	Teardown(*testing.T)
 }
@@ -42,7 +42,7 @@ func getTestFunc(t *testing.T, xv reflect.Value, name string) func(*testing.T) {
 // of the current test.  Setup is run before the test function and Teardown is
 // run after each test.
 // x must extend Interface by implementing Setup and TearDown methods.
-func RunSubTests(t *testing.T, x Interface) {
+func RunSubTests(t *testing.T, x Testable) {
 	xt := reflect.TypeOf(x)
 	xv := reflect.ValueOf(x)
 
@@ -52,7 +52,7 @@ func RunSubTests(t *testing.T, x Interface) {
 			continue
 		}
 		testFunc := getTestFunc(t, xv, methodName)
-		t.Run(strings.TrimPrefix(methodName, "Test"), func(t *testing.T) {
+		t.Run(methodName, func(t *testing.T) {
 			// Execute Teardown in t.Cleanup() to guarantee it is run even if test
 			// function or setup uses t.Fatal().
 			t.Cleanup(func() { x.Teardown(t) })
