@@ -17,6 +17,7 @@ package test_setup_test
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	. "github.com/jacobsa/ogletest"
 )
@@ -41,6 +42,8 @@ func (t *testStructure) Teardown(*testing.T) {
 }
 
 func TestRunTests(t *testing.T) {
+	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
+
 	testStruct := &testStructure{}
 
 	test_setup.RunTests(t, testStruct)
