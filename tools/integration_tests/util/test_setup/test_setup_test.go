@@ -22,32 +22,31 @@ import (
 )
 
 type testStructure struct {
-	setupCtr, teardownCtr int
-	test1, test2          bool
+	setupCtr, teardownCtr, test1, test2 int
 }
 
 func (t *testStructure) Setup(*testing.T) {
 	t.setupCtr++
 }
 func (t *testStructure) TestExample1(*testing.T) {
-	t.test1 = true
+	t.test1++
 }
 
 func (t *testStructure) TestExample2(*testing.T) {
-	t.test2 = true
+	t.test2++
 }
 
 func (t *testStructure) Teardown(*testing.T) {
 	t.teardownCtr++
 }
 
-func TestRunSubTests(t *testing.T) {
+func TestRunTests(t *testing.T) {
 	testStruct := &testStructure{}
 
-	test_setup.RunSubTests(t, testStruct)
+	test_setup.RunTests(t, testStruct)
 
 	AssertEq(testStruct.setupCtr, 2)
-	AssertTrue(testStruct.test1)
-	AssertTrue(testStruct.test2)
+	AssertEq(testStruct.test1, 1)
+	AssertEq(testStruct.test2, 1)
 	AssertEq(testStruct.teardownCtr, 2)
 }

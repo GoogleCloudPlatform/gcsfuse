@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-// Interface defines Tester's methods for use in this package.
+// Testable defines Tester's methods for use in this package.
 type Testable interface {
 	Setup(*testing.T)
 	Teardown(*testing.T)
@@ -38,11 +38,11 @@ func getTestFunc(t *testing.T, xv reflect.Value, name string) func(*testing.T) {
 	return func(*testing.T) {}
 }
 
-// RunSubTests runs all "Test*" functions that are member of x as subtests
+// RunTests runs all "Test*" functions that are member of x as subtests
 // of the current test.  Setup is run before the test function and Teardown is
 // run after each test.
-// x must extend Interface by implementing Setup and TearDown methods.
-func RunSubTests(t *testing.T, x Testable) {
+// x must extend Testable interface by implementing Setup and TearDown methods.
+func RunTests(t *testing.T, x Testable) {
 	xt := reflect.TypeOf(x)
 	xv := reflect.ValueOf(x)
 
