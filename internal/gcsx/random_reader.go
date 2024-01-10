@@ -220,7 +220,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 				return 0, false, nil
 			}
 
-			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
 		}
 	}
 
@@ -240,7 +240,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 		rr.fileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
-		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
 	}
 	err = nil
@@ -264,7 +264,7 @@ func (rr *randomReader) ReadAt(
 	// false in that case.
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}
 	// Data was served from cache.
