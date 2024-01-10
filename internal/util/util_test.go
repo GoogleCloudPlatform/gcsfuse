@@ -272,4 +272,3 @@ func (t *UtilTest) TestBytesToHigherMiBs() {
 		AssertEq(tc.mib, BytesToHigherMiBs(tc.bytes))
 	}
 }
-

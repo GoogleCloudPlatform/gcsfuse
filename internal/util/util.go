@@ -119,4 +119,3 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	}
 	return (bytes + 0xFFFFF) >> 20
 }
-
