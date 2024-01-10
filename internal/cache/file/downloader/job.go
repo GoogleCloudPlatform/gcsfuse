@@ -234,7 +234,7 @@ func (job *Job) notifySubscribers() {
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) failWhileDownloading(downloadErr error) {
-	logger.Errorf("Job:%p (%s:/%s) failed with: %w", job, job.bucket.Name(), job.object.Name, downloadErr)
+	logger.Errorf("Job:%p (%s:/%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
 	job.mu.Lock()
 	job.status.Err = downloadErr
 	job.status.Name = FAILED
@@ -253,8 +253,8 @@ func (job *Job) updateFileInfoCache() (err error) {
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("init: error while calling FileInfoKey.Key() for bucket %s and object %s %w",
-			fileInfoKey.BucketName, fileInfoKey.ObjectName, err))
+		err = fmt.Errorf("init: error while calling FileInfoKey.Key() for bucket %s and object %s %w",
+			fileInfoKey.BucketName, fileInfoKey.ObjectName, err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 	logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err != nil {
-		err = fmt.Errorf(fmt.Sprintf("error while inserting updatedFileInfo to the FileInfoCache %s: %w", updatedFileInfo.Key, err))
+		err = fmt.Errorf("error while inserting updatedFileInfo to the FileInfoCache %s: %w", updatedFileInfo.Key, err)
 		return
 	}
 	return
@@ -334,7 +334,7 @@ func (job *Job) downloadObjectAsync() {
 							notifyCancelled()
 							return
 						}
-						err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err))
+						err = fmt.Errorf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 						job.failWhileDownloading(err)
 						return
 					}
@@ -344,7 +344,7 @@ func (job *Job) downloadObjectAsync() {
 				maxRead := min(ReadChunkSize, newReaderLimit-start)
 				_, err = cacheFile.Seek(start, 0)
 				if err != nil {
-					err = fmt.Errorf(fmt.Sprintf("downloadObjectAsync: error while seeking file handle, seek %d: %w", start, err))
+					err = fmt.Errorf("downloadObjectAsync: error while seeking file handle, seek %d: %w", start, err)
 					job.failWhileDownloading(err)
 					return
 				}
@@ -437,7 +437,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 	// Wait till subscriber is notified by async job or the async job is cancelled
 	select {
 	case <-ctx.Done():
-		err = fmt.Errorf(fmt.Sprintf("Download: %w", ctx.Err()))
+		err = fmt.Errorf("Download: %w", ctx.Err())
 	case jobStatus = <-notificationC:
 	}
 	return

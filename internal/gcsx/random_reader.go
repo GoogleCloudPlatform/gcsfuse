@@ -183,7 +183,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		executionTime := time.Since(startTime)
 		var requestOutput string
 		if err != nil {
-			requestOutput = fmt.Sprintf("err: %w (%v)", err, executionTime)
+			requestOutput = fmt.Sprintf("err: %v (%v)", err, executionTime)
 		} else {
 			if rr.fileCacheHandle != nil {
 				isSeq = rr.fileCacheHandle.IsSequential(offset)
@@ -208,7 +208,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {
-				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %w", err)
+				logger.Warnf("tryReadingFromFileCache: while creating CacheHandle: %v", err)
 				return 0, false, nil
 			} else if strings.Contains(err.Error(), cacheutil.CacheHandleNotRequiredForRandomReadErrMsg) {
 				// Fall back to GCS if it is a random read, cacheFileForRangeRead is
@@ -233,7 +233,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err = rr.fileCacheHandle.Close()
 		if err != nil {
-			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %w", err)
+			logger.Warnf("tryReadingFromFileCache: while closing fileCacheHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
@@ -374,7 +374,7 @@ func (rr *randomReader) Destroy() {
 		rr.reader = nil
 		rr.cancel = nil
 		if err != nil {
-			logger.Warnf("rr.Destroy(): while closing reader: %w", err)
+			logger.Warnf("rr.Destroy(): while closing reader: %v", err)
 		}
 	}
 
@@ -382,7 +382,7 @@ func (rr *randomReader) Destroy() {
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err := rr.fileCacheHandle.Close()
 		if err != nil {
-			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %w", err)
+			logger.Warnf("rr.Destroy(): while closing cacheFileHandle: %v", err)
 		}
 		rr.fileCacheHandle = nil
 	}

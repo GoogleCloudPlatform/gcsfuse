@@ -235,7 +235,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {
-		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
+		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
 	}
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non

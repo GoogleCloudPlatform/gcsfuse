@@ -90,7 +90,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	err = os.Truncate(localFilePath, 0)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of truncating: w", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of truncating: %v", err)
 			return nil
 		} else {
 			return fmt.Errorf("cleanUpEvictedFile: while truncating file: %s, error: %w", localFilePath, err)
@@ -99,7 +99,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	err = os.Remove(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of deleting: %w", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of deleting: %v", err)
 		} else {
 			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %w", localFilePath, err)
 		}

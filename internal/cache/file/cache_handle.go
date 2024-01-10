@@ -84,8 +84,8 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	if jobStatus.Err != nil ||
 		jobStatus.Name == downloader.INVALID ||
 		jobStatus.Name == downloader.FAILED {
-		errMsg := fmt.Sprintf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
-		return errors.New(errMsg)
+		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		return err
 	} else if jobStatus.Offset < requiredOffset {
 		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
 		return err
@@ -205,8 +205,8 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	}
 
 	if err != nil {
-		errMsg := fmt.Sprintf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandleMsg, offset, err)
-		return 0, false, errors.New(errMsg)
+		err = fmt.Errorf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandleMsg, offset, err)
+		return 0, false, err
 	}
 
 	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)

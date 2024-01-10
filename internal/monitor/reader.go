@@ -92,7 +92,7 @@ func init() {
 			TagKeys:     []tag.Key{tags.CacheHit},
 		},
 	); err != nil {
-		log.Fatalf("Failed to register the reader view: %w", err)
+		log.Fatalf("Failed to register the reader view: %v", err)
 	}
 }
 
@@ -105,7 +105,7 @@ func CaptureGCSReadMetrics(ctx context.Context, readType string, requestedDataSi
 		gcsReadCount.M(1),
 	); err != nil {
 		// Error in recording gcsReadCount.
-		logger.Errorf("Cannot record gcsReadCount %w", err)
+		logger.Errorf("Cannot record gcsReadCount %v", err)
 	}
 
 	if err := stats.RecordWithTags(
@@ -116,7 +116,7 @@ func CaptureGCSReadMetrics(ctx context.Context, readType string, requestedDataSi
 		downloadBytesCount.M(requestedDataSize),
 	); err != nil {
 		// Error in recording downloadBytesCount.
-		logger.Errorf("Cannot record downloadBytesCount %w", err)
+		logger.Errorf("Cannot record downloadBytesCount %v", err)
 	}
 }
 
@@ -130,7 +130,7 @@ func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize 
 		fileCacheReadCount.M(1),
 	); err != nil {
 		// Error in recording fileCacheReadCount.
-		logger.Errorf("Cannot record fileCacheReadCount %w", err)
+		logger.Errorf("Cannot record fileCacheReadCount %v", err)
 	}
 
 	if err := stats.RecordWithTags(
@@ -141,7 +141,7 @@ func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize 
 		fileCacheReadBytesCount.M(int64(readDataSize)),
 	); err != nil {
 		// Error in recording fileCacheReadBytesCount.
-		logger.Errorf("Cannot record fileCacheReadBytesCount %w", err)
+		logger.Errorf("Cannot record fileCacheReadBytesCount %v", err)
 	}
 
 	readLatencyMs := float64(readLatencyNs) / float64(NanosecondsInOneMillisecond)
@@ -153,6 +153,6 @@ func CaptureFileCacheMetrics(ctx context.Context, readType string, readDataSize 
 		fileCacheReadLatency.M(readLatencyMs),
 	); err != nil {
 		// Error in recording fileCacheReadLatency.
-		logger.Errorf("Cannot record fileCacheReadLatency %w", err)
+		logger.Errorf("Cannot record fileCacheReadLatency %v", err)
 	}
 }
