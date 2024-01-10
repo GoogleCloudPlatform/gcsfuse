@@ -15,6 +15,7 @@
 package test_setup_test
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
@@ -41,6 +42,7 @@ func (t *testStructure) Teardown(*testing.T) {
 }
 
 func TestRunTests(t *testing.T) {
+	setup.ParseSetUpFlags()
 	testStruct := &testStructure{}
 
 	test_setup.RunTests(t, testStruct)
