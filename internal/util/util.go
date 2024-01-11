@@ -102,11 +102,6 @@ func HasReadWritePerms(absolutePath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	//
-	//// Check if the file is a directory
-	//if !fileInfo.IsDir() {
-	//	return false, fmt.Errorf("%s is not a directory", absolutePath)
-	//}
 
 	// Check read/write permissions
 	// FileMode.Perm() returns the permission bits of the file mode

@@ -16,6 +16,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -206,4 +207,47 @@ type customTypeForError struct {
 // MarshalJSON returns an error to simulate a failure during JSON marshaling
 func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
+}
+
+func (t *UtilTest) TestShouldReturnFalseIfDirectoryOnGivenPathIsNotWritable() {
+	path := "some-path-1"
+	err := os.Mkdir(path, 0444)
+	AssertEq(nil, err, "Error while creating directory")
+	defer func(dirPath string) {
+		err := deleteDirectory(dirPath)
+		if err != nil {
+			AssertEq(nil, err, "Error while deleting temporary test directory")
+		}
+	}(path)
+
+	result, _ := HasReadWritePerms(path)
+
+	AssertFalse(result)
+}
+
+func (t *UtilTest) TestShouldReturnTrueIfDirectoryOnGivenPathIsWritable() {
+	path := "some-path-1"
+	err := os.Mkdir(path, 0444)
+	AssertEq(nil, err, "Error while creating directory")
+	// As all systems have 0022 umask, permissions will be overridden, need to modify again with chmod
+	err = os.Chmod(path, 0777)
+	AssertEq(nil, err, "Error while modifying directory permissions for test")
+	defer func(dirPath string) {
+		err := deleteDirectory(dirPath)
+		if err != nil {
+			AssertEq(nil, err, "Error while deleting temporary test directory")
+		}
+	}(path)
+
+	result, _ := HasReadWritePerms(path)
+
+	AssertTrue(result)
+}
+
+func deleteDirectory(dirPath string) error {
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		return fmt.Errorf("Error while deleting test directory %s", err)
+	}
+	return nil
 }
