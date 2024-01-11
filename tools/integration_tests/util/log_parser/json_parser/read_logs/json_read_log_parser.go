@@ -20,7 +20,11 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
+	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func filterAndParseLogLine(logLine string,
@@ -46,7 +50,7 @@ func filterAndParseLogLine(logLine string,
 		if err := parseReadFileLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs); err != nil {
 			return fmt.Errorf("parseReadFileLog failed: %v", err)
 		}
-	case strings.Contains(logMessage, "FileCache"):
+	case strings.Contains(logMessage, "FileCache("):
 		if err := parseFileCacheRequestLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs, opReverseMap); err != nil {
 			return fmt.Errorf("parseFileCacheRequestLog failed: %v", err)
 		}
@@ -98,8 +102,6 @@ func ParseReadLogsFromLogFile(reader io.Reader) (map[int64]*StructuredReadLogEnt
 		os.Exit(1)
 	}
 
-	fmt.Println("Read file")
-
 	for _, line := range lines {
 		if err := filterAndParseLogLine(line, structuredLogs, opReverseMap); err != nil {
 			return nil, fmt.Errorf("filterAndParseLogLine failed for %s: %v", line, err)
@@ -107,4 +109,40 @@ func ParseReadLogsFromLogFile(reader io.Reader) (map[int64]*StructuredReadLogEnt
 	}
 
 	return structuredLogs, nil
+}
+
+/*
+GetStructuredLogsSortedByTimestamp is originally written for read cache logs parsing for functional tests.
+This method takes gcsfuse logs file path (json format) as input and parses it
+into array of structured log entries sorted by timestamp.
+*/
+func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*StructuredReadLogEntry {
+	// Open and parse log file.
+	file, err := os.Open(logFilePath)
+	if err != nil {
+		t.Errorf("Failed to open log file")
+	}
+	logsMap, err := ParseReadLogsFromLogFile(file)
+	if err != nil {
+		t.Errorf("Failed to parse logs %s correctly: %v", setup.LogFile(), err)
+	}
+
+	// Create array from structured logs map.
+	structuredReadLogs := make([]*StructuredReadLogEntry, len(logsMap))
+	for i, val := range logsMap {
+		structuredReadLogs[i] = val
+	}
+
+	// Sort the logs based on start time stamp.
+	sort.Slice(structuredReadLogs, func(i, j int) bool {
+		if structuredReadLogs[i].StartTimeSeconds < structuredReadLogs[j].StartTimeSeconds {
+			return true
+		} else if structuredReadLogs[i].StartTimeSeconds == structuredReadLogs[j].StartTimeSeconds &&
+			structuredReadLogs[i].StartTimeNanos == structuredReadLogs[j].StartTimeNanos {
+			return true
+		}
+		return false
+	})
+
+	return structuredReadLogs
 }
