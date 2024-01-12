@@ -69,6 +69,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
+	os.Chmod(CacheLocation, 0777)
 	t.fsTest.SetUpTestSuite()
 }
 

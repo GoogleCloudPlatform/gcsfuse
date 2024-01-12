@@ -244,6 +244,16 @@ func (t *UtilTest) TestShouldReturnTrueIfDirectoryOnGivenPathIsWritable() {
 	AssertTrue(result)
 }
 
+func (t *UtilTest) TestShouldReturnErrorIfDirectoryOnGivenPathIsNotPresent() {
+	path := "some-incorrect-path"
+
+	result, err := HasReadWritePerms(path)
+
+	AssertNe(nil, err)
+	AssertFalse(result)
+
+}
+
 func deleteDirectory(dirPath string) error {
 	err := os.RemoveAll(dirPath)
 	if err != nil {

@@ -240,7 +240,6 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
 	}
 
-	//TODO: Ankita - Unit tests
 	isWritable, err := util2.HasReadWritePerms(cacheLocation)
 	if !isWritable || err != nil {
 		panic(fmt.Sprintf("Either %s cache location does not have required "+
