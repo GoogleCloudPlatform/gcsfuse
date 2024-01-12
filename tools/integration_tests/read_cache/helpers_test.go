@@ -28,12 +28,12 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 		ObjectName:            path.Join(testDirName, fileName),
 	}
 
-	content, err := operations.ReadFileSequentially(path.Join(testDirPath, fileName), MiB)
+	content, err := operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
 	if err != nil {
 		t.Errorf("Failed to read file in first iteration: %v", err)
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.content = strings.Trim(string(content), "\x00")
+	expected.content = strings.Trim(string(content), operations.EOFMarker)
 
 	return expected
 }
@@ -66,9 +66,13 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 	}
 }
 
+func getCachedFilePath() string {
+	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
+}
+
 func (s *testStruct) validateFileInCacheDirectory(t *testing.T) {
 	// Validate that the file is present in cache location.
-	expectedPathOfCachedFile := path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
+	expectedPathOfCachedFile := getCachedFilePath()
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)

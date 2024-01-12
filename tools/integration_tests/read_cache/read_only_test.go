@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	MiB          = 1024 * 1024
-	fileSize     = 3 * MiB
-	chunksRead   = fileSize / MiB
-	testFileName = "foo"
+	MiB             = 1024 * 1024
+	chunkSizeToRead = MiB
+	fileSize        = 3 * MiB
+	chunksRead      = fileSize / MiB
+	testFileName    = "foo"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -33,34 +34,31 @@ type testStruct struct {
 }
 
 func (s *testStruct) Setup(t *testing.T) {
-	if setup.MountedDirectory() != "" {
-		t.Log("Skipping setup as tests are running test in GKE environment")
-		return
-	}
-	// Mount GCSFuse.
-	if err := mountFunc(s.flags); err != nil {
-		t.Errorf("Failed to mount GCSFuse: %v", err)
+	if setup.MountedDirectory() == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(s.flags); err != nil {
+			t.Errorf("Failed to mount GCSFuse: %v", err)
+		}
 	}
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectoryForROMount(s.ctx, s.storageClient, testDirName)
+	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
 func (s *testStruct) Teardown(t *testing.T) {
-	if setup.MountedDirectory() != "" {
-		t.Log("Skipping teardown as tests are running in GKE environment")
-		return
-	}
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
-	err := setup.UnMount()
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-	}
-	// delete log file created
-	err = os.Remove(setup.LogFile())
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+	if setup.MountedDirectory() == "" {
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := setup.UnMount()
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+		// delete log file created
+		err = os.Remove(setup.LogFile())
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
 	}
 }
 
@@ -92,7 +90,7 @@ func (s *testStruct) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 
 func Test(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile()
+	mountConfigFilePath := createConfigFile(9)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},

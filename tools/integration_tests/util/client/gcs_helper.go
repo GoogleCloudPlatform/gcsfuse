@@ -118,7 +118,7 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, testFileName, randomDataString, t)
 }
 
-func SetupTestDirectoryForROMount(ctx context.Context, storageClient *storage.Client, testDirName string) string {
+func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
 	testDirPath := path.Join(setup.MntDir(), testDirName)
 	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	if err != nil {

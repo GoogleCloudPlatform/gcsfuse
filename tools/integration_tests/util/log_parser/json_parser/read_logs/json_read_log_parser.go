@@ -46,6 +46,7 @@ func filterAndParseLogLine(logLine string,
 
 	// Parse the logs based on type.
 	switch {
+	// TODO: change this to regex matching instead of strings.Contains.
 	case strings.Contains(logMessage, "ReadFile"):
 		if err := parseReadFileLog(timestampSeconds, timestampNanos, tokenizedLogs, structuredLogs); err != nil {
 			return fmt.Errorf("parseReadFileLog failed: %v", err)

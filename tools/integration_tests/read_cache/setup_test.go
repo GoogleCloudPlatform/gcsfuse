@@ -29,7 +29,7 @@ var (
 	rootDir string
 )
 
-func createConfigFile() string {
+func createConfigFile(cacheSize int64) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
@@ -37,7 +37,7 @@ func createConfigFile() string {
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB: 10,
+			MaxSizeInMB: cacheSize,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
 		LogConfig: config.LogConfig{

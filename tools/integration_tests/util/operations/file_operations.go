@@ -36,6 +36,7 @@ const (
 	OneMiB = OneKiB * OneKiB
 	// ChunkSizeForContentComparison is currently set to 1 MiB.
 	ChunkSizeForContentComparison int = OneMiB
+	EOFMarker                         = "\x00"
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
