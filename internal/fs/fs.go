@@ -28,6 +28,8 @@ import (
 	"syscall"
 	"time"
 
+	util2 "github.com/googlecloudplatform/gcsfuse/internal/util"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -238,13 +240,13 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
 	}
 
-	//isWritable, err := util2.HasReadWritePerms(cacheLocation)
-	//if !isWritable || err != nil {
-	//	panic(fmt.Sprintf("Either %s cache location does not have required "+
-	//		"permissions or permission-check could not be performed due to error %v, "+
-	//		"please fix it to continue mount", cacheLocation, err))
-	//
-	//}
+	isWritable, err := util2.HasReadWritePerms(cacheLocation)
+	if !isWritable || err != nil {
+		panic(fmt.Sprintf("Either %s cache location does not have required "+
+			"permissions or permission-check could not be performed due to error %v, "+
+			"please fix it to continue mount", cacheLocation, err))
+
+	}
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
 	// gcsfuse related files.
