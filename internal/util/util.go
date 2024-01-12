@@ -105,8 +105,6 @@ func HasReadWritePerms(absolutePath string) (bool, error) {
 
 	// Check read/write permissions
 	// FileMode.Perm() returns the permission bits of the file mode
-	// and os.ReadPermission is a constant representing read-only access
-	// and os.WritePermission is a constant representing write-only access
 	readWritePermission := fileInfo.Mode()&0666 == 0666
 
 	return readWritePermission, nil
