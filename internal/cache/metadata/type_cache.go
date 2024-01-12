@@ -114,9 +114,6 @@ type typeCache struct {
 	/////////////////////////
 
 	// A cache mapping names to the cache entry.
-	//
-	// INVARIANT: entries.CheckInvariants() does not panic
-	// INVARIANT: Each value is of type cacheEntry
 	entries *lru.Cache
 }
 
@@ -214,17 +211,14 @@ func NewTypeCacheBucketView(stc TypeCache, bn string) TypeCache {
 	return &typeCacheBucketView{sharedTypeCache: stc, bucketName: bn}
 }
 
-// Insert inserts a record to the cache.
 func (tcbv *typeCacheBucketView) Insert(now time.Time, name string, it Type) {
 	tcbv.sharedTypeCache.Insert(now, tcbv.key(name), it)
 }
 
-// Erase erases all information about the supplied name.
 func (tcbv *typeCacheBucketView) Erase(name string) {
 	tcbv.sharedTypeCache.Erase(tcbv.key(name))
 }
 
-// Get gets the record for the given name.
 func (tcbv *typeCacheBucketView) Get(now time.Time, name string) Type {
 	return tcbv.sharedTypeCache.Get(now, tcbv.key(name))
 }
