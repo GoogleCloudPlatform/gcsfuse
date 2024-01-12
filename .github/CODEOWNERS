@@ -1,4 +1,5 @@
 # These owners will be the default owners for everything in
 # the repo.
 *           @sethiay @vadlakondaswetha @raj-prince
+tools/integration_tests/ @ashmeenkaur
 
