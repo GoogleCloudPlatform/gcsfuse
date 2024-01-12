@@ -138,7 +138,7 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 		if structuredReadLogs[i].StartTimeSeconds < structuredReadLogs[j].StartTimeSeconds {
 			return true
 		} else if structuredReadLogs[i].StartTimeSeconds == structuredReadLogs[j].StartTimeSeconds &&
-			structuredReadLogs[i].StartTimeNanos == structuredReadLogs[j].StartTimeNanos {
+			structuredReadLogs[i].StartTimeNanos < structuredReadLogs[j].StartTimeNanos {
 			return true
 		}
 		return false
