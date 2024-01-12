@@ -173,7 +173,7 @@ dynamo_unsupported_distributed_c10d_ops = [
 ]" >> $distributed_c10d_file
 fi
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/pytorch/${PYTORCH_VESRION}/dino"
+ARTIFACTS_BUCKET_PATH="gs://tulsishah_test"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
