@@ -69,8 +69,8 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
-	err := os.Chmod(CacheLocation, 0777)
-	AssertEq(nil, err, "Unable to give %s 0777 permissions for test", CacheLocation)
+	err := os.Chmod(CacheLocation, 0666)
+	AssertEq(nil, err, "Unable to give %s read/write permissions for test", CacheLocation)
 	t.fsTest.SetUpTestSuite()
 }
 
