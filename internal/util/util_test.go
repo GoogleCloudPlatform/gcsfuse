@@ -225,12 +225,31 @@ func (t *UtilTest) TestShouldReturnFalseIfDirectoryOnGivenPathIsNotWritable() {
 	AssertFalse(result)
 }
 
-func (t *UtilTest) TestShouldReturnTrueIfDirectoryOnGivenPathIsWritable() {
+func (t *UtilTest) TestShouldReturnTrueIfDirectoryOnGivenPathHasAllPermissions() {
 	path := "some-path-1"
 	err := os.Mkdir(path, 0444)
 	AssertEq(nil, err, "Error while creating directory")
 	// As all systems have 0022 umask, permissions will be overridden, need to modify again with chmod
 	err = os.Chmod(path, 0777)
+	AssertEq(nil, err, "Error while modifying directory permissions for test")
+	defer func(dirPath string) {
+		err := deleteDirectory(dirPath)
+		if err != nil {
+			AssertEq(nil, err, "Error while deleting temporary test directory")
+		}
+	}(path)
+
+	result, _ := HasReadWritePerms(path)
+
+	AssertTrue(result)
+}
+
+func (t *UtilTest) TestShouldReturnTrueIfDirectoryOnGivenPathIsReadableAndWritable() {
+	path := "some-path-1"
+	err := os.Mkdir(path, 0444)
+	AssertEq(nil, err, "Error while creating directory")
+	// As all systems have 0022 umask, permissions will be overridden, need to modify again with chmod
+	err = os.Chmod(path, 0666)
 	AssertEq(nil, err, "Error while modifying directory permissions for test")
 	defer func(dirPath string) {
 		err := deleteDirectory(dirPath)
