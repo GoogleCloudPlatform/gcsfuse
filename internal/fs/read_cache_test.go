@@ -16,7 +16,9 @@
 package fs_test
 
 import (
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"reflect"
@@ -70,7 +72,10 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
 	err := os.Chmod(CacheLocation, 0666)
-	AssertEq(nil, err, "Unable to give read/write permissions for test to CacheLocation")
+	if err != nil {
+		log.Printf("Unable to give %s permissions for test: %v", CacheLocation, err.Error())
+	}
+	AssertEq(nil, err, fmt.Sprintf("Unable to give read/write permissions for test to %s", CacheLocation))
 	t.fsTest.SetUpTestSuite()
 }
 
