@@ -43,7 +43,11 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 		*bucket = setup.DynamicBucketMounted()
 	}
 	if setup.OnlyDirMounted() != "" {
-		*object = path.Join(setup.OnlyDirMounted(), *object)
+		var suffix string
+		if strings.HasSuffix(*object, "/") {
+			suffix = "/"
+		}
+		*object = path.Join(setup.OnlyDirMounted(), *object) + suffix
 	}
 }
 
@@ -97,19 +101,19 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) {
+func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
 	// Get handle to the object
 	object := client.Bucket(setup.TestBucket()).Object(objectName)
 
 	// Delete the object
 	err := object.Delete(ctx)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
+	return nil
 }
 
-func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) {
+func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
 	objectItr := client.Bucket(setup.TestBucket()).Objects(ctx, query)
@@ -120,6 +124,9 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
-		DeleteObjectOnGCS(ctx, client, attrs.Name)
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
+			return err
+		}
 	}
+	return nil
 }

@@ -119,9 +119,12 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 }
 
 func SetupTestDirectoryForROMount(ctx context.Context, storageClient *storage.Client, testDirName string) string {
-	testDirPath := path.Join(setup.MntDir(), setup.OnlyDirMounted(), testDirName)
-	DeleteAllObjectsWithPrefix(ctx, storageClient, testDirName)
-	err := CreateObjectOnGCS(ctx, storageClient, testDirName+"/", "")
+	testDirPath := path.Join(setup.MntDir(), testDirName)
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
+	if err != nil {
+		log.Printf("Failed to clean up test directory: %v", err)
+	}
+	err = CreateObjectOnGCS(ctx, storageClient, testDirName+"/", "")
 	if err != nil {
 		log.Printf("Failed to create test directory: %v", err)
 	}
