@@ -128,10 +128,12 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 		t.Errorf("Failed to parse logs %s correctly: %v", setup.LogFile(), err)
 	}
 
+	var i = 0
 	// Create array from structured logs map.
 	structuredReadLogs := make([]*StructuredReadLogEntry, len(logsMap))
-	for i, val := range logsMap {
+	for _, val := range logsMap {
 		structuredReadLogs[i] = val
+		i++
 	}
 
 	// Sort the logs based on start time stamp.
