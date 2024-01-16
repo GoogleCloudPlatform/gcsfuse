@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -23,6 +24,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
@@ -58,7 +60,7 @@ func CreateImplicitDir(ctx context.Context, storageClient *storage.Client,
 
 func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.Client,
 	testDirName string, fileName string, t *testing.T) {
-	_, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName), ReadSize)
+	_, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err == nil || !strings.Contains(err.Error(), "storage: object doesn't exist") {
 		t.Fatalf("Incorrect error returned from GCS for file %s: %v", fileName, err)
 	}
@@ -66,13 +68,13 @@ func ValidateObjectNotFoundErrOnGCS(ctx context.Context, storageClient *storage.
 
 func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
 	testDirName string, fileName string, expectedContent string, t *testing.T) {
-	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName), ReadSize)
+	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
 		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
 	}
 
 	if expectedContent != gotContent {
-		t.Fatalf("GCS file %s content mismatch. Got: %s, Expected: %s ", fileName, gotContent, expectedContent)
+		t.Fatalf("GCS file %s content mismatch. Got file size: %d, Expected file size: %d ", fileName, len(gotContent), len(expectedContent))
 	}
 }
 
@@ -103,4 +105,28 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 	if err != nil {
 		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
 	}
+}
+
+func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
+	testDirName, testFileName string, size int64, t *testing.T) {
+	randomData, err := operations.GenerateRandomData(size)
+	randomDataString := strings.Trim(string(randomData), "\x00")
+	if err != nil {
+		t.Errorf("operations.GenerateRandomData: %v", err)
+	}
+	// Setup file with content in test directory.
+	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, testFileName, randomDataString, t)
+}
+
+func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
+	testDirPath := path.Join(setup.MntDir(), testDirName)
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
+	if err != nil {
+		log.Printf("Failed to clean up test directory: %v", err)
+	}
+	err = CreateObjectOnGCS(ctx, storageClient, testDirName+"/", "")
+	if err != nil {
+		log.Printf("Failed to create test directory: %v", err)
+	}
+	return testDirPath
 }

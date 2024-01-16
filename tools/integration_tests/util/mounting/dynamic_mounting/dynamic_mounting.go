@@ -29,7 +29,7 @@ const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
 
 var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
 
-func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
+func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
@@ -48,7 +48,7 @@ func mountGcsfuseWithDynamicMounting(flags []string) (err error) {
 
 func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {
 	for i := 0; i < len(flags); i++ {
-		if err := mountGcsfuseWithDynamicMounting(flags[i]); err != nil {
+		if err := MountGcsfuseWithDynamicMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 
