@@ -62,9 +62,9 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 
 func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx,s.storageClient,fileSize,t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx,s.storageClient,fileSize,t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
