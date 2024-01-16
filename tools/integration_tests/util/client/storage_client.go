@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -86,13 +87,14 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	return strings.Trim(string(content), "\x00"), nil
 }
 
-// CreateObjectOnGCS creates an object with given name and content on GCS.
-func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	o := client.Bucket(bucket).Object(object)
-	o = o.If(storage.Conditions{DoesNotExist: true})
+	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
+		o = o.If(precondition)
+	}
 
 	// Upload an object with storage.Writer.
 	wc := o.NewWriter(ctx)
@@ -104,6 +106,11 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	}
 
 	return nil
+}
+
+// CreateObjectOnGCS creates an object with given name and content on GCS.
+func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
 // CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
