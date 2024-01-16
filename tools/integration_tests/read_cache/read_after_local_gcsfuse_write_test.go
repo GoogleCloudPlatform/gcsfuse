@@ -15,11 +15,12 @@
 package read_cache
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"path"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/storage"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
