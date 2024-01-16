@@ -951,18 +951,20 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 
 		core, err := parent.LookUpChild(ctx, childName)
 		if err == nil && parent.IsBaseDirInode() {
-			// This block is specific to multi-bucket mount.
-			// This is creating and inserting (if not already done)
-			// a type-cache-bucket-view for this bucket (called childName)
-			// into the (bucketName -> type-cache-bucket-view') map in fs.
-			// This code comes up when a new bucket is mounted
-			// in dynamic-mount.
-			if _, ok := fs.typeCacheBucketViews[childName]; !ok {
-				logger.Debugf("Creating type-cache-bucket-view for bucket %s ...", childName)
+			func() {
+				// This block is specific to multi-bucket mount.
+				// This is creating and inserting (if not already done)
+				// a type-cache-bucket-view for this bucket (called childName)
+				// into the (bucketName -> type-cache-bucket-view') map in fs.
+				// This code comes up when a new bucket is mounted
+				// in dynamic-mount.
+				fs.mu.Lock()
+				defer fs.mu.Unlock()
+				if _, ok := fs.typeCacheBucketViews[childName]; !ok {
+					logger.Debugf("Creating type-cache-bucket-view for bucket %s ...", childName)
 				fs.typeCacheBucketViews[childName] = metadata.NewTypeCacheBucketView(fs.sharedTypeCache, childName)
-			} else {
-				logger.Tracef("type-cache-bucket-view for bucket %s already exists", childName)
-			}
+				}
+			}()
 		}
 
 		return core, err
