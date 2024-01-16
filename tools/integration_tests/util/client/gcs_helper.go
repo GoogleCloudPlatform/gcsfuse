@@ -110,7 +110,7 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
-	randomDataString := strings.Trim(string(randomData), "\x00")
+	randomDataString := string(randomData)
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}

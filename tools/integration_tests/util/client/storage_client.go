@@ -78,8 +78,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 		return "", fmt.Errorf("io.ReadAll failed: %v", err)
 	}
 
-	// Remove any extra null characters from content before returning.
-	return strings.Trim(string(content), "\x00"), nil
+	return string(content), nil
 }
 
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {

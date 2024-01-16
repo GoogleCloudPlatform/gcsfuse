@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -52,7 +51,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 		t.Errorf("Failed to read file in first iteration: %v", err)
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.content = strings.Trim(string(content), operations.EOFMarker)
+	expected.content = string(content)
 
 	return expected
 }
