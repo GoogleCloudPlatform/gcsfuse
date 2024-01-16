@@ -22,23 +22,21 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
-	"log"
 	"path"
 	"strings"
 	"testing"
-	"time"
 )
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
-type readAfterLocalWrite struct {
+type readAfterLocalGCSFuseWrite struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *readAfterLocalWrite) Setup(t *testing.T) {
+func (s *readAfterLocalGCSFuseWrite) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 
 	setup.SetMntDir(mountDir)
@@ -52,7 +50,7 @@ func (s *readAfterLocalWrite) Setup(t *testing.T) {
 	operations.CreateFileWithContent(path.Join(testDirPath,testFileName),setup.FilePermission_0600,randomDataString,t)
 }
 
-func (s *readAfterLocalWrite) Teardown(t *testing.T) {
+func (s *readAfterLocalGCSFuseWrite) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -62,7 +60,7 @@ func (s *readAfterLocalWrite) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *readAfterLocalWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
+func (s *readAfterLocalGCSFuseWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileInCacheDirectory(fileSize,s.ctx,s.storageClient,t)
@@ -104,23 +102,9 @@ func TestReadAfterGCSFuseLocalWrite(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	var err error
-	ts := &readAfterLocalWrite{}
-	ts.ctx = context.Background()
-	ctx, cancel := context.WithTimeout(ts.ctx, time.Minute*15)
-	ts.storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// Defer close storage client and release resources.
-	defer func() {
-		err := ts.storageClient.Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
-		}
-		defer cancel()
-	}()
-
+	ts := &readAfterLocalGCSFuseWrite{ctx: context.Background()}
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
