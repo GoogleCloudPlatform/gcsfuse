@@ -25,6 +25,18 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
+const (
+	MiB                 = 1024 * 1024
+	chunkSizeToRead     = MiB
+	fileSize            = 3 * MiB
+	chunksRead          = fileSize / MiB
+	testFileName        = "foo"
+	cacheCapacityInMB   = 9
+	largeFileSize       = 15 * MiB
+	largeFileName       = "15MBFile"
+	largeFileChunksRead = 15
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -66,13 +78,38 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 }
 
+func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		largeFileName, largeFileSize, t)
+
+	// Read file 1st time.
+	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, largeFileName, t)
+	validateFileIsNotCached(largeFileName, t)
+
+	// Read file 2nd time.
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, largeFileName, t)
+	validateFileIsNotCached(largeFileName, t)
+
+	// Validate that the content read by read operation matches content on GCS.
+	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, largeFileName,
+		expectedOutcome1.content, t)
+	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, largeFileName,
+		expectedOutcome2.content, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, largeFileChunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
 func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},

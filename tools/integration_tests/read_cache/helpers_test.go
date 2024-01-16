@@ -112,6 +112,15 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, string(content), t)
 }
 
+func validateFileIsNotCached(fileName string, t *testing.T) {
+	// Validate that the file is not present in cache location.
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	_, err := operations.StatFile(expectedPathOfCachedFile)
+	if err == nil {
+		t.Errorf("File %s found in cache directory", expectedPathOfCachedFile)
+	}
+}
+
 func unmountGCSFuseAndDeleteLogFile() {
 	if setup.MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
