@@ -74,10 +74,7 @@ func readAfterMetaDataCacheTTLExpire(ctx context.Context,storageClient *storage.
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome1.content, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx,s.storageClient,fileSize,t)
 
 	// Modify the file.
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
@@ -105,10 +102,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 
 func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome1.content, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx,s.storageClient,fileSize,t)
 
 	// Wait for metadata cache expiry and read the file again.
 	expectedOutcome2 := readAfterMetaDataCacheTTLExpire(s.ctx,s.storageClient,fileSize,t)
