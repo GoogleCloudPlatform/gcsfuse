@@ -68,7 +68,7 @@ func createConfigFile(cacheSize int64) string {
 	return filePath
 }
 
-func readFileAndValidateCacheWithGCS(ctx context.Context,storageClient *storage.Client,fileSize int64, t *testing.T) (expectedOutcome *Expected){
+func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
