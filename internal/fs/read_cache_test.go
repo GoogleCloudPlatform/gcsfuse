@@ -57,10 +57,6 @@ type FileCacheTest struct {
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&FileCacheTest{})
-}
-
 func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
@@ -594,10 +590,6 @@ type FileCacheWithCacheForRangeRead struct {
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
-}
-
 func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
@@ -737,6 +729,9 @@ type FileCacheWithUserDefinedTempAsCacheLocation struct {
 }
 
 func init() {
+	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
+	RegisterTestSuite(&FileCacheTest{})
+	RegisterTestSuite(&FileCacheDestroyTest{})
 	RegisterTestSuite(&FileCacheWithDefaultCacheLocation{})
 	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheLocation{})
 }
@@ -789,10 +784,6 @@ func (t *FileCacheWithUserDefinedTempAsCacheLocation) CacheLocationIsUserDefined
 // Test to check cache is deleted at the time of unmounting.
 type FileCacheDestroyTest struct {
 	fsTest
-}
-
-func init() {
-	RegisterTestSuite(&FileCacheDestroyTest{})
 }
 
 func (t *FileCacheDestroyTest) SetUpTestSuite() {
