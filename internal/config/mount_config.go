@@ -60,7 +60,7 @@ type MetadataCacheConfig struct {
 	// no cache and > 0 for ttl-controlled metadata-cache.
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
-	// TypeCacheMaxEntriesPerDirectory is the upper limit
+	// TypeCacheMaxSizeMbPerDirectory is the upper limit
 	// on the maximum size of type-cache maps,
 	// which are currently
 	// maintained at per-directory level.

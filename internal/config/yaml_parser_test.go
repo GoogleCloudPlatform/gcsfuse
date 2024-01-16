@@ -15,11 +15,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -149,7 +149,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
 
 	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsInvalidValueError)))
+	AssertTrue(errors.Is(err, ErrMetadataCacheTtlSecsInvalidValue))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
@@ -164,7 +164,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCache
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-size.yaml")
 
 	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(TypeCacheMaxSizeMbPerDirInvalidValueError)))
+	AssertTrue(errors.Is(err, ErrTypeCacheMaxSizeMbPerDirInvalidValue))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheSizeNotSet() {
