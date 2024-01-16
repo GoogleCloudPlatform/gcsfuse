@@ -25,8 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-const ()
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -54,7 +52,7 @@ func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *disabledCacheTTLTest) TestReadAfterUpdateIsCacheMiss(t *testing.T) {
+func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
