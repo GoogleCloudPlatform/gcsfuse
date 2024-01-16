@@ -36,7 +36,7 @@ const (
 
 	parseConfigFileErrMsgFormat               = "error parsing config file: %v"
 	MetadataCacheTtlSecsInvalidValueError     = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError          = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
+	MetadataCacheTtlSecsTooHighError          = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
 	TypeCacheMaxSizeMbPerDirInvalidValueError = "the value of type-cache-max-size-mb-per-dir for metadata-cache can't be less than -1"
 )
 
