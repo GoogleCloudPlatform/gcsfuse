@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
@@ -55,7 +56,7 @@ type DirTest struct {
 
 	in DirInode
 	d  *dirInode
-	tc TypeCache
+	tc metadata.TypeCache
 }
 
 var _ SetUpInterface = &DirTest{}
@@ -116,13 +117,13 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 
 	t.d = t.in.(*dirInode)
 	AssertNe(nil, t.d)
-	t.tc = &t.d.cache
+	t.tc = t.d.cache
 	AssertNe(nil, t.tc)
 
 	t.in.Lock()
 }
 
-func (t *DirTest) getTypeFromCache(name string) Type {
+func (t *DirTest) getTypeFromCache(name string) metadata.Type {
 	return t.tc.Get(t.d.cacheClock.Now(), name)
 }
 
@@ -217,7 +218,7 @@ func (t *DirTest) LookUpChild_NonExistent() {
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LookUpChild_FileOnly() {
@@ -235,7 +236,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.Object.Name)
@@ -246,7 +247,7 @@ func (t *DirTest) LookUpChild_FileOnly() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_DirOnly() {
@@ -264,7 +265,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.Object.Name)
@@ -275,7 +276,7 @@ func (t *DirTest) LookUpChild_DirOnly() {
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
@@ -291,13 +292,13 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Disabled() {
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 
 	// Ditto with a conflict marker.
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
@@ -319,16 +320,16 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result.Object)
-	ExpectEq(ImplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(ImplicitDirType, result.Type())
+	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_FileAndDir() {
@@ -350,7 +351,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.Object.Name)
@@ -362,7 +363,7 @@ func (t *DirTest) LookUpChild_FileAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	AssertEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	AssertEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.Object.Name)
@@ -399,7 +400,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	// created as a regular directory object on GCS,
 	// and is read back the same to gcsfuse and is this stored in type-cache
 	// also as a directory.
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.Object.Name)
@@ -411,7 +412,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(linkObjName, result.FullName.GcsObjectName())
 	ExpectEq(linkObjName, result.Object.Name)
@@ -443,8 +444,8 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Disabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
-	ExpectEq(UnknownType, t.getTypeFromCache(path.Join(dirInodeName, name)))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(path.Join(dirInodeName, name)))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.Object.Name)
@@ -490,7 +491,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.Object.Name)
@@ -502,7 +503,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 
 	ExpectEq(fileObjName, result.FullName.GcsObjectName())
 	ExpectEq(fileObjName, result.Object.Name)
@@ -526,7 +527,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(fileObjName, result.Object.Name)
 
@@ -540,7 +541,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(fileObjName, result.Object.Name)
 
@@ -551,7 +552,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -578,7 +579,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(NonexistentType, t.getTypeFromCache(name))
+	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
 
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
@@ -588,7 +589,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
 	ExpectEq(objName, result.Object.Name)
@@ -608,7 +609,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(NonexistentType, t.getTypeFromCache(name))
+	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
@@ -620,7 +621,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(NonexistentType, t.getTypeFromCache(name))
+	ExpectEq(metadata.NonexistentType, t.getTypeFromCache(name))
 
 	// But after the TTL expires, the behavior should flip.
 	t.clock.AdvanceTime(typeCacheTTL + time.Millisecond)
@@ -632,13 +633,13 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	ExpectEq(nil, result.Object)
 
 	ExpectEq(objName, result.FullName.GcsObjectName())
-	ExpectEq(ImplicitDirType, result.Type())
+	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	// A conflict marker should not work.
 	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
 }
 
 func (t *DirTest) LookUpChild_TypeCacheEnabled() {
@@ -670,7 +671,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 
 		AssertEq(nil, err)
 		AssertNe(nil, result)
-		ExpectEq(RegularFileType, t.getTypeFromCache(name))
+		ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 	}
 }
 
@@ -703,7 +704,7 @@ func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 
 		AssertEq(nil, err)
 		AssertNe(nil, result)
-		ExpectEq(UnknownType, t.getTypeFromCache(name))
+		ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 	}
 }
 
@@ -777,22 +778,22 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
 
 	entry = entries[1]
 	ExpectEq("backed_dir_nonempty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
 
 	entry = entries[2]
 	ExpectEq("file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
-	ExpectEq(RegularFileType, t.getTypeFromCache("file"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
 
 	entry = entries[3]
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
-	ExpectEq(SymlinkType, t.getTypeFromCache("symlink"))
+	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -828,27 +829,27 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	entry = entries[0]
 	ExpectEq("backed_dir_empty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
 
 	entry = entries[1]
 	ExpectEq("backed_dir_nonempty", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
 
 	entry = entries[2]
 	ExpectEq("file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
-	ExpectEq(RegularFileType, t.getTypeFromCache("file"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
 
 	entry = entries[3]
 	ExpectEq("implicit_dir", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(ImplicitDirType, t.getTypeFromCache("implicit_dir"))
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("implicit_dir"))
 
 	entry = entries[4]
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
-	ExpectEq(SymlinkType, t.getTypeFromCache("symlink"))
+	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -867,7 +868,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	AssertEq(nil, err)
 
 	// Verify that the file entry got created in the cache.
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	// Create a backing object for a directory.
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte("taco"))
@@ -879,7 +880,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(fileObjName, result.Object.Name)
 
@@ -890,7 +891,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -909,7 +910,7 @@ func (t *DirTest) CreateChildFile_DoesntExist() {
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
 	ExpectEq(objName, result.Object.Name)
 	ExpectFalse(IsSymlink(result.Object))
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(1, len(result.Object.Metadata))
 	ExpectEq(
@@ -931,8 +932,8 @@ func (t *DirTest) CreateChildFile_Exists() {
 	_, err = t.in.CreateChildFile(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) CreateChildFile_TypeCaching() {
@@ -956,7 +957,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache(name))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache(name))
 
 	ExpectEq(fileObjName, result.Object.Name)
 
@@ -967,7 +968,7 @@ func (t *DirTest) CreateChildFile_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -992,7 +993,7 @@ func (t *DirTest) CloneToChildFile_SourceDoesntExist() {
 	_, err = t.in.CloneToChildFile(t.ctx, path.Base(dstName), src)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
-	ExpectEq(UnknownType, t.getTypeFromCache(dstName))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(dstName))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
@@ -1008,7 +1009,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
@@ -1019,7 +1020,7 @@ func (t *DirTest) CloneToChildFile_DestinationDoesntExist() {
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
-	ExpectEq(RegularFileType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 }
 
 func (t *DirTest) CloneToChildFile_DestinationExists() {
@@ -1039,7 +1040,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
@@ -1051,7 +1052,7 @@ func (t *DirTest) CloneToChildFile_DestinationExists() {
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, dstName)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
-	ExpectEq(RegularFileType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 }
 
 func (t *DirTest) CloneToChildFile_TypeCaching() {
@@ -1079,7 +1080,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(RegularFileType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("qux"))
 
 	ExpectEq(dstName, result.Object.Name)
 
@@ -1090,7 +1091,7 @@ func (t *DirTest) CloneToChildFile_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache("qux"))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("qux"))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -1105,7 +1106,7 @@ func (t *DirTest) CreateChildSymlink_DoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
-	ExpectEq(SymlinkType, t.getTypeFromCache(name))
+	ExpectEq(metadata.SymlinkType, t.getTypeFromCache(name))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
@@ -1128,7 +1129,7 @@ func (t *DirTest) CreateChildSymlink_Exists() {
 	_, err = t.in.CreateChildSymlink(t.ctx, name, target)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) CreateChildSymlink_TypeCaching() {
@@ -1153,7 +1154,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(SymlinkType, t.getTypeFromCache(name))
+	ExpectEq(metadata.SymlinkType, t.getTypeFromCache(name))
 
 	ExpectEq(linkObjName, result.Object.Name)
 
@@ -1164,7 +1165,7 @@ func (t *DirTest) CreateChildSymlink_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -1178,7 +1179,7 @@ func (t *DirTest) CreateChildDir_DoesntExist() {
 	AssertEq(nil, err)
 	AssertNe(nil, result)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(t.bucket.Name(), result.Bucket.Name())
 	ExpectEq(result.FullName.GcsObjectName(), result.Object.Name)
@@ -1200,7 +1201,7 @@ func (t *DirTest) CreateChildDir_Exists() {
 	_, err = t.in.CreateChildDir(t.ctx, name)
 	ExpectThat(err, Error(HasSubstr("Precondition")))
 	ExpectThat(err, Error(HasSubstr("exists")))
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) DeleteChildFile_DoesntExist() {
@@ -1208,7 +1209,7 @@ func (t *DirTest) DeleteChildFile_DoesntExist() {
 
 	err := t.in.DeleteChildFile(t.ctx, name, 0, nil)
 	ExpectEq(nil, err)
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) DeleteChildFile_WrongGeneration() {
@@ -1326,7 +1327,7 @@ func (t *DirTest) DeleteChildFile_TypeCaching() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
-	ExpectEq(ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.Object.Name)
 }
@@ -1379,7 +1380,7 @@ func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LocalFileEntriesEmpty() {

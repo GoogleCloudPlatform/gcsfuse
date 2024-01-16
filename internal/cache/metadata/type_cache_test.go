@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode
+package metadata
 
 import (
 	"fmt"
@@ -92,9 +92,10 @@ func (t *ZeroTtlTypeCacheTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func createNewTypeCache(sizeInMB int, ttl time.Duration) *typeCache {
-	tc := newTypeCache(sizeInMB, ttl)
-	AssertNe(nil, &tc)
-	return &tc
+	tc := NewTypeCache(sizeInMB, ttl)
+	AssertNe(nil, tc)
+	AssertNe(nil, tc.(*typeCache))
+	return tc.(*typeCache)
 }
 
 ////////////////////////////////////////////////////////////////////////

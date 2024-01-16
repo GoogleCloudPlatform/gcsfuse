@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inode
+package metadata
 
 import (
 	"fmt"
@@ -24,6 +24,36 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
+
+type Type int
+
+var (
+	UnknownType     Type = 0
+	SymlinkType     Type = 1
+	RegularFileType Type = 2
+	ExplicitDirType Type = 3
+	ImplicitDirType Type = 4
+	NonexistentType Type = 5
+)
+
+func (t Type) String() string {
+	switch t {
+	case UnknownType:
+		return "UnknownType"
+	case SymlinkType:
+		return "SymlinkType"
+	case RegularFileType:
+		return "RegularFileType"
+	case ExplicitDirType:
+		return "ExplicitDirType"
+	case ImplicitDirType:
+		return "ImplicitDirType"
+	case NonexistentType:
+		return "NonexistentType"
+	}
+
+	return "Invalid value of Type"
+}
 
 // TypeCache is a (name -> Type) map.
 // It maintains TTL for each entry for supporting
@@ -90,12 +120,12 @@ type typeCache struct {
 	entries *lru.Cache
 }
 
-// newTypeCache creates an LRU-policy-based cache with given max-size and TTL.
+// NewTypeCache creates an LRU-policy-based cache with given max-size and TTL.
 // Any entry whose TTL has expired, is removed from the cache on next access (Get).
 // When insertion of next entry would cause size of cache > sizeInMB,
 // older entries are evicted according to the LRU-policy.
 // If either of TTL or sizeInMB is zero, nothing is ever cached.
-func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
+func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
 	if ttl > 0 && sizeInMB != 0 {
 		if sizeInMB < -1 {
 			panic("unhandled scenario: type-cache-max-size-mb-per-dir < -1")
@@ -104,12 +134,12 @@ func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
 		if sizeInMB > 0 {
 			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
 		}
-		return typeCache{
+		return &typeCache{
 			ttl:     ttl,
 			entries: lru.NewCache(lruSizeInBytesToUse),
 		}
 	}
-	return typeCache{}
+	return &typeCache{}
 }
 
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
