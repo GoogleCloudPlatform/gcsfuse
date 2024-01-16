@@ -44,7 +44,8 @@ const (
 	NestedDefaultObjectName = "dir/foo.txt"
 	DefaultDir              = "dir"
 
-	RenamedDir = "renamed_dir"
+	RenamedDir       = "renamed_dir"
+	UserTempLocation = "my/temp"
 )
 
 var CacheLocation = path.Join(os.Getenv("HOME"), "cache-dir")
@@ -731,8 +732,13 @@ type FileCacheWithDefaultCacheLocation struct {
 	fsTest
 }
 
+type FileCacheWithUserDefinedTempAsCacheLocation struct {
+	fsTest
+}
+
 func init() {
 	RegisterTestSuite(&FileCacheWithDefaultCacheLocation{})
+	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheLocation{})
 }
 
 func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
@@ -747,14 +753,37 @@ func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
 	t.fsTest.SetUpTestSuite()
 }
 
+func (t *FileCacheWithUserDefinedTempAsCacheLocation) SetUpTestSuite() {
+	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.MountConfig = &config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeInMB:           -1,
+			CacheFileForRangeRead: true,
+		},
+	}
+	t.serverCfg.AllowOther = true
+	t.serverCfg.TempDir = UserTempLocation
+	t.fsTest.SetUpTestSuite()
+}
+
 func (t *FileCacheWithDefaultCacheLocation) TearDown() {
 	t.fsTest.TearDown()
 	err := os.RemoveAll(path.Join(os.TempDir(), util.FileCache))
 	AssertEq(nil, err)
 }
 
+func (t *FileCacheWithUserDefinedTempAsCacheLocation) TearDown() {
+	t.fsTest.TearDown()
+	err := os.RemoveAll(path.Join(UserTempLocation, util.FileCache))
+	AssertEq(nil, err)
+}
+
 func (t *FileCacheWithDefaultCacheLocation) DefaultLocationIsTempDir() {
 	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(os.TempDir(), util.FileCache))
+}
+
+func (t *FileCacheWithUserDefinedTempAsCacheLocation) CacheLocationIsUserDefinedTempDir() {
+	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(UserTempLocation, util.FileCache))
 }
 
 // Test to check cache is deleted at the time of unmounting.

@@ -231,7 +231,10 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if cacheLocation == "" {
 		if cfg.TempDir == "" {
 			cacheLocation = os.TempDir()
+		} else {
+			cacheLocation = cfg.TempDir
 		}
+
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {
