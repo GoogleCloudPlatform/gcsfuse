@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -70,6 +71,31 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 // TestMain
 ////////////////////////////////////////////////////////////////////////
 
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	flags = [][]string{{}}
+
+	// base case with only --implicit-dirs and --rename-dir-limit
+	flags = append(flags, []string{"--implicit-dirs=true", "--rename-dir-limit=3"})
+	flags = append(flags, []string{"--implicit-dirs=false", "--rename-dir-limit=3"})
+
+	// base case with --implicit-dirs, --rename-dir-limit and metadata-cache config
+	mountConfig := config.MountConfig{
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds:                   21600,
+			TypeCacheMaxSizeMbPerDirectory: 32,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	flags = append(flags, []string{"--implicit-dirs=true", "--rename-dir-limit=3", "--config-file=" + filePath})
+	flags = append(flags, []string{"--implicit-dirs=false", "--rename-dir-limit=3", "--config-file=" + filePath})
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -98,9 +124,7 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flags := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
+	flags := createMountConfigsAndEquivalentFlags()
 
 	successCode := static_mounting.RunTests(flags, m)
 

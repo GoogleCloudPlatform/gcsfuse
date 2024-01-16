@@ -19,14 +19,38 @@ import (
 	"os"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	flags = [][]string{{}}
+
+	// base case with only --implicit-dirs=false
+	flags = append(flags, []string{"--implicit-dirs=false"})
+
+	// advanced case with --implicit-dirs=false and metadata-cache configuration
+	mountConfig := config.MountConfig{
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds:                   21600,
+			TypeCacheMaxSizeMbPerDirectory: 32,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	flags = append(flags, []string{"--implicit-dirs=false", "--config-file=" + filePath})
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs=false"}}
+	flags := createMountConfigsAndEquivalentFlags()
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 
