@@ -66,10 +66,10 @@ func TestParseLogFileSuccessful(t *testing.T) {
 	tests := []testCase{
 		{
 			name: "Test file cache logs with 1 chunk",
-			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
-{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "msg": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
-{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
+			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
+{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
+{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
 			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				handleId: {
@@ -88,18 +88,18 @@ func TestParseLogFileSuccessful(t *testing.T) {
 		},
 		{
 			name: "Test file cache logs with multiple chunks",
-			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
-{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "msg": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
-{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}
-{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
-{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "msg": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
-{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}
-{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
-{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "msg": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
-{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
+			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
+{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
+{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}
+{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
+{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
+{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}
+{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
+{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
+{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
 			expected: map[int64]*read_logs.StructuredReadLogEntry{
 				29: {
@@ -118,9 +118,9 @@ func TestParseLogFileSuccessful(t *testing.T) {
 		},
 		{
 			name: "Test file cache logs with no parsable logs",
-			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","msg":"fuse_debug: Op 0x00000182        connection.go:497] -> OK ()"}
-{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","msg":"fuse_debug: Op 0x00000184        connection.go:415] <- FlushFile (inode 6, PID 2382526)"}
-{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","msg":"fuse_debug: Op 0x00000184        connection.go:497] -> OK ()"}`),
+			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","message":"fuse_debug: Op 0x00000182        connection.go:497] -> OK ()"}
+{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","message":"fuse_debug: Op 0x00000184        connection.go:415] <- FlushFile (inode 6, PID 2382526)"}
+{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity":"TRACE","message":"fuse_debug: Op 0x00000184        connection.go:497] -> OK ()"}`),
 			),
 			expected: make(map[int64]*read_logs.StructuredReadLogEntry),
 		},
@@ -146,33 +146,33 @@ func TestParseLogFileUnsuccessful(t *testing.T) {
 	tests := []testCase{
 		{
 			name: "Test file cache logs without Read File log",
-			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "msg": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
-{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
+			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
+{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
 			errorString: fmt.Sprintf("parseFileCacheRequestLog failed: ReadFile LogEntry for handle %d not found", handleId),
 		},
 		{
 			name: "Test file cache response log without file cache log",
-			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
-		{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "msg": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-		{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "msg": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
+			reader: bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
+		{"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
+		{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
 			),
 			errorString: fmt.Sprintf("FileCache log entry not found for opID %s", opId),
 		},
 		{
 			name:        "Test invalid read file log",
-			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode abc, PID 2382526, handle 29, offset 0, 4096 bytes)"}`)),
+			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode abc, PID 2382526, handle 29, offset 0, 4096 bytes)"}`)),
 			errorString: "inode id: could not parse abc to int64",
 		},
 		{
 			name:        "Test invalid read file log",
-			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID abc, handle 29, offset 0, 4096 bytes)"}`)),
+			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID abc, handle 29, offset 0, 4096 bytes)"}`)),
 			errorString: "process id: could not parse abc to int64",
 		},
 		{
 			name:        "Test invalid read file log",
-			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "msg": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle abc, offset 0, 4096 bytes)"}`)),
+			reader:      bytes.NewReader([]byte(`{"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle abc, offset 0, 4096 bytes)"}`)),
 			errorString: "handle: could not parse abc to int64",
 		},
 	}

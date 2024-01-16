@@ -23,7 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func mountGcsfuseWithStaticMounting(flags []string) (err error) {
+func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
@@ -45,7 +45,7 @@ func executeTestsForStaticMounting(flags [][]string, m *testing.M) (successCode 
 	var err error
 
 	for i := 0; i < len(flags); i++ {
-		if err = mountGcsfuseWithStaticMounting(flags[i]); err != nil {
+		if err = MountGcsfuseWithStaticMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
 		setup.ExecuteTestForFlagsSet(flags[i], m)
