@@ -16,6 +16,9 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -86,21 +89,68 @@ func getCachedFilePath() string {
 	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
 }
 
-func validateFileInCacheDirectory(ctx context.Context, storageClient *storage.Client, t *testing.T) {
+func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) (expectedPathOfCachedFile string) {
 	// Validate that the file is present in cache location.
-	expectedPathOfCachedFile := getCachedFilePath()
+	expectedPathOfCachedFile = getCachedFilePath()
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
 	}
 	// Validate file size in cache directory matches actual file size.
-	if (*fileInfo).Size() != fileSize {
-		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", fileSize, (*fileInfo).Size())
+	if (*fileInfo).Size() != filesize {
+		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", filesize, (*fileInfo).Size())
 	}
+	return
+}
+
+func validateFileInCacheDirectory(filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
+	expectedPathOfCachedFile := validateFileSizeInCacheDirectory(filesize, t)
 	// Validate content of file in cache directory matches GCS.
 	content, err := operations.ReadFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to read cached file %s: %v", expectedPathOfCachedFile, err)
 	}
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName, string(content), t)
+}
+
+func unmountGCSFuseAndDeleteLogFile() {
+	if setup.MountedDirectory() == "" {
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := setup.UnMount()
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+		// delete log file created
+		err = os.Remove(setup.LogFile())
+		if err != nil {
+			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
+	}
+}
+
+func mountGCSFuse(flags []string) {
+	if setup.MountedDirectory() == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags); err != nil {
+			setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
+func createStorageClient(t *testing.T, ctx *context.Context, storageClient **storage.Client) func() {
+	var err error
+	var cancel context.CancelFunc
+	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
+	*storageClient, err = client.CreateStorageClient(*ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+	// return func to close storage client and release resources.
+	return func() {
+		err := (*storageClient).Close()
+		if err != nil {
+			t.Log("Failed to close storage client")
+		}
+		defer cancel()
+	}
 }

@@ -17,8 +17,6 @@ package read_cache
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -29,67 +27,71 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-const ()
+const (
+	objectName            = testDirName + "/" + testFileName
+	smallContent          = "small content"
+	smallContentSize      = 13
+	chunksReadAfterUpdate = 1
+	metadataCacheTTlInSec = 5
+)
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type testStruct1 struct {
+type smallCacheTTLTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *testStruct1) Setup(t *testing.T) {
-	if setup.MountedDirectory() == "" {
-		// Mount GCSFuse only when tests are not running on mounted directory.
-		if err := mountFunc(s.flags); err != nil {
-			t.Errorf("Failed to mount GCSFuse: %v", err)
-		}
-	}
+func (s *smallCacheTTLTest) Setup(t *testing.T) {
+	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
-func (s *testStruct1) Teardown(t *testing.T) {
+func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
-	if setup.MountedDirectory() == "" {
-		// Unmount GCSFuse only when tests are not running on mounted directory.
-		err := setup.UnMount()
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-		// delete log file created
-		err = os.Remove(setup.LogFile())
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
-		}
-	}
+	unmountGCSFuseAndDeleteLogFile()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *testStruct1) TestSecondSequentialReadAfterUpdateIsCacheMiss(t *testing.T) {
+func (s *smallCacheTTLTest) TestSecondSequentialReadAfterUpdateIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(s.ctx, s.storageClient, t)
-	// Read file 2nd time.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-
-	// Validate that the content read by read operation matches content on GCS.
+	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
 		expectedOutcome1.content, t)
+
+	// Append to the file.
+	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
+	if err != nil {
+		t.Errorf("Could not append to file: %v", err)
+	}
+
+	// Read same file again immediately.
+	// Stale data would be served from cache in this case.
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	validateFileSizeInCacheDirectory(fileSize, t)
+
+	// Wait for metadata cache expiry and read the file again.
+	time.Sleep(metadataCacheTTlInSec * time.Second)
+	expectedOutcome3 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	validateFileInCacheDirectory(smallContentSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome2.content, t)
+		expectedOutcome3.content, t)
+
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
+	validate(expectedOutcome3, structuredReadLogs[2], true, false, chunksReadAfterUpdate, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,28 +101,13 @@ func (s *testStruct1) TestSecondSequentialReadAfterUpdateIsCacheMiss(t *testing.
 func TestSmallCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(9)
-	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, "stat-cache-ttl=30s"},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, "stat-cache-ttl=30s"},
-	}
-
-	// Create storage client before running tests.
-	var err error
-	ts := &testStruct{}
-	ts.ctx = context.Background()
-	ctx, cancel := context.WithTimeout(ts.ctx, time.Minute*15)
-	ts.storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// Defer close storage client and release resources.
-	defer func() {
-		err := ts.storageClient.Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
-		}
-		defer cancel()
-	}()
+	var flagSet = [][]string{
+		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
+		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
+	} // Create storage client before running tests.
+	ts := &smallCacheTTLTest{ctx: context.Background()}
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {

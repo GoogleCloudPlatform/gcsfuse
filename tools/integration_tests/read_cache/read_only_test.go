@@ -16,11 +16,7 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"os"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -41,49 +37,33 @@ const (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type testStruct struct {
+type readOnlyTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *testStruct) Setup(t *testing.T) {
-	if setup.MountedDirectory() == "" {
-		// Mount GCSFuse only when tests are not running on mounted directory.
-		if err := mountFunc(s.flags); err != nil {
-			t.Errorf("Failed to mount GCSFuse: %v", err)
-		}
-	}
+func (s *readOnlyTest) Setup(t *testing.T) {
+	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
-func (s *testStruct) Teardown(t *testing.T) {
+func (s *readOnlyTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
-	if setup.MountedDirectory() == "" {
-		// Unmount GCSFuse only when tests are not running on mounted directory.
-		err := setup.UnMount()
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-		// delete log file created
-		err = os.Remove(setup.LogFile())
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
-		}
-	}
+	unmountGCSFuseAndDeleteLogFile()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *testStruct) TestSecondSequentialReadIsCacheHit(t *testing.T) {
+func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
 	// Read file 2nd time.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 
@@ -111,22 +91,9 @@ func TestReadOnlyTest(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	var err error
-	ts := &testStruct{}
-	ts.ctx = context.Background()
-	ctx, cancel := context.WithTimeout(ts.ctx, time.Minute*15)
-	ts.storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// Defer close storage client and release resources.
-	defer func() {
-		err := ts.storageClient.Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
-		}
-		defer cancel()
-	}()
+	ts := &readOnlyTest{ctx: context.Background()}
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
