@@ -91,7 +91,6 @@ func (s *readAfterLocalWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testi
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead + 1 , t)
 }
 
-
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////

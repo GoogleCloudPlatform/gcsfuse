@@ -31,6 +31,13 @@ const (
 	testDirName           = "ReadCacheTest"
 	onlyDirMounted        = "Test"
 	cacheSubDirectoryName = "gcsfuse-file-cache"
+	smallContent          = "small content"
+	smallContentSize      = 13
+	MiB             = 1024 * 1024
+	chunkSizeToRead = MiB
+	fileSize        = 3 * MiB
+	chunksRead      = fileSize / MiB
+	testFileName    = "foo"
 )
 
 var (
