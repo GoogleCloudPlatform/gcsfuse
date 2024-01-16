@@ -15,11 +15,13 @@
 package read_cache
 
 import (
+	"context"
 	"path"
 	"strings"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -84,7 +86,7 @@ func getCachedFilePath() string {
 	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
 }
 
-func (s *testStruct) validateFileInCacheDirectory(t *testing.T) {
+func validateFileInCacheDirectory(ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	// Validate that the file is present in cache location.
 	expectedPathOfCachedFile := getCachedFilePath()
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
@@ -100,5 +102,5 @@ func (s *testStruct) validateFileInCacheDirectory(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to read cached file %s: %v", expectedPathOfCachedFile, err)
 	}
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName, string(content), t)
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName, string(content), t)
 }

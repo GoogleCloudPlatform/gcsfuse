@@ -29,25 +29,19 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-const (
-	MiB             = 1024 * 1024
-	chunkSizeToRead = MiB
-	fileSize        = 3 * MiB
-	chunksRead      = fileSize / MiB
-	testFileName    = "foo"
-)
+const ()
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type testStruct struct {
+type testStruct1 struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *testStruct) Setup(t *testing.T) {
+func (s *testStruct1) Setup(t *testing.T) {
 	if setup.MountedDirectory() == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(s.flags); err != nil {
@@ -59,7 +53,7 @@ func (s *testStruct) Setup(t *testing.T) {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
-func (s *testStruct) Teardown(t *testing.T) {
+func (s *testStruct1) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	if setup.MountedDirectory() == "" {
@@ -80,7 +74,7 @@ func (s *testStruct) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *testStruct) TestSecondSequentialReadIsCacheHit(t *testing.T) {
+func (s *testStruct1) TestSecondSequentialReadAfterUpdateIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileInCacheDirectory(s.ctx, s.storageClient, t)
@@ -102,12 +96,12 @@ func (s *testStruct) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadOnlyTest(t *testing.T) {
+func TestSmallCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(9)
 	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, "stat-cache-ttl=30s"},
+		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, "stat-cache-ttl=30s"},
 	}
 
 	// Create storage client before running tests.
