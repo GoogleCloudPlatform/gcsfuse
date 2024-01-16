@@ -62,14 +62,14 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *smallCacheTTLTest) TestSecondSequentialReadAfterUpdateIsCacheMiss(t *testing.T) {
+func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
 		expectedOutcome1.content, t)
 
-	// Append to the file.
+	// Modify the file.
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
 	if err != nil {
 		t.Errorf("Could not append to file: %v", err)
