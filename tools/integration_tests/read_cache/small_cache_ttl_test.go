@@ -69,6 +69,7 @@ func readAfterMetaDataCacheTTLExpire(ctx context.Context,storageClient *storage.
 	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
 		expectedOutcome.content, t)
+
 	return expectedOutcome
 }
 
