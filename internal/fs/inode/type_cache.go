@@ -25,12 +25,31 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
-// TypeCache is interface to expose typeCache
-// outside of the inode package, to allow
-// it to be shared at the mount-level.
+// TypeCache is a (name -> Type) map.
+// It maintains TTL for each entry for supporting
+// TTL-based expiration.
+// Sample usage:
+//
+//	tc := NewTypeCache(size, ttl)
+//	tc.Insert(time.Now(), "file", RegularFileType)
+//	tc.Insert(time.Now(), "dir", ExplicitDirType)
+//	tc.Get(time.Now(),"file") -> RegularFileType
+//	tc.Get(time.Now(),"dir") -> ExplicitDirType
+//	tc.Get(time.Now()+ttl+1ns, "file") -> internally tc.Erase("file") -> UnknownType
+//	tc.Erase("dir")
+//	tc.Get(time.Now(),"dir") -> UnknownType
 type TypeCache interface {
+	// Insert inserts the given entry (name -> type)
+	// with the entry-expiration at now+ttl.
 	Insert(now time.Time, name string, it Type)
+	// Erase removes the entry with the given name.
 	Erase(name string)
+	// Get returns the entry with given name, and also
+	// records this entry as latest accessed in the cache.
+	// If now > expiration, then entry is removed from cache, and
+	// UnknownType is returned.
+	// If entry doesn't exist in the cache, then
+	// UnknownType is returned.
 	Get(now time.Time, name string) Type
 }
 
@@ -71,8 +90,11 @@ type typeCache struct {
 	entries *lru.Cache
 }
 
-// Create a cache whose information expires with the supplied TTL. If the TTL
-// is zero, nothing will ever be cached.
+// newTypeCache creates an LRU-policy-based cache with given max-size and TTL.
+// Any entry whose TTL has expired, is removed from the cache on next access (Get).
+// When insertion of next entry would cause size of cache > sizeInMB,
+// older entries are evicted according to the LRU-policy.
+// If either of TTL or sizeInMB is zero, nothing is ever cached.
 func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
 	if ttl > 0 && sizeInMB != 0 {
 		if sizeInMB < -1 {
@@ -90,13 +112,8 @@ func newTypeCache(sizeInMB int, ttl time.Duration) typeCache {
 	return typeCache{}
 }
 
-////////////////////////////////////////////////////////////////////////
-// Public interface
-////////////////////////////////////////////////////////////////////////
-
-// Insert inserts a record to the cache.
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
-	if tc.entries != nil {
+	if tc.entries != nil { // only if caching is enabled
 		_, err := tc.entries.Insert(name, cacheEntry{
 			expiry:    now.Add(tc.ttl),
 			inodeType: it,
@@ -108,35 +125,26 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 	}
 }
 
-// Erase erases all information about the supplied name.
 func (tc *typeCache) Erase(name string) {
-	if tc.entries != nil {
+	if tc.entries != nil { // only if caching is enabled
 		tc.entries.Erase(name)
 		logger.Debugf("TypeCache: Erased entry for %s", name)
 	}
 }
 
-// Get gets the record for the given name.
 func (tc *typeCache) Get(now time.Time, name string) Type {
-	if tc.entries == nil {
+	if tc.entries == nil { // if caching is not enabled
 		return UnknownType
 	}
 
-	logger.Debugf("TypeCache: Fetching entry for %s ...", name)
-
 	val := tc.entries.LookUp(name)
 	if val == nil {
-		logger.Debugf("                                     ... Not found!")
 		return UnknownType
 	}
 
 	entry := val.(cacheEntry)
-
-	logger.Debugf("                                     ... Found as %s", entry.inodeType.String())
-
 	// Has the entry expired?
 	if entry.expiry.Before(now) {
-		logger.Tracef("TypeCache: Erasing entry for %s because of TTL expiration", name)
 		tc.entries.Erase(name)
 		return UnknownType
 	}

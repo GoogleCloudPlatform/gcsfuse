@@ -97,7 +97,7 @@ func Stringify(input any) string {
 }
 
 // MiBsToBytes returns the bytes equivalent
-// of given no.s of MiBs (Mibi Bytes).
+// of given number of MiBs (Mibi Bytes).
 // For reference, each MiB = 2^20 bytes.
 // It supports only upto MaxMiBsInMaxUint64 (2^44-1) MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
