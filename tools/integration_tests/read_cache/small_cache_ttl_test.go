@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ const (
 	smallContent          = "small content"
 	smallContentSize      = 13
 	chunksReadAfterUpdate = 1
-	metadataCacheTTlInSec = 5
+	metadataCacheTTlInSec = 10
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -76,9 +77,12 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 	}
 
 	// Read same file again immediately.
-	// Stale data would be served from cache in this case.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	validateFileSizeInCacheDirectory(fileSize, t)
+	// Validate that stale data is served from cache in this case.
+	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
+		t.Errorf("content mismatch. Expected old data to be served again.")
+	}
 
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)

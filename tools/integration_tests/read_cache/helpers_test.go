@@ -89,9 +89,9 @@ func getCachedFilePath() string {
 	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
 }
 
-func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) (expectedPathOfCachedFile string) {
+func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) {
 	// Validate that the file is present in cache location.
-	expectedPathOfCachedFile = getCachedFilePath()
+	expectedPathOfCachedFile := getCachedFilePath()
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
@@ -100,12 +100,12 @@ func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) (expectedPat
 	if (*fileInfo).Size() != filesize {
 		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", filesize, (*fileInfo).Size())
 	}
-	return
 }
 
 func validateFileInCacheDirectory(filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
-	expectedPathOfCachedFile := validateFileSizeInCacheDirectory(filesize, t)
+	validateFileSizeInCacheDirectory(filesize, t)
 	// Validate content of file in cache directory matches GCS.
+	expectedPathOfCachedFile := getCachedFilePath()
 	content, err := operations.ReadFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to read cached file %s: %v", expectedPathOfCachedFile, err)
