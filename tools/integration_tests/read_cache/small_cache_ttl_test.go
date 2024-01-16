@@ -70,7 +70,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 	// Modify the file.
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
 	if err != nil {
-		t.Errorf("Could not append to file: %v", err)
+		t.Errorf("Could not modify object %s: %v", objectName, err)
 	}
 
 	// Read same file again immediately.
