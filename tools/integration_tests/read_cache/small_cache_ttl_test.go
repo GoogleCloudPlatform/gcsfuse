@@ -29,7 +29,6 @@ import (
 )
 
 const (
-	objectName            = testDirName + "/" + testFileName
 	smallContent          = "small content"
 	smallContentSize      = 13
 	chunksReadAfterUpdate = 1
@@ -50,7 +49,6 @@ func (s *smallCacheTTLTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
@@ -64,26 +62,23 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
+	testFileName := testFileName + "2"
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
+
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
-
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Modify the file.
-	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
-	if err != nil {
-		t.Errorf("Could not append to file: %v", err)
-	}
-
+	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileSizeInCacheDirectory(fileSize, t)
+	validateFileSizeInCacheDirectory(testFileName, fileSize, t)
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
 		t.Errorf("content mismatch. Expected old data to be served again.")
 	}
-
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, smallContentSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -93,15 +88,16 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 }
 
 func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
-	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
+	testFileName := testFileName + "4"
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
+	// Read file 1st time.
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
-
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Read same file again immediately.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

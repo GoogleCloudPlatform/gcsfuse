@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -52,7 +51,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 		t.Errorf("Failed to read file in first iteration: %v", err)
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
-	expected.content = strings.Trim(string(content), operations.EOFMarker)
+	expected.content = string(content)
 
 	return expected
 }
@@ -85,13 +84,13 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 	}
 }
 
-func getCachedFilePath() string {
-	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, testFileName)
+func getCachedFilePath(fileName string) string {
+	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, fileName)
 }
 
-func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) {
+func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
 	// Validate that the file is present in cache location.
-	expectedPathOfCachedFile := getCachedFilePath()
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
@@ -102,15 +101,15 @@ func validateFileSizeInCacheDirectory(filesize int64, t *testing.T) {
 	}
 }
 
-func validateFileInCacheDirectory(filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
-	validateFileSizeInCacheDirectory(filesize, t)
+func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
+	validateFileSizeInCacheDirectory(fileName, filesize, t)
 	// Validate content of file in cache directory matches GCS.
-	expectedPathOfCachedFile := getCachedFilePath()
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
 	content, err := operations.ReadFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to read cached file %s: %v", expectedPathOfCachedFile, err)
 	}
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName, string(content), t)
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, string(content), t)
 }
 
 func unmountGCSFuseAndDeleteLogFile() {
@@ -155,14 +154,22 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 	}
 }
 
-func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
+func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file with gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
 	// Validate cached content with gcs.
-	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
+	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
 
 	return expectedOutcome
+}
+
+func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName string, t *testing.T) {
+	objectName := path.Join(testDirName, testFileName)
+	err := client.WriteToObject(ctx, storageClient, objectName, smallContent, storage.Conditions{})
+	if err != nil {
+		t.Errorf("Could not modify object %s: %v", objectName, err)
+	}
 }

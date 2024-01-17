@@ -70,7 +70,7 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	testDirName string, fileName string, expectedContent string, t *testing.T) {
 	gotContent, err := ReadObjectFromGCS(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
-		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
+		t.Fatalf("Error while reading file from GCS, Err: %v", err)
 	}
 
 	if expectedContent != gotContent {
@@ -110,7 +110,7 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
-	randomDataString := strings.Trim(string(randomData), "\x00")
+	randomDataString := string(randomData)
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}
