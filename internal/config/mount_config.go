@@ -14,7 +14,10 @@
 
 package config
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 const (
 	// TtlInSecsUnsetSentinel is the value internally
@@ -28,6 +31,9 @@ const (
 	defaultMaxFileSizeMB   = 512
 	defaultBackupFileCount = 10
 	defaultCompress        = true
+
+	// The maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 )
 
 type WriteConfig struct {

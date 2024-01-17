@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -83,13 +84,14 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
+	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
 		StatCacheCapacity:                  flags.StatCacheCapacity,
-		StatCacheTTL:                       flags.StatOrTypeCacheTTL,
+		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
@@ -108,8 +110,8 @@ be interacting with the file system.`)
 		DebugFS:                    flags.DebugFS,
 		TempDir:                    flags.TempDir,
 		ImplicitDirectories:        flags.ImplicitDirs,
-		InodeAttributeCacheTTL:     flags.StatOrTypeCacheTTL,
-		DirTypeCacheTTL:            flags.StatOrTypeCacheTTL,
+		InodeAttributeCacheTTL:     metadataCacheTTL,
+		DirTypeCacheTTL:            metadataCacheTTL,
 		Uid:                        uid,
 		Gid:                        gid,
 		FilePerms:                  os.FileMode(flags.FileMode),
