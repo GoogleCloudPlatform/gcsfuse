@@ -44,6 +44,7 @@ const (
 	largeFileChunksRead   = 15
 	chunksReadAfterUpdate = 1
 	metadataCacheTTlInSec = 10
+	NumberOfFiles = 4
 )
 
 var (
