@@ -16,13 +16,10 @@ package read_cache
 
 import (
 	"context"
-	"log"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -91,22 +88,9 @@ func TestReadAfterGCSFuseLocalWrite(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	var err error
 	ts := &readAfterLocalWrite{}
-	ts.ctx = context.Background()
-	ctx, cancel := context.WithTimeout(ts.ctx, time.Minute*15)
-	ts.storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// Defer close storage client and release resources.
-	defer func() {
-		err := ts.storageClient.Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
-		}
-		defer cancel()
-	}()
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
