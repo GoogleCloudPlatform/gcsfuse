@@ -29,8 +29,6 @@ import (
 )
 
 const (
-	smallContent          = "small content"
-	smallContentSize      = 13
 	chunksReadAfterUpdate = 1
 	metadataCacheTTlInSec = 10
 )

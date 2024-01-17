@@ -18,12 +18,14 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -115,4 +117,13 @@ func TestMain(m *testing.M) {
 	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
+}
+
+func createFileInTestDirWithGCSFuse(fileSize int64, filePath string, t *testing.T){
+	randomData, err := operations.GenerateRandomData(fileSize)
+	randomDataString := strings.Trim(string(randomData), "\x00")
+	if err != nil {
+		t.Errorf("operations.GenerateRandomData: %v", err)
+	}
+	operations.CreateFileWithContent(filePath, setup.FilePermission_0600, randomDataString, t)
 }
