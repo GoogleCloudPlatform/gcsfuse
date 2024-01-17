@@ -22,7 +22,6 @@ import (
 
 	"cloud.google.com/go/storage"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -64,12 +63,7 @@ func (s *readAfterLocalGCSFuseWrite) Teardown(t *testing.T) {
 
 func (s *readAfterLocalGCSFuseWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
-
-	// Validate that the content read by read operation matches content on GCS.
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome1.content, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Append data in the same file to change generation.
 	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
@@ -78,12 +72,7 @@ func (s *readAfterLocalGCSFuseWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t
 	}
 
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize+smallContentSize, s.ctx, s.storageClient, t)
-
-	// Validate that the content read by read operation matches content on GCS.
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome2.content, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize + smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
