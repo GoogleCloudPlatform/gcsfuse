@@ -16,7 +16,6 @@ package config
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,12 +34,9 @@ const (
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
 
-	parseConfigFileErrMsgFormat = "error parsing config file: %v"
-)
-
-var (
-	ErrMetadataCacheTtlSecsInvalidValue = errors.New("the value of ttl-secs for metadata-cache can't be less than -1")
-	ErrMetadataCacheTtlSecsTooHigh      = errors.New("the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036.")
+	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
+	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -77,10 +73,10 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	if metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
 		if metadataCacheConfig.TtlInSeconds < -1 {
-			return ErrMetadataCacheTtlSecsInvalidValue
+			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 		}
 		if metadataCacheConfig.TtlInSeconds > MaxSupportedTtlInSeconds {
-			return ErrMetadataCacheTtlSecsTooHigh
+			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
 	return nil

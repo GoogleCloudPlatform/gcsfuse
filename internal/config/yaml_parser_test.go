@@ -15,11 +15,11 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -148,7 +148,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, ErrMetadataCacheTtlSecsInvalidValue))
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsInvalidValueError)))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
@@ -163,5 +163,5 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_ttl_too_high.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(errors.Is(err, ErrMetadataCacheTtlSecsTooHigh))
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsTooHighError)))
 }
