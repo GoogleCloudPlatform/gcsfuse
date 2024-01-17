@@ -116,4 +116,3 @@ func TestMain(m *testing.M) {
 	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }
-
