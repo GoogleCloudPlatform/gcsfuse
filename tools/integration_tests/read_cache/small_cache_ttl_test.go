@@ -101,8 +101,7 @@ func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Read same file again immediately.
-	expectedOutcome3 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileSizeInCacheDirectory(fileSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

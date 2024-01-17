@@ -15,15 +15,12 @@
 package read_cache
 
 import (
-	"context"
 	"log"
 	"os"
 	"path"
 	"testing"
 
-	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -66,15 +63,6 @@ func createConfigFile(cacheSize int64) string {
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath
-}
-
-func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
-		expectedOutcome.content, t)
-
-	return expectedOutcome
 }
 
 ////////////////////////////////////////////////////////////////////////
