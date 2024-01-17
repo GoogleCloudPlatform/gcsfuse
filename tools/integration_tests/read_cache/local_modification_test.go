@@ -29,19 +29,19 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
-type readAfterLocalWrite struct {
+type localModificationTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *readAfterLocalWrite) Setup(t *testing.T) {
+func (s *localModificationTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *readAfterLocalWrite) Teardown(t *testing.T) {
+func (s *localModificationTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -51,13 +51,13 @@ func (s *readAfterLocalWrite) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *readAfterLocalWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
+func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
 	testFileName := testDirName + "5"
-	operations.CreateFileWithSize(fileSize, path.Join(testDirPath, testFileName), t)
+	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	// Append data in the same file to change generation.
+	// Append data in the same file to change object generation.
 	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
 	if err != nil {
 		t.Errorf("Error in appending data in file: %v", err)
@@ -75,7 +75,7 @@ func (s *readAfterLocalWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testi
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadAfterGCSFuseLocalWrite(t *testing.T) {
+func TestLocalModificationTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(9)
 	flagSet := [][]string{
@@ -84,7 +84,7 @@ func TestReadAfterGCSFuseLocalWrite(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	ts := &readAfterLocalWrite{ctx: context.Background()}
+	ts := &localModificationTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
