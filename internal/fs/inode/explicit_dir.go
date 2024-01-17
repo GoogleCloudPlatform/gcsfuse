@@ -17,6 +17,7 @@ package inode
 import (
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -43,7 +44,7 @@ func NewExplicitDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheSizeInMbPerDirectory int) (d ExplicitDirInode) {
+	tc metadata.TypeCache) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
@@ -54,7 +55,7 @@ func NewExplicitDirInode(
 		bucket,
 		mtimeClock,
 		cacheClock,
-		typeCacheSizeInMbPerDirectory)
+		tc)
 
 	d = &explicitDirInode{
 		dirInode: wrapped.(*dirInode),

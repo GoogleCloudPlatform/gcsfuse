@@ -16,6 +16,8 @@ package metadata
 
 import (
 	"fmt"
+	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 const (
 	TTL             time.Duration = time.Millisecond
 	TypeCacheSizeMb               = 1
+	pathToObject                  = "path/to/object"
 )
 
 var (
@@ -58,10 +61,23 @@ type ZeroTtlTypeCacheTest struct {
 	cache *typeCache
 }
 
+type TypeCacheBucketViewTest struct {
+	// named bucket views
+	// useful for dynamic-mount tests.
+	typeCacheBucketViews map[string]*typeCacheBucketView
+
+	// bucket-view with bucket passed as ""
+	// useful for static-mount tests.
+	defaultView *typeCacheBucketView
+
+	ttl time.Duration
+}
+
 func init() {
 	RegisterTestSuite(&TypeCacheTest{})
 	RegisterTestSuite(&ZeroSizeTypeCacheTest{})
 	RegisterTestSuite(&ZeroTtlTypeCacheTest{})
+	RegisterTestSuite(&TypeCacheBucketViewTest{})
 }
 
 func (t *TypeCacheTest) SetUp(ti *TestInfo) {
@@ -87,6 +103,21 @@ func (t *ZeroSizeTypeCacheTest) TearDown() {
 func (t *ZeroTtlTypeCacheTest) TearDown() {
 }
 
+func (t *TypeCacheBucketViewTest) SetUp(ti *TestInfo) {
+	t.ttl = TTL
+	sharedCache := createNewTypeCache(1, t.ttl)
+	t.typeCacheBucketViews = map[string]*typeCacheBucketView{}
+	names := []string{"a", "b"}
+	for _, name := range names {
+		t.typeCacheBucketViews[name] = createNewTypeCacheBucketView(sharedCache, name)
+	}
+
+	t.defaultView = createNewTypeCacheBucketView(sharedCache, "")
+}
+
+func (t *TypeCacheBucketViewTest) TearDown() {
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -98,6 +129,13 @@ func createNewTypeCache(sizeInMB int, ttl time.Duration) *typeCache {
 	return tc.(*typeCache)
 }
 
+func createNewTypeCacheBucketView(tc TypeCache, name string) *typeCacheBucketView {
+	tcbv := NewTypeCacheBucketView(tc, name)
+	AssertNe(nil, tcbv)
+	AssertNe(nil, tcbv.(*typeCacheBucketView))
+	return tcbv.(*typeCacheBucketView)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests for regulat TypeCache - TypeCacheTest
 ////////////////////////////////////////////////////////////////////////
@@ -107,25 +145,21 @@ func (t *TypeCacheTest) TestNewTypeCache() {
 		sizeInMb           int
 		ttl                time.Duration
 		entriesShouldBeNil bool
-	}{
-		{
-			sizeInMb:           0,
-			ttl:                time.Second,
-			entriesShouldBeNil: true,
-		},
-		{
-			sizeInMb:           1,
-			ttl:                0,
-			entriesShouldBeNil: true,
-		},
-		{
-			sizeInMb: -1,
-			ttl:      time.Second,
-		},
-		{
-			sizeInMb: 1,
-			ttl:      time.Second,
-		}}
+	}{{
+		sizeInMb:           0,
+		ttl:                time.Second,
+		entriesShouldBeNil: true,
+	}, {
+		sizeInMb:           1,
+		ttl:                0,
+		entriesShouldBeNil: true,
+	}, {
+		sizeInMb: -1,
+		ttl:      time.Second,
+	}, {
+		sizeInMb: 1,
+		ttl:      time.Second,
+	}}
 
 	for _, input := range input {
 		tc := createNewTypeCache(input.sizeInMb, input.ttl)
@@ -168,7 +202,7 @@ func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
 	// Verify that Get works, by accessing the last entry inserted.
 	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, fmt.Sprint(entriesToBeInserted-1)))
 
-	// The first inserted entry should have been evicted by all the later insertions.
+	// The first inserted entry should have been evicted by the later insertions.
 	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, fmt.Sprint(0)))
 }
 
@@ -209,4 +243,109 @@ func (t *ZeroTtlTypeCacheTest) TestGetFromEmptyTypeCache() {
 func (t *ZeroTtlTypeCacheTest) TestGetInsertedEntry() {
 	t.cache.Insert(now, "abcd", RegularFileType)
 	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Tests for TypeCache created with bucket-views - TypeCacheBucketViewTest
+//////////////////////////////////////////////////////////////////////////
+
+func (t *TypeCacheBucketViewTest) TestInsertGetEntry() {
+	// This tests for the multi-bucket scenario (dynamic-mount).
+	// Here t.a is created by passing bucket-name as "a".
+	// This test expects in such a case that the object is stored in the
+	// shared type-cache with the bucket's name "a" prepended to the
+	// original name "path/to/object".
+
+	a := t.typeCacheBucketViews["a"]
+	a.Insert(now, pathToObject, RegularFileType)
+
+	AssertEq(UnknownType, a.sharedTypeCache.Get(beforeExpiration, pathToObject))
+	AssertEq(RegularFileType, a.sharedTypeCache.Get(beforeExpiration, "a/path/to/object"))
+	AssertEq(RegularFileType, a.Get(beforeExpiration, pathToObject))
+}
+
+func (t *TypeCacheBucketViewTest) TestInsertGetEntryForUnnamedView() {
+	// This tests for the single-bucket scenario (static-mount).
+	// Here t.defaultView is created by passing bucket-name as "".
+	// This test expects in such a case that the object is stored in the
+	// shared type-cache with the same name as the original name.
+	t.defaultView.Insert(now, pathToObject, RegularFileType)
+
+	AssertEq(RegularFileType, t.defaultView.sharedTypeCache.Get(beforeExpiration, pathToObject))
+	AssertEq(RegularFileType, t.defaultView.Get(beforeExpiration, pathToObject))
+}
+
+func (t *TypeCacheBucketViewTest) TestInsertSameEntryToMultipleBuckets() {
+	a := t.typeCacheBucketViews["a"]
+	b := t.typeCacheBucketViews["b"]
+
+	// add same entries in two bucket views to the same shared-type-cache
+	a.Insert(now, pathToObject, RegularFileType)
+	b.Insert(now, pathToObject, ExplicitDirType)
+	// verify that both entries co-exist
+	AssertEq(RegularFileType, a.Get(beforeExpiration, pathToObject))
+	AssertEq(ExplicitDirType, b.Get(beforeExpiration, pathToObject))
+
+	// verify that deletion of one of the entries doesn't affect the other
+	a.Erase(pathToObject)
+	// verify that the deleted entry is gone, but the other survived.
+	AssertEq(UnknownType, a.Get(beforeExpiration, pathToObject))
+	AssertEq(ExplicitDirType, b.Get(beforeExpiration, pathToObject))
+
+	// reinsert the deleted entry at a later time
+	a.Insert(now2, pathToObject, SymlinkType)
+	// verify that just before the original ttl expiration, both entries co-exist
+	AssertEq(SymlinkType, a.Get(beforeExpiration, pathToObject))
+	AssertEq(ExplicitDirType, b.Get(beforeExpiration, pathToObject))
+	// verify that just before the ttl expiration of the reinserted entry, the reinserted entry is there, but the other got evicted.
+	AssertEq(SymlinkType, a.Get(beforeExpiration2, pathToObject))
+	AssertEq(UnknownType, b.Get(beforeExpiration2, pathToObject))
+}
+
+func (t *TypeCacheBucketViewTest) TestTypeCacheBucketViewsSizeSharing() {
+	a := t.typeCacheBucketViews["a"]
+	b := t.typeCacheBucketViews["b"]
+	wg := sync.WaitGroup{}
+	maxEntriesInSharedCache := float64(util.MiBsToBytes(1)) / float64(cacheEntry{}.Size())
+	maxEntriesPerView := int(math.Ceil(maxEntriesInSharedCache/2.0)) + 1 // +1 to purposely force the total entry-count to go up by at least 2.
+
+	// Adding the '0' entries in both the views first out-of-loop, to ensure that these two are the earliest entries added in the shared-cache.
+	a.Insert(now, fmt.Sprint(0), RegularFileType)
+	b.Insert(now, fmt.Sprint(0), ExplicitDirType)
+
+	// adding entries in the two views through parallel go-routines to ensure that
+	// the entries are added in random/interleaved fashion.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for i := 1; i < maxEntriesPerView-1; i++ {
+			a.Insert(now, fmt.Sprint(i), RegularFileType)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for i := 1; i < maxEntriesPerView-1; i++ {
+			b.Insert(now, fmt.Sprint(i), ExplicitDirType)
+		}
+	}()
+
+	wg.Wait()
+
+	// Adding the 'maxEntriesPerView-1' entries in both the views last out-of-loop,
+	// to ensure that these two are the last entries added in the shared-cache,
+	// to avoid  race-conditions
+	a.Insert(now, fmt.Sprint(maxEntriesPerView-1), RegularFileType)
+	b.Insert(now, fmt.Sprint(maxEntriesPerView-1), ExplicitDirType)
+
+	// verify that the last entries of both the views co-exist
+	AssertEq(RegularFileType, a.Get(beforeExpiration, fmt.Sprint(maxEntriesPerView-1)))
+	AssertEq(ExplicitDirType, b.Get(beforeExpiration, fmt.Sprint(maxEntriesPerView-1)))
+
+	// verify that the first entries of both the views got evicted.
+	AssertEq(UnknownType, a.Get(beforeExpiration, fmt.Sprint(0)))
+	AssertEq(UnknownType, b.Get(beforeExpiration, fmt.Sprint(0)))
 }

@@ -213,3 +213,7 @@ func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEn
 	// Base directory can not contain local files.
 	return nil
 }
+
+func (d *baseDirInode) IsBaseDirInode() bool {
+	return true
+}

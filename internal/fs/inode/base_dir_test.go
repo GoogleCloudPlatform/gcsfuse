@@ -152,6 +152,10 @@ func (t *BaseDirTest) Attributes() {
 	ExpectEq(dirMode|os.ModeDir, attrs.Mode)
 }
 
+func (t *BaseDirTest) IsBaseDirInode() {
+	ExpectEq(true, t.in.IsBaseDirInode())
+}
+
 func (t *BaseDirTest) LookUpChild_NonExistent() {
 	result, err := t.in.LookUpChild(t.ctx, "missing_bucket")
 

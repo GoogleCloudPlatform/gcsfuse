@@ -100,7 +100,7 @@ func (ce cacheEntry) Size() uint64 {
 //   - We have recorded that N is a directory.
 //   - We have recorded that N is both a file and a directory.
 //
-// Must be created with newTypeCache. May be contained in a larger struct.
+// Must be created with NewTypeCache. May be contained in a larger struct.
 // External synchronization is required.
 type typeCache struct {
 	/////////////////////////
@@ -114,9 +114,6 @@ type typeCache struct {
 	/////////////////////////
 
 	// A cache mapping names to the cache entry.
-	//
-	// INVARIANT: entries.CheckInvariants() does not panic
-	// INVARIANT: Each value is of type cacheEntry
 	entries *lru.Cache
 }
 
@@ -130,7 +127,7 @@ func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
 		if sizeInMB < -1 {
 			panic(fmt.Sprintf("Invalid valid of type-cache-max-size-mb: %v", sizeInMB))
 		}
-		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1, increasing
+		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1
 		if sizeInMB > 0 {
 			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
 		}
@@ -179,4 +176,49 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 		return UnknownType
 	}
 	return entry.inodeType
+}
+
+// A cache that wraps over a TypeCache and
+// prepends every cache entry's name/key with the supplied bucketName
+// for every operation (Insert/Get/Erase).
+//
+// Must be created with NewTypeCacheBucketView only. May be contained in a larger struct.
+// External synchronization is required.
+type typeCacheBucketView struct {
+	sharedTypeCache TypeCache
+	bucketName      string
+}
+
+func (tcbv *typeCacheBucketView) key(name string) string {
+	if tcbv.bucketName != "" {
+		return tcbv.bucketName + "/" + name
+	}
+	return name
+}
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
+
+// Creates a new typeCacheBucketView wrapping over the
+// given TypeCache and prefix bucketName for prepending
+// in operational keys.
+// This is needed in case of multi-bucket mount (i.e. dynamic-mount).
+func NewTypeCacheBucketView(stc TypeCache, bn string) TypeCache {
+	if stc == nil {
+		panic("The passed shared-type-cache is nil")
+	}
+	return &typeCacheBucketView{sharedTypeCache: stc, bucketName: bn}
+}
+
+func (tcbv *typeCacheBucketView) Insert(now time.Time, name string, it Type) {
+	tcbv.sharedTypeCache.Insert(now, tcbv.key(name), it)
+}
+
+func (tcbv *typeCacheBucketView) Erase(name string) {
+	tcbv.sharedTypeCache.Erase(tcbv.key(name))
+}
+
+func (tcbv *typeCacheBucketView) Get(now time.Time, name string) Type {
+	return tcbv.sharedTypeCache.Get(now, tcbv.key(name))
 }

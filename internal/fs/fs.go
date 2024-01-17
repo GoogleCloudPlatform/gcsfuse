@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
@@ -163,6 +164,8 @@ func NewFileSystem(
 		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
+	newSharedTypeCache := metadata.NewTypeCache(cfg.MountConfig.MetadataCacheConfig.TypeCacheMaxSizeMb, cfg.DirTypeCacheTTL)
+
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:                 mtimeClock,
@@ -189,6 +192,8 @@ func NewFileSystem(
 		mountConfig:                cfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+		sharedTypeCache:            newSharedTypeCache,
+		typeCacheBucketViews:       map[string]metadata.TypeCache{},
 	}
 
 	// Set up root bucket
@@ -198,6 +203,10 @@ func NewFileSystem(
 		root = makeRootForAllBuckets(fs)
 	} else {
 		logger.Info("Set up root directory for bucket " + cfg.BucketName)
+
+		logger.Debugf("Creating type-cache-bucket-view for bucket %s ...", cfg.BucketName)
+		fs.typeCacheBucketViews[cfg.BucketName] = metadata.NewTypeCacheBucketView(fs.sharedTypeCache, "")
+
 		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName, false)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
@@ -280,7 +289,7 @@ func makeRootForBucket(
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMb,
+		fs.typeCacheBucketViews[syncerBucket.Name()],
 	)
 }
 
@@ -461,6 +470,14 @@ type fileSystem struct {
 
 	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
+
+	// mount-level shared type-cache
+	sharedTypeCache metadata.TypeCache
+
+	// Individual bucket-level type-cache-bucket-view.
+	// It will have exactly one entry if static-mount,
+	// and will have one or more if dynamic-mount.
+	typeCacheBucketViews map[string]metadata.TypeCache
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
@@ -703,7 +720,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMb)
+			fs.typeCacheBucketViews[ic.Bucket.Name()])
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -726,7 +743,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMb)
+			fs.typeCacheBucketViews[ic.Bucket.Name()])
 
 	case inode.IsSymlink(ic.Object):
 		in = inode.NewSymlinkInode(
@@ -931,7 +948,26 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	getLookupResult := func() (*inode.Core, error) {
 		parent.Lock()
 		defer parent.Unlock()
-		return parent.LookUpChild(ctx, childName)
+
+		core, err := parent.LookUpChild(ctx, childName)
+		if err == nil && parent.IsBaseDirInode() {
+			func() {
+				// This block is specific to multi-bucket mount.
+				// This is creating and inserting (if not already done)
+				// a type-cache-bucket-view for this bucket (called childName)
+				// into the (bucketName -> type-cache-bucket-view') map in fs.
+				// This code comes up when a new bucket is mounted
+				// in dynamic-mount.
+				fs.mu.Lock()
+				defer fs.mu.Unlock()
+				if _, ok := fs.typeCacheBucketViews[childName]; !ok {
+					logger.Debugf("Creating type-cache-bucket-view for bucket %s ...", childName)
+				fs.typeCacheBucketViews[childName] = metadata.NewTypeCacheBucketView(fs.sharedTypeCache, childName)
+				}
+			}()
+		}
+
+		return core, err
 	}
 
 	// Run a retry loop around lookUpOrCreateInodeIfNotStale.
