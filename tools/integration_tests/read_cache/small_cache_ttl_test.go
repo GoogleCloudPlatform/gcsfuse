@@ -65,10 +65,7 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome1.content, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Modify the file.
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
@@ -86,16 +83,31 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
-	expectedOutcome3 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(smallContentSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome3.content, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 	validate(expectedOutcome3, structuredReadLogs[2], true, false, chunksReadAfterUpdate, t)
+}
+
+func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
+	// Read file 1st time.
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
+
+	// Wait for metadata cache expiry and read the file again.
+	time.Sleep(metadataCacheTTlInSec * time.Second)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
+
+	// Read same file again immediately.
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
+	validate(expectedOutcome3, structuredReadLogs[2], true, true, chunksRead, t)
 }
 
 ////////////////////////////////////////////////////////////////////////

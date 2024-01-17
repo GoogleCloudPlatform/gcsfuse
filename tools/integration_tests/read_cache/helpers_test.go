@@ -154,3 +154,15 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 		defer cancel()
 	}
 }
+
+func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
+	// Read file with gcsfuse mount.
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	// Validate cached content with gcs.
+	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
+	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
+		expectedOutcome.content, t)
+
+	return expectedOutcome
+}
