@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
@@ -69,7 +68,7 @@ func (t *CoreTest) File() {
 		Object:   o,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(metadata.RegularFileType, c.Type())
+	ExpectEq(inode.RegularFileType, c.Type())
 }
 
 func (t *CoreTest) LocalFile() {
@@ -81,7 +80,7 @@ func (t *CoreTest) LocalFile() {
 		Local:    true,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(metadata.RegularFileType, c.Type())
+	ExpectEq(inode.RegularFileType, c.Type())
 }
 
 func (t *CoreTest) ExplicitDir() {
@@ -95,7 +94,7 @@ func (t *CoreTest) ExplicitDir() {
 		Object:   o,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(metadata.ExplicitDirType, c.Type())
+	ExpectEq(inode.ExplicitDirType, c.Type())
 }
 
 func (t *CoreTest) ImplicitDir() {
@@ -106,7 +105,7 @@ func (t *CoreTest) ImplicitDir() {
 		Object:   nil,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(metadata.ImplicitDirType, c.Type())
+	ExpectEq(inode.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) BucketRootDir() {
@@ -116,13 +115,13 @@ func (t *CoreTest) BucketRootDir() {
 		Object:   nil,
 	}
 	ExpectTrue(c.Exists())
-	ExpectEq(metadata.ImplicitDirType, c.Type())
+	ExpectEq(inode.ImplicitDirType, c.Type())
 }
 
 func (t *CoreTest) Nonexistent() {
 	var c *inode.Core
 	ExpectFalse(c.Exists())
-	ExpectEq(metadata.UnknownType, c.Type())
+	ExpectEq(inode.UnknownType, c.Type())
 }
 
 func (t *CoreTest) SanityCheck() {
