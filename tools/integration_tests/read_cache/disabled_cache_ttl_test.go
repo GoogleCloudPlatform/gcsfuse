@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -39,7 +40,6 @@ func (s *disabledCacheTTLTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 }
 
 func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
@@ -53,13 +53,16 @@ func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
+	testFileName := testFileName + "3"
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(fileSize, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileName, fileSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
 		expectedOutcome1.content, t)
 
 	// Modify the file.
+	objectName := path.Join(testDirName, testFileName)
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
 	if err != nil {
 		t.Errorf("Could not modify object %s: %v", objectName, err)
@@ -67,13 +70,13 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 
 	// Read same file again immediately. New content should be served as cache ttl is 0.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(smallContentSize, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileName, smallContentSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
 		expectedOutcome2.content, t)
 
 	// Read the same file again. The data should be served from cache.
 	expectedOutcome3 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(smallContentSize, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileName, smallContentSize, s.ctx, s.storageClient, t)
 	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
 		expectedOutcome3.content, t)
 

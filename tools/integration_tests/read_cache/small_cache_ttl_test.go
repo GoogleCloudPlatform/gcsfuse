@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +30,6 @@ import (
 )
 
 const (
-	objectName            = testDirName + "/" + testFileName
 	smallContent          = "small content"
 	smallContentSize      = 13
 	chunksReadAfterUpdate = 1
@@ -64,10 +64,13 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
+	testFileName := testFileName + "2"
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, fileSize, t)
 
 	// Modify the file.
+	objectName := path.Join(testDirName, testFileName)
 	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
 	if err != nil {
 		t.Errorf("Could not modify object %s: %v", objectName, err)
@@ -75,7 +78,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 
 	// Read same file again immediately.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileSizeInCacheDirectory(fileSize, t)
+	validateFileSizeInCacheDirectory(testFileName, fileSize, t)
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
 		t.Errorf("content mismatch. Expected old data to be served again.")
