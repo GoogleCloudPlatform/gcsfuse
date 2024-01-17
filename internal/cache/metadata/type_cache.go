@@ -27,7 +27,7 @@ import (
 
 type Type int
 
-var (
+const (
 	UnknownType     Type = 0
 	SymlinkType     Type = 1
 	RegularFileType Type = 2

@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"golang.org/x/net/context"
 
@@ -172,7 +171,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectEq("bucketA/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
 	ExpectEq(nil, result.Object)
-	ExpectEq(metadata.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 
 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
 
@@ -184,7 +183,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectEq("bucketB/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
 	ExpectEq(nil, result.Object)
-	ExpectEq(metadata.ImplicitDirType, result.Type())
+	ExpectEq(ImplicitDirType, result.Type())
 }
 
 func (t *BaseDirTest) LookUpChild_BucketCached() {

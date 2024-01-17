@@ -455,19 +455,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
-	case metadata.ImplicitDirType:
+	case ImplicitDirType:
 		dirResult = &Core{
 			Bucket:   d.Bucket(),
 			FullName: NewDirName(d.Name(), name),
 			Object:   nil,
 		}
-	case metadata.ExplicitDirType:
+	case ExplicitDirType:
 		b.Add(lookUpExplicitDir)
-	case metadata.RegularFileType, metadata.SymlinkType:
+	case RegularFileType, SymlinkType:
 		b.Add(lookUpFile)
-	case metadata.NonexistentType:
+	case NonexistentType:
 		return nil, nil
-	case metadata.UnknownType:
+	case UnknownType:
 		b.Add(lookUpFile)
 		if d.implicitDirs {
 			b.Add(lookUpImplicitOrExplicitDir)
@@ -489,8 +489,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
+	} else if d.enableNonexistentTypeCache && cachedType == UnknownType {
+		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
 	}
 
 	return result, nil
@@ -606,7 +606,7 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+		if c, ok := cores[dirName]; ok && c.Type() == ExplicitDirType {
 			continue
 		}
 
@@ -636,11 +636,11 @@ func (d *dirInode) ReadEntries(
 			Type: fuseutil.DT_Unknown,
 		}
 		switch core.Type() {
-		case metadata.SymlinkType:
+		case SymlinkType:
 			entry.Type = fuseutil.DT_Link
-		case metadata.RegularFileType:
+		case RegularFileType:
 			entry.Type = fuseutil.DT_File
-		case metadata.ImplicitDirType, metadata.ExplicitDirType:
+		case ImplicitDirType, ExplicitDirType:
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
@@ -660,7 +660,7 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
 	return &Core{
 		Bucket:   d.Bucket(),
 		FullName: fullName,
@@ -719,7 +719,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
+	d.cache.Insert(d.cacheClock.Now(), name, SymlinkType)
 
 	return &Core{
 		Bucket:   d.Bucket(),
@@ -736,7 +736,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
+	d.cache.Insert(d.cacheClock.Now(), name, ExplicitDirType)
 
 	return &Core{
 		Bucket:   d.Bucket(),
