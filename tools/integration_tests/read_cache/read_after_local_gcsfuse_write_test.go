@@ -84,7 +84,7 @@ func TestReadAfterGCSFuseLocalWrite(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	ts := &readAfterLocalWrite{}
+	ts := &readAfterLocalWrite{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
