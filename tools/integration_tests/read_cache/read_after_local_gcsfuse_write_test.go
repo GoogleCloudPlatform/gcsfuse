@@ -37,9 +37,7 @@ type readAfterLocalWrite struct {
 
 func (s *readAfterLocalWrite) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
-
 	setup.SetMntDir(mountDir)
-
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
@@ -55,17 +53,15 @@ func (s *readAfterLocalWrite) Teardown(t *testing.T) {
 
 func (s *readAfterLocalWrite) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
 	testFileName := testDirName + "5"
-	createFileInTestDirWithGCSFuse(fileSize, path.Join(testDirPath, testFileName), t)
+	operations.CreateFileWithSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-
 	// Append data in the same file to change generation.
 	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
 	if err != nil {
 		t.Errorf("Error in appending data in file: %v", err)
 	}
-
 	// Read file 2nd time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, t)
 
