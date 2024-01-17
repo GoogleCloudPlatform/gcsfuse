@@ -617,7 +617,7 @@ func CreateFileWithContent(filePath string, filePerms os.FileMode,
 	CloseFile(fh)
 }
 
-// Create a file with a given size of random data.
+// CreateFileOfSize creates a file of given size with random data.
 func CreateFileOfSize(fileSize int64, filePath string, t *testing.T) {
 	randomData, err := GenerateRandomData(fileSize)
 	randomDataString := strings.Trim(string(randomData), "\x00")
