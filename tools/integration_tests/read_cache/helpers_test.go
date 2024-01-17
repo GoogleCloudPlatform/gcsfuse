@@ -154,14 +154,22 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 	}
 }
 
-func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
+func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file with gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
 	// Validate cached content with gcs.
-	validateFileInCacheDirectory(fileSize, ctx, storageClient, t)
+	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, testFileName,
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
 
 	return expectedOutcome
+}
+
+func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName string, t *testing.T) {
+	objectName := path.Join(testDirName, testFileName)
+	err := client.WriteToObject(ctx, storageClient, objectName, smallContent, storage.Conditions{})
+	if err != nil {
+		t.Errorf("Could not modify object %s: %v", objectName, err)
+	}
 }

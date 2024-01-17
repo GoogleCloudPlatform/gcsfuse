@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -55,30 +54,15 @@ func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
 	testFileName := testFileName + "3"
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
+
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(testFileName, fileSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome1.content, t)
-
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Modify the file.
-	objectName := path.Join(testDirName, testFileName)
-	err := client.WriteToObject(s.ctx, s.storageClient, objectName, smallContent, storage.Conditions{})
-	if err != nil {
-		t.Errorf("Could not modify object %s: %v", objectName, err)
-	}
-
+	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately. New content should be served as cache ttl is 0.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(testFileName, smallContentSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome2.content, t)
-
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
 	// Read the same file again. The data should be served from cache.
-	expectedOutcome3 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
-	validateFileInCacheDirectory(testFileName, smallContentSize, s.ctx, s.storageClient, t)
-	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
-		expectedOutcome3.content, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
