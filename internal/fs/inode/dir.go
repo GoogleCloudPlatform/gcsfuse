@@ -650,12 +650,12 @@ func (d *dirInode) ReadEntries(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
-	childMetadata := map[string]string{
+	metadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
 	fullName := NewFileName(d.Name(), name)
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata)
+	o, err := d.createNewObject(ctx, fullName, metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -710,11 +710,11 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.O
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
-	childMetadata := map[string]string{
+	metadata := map[string]string{
 		SymlinkMetadataKey: target,
 	}
 
-	o, err := d.createNewObject(ctx, fullName, childMetadata)
+	o, err := d.createNewObject(ctx, fullName, metadata)
 	if err != nil {
 		return nil, err
 	}
