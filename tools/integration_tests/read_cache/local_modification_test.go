@@ -16,32 +16,32 @@ package read_cache
 
 import (
 	"context"
+	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type readOnlyTest struct {
+// //////////////////////////////////////////////////////////////////////
+type localModificationTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *readOnlyTest) Setup(t *testing.T) {
+func (s *localModificationTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
-func (s *readOnlyTest) Teardown(t *testing.T) {
+func (s *localModificationTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -51,26 +51,31 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := testFileName + "1"
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
+func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
+	testFileName := testDirName + "5"
+	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	// Append data in the same file to change object generation.
+	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
+	if err != nil {
+		t.Errorf("Error in appending data in file: %v", err)
+	}
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadOnlyTest(t *testing.T) {
+func TestLocalModificationTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(9)
 	flagSet := [][]string{
@@ -79,7 +84,7 @@ func TestReadOnlyTest(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	ts := &readOnlyTest{ctx: context.Background()}
+	ts := &localModificationTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
@@ -87,9 +92,6 @@ func TestReadOnlyTest(t *testing.T) {
 	for _, flags := range flagSet {
 		// Run tests without ro flag.
 		ts.flags = flags
-		test_setup.RunTests(t, ts)
-		// Run tests with ro flag.
-		ts.flags = append(flags, "--o=ro")
 		test_setup.RunTests(t, ts)
 	}
 }

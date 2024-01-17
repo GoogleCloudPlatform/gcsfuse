@@ -130,8 +130,10 @@ func GetStructuredLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Str
 
 	// Create array from structured logs map.
 	structuredReadLogs := make([]*StructuredReadLogEntry, len(logsMap))
-	for i, val := range logsMap {
+	var i = 0
+	for _, val := range logsMap {
 		structuredReadLogs[i] = val
+		i++
 	}
 
 	// Sort the logs based on start time stamp.
