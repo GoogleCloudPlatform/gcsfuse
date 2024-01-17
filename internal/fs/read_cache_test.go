@@ -48,6 +48,14 @@ const (
 	UserTempLocation = "my/temp"
 )
 
+func init() {
+	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
+	RegisterTestSuite(&FileCacheTest{})
+	RegisterTestSuite(&FileCacheDestroyTest{})
+	RegisterTestSuite(&FileCacheWithDefaultCacheLocation{})
+	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheLocation{})
+}
+
 var CacheLocation = path.Join(os.Getenv("HOME"), "cache-dir")
 var FileCacheLocation = path.Join(CacheLocation, util.FileCache)
 
@@ -726,14 +734,6 @@ type FileCacheWithDefaultCacheLocation struct {
 
 type FileCacheWithUserDefinedTempAsCacheLocation struct {
 	fsTest
-}
-
-func init() {
-	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
-	RegisterTestSuite(&FileCacheTest{})
-	RegisterTestSuite(&FileCacheDestroyTest{})
-	RegisterTestSuite(&FileCacheWithDefaultCacheLocation{})
-	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheLocation{})
 }
 
 func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
