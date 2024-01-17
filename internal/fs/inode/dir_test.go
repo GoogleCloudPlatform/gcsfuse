@@ -91,7 +91,7 @@ func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeInMbPerDirectory, typeCacheTTL)
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeInMb, typeCacheTTL)
 }
 
 func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMbPerDirectory int, typeCacheTTL time.Duration) {
@@ -647,7 +647,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 		typeCacheSizeInMb int
 		typeCacheTTL      time.Duration
 	}{{
-		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMbPerDirectory,
+		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMb,
 		typeCacheTTL:      time.Second,
 	}, {
 		typeCacheSizeInMb: -1,
@@ -683,7 +683,7 @@ func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 		typeCacheSizeInMb: 0,
 		typeCacheTTL:      time.Second,
 	}, {
-		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMbPerDirectory,
+		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMb,
 		typeCacheTTL:      0,
 	}}
 
