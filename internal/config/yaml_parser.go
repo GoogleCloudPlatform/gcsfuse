@@ -40,7 +40,7 @@ const (
 
 var (
 	ErrMetadataCacheTtlSecsInvalidValue     = errors.New("the value of ttl-secs for metadata-cache can't be less than -1")
-	ErrTypeCacheMaxSizeMbPerDirInvalidValue = errors.New("the value of type-cache-max-size-mb-per-dir for metadata-cache can't be less than -1")
+	ErrTypeCacheMaxSizeMbPerDirInvalidValue = errors.New("the value of type-cache-max-size-mb for metadata-cache can't be less than -1")
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -78,7 +78,7 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	if metadataCacheConfig.TtlInSeconds < -1 && metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
 		return ErrMetadataCacheTtlSecsInvalidValue
 	}
-	if metadataCacheConfig.TypeCacheMaxSizeMbPerDirectory < -1 {
+	if metadataCacheConfig.TypeCacheMaxSizeMb < -1 {
 		return ErrTypeCacheMaxSizeMbPerDirInvalidValue
 	}
 	return nil

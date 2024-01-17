@@ -94,7 +94,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 
 	actual := util.Stringify(mountConfig)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeInMB\":0,\"CacheFileForRangeRead\":false,\"CacheLocation\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMbPerDirectory\":0}"
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeInMB\":0,\"CacheFileForRangeRead\":false,\"CacheLocation\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMb\":0}"
 	AssertEq(expected, actual)
 }
 
