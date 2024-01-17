@@ -14,13 +14,23 @@
 
 package mount
 
-import "strings"
+import (
+	"math"
+	"strings"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
+)
 
 type ClientProtocol string
 
 const (
 	HTTP1 ClientProtocol = "http1"
 	HTTP2 ClientProtocol = "http2"
+	// DefaultStatOrTypeCacheTTL is the default value used for
+	// stat-cache-ttl or type-cache-ttl if they have not been set
+	// by the user.
+	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 )
 
 func (cp ClientProtocol) IsValid() bool {
@@ -67,4 +77,22 @@ func ParseOptions(m map[string]string, s string) {
 		m[name] = value
 	}
 
+}
+
+// MetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
+	// if metadata-cache:ttl-secs has been set in config-file, then
+	// it overrides both stat-cache-ttl and type-cache-tll.
+	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
+		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
+		if ttlInSeconds == -1 {
+			metadataCacheTTL = time.Duration(math.MaxInt64)
+		} else {
+			metadataCacheTTL = time.Second * time.Duration(ttlInSeconds)
+		}
+	} else {
+		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
+	}
+
+	return
 }

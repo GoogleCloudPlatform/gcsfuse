@@ -14,7 +14,10 @@
 
 package config
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 const (
 	// Default log rotation config values.
@@ -28,6 +31,9 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel int64 = math.MinInt64
+
+	// The maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 )
 
 type WriteConfig struct {
