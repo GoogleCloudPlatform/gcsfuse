@@ -29,8 +29,6 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
@@ -626,5 +624,5 @@ func CreateFileWithSize(fileSize int64, filePath string, t *testing.T) {
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}
-	CreateFileWithContent(filePath, setup.FilePermission_0600, randomDataString, t)
+	CreateFileWithContent(filePath, FilePermission_0600, randomDataString, t)
 }
