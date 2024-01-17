@@ -59,7 +59,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 	isSeq, cacheHit bool, chunkCount int, t *testing.T) {
 	if logEntry.StartTimeSeconds < expected.StartTimeStampSeconds {
-		t.Errorf("start time in logs less than actual start time.")
+		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 	}
 	if logEntry.BucketName != expected.BucketName {
 		t.Errorf("Bucket names don't match! Expected: %s, Got from logs: %s",
@@ -194,4 +194,13 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 	if err != nil {
 		t.Errorf("Could not modify object %s: %v", objectName, err)
 	}
+}
+
+func createNFilesInDirWithStorageClient(ctx context.Context, storageClient *storage.Client, n int, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
+	for i := 0; i < n; i++ {
+		testFileName := testFileName + "-" + setup.GenerateRandomString(3)
+		fileNames = append(fileNames, testFileName)
+		client.SetupFileInTestDirectory(ctx, storageClient, dirName, testFileName, fileSize, t)
+	}
+	return fileNames
 }

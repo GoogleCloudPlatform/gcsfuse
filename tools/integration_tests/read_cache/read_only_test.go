@@ -88,7 +88,7 @@ func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
 
 func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
+	mountConfigFilePath := createConfigFile(9)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
