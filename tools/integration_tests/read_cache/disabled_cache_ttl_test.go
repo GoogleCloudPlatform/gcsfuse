@@ -25,31 +25,23 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-const (
-	MiB             = 1024 * 1024
-	chunkSizeToRead = MiB
-	fileSize        = 3 * MiB
-	chunksRead      = fileSize / MiB
-	testFileName    = "foo"
-)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type readOnlyTest struct {
+type disabledCacheTTLTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *readOnlyTest) Setup(t *testing.T) {
+func (s *disabledCacheTTLTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
-func (s *readOnlyTest) Teardown(t *testing.T) {
+func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -59,35 +51,38 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := testFileName + "1"
+func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
+	testFileName := testFileName + "3"
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	// Modify the file.
+	modifyFile(s.ctx, s.storageClient, testFileName, t)
+	// Read same file again immediately. New content should be served as cache ttl is 0.
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
+	// Read the same file again. The data should be served from cache.
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksReadAfterUpdate, t)
+	validate(expectedOutcome3, structuredReadLogs[2], true, true, chunksReadAfterUpdate, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadOnlyTest(t *testing.T) {
+func TestDisabledCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(9)
-	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
-	}
-
-	// Create storage client before running tests.
-	ts := &readOnlyTest{ctx: context.Background()}
+	var flagSet = [][]string{
+		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},
+		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},
+	} // Create storage client before running tests.
+	ts := &disabledCacheTTLTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
