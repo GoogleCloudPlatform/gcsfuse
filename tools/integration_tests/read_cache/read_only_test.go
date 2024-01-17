@@ -25,18 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-const (
-	MiB                 = 1024 * 1024
-	chunkSizeToRead     = MiB
-	fileSize            = 3 * MiB
-	chunksRead          = fileSize / MiB
-	testFileName        = "foo"
-	cacheCapacityInMB   = 9
-	largeFileSize       = 15 * MiB
-	largeFileName       = "15MBFile"
-	largeFileChunksRead = 15
-)
-
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
