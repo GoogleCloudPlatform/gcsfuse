@@ -60,7 +60,7 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
-	testFileName := testFileName + "2"
+	testFileName := testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
@@ -86,7 +86,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 }
 
 func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
-	testFileName := testFileName + "4"
+	testFileName := testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.

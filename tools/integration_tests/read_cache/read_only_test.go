@@ -64,7 +64,7 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := testFileName + "1"
+	testFileName := testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
