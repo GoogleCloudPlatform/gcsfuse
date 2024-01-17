@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -83,7 +84,7 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	metadataCacheTTL := metadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,

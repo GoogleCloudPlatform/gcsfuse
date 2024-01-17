@@ -71,7 +71,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
     - This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though caching were disabled
 
 2. Stat-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
-   * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache. If this is <-1, then an error is thrown on mount. The maximum supported value is 9223372036 (seconds, i.e. about 292 years), and a higher value will return error on mount.
+   * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache.
    If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
    * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
    

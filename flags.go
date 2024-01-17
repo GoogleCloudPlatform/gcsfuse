@@ -16,14 +16,13 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
@@ -33,10 +32,6 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatOrTypeCacheTTL is the default value used for
-	// stat-cache-ttl or type-cache-ttl if they have not been set
-	// by the user.
-	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	DefaultStatCacheCapacity = 4096
 )
@@ -218,13 +213,13 @@ func newApp() (app *cli.App) {
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
-				Value: DefaultStatOrTypeCacheTTL,
+				Value: mount.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
-				Value: DefaultStatOrTypeCacheTTL,
+				Value: mount.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
@@ -574,21 +569,4 @@ func (oi *OctalInt) Set(value string) (err error) {
 
 func (oi OctalInt) String() string {
 	return fmt.Sprintf("%o", oi)
-}
-
-func metadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
-	// if metadata-cache:ttl-secs has been set in config-file, then
-	// it overrides both stat-cache-ttl and type-cache-tll.
-	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
-		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
-		if ttlInSeconds == -1 {
-			metadataCacheTTL = time.Duration(math.MaxInt64)
-		} else {
-			metadataCacheTTL = time.Second * time.Duration(ttlInSeconds)
-		}
-	} else {
-		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
-	}
-
-	return
 }

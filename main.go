@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -227,11 +228,13 @@ func runCLIApp(c *cli.Context) (err error) {
 	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
 	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
 
+	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if flags.StatCacheCapacity != DefaultStatCacheCapacity {
 		logger.Warnf("Old flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
-	if flags.StatCacheTTL != DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != DefaultStatOrTypeCacheTTL {
+	// the following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
+	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Old flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
