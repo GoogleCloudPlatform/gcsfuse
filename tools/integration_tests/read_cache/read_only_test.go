@@ -36,15 +36,11 @@ type readOnlyTest struct {
 }
 
 func (s *readOnlyTest) Setup(t *testing.T) {
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	Setup(s.flags,s.ctx,s.storageClient,testDirName)
 }
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
-	// unmount gcsfuse
-	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
+	TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////

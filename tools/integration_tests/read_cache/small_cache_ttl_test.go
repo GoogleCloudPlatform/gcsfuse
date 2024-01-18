@@ -39,15 +39,11 @@ type smallCacheTTLTest struct {
 }
 
 func (s *smallCacheTTLTest) Setup(t *testing.T) {
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	Setup(s.flags,s.ctx,s.storageClient,testDirName)
 }
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
-	// unmount gcsfuse
-	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
+TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////

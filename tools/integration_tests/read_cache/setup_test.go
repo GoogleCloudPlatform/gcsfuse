@@ -15,6 +15,9 @@
 package read_cache
 
 import (
+	"cloud.google.com/go/storage"
+	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"log"
 	"os"
 	"path"
@@ -62,11 +65,20 @@ var (
 	rootDir string
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
+func Setup(flags []string,ctx context.Context,storageClient *storage.Client,testDirName string)  {
+	mountGCSFuse(flags)
+	setup.SetMntDir(mountDir)
+	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+}
 
-func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
+func TearDown(){
+	// unmount gcsfuse
+	setup.SetMntDir(rootDir)
+	unmountGCSFuseAndDeleteLogFile()
+}
+
+
+func createConfigFile(cacheSize int64) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
@@ -85,7 +97,7 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-	filePath := setup.YAMLConfigFile(mountConfig, fileName)
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath
 }
 
