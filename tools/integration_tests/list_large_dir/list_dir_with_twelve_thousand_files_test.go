@@ -104,7 +104,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 		t.Errorf("Error in listing directory.")
 	}
 
-	var numberOfFiles  = 0
+	var numberOfFiles= 0
 	var numberOfDirs = 0
 
 	// Checking if correct objects present in bucket.
@@ -127,7 +127,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
 	}
 	// number of files = 12000
-	if numberOfFiles  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+	if numberOfFiles!= NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles )
 	}
 
@@ -152,7 +152,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 		t.Errorf("Error in listing directory.")
 	}
 
-	var numberOfFiles  = 0
+	var numberOfFiles= 0
 	var numberOfDirs = 0
 
 	// Checking if correct objects present in bucket.
@@ -182,7 +182,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 200", numberOfDirs)
 	}
 	// number of files = 12000
-	if numberOfFiles  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+	if numberOfFiles!= NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles )
 	}
 
