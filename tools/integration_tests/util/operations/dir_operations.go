@@ -86,13 +86,13 @@ func RenameDir(dirName string, newDirName string) (err error) {
 	return
 }
 
-func CreateDirectoryWithNFiles(numberOfFiles int, dirPath string, prefix string, t *testing.T) {
+func CreateDirectoryWithNFiles(NumberOfFilesWithLimitedCache  int, dirPath string, prefix string, t *testing.T) {
 	err := os.Mkdir(dirPath, FilePermission_0777)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
 	}
 
-	for i := 1; i <= numberOfFiles; i++ {
+	for i := 1; i <= NumberOfFilesWithLimitedCache ; i++ {
 		// Create file with name prefix + i
 		// e.g. If prefix = temp  then temp1, temp2
 		filePath := path.Join(dirPath, prefix+strconv.Itoa(i))

@@ -196,11 +196,3 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 	}
 }
 
-func createNFilesInDirWithStorageClient(ctx context.Context, storageClient *storage.Client, n int, fileSize int64, dirName string, t *testing.T) (fileNames []string) {
-	for i := 0; i < n; i++ {
-		testFileName := testFileName + "-" + setup.GenerateRandomString(3)
-		fileNames = append(fileNames, testFileName)
-		client.SetupFileInTestDirectory(ctx, storageClient, dirName, testFileName, fileSize, t)
-	}
-	return fileNames
-}

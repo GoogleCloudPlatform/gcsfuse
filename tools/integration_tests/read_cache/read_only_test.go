@@ -52,7 +52,7 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(4)
+	testFileName := testFileName + "1"
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
@@ -66,20 +66,28 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 }
 
-func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
-	// Set up a file in test directory of size more than cache capacity.
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
-		largeFileName, largeFileSize, t)
+func (s *readOnlyTest) TestReadMultipleObjectsWithLimitedCache(t *testing.T) {
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithLimitedCache , testFileName, fileSize, testDirName, t)
 
-	// Read file 1st time.
-	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
-	// Read file 2nd time.
-	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+	expectedOutcome1 := readMultipleFiles(NumberOfFilesWithLimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome2 := readMultipleFiles(NumberOfFilesWithLimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, largeFileChunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithLimitedCache , expectedOutcome1, structuredReadLogs,false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithLimitedCache , expectedOutcome2, structuredReadLogs,false, t)
+}
+
+func (s *readOnlyTest) TestReadMultipleObjectsWithUnlimitedCache(t *testing.T) {
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithUnlimitedCache , testFileName, fileSize, testDirName, t)
+
+	expectedOutcome1 := readMultipleFiles(NumberOfFilesWithUnlimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome2 := readMultipleFiles(NumberOfFilesWithUnlimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithUnlimitedCache , expectedOutcome1, structuredReadLogs,false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithUnlimitedCache , expectedOutcome2, structuredReadLogs,true, t)
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -38,6 +38,8 @@ const (
 	fileSize              = 3 * MiB
 	chunksRead            = fileSize / MiB
 	testFileName          = "foo"
+	NumberOfFilesWithLimitedCache         = 4
+	NumberOfFilesWithUnlimitedCache         = 3
 	cacheCapacityInMB     = 9
 	largeFileSize         = 15 * MiB
 	largeFileName         = "15MBFile"
