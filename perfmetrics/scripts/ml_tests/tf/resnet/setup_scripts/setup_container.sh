@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Installs go1.21 on the container, builds gcsfuse using log_rotation file
-# and installs tf-models-official v2.13.0, makes update to include clear_kernel_cache
+# and installs tf-models-official v2.13.2, makes update to include clear_kernel_cache
 # and epochs functionality, and runs the model
 
 # Install go lang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.3.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.21.5.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
@@ -17,7 +17,21 @@ cd -
 
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-nohup gcsfuse/gcsfuse --foreground --implicit-dirs --debug_fuse --debug_gcs --max-conns-per-host 100 --log-format "text" --log-file /home/logs/gcsfuse.log --stackdriver-export-interval 60s ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+echo "logging:
+        file-path: /home/logs/gcsfuse.log
+        format: text
+        severity: trace
+        log-rotate:
+          max-file-size-mb: 1024
+          backup-file-count: 3
+          compress: true
+       " > /tmp/gcsfuse_config.yaml
+nohup gcsfuse/gcsfuse --foreground \
+      --implicit-dirs \
+      --max-conns-per-host 100 \
+      --stackdriver-export-interval 60s \
+      --config-file /tmp/gcsfuse_config.yaml \
+      ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.13.2

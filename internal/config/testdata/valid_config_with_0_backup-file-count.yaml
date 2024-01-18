@@ -1,0 +1,12 @@
+write:
+  create-empty-file: true
+logging:
+  file-path: /tmp/logfile.json
+  format: text
+  severity: error
+  log-rotate:
+    max-file-size-mb: 100
+    backup-file-count: 0 # retain all backup files
+    compress: false
+
+

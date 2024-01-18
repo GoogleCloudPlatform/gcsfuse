@@ -280,6 +280,14 @@ func ParseSetUpFlags() {
 	}
 }
 
+func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
+	flag.Parse()
+
+	if *integrationTest {
+		t.SkipNow()
+	}
+}
+
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
@@ -306,6 +314,29 @@ func SetUpTestDirForTestBucketFlag() {
 		log.Printf("setUpTestDir: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func SetUpLogDirForTestDirTests(logDirName string) (logDir string) {
+	logDir = path.Join(TestDir(), logDirName)
+	err := os.Mkdir(logDir, DirPermission_0755)
+	if err != nil {
+		log.Printf("os.Mkdir %s: %v\n", logDir, err)
+		os.Exit(1)
+	}
+	return
+}
+
+func ValidateLogDirForMountedDirTests(logDirName string) (logDir string) {
+	if *mountedDirectory == "" {
+		return ""
+	}
+	logDir = path.Join(os.TempDir(), logDirName)
+	_, err := os.Stat(logDir)
+	if err != nil {
+		log.Printf("validateLogDirForMountedDirTests %s: %v\n", logDir, err)
+		os.Exit(1)
+	}
+	return
 }
 
 func LogAndExit(s string) {

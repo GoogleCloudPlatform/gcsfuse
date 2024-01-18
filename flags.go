@@ -16,13 +16,13 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/urfave/cli"
@@ -32,10 +32,8 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatOrTypeCacheTTL is the default value used for
-	// stat-cache-ttl or type-cache-ttl if they have not been set
-	// by the user.
-	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	DefaultStatCacheCapacity = 4096
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -209,19 +207,19 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: 4096,
+				Value: DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
-				Value: DefaultStatOrTypeCacheTTL,
+				Value: mount.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
-				Value: DefaultStatOrTypeCacheTTL,
+				Value: mount.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
@@ -390,7 +388,8 @@ type flagStorage struct {
 	// Tuning
 	MaxRetrySleep              time.Duration
 	StatCacheCapacity          int
-	StatOrTypeCacheTTL         time.Duration
+	StatCacheTTL               time.Duration
+	TypeCacheTTL               time.Duration
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -471,9 +470,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 	clientProtocolString := strings.ToLower(c.String("client-protocol"))
 	clientProtocol := mountpkg.ClientProtocol(clientProtocolString)
-	userStatCacheTTL := c.Duration("stat-cache-ttl")
-	userTypeCacheTTL := c.Duration("type-cache-ttl")
-	minTTL := time.Second * time.Duration(uint64(math.Ceil(math.Min(userStatCacheTTL.Seconds(), userTypeCacheTTL.Seconds()))))
 	flags = &flagStorage{
 		AppName:    c.String("app-name"),
 		Foreground: c.Bool("foreground"),
@@ -502,7 +498,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatOrTypeCacheTTL:         minTTL,
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),

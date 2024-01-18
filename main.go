@@ -22,18 +22,17 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"os/signal"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -206,26 +205,13 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 
-	// if metadata-cache:ttl-secs has been set in config-file, then
-	// switch metadata cache ttls (stat-cache-ttl and type-cache-tll)
-	// to that as that takes precedence over both stat-cache-ttl and
-	// type-cache-tll.
-	if mountConfig.MetadataCacheConfig.TtlInSeconds != config.TtlInSecsUnsetSentinel {
-		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
-		if mountConfig.MetadataCacheConfig.TtlInSeconds == -1 {
-			flags.StatOrTypeCacheTTL = time.Duration(math.MaxInt64)
-		} else {
-			flags.StatOrTypeCacheTTL = time.Second * time.Duration(mountConfig.MetadataCacheConfig.TtlInSeconds)
-		}
-	}
-
 	err = util.ResolveConfigFilePaths(mountConfig)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(mountConfig.LogConfig.FilePath, mountConfig.LogConfig.Format, mountConfig.LogConfig.Severity)
+		err = logger.InitLogFile(mountConfig.LogConfig)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -239,6 +225,18 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
+	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
+	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
+
+	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
+	if flags.StatCacheCapacity != DefaultStatCacheCapacity {
+		logger.Warnf("Old flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
+	}
+
+	// the following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
+	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
+		logger.Warnf("Old flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.

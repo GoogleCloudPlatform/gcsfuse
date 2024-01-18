@@ -14,7 +14,10 @@
 
 package config
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 const (
 	// TtlInSecsUnsetSentinel is the value internally
@@ -23,6 +26,14 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel int64 = math.MinInt64
+
+	// Default log rotation config values.
+	defaultMaxFileSizeMB   = 512
+	defaultBackupFileCount = 10
+	defaultCompress        = true
+
+	// The maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 )
 
 type WriteConfig struct {
@@ -30,9 +41,10 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity LogSeverity `yaml:"severity"`
-	Format   string      `yaml:"format"`
-	FilePath string      `yaml:"file-path"`
+	Severity        LogSeverity     `yaml:"severity"`
+	Format          string          `yaml:"format"`
+	FilePath        string          `yaml:"file-path"`
+	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
 }
 
 type CacheLocation string
@@ -59,11 +71,36 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 }
 
+// LogRotateConfig defines the parameters for log rotation. It consists of three
+// configuration options:
+// 1. max-file-size-mb: specifies the maximum size in megabytes that a log file
+// can reach before it is rotated. The default value is 512 megabytes.
+// 2. backup-file-count: determines the maximum number of backup log files to
+// retain after they have been rotated. The default value is 10. When value is
+// set to 0, all backup files are retained.
+// 3. compress: indicates whether the rotated log files should be compressed
+// using gzip. The default value is False.
+type LogRotateConfig struct {
+	MaxFileSizeMB   int  `yaml:"max-file-size-mb"`
+	BackupFileCount int  `yaml:"backup-file-count"`
+	Compress        bool `yaml:"compress"`
+}
+
+func DefaultLogRotateConfig() LogRotateConfig {
+	return LogRotateConfig{
+		MaxFileSizeMB:   defaultMaxFileSizeMB,
+		BackupFileCount: defaultBackupFileCount,
+		Compress:        defaultCompress,
+	}
+}
+
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
+		// Setting default values of log rotate config.
+		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
 		MaxSizeInMB: 0,

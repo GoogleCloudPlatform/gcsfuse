@@ -94,7 +94,8 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			CreateEmptyFile: true,
 		},
 		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
@@ -109,7 +110,8 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
 		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")

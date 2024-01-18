@@ -50,6 +50,9 @@ const maxReadSize = 8 * MB
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
 
+// "readOp" is the value used in read context to store pointer to the read operation.
+const ReadOp = "readOp"
+
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
 //
@@ -174,7 +177,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	readOp := ctx.Value("readOp").(*fuseops.ReadFileOp)
+	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
 
@@ -217,7 +220,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 				return 0, false, nil
 			}
 
-			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %v", err)
+			return 0, false, fmt.Errorf("tryReadingFromFileCache: while creating CacheHandle instance: %w", err)
 		}
 	}
 
@@ -237,7 +240,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 		}
 		rr.fileCacheHandle = nil
 	} else if !strings.Contains(err.Error(), cacheutil.FallbackToGCSErrMsg) {
-		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %v", err)
+		err = fmt.Errorf("tryReadingFromFileCache: while reading via cache: %w", err)
 		return
 	}
 	err = nil
@@ -261,7 +264,7 @@ func (rr *randomReader) ReadAt(
 	// false in that case.
 	n, cacheHit, err = rr.tryReadingFromFileCache(ctx, p, offset)
 	if err != nil {
-		err = fmt.Errorf("ReadAt: while reading from cache: %v", err)
+		err = fmt.Errorf("ReadAt: while reading from cache: %w", err)
 		return
 	}
 	// Data was served from cache.

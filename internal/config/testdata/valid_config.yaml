@@ -4,6 +4,10 @@ logging:
   file-path: /tmp/logfile.json
   format: text
   severity: error
+  log-rotate:
+    max-file-size-mb: 100
+    backup-file-count: 5
+    compress: false
 cache-location: "/tmp/read_cache/"
 file-cache:
   max-size-in-mb: 100

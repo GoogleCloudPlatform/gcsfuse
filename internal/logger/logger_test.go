@@ -17,7 +17,8 @@ package logger
 import (
 	"bytes"
 	"log/slog"
-	"strings"
+	"os"
+	"regexp"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -25,16 +26,17 @@ import (
 )
 
 const (
-	textTraceString   = "severity=TRACE msg=\"TestLogs: www.traceExample.com\""
-	textDebugString   = "severity=DEBUG msg=\"TestLogs: www.debugExample.com\""
-	textInfoString    = "severity=INFO msg=\"TestLogs: www.infoExample.com\""
-	textWarningString = "severity=WARNING msg=\"TestLogs: www.warningExample.com\""
-	textErrorString   = "severity=ERROR msg=\"TestLogs: www.errorExample.com\""
-	jsonTraceString   = "\"severity\":\"TRACE\",\"msg\":\"TestLogs: www.traceExample.com\"}"
-	jsonDebugString   = "\"severity\":\"DEBUG\",\"msg\":\"TestLogs: www.debugExample.com\"}"
-	jsonInfoString    = "\"severity\":\"INFO\",\"msg\":\"TestLogs: www.infoExample.com\"}"
-	jsonWarningString = "\"severity\":\"WARNING\",\"msg\":\"TestLogs: www.warningExample.com\"}"
-	jsonErrorString   = "\"severity\":\"ERROR\",\"msg\":\"TestLogs: www.errorExample.com\"}"
+	textTraceString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=TRACE message=\"TestLogs: www.traceExample.com\""
+	textDebugString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=DEBUG message=\"TestLogs: www.debugExample.com\""
+	textInfoString    = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=INFO message=\"TestLogs: www.infoExample.com\""
+	textWarningString = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=WARNING message=\"TestLogs: www.warningExample.com\""
+	textErrorString   = "^time=\"[a-zA-Z0-9/:. ]{26}\" severity=ERROR message=\"TestLogs: www.errorExample.com\""
+
+	jsonTraceString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{9}},\"severity\":\"TRACE\",\"message\":\"TestLogs: www.traceExample.com\"}"
+	jsonDebugString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{9}},\"severity\":\"DEBUG\",\"message\":\"TestLogs: www.debugExample.com\"}"
+	jsonInfoString    = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{9}},\"severity\":\"INFO\",\"message\":\"TestLogs: www.infoExample.com\"}"
+	jsonWarningString = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{9}},\"severity\":\"WARNING\",\"message\":\"TestLogs: www.warningExample.com\"}"
+	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\"}"
 )
 
 func TestLogger(t *testing.T) { RunTests(t) }
@@ -98,7 +100,8 @@ func validateOutput(expected []string, output []string) {
 		if expected[i] == "" {
 			AssertEq(expected[i], output[i])
 		} else {
-			AssertTrue(strings.Contains(output[i], expected[i]))
+			expectedRegexp := regexp.MustCompile(expected[i])
+			AssertTrue(expectedRegexp.MatchString(output[i]))
 		}
 	}
 }
@@ -260,4 +263,33 @@ func (t *LoggerTest) TestSetLoggingLevel() {
 		setLoggingLevel(test.inputLevel, test.programLevel)
 		AssertEq(test.programLevel.Level(), test.expectedProgramLevel)
 	}
+}
+
+func (t *LoggerTest) TestInitLogFile() {
+	format := "text"
+	filePath, _ := os.UserHomeDir()
+	filePath += "/log.txt"
+	fileSize := 100
+	backupFileCount := 2
+	logConfig := config.LogConfig{
+		Severity: config.DEBUG,
+		Format:   format,
+		FilePath: filePath,
+		LogRotateConfig: config.LogRotateConfig{
+			MaxFileSizeMB:   fileSize,
+			BackupFileCount: backupFileCount,
+			Compress:        true,
+		},
+	}
+
+	err := InitLogFile(logConfig)
+
+	AssertEq(nil, err)
+	ExpectEq(filePath, defaultLoggerFactory.file.Name())
+	ExpectEq(nil, defaultLoggerFactory.sysWriter)
+	ExpectEq(format, defaultLoggerFactory.format)
+	ExpectEq(config.DEBUG, defaultLoggerFactory.level)
+	ExpectEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
+	ExpectEq(backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
+	ExpectEq(true, defaultLoggerFactory.logRotateConfig.Compress)
 }

@@ -231,11 +231,13 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if cacheLocation == "" {
 		if cfg.TempDir == "" {
 			cacheLocation = os.TempDir()
+		} else {
+			cacheLocation = cfg.TempDir
 		}
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {
-		panic(fmt.Sprintf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %v", cacheLocation, err))
+		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
 	}
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
@@ -1260,7 +1262,7 @@ func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode
 			// Invalidate the file cache entry if it exists.
 			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
 			if err != nil {
-				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %v", err)
+				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %w", err)
 			}
 		} else {
 			// The parentInode is not owned by any bucket, which means it's the base
@@ -1869,7 +1871,7 @@ func (fs *fileSystem) renameFile(
 		&oldObject.MetaGeneration)
 
 	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
-		return fmt.Errorf("renameFile: while invalidating cache for delete file: %v", err)
+		return fmt.Errorf("renameFile: while invalidating cache for delete file: %w", err)
 	}
 
 	oldParent.Unlock()
@@ -1979,7 +1981,7 @@ func (fs *fileSystem) renameDir(
 		}
 
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-			return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 		}
 	}
 
@@ -2039,7 +2041,7 @@ func (fs *fileSystem) Unlink(
 	}
 
 	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
-		return fmt.Errorf("Unlink: while invalidating cache for delete file: %v", err)
+		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 	}
 
 	return
@@ -2135,7 +2137,7 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 
 	// Save readOp in context for access in logs.
-	ctx = context.WithValue(ctx, "readOp", op)
+	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
 
 	// Find the handle and lock it.
 	fs.mu.Lock()

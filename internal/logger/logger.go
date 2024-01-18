@@ -18,13 +18,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"log/syslog"
 	"os"
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Syslog file contains logs from all different programmes running on the VM.
@@ -46,18 +46,25 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(filename string, format string, level config.LogSeverity) error {
+func InitLogFile(logConfig config.LogConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
+	var fileWriter *lumberjack.Logger
 	var err error
-	if filename != "" {
+	if logConfig.FilePath != "" {
 		f, err = os.OpenFile(
-			filename,
+			logConfig.FilePath,
 			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 			0644,
 		)
 		if err != nil {
 			return err
+		}
+		fileWriter = &lumberjack.Logger{
+			Filename:   f.Name(),
+			MaxSize:    logConfig.LogRotateConfig.MaxFileSizeMB,
+			MaxBackups: logConfig.LogRotateConfig.BackupFileCount,
+			Compress:   logConfig.LogRotateConfig.Compress,
 		}
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
@@ -75,12 +82,14 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:      f,
-		sysWriter: sysWriter,
-		format:    format,
-		level:     level,
+		file:            f,
+		sysWriter:       sysWriter,
+		fileWriter:      fileWriter,
+		format:          logConfig.Format,
+		level:           logConfig.Severity,
+		logRotateConfig: logConfig.LogRotateConfig,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(level)
+	defaultLogger = defaultLoggerFactory.newLogger(logConfig.Severity)
 
 	return nil
 }
@@ -88,8 +97,9 @@ func InitLogFile(filename string, format string, level config.LogSeverity) error
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
-		file:  nil,
-		level: config.INFO, // setting log level to INFO by default
+		file:            nil,
+		level:           config.INFO, // setting log level to INFO by default
+		logRotateConfig: config.DefaultLogRotateConfig(),
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }
@@ -100,27 +110,6 @@ func Close() {
 		f.Close()
 		defaultLoggerFactory.file = nil
 	}
-}
-
-// NewDebug returns a new logger for logging debug messages with given prefix
-// to the log file or stdout.
-func NewDebug(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelDebug, prefix)
-}
-
-// NewInfo returns a new logger for logging info with given prefix to the log
-// file or stdout.
-func NewInfo(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelInfo, prefix)
-}
-
-// NewError returns a new logger for logging errors with given prefix to the log
-// file or stderr.
-func NewError(prefix string) *log.Logger {
-	// TODO: delete this method after all slog changed are merged.
-	return NewLegacyLogger(LevelError, prefix)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
@@ -162,10 +151,12 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file      *os.File
-	sysWriter *syslog.Writer
-	format    string
-	level     config.LogSeverity
+	file            *os.File
+	sysWriter       *syslog.Writer
+	format          string
+	level           config.LogSeverity
+	logRotateConfig config.LogRotateConfig
+	fileWriter      *lumberjack.Logger
 }
 
 func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
@@ -185,8 +176,8 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
-	if f.file != nil {
-		return f.createJsonOrTextHandler(f.file, levelVar, prefix)
+	if f.fileWriter != nil {
+		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
 	}
 
 	if f.sysWriter != nil {

@@ -15,6 +15,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -79,4 +80,15 @@ func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
 		return
 	}
 	return
+}
+
+// Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
+func Stringify(input any) string {
+	inputBytes, err := json.Marshal(input)
+
+	if err != nil {
+		logger.Warnf("Error in Stringify %v", err)
+		return ""
+	}
+	return string(inputBytes)
 }

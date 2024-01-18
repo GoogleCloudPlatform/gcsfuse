@@ -609,3 +609,20 @@ func SyncFile(fh *os.File, t *testing.T) {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
 }
+
+func CreateFileWithContent(filePath string, filePerms os.FileMode,
+	content string, t *testing.T) {
+	fh := CreateFile(filePath, filePerms, t)
+	WriteAt(content, 0, fh, t)
+	CloseFile(fh)
+}
+
+// CreateFileOfSize creates a file of given size with random data.
+func CreateFileOfSize(fileSize int64, filePath string, t *testing.T) {
+	randomData, err := GenerateRandomData(fileSize)
+	randomDataString := strings.Trim(string(randomData), "\x00")
+	if err != nil {
+		t.Errorf("operations.GenerateRandomData: %v", err)
+	}
+	CreateFileWithContent(filePath, FilePermission_0600, randomDataString, t)
+}
