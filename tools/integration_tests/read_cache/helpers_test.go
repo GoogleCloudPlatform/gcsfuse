@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -200,24 +199,11 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	cacheSize, err := cacheSize()
+	cacheSize, err := operations.DirSize(cacheLocationPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}
 	if cacheSize > cacheCapacity {
 		t.Errorf("CacheSize %d is more than cache capacity %d ", cacheSize, cacheCapacity)
 	}
-}
-
-func cacheSize() (cacheSizeMB int64, err error) {
-	var totalSize int64
-	err = filepath.Walk(cacheLocationPath, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			totalSize += info.Size()
-		}
-		return nil
-	})
-	cacheSizeMB = totalSize / MiB
-
-	return cacheSizeMB, err
 }

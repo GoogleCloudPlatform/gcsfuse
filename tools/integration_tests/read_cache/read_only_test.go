@@ -58,13 +58,12 @@ func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage
 	return expectedOutcome
 }
 
-func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool, t *testing.T) (endIndex int) {
-	endIndex = startIndex + numFiles
+func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool, t *testing.T) {
+	endIndex := startIndex + numFiles
 
 	for i := startIndex; i < endIndex; i++ {
 		validate(expectedOutcome[i], structuredReadLogs[i], true, cacheHit, chunksRead, t)
 	}
-	return endIndex
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -110,8 +109,8 @@ func (s *readOnlyTest) TestReadMultipleFilesMoreThanCacheLimit(t *testing.T) {
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
+	validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
+	validateCacheOfMultipleObjectsUsingStructuredLogs(NumberOfFilesMoreThanCacheLimit, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
 }
 
 func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
@@ -122,8 +121,8 @@ func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithinCacheLimit, expectedOutcome, structuredReadLogs, false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithinCacheLimit, expectedOutcome, structuredReadLogs, true, t)
+	validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithinCacheLimit, expectedOutcome, structuredReadLogs, false, t)
+	validateCacheOfMultipleObjectsUsingStructuredLogs(NumberOfFilesWithinCacheLimit, NumberOfFilesWithinCacheLimit, expectedOutcome, structuredReadLogs, true, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
