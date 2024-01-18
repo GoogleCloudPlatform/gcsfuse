@@ -58,7 +58,7 @@ func readMultipleFilesWithLimitedCache(numFiles int, ctx context.Context, storag
 	return expectedOutcome
 }
 
-func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool,t *testing.T) (endIndex int) {
+func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles int, expectedOutcome []*Expected, structuredReadLogs []*read_logs.StructuredReadLogEntry, cacheHit bool, t *testing.T) (endIndex int) {
 	endIndex = startIndex + numFiles
 
 	for i := startIndex; i < endIndex; i++ {
@@ -87,27 +87,27 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 }
 
 func (s *readOnlyTest) TestReadMultipleObjectsWithLimitedCache(t *testing.T) {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithLimitedCache , testFileName, fileSize, testDirName, t)
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithLimitedCache, testFileName, fileSize, testDirName, t)
 
-	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
-	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithLimitedCache , expectedOutcome1, structuredReadLogs,false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithLimitedCache , expectedOutcome2, structuredReadLogs,false, t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithLimitedCache, expectedOutcome1, structuredReadLogs, false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithLimitedCache, expectedOutcome2, structuredReadLogs, false, t)
 }
 
 func (s *readOnlyTest) TestReadMultipleObjectsWithUnlimitedCache(t *testing.T) {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithUnlimitedCache , testFileName, fileSize, testDirName, t)
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithUnlimitedCache, testFileName, fileSize, testDirName, t)
 
-	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
-	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache , s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithUnlimitedCache , expectedOutcome1, structuredReadLogs,false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithUnlimitedCache , expectedOutcome2, structuredReadLogs,true, t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithUnlimitedCache, expectedOutcome1, structuredReadLogs, false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithUnlimitedCache, expectedOutcome2, structuredReadLogs, true, t)
 }
 
 ////////////////////////////////////////////////////////////////////////

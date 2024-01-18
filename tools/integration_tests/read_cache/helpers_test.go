@@ -170,7 +170,7 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacity,t)
+	validateCacheSizeWithinLimit(cacheCapacity, t)
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
@@ -198,12 +198,12 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 	}
 }
 
-func validateCacheSizeWithinLimit(cacheCapacity int64,t *testing.T){
-	cacheSize,err := cacheSize()
-	if err!=nil{
-		t.Fatalf("Error in getting cache size: %v",cacheSize)
+func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
+	cacheSize, err := cacheSize()
+	if err != nil {
+		t.Fatalf("Error in getting cache size: %v", cacheSize)
 	}
 	if cacheSize > cacheCapacity {
-		t.Errorf("CacheSize %d is more than cache capacity %d ",cacheSize,cacheCapacity)
+		t.Errorf("CacheSize %d is more than cache capacity %d ", cacheSize, cacheCapacity)
 	}
 }
