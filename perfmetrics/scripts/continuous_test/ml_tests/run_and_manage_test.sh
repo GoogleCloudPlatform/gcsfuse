@@ -160,7 +160,7 @@ then
                                                                                   sudo chmod a+w /mnt/disks/local_ssd
                                                                                 fi"
   echo "Clone the gcsfuse repo on test VM"
-  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout run_model_on_read_cache_branch;"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout run_model_for_release_branch;"
   echo "Trigger the build script on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "bash \$HOME/$TEST_SCRIPT_PATH 1> \$HOME/build.out 2> \$HOME/build.err &"
   echo "Wait for 10 minutes for test VM to setup for test and to change the status from START to RUNNING."
