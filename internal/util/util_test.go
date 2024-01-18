@@ -209,7 +209,7 @@ func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
 
-func (t *UtilTest) TestMibToBytes() {
+func (t *UtilTest) TestMiBsToBytes() {
 	cases := []struct {
 		mib   uint64
 		bytes uint64
@@ -237,7 +237,7 @@ func (t *UtilTest) TestMibToBytes() {
 	}
 
 	for _, tc := range cases {
-		AssertEq(tc.bytes, MibToBytes(tc.mib))
+		AssertEq(tc.bytes, MiBsToBytes(tc.mib))
 	}
 }
 

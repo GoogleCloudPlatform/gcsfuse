@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
@@ -107,7 +106,7 @@ be interacting with the file system.`)
 		}
 
 		if mountConfig.StatCacheMaxSizeInMb == -1 {
-			bucketCfg.StatCacheMaxSizeMiB = math.MaxUint64
+			bucketCfg.StatCacheMaxSizeMiB = config.MaxSupportedStatCacheMaxSizeInMb
 		} else {
 			bucketCfg.StatCacheMaxSizeMiB = uint64(mountConfig.StatCacheMaxSizeInMb)
 		}

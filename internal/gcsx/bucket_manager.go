@@ -86,7 +86,7 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheMaxSizeMiB > 0 {
-		c = lru.NewCache(util.MibToBytes(config.StatCacheMaxSizeMiB))
+		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMiB))
 	}
 
 	bm := &bucketManager{

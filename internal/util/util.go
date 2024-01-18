@@ -97,12 +97,12 @@ func Stringify(input any) string {
 	return string(inputBytes)
 }
 
-// MibToBytes returns the bytes equivalent
+// MiBsToBytes returns the bytes equivalent
 // of given no.s of MiBs (Mibi Bytes).
 // For reference, each MiB = 2^20 bytes.
 // It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
-func MibToBytes(bytes uint64) uint64 {
+func MiBsToBytes(bytes uint64) uint64 {
 	if bytes > MaxMiBsInUint64 {
 		panic("Inputs above (2^44 - 1) not supported.")
 	}
@@ -110,12 +110,14 @@ func MibToBytes(bytes uint64) uint64 {
 }
 
 // BytesToHigherMiBs returns the MiBs (Mibi Bytes) equivalent
-// of given no.s of bytes. If bytes is no an exact number of MiBs,
+// of given no.s of bytes. If bytes is not an exact number of MiBs,
 // then it returns the next higher no. of MiBs.
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
 	if bytes > BytesInMaxMiBsInUint64 {
 		return MaxMiBsInUint64 + 1
 	}
-	return (bytes + 0xFFFFF) >> 20
+	// Adding (bytesInOneMiB - 1), and then dividing by bytesInOneMiB,
+	// to calculate the next MiB value corresponding to the given bytes.
+	return (bytes + (BytesInMaxMiBsInUint64 - 1)) >> 20
 }

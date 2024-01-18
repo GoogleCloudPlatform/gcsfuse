@@ -75,7 +75,7 @@ type MetadataCacheConfig struct {
 	// no cache. Values below -1 are not supported.
 	// Any value set below -1 will return an error.
 	// If it is not set, then the value of flag
-	//  stat-cache-capacity is used instead.
+	// stat-cache-capacity is used instead.
 	StatCacheMaxSizeInMb int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
