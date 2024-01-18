@@ -215,7 +215,7 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	cacheSize, err := operations.DirSize(cacheLocationPath)
+	cacheSize, err := operations.DirSizeMiB(cacheLocationPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}
