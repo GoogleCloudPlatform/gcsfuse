@@ -139,4 +139,3 @@ func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFi
 	}
 	return fileNames
 }
-
