@@ -100,7 +100,7 @@ func (ce cacheEntry) Size() uint64 {
 //   - We have recorded that N is a directory.
 //   - We have recorded that N is both a file and a directory.
 //
-// Must be created with newTypeCache. May be contained in a larger struct.
+// Must be created with NewTypeCache. May be contained in a larger struct.
 // External synchronization is required.
 type typeCache struct {
 	/////////////////////////
