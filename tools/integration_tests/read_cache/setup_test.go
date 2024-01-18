@@ -81,7 +81,7 @@ func createConfigFile(cacheSize int64) string {
 	return filePath
 }
 
-func cacheSize() (cacheSize int64,err error) {
+func cacheSize() (cacheSize int64, err error) {
 	var totalSize int64
 	err = filepath.Walk(cacheLocationPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -90,7 +90,7 @@ func cacheSize() (cacheSize int64,err error) {
 		return nil
 	})
 
-	return totalSize/MiB,err
+	return totalSize / MiB, err
 }
 
 ////////////////////////////////////////////////////////////////////////
