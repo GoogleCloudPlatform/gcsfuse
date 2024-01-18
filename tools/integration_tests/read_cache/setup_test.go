@@ -15,6 +15,9 @@
 package read_cache
 
 import (
+	"cloud.google.com/go/storage"
+	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"log"
 	"os"
 	"path"
@@ -58,6 +61,19 @@ var (
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
+
+func Setup(flags []string,ctx context.Context,storageClient *storage.Client,testDirName string)  {
+	mountGCSFuse(flags)
+	setup.SetMntDir(mountDir)
+	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+}
+
+func TearDown(){
+	// unmount gcsfuse
+	setup.SetMntDir(rootDir)
+	unmountGCSFuseAndDeleteLogFile()
+}
+
 
 func createConfigFile(cacheSize int64) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
