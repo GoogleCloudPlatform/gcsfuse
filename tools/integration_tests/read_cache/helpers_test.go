@@ -165,7 +165,7 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
-	// Read file with gcsfuse mount.
+	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
@@ -176,9 +176,14 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	return expectedOutcome
 }
 
-func readFileAndValidateFileIsNotCached(t *testing.T) (expectedOutcome *Expected) {
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, largeFileName, t)
-	validateFileIsNotCached(largeFileName, t)
+func ReadFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client, filename string, t *testing.T) (expectedOutcome *Expected) {
+	// Read file via gcsfuse mount.
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
+	// Validate that the file is not cached.
+	validateFileIsNotCached(filename, t)
+	// validate the content read matches the content on GCS.
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
+		expectedOutcome.content, t)
 
 	return expectedOutcome
 }
