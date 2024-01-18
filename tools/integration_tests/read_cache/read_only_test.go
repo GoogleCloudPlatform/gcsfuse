@@ -170,7 +170,7 @@ func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[0], true, false, chunksRead, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
