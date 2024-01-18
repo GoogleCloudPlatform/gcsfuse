@@ -18,7 +18,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -79,19 +78,6 @@ func createConfigFile(cacheSize int64) string {
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	return filePath
-}
-
-func cacheSize() (cacheSizeMB int64, err error) {
-	var totalSize int64
-	err = filepath.Walk(cacheLocationPath, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			totalSize += info.Size()
-		}
-		return nil
-	})
-	cacheSizeMB = totalSize / MiB
-
-	return cacheSizeMB, err
 }
 
 ////////////////////////////////////////////////////////////////////////
