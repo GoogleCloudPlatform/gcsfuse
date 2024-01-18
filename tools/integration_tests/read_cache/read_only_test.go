@@ -86,6 +86,22 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 }
 
+func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		largeFileName, largeFileSize, t)
+
+	// Read file 1st time.
+	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+	// Read file 2nd time.
+	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, largeFileChunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
+}
+
 func (s *readOnlyTest) TestReadMultipleObjectsWithLimitedCache(t *testing.T) {
 	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithInCacheLimit , testFileName, fileSize, testDirName, t)
 
