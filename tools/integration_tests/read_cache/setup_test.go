@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -38,8 +39,8 @@ const (
 	fileSize              = 3 * MiB
 	chunksRead            = fileSize / MiB
 	testFileName          = "foo"
-	NumberOfFilesWithLimitedCache         = 4
-	NumberOfFilesWithUnlimitedCache         = 3
+	NumberOfFilesWithInCacheLimit         = 4
+	NumberOfFilesMoreThanCacheLimit       = 3
 	cacheCapacityInMB     = 9
 	largeFileSize         = 15 * MiB
 	largeFileName         = "15MBFile"
@@ -81,7 +82,7 @@ func createConfigFile(cacheSize int64) string {
 	return filePath
 }
 
-func cacheSize() (cacheSize int64, err error) {
+func cacheSize() (cacheSizeMB int64, err error) {
 	var totalSize int64
 	err = filepath.Walk(cacheLocationPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -89,8 +90,9 @@ func cacheSize() (cacheSize int64, err error) {
 		}
 		return nil
 	})
+	cacheSizeMB  = totalSize / MiB
 
-	return totalSize / MiB, err
+	return cacheSizeMB, err
 }
 
 ////////////////////////////////////////////////////////////////////////

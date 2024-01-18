@@ -62,7 +62,7 @@ func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles 
 	endIndex = startIndex + numFiles
 
 	for i := startIndex; i < endIndex; i++ {
-		validate(expectedOutcome[i-startIndex], structuredReadLogs[i], true, cacheHit, chunksRead, t)
+		validate(expectedOutcome[i], structuredReadLogs[i], true, cacheHit, chunksRead, t)
 	}
 	return endIndex
 }
@@ -87,27 +87,27 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 }
 
 func (s *readOnlyTest) TestReadMultipleObjectsWithLimitedCache(t *testing.T) {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithLimitedCache, testFileName, fileSize, testDirName, t)
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithInCacheLimit , testFileName, fileSize, testDirName, t)
 
-	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
-	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithLimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome := readMultipleFilesWithLimitedCache(NumberOfFilesWithInCacheLimit , s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome = append(expectedOutcome,readMultipleFilesWithLimitedCache(NumberOfFilesWithInCacheLimit , s.ctx, s.storageClient, fileNames, fileSize, t)...)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithLimitedCache, expectedOutcome1, structuredReadLogs, false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithLimitedCache, expectedOutcome2, structuredReadLogs, false, t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithInCacheLimit , expectedOutcome, structuredReadLogs, false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithInCacheLimit , expectedOutcome, structuredReadLogs, false, t)
 }
 
 func (s *readOnlyTest) TestReadMultipleObjectsWithUnlimitedCache(t *testing.T) {
-	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesWithUnlimitedCache, testFileName, fileSize, testDirName, t)
+	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesMoreThanCacheLimit, testFileName, fileSize, testDirName, t)
 
-	expectedOutcome1 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
-	expectedOutcome2 := readMultipleFilesWithLimitedCache(NumberOfFilesWithUnlimitedCache, s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome := readMultipleFilesWithLimitedCache(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, fileSize, t)
+	expectedOutcome = append(expectedOutcome,readMultipleFilesWithLimitedCache(NumberOfFilesMoreThanCacheLimit, s.ctx, s.storageClient, fileNames, fileSize, t)...)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesWithUnlimitedCache, expectedOutcome1, structuredReadLogs, false, t)
-	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesWithUnlimitedCache, expectedOutcome2, structuredReadLogs, true, t)
+	index := validateCacheOfMultipleObjectsUsingStructuredLogs(0, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, false, t)
+	_ = validateCacheOfMultipleObjectsUsingStructuredLogs(index, NumberOfFilesMoreThanCacheLimit, expectedOutcome, structuredReadLogs, true, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -116,7 +116,7 @@ func (s *readOnlyTest) TestReadMultipleObjectsWithUnlimitedCache(t *testing.T) {
 
 func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacity)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},

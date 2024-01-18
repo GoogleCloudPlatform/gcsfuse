@@ -170,7 +170,7 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacity, t)
+	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
