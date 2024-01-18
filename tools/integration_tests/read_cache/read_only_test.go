@@ -52,7 +52,7 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := testFileName + "1"
+	testFileName := testFileName + setup.GenerateRandomString(4)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
@@ -66,13 +66,29 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 }
 
+func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		largeFileName, largeFileSize, t)
+
+	// Read file 1st time.
+	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+	// Read file 2nd time.
+	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, largeFileChunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
 func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
