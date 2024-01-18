@@ -77,7 +77,7 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 
 func TestDisabledCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	var flagSet = [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},

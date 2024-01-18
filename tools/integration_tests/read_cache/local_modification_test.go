@@ -52,7 +52,7 @@ func (s *localModificationTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
-	testFileName := testDirName + "5"
+	testFileName := testDirName + setup.GenerateRandomString(4)
 	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
@@ -77,7 +77,7 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 
 func TestLocalModificationTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
