@@ -88,6 +88,10 @@ func getCachedFilePath(fileName string) string {
 	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, fileName)
 }
 
+func getCacheDirPath() string {
+	return path.Join(cacheLocationPath, cacheSubDirectoryName)
+}
+
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
 	// Validate that the file is present in cache location.
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
@@ -133,6 +137,20 @@ func unmountGCSFuseAndDeleteLogFile() {
 		if err != nil {
 			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
+	}
+}
+
+func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
+	unmountGCSFuseAndDeleteLogFile()
+	mountGCSFuse(flags)
+
+	fi, err := operations.StatFile(getCacheDirPath())
+	if err != nil {
+		t.Errorf("stat cache directory %s: %v", getCacheDirPath(), err)
+	}
+	if (*fi).Size() != 0 {
+		t.Errorf("cache directory %s not empty after unmount. Size: %d",
+			getCacheDirPath(), (*fi).Size())
 	}
 }
 
