@@ -29,9 +29,8 @@ ARTIFACTS_BUCKET_PATH=$3
 TEST_SCRIPT_PATH=$4
 # pytorch version
 PYTORCH_VERSION=$5
-MACHINE_TYPE="g2-standard-24"
-ACCELERATOR="count=2,type=nvidia-l4"
-RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-release-branch-2gpus"
+MACHINE_TYPE="a2-highgpu-2g"
+ACCELERATOR="count=2,type=nvidia-tesla-a100"
 
 function initialize_ssh_key () {
     echo "Delete existing ssh keys "
@@ -73,13 +72,13 @@ function delete_existing_vm_and_create_new () {
           --service-account=927584127901-compute@developer.gserviceaccount.com \
           --scopes=https://www.googleapis.com/auth/cloud-platform \
           --accelerator=$ACCELERATOR \
-          --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20230616,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
+          --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231213,mode=rw,size=200,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
           --no-shielded-secure-boot \
           --shielded-vtpm \
           --shielded-integrity-monitoring \
           --labels=goog-ops-agent-policy=v2-x86-template-1-0-0,goog-ec-src=vm_add-gcloud \
-          --reservation-affinity=specific \
-          --reservation=$RESERVATION
+          --local-ssd=interface=NVME \
+          --local-ssd=interface=NVME
 
   echo "Wait for 30 seconds for new VM to be initialised"
   sleep 30s
@@ -136,7 +135,7 @@ exit_status=0
 
 # Transitions:
 # START to START: If model run is not triggerred due to some error.
-# START to RUNNING: If model is successfully triggerred on GPU. This state is 
+# START to RUNNING: If model is successfully triggerred on GPU. This state is
 # changed by setup_host.sh that runs inside docker container of test VM.
 if [ $current_status == "START" ];
 then
@@ -146,7 +145,20 @@ then
   gsutil cp commit.txt $ARTIFACTS_BUCKET_PATH/
 
   delete_existing_vm_and_create_new
-  
+
+  echo "Format the local ssd"
+  sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "if [ ! -d "/mnt/disks/local_ssd" ]; then
+                                                                                  # Mount local_ssd at path /mnt/disks/local_ssd.
+                                                                                  sudo mdadm --create /dev/md0 --level=0 --raid-devices=2 \
+                                                                                    /dev/disk/by-id/google-local-nvme-ssd-0 \
+                                                                                    /dev/disk/by-id/google-local-nvme-ssd-1
+
+                                                                                  sudo mdadm --detail --prefer=by-id /dev/md0
+                                                                                  sudo mkfs.ext4 -F /dev/md0
+                                                                                  sudo mkdir -p /mnt/disks/local_ssd
+                                                                                  sudo mount /dev/md0 /mnt/disks/local_ssd
+                                                                                  sudo chmod a+w /mnt/disks/local_ssd
+                                                                                fi"
   echo "Clone the gcsfuse repo on test VM"
   sudo gcloud compute ssh $VM_NAME --zone $ZONE_NAME --internal-ip --command "mkdir github; cd github; git clone https://github.com/GoogleCloudPlatform/gcsfuse.git; cd gcsfuse; git checkout run_model_on_read_cache_branch;"
   echo "Trigger the build script on test VM"
