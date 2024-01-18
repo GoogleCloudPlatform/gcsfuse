@@ -104,13 +104,13 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 		t.Errorf("Error in listing directory.")
 	}
 
-	var NumberOfFilesWithLimitedCache  = 0
+	var numberOfFiles  = 0
 	var numberOfDirs = 0
 
 	// Checking if correct objects present in bucket.
 	for i := 0; i < len(objs); i++ {
 		if !objs[i].IsDir() {
-			NumberOfFilesWithLimitedCache ++
+			numberOfFiles ++
 			// Checking if Prefix1 to Prefix12000 present in the bucket
 			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 		}
@@ -127,8 +127,8 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
 	}
 	// number of files = 12000
-	if NumberOfFilesWithLimitedCache  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", NumberOfFilesWithLimitedCache )
+	if numberOfFiles  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles )
 	}
 
 	// Clear the bucket after testing.
@@ -152,13 +152,13 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 		t.Errorf("Error in listing directory.")
 	}
 
-	var NumberOfFilesWithLimitedCache  = 0
+	var numberOfFiles  = 0
 	var numberOfDirs = 0
 
 	// Checking if correct objects present in bucket.
 	for i := 0; i < len(objs); i++ {
 		if !objs[i].IsDir() {
-			NumberOfFilesWithLimitedCache ++
+			numberOfFiles ++
 
 			// Checking if Prefix1 to Prefix12000 present in the bucket
 			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
@@ -182,8 +182,8 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 		t.Errorf("Listed incorrect number of directories from directory: %v, expected 200", numberOfDirs)
 	}
 	// number of files = 12000
-	if NumberOfFilesWithLimitedCache  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", NumberOfFilesWithLimitedCache )
+	if numberOfFiles  != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles )
 	}
 
 	// Clear the bucket after testing.
