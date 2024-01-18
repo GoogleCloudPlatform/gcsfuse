@@ -59,7 +59,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 	isSeq, cacheHit bool, chunkCount int, t *testing.T) {
 	if logEntry.StartTimeSeconds < expected.StartTimeStampSeconds {
-		t.Errorf("start time in logs less than actual start time.")
+		t.Errorf("start time in logs %d less than actual start time %d.", logEntry.StartTimeSeconds, expected.StartTimeStampSeconds)
 	}
 	if logEntry.BucketName != expected.BucketName {
 		t.Errorf("Bucket names don't match! Expected: %s, Got from logs: %s",
@@ -169,6 +169,8 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
+	// Validate cache size within limit.
+	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
@@ -193,5 +195,15 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 	err := client.WriteToObject(ctx, storageClient, objectName, smallContent, storage.Conditions{})
 	if err != nil {
 		t.Errorf("Could not modify object %s: %v", objectName, err)
+	}
+}
+
+func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
+	cacheSize, err := operations.DirSize(cacheLocationPath)
+	if err != nil {
+		t.Errorf("Error in getting cache size: %v", cacheSize)
+	}
+	if cacheSize > cacheCapacity {
+		t.Errorf("CacheSize %d is more than cache capacity %d ", cacheSize, cacheCapacity)
 	}
 }
