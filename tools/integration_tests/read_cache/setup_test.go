@@ -38,6 +38,12 @@ const (
 	fileSize              = 3 * MiB
 	chunksRead            = fileSize / MiB
 	testFileName          = "foo"
+	cacheCapacityInMB     = 9
+	largeFileSize         = 15 * MiB
+	largeFileName         = "15MBFile"
+	largeFileChunksRead   = 15
+	chunksReadAfterUpdate = 1
+	metadataCacheTTlInSec = 10
 )
 
 var (
