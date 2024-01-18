@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
@@ -91,4 +92,67 @@ func Stringify(input any) string {
 		return ""
 	}
 	return string(inputBytes)
+}
+
+// DeepSizeof returns the size of given struct/pointer/slice etc.
+// including recursively adding the variable/struct/pointer/slice pointed/referred to
+// by this variable.
+// For pointers, includes the size of the pointer as well as the DeepSizeof of the
+//
+//	object pointed to by the pointer if it is not nil.
+//
+// For built-in types like integers, boolean etc. the output of this is same as that of
+// unsafe.Sizeof(v).
+// This does not exactly equal the actual size on memory, because it doesn't account for
+// memory padding and alignments, but it is close to that for large structures.
+// original source of logic: https://stackoverflow.com/questions/51431933/how-to-get-size-of-struct-containing-data-structures-in-go
+func DeepSizeof(v any) int {
+	size := int(reflect.TypeOf(v).Size())
+	kind := reflect.TypeOf(v).Kind()
+
+	// dereferencing begins
+	if kind == reflect.Pointer {
+		s := reflect.ValueOf(v)
+		if !s.IsNil() {
+			v = reflect.ValueOf(v).Elem().Interface()
+			size += int(reflect.TypeOf(v).Size())
+			kind = reflect.TypeOf(v).Kind()
+		}
+	}
+	switch kind {
+	case reflect.Int, reflect.Uint, reflect.Bool, reflect.Uint8, reflect.Int8, reflect.Uint16, reflect.Int16, reflect.Uint32, reflect.Int32, reflect.Uint64, reflect.Int64, reflect.Float32, reflect.Float64, reflect.Pointer:
+		break
+	case reflect.Slice:
+		s := reflect.ValueOf(v)
+		for i := 0; i < s.Len(); i++ {
+			size += DeepSizeof(s.Index(i).Interface())
+		}
+	case reflect.Map:
+		s := reflect.ValueOf(v)
+		keys := s.MapKeys()
+		size += int(float64(len(keys)) * 10.79) // approximation from https://golang.org/src/runtime/hashmap.go
+		for i := range keys {
+			size += DeepSizeof(keys[i].Interface()) + DeepSizeof(s.MapIndex(keys[i]).Interface())
+		}
+	case reflect.String:
+		size += reflect.ValueOf(v).Len()
+	case reflect.Struct:
+		s := reflect.ValueOf(v)
+		for i := 0; i < s.NumField(); i++ {
+			if s.Field(i).CanInterface() {
+				size -= int(s.Field(i).Type().Size()) // to reduce duplication, as it has been accounted already in reflect.TypeOf(v).Size()
+				// at the top and will be accounted again in s.Field(i).Interface() .
+				size += DeepSizeof(s.Field(i).Interface())
+			}
+		}
+	case reflect.Interface:
+		s := reflect.ValueOf(v)
+		for i := 0; i < s.NumField(); i++ {
+			size += DeepSizeof(s.Field(i).Interface())
+		}
+	default:
+		panic(fmt.Sprintf("Unsupported type: %v", kind))
+	}
+
+	return size
 }
