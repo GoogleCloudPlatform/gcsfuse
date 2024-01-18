@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -424,6 +425,8 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	if err != nil {
 		return
 	}
+
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", flagKey, flagValue, resolvedPath)
 
 	err = c.Set(flagKey, resolvedPath)
 	return

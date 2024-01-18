@@ -22,9 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -73,28 +70,17 @@ func ResolveFilePath(filePath string, configKey string) (resolvedPath string, er
 		return
 	}
 
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
 	return resolvedPath, nil
 }
 
-// ResolveConfigFilePaths resolved the config file paths specified in the config file.
-func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
-	config.LogConfig.FilePath, err = ResolveFilePath(config.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-	return
-}
-
 // Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
-func Stringify(input any) string {
+func Stringify(input any) (string, error) {
 	inputBytes, err := json.Marshal(input)
 
 	if err != nil {
-		logger.Warnf("Error in Stringify %v", err)
-		return ""
+		return "", fmt.Errorf("error in Stringify %w", err)
 	}
-	return string(inputBytes)
+	return string(inputBytes), nil
 }
 
 // MiBsToBytes returns the bytes equivalent
