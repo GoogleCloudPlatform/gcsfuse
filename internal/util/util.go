@@ -103,7 +103,8 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	if bytes > BytesInMaxMiBsInUint64 {
 		return MaxMiBsInUint64 + 1
 	}
+	var bytesInOneMiB uint64 = 1 << 20
 	// Adding (bytesInOneMiB - 1), and then dividing by bytesInOneMiB,
 	// to calculate the next MiB value corresponding to the given bytes.
-	return (bytes + (BytesInMaxMiBsInUint64 - 1)) >> 20
+	return (bytes + (bytesInOneMiB - 1)) >> 20
 }

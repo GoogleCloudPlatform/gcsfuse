@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -42,7 +42,7 @@ const (
 
 	StatCacheMaxSizeInMbTooHighError = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
 
-	MaxSupportedStatCacheMaxSizeInMb = math.MaxUint64 >> 20
+	MaxSupportedStatCacheMaxSizeInMb = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
