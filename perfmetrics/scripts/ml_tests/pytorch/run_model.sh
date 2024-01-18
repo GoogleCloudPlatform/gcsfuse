@@ -208,7 +208,7 @@ gsutil cp start_time.txt $ARTIFACTS_BUCKET_PATH/
     --data_path gcsfuse_data/imagenet/ILSVRC/Data/CLS-LOC/train/ \
     --output_dir "./run_artifacts/$experiment" \
     --norm_last_layer False \
-    --batch_size_for_gpu 800 \
+    --batch_size_per_gpu 800 \
     --use_fp16 False \
     --clip_grad 0 \
     --epochs $NUM_EPOCHS \
