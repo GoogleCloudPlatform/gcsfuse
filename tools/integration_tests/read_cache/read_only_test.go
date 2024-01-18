@@ -55,7 +55,6 @@ func readMultipleFilesWithLimitedCache(numFiles int, ctx context.Context, storag
 	for i := 0; i < numFiles; i++ {
 		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, t))
 	}
-
 	return expectedOutcome
 }
 
@@ -65,7 +64,6 @@ func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles 
 	for i := startIndex; i < endIndex; i++ {
 		validate(expectedOutcome[i-startIndex], structuredReadLogs[i], true, cacheHit, chunksRead, t)
 	}
-
 	return endIndex
 }
 
