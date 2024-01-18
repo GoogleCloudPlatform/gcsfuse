@@ -29,24 +29,24 @@ import (
 )
 
 const (
-	testDirName           = "ReadCacheTest"
-	onlyDirMounted        = "Test"
-	cacheSubDirectoryName = "gcsfuse-file-cache"
-	smallContent          = "small content"
-	smallContentSize      = 13
-	MiB                   = 1024 * 1024
-	chunkSizeToRead       = MiB
-	fileSize              = 3 * MiB
-	chunksRead            = fileSize / MiB
-	testFileName          = "foo"
-	cacheCapacityInMB     = 9
-	NumberOfFilesWithinCacheLimit         = (cacheCapacityInMB * MiB)/fileSize
-	NumberOfFilesMoreThanCacheLimit       = (cacheCapacityInMB * MiB)/fileSize + 1
-	largeFileSize         = 15 * MiB
-	largeFileName         = "15MBFile"
-	largeFileChunksRead   = 15
-	chunksReadAfterUpdate = 1
-	metadataCacheTTlInSec = 10
+	testDirName                     = "ReadCacheTest"
+	onlyDirMounted                  = "Test"
+	cacheSubDirectoryName           = "gcsfuse-file-cache"
+	smallContent                    = "small content"
+	smallContentSize                = 13
+	MiB                             = 1024 * 1024
+	chunkSizeToRead                 = MiB
+	fileSize                        = 3 * MiB
+	chunksRead                      = fileSize / MiB
+	testFileName                    = "foo"
+	cacheCapacityInMB               = 9
+	NumberOfFilesWithinCacheLimit   = (cacheCapacityInMB * MiB) / fileSize
+	NumberOfFilesMoreThanCacheLimit = (cacheCapacityInMB*MiB)/fileSize + 1
+	largeFileSize                   = 15 * MiB
+	largeFileName                   = "15MBFile"
+	largeFileChunksRead             = 15
+	chunksReadAfterUpdate           = 1
+	metadataCacheTTlInSec           = 10
 )
 
 var (
@@ -89,7 +89,7 @@ func cacheSize() (cacheSizeMB int64, err error) {
 		}
 		return nil
 	})
-	cacheSizeMB  = totalSize / MiB
+	cacheSizeMB = totalSize / MiB
 
 	return cacheSizeMB, err
 }
