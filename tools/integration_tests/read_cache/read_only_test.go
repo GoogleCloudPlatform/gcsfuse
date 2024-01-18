@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -150,15 +149,16 @@ func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName,fileSize, t)
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
 
+	// Unmount the bucket.
 	setup.SetMntDir(rootDir)
-	if setup.MountedDirectory() == "" {
-		// Unmount GCSFuse only when tests are not running on mounted directory.
-		err := setup.UnMount()
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-	}
+	unmountGCSFuseAndDeleteLogFile()
+
+	// Validate file is not cached
+	validateFileIsNotCached(testFileName,t)
 
 	// Remount
 	mountGCSFuse(s.flags)
@@ -167,9 +167,7 @@ func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
 	// Read file 2nd time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,t)
 
-	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
+	structuredReadLogs = read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome2, structuredReadLogs[0], true, false, chunksRead, t)
 }
 
