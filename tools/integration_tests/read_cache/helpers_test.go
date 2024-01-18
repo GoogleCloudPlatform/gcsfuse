@@ -112,6 +112,15 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, string(content), t)
 }
 
+func validateFileIsNotCached(fileName string, t *testing.T) {
+	// Validate that the file is not present in cache location.
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	_, err := operations.StatFile(expectedPathOfCachedFile)
+	if err == nil {
+		t.Errorf("File %s found in cache directory", expectedPathOfCachedFile)
+	}
+}
+
 func unmountGCSFuseAndDeleteLogFile() {
 	if setup.MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
@@ -154,12 +163,25 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 	}
 }
 
-func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client, filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
-	// Read file with gcsfuse mount.
+func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
+	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
+	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
+		expectedOutcome.content, t)
+
+	return expectedOutcome
+}
+
+func ReadFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client, filename string, t *testing.T) (expectedOutcome *Expected) {
+	// Read file via gcsfuse mount.
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
+	// Validate that the file is not cached.
+	validateFileIsNotCached(filename, t)
+	// validate the content read matches the content on GCS.
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
 
