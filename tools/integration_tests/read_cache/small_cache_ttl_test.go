@@ -53,7 +53,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Modify the file.
 	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately.

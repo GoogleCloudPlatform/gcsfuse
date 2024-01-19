@@ -17,7 +17,6 @@ package operations
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"log"
 	"os"
 	"os/exec"
@@ -25,6 +24,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 )
 
 const FilePermission_0400 = 0400

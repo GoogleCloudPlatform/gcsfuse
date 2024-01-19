@@ -110,6 +110,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
 	expectedOutcome3 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	// Reading file 2nd time of bucket2.
 	expectedOutcome4 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -134,8 +135,8 @@ func TestRemountTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
 	}
 
 	// Create storage client before running tests.
