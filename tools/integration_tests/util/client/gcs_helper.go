@@ -16,7 +16,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -121,7 +120,6 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 
 func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
 	testDirPath := path.Join(setup.MntDir(), testDirName)
-	fmt.Println("In setup: ",testDirPath)
 	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
 	if err != nil {
 		log.Printf("Failed to clean up test directory: %v", err)
