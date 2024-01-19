@@ -15,7 +15,12 @@
 package read_cache
 
 import (
+	"cloud.google.com/go/compute/metadata"
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"log"
+	"path"
+	"reflect"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -70,6 +75,51 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
 	validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
 	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
+}
+
+func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
+	if reflect.DeepEqual(mountFunc, dynamic_mounting.MountGcsfuseWithDynamicMounting){
+		t.Log("This test will run only for dynamic mounting...")
+		t.SkipNow()
+	}
+
+  // Created Dynamic mounting bucket.
+	project_id, err := metadata.ProjectID()
+	if err != nil {
+		log.Printf("Error in fetching project id: %v", err)
+	}
+	var testBucketForDynamicMounting = "gcsfuse-dynamic-mounting-test-" + setup.GenerateRandomString(5)
+
+	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
+	setup.RunScriptForTestData("testdata/create_bucket.sh", "tulsishah-integration-test", project_id)
+
+	testFileName1 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		testFileName, fileSize, t)
+
+	// Read file 1st time.
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
+
+	// Changed mounted directory for dynamic mounting.
+	mountDir = path.Join(setup.MntDir(),testBucketForDynamicMounting)
+	setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
+
+	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		testFileName2, fileSize, t)
+
+	// Read file 1st time.
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead, t)
+
+	// Deleting bucket after testing.
+	defer setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", testBucketForDynamicMounting)
 }
 
 ////////////////////////////////////////////////////////////////////////
