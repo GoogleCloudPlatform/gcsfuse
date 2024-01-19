@@ -136,6 +136,22 @@ func unmountGCSFuseAndDeleteLogFile() {
 	}
 }
 
+func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
+	setup.SetMntDir(rootDir)
+	unmountGCSFuseAndDeleteLogFile()
+	mountGCSFuse(flags)
+	setup.SetMntDir(mountDir)
+
+	cacheSize, err := operations.DirSize(cacheLocationPath)
+	if err != nil {
+		t.Errorf("Error in getting cache size: %v", cacheSize)
+	}
+	if cacheSize != 0 {
+		t.Errorf("cache directory %s not empty after unmount. Size: %d",
+			cacheLocationPath, cacheSize)
+	}
+}
+
 func mountGCSFuse(flags []string) {
 	if setup.MountedDirectory() == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
