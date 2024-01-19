@@ -16,6 +16,8 @@ package read_cache
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"path"
 	"strings"
 	"testing"
 
@@ -77,17 +79,17 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
-	//// Creating a new bucket
-	//testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
-	//// Deleting bucket after testing.
-	//defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
-	//// Changing mounted directory for dynamic mounting.
-	//setup.SetMntDir(path.Join(rootDir, testBucket2))
-	//setup.SetDynamicBucketMounted(testBucket2)
-	//testDirPath = path.Join(setup.MntDir(),testDirName)
-	//testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	// Creating a new bucket
+	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	// Deleting bucket after testing.
+	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
+	// Changing mounted directory for dynamic mounting.
+	setup.SetMntDir(path.Join(rootDir, testBucket2))
+	setup.SetDynamicBucketMounted(testBucket2)
+	testDirPath = path.Join(setup.MntDir(),testDirName)
+	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	//// Reading file1 of bucket2 1st time.
-	//expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	//remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	//// Reading file 2nd time of bucket1.
@@ -104,7 +106,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	//structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
-	//validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
 }
