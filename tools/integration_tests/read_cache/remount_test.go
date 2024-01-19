@@ -16,11 +16,8 @@ package read_cache
 
 import (
 	"context"
-	"path"
 	"strings"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
@@ -91,7 +88,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	//testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	//// Reading file1 of bucket2 1st time.
 	//expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
-	//structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	//remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	//// Reading file 2nd time of bucket1.
 	//setup.SetMntDir(path.Join(rootDir, testBucket1))
@@ -106,7 +103,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	//// Parsing the log file and validate cache hit or miss from the structured logs.
 	//structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
-	//validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
+	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	//validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
