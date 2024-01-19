@@ -105,7 +105,6 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
-	fmt.Println("Creating object: ", bucket, object)
 
 	o := client.Bucket(bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
@@ -131,7 +130,6 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
 	// Get handle to the object
-	fmt.Println("testBucket: ",setup.TestBucket())
 	object := client.Bucket(setup.TestBucket()).Object(objectName)
 
 	// Delete the object
