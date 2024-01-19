@@ -56,9 +56,9 @@ func (s *remountTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
-	// Run read operations on GCSFuse mount.
 	testFileName := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
+	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -75,38 +75,33 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
 
-func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
+func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
 	testFileName1 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
-	// Read file 1st time of bucket1.
+	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
-
-	// Created Dynamic mounting bucket.
+	// Creating a new bucket
 	testBucketForDynamicMounting := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	// Deleting bucket after testing.
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
-	// Changed mounted directory for dynamic mounting.
+	// Changing mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
-
 	testFileName2 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-	// Read file 1st time of bucket2.
+	// Reading file1 of bucket2 1st time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
-
-	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	// Re-mount GCSFuse and validate cache deleted.
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
-	// Read file 2nd time of bucket1.
+	// Reading file 2nd time of bucket1.
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
-	// Changed mounted directory for dynamic mounting.
+	// Changing mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
-	// Read file 2nd time of bucket2.
+	// Reading file 2nd time of bucket2.
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
-	// Parse the log file and validate cache hit or miss from the structured logs.
+	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
