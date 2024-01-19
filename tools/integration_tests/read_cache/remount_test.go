@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"path"
 	"strings"
 	"testing"
@@ -53,32 +52,6 @@ func (s *remountTest) Teardown(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////////////////////////
-
-func readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(bucketName string,ctx context.Context,  storageClient *storage.Client,
-		fileName string, fileSize int64, t *testing.T)(expectedOutcome *Expected){
-	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, path.Join(bucketName,path.Join(testDirName,fileName)), t)
-	// Validate cached content with gcs.
-	expectedPathOfCachedFile := getCachedFilePathForGivenBucket(bucketName,fileName)
-	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
-	if err != nil {
-		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
-	}
-	// Validate file size in cache directory matches actual file size.
-	if (*fileInfo).Size() != fileSize {
-		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", fileSize, (*fileInfo).Size())
-	}
-	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
-	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName,
-		expectedOutcome.content, t)
-
-	return expectedOutcome
-}
-////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
@@ -114,21 +87,22 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetDynamicBucketMounted(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
+	setup.SetTestBucket(testBucket2)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
-	setup.SetDynamicBucketMounted(testBucket1)
+	setup.SetTestBucket(testBucket1)
 	// Reading file1 of bucket1 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket1,s.ctx, s.storageClient, testFileName1, fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 	// Reading file1 of bucket2 1st time.
-	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome2 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket2,s.ctx, s.storageClient, testFileName2, fileSize, t)
+	setup.SetTestBucket(testBucket2)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
-	setup.SetDynamicBucketMounted(testBucket1)
-	expectedOutcome3 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket1,s.ctx, s.storageClient, testFileName1, fileSize, t)
-	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome4 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket2,s.ctx, s.storageClient, testFileName2, fileSize, t)
+	setup.SetTestBucket(testBucket1)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
+	setup.SetTestBucket(testBucket2)
+	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 

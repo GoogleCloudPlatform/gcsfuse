@@ -70,6 +70,10 @@ func TestBucket() string {
 	return *testBucket
 }
 
+func SetTestBucket(bucketName string) {
+	*testBucket = bucketName
+}
+
 func TestInstalledPackage() bool {
 	return *testInstalledPackage
 }
