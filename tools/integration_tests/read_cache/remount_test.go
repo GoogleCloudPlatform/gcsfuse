@@ -51,23 +51,13 @@ func (s *remountTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
 }
 
-// //////////////////////////////////////////////////////////////////////
-// Helper functions
-// //////////////////////////////////////////////////////////////////////
-func read() {
-
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
-
 	// Run read operations on GCSFuse mount.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	testFileName,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
@@ -89,34 +79,22 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 		t.SkipNow()
 	}
 
-	testFileName1 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	// Set up a file in test directory of size more than cache capacity.
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
-		testFileName1, fileSize, t)
-
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
-	// Created Dynamic mounting bucket.
+	testFileName1,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
 
+	// Created Dynamic mounting bucket.
 	testBucketForDynamicMounting := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	// Deleting bucket after testing.
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
 	// Changed mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
-	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	// Set up a file in test directory of size more than cache capacity.
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
-		testFileName2, fileSize, t)
-	// Read file 1st time.
 
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
+	testFileName2,expectedOutcome2 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
-
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Read file 2nd time.
-
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 	// Changed mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
