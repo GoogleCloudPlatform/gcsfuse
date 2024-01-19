@@ -80,7 +80,6 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testDirPath = rootDir
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket1 := setup.TestBucket()
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
