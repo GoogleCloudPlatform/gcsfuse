@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
@@ -34,6 +35,29 @@ const PrefixFileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
 const PrefixFileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
 const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
+
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	flags = [][]string{{}}
+
+	// base case with only --implicit-dirs
+	flags = append(flags, []string{"--implicit-dirs"})
+
+	// advanced case with --implicit-dirs and metadata-cache configuration
+	mountConfig := config.MountConfig{
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds:                   21600,
+			TypeCacheMaxSizeMbPerDirectory: 32,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	flags = append(flags, []string{"--implicit-dirs", "--config-file=" + filePath})
+
+	return flags
+}
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -49,7 +73,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := createMountConfigsAndEquivalentFlags()
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 

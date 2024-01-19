@@ -117,6 +117,20 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath2})
 
+	// Set up config file for metadata-cache.
+	mountConfig3 := config.MountConfig{
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds:                   21600,
+			TypeCacheMaxSizeMbPerDirectory: 32,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath3})
+
 	return flags
 }
 

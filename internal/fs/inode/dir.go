@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -175,7 +176,7 @@ type dirInode struct {
 	// cache.CheckInvariants() does not panic.
 	//
 	// GUARDED_BY(mu)
-	cache typeCache
+	cache metadata.TypeCache
 }
 
 var _ DirInode = &dirInode{}
@@ -208,16 +209,13 @@ func NewDirInode(
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
-	cacheClock timeutil.Clock) (d DirInode) {
+	cacheClock timeutil.Clock,
+	typeCacheSizeInMbPerDirectory int) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
-	// Set up the struct.
-	// Temporarily changing the typeCacheCapacity for read_cache_release branch.
-	// TODO (raj-prince): remove this once we will make it configurable.
-	const typeCacheCapacity = 1 << 22
 	typed := &dirInode{
 		bucket:                     bucket,
 		mtimeClock:                 mtimeClock,
@@ -227,7 +225,7 @@ func NewDirInode(
 		enableNonexistentTypeCache: enableNonexistentTypeCache,
 		name:                       name,
 		attrs:                      attrs,
-		cache:                      newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		cache:                      metadata.NewTypeCache(typeCacheSizeInMbPerDirectory, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -248,9 +246,6 @@ func (d *dirInode) checkInvariants() {
 	if !d.name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
-
-	// cache.CheckInvariants() does not panic.
-	d.cache.CheckInvariants()
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
