@@ -52,7 +52,7 @@ func (s *localModificationTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
-	testFileName := testDirName + setup.GenerateRandomString(4)
+	testFileName := testDirName + setup.GenerateRandomString(testFileNameSuffixLength)
 	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.

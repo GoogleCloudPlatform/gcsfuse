@@ -51,8 +51,8 @@ func (s *remountTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *remountTest) Test(t *testing.T) {
-	testFileName := testFileName + "1"
+func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
+	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
@@ -82,7 +82,7 @@ func TestRemountTest(t *testing.T) {
 		t.SkipNow()
 	}
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
+	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
 		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
