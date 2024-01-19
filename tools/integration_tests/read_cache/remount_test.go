@@ -85,7 +85,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	testFileName2 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-	setup.SetMntDir(rootDir)
+	testDirPath = rootDir
 
 	// Reading file1 of bucket1 1st time.
 	setup.SetDynamicBucketMounted(testBucket1)
