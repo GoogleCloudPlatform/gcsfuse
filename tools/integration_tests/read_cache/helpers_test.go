@@ -46,6 +46,8 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *
 		ObjectName:            path.Join(testDirName, fileName),
 	}
 
+	fmt.Println("Bucket Name: ",expected.BucketName," ",expected.ObjectName)
+
 	content, err := operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
 	if err != nil {
 		t.Errorf("Failed to read file in first iteration: %v", err)
