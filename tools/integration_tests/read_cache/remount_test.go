@@ -76,7 +76,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 }
 
 func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
-	if !strings.Contains(setup.MntDir(),setup.TestBucket()){
+	if !strings.Contains(setup.MntDir(),setup.TestBucket()) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
@@ -93,8 +93,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 
 	// Changed mounted directory for dynamic mounting.
-	mountDir = path.Join(rootDir,testBucketForDynamicMounting)
-	setup.SetMntDir(mountDir)
+	setup.SetMntDir(path.Join(rootDir,testBucketForDynamicMounting))
 
 	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
