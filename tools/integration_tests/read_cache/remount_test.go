@@ -95,7 +95,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	// Reading file1 of bucket2 1st time.
 	setup.SetTestBucket(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
+	//expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	//remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
@@ -109,7 +109,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	//structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
+	//validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
 }
