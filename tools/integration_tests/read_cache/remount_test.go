@@ -89,7 +89,7 @@ func TestRemountTest(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	ts := &readOnlyTest{ctx: context.Background()}
+	ts := &remountTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
