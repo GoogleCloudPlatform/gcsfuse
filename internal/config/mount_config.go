@@ -69,14 +69,14 @@ type MetadataCacheConfig struct {
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
 
-	// StatCacheMaxSizeInMb is the maximum size of stat-cache
+	// StatCacheMaxSizeInMiBs is the maximum size of stat-cache
 	// in MiBs.
 	// It can also be set to -1 for no-size-limit, 0 for
 	// no cache. Values below -1 are not supported.
 	// Any value set below -1 will return an error.
 	// If it is not set, then the value of flag
 	// stat-cache-capacity is used instead.
-	StatCacheMaxSizeInMb int64 `yaml:"stat-cache-max-size-mb,omitempty"`
+	StatCacheMaxSizeInMiBs int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
 type MountConfig struct {
@@ -122,8 +122,8 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds:         TtlInSecsUnsetSentinel,
-		StatCacheMaxSizeInMb: StatCacheMaxSizeInMbUnsetSentinel,
+		TtlInSeconds:           TtlInSecsUnsetSentinel,
+		StatCacheMaxSizeInMiBs: StatCacheMaxSizeInMbUnsetSentinel,
 	}
 	return mountConfig
 }

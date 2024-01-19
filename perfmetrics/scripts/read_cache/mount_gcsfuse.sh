@@ -23,7 +23,7 @@ print_usage() {
   printf "[-b bucket_name] "
   printf "[-c cache_location] "
   printf "[-d (means cache_file_for_range_read is true)] "
-  printf "[-m (means metadata cache capacity)] "
+  printf "[-m (means metadata cache max size in mb)] "
   printf "[-l (start_logging on $WORKING_DIR/gcsfuse_logs.txt)] \n"
 }
 
@@ -45,7 +45,7 @@ do
     b) bucket_name=${OPTARG};;
     d) cache_file_for_range_read=true;;
     c) cache_location=${OPTARG};;
-    m) stat_cache_capacity=${OPTARG};;
+    m) stat_cache_max_size_mb=${OPTARG};;
     h) print_usage
         exit 0 ;;
     l) enable_log=1 ;;

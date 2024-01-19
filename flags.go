@@ -33,8 +33,6 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	DefaultStatCacheCapacity = 1 << 20 // 1048576 = 1024x1024 = 1Mi
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -208,7 +206,7 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: DefaultStatCacheCapacity,
+				Value: mount.DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag will be deprecated in the future and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 320 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 

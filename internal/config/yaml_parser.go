@@ -35,14 +35,14 @@ const (
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
 
-	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
-	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
-	StatCacheMaxSizeInMbInvalidValueError = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+	parseConfigFileErrMsgFormat             = "error parsing config file: %v"
+	MetadataCacheTtlSecsInvalidValueError   = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError        = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036."
+	StatCacheMaxSizeInMiBsInvalidValueError = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 
-	StatCacheMaxSizeInMbTooHighError = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	StatCacheMaxSizeInMiBsTooHighError = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
 
-	MaxSupportedStatCacheMaxSizeInMb = util.MaxMiBsInUint64
+	MaxSupportedStatCacheMaxSizeInMiBs = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -86,12 +86,12 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		}
 	}
 
-	if metadataCacheConfig.StatCacheMaxSizeInMb != StatCacheMaxSizeInMbUnsetSentinel {
-		if metadataCacheConfig.StatCacheMaxSizeInMb < -1 {
-			return fmt.Errorf(StatCacheMaxSizeInMbInvalidValueError)
+	if metadataCacheConfig.StatCacheMaxSizeInMiBs != StatCacheMaxSizeInMbUnsetSentinel {
+		if metadataCacheConfig.StatCacheMaxSizeInMiBs < -1 {
+			return fmt.Errorf(StatCacheMaxSizeInMiBsInvalidValueError)
 		}
-		if metadataCacheConfig.StatCacheMaxSizeInMb > int64(MaxSupportedStatCacheMaxSizeInMb) {
-			return fmt.Errorf(StatCacheMaxSizeInMbTooHighError)
+		if metadataCacheConfig.StatCacheMaxSizeInMiBs > int64(MaxSupportedStatCacheMaxSizeInMiBs) {
+			return fmt.Errorf(StatCacheMaxSizeInMiBsTooHighError)
 		}
 	}
 	return nil

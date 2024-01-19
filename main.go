@@ -239,7 +239,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
 
 	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
-	if flags.StatCacheCapacity != DefaultStatCacheCapacity {
+	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
 		logger.Warnf("Old flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 

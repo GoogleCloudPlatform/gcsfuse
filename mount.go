@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/fs"
@@ -87,11 +85,17 @@ be interacting with the file system.`)
 	}
 
 	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	statCacheMaxSizeInMiBs, err := mount.StatCacheMaxSizeInMiBs(mountConfig.StatCacheMaxSizeInMiBs, flags.StatCacheCapacity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate stat-cache-size in MiBs: %w", err)
+	}
+
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
+		StatCacheMaxSizeMiB:                statCacheMaxSizeInMiBs,
 		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
@@ -99,25 +103,6 @@ be interacting with the file system.`)
 		DebugGCS:                           flags.DebugGCS,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
-
-	if mountConfig.StatCacheMaxSizeInMb != config.StatCacheMaxSizeInMbUnsetSentinel {
-		if mountConfig.StatCacheMaxSizeInMb < -1 {
-			return nil, fmt.Errorf(config.StatCacheMaxSizeInMbInvalidValueError)
-		}
-
-		if mountConfig.StatCacheMaxSizeInMb == -1 {
-			bucketCfg.StatCacheMaxSizeMiB = config.MaxSupportedStatCacheMaxSizeInMb
-		} else {
-			bucketCfg.StatCacheMaxSizeMiB = uint64(mountConfig.StatCacheMaxSizeInMb)
-		}
-	} else {
-		if flags.StatCacheCapacity < 0 {
-			return nil, fmt.Errorf("stat-cache-capacity can't be less than 0")
-		}
-
-		bucketCfg.StatCacheMaxSizeMiB = util.BytesToHigherMiBs(
-			uint64(flags.StatCacheCapacity) * metadata.StatCacheEntrySize())
-	}
 
 	_, allowOther := flags.MountOptions["allow_other"]
 

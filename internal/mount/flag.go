@@ -15,11 +15,14 @@
 package mount
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 type ClientProtocol string
@@ -31,6 +34,8 @@ const (
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	DefaultStatCacheCapacity = 1 << 20 // 1048576 = 1024x1024 = 1Mi
 )
 
 func (cp ClientProtocol) IsValid() bool {
@@ -94,5 +99,24 @@ func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int
 		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
 	}
 
+	return
+}
+
+// StatCacheMaxSizeInMiBs returns the stat-cache size in MiBs based on the user old and new flags/configs.
+func StatCacheMaxSizeInMiBs(mountConfigStatCacheMaxSizeInMiBs int64, flagStatCacheCapacity int) (statCacheMaxSizeInMiBs uint64, err error) {
+	if mountConfigStatCacheMaxSizeInMiBs != config.StatCacheMaxSizeInMbUnsetSentinel {
+		if mountConfigStatCacheMaxSizeInMiBs == -1 {
+			statCacheMaxSizeInMiBs = config.MaxSupportedStatCacheMaxSizeInMiBs
+		} else {
+			statCacheMaxSizeInMiBs = uint64(mountConfigStatCacheMaxSizeInMiBs)
+		}
+	} else {
+		if flagStatCacheCapacity < 0 {
+			return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
+		}
+
+		statCacheMaxSizeInMiBs = util.BytesToHigherMiBs(
+			uint64(flagStatCacheCapacity) * metadata.StatCacheEntrySize())
+	}
 	return
 }
