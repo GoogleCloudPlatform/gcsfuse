@@ -162,11 +162,4 @@ func TestMain(m *testing.M) {
 	os.Exit(successCode)
 }
 
-func setupFileReadAndValidateWithGCS(ctx context.Context,storageClient *storage.Client,testDirName string,fileSize int64,t *testing.T)(fileName string,expectedOutcome *Expected){
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
-	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, testFileName, fileSize, t)
-
-	return testFileName,expectedOutcome
-}
 

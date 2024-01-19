@@ -57,7 +57,9 @@ func (s *remountTest) Teardown(t *testing.T) {
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	// Run read operations on GCSFuse mount.
-	testFileName,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
@@ -78,9 +80,10 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
+	testFileName1:= setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
 
 	// Read file 1st time.
-	testFileName1,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 
 	// Created Dynamic mounting bucket.
 	testBucketForDynamicMounting := dynamic_mounting.CreateTestBucketForDynamicMounting()
@@ -89,7 +92,10 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	// Changed mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
 
-	testFileName2,expectedOutcome2 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName2 := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	// Read file 1st time.
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
+
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.

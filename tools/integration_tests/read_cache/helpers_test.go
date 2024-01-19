@@ -231,3 +231,10 @@ func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
 		t.Errorf("CacheSize %d is more than cache capacity %d ", cacheSize, cacheCapacity)
 	}
 }
+
+func setupFileInTesDir(ctx context.Context,storageClient *storage.Client,testDirName string,fileSize int64,t *testing.T)(fileName string){
+	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
+
+	return testFileName
+}
