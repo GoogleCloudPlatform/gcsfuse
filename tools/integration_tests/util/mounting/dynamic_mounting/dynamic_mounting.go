@@ -15,11 +15,12 @@
 package dynamic_mounting
 
 import (
-	"cloud.google.com/go/compute/metadata"
 	"fmt"
 	"log"
 	"path"
 	"testing"
+
+	"cloud.google.com/go/compute/metadata"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -94,7 +95,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	return
 }
 
-func CreateTestBucketForDynamicMounting() (bucketName string){
+func CreateTestBucketForDynamicMounting() (bucketName string) {
 	project_id, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
@@ -106,7 +107,7 @@ func CreateTestBucketForDynamicMounting() (bucketName string){
 	return testBucketForDynamicMounting
 }
 
-func DeleteTestBucketForDynamicMounting(bucketName string){
+func DeleteTestBucketForDynamicMounting(bucketName string) {
 	// Deleting bucket after testing.
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", bucketName)
 }

@@ -16,10 +16,11 @@ package read_cache
 
 import (
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -50,13 +51,13 @@ func (s *remountTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
 }
 
-
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // Helper functions
-////////////////////////////////////////////////////////////////////////
-func read(){
+// //////////////////////////////////////////////////////////////////////
+func read() {
 
 }
+
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
@@ -83,7 +84,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 }
 
 func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
-	if !strings.Contains(setup.MntDir(),setup.TestBucket()) {
+	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
@@ -101,7 +102,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	// Deleting bucket after testing.
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
 	// Changed mounted directory for dynamic mounting.
-	setup.SetMntDir(path.Join(rootDir,testBucketForDynamicMounting))
+	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
 	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
@@ -113,12 +114,12 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
 
-	remountGCSFuseAndValidateCacheDeleted(s.flags,t)
+	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Read file 2nd time.
 
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 	// Changed mounted directory for dynamic mounting.
-	setup.SetMntDir(path.Join(rootDir,testBucketForDynamicMounting))
+	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
 	// Read file 2nd time.
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	// Parse the log file and validate cache hit or miss from the structured logs.
