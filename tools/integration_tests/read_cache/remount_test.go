@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -97,6 +98,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	setup.SetTestBucket(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	testDirPath = path.Join(setup.MntDir(), testDirName)
+	fmt.Println("FileName: ",testFileName2)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
