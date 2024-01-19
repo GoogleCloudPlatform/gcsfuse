@@ -82,8 +82,6 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 		t.SkipNow()
 	}
 
-	rootDir = setup.MntDir()
-
   // Created Dynamic mounting bucket.
 	project_id, err := metadata.ProjectID()
 	if err != nil {
@@ -118,8 +116,6 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead, t)
-
-	setup.SetMntDir(rootDir)
 
 	// Deleting bucket after testing.
 	defer setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", testBucketForDynamicMounting)
