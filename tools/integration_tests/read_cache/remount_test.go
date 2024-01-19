@@ -89,17 +89,17 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 
 	// Reading file1 of bucket1 1st time.
 	setup.SetDynamicBucketMounted(testBucket1)
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, testFileName1), fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
 	// Reading file1 of bucket2 1st time.
 	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, testFileName2), fileSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
 	setup.SetDynamicBucketMounted(testBucket1)
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, testFileName1), fileSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
 	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, testFileName2), fileSize, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
