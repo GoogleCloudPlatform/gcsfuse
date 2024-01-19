@@ -15,9 +15,8 @@
 package read_cache
 
 import (
-	"cloud.google.com/go/compute/metadata"
 	"context"
-	"log"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"path"
 	"strings"
 	"testing"
@@ -83,14 +82,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	}
 
   // Created Dynamic mounting bucket.
-	project_id, err := metadata.ProjectID()
-	if err != nil {
-		log.Printf("Error in fetching project id: %v", err)
-	}
-	var testBucketForDynamicMounting = "gcsfuse-dynamic-mounting-test-" + setup.GenerateRandomString(5)
-
-	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
+	testBucketForDynamicMounting := dynamic_mounting.CreateTestBucketForDynamicMounting()
 
 	testFileName1 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
@@ -101,7 +93,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 
 	// Changed mounted directory for dynamic mounting.
-	mountDir = path.Join(setup.MntDir(),testBucketForDynamicMounting)
+	mountDir = path.Join(rootDir,testBucketForDynamicMounting)
 	setup.SetMntDir(mountDir)
 
 	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
