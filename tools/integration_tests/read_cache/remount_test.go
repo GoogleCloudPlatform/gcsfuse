@@ -16,32 +16,32 @@ package read_cache
 
 import (
 	"context"
-	"path"
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
-// //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 // Boilerplate
-// //////////////////////////////////////////////////////////////////////
-type localModificationTest struct {
+////////////////////////////////////////////////////////////////////////
+
+type remountTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *localModificationTest) Setup(t *testing.T) {
+func (s *remountTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
-func (s *localModificationTest) Teardown(t *testing.T) {
+func (s *remountTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -51,31 +51,36 @@ func (s *localModificationTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *testing.T) {
-	testFileName := testDirName + setup.GenerateRandomString(testFileNameSuffixLength)
-	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
+func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
+	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
-	// Read file 1st time.
+	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	// Append data in the same file to change object generation.
-	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
-	if err != nil {
-		t.Errorf("Error in appending data in file: %v", err)
-	}
-	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	// Re-mount GCSFuse and validate cache deleted.
+	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	// Run read operations again on GCSFuse mount.
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
-	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead+1, t)
+	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
+	validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
+	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestLocalModificationTest(t *testing.T) {
+func TestRemountTest(t *testing.T) {
+	if setup.MountedDirectory() != "" {
+		t.Log("Not running remount tests for GKE environment...")
+		t.SkipNow()
+	}
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
@@ -84,7 +89,7 @@ func TestLocalModificationTest(t *testing.T) {
 	}
 
 	// Create storage client before running tests.
-	ts := &localModificationTest{ctx: context.Background()}
+	ts := &remountTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
@@ -92,6 +97,9 @@ func TestLocalModificationTest(t *testing.T) {
 	for _, flags := range flagSet {
 		// Run tests without ro flag.
 		ts.flags = flags
+		test_setup.RunTests(t, ts)
+		// Run tests with ro flag.
+		ts.flags = append(flags, "--o=ro")
 		test_setup.RunTests(t, ts)
 	}
 }
