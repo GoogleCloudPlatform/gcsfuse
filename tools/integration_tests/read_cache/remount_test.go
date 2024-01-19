@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"path"
 	"strings"
 	"testing"
@@ -52,6 +53,33 @@ func (s *remountTest) Teardown(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(bucketName string,ctx context.Context,  storageClient *storage.Client,
+		fileName string, fileSize int64, t *testing.T)(expectedOutcome *Expected){
+	// Read file via gcsfuse mount.
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, path.Join(bucketName,path.Join(testDirName,fileName)), t)
+	// Validate cached content with gcs.
+	getCachedFilePathForGivenBucket(bucketName,fileName)
+	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
+	if err != nil {
+		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
+	}
+	// Validate file size in cache directory matches actual file size.
+	if (*fileInfo).Size() != fileSize {
+		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", fileSize, (*fileInfo).Size())
+	}
+	// Validate cache size within limit.
+	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
+	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName,
+		expectedOutcome.content, t)
+
+	return expectedOutcome
+}
+////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
@@ -74,6 +102,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
 	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
+
 func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
 		t.Log("This test will run only for dynamic mounting...")
@@ -89,17 +118,17 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 
 	// Reading file1 of bucket1 1st time.
 	setup.SetDynamicBucketMounted(testBucket1)
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket1,s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
 	// Reading file1 of bucket2 1st time.
 	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket2,s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
 	setup.SetDynamicBucketMounted(testBucket1)
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket1,s.ctx, s.storageClient, path.Join(testBucket1, path.Join(testDirName,testFileName1)), fileSize, t)
 	setup.SetDynamicBucketMounted(testBucket2)
-	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(testBucket2,s.ctx, s.storageClient, path.Join(testBucket2, path.Join(testDirName,testFileName2)), fileSize, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 

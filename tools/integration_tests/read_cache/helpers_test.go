@@ -84,8 +84,12 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 	}
 }
 
+func getCachedFilePathForGivenBucket(bucketName string,fileName string) string {
+	return path.Join(cacheLocationPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
+}
+
 func getCachedFilePath(fileName string) string {
-	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, fileName)
+	return getCachedFilePathForGivenBucket(setup.TestBucket(),fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
