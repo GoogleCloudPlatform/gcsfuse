@@ -67,7 +67,7 @@ func validateCacheOfMultipleObjectsUsingStructuredLogs(startIndex int, numFiles 
 ////////////////////////////////////////////////////////////////////////
 
 func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
-	testFileName := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)

@@ -57,7 +57,7 @@ func (s *remountTest) Teardown(t *testing.T) {
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	// Run read operations on GCSFuse mount.
-	testFileName := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
@@ -80,7 +80,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testFileName1:= setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName1 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
@@ -92,7 +92,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	// Changed mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucketForDynamicMounting))
 
-	testFileName2 := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName2 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	// Read file 1st time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 

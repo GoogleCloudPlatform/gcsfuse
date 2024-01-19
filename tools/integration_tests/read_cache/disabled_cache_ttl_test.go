@@ -47,7 +47,7 @@ func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
-	testFileName := setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+	testFileName := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
