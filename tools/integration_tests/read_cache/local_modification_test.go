@@ -42,7 +42,7 @@ func (s *localModificationTest) Setup(t *testing.T) {
 }
 
 func (s *localModificationTest) Teardown(t *testing.T) {
-TearDown()
+	TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////

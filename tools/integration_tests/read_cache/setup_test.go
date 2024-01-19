@@ -15,13 +15,14 @@
 package read_cache
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"log"
 	"os"
 	"path"
 	"testing"
+
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
@@ -62,18 +63,17 @@ var (
 	rootDir string
 )
 
-func Setup(flags []string,ctx context.Context,storageClient *storage.Client,testDirName string)  {
+func Setup(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func TearDown(){
+func TearDown() {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 }
-
 
 func createConfigFile(cacheSize int64) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
