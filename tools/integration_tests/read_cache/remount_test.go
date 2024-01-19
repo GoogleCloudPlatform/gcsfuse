@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -48,7 +47,6 @@ func (s *remountTest) Setup(t *testing.T) {
 
 func (s *remountTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
-	fmt.Println("In Unmount")
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 }
