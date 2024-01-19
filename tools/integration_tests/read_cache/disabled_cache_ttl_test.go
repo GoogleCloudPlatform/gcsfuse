@@ -52,7 +52,7 @@ func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(4)
+	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Read file 1st time.
