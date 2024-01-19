@@ -78,10 +78,12 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 }
 
 func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
-	if reflect.DeepEqual(mountFunc, dynamic_mounting.MountGcsfuseWithDynamicMounting){
+	if !reflect.DeepEqual(mountFunc, dynamic_mounting.MountGcsfuseWithDynamicMounting){
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
+
+	rootDir = setup.MntDir()
 
   // Created Dynamic mounting bucket.
 	project_id, err := metadata.ProjectID()
@@ -91,7 +93,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	var testBucketForDynamicMounting = "gcsfuse-dynamic-mounting-test-" + setup.GenerateRandomString(5)
 
 	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
-	setup.RunScriptForTestData("./util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
 	testFileName1 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
@@ -103,7 +105,7 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 
 	// Changed mounted directory for dynamic mounting.
 	mountDir = path.Join(setup.MntDir(),testBucketForDynamicMounting)
-	setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
+	setup.SetMntDir(mountDir)
 
 	testFileName2 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
@@ -117,6 +119,8 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, chunksRead, t)
+
+	setup.SetMntDir(rootDir)
 
 	// Deleting bucket after testing.
 	defer setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", testBucketForDynamicMounting)
