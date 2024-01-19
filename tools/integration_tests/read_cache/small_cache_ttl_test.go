@@ -63,7 +63,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 	// Modify the file.
 	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, true, t)
 	validateFileSizeInCacheDirectory(testFileName, fileSize, t)
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
@@ -105,22 +105,23 @@ func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.
 
 func TestSmallCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(9)
-	var flagSet = [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec)},
-	} // Create storage client before running tests.
+	flagSet := [][]string{
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
+	}
+	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
+	appendFlags(&flagSet, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec))
+	appendFlags(&flagSet, "--o=ro", "")
+
+	// Create storage client before running tests.
 	ts := &smallCacheTTLTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
-		// Run tests without ro flag.
 		ts.flags = flags
-		test_setup.RunTests(t, ts)
-		// Run tests with ro flag.
-		ts.flags = append(flags, "--o=ro")
+		t.Logf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }

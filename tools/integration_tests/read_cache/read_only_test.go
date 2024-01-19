@@ -85,19 +85,35 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, chunksRead, t)
 }
 
-func (s *readOnlyTest) TestReadFileLargerThanCacheCapacity(t *testing.T) {
+func (s *readOnlyTest) TestReadFileSequentiallyLargerThanCacheCapacity(t *testing.T) {
 	// Set up a file in test directory of size more than cache capacity.
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
 		largeFileName, largeFileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, t)
 	// Read file 2nd time.
-	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, t)
+	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, largeFileChunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
+}
+
+func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity(t *testing.T) {
+	// Set up a file in test directory of size more than cache capacity.
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
+		largeFileName, largeFileSize, t)
+
+	// Do a random read on file.
+	expectedOutcome1 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, false, t)
+	// Read file sequentially again.
+	expectedOutcome2 := ReadFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
 }
 
@@ -131,11 +147,14 @@ func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
 
 func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
+	appendFlags(&flagSet,
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1"),
+		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2"))
+	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
 	ts := &readOnlyTest{ctx: context.Background()}
@@ -144,11 +163,8 @@ func TestReadOnlyTest(t *testing.T) {
 
 	// Run tests.
 	for _, flags := range flagSet {
-		// Run tests without ro flag.
 		ts.flags = flags
-		test_setup.RunTests(t, ts)
-		// Run tests with ro flag.
-		ts.flags = append(flags, "--o=ro")
+		t.Logf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }

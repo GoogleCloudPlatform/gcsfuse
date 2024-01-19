@@ -18,8 +18,10 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -33,20 +35,21 @@ const (
 	cacheSubDirectoryName           = "gcsfuse-file-cache"
 	smallContent                    = "small content"
 	smallContentSize                = 13
-	MiB                             = 1024 * 1024
-	chunkSizeToRead                 = MiB
-	fileSize                        = 3 * MiB
-	chunksRead                      = fileSize / MiB
+	chunkSizeToRead                 = util.MiB
+	fileSize                        = 3 * util.MiB
+	chunksRead                      = fileSize / util.MiB
 	testFileName                    = "foo"
 	cacheCapacityInMB               = 9
-	NumberOfFilesWithinCacheLimit   = (cacheCapacityInMB * MiB) / fileSize
-	NumberOfFilesMoreThanCacheLimit = (cacheCapacityInMB*MiB)/fileSize + 1
-	largeFileSize                   = 15 * MiB
+	NumberOfFilesWithinCacheLimit   = (cacheCapacityInMB * util.MiB) / fileSize
+	NumberOfFilesMoreThanCacheLimit = (cacheCapacityInMB*util.MiB)/fileSize + 1
+	largeFileSize                   = 15 * util.MiB
 	largeFileName                   = "15MBFile"
 	largeFileChunksRead             = 15
 	chunksReadAfterUpdate           = 1
 	metadataCacheTTlInSec           = 10
 	testFileNameSuffixLength        = 4
+	randomReadOffset                = 9 * util.MiB
+	configFileName                  = "config"
 )
 
 var (
@@ -59,7 +62,11 @@ var (
 	rootDir string
 )
 
-func createConfigFile(cacheSize int64) string {
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
@@ -67,7 +74,8 @@ func createConfigFile(cacheSize int64) string {
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB: cacheSize,
+			MaxSizeInMB:           cacheSize,
+			CacheFileForRangeRead: cacheFileForRangeRead,
 		},
 		CacheLocation: config.CacheLocation(cacheLocationPath),
 		LogConfig: config.LogConfig{
@@ -77,8 +85,22 @@ func createConfigFile(cacheSize int64) string {
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	filePath := setup.YAMLConfigFile(mountConfig, fileName)
 	return filePath
+}
+
+func appendFlags(flagSet *[][]string, newFlags ...string) {
+	var resultFlagSet [][]string
+	for _, flag := range *flagSet {
+		for _, newFlag := range newFlags {
+			f := flag
+			if strings.Compare(newFlag, "") != 0 {
+				f = append(flag, newFlag)
+			}
+			resultFlagSet = append(resultFlagSet, f)
+		}
+	}
+	*flagSet = resultFlagSet
 }
 
 ////////////////////////////////////////////////////////////////////////

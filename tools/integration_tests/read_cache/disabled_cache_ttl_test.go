@@ -77,22 +77,23 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 
 func TestDisabledCacheTTLTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
-	var flagSet = [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath, "--stat-cache-ttl=0s"},
-	} // Create storage client before running tests.
+	flagSet := [][]string{
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
+	}
+	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
+	appendFlags(&flagSet, "--stat-cache-ttl=0s")
+	appendFlags(&flagSet, "--o=ro", "")
+
+	// Create storage client before running tests.
 	ts := &disabledCacheTTLTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
-		// Run tests without ro flag.
 		ts.flags = flags
-		test_setup.RunTests(t, ts)
-		// Run tests with ro flag.
-		ts.flags = append(flags, "--o=ro")
+		t.Logf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
