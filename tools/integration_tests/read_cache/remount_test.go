@@ -91,12 +91,12 @@ func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
 	var testBucketForDynamicMounting = "gcsfuse-dynamic-mounting-test-" + setup.GenerateRandomString(5)
 
 	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
-	setup.RunScriptForTestData("testdata/create_bucket.sh", "tulsishah-integration-test", project_id)
+	setup.RunScriptForTestData("./util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
 	testFileName1 := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	// Set up a file in test directory of size more than cache capacity.
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
-		testFileName, fileSize, t)
+		testFileName1, fileSize, t)
 
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
