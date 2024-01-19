@@ -21,7 +21,6 @@ import (
 	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
@@ -35,25 +34,6 @@ const (
 	ImplicitDirType Type = 4
 	NonexistentType Type = 5
 )
-
-func (t Type) String() string {
-	switch t {
-	case UnknownType:
-		return "UnknownType"
-	case SymlinkType:
-		return "SymlinkType"
-	case RegularFileType:
-		return "RegularFileType"
-	case ExplicitDirType:
-		return "ExplicitDirType"
-	case ImplicitDirType:
-		return "ImplicitDirType"
-	case NonexistentType:
-		return "NonexistentType"
-	}
-
-	return "Invalid value of Type"
-}
 
 // TypeCache is a (name -> Type) map.
 // It maintains TTL for each entry for supporting
@@ -114,6 +94,7 @@ type typeCache struct {
 	/////////////////////////
 
 	// A cache mapping names to the cache entry.
+	// Each cache entry (including negative ones) is a fixed 32-byte in size (especially for 64-bit linux machines, may differ on other platforms).
 	//
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
@@ -130,7 +111,7 @@ func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
 		if sizeInMB < -1 {
 			panic(fmt.Sprintf("Invalid valid of type-cache-max-size-mb: %v", sizeInMB))
 		}
-		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1, increasing
+		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1
 		if sizeInMB > 0 {
 			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
 		}
@@ -151,14 +132,12 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 		if err != nil {
 			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))
 		}
-		logger.Debugf("TypeCache: Inserted %s as %s", name, it.String())
 	}
 }
 
 func (tc *typeCache) Erase(name string) {
 	if tc.entries != nil { // only if caching is enabled
 		tc.entries.Erase(name)
-		logger.Debugf("TypeCache: Erased entry for %s", name)
 	}
 }
 

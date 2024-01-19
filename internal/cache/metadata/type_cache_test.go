@@ -45,17 +45,17 @@ func TestTypeCache(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type TypeCacheTest struct {
-	cache *typeCache
+	cache TypeCache
 	ttl   time.Duration
 }
 
 type ZeroSizeTypeCacheTest struct {
-	cache *typeCache
+	cache TypeCache
 	ttl   time.Duration
 }
 
 type ZeroTtlTypeCacheTest struct {
-	cache *typeCache
+	cache TypeCache
 }
 
 func init() {
@@ -76,15 +76,6 @@ func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
 
 func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
 	t.cache = createNewTypeCache(TypeCacheSizeMb, 0)
-}
-
-func (t *TypeCacheTest) TearDown() {
-}
-
-func (t *ZeroSizeTypeCacheTest) TearDown() {
-}
-
-func (t *ZeroTtlTypeCacheTest) TearDown() {
 }
 
 ////////////////////////////////////////////////////////////////////////

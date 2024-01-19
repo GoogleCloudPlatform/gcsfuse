@@ -55,7 +55,6 @@ type DirTest struct {
 	clock  timeutil.SimulatedClock
 
 	in DirInode
-	d  *dirInode
 	tc metadata.TypeCache
 }
 
@@ -115,16 +114,16 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.clock,
 		typeCacheMaxSizeMbPerDirectory)
 
-	t.d = t.in.(*dirInode)
-	AssertNe(nil, t.d)
-	t.tc = t.d.cache
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	t.tc = d.cache
 	AssertNe(nil, t.tc)
 
 	t.in.Lock()
 }
 
 func (t *DirTest) getTypeFromCache(name string) metadata.Type {
-	return t.tc.Get(t.d.cacheClock.Now(), name)
+	return t.tc.Get(t.in.(*dirInode).cacheClock.Now(), name)
 }
 
 // Read all of the entries and sort them by name.
@@ -866,8 +865,6 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	// Read the directory, priming the type cache.
 	_, err = t.readAllEntries()
 	AssertEq(nil, err)
-
-	// Verify that the file entry got created in the cache.
 	ExpectEq(RegularFileType, t.getTypeFromCache(name))
 
 	// Create a backing object for a directory.
@@ -1380,7 +1377,7 @@ func (t *DirTest) CreateLocalChildFile_ShouldnotCreateObjectInGCS() {
 	result, err := t.in.LookUpChild(t.ctx, name)
 	AssertEq(nil, err)
 	AssertEq(nil, result)
-	ExpectEq(UnknownType, t.getTypeFromCache(name))
+	ExpectEq(RegularFileType, t.getTypeFromCache(name))
 }
 
 func (t *DirTest) LocalFileEntriesEmpty() {

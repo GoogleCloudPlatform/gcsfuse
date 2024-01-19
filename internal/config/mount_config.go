@@ -35,11 +35,9 @@ const (
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
-	// DefaultTypeCacheMaxSizeInMb is maximum size of
-	// type-cache per directory in MiBs.
-	// This is the value to be used if the user
-	// did not the value of metadata-cache:type-cache-max-size-mb
-	// in config file.
+	// DefaultTypeCacheMaxSizeInMb is the default vlaue of type-cache for evcery directory in MiBs.
+	// The value is set at the size needed for 1,048,476 (2^20) type-cache entries,
+	// each of which is 32 bytes in size.
 	DefaultTypeCacheMaxSizeInMb int = 32
 )
 
