@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -143,13 +142,13 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
 
-	size, err := cacheSize()
+	cacheSize, err := operations.DirSize(cacheLocationPath)
 	if err != nil {
-		t.Errorf("cacheSize() %v", err)
+		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}
-	if size != 0 {
+	if cacheSize != 0 {
 		t.Errorf("cache directory %s not empty after unmount. Size: %d",
-			cacheLocationPath, size)
+			cacheLocationPath, cacheSize)
 	}
 }
 
