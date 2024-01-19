@@ -43,6 +43,7 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	if setup.DynamicBucketMounted() != "" {
 		*bucket = setup.DynamicBucketMounted()
 	}
+	fmt.Println("Bucket--",*bucket)
 	if setup.OnlyDirMounted() != "" {
 		var suffix string
 		if strings.HasSuffix(*object, "/") {
