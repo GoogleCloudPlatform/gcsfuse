@@ -51,7 +51,7 @@ func (s *remountTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
-	testFileName := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
@@ -75,9 +75,9 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testFileName1 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-
+	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket1 := setup.TestBucket()
+
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 	// Creating a new bucket
@@ -86,8 +86,9 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	// Changing mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
+	setup.SetDynamicBucketMounted(testBucket2)
 	testDirPath = path.Join(setup.MntDir(),testDirName)
-	testFileName2 := setupFileInTesDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	// Reading file1 of bucket2 1st time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -98,7 +99,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName1, fileSize, t)
 	// Changing mounted directory for dynamic mounting.
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
-	setup.SetMntDir(path.Join(rootDir, testBucket2))
+	setup.SetDynamicBucketMounted(testBucket2)
 	testDirPath = path.Join(setup.MntDir(),testDirName)
 	// Reading file 2nd time of bucket2.
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
