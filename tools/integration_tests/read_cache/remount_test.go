@@ -115,6 +115,8 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Set testBucket back to original one.
 	setup.SetTestBucket(testBucket1)
+	setup.SetMntDir(path.Join(rootDir, setup.TestBucket()))
+	testDirPath = path.Join(setup.MntDir(), testDirName)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
