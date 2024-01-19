@@ -149,7 +149,7 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 
-	validateCacheSizeWithinLimit(0,t)
+	validateCacheSizeWithinLimit(0, t)
 
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
