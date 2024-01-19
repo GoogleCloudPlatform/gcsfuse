@@ -110,6 +110,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	setup.SetTestBucket(testBucket1)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)

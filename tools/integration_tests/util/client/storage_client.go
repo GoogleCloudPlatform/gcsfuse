@@ -110,6 +110,7 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
 	// Get handle to the object
+	fmt.Println("testBucket: ",setup.TestBucket())
 	object := client.Bucket(setup.TestBucket()).Object(objectName)
 
 	// Delete the object
