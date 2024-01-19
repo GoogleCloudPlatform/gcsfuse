@@ -36,7 +36,7 @@ type readOnlyTest struct {
 }
 
 func (s *readOnlyTest) Setup(t *testing.T) {
-	Setup(s.flags,s.ctx,s.storageClient,testDirName)
+	Setup(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
@@ -144,7 +144,7 @@ func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
 		testFileName, fileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName,fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
@@ -154,14 +154,14 @@ func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
 
 	// Validate file is not cached
-	validateFileIsNotCached(testFileName,t)
+	validateFileIsNotCached(testFileName, t)
 
 	// Remount
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 
 	structuredReadLogs = read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome2, structuredReadLogs[0], true, false, chunksRead, t)
