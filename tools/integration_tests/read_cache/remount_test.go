@@ -16,7 +16,9 @@ package read_cache
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"path"
 	"strings"
 	"testing"
@@ -43,6 +45,33 @@ func (s *remountTest) Setup(t *testing.T) {
 
 func (s *remountTest) Teardown(t *testing.T) {
 	TearDown()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(bucketName string,ctx context.Context,  storageClient *storage.Client,
+		fileName string, fileSize int64, t *testing.T)(expectedOutcome *Expected){
+	// Read file via gcsfuse mount.
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, path.Join(bucketName,path.Join(testDirName,fileName)), t)
+	// Validate cached content with gcs.
+	expectedPathOfCachedFile := getCachedFilePathForGivenBucket(bucketName,fileName)
+	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
+	if err != nil {
+		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
+	}
+	// Validate file size in cache directory matches actual file size.
+	if (*fileInfo).Size() != fileSize {
+		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", fileSize, (*fileInfo).Size())
+	}
+	// Validate cache size within limit.
+	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
+	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName,
+		expectedOutcome.content, t)
+
+	return expectedOutcome
 }
 
 ////////////////////////////////////////////////////////////////////////
