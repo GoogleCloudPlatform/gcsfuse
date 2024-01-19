@@ -130,8 +130,8 @@ func TestRemountTest(t *testing.T) {
 	// Define flag set to run the tests.
 	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
 	}
 
 	// Create storage client before running tests.
