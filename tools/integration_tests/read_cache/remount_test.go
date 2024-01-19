@@ -54,7 +54,7 @@ func (s *remountTest) Teardown(t *testing.T) {
 func readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(bucketName string,ctx context.Context,  storageClient *storage.Client,
 		fileName string, fileSize int64, t *testing.T)(expectedOutcome *Expected){
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, path.Join(bucketName,path.Join(testDirName,fileName)), t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, fileName, t)
 	// Validate cached content with gcs.
 	expectedPathOfCachedFile := getCachedFilePathForGivenBucket(bucketName,fileName)
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
