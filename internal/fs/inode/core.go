@@ -22,15 +22,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
 
-const (
-	UnknownType     metadata.Type = metadata.UnknownType
-	SymlinkType     metadata.Type = metadata.SymlinkType
-	RegularFileType metadata.Type = metadata.RegularFileType
-	ExplicitDirType metadata.Type = metadata.ExplicitDirType
-	ImplicitDirType metadata.Type = metadata.ImplicitDirType
-	NonexistentType metadata.Type = metadata.NonexistentType
-)
-
 // Core contains critical information about an inode before its creation.
 type Core struct {
 	// The full name of the file or directory. Required for all inodes.
@@ -56,15 +47,15 @@ func (c *Core) Exists() bool {
 func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
-		return UnknownType
+		return metadata.UnknownType
 	case c.Object == nil && !c.Local:
-		return ImplicitDirType
+		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
-		return ExplicitDirType
+		return metadata.ExplicitDirType
 	case IsSymlink(c.Object):
-		return SymlinkType
+		return metadata.SymlinkType
 	default:
-		return RegularFileType
+		return metadata.RegularFileType
 	}
 }
 
