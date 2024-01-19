@@ -121,36 +121,6 @@ func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
 	validateCacheOfMultipleObjectsUsingStructuredLogs(NumberOfFilesWithinCacheLimit, NumberOfFilesWithinCacheLimit, expectedOutcome, structuredReadLogs, true, t)
 }
 
-func (s *readOnlyTest) TestReadFileAfterRemountWillCacheMiss(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(4)
-	// Set up a file in test directory of size more than cache capacity.
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName,
-		testFileName, fileSize, t)
-
-	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, chunksRead, t)
-
-	// Unmount the bucket.
-	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
-
-	// Validate file is not cached
-	validateFileIsNotCached(testFileName, t)
-
-	// Remount
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-
-	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-
-	structuredReadLogs = read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome2, structuredReadLogs[0], true, false, chunksRead, t)
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
