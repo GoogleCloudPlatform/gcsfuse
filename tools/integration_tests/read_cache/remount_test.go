@@ -61,8 +61,7 @@ func readFileAndValidateCacheWithGCSForCacheClearsOnDynamicRemount(bucketName st
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, path.Join(bucketName,path.Join(testDirName,fileName)), t)
 	// Validate cached content with gcs.
-	getCachedFilePathForGivenBucket(bucketName,fileName)
-	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	expectedPathOfCachedFile := getCachedFilePathForGivenBucket(bucketName,fileName)
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
 	if err != nil {
 		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
