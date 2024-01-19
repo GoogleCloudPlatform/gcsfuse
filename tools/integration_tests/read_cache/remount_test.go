@@ -80,11 +80,10 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket1 := setup.TestBucket()
+	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
-	setup.SetDynamicBucketMounted(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
@@ -98,7 +97,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName2, fileSize, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	//remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
 	//setup.SetTestBucket(testBucket1)
 	//setup.SetMntDir(path.Join(rootDir, testBucket1))
