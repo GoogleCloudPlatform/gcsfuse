@@ -17,10 +17,9 @@ package read_cache
 import (
 	"cloud.google.com/go/compute/metadata"
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"log"
 	"path"
-	"reflect"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -78,7 +77,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 }
 
 func (s *remountTest) TestCacheClearDynamicRemount(t *testing.T) {
-	if !reflect.DeepEqual(mountFunc, dynamic_mounting.MountGcsfuseWithDynamicMounting){
+	if !strings.Contains(setup.MntDir(),setup.TestBucket()){
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
