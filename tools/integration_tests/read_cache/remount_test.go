@@ -40,15 +40,11 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	Setup(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	// unmount gcsfuse
-	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
+	TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -116,8 +112,6 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Set testBucket back to original one.
 	setup.SetTestBucket(testBucket1)
-	setup.SetMntDir(path.Join(rootDir, setup.TestBucket()))
-	testDirPath = path.Join(setup.MntDir(), testDirName)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
