@@ -50,8 +50,10 @@ func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *testing.T) {
+	testFileName:= setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
+
 	// Read file 1st time.
-	testFileName,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
+	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, t)
 	// Modify the file.
 	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately.
@@ -73,8 +75,9 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 }
 
 func (s *smallCacheTTLTest) TestReadForLowMetaDataCacheTTLIsCacheHit(t *testing.T) {
+	testFileName:= setupFileInTesDir(s.ctx,s.storageClient,testDirName,fileSize,t)
 		// Read file 1st time.
-	testFileName,expectedOutcome1 := setupFileReadAndValidateWithGCS(s.ctx,s.storageClient,testDirName,fileSize,t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Wait for metadata cache expiry and read the file again.
 	time.Sleep(metadataCacheTTlInSec * time.Second)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
