@@ -84,6 +84,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	fmt.Println("Creating object: ", bucket, object)
 
 	o := client.Bucket(bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
