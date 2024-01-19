@@ -491,6 +491,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
 	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
+	ExpectEq(metadata.UnknownType, t.getTypeFromCache(path.Join(dirInodeName, name)))
 
 	ExpectEq(dirObjName, result.FullName.GcsObjectName())
 	ExpectEq(dirObjName, result.Object.Name)
