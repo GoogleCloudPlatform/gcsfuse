@@ -149,7 +149,9 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 
-	time.Sleep(2*time.Second)
+	// Adding sleep for the file system to complete the deletion of cached files process and update
+	// its file records.
+	time.Sleep(2 * time.Second)
 	validateCacheSizeWithinLimit(0, t)
 
 	mountGCSFuse(flags)
@@ -224,7 +226,6 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	fmt.Println("CacheLocation Path: ", cacheLocationPath)
 	cacheSize, err := operations.DirSizeMiB(cacheLocationPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
