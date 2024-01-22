@@ -115,7 +115,7 @@ func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity(t *testing.T)
 
 func (s *readOnlyTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
+	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, 9, t)
 
 	// Do a random read on file.
 	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, testFileName, false,1000,5000, t)
