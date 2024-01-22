@@ -20,6 +20,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 
@@ -119,6 +120,8 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
+
+	time.Sleep(10*time.Second)
 }
 
 ////////////////////////////////////////////////////////////////////////
