@@ -118,9 +118,9 @@ func (s *readOnlyTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
 
 	// Do a random read on file.
-	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, false,1000,5000, t)
+	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, testFileName, false,1000,5000, t)
 	// Read file sequentially again.
-	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, false,1000,0, t)
+	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, testFileName, false,1000,0, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
