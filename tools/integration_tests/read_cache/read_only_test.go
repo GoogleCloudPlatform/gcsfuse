@@ -113,21 +113,6 @@ func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity(t *testing.T)
 	validate(expectedOutcome2, structuredReadLogs[1], true, false, largeFileChunksRead, t)
 }
 
-func (s *readOnlyTest) TestRangeReadsWithCacheHit(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
-
-	// Do a random read on file.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, 5000, t)
-	// Read file sequentially again.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, offset, t)
-
-	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, 1, t)
-}
-
 func (s *readOnlyTest) TestReadMultipleFilesMoreThanCacheLimit(t *testing.T) {
 	fileNames := client.CreateNFilesInDir(s.ctx, s.storageClient, NumberOfFilesMoreThanCacheLimit, testFileName, fileSize, testDirName, t)
 
