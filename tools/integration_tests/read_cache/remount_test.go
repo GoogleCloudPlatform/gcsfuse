@@ -15,18 +15,17 @@
 package read_cache
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"path"
 	"strings"
 	"testing"
 	"time"
-
-	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -92,12 +91,12 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	time.Sleep(10*time.Second)
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-	time.Sleep(10*time.Second)
 
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
