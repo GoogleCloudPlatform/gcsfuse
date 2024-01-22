@@ -96,7 +96,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
-	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+//	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
