@@ -25,6 +25,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -87,11 +88,13 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 		t.Log("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
-	// time.Sleep(10*time.Second)
-	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	// Adding Introducing a sleep of 10 seconds (or any duration) after bucket creation is often related
+	// to addressing eventual consistency and propagation delays in cloud storage systems or distributed setups.
+	time.Sleep(10*time.Second)
+	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
