@@ -30,7 +30,7 @@ const FilePermission_0400 = 0400
 const FilePermission_0600 = 0600
 const FilePermission_0777 = 0777
 const DirPermission_0755 = 0755
-const MiB = 1024*1024
+const MiB = 1024 * 1024
 
 func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
 	err = cmd.Run()
