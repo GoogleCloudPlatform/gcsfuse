@@ -57,11 +57,17 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
 
 	// Do a random read on file.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, 5000, t)
+	expectedOutcome1  := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, 1000, 5000, t)
+	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
+		expectedOutcome1.content, t)
 	// Read file sequentially again.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, offset, t)
-
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, 1000, 0, t)
 	// Parse the log file and validate cache hit or miss from the structured logs.
+	// Validate content read via gcsfuse with gcs.
+	client.ValidateObjectContentsFromGCS(s.ctx, s.storageClient, testDirName, testFileName,
+		expectedOutcome2.content, t)
+
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, 1, t)
