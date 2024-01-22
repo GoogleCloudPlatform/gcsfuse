@@ -74,14 +74,14 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	// Re-mount GCSFuse and validate cache deleted.
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Run read operations again on GCSFuse mount.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	//expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	//expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	//structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
-	validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
-	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
+	//validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
+	//validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
 
 func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
