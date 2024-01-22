@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/jacobsa/fuse/fsutil"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -103,11 +102,11 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-func CheckPermissionsFor(dirPath string, filemode fs.FileMode) bool {
+func CheckCacheDirectoryPermissions(dirPath string) bool {
 	_, statErr := os.Stat(dirPath)
 
 	if statErr != nil {
-		err := os.MkdirAll(dirPath, filemode)
+		err := os.MkdirAll(dirPath, FileDirPerm)
 		if err != nil {
 			logger.Errorf("error in creating directory structure %s: %v", dirPath, err)
 			return false

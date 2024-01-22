@@ -238,10 +238,10 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 func TestCheckPermissionsForShouldReturnTrueWhenDirectoryExists(t *testing.T) {
 	base := "./" + generateRandomString()
 	dirPath := base + "/" + "path/cachedir"
-	os.MkdirAll(dirPath, 0644)
+	os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
 
 	ExpectTrue(hasPermissions)
 }
@@ -251,7 +251,7 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryCanBeCreated(t *testing
 	dirPath := base + "/" + "path/cachedir"
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
 
 	ExpectTrue(hasPermissions)
 }
@@ -263,7 +263,7 @@ func TestCheckPermissionsForShouldReturnFalseWhenDirectoryDoesNotHavePermissions
 	os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
 
 	ExpectFalse(hasPermissions)
 }
