@@ -131,7 +131,7 @@ func TestRemountTest(t *testing.T) {
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
+		{"--implicit-dirs=true"},
 	}
 	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
 	appendFlags(&flagSet, "--o=ro", "")
