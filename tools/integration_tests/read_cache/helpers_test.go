@@ -223,7 +223,7 @@ func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *stor
 			expectedOutcome.content, t)
 	} else {
 		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename,
-			randomReadOffset, chunkSizeToRead, expectedOutcome.content, t)
+			offset, chunkSizeToRead, expectedOutcome.content, t)
 	}
 	return expectedOutcome
 }
