@@ -59,7 +59,7 @@ const (
 	configFileName                  = "config"
 	chunkSizeForRangeRead           = 1000
 	offsetForFirstRangeRead         = 5000
-	offsetForSecondRangeRead        = 1
+	offsetForSecondRangeRead        = 1000
 )
 
 var (
