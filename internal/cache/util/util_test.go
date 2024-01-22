@@ -17,16 +17,17 @@ package util
 import (
 	"errors"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	. "github.com/jacobsa/ogletest"
+	"math/rand"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"syscall"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	. "github.com/jacobsa/ogletest"
+	"time"
 )
 
 func TestUtil(t *testing.T) { RunTests(t) }
@@ -232,4 +233,47 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 	for _, errMsg := range errMessages {
 		ExpectFalse(IsCacheHandleInvalid(errors.New(errMsg)))
 	}
+}
+
+func TestCheckPermissionsForShouldReturnTrueWhenDirectoryExists(t *testing.T) {
+	base := "./" + generateRandomString()
+	dirPath := base + "/" + "path/cachedir"
+	os.MkdirAll(dirPath, 0644)
+	defer os.RemoveAll(base)
+
+	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+
+	ExpectTrue(hasPermissions)
+}
+
+func TestCheckPermissionsForShouldReturnTrueWhenDirectoryCanBeCreated(t *testing.T) {
+	base := "./" + generateRandomString()
+	dirPath := base + "/" + "path/cachedir"
+	defer os.RemoveAll(base)
+
+	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+
+	ExpectTrue(hasPermissions)
+}
+
+func TestCheckPermissionsForShouldReturnFalseWhenDirectoryDoesNotHavePermissions(t *testing.T) {
+	base := "./" + generateRandomString()
+	dirPath := base + "/" + "path/cachedir"
+	//to stat ex permission is needed
+	os.MkdirAll(dirPath, 0444)
+	defer os.RemoveAll(base)
+
+	hasPermissions := CheckPermissionsFor(dirPath, 0600)
+
+	ExpectFalse(hasPermissions)
+}
+
+func generateRandomString() string {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	const letters = "abcdefghijklmnopqrstuvwxyz"
+	b := make([]byte, 4)
+	for i := range b {
+		b[i] = letters[rand.Intn(26)]
+	}
+	return string(b)
 }
