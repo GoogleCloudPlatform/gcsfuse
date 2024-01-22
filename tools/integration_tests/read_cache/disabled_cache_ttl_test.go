@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"log"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -87,7 +88,7 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
-		t.Logf("Running tests with flags: %s", ts.flags)
+		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
