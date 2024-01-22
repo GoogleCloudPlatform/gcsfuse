@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -94,12 +93,11 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
-	fmt.Println(testFileName2)
 
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
@@ -108,18 +106,18 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
-	//expectedOutcome3 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
-	//// Reading file 2nd time of bucket2.
-	//expectedOutcome4 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
-	//// Parsing the log file and validate cache hit or miss from the structured logs.
-	//structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	//// Set testBucket back to original one.
+	expectedOutcome3 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	// Reading file 2nd time of bucket2.
+	expectedOutcome4 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	// Parsing the log file and validate cache hit or miss from the structured logs.
+	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	// Set testBucket back to original one.
 	setup.SetTestBucket(testBucket1)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
-	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
-	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
+	validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
+	validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
 
 	time.Sleep(10*time.Second)
 }
