@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
+	"log"
 	"path"
 	"strings"
 	"testing"
@@ -147,7 +148,7 @@ func TestRemountTest(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
-		t.Logf("Running tests with flags: %s", ts.flags)
+		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
