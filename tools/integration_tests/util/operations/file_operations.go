@@ -281,7 +281,7 @@ func WriteFileSequentially(filePath string, fileSize int64, chunkSize int64) (er
 func ReadChunkFromFile(filePath string, chunkSize int64, offset int64) (chunk []byte, err error) {
 	chunk = make([]byte, chunkSize)
 
-	file, err := os.OpenFile(filePath, os.O_RDONLY, FilePermission_0600)
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		log.Printf("Error in opening file: %v", err)
 		return
@@ -620,9 +620,8 @@ func CreateFileWithContent(filePath string, filePerms os.FileMode,
 // CreateFileOfSize creates a file of given size with random data.
 func CreateFileOfSize(fileSize int64, filePath string, t *testing.T) {
 	randomData, err := GenerateRandomData(fileSize)
-	randomDataString := strings.Trim(string(randomData), "\x00")
 	if err != nil {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}
-	CreateFileWithContent(filePath, FilePermission_0600, randomDataString, t)
+	CreateFileWithContent(filePath, FilePermission_0600, string(randomData), t)
 }

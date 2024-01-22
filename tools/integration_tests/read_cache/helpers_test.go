@@ -39,16 +39,25 @@ type Expected struct {
 	content               string
 }
 
-func readFileAndGetExpectedOutcome(testDirPath, fileName string, t *testing.T) *Expected {
+func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, t *testing.T) *Expected {
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
 		ObjectName:            path.Join(testDirName, fileName),
 	}
+	var content []byte
+	var err error
 
-	content, err := operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
-	if err != nil {
-		t.Errorf("Failed to read file in first iteration: %v", err)
+	if isSeq {
+		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
+		if err != nil {
+			t.Errorf("Failed to read file sequentially: %v", err)
+		}
+	} else {
+		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, randomReadOffset)
+		if err != nil {
+			t.Errorf("Failed to read random file chunk: %v", err)
+		}
 	}
 	expected.EndTimeStampSeconds = time.Now().Unix()
 	expected.content = string(content)
@@ -182,7 +191,7 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate cache size within limit.
@@ -194,15 +203,20 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	return expectedOutcome
 }
 
-func ReadFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client, filename string, t *testing.T) (expectedOutcome *Expected) {
+func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
+	filename string, isSeq bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, t)
 	// Validate that the file is not cached.
 	validateFileIsNotCached(filename, t)
 	// validate the content read matches the content on GCS.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
-		expectedOutcome.content, t)
-
+	if isSeq {
+		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
+			expectedOutcome.content, t)
+	} else {
+		client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename,
+			randomReadOffset, chunkSizeToRead, expectedOutcome.content, t)
+	}
 	return expectedOutcome
 }
 
