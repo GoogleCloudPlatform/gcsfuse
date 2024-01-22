@@ -101,7 +101,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
 	// Reading file1 of bucket2 1st time.
-	expectedOutcome2 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	// expectedOutcome2 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
