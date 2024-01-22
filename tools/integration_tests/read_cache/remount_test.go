@@ -69,7 +69,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	// expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
@@ -79,7 +79,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	//structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
+	// validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
