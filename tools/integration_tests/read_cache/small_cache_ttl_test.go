@@ -58,7 +58,7 @@ func (s *smallCacheTTLTest) TestReadAfterUpdateAndCacheExpiryIsCacheMiss(t *test
 	// Modify the file.
 	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, true, t)
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, true,chunkSizeToRead,0 ,t)
 	validateFileSizeInCacheDirectory(testFileName, fileSize, t)
 	// Validate that stale data is served from cache in this case.
 	if strings.Compare(expectedOutcome1.content, expectedOutcome2.content) != 0 {
