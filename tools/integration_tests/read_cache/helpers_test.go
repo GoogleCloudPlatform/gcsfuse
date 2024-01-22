@@ -149,7 +149,7 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 
-	// Adding sleep for the file system to complete the deletion of cached files process and update
+	// Adding sleep of 2s for the file system to complete the deletion of cached files process and update
 	// its file records.
 	time.Sleep(2 * time.Second)
 	validateCacheSizeWithinLimit(0, t)
