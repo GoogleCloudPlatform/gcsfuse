@@ -15,18 +15,19 @@
 package read_cache
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"log"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -87,7 +88,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 
 func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
-		t.Log("This test will run only for dynamic mounting...")
+		log.Println("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
 	testBucket1 := setup.TestBucket()
@@ -95,7 +96,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	// Adding Introducing a sleep of 10 seconds after bucket creation is often related
 	// to addressing eventual consistency and propagation delays in cloud storage systems or distributed setups.
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
