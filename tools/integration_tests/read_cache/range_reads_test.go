@@ -63,11 +63,11 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForFirstRangeRead, chunkSizeForRangeRead,
 		expectedOutcome1.content, t)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
-	time.Sleep(7 * time.Second)
+	time.Sleep(5 * time.Second)
 	// Read file again from offset 1.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForSecondRangeRead, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForSecondRangeRead, chunkSizeToRead,
+	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForSecondRangeRead, chunkSizeForRangeRead,
 		expectedOutcome2.content, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
