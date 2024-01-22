@@ -87,7 +87,6 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
-	fmt.Println("Offset ",offset,"Size ",size)
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewRangeReader(ctx, offset, size)
 	if err != nil {
