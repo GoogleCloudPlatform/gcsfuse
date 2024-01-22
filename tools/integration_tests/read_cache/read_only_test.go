@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -119,6 +120,7 @@ func (s *readOnlyTest) TestRangeReadsWithCacheHit(t *testing.T) {
 
 	// Do a random read on file.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead,1000,5000, t)
+	time.Sleep(10*time.Second)
 	// Read file sequentially again.
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead,1000,offset, t)
 
