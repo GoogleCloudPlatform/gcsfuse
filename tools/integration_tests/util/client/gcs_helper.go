@@ -78,6 +78,21 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	}
 }
 
+func ValidateObjectChunkFromGCS(ctx context.Context, storageClient *storage.Client,
+	testDirName string, fileName string, offset, size int64, expectedContent string,
+	t *testing.T) {
+	gotContent, err := ReadChunkFromGCS(ctx, storageClient,
+		path.Join(testDirName, fileName), offset, size)
+	if err != nil {
+		t.Fatalf("Error while reading file from GCS, Err: %v", err)
+	}
+
+	if expectedContent != gotContent {
+		t.Fatalf("GCS file %s content mismatch. Got file size: %d, Expected "+
+			"file size: %d ", fileName, len(gotContent), len(expectedContent))
+	}
+}
+
 func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
 	fh *os.File, testDirName, fileName, content string, t *testing.T) {
 	operations.CloseFileShouldNotThrowError(fh, t)
