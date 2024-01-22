@@ -16,9 +16,10 @@ package read_cache
 
 import (
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -36,18 +37,17 @@ type rangeReadsTest struct {
 	ctx           context.Context
 }
 
-func (s *rangeReadsTest ) Setup(t *testing.T) {
+func (s *rangeReadsTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
-func (s *rangeReadsTest ) Teardown(t *testing.T) {
+func (s *rangeReadsTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 }
-
 
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
@@ -58,16 +58,16 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
 
 	// Do a random read on file.
-	expectedOutcome1  := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, 1000, 5000, t)
+	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForFirstRangeRead, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, 5000,1000,
+	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForFirstRangeRead, chunkSizeForRangeRead,
 		expectedOutcome1.content, t)
-	time.Sleep(10*time.Second)
-	// Read file sequentially again.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, 1000, 1, t)
-	// Parse the log file and validate cache hit or miss from the structured logs.
+	// Wait for the cache to propagate the updates before proceeding to get cache hit.
+	time.Sleep(7 * time.Second)
+	// Read file again from offset 1.
+	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForSecondRangeRead, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName,1,1000,
+	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForSecondRangeRead, chunkSizeToRead,
 		expectedOutcome2.content, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -90,7 +90,7 @@ func TestRangeReads(t *testing.T) {
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
-	ts := &rangeReadsTest {ctx: context.Background()}
+	ts := &rangeReadsTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
