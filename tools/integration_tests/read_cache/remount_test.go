@@ -72,6 +72,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Run read operations again on GCSFuse mount.
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
@@ -91,9 +92,9 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
-	// Adding Introducing a sleep of 10 seconds after bucket creation is often related
+	// Adding Introducing a sleep of 7 seconds after bucket creation is often related
 	// to addressing eventual consistency and propagation delays in cloud storage systems or distributed setups.
-	time.Sleep(5*time.Second)
+	time.Sleep(7*time.Second)
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
