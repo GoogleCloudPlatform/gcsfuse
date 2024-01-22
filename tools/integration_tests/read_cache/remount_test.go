@@ -16,12 +16,11 @@ package read_cache
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"path"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -98,6 +97,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	time.Sleep(10*time.Second)
 
 	// Reading file1 of bucket1 1st time.
 	expectedOutcome1 := setupReadAndValidateForTestCacheClearsOnDynamicRemount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
@@ -118,8 +118,6 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
-
-	time.Sleep(10*time.Second)
 }
 
 ////////////////////////////////////////////////////////////////////////
