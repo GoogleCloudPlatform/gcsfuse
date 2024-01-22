@@ -19,9 +19,9 @@ gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID  --l
 if [ $? -eq 1 ]; then
   if grep "HTTPError 409" ~/output.txt; then
     echo "Bucket already exist."
-    rm ~/output.txt
+   # rm ~/output.txt
   else
-    rm ~/output.txt
+  #  rm ~/output.txt
     exit 1
   fi
 fi

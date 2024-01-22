@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -132,11 +131,11 @@ func TestRemountTest(t *testing.T) {
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
 	appendFlags(&flagSet, "--o=ro", "")
 
-	fmt.Println(flagSet)
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
