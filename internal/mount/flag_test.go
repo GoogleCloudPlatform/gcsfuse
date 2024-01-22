@@ -142,10 +142,10 @@ func (t *FlagTest) TestMetadataCacheTTL() {
 
 func (t *FlagTest) TestStatCacheMaxSizeInMiBs() {
 	for _, input := range []struct {
-		// equivalent of user-setting of flag --stat-cache-capacity
+		// Equivalent of user-setting of flag --stat-cache-capacity.
 		flagStatCacheCapacity int
 
-		// equivalent of user-setting of metadata-cache:stat-cache-max-size-mb in --config-file
+		// Equivalent of user-setting of metadata-cache:stat-cache-max-size-mb in --config-file.
 		mountConfigStatCacheMaxSizeInMiBs int64
 
 		// expected output
