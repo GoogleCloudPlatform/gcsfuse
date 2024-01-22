@@ -203,7 +203,7 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	return expectedOutcome
 }
 
-func ReadFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
+func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
 	filename string, isSeq bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, t)
