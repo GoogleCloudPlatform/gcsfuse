@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -61,6 +62,7 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, 5000,1000,
 		expectedOutcome1.content, t)
+	time.Sleep(10*time.Second)
 	// Read file sequentially again.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, 1000, 0, t)
 	// Parse the log file and validate cache hit or miss from the structured logs.
