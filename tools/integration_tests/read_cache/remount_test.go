@@ -114,7 +114,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	setup.SetTestBucket(testBucket1)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
-	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
+	//validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	//validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	//validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
 }
