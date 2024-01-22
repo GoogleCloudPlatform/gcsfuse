@@ -15,9 +15,9 @@
 package read_cache
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"log"
 	"os"
 	"path"
@@ -27,7 +27,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -79,8 +78,7 @@ func TearDown(){
 	unmountGCSFuseAndDeleteLogFile()
 }
 
-
-func createConfigFile(cacheSize int64) string {
+func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
 	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
@@ -99,7 +97,7 @@ func createConfigFile(cacheSize int64) string {
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	filePath := setup.YAMLConfigFile(mountConfig, fileName)
 	return filePath
 }
 
