@@ -82,11 +82,12 @@ func TestRemountTest(t *testing.T) {
 		t.SkipNow()
 	}
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
+	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
+	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
@@ -95,11 +96,8 @@ func TestRemountTest(t *testing.T) {
 
 	// Run tests.
 	for _, flags := range flagSet {
-		// Run tests without ro flag.
 		ts.flags = flags
-		test_setup.RunTests(t, ts)
-		// Run tests with ro flag.
-		ts.flags = append(flags, "--o=ro")
+		t.Logf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }

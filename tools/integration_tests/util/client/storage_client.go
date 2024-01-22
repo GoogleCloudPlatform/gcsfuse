@@ -81,6 +81,27 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	return string(content), nil
 }
 
+// ReadChunkFromGCS downloads the object chunk from GCS and returns the data.
+func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string,
+	offset, size int64) (string, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	// Create storage reader to read from GCS.
+	rc, err := client.Bucket(bucket).Object(object).NewRangeReader(ctx, offset, size)
+	if err != nil {
+		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
+	}
+	defer rc.Close()
+
+	content, err := io.ReadAll(rc)
+	if err != nil {
+		return "", fmt.Errorf("io.ReadAll failed: %v", err)
+	}
+
+	return string(content), nil
+}
+
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)

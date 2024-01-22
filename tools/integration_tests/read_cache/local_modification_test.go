@@ -77,11 +77,11 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 
 func TestLocalModificationTest(t *testing.T) {
 	// Define flag set to run the tests.
-	mountConfigFilePath := createConfigFile(cacheCapacityInMB)
 	flagSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + mountConfigFilePath},
-		{"--implicit-dirs=false", "--config-file=" + mountConfigFilePath},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
+	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
 
 	// Create storage client before running tests.
 	ts := &localModificationTest{ctx: context.Background()}
@@ -90,8 +90,8 @@ func TestLocalModificationTest(t *testing.T) {
 
 	// Run tests.
 	for _, flags := range flagSet {
-		// Run tests without ro flag.
 		ts.flags = flags
+		t.Logf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
