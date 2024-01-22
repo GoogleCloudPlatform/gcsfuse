@@ -71,8 +71,8 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 		expectedOutcome2.content, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
-	validate(expectedOutcome2, structuredReadLogs[1], true, true, 1, t)
+	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
