@@ -185,7 +185,7 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename,true, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate cache size within limit.
@@ -223,6 +223,7 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
+	fmt.Println("CacheLocation Path: ", cacheLocationPath)
 	cacheSize, err := operations.DirSizeMiB(cacheLocationPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
