@@ -31,19 +31,19 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type rangeReadsTest struct {
+type cacheFileForRangeReadTrueTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *rangeReadsTest) Setup(t *testing.T) {
+func (s *cacheFileForRangeReadTrueTest) Setup(t *testing.T) {
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 }
 
-func (s *rangeReadsTest) Teardown(t *testing.T) {
+func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
@@ -53,7 +53,7 @@ func (s *rangeReadsTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
+func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
 
@@ -63,7 +63,7 @@ func (s *rangeReadsTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForFirstRangeRead, chunkSizeForRangeRead,
 		expectedOutcome1.content, t)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 	// Read file again from offset 1.
 	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForSecondRangeRead, t)
 	// Validate content read via gcsfuse with gcs.
@@ -90,7 +90,7 @@ func TestRangeReads(t *testing.T) {
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
-	ts := &rangeReadsTest{ctx: context.Background()}
+	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
