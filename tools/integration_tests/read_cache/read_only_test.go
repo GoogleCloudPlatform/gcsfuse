@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -51,7 +50,7 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 
 func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage.Client, fileNames []string, fileSize int64, t *testing.T) (expectedOutcome []*Expected) {
 	for i := 0; i < numFiles; i++ {
-		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize,chunkSizeToRead,offset, t))
+		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, true, chunkSizeToRead, offset, t))
 	}
 	return expectedOutcome
 }
@@ -72,9 +71,9 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, chunkSizeToRead,offset,t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,chunkSizeToRead,offset, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -88,9 +87,9 @@ func (s *readOnlyTest) TestReadFileSequentiallyLargerThanCacheCapacity(t *testin
 		largeFileName, largeFileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, 0,chunkSizeToRead,t)
+	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, 0, chunkSizeToRead, t)
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true,0,chunkSizeToRead, t)
+	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, 0, chunkSizeToRead, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -104,9 +103,9 @@ func (s *readOnlyTest) TestReadFileRandomlyLargerThanCacheCapacity(t *testing.T)
 		largeFileName, largeFileSize, t)
 
 	// Do a random read on file.
-	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, false, chunkSizeToRead,0, t)
+	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, false, chunkSizeToRead, 0, t)
 	// Read file sequentially again.
-	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true,chunkSizeToRead,0, t)
+	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, chunkSizeToRead, 0, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -119,14 +118,13 @@ func (s *readOnlyTest) TestRangeReadsWithCacheHit(t *testing.T) {
 	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
 
 	// Do a random read on file.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead,1000,5000, t)
-	time.Sleep(10*time.Second)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, 5000, t)
 	// Read file sequentially again.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead,1000,offset, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSizeForRangeRead, false, 1000, offset, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], true, true, 1, t)
 }
 

@@ -68,14 +68,14 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,chunkSizeToRead,offset, t)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,chunkSizeToRead,offset, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse and validate cache deleted.
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Run read operations again on GCSFuse mount.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, chunkSizeToRead,offset,t)
-	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize,chunkSizeToRead,offset, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
 	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, t)
