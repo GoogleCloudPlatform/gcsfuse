@@ -229,14 +229,16 @@ func runCLIApp(c *cli.Context) (err error) {
 	flagsStringified, err := util.Stringify(*flags)
 	if err != nil {
 		logger.Warnf("failed to stringify cli flags: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
 	}
-	logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
 
 	mountConfigStringified, err := util.Stringify(*mountConfig)
 	if err != nil {
 		logger.Warnf("failed to stringify config-file: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
 	}
-	logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
 
 	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {

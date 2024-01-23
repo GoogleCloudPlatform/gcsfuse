@@ -179,7 +179,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNot
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(StatCacheMaxSizeInMbUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMiBs)
+	AssertEq(StatCacheMaxSizeInMiBsUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMiBs)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeTooHigh() {

@@ -154,7 +154,7 @@ func (t *FlagTest) TestStatCacheMaxSizeInMiBs() {
 		{
 			// most common scenario, when user doesn't set either the flag or the config
 			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMbUnsetSentinel,
+			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
 			expectedStatCacheMaxSizeInMiBs:    328, // 328 MiB = MiB-ceiling (1048576 entries * 320 /entry)
 		},
 		{
@@ -202,13 +202,13 @@ func (t *FlagTest) TestStatCacheMaxSizeInMiBs() {
 		{
 			// old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 1.
 			flagStatCacheCapacity:             0,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMbUnsetSentinel,
+			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
 			expectedStatCacheMaxSizeInMiBs:    0,
 		},
 		{
 			// old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 2. Stat-cache enabled, but not type-cache.
 			flagStatCacheCapacity:             10000,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMbUnsetSentinel,
+			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
 			expectedStatCacheMaxSizeInMiBs:    4, // 4 MiB = MiB-ceiling (10k entries * 320 /entry)
 		},
 	} {

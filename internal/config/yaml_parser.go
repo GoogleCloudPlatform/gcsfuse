@@ -86,7 +86,7 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		}
 	}
 
-	if metadataCacheConfig.StatCacheMaxSizeInMiBs != StatCacheMaxSizeInMbUnsetSentinel {
+	if metadataCacheConfig.StatCacheMaxSizeInMiBs != StatCacheMaxSizeInMiBsUnsetSentinel {
 		if metadataCacheConfig.StatCacheMaxSizeInMiBs < -1 {
 			return fmt.Errorf(StatCacheMaxSizeInMiBsInvalidValueError)
 		}
