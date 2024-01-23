@@ -151,7 +151,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
-		if err := DeleteObjectOnGCS(ctx, client, attrs.Name,bucketName); err != nil {
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name, bucketName); err != nil {
 			return err
 		}
 	}
