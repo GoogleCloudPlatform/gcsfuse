@@ -91,6 +91,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	setup.SetDynamicBucketMounted(testBucket2)
+	defer setup.SetDynamicBucketMounted("")
 	// Introducing a sleep of 7 seconds after bucket creation to address propagation delays.
 	time.Sleep(7 * time.Second)
 	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
