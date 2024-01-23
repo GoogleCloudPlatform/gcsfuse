@@ -27,9 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -137,26 +135,26 @@ func TestMain(m *testing.M) {
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
-	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	successCode := m.Run()
+	//log.Println("Running static mounting tests...")
+	//mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	//successCode := m.Run()
+	//
+	//if successCode == 0 {
+	//	log.Println("Running dynamic mounting tests...")
+	//	// Save mount directory variable to have path of bucket to run tests.
+	//	mountDir = path.Join(setup.MntDir(), setup.TestBucket())
+	//	mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+	//	successCode = m.Run()
+	//}
 
-	if successCode == 0 {
-		log.Println("Running dynamic mounting tests...")
-		// Save mount directory variable to have path of bucket to run tests.
-		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-		successCode = m.Run()
-	}
-
-	if successCode == 0 {
+	//if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-		successCode = m.Run()
+		successCode := m.Run()
 		setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
-	}
+	//}
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))

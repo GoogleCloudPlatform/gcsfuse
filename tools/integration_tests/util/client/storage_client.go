@@ -128,12 +128,9 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
-func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
-	var bucket string
-	setBucketAndObjectBasedOnTypeOfMount(&bucket, &objectName)
-
+func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string, bucketName string) error {
 	// Get handle to the object
-	object := client.Bucket(bucket).Object(objectName)
+	object := client.Bucket(bucketName).Object(objectName)
 
 	// Delete the object
 	err := object.Delete(ctx)
@@ -146,7 +143,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string, bucketName string) error {
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
-	objectItr := client.Bucket(setup.TestBucket()).Objects(ctx, query)
+	objectItr := client.Bucket(bucketName).Objects(ctx, query)
 
 	// Iterate through objects with the specified prefix and delete them
 	for {
@@ -154,7 +151,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
-		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name,bucketName); err != nil {
 			return err
 		}
 	}
