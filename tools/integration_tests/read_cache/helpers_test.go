@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,10 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, t *
 		BucketName:            setup.TestBucket(),
 		ObjectName:            path.Join(testDirName, fileName),
 	}
+	if setup.DynamicBucketMounted() != "" {
+		expected.BucketName = setup.DynamicBucketMounted()
+	}
+
 	var content []byte
 	var err error
 
@@ -94,7 +99,11 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 }
 
 func getCachedFilePath(fileName string) string {
-	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, fileName)
+	bucketName := setup.TestBucket()
+	if setup.DynamicBucketMounted() != "" {
+		bucketName = setup.DynamicBucketMounted()
+	}
+	return path.Join(cacheLocationPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
@@ -241,4 +250,11 @@ func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, test
 	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
 
 	return testFileName
+}
+
+func runTestsOnlyForDynamicMount(t *testing.T) {
+	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
+		log.Println("This test will run only for dynamic mounting...")
+		t.SkipNow()
+	}
 }

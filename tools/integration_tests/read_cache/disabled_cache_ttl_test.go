@@ -36,11 +36,11 @@ type disabledCacheTTLTest struct {
 }
 
 func (s *disabledCacheTTLTest) Setup(t *testing.T) {
-	Setup(s.flags, s.ctx, s.storageClient, testDirName)
+	mountAndSetTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
-	TearDown()
+	unMountAndDeleteLogs()
 }
 
 ////////////////////////////////////////////////////////////////////////

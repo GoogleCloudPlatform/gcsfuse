@@ -39,11 +39,11 @@ type smallCacheTTLTest struct {
 }
 
 func (s *smallCacheTTLTest) Setup(t *testing.T) {
-	Setup(s.flags, s.ctx, s.storageClient, testDirName)
+	mountAndSetTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
-	TearDown()
+	unMountAndDeleteLogs()
 }
 
 ////////////////////////////////////////////////////////////////////////

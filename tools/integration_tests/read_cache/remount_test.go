@@ -18,7 +18,6 @@ import (
 	"context"
 	"log"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -41,21 +40,21 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
-	Setup(s.flags, s.ctx, s.storageClient, testDirName)
+	mountAndSetTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	TearDown()
+	unMountAndDeleteLogs()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helper functions
 ////////////////////////////////////////////////////////////////////////
 
-func setupReadAndValidateForRemountingDifferentBuckets(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, t *testing.T) (expectedOutcome *Expected) {
-	setup.SetTestBucket(bucketName)
-	setup.SetMntDir(path.Join(rootDir, bucketName))
-	testDirPath = path.Join(setup.MntDir(), testDirName)
+func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, t *testing.T) (expectedOutcome *Expected) {
+	setup.SetDynamicBucketMounted(bucketName)
+	defer setup.SetDynamicBucketMounted("")
+	testDirPath = path.Join(rootDir, bucketName, testDirName)
 	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, t)
 
 	return expectedOutcome
@@ -86,35 +85,28 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 }
 
 func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
-	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
-		log.Println("This test will run only for dynamic mounting...")
-		t.SkipNow()
-	}
+	runTestsOnlyForDynamicMount(t)
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
 	// Introducing a sleep of 7 seconds after bucket creation to address propagation delays.
 	time.Sleep(7 * time.Second)
-	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
-	setup.SetMntDir(path.Join(rootDir, testBucket2))
-	setup.SetTestBucket(testBucket2)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Reading file1 of bucket1 1st time.
-	expectedOutcome1 := setupReadAndValidateForRemountingDifferentBuckets(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
 	// Reading file1 of bucket2 1st time.
-	expectedOutcome2 := setupReadAndValidateForRemountingDifferentBuckets(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
 	// Reading file 2nd time of bucket1.
-	expectedOutcome3 := setupReadAndValidateForRemountingDifferentBuckets(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
 	// Reading file 2nd time of bucket2.
-	expectedOutcome4 := setupReadAndValidateForRemountingDifferentBuckets(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	// Set testBucket back to original one.
-	setup.SetTestBucket(testBucket1)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)

@@ -71,13 +71,13 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func Setup(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
+func mountAndSetTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func TearDown() {
+func unMountAndDeleteLogs() {
 	// unmount gcsfuse
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
