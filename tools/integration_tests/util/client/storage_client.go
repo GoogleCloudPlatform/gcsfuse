@@ -33,6 +33,7 @@ func separateBucketAndObjectName(bucket, object *string) {
 	*object = path.Join(bucketAndObjectPath[1], *object)
 }
 
+// only dir - > onlydir/testdir/objn
 func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	*bucket = setup.TestBucket()
 	if strings.Contains(setup.TestBucket(), "/") {
@@ -48,6 +49,7 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 		if strings.HasSuffix(*object, "/") {
 			suffix = "/"
 		}
+		// test/obj
 		*object = path.Join(setup.OnlyDirMounted(), *object) + suffix
 	}
 }
@@ -129,6 +131,9 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string, bucketName string) error {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &objectName)
+
 	// Get handle to the object
 	object := client.Bucket(bucketName).Object(objectName)
 
@@ -140,10 +145,13 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 	return nil
 }
 
-func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string, bucketName string) error {
+func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
+	var bucket,object string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
-	objectItr := client.Bucket(bucketName).Objects(ctx, query)
+	objectItr := client.Bucket(bucket).Objects(ctx, query)
 
 	// Iterate through objects with the specified prefix and delete them
 	for {
@@ -151,7 +159,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
-		if err := DeleteObjectOnGCS(ctx, client, attrs.Name, bucketName); err != nil {
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name, bucket); err != nil {
 			return err
 		}
 	}
