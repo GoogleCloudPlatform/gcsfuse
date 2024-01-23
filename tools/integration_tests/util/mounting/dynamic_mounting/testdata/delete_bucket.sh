@@ -16,3 +16,4 @@
 BUCKET_NAME=$1
 
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME/ 2> ~/output.txt
+echo $(cat output.txt)

@@ -15,19 +15,17 @@
 package read_cache
 
 import (
-	"context"
-	"log"
-	"path"
-	"strings"
-	"testing"
-	"time"
-
 	"cloud.google.com/go/storage"
+	"context"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
+	"log"
+	"path"
+	"strings"
+	"testing"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -90,13 +88,13 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 		log.Println("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
-	testBucket1 := setup.TestBucket()
-	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
 	// Adding Introducing a sleep of 7 seconds after bucket creation is often related
 	// to addressing eventual consistency and propagation delays in cloud storage systems or distributed setups.
-	time.Sleep(7 * time.Second)
+	// time.Sleep(7 * time.Second)
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
+	testBucket1 := setup.TestBucket()
+	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	setup.SetMntDir(path.Join(rootDir, testBucket2))
 	setup.SetTestBucket(testBucket2)
 	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)

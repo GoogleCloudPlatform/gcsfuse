@@ -151,6 +151,7 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 
 	// Adding sleep of 2s for the file system to complete the deletion of cached files process and update
 	// its file records.
+	// Todo: This is a known issue b/317437499. We will remove this sleep after this gets resolved.
 	time.Sleep(2 * time.Second)
 	validateCacheSizeWithinLimit(0, t)
 
