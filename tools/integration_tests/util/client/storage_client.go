@@ -131,8 +131,8 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
-	var bucket string
-	setBucketAndObjectBasedOnTypeOfMount(&bucket, &objectName)
+	var bucket, obj string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &obj)
 
 	// Get handle to the object
 	object := client.Bucket(bucket).Object(objectName)
