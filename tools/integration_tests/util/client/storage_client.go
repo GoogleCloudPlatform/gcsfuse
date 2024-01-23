@@ -146,7 +146,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string, bucketName string) error {
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
-	objectItr := client.Bucket(bucketName).Objects(ctx, query)
+	objectItr := client.Bucket(setup.TestBucket()).Objects(ctx, query)
 
 	// Iterate through objects with the specified prefix and delete them
 	for {

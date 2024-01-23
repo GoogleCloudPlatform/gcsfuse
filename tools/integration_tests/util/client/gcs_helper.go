@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -139,6 +140,7 @@ func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, test
 	if setup.DynamicBucketMounted() != "" {
 		bucketName = setup.DynamicBucketMounted()
 	}
+	fmt.Println("bucketName: ",bucketName)
 	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName),bucketName)
 	if err != nil {
 		log.Printf("Failed to clean up test directory: %v", err)
