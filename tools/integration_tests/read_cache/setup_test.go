@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"log"
 	"os"
 	"path"
@@ -72,7 +73,7 @@ var (
 func mountAndSetTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
-
+	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
 func unMountAndDeleteLogs() {
