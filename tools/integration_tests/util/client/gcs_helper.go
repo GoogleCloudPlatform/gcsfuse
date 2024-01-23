@@ -135,7 +135,11 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 
 func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
 	testDirPath := path.Join(setup.MntDir(), testDirName)
-	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName))
+	bucketName := setup.TestBucket()
+	if setup.DynamicBucketMounted() != "" {
+		bucketName = setup.DynamicBucketMounted()
+	}
+	err := DeleteAllObjectsWithPrefix(ctx, storageClient, path.Join(setup.OnlyDirMounted(), testDirName),bucketName)
 	if err != nil {
 		log.Printf("Failed to clean up test directory: %v", err)
 	}
