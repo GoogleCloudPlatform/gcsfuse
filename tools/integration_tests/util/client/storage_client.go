@@ -146,6 +146,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
 	var bucket, object string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	fmt.Printf("Bucket Name: ",bucket)
 
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}

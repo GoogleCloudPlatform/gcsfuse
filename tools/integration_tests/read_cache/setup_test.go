@@ -26,8 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -74,7 +72,7 @@ var (
 func mountAndSetTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
+
 }
 
 func unMountAndDeleteLogs() {
