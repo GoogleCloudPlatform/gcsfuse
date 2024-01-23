@@ -393,7 +393,7 @@ func (t *DirTest) LookUpChild_SymlinkAndDir() {
 	AssertEq(nil, err)
 	AssertNe(nil, result.Object)
 
-	// the following check should have been for metadata.SymlinkType,
+	// The following check should have been for metadata.SymlinkType,
 	// because of the t.setSymlinkTarget call above, but it is not.
 	// This is so because the above symlink is
 	// created as a regular directory object on GCS,

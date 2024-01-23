@@ -108,9 +108,6 @@ type typeCache struct {
 // If either of TTL or sizeInMB is zero, nothing is ever cached.
 func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
 	if ttl > 0 && sizeInMB != 0 {
-		if sizeInMB < -1 {
-			panic(fmt.Sprintf("Invalid valid of type-cache-max-size-mb: %v", sizeInMB))
-		}
 		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1
 		if sizeInMB > 0 {
 			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
