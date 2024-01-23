@@ -62,7 +62,7 @@ func RunScriptForTestData(args ...string) {
 	cmd := exec.Command("/bin/bash", args...)
 	out, err := cmd.Output()
 	if err != nil {
-		log.Printf("Error: %s",out)
+		log.Printf("Error: %s", out)
 		panic(err)
 	}
 }
