@@ -97,7 +97,7 @@ To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inode
 
 The behavior of type cache is controlled by the following flags/config parameters:
 
-**Type-cache TTL**: It controls the duration for which Cloud Storage FUSE allows the kernel to inode type attributes. It can be set in one of the following two ways.
+**Type-cache TTL**: It controls the duration for which Cloud Storage FUSE caches an inode's type attribute. It can be set in one of the following two ways.
 * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
 * ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
 
