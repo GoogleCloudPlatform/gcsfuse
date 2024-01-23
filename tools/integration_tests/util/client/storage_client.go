@@ -33,7 +33,6 @@ func separateBucketAndObjectName(bucket, object *string) {
 	*object = path.Join(bucketAndObjectPath[1], *object)
 }
 
-// only dir - > onlydir/testdir/objn
 func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	*bucket = setup.TestBucket()
 	if strings.Contains(setup.TestBucket(), "/") {
@@ -49,7 +48,6 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 		if strings.HasSuffix(*object, "/") {
 			suffix = "/"
 		}
-		// test/obj
 		*object = path.Join(setup.OnlyDirMounted(), *object) + suffix
 	}
 }
