@@ -71,16 +71,10 @@ var (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func mountAndSetTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
+func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
-}
-
-func unMountAndDeleteLogs() {
-	// unmount gcsfuse
-	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
 }
 
 func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {

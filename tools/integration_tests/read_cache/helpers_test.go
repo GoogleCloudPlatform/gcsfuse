@@ -140,6 +140,7 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 }
 
 func unmountGCSFuseAndDeleteLogFile() {
+	setup.SetMntDir(rootDir)
 	if setup.MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := setup.UnMount()
@@ -158,9 +159,8 @@ func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
 
-	// Adding sleep of 2s for the file system to complete the deletion of cached files process and update
-	// its file records.
-	// Todo: This is a known issue b/317437499. We will remove this sleep after this gets resolved.
+	// Adding sleep of 2s for the file system to complete the deletion of cached files.
+	// Todo: Remove sleep after b/317437499 is resolved.
 	time.Sleep(2 * time.Second)
 	validateCacheSizeWithinLimit(0, t)
 

@@ -130,12 +130,12 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
-func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string, bucketName string) error {
+func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &objectName)
 
 	// Get handle to the object
-	object := client.Bucket(bucketName).Object(objectName)
+	object := client.Bucket(bucket).Object(objectName)
 
 	// Delete the object
 	err := object.Delete(ctx)
@@ -159,7 +159,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
-		if err := DeleteObjectOnGCS(ctx, client, attrs.Name, bucket); err != nil {
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
 			return err
 		}
 	}

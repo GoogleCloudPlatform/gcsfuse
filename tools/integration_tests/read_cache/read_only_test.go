@@ -37,11 +37,11 @@ type readOnlyTest struct {
 }
 
 func (s *readOnlyTest) Setup(t *testing.T) {
-	mountAndSetTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
-	unMountAndDeleteLogs()
+	unmountGCSFuseAndDeleteLogFile()
 }
 
 ////////////////////////////////////////////////////////////////////////

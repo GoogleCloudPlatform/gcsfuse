@@ -40,11 +40,11 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
-	mountAndSetTestDir(s.flags, s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	unMountAndDeleteLogs()
+	unmountGCSFuseAndDeleteLogFile()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -97,23 +97,25 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
-	// Reading file1 of bucket1 1st time.
+	// Reading files in different buckets.
 	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
-	// Reading file1 of bucket2 1st time.
 	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
-	// Reading file 2nd time of bucket1.
+	// Reading files in different buckets again.
 	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
-	// Reading file 2nd time of bucket2.
 	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
-	// Parsing the log file and validate cache hit or miss from the structured logs.
+	// Reading same files in different buckets again without remount.
+	expectedOutcome5 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome6 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
 	validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
 	validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
+	validate(expectedOutcome5, structuredReadLogs2[2], true, true, chunksRead, t)
+	validate(expectedOutcome6, structuredReadLogs2[3], true, true, chunksRead, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
