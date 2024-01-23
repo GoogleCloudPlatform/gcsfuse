@@ -15,6 +15,7 @@
 
 PYTORCH_VESRION=$1
 NUM_EPOCHS=80
+TEST_BUCKET="gcsfuse-ml-data"
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.5.linux-amd64.tar.gz -q
@@ -29,6 +30,12 @@ cd -
 
 # Create a directory for gcsfuse logs
 mkdir  run_artifacts/gcsfuse_logs
+
+# We have created a bucket in the asia-northeast1 region to align with the location of our PyTorch 2.0 VM, which is also in asia-northeast1.
+if [ ${PYTORCH_VESRION} == "v2" ];
+then
+  TEST_BUCKET="gcsfuse-ml-data-asia-northeast1"
+fi
 
 echo "Mounting GCSFuse..."
 echo "logging:
@@ -47,7 +54,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --implicit-dirs \
         --max-conns-per-host=100 \
         --config-file /tmp/gcsfuse_config.yaml \
-       gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
+      $TEST_BUCKET gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
 echo "Updating the pytorch library code to bypass the kernel-cache..."
