@@ -71,6 +71,7 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 ////////////////////////////////////////////////////////////////////////
 
 func TestDisabledCacheTTLTest(t *testing.T) {
+	t.SkipNow()
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},

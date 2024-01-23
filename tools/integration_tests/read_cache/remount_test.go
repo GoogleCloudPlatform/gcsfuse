@@ -53,10 +53,10 @@ func (s *remountTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func setupReadAndValidateForRemountingDifferentBuckets(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, t *testing.T) (expectedOutcome *Expected) {
-	setup.SetTestBucket(bucketName)
-	setup.SetMntDir(path.Join(rootDir, bucketName))
-	testDirPath = path.Join(setup.MntDir(), testDirName)
+	setup.SetDynamicBucketMounted(bucketName)
+	testDirPath = path.Join(rootDir, bucketName, testDirName)
 	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, t)
+	setup.SetDynamicBucketMounted("")
 
 	return expectedOutcome
 }
@@ -93,13 +93,10 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
-	// Adding Introducing a sleep of 7 seconds after bucket creation is often related
-	// to addressing eventual consistency and propagation delays in cloud storage systems or distributed setups.
-	time.Sleep(7 * time.Second)
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
-	setup.SetMntDir(path.Join(rootDir, testBucket2))
-	setup.SetTestBucket(testBucket2)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	setup.SetDynamicBucketMounted(testBucket2)
+	time.Sleep(7 * time.Second)
+	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Reading file1 of bucket1 1st time.
@@ -114,8 +111,6 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	expectedOutcome4 := setupReadAndValidateForRemountingDifferentBuckets(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	// Parsing the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	// Set testBucket back to original one.
-	setup.SetTestBucket(testBucket1)
 
 	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
 	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
