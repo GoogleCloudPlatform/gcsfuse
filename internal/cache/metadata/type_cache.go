@@ -68,6 +68,9 @@ type cacheEntry struct {
 	inodeType Type
 }
 
+// Size returns the size of cacheEntry, which is a fixed 32-byte
+// for each entry (including negative ones). This size is specific
+// to 64-bit linux machines, and might differ on other platforms.
 func (ce cacheEntry) Size() uint64 {
 	return uint64(unsafe.Sizeof(ce))
 }
@@ -94,8 +97,6 @@ type typeCache struct {
 	/////////////////////////
 
 	// A cache mapping names to the cache entry.
-	// Each cache entry (including negative ones) is a fixed 32-byte in size (especially for 64-bit linux machines, may differ on other platforms).
-	//
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
 	entries *lru.Cache
