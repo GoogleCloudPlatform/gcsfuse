@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -212,7 +211,6 @@ func (t *FlagTest) TestStatCacheMaxSizeInMiBs() {
 			expectedStatCacheMaxSizeInMiBs:    4, // 4 MiB = MiB-ceiling (10k entries * 320 /entry)
 		},
 	} {
-		logger.Infof("input: %+v", input)
 		statCacheMaxSizeInMiBs, err := StatCacheMaxSizeInMiBs(input.mountConfigStatCacheMaxSizeInMiBs, input.flagStatCacheCapacity)
 		AssertEq(nil, err)
 		AssertEq(input.expectedStatCacheMaxSizeInMiBs, statCacheMaxSizeInMiBs)
