@@ -241,8 +241,9 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryExists(t *testing.T) {
 	os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
 
+	ExpectEq(nil, err)
 	ExpectTrue(hasPermissions)
 }
 
@@ -251,8 +252,9 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryCanBeCreated(t *testing
 	dirPath := base + "/" + "path/cachedir"
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
 
+	ExpectEq(nil, err)
 	ExpectTrue(hasPermissions)
 }
 
@@ -263,9 +265,12 @@ func TestCheckPermissionsForShouldReturnFalseWhenDirectoryDoesNotHavePermissions
 	os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(base)
 
-	hasPermissions := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
 
 	ExpectFalse(hasPermissions)
+	ExpectNe(nil, err)
+	ExpectEq("error in creating directory structure "+base+
+		"/path/cachedir: mkdir "+base+"/path: permission denied", err.Error())
 }
 
 func generateRandomString() string {

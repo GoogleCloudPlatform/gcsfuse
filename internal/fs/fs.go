@@ -246,6 +246,10 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 
 	// When user passes allow_other flag, then other users should be able to
 	// read from cache
+	isPermissible, err := util.CheckCacheDirectoryPermissions(cacheLocation)
+	if !isPermissible {
+		panic(fmt.Sprintf("Cache Location Error: %v", err.Error()))
+	}
 	filePerm := util.DefaultFilePerm
 	if cfg.AllowOther {
 		filePerm = util.FilePermWithAllowOther
