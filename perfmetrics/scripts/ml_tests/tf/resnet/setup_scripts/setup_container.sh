@@ -15,17 +15,31 @@ cd gcsfuse
 CGO_ENABLED=0 go build .
 cd -
 
+mkdir /pytorch_dino/cache
+
+config_filename=/tmp/gcsfuse-config.yaml
+
+cat > $config_filename << EOF
+write:
+  create-empty-file: true
+logging:
+    file-path: /home/logs/gcsfuse.log
+    format: text
+    severity: trace
+    log-rotate:
+      max-file-size-mb: 1024
+      backup-file-count: 3
+      compress: true
+cache-location: /tmp/cache
+file-cache:
+  max-size-in-mb: 409600
+  cache-file-for-range-read: true
+metadata-cache:
+  ttl-secs: 648000
+EOF
+
 # Mount the bucket and run in background so that docker doesn't keep running after resnet_runner.py fails
 echo "Mounting the bucket"
-echo "logging:
-        file-path: /home/logs/gcsfuse.log
-        format: text
-        severity: trace
-        log-rotate:
-          max-file-size-mb: 1024
-          backup-file-count: 3
-          compress: true
-       " > /tmp/gcsfuse_config.yaml
 nohup gcsfuse/gcsfuse --foreground \
       --implicit-dirs \
       --max-conns-per-host 100 \

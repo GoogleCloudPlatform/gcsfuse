@@ -3,9 +3,9 @@
 # This will stop execution when any command will have non-zero status.
 set -e
 
-VM_NAME="tf-resnet-7d"
+VM_NAME="tf-resnet-read-cache-release"
 ZONE_NAME="us-west1-b"
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/read_cache_release/resnet"
 TEST_SCRIPT_PATH="github/gcsfuse/perfmetrics/scripts/ml_tests/tf/resnet/setup_host_and_run_model.sh"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse/perfmetrics/scripts/continuous_test/ml_tests/"
