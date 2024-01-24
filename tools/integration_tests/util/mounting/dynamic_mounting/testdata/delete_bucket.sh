@@ -15,4 +15,4 @@
 
 BUCKET_NAME=$1
 
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
+echo $(gcloud alpha storage rm --recursive gs://$BUCKET_NAME/)
