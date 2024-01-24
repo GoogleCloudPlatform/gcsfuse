@@ -19,8 +19,7 @@ set -e
 cd "$HOME/github/gcsfuse/perfmetrics/scripts"
 
 echo "Setting up the machine with Docker and Nvidia Driver"
-# Driver version for L4 GPUs is 525.60.13
-DRIVER_VERSION="525.60.13"
+DRIVER_VERSION="520.61.05"
 source ml_tests/setup_host.sh $DRIVER_VERSION
 
 PYTORCH_VERSION="v2"
