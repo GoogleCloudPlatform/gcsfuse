@@ -55,7 +55,7 @@ func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx conte
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
 	testDirPath = path.Join(rootDir, bucketName, testDirName)
-	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, t)
+	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, true, chunkSizeToRead, offset, t)
 
 	return expectedOutcome
 }
