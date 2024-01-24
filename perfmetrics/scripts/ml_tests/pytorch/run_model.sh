@@ -15,6 +15,7 @@
 
 PYTORCH_VESRION=$1
 NUM_EPOCHS=80
+TEST_BUCKET="gcsfuse-ml-data"
 
 # Install golang
 wget -O go_tar.tar.gz https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -q
@@ -29,6 +30,12 @@ cd -
 
 # Create a directory for gcsfuse logs
 mkdir  run_artifacts/gcsfuse_logs
+
+# We have created a bucket in the asia-northeast1 region to align with the location of our PyTorch 2.0 VM, which is also in asia-northeast1.
+if [ ${PYTORCH_VESRION} == "v2" ];
+then
+  TEST_BUCKET="gcsfuse-ml-data-asia-northeast1"
+fi
 
 echo "Mounting GCSFuse..."
 echo "logging:
@@ -47,7 +54,7 @@ nohup /pytorch_dino/gcsfuse/gcsfuse --foreground --type-cache-ttl=1728000s \
         --implicit-dirs \
         --max-conns-per-host=100 \
         --config-file /tmp/gcsfuse_config.yaml \
-       gcsfuse-ml-data gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
+      $TEST_BUCKET gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache
 echo "Updating the pytorch library code to bypass the kernel-cache..."
@@ -76,13 +83,8 @@ python -c 'import torch;torch.hub.list("facebookresearch/xcit:main")'
 # (TulsiShah) TODO: Pytorch 2.0 compile mode has issues (https://github.com/pytorch/pytorch/issues/94599),
 # which is fixed in pytorch version 2.1.0 (https://github.com/pytorch/pytorch/pull/100071).
 # We'll remove this workaround once we update our Docker image to use Pytorch 2.1.0 or greater version.
-# Reducing the epochs as pytorch2 long haul tests are running on NVIDIA L4 machines, which lack the powerful GPU of
-# the NVIDIA A100. So it is taking longer time to complete the training. We will set it back to 80 when the NVIDIA A100 GPU machine
-# will be available.
 if [ ${PYTORCH_VESRION} == "v2" ];
 then
-  NUM_EPOCHS=36
-
   allowed_functions_file="/opt/conda/lib/python3.10/site-packages/torch/_dynamo/allowed_functions.py"
   # Update the pytorch library code to bypass the kernel-cache
   echo "Updating the pytorch library code to Disallow_in_graph distributed API.."
