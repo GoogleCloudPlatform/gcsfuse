@@ -87,7 +87,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 			Multiplier: clientConfig.RetryMultiplier,
 		}),
 		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(storageutil.ShouldRetry))
+		storage.WithErrorFunc(storage.ShouldRetry))
 
 	sh = &storageClient{client: sc}
 	return
