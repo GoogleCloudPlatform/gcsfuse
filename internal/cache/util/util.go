@@ -16,11 +16,12 @@ package util
 
 import (
 	"fmt"
-	"github.com/jacobsa/fuse/fsutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/jacobsa/fuse/fsutil"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 )

@@ -17,9 +17,6 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	. "github.com/jacobsa/ogletest"
 	"math/rand"
 	"os"
 	"path"
@@ -28,6 +25,10 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	. "github.com/jacobsa/ogletest"
 )
 
 func TestUtil(t *testing.T) { RunTests(t) }
@@ -238,11 +239,12 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 func TestCheckPermissionsForShouldReturnTrueWhenDirectoryExists(t *testing.T) {
 	base := "./" + generateRandomString()
 	dirPath := base + "/" + "path/cachedir"
-	os.MkdirAll(dirPath, 0700)
+	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
 
 	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
 
+	ExpectEq(nil, dirCreationErr)
 	ExpectEq(nil, err)
 	ExpectTrue(hasPermissions)
 }
@@ -258,19 +260,17 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryCanBeCreated(t *testing
 	ExpectTrue(hasPermissions)
 }
 
-func TestCheckPermissionsForShouldReturnFalseWhenDirectoryDoesNotHavePermissions(t *testing.T) {
-	base := "./" + generateRandomString()
-	dirPath := base + "/" + "path/cachedir"
-	//to stat ex permission is needed
-	os.MkdirAll(dirPath, 0444)
-	defer os.RemoveAll(base)
+func TestCheckPermissionsForShouldReturnFalseWithErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
+	dirPath := "./" + generateRandomString()
+	dirCreationErr := os.MkdirAll(dirPath, 0444)
+	defer os.RemoveAll(dirPath)
 
 	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
 
+	ExpectEq(nil, dirCreationErr)
 	ExpectFalse(hasPermissions)
 	ExpectNe(nil, err)
-	ExpectEq("error in creating directory structure "+base+
-		"/path/cachedir: mkdir "+base+"/path: permission denied", err.Error())
+	ExpectTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+"), error"))
 }
 
 func generateRandomString() string {
