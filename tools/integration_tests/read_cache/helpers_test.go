@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -59,7 +60,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, t *
 			t.Errorf("Failed to read file sequentially: %v", err)
 		}
 	} else {
-		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, randomReadOffset)
+		content, err = operations.ReadChunkFromFile(path.Join(testDirPath, fileName), chunkSizeToRead, randomReadOffset, os.O_RDONLY|syscall.O_DIRECT)
 		if err != nil {
 			t.Errorf("Failed to read random file chunk: %v", err)
 		}
