@@ -50,8 +50,7 @@ func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	// Do a random read on file.
 	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForFirstRangeRead, t)
@@ -82,7 +81,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2"))
+		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName))
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
