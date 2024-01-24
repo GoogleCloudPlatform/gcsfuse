@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/storage v1.34.1
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.40.3
 	github.com/googleapis/gax-go/v2 v2.12.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
@@ -56,6 +56,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
+	github.com/prometheus/prometheus v0.35.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1 // indirect
@@ -70,7 +71,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240116215550-a9fa1716bcac // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 // Retracted un-release version
