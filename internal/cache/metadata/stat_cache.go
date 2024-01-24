@@ -17,8 +17,6 @@ package metadata
 import (
 	"time"
 
-	unsafe "unsafe"
-
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 )
@@ -84,11 +82,11 @@ type entry struct {
 }
 
 func (e entry) Size() uint64 {
-	return uint64(unsafe.Sizeof(gcs.Object{}) + unsafe.Sizeof(entry{}))
+	return 1
 }
 
 func StatCacheEntrySize() uint64 {
-	return entry{}.Size()
+	return 1
 }
 
 // Should the supplied object for a new positive entry replace the given
