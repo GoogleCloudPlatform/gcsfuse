@@ -18,7 +18,6 @@ require (
 	github.com/jacobsa/reqtrace v0.0.0-20150505043853-245c9e0234cb
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
-	github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/urfave/cli v1.22.14
 	go.opencensus.io v0.24.0
@@ -41,7 +40,7 @@ require (
 	cloud.google.com/go/pubsub v1.33.0 // indirect
 	cloud.google.com/go/trace v1.10.4 // indirect
 	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5 // indirect
-	github.com/aws/aws-sdk-go v1.44.217 // indirect
+	github.com/aws/aws-sdk-go v1.50.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
