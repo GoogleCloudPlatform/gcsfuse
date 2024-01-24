@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,10 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, t *
 		BucketName:            setup.TestBucket(),
 		ObjectName:            path.Join(testDirName, fileName),
 	}
+	if setup.DynamicBucketMounted() != "" {
+		expected.BucketName = setup.DynamicBucketMounted()
+	}
+
 	var content []byte
 	var err error
 
@@ -94,7 +99,11 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry,
 }
 
 func getCachedFilePath(fileName string) string {
-	return path.Join(cacheLocationPath, cacheSubDirectoryName, setup.TestBucket(), testDirName, fileName)
+	bucketName := setup.TestBucket()
+	if setup.DynamicBucketMounted() != "" {
+		bucketName = setup.DynamicBucketMounted()
+	}
+	return path.Join(cacheLocationPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
@@ -131,6 +140,7 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 }
 
 func unmountGCSFuseAndDeleteLogFile() {
+	setup.SetMntDir(rootDir)
 	if setup.MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := setup.UnMount()
@@ -148,17 +158,14 @@ func unmountGCSFuseAndDeleteLogFile() {
 func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
+
+	// Adding sleep of 2s for the file system to complete the deletion of cached files.
+	// Todo: Remove sleep after b/317437499 is resolved.
+	time.Sleep(2 * time.Second)
+	validateCacheSizeWithinLimit(0, t)
+
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
-
-	cacheSize, err := operations.DirSize(cacheLocationPath)
-	if err != nil {
-		t.Errorf("Error in getting cache size: %v", cacheSize)
-	}
-	if cacheSize != 0 {
-		t.Errorf("cache directory %s not empty after unmount. Size: %d",
-			cacheLocationPath, cacheSize)
-	}
 }
 
 func mountGCSFuse(flags []string) {
@@ -229,11 +236,25 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	cacheSize, err := operations.DirSize(cacheLocationPath)
+	cacheSize, err := operations.DirSizeMiB(cacheLocationPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}
 	if cacheSize > cacheCapacity {
 		t.Errorf("CacheSize %d is more than cache capacity %d ", cacheSize, cacheCapacity)
+	}
+}
+
+func setupFileInTestDir(ctx context.Context, storageClient *storage.Client, testDirName string, fileSize int64, t *testing.T) (fileName string) {
+	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
+	client.SetupFileInTestDirectory(ctx, storageClient, testDirName, testFileName, fileSize, t)
+
+	return testFileName
+}
+
+func runTestsOnlyForDynamicMount(t *testing.T) {
+	if !strings.Contains(setup.MntDir(), setup.TestBucket()) {
+		log.Println("This test will run only for dynamic mounting...")
+		t.SkipNow()
 	}
 }

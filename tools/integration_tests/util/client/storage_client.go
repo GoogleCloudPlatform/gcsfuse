@@ -179,8 +179,11 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
+	var bucket, obj string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &obj)
+
 	// Get handle to the object
-	object := client.Bucket(setup.TestBucket()).Object(objectName)
+	object := client.Bucket(bucket).Object(objectName)
 
 	// Delete the object
 	err := object.Delete(ctx)
@@ -191,9 +194,12 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 }
 
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
+	var bucket, object string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
-	objectItr := client.Bucket(setup.TestBucket()).Objects(ctx, query)
+	objectItr := client.Bucket(bucket).Objects(ctx, query)
 
 	// Iterate through objects with the specified prefix and delete them
 	for {

@@ -16,11 +16,15 @@ package read_cache
 
 import (
 	"context"
+	"log"
+	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
@@ -36,15 +40,24 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-	testDirPath = client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *remountTest) Teardown(t *testing.T) {
-	// unmount gcsfuse
-	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx context.Context, storageClient *storage.Client, fileName string, t *testing.T) (expectedOutcome *Expected) {
+	setup.SetDynamicBucketMounted(bucketName)
+	defer setup.SetDynamicBucketMounted("")
+	testDirPath = path.Join(rootDir, bucketName, testDirName)
+	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, t)
+
+	return expectedOutcome
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -52,8 +65,7 @@ func (s *remountTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
-	testFileName := testFileName + setup.GenerateRandomString(testFileNameSuffixLength)
-	client.SetupFileInTestDirectory(s.ctx, s.storageClient, testDirName, testFileName, fileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
@@ -70,6 +82,40 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogsMount1[1], true, true, chunksRead, t)
 	validate(expectedOutcome3, structuredReadLogsMount2[0], true, false, chunksRead, t)
 	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
+}
+
+func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
+	runTestsOnlyForDynamicMount(t)
+	testBucket1 := setup.TestBucket()
+	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+	testBucket2 := dynamic_mounting.CreateTestBucketForDynamicMounting()
+	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(testBucket2)
+	setup.SetDynamicBucketMounted(testBucket2)
+	defer setup.SetDynamicBucketMounted("")
+	// Introducing a sleep of 7 seconds after bucket creation to address propagation delays.
+	time.Sleep(7 * time.Second)
+	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
+	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+
+	// Reading files in different buckets.
+	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	// Reading files in different buckets again.
+	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	// Reading same files in different buckets again without remount.
+	expectedOutcome5 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
+	expectedOutcome6 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
+	structuredReadLogs2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+
+	validate(expectedOutcome1, structuredReadLogs1[0], true, false, chunksRead, t)
+	validate(expectedOutcome2, structuredReadLogs1[1], true, false, chunksRead, t)
+	validate(expectedOutcome3, structuredReadLogs2[0], true, false, chunksRead, t)
+	validate(expectedOutcome4, structuredReadLogs2[1], true, false, chunksRead, t)
+	validate(expectedOutcome5, structuredReadLogs2[2], true, true, chunksRead, t)
+	validate(expectedOutcome6, structuredReadLogs2[3], true, true, chunksRead, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -97,7 +143,7 @@ func TestRemountTest(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
-		t.Logf("Running tests with flags: %s", ts.flags)
+		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
