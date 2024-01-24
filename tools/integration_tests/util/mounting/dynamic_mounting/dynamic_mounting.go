@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/compute/metadata"
+
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -94,9 +95,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	return
 }
 
-func RunTests(flags [][]string, m *testing.M) (successCode int) {
-	log.Println("Running dynamic mounting tests...")
-
+func CreateTestBucketForDynamicMounting() (bucketName string) {
 	project_id, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
@@ -105,12 +104,24 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
 
+	return testBucketForDynamicMounting
+}
+
+func DeleteTestBucketForDynamicMounting(bucketName string) {
+	// Deleting bucket after testing.
+	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", bucketName)
+}
+
+func RunTests(flags [][]string, m *testing.M) (successCode int) {
+	log.Println("Running dynamic mounting tests...")
+
+	CreateTestBucketForDynamicMounting()
+
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	// Deleting bucket after testing.
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", testBucketForDynamicMounting)
+	DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
 
 	return successCode
 }
