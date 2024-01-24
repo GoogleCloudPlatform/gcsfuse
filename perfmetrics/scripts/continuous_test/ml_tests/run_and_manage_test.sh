@@ -29,8 +29,6 @@ ARTIFACTS_BUCKET_PATH=$3
 TEST_SCRIPT_PATH=$4
 # pytorch version
 PYTORCH_VERSION=$5
-MACHINE_TYPE="a2-highgpu-2g"
-ACCELERATOR="count=2,type=nvidia-tesla-a100"
 RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-2gpus"
 
 function initialize_ssh_key () {
@@ -64,9 +62,7 @@ function delete_existing_vm_and_create_new () {
   # Create NVIDIA L4 machines which are available on us-west1-1 zone.
   if [ $PYTORCH_VERSION == "v2" ];
   then
-    MACHINE_TYPE="g2-standard-24"
-    ACCELERATOR="count=2,type=nvidia-l4"
-    RESERVATION="projects/$GCP_PROJECT/reservations/pytorch2-ai-ml-tests"
+    RESERVATION="projects/$GCP_PROJECT/reservations/ai-ml-tests-pytorch2-2gpu"
   fi
 
   echo "Creating VM $VM_NAME in zone $ZONE_NAME"
@@ -74,14 +70,14 @@ function delete_existing_vm_and_create_new () {
   sudo gcloud compute instances create $VM_NAME \
           --project=$GCP_PROJECT\
           --zone=$ZONE_NAME \
-          --machine-type=$MACHINE_TYPE \
+          --machine-type=a2-highgpu-2g\
           --network-interface=network-tier=PREMIUM,nic-type=GVNIC,stack-type=IPV4_ONLY,subnet=default \
           --metadata=enable-osconfig=TRUE,enable-oslogin=true \
           --maintenance-policy=TERMINATE \
           --provisioning-model=STANDARD \
           --service-account=927584127901-compute@developer.gserviceaccount.com \
           --scopes=https://www.googleapis.com/auth/cloud-platform \
-          --accelerator=$ACCELERATOR \
+          --accelerator=count=2,type=nvidia-tesla-a100 \
           --create-disk=auto-delete=yes,boot=yes,device-name=$VM_NAME,image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20231213,mode=rw,size=150,type=projects/$GCP_PROJECT/zones/$ZONE_NAME/diskTypes/pd-balanced \
           --no-shielded-secure-boot \
           --shielded-vtpm \
