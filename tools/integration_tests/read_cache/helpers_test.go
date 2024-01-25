@@ -216,7 +216,7 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, offset, t)
 	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
+	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, testFileName, offsetForFirstRangeRead, chunkSizeToRead,
 		expectedOutcome.content, t)
 
 	return expectedOutcome
