@@ -50,7 +50,7 @@ func (s *readOnlyTest) Teardown(t *testing.T) {
 
 func readMultipleFiles(numFiles int, ctx context.Context, storageClient *storage.Client, fileNames []string, fileSize int64, t *testing.T) (expectedOutcome []*Expected) {
 	for i := 0; i < numFiles; i++ {
-		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, true, t))
+		expectedOutcome = append(expectedOutcome, readFileAndValidateCacheWithGCS(ctx, storageClient, fileNames[i], fileSize, t))
 	}
 	return expectedOutcome
 }
@@ -71,9 +71,9 @@ func (s *readOnlyTest) TestSecondSequentialReadIsCacheHit(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

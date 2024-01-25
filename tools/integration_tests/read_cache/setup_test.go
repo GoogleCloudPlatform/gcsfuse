@@ -57,7 +57,6 @@ const (
 	offset                          = 0
 	randomReadOffset                = 9 * util.MiB
 	configFileName                  = "config"
-	chunkSizeForRangeRead           = 1000
 	offsetForFirstRangeRead         = 5000
 	offsetForSecondRangeRead        = 1000
 )
