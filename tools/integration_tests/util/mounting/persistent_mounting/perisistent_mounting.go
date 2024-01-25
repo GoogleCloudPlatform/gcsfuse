@@ -76,7 +76,7 @@ func executeTestsForPersistentMounting(flags [][]string, m *testing.M) (successC
 		if err = mountGcsfuseWithPersistentMounting(flags[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
-		setup.ExecuteTestForFlagsSet(flags[i], m)
+		successCode = setup.ExecuteTestForFlagsSet(flags[i], m)
 	}
 	return
 }
