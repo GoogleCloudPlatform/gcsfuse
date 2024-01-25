@@ -247,7 +247,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	//Panic in case cacheLocation does not have required permissions
 	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation)
 	if cacheLocationErr != nil {
-		panic(fmt.Sprintf("Cache Location Error: %v", cacheLocationErr.Error()))
+		panic(fmt.Sprintf("error while creating file cache directory: %v", cacheLocationErr.Error()))
 	}
 
 	// When user passes allow_other flag, then other users should be able to
