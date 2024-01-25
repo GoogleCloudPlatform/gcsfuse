@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 	"os"
@@ -235,7 +235,7 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 }
 
 func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
-	base := "./" + string(util.GenerateRandomBytes(4))
+	base := "./" + string(testutil.GenerateRandomBytes(4))
 	dirPath := base + "/" + "path/cachedir"
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
@@ -247,7 +247,7 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testin
 }
 
 func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
-	base := "./" + string(util.GenerateRandomBytes(4))
+	base := "./" + string(testutil.GenerateRandomBytes(4))
 	dirPath := base + "/" + "path/cachedir"
 	defer os.RemoveAll(base)
 
@@ -257,7 +257,7 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *
 }
 
 func TestCheckPermissionsForShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
-	dirPath := "./" + string(util.GenerateRandomBytes(4))
+	dirPath := "./" + string(testutil.GenerateRandomBytes(4))
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(dirPath)
 
