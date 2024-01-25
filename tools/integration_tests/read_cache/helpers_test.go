@@ -223,7 +223,7 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 }
 
 func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
-	filename string, isSeq bool, chunkSizeToRead int64, offset int64, t *testing.T) (expectedOutcome *Expected) {
+	filename string, isSeq bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, offset, t)
 	// Validate that the file is not cached.
