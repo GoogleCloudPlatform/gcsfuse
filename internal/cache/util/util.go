@@ -102,24 +102,24 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-func IsCacheDirectoryWriteable(dirPath string) (bool, error) {
+func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	_, statErr := os.Stat(dirPath)
 
 	if statErr != nil {
 		err := os.MkdirAll(dirPath, FileDirPerm)
 		if err != nil {
-			return false, fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
+			return fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
 		}
-		return true, nil
+		return nil
 	}
 
 	f, err := fsutil.AnonymousFile(dirPath)
 	f.Close()
 
 	if err != nil {
-		return false, fmt.Errorf(
+		return fmt.Errorf(
 			"error creating file at directory (%s), error : (%q)", dirPath, err.Error())
 	}
 
-	return true, nil
+	return nil
 }

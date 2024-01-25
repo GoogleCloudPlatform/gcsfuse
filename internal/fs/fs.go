@@ -245,9 +245,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	cacheLocation = path.Join(cacheLocation, util.FileCache)
 
 	//Panic in case cacheLocation does not have required permissions
-	isPermissible, err := util.IsCacheDirectoryWriteable(cacheLocation)
-	if !isPermissible {
-		panic(fmt.Sprintf("Cache Location Error: %v", err.Error()))
+	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation)
+	if cacheLocationErr != nil {
+		panic(fmt.Sprintf("Cache Location Error: %v", cacheLocationErr.Error()))
 	}
 
 	// When user passes allow_other flag, then other users should be able to
