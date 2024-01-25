@@ -16,13 +16,13 @@ package read_cache
 
 import (
 	"context"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
@@ -52,18 +52,12 @@ func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
 func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
-	// Do a random read on file.
-	expectedOutcome1 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForFirstRangeRead, t)
-	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForFirstRangeRead, chunkSizeForRangeRead,
-		expectedOutcome1.content, t)
+	// Do a random read on file and validate from gcs.
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, false, offsetForFirstRangeRead, t)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
 	time.Sleep(3 * time.Second)
-	// Read file again from offset 1000.
-	expectedOutcome2 := readFileAndGetExpectedOutcome(testDirPath, testFileName, false, chunkSizeForRangeRead, offsetForSecondRangeRead, t)
-	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectChunkFromGCS(s.ctx, s.storageClient, testDirName, testFileName, offsetForSecondRangeRead, chunkSizeForRangeRead,
-		expectedOutcome2.content, t)
+	// Read file again from offset 1000 and validate from gcs.
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, false, offsetForSecondRangeRead, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
@@ -92,7 +86,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
-		t.Logf("Running tests with flags: %s", ts.flags)
+		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
 }
