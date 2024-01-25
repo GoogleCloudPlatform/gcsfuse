@@ -12,6 +12,7 @@ export PATH=$PATH:/usr/local/go/bin
 # Clone the repo and build gcsfuse
 git clone "https://github.com/GoogleCloudPlatform/gcsfuse.git"
 cd gcsfuse
+git checkout read_cache_release
 CGO_ENABLED=0 go build .
 cd -
 
