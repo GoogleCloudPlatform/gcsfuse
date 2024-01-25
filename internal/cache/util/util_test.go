@@ -242,7 +242,7 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryExists(t *testing.T) {
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
 
-	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := IsCacheDirectoryWriteable(dirPath)
 
 	ExpectEq(nil, dirCreationErr)
 	ExpectEq(nil, err)
@@ -254,7 +254,7 @@ func TestCheckPermissionsForShouldReturnTrueWhenDirectoryCanBeCreated(t *testing
 	dirPath := base + "/" + "path/cachedir"
 	defer os.RemoveAll(base)
 
-	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := IsCacheDirectoryWriteable(dirPath)
 
 	ExpectEq(nil, err)
 	ExpectTrue(hasPermissions)
@@ -265,7 +265,7 @@ func TestCheckPermissionsForShouldReturnFalseWithErrorWhenDirectoryDoesNotHavePe
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(dirPath)
 
-	hasPermissions, err := CheckCacheDirectoryPermissions(dirPath)
+	hasPermissions, err := IsCacheDirectoryWriteable(dirPath)
 
 	ExpectEq(nil, dirCreationErr)
 	ExpectFalse(hasPermissions)

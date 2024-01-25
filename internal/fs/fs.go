@@ -245,7 +245,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	cacheLocation = path.Join(cacheLocation, util.FileCache)
 
 	//Panic in case cacheLocation does not have required permissions
-	isPermissible, err := util.CheckCacheDirectoryPermissions(cacheLocation)
+	isPermissible, err := util.IsCacheDirectoryWriteable(cacheLocation)
 	if !isPermissible {
 		panic(fmt.Sprintf("Cache Location Error: %v", err.Error()))
 	}

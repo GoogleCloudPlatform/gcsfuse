@@ -102,7 +102,7 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-func CheckCacheDirectoryPermissions(dirPath string) (bool, error) {
+func IsCacheDirectoryWriteable(dirPath string) (bool, error) {
 	_, statErr := os.Stat(dirPath)
 
 	if statErr != nil {
