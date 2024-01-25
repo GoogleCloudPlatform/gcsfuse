@@ -55,14 +55,14 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, chunkSizeToRead, offset, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	// Append data in the same file to change object generation.
 	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
 	if err != nil {
 		t.Errorf("Error in appending data in file: %v", err)
 	}
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, chunkSizeToRead, offset, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
