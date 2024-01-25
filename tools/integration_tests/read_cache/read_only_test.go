@@ -87,9 +87,9 @@ func (s *readOnlyTest) TestReadFileSequentiallyLargerThanCacheCapacity(t *testin
 		largeFileName, largeFileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true,  offset, t)
+	expectedOutcome1 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, offset, t)
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true,  offset, t)
+	expectedOutcome2 := readFileAndValidateFileIsNotCached(s.ctx, s.storageClient, largeFileName, true, offset, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
