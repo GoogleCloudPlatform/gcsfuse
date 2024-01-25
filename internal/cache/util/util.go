@@ -105,7 +105,7 @@ func IsCacheHandleInvalid(readErr error) bool {
 func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	_, statErr := os.Stat(dirPath)
 
-	if statErr != nil {
+	if os.IsNotExist(statErr) {
 		err := os.MkdirAll(dirPath, FileDirPerm)
 		if err != nil {
 			return fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
