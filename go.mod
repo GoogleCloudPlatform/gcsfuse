@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/storage v1.34.1
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.40.3
 	github.com/googleapis/gax-go/v2 v2.12.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
@@ -19,7 +19,7 @@ require (
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/jacobsa/util v0.0.0-20150810040848-976a6f4de67e
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli v1.22.14
 	go.opencensus.io v0.24.0
 	golang.org/x/net v0.20.0
 	golang.org/x/oauth2 v0.16.0
@@ -40,22 +40,23 @@ require (
 	cloud.google.com/go/pubsub v1.33.0 // indirect
 	cloud.google.com/go/trace v1.10.4 // indirect
 	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5 // indirect
-	github.com/aws/aws-sdk-go v1.50.0 // indirect
+	github.com/aws/aws-sdk-go v1.50.2 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
-	github.com/google/uuid v1.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
+	github.com/prometheus/prometheus v0.35.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1 // indirect
@@ -70,7 +71,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240116215550-a9fa1716bcac // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 // Retracted un-release version
