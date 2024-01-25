@@ -15,8 +15,6 @@ cd gcsfuse
 CGO_ENABLED=0 go build .
 cd -
 
-mkdir /pytorch_dino/cache
-
 config_filename=/tmp/gcsfuse-config.yaml
 
 cat > $config_filename << EOF
@@ -192,7 +190,7 @@ sed -i "$lines"'d' $train_lib_file
 x=$((x-1))
 sed -i "$x"'r bypassed_code.py' $train_lib_file
 
-ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/resnet"
+ARTIFACTS_BUCKET_PATH="gs://gcsfuse-ml-tests-logs/ci_artifacts/tf/read_cache_release/resnet"
 echo "Update status file"
 echo "RUNNING" > status.txt
 gsutil cp status.txt $ARTIFACTS_BUCKET_PATH/
