@@ -17,18 +17,16 @@ package util
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	. "github.com/jacobsa/ogletest"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"syscall"
 	"testing"
-	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	. "github.com/jacobsa/ogletest"
 )
 
 func TestUtil(t *testing.T) { RunTests(t) }
@@ -237,7 +235,7 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 }
 
 func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
-	base := "./" + generateRandomString()
+	base := "./" + string(util.GenerateRandomBytes(4))
 	dirPath := base + "/" + "path/cachedir"
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
@@ -249,7 +247,7 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testin
 }
 
 func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
-	base := "./" + generateRandomString()
+	base := "./" + string(util.GenerateRandomBytes(4))
 	dirPath := base + "/" + "path/cachedir"
 	defer os.RemoveAll(base)
 
@@ -259,7 +257,7 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *
 }
 
 func TestCheckPermissionsForShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
-	dirPath := "./" + generateRandomString()
+	dirPath := "./" + string(util.GenerateRandomBytes(4))
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(dirPath)
 
@@ -268,14 +266,4 @@ func TestCheckPermissionsForShouldReturnErrorWhenDirectoryDoesNotHavePermissions
 	ExpectEq(nil, dirCreationErr)
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+"), error"))
-}
-
-func generateRandomString() string {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	const letters = "abcdefghijklmnopqrstuvwxyz"
-	b := make([]byte, 4)
-	for i := range b {
-		b[i] = letters[rand.Intn(26)]
-	}
-	return string(b)
 }
