@@ -17,16 +17,17 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	. "github.com/jacobsa/ogletest"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	. "github.com/jacobsa/ogletest"
 )
 
 func TestUtil(t *testing.T) { RunTests(t) }
