@@ -114,11 +114,15 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	}
 
 	f, err := fsutil.AnonymousFile(dirPath)
-	f.Close()
-
 	if err != nil {
 		return fmt.Errorf(
 			"error creating file at directory (%s), error : (%q)", dirPath, err.Error())
+	}
+
+	tempFileErr := f.Close()
+	if tempFileErr != nil {
+		return fmt.Errorf(
+			"error closing annonymous temp file, error : (%q)", tempFileErr.Error())
 	}
 
 	return nil
