@@ -256,7 +256,6 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if cfg.AllowOther {
 		filePerm = util.FilePermWithAllowOther
 	}
-	//TODO : Add file permission here
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
 		cfg.SequentialReadSizeMb)
