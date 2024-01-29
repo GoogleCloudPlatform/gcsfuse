@@ -1051,8 +1051,8 @@ func (t *RandomReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	objectSize := t.object.Size
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	rc1 := getReadCloser(testContent)
-	// First NewReader call will throw error, hence async job will fail.
-	// Later NewReader call returns a valid readCloser object hence fallback to
+	// First NewReader-call throws error, hence async job fails.
+	// Later NewReader-call returns a valid readCloser object hence fallback to
 	// GCS read will succeed.
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(Return(nil, errors.New(""))).WillRepeatedly(Return(rc1, nil))
