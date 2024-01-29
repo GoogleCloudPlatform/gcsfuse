@@ -111,8 +111,6 @@ func (dt *downloaderTest) Test_init() {
 	dt.job.status.Err = fmt.Errorf("some error")
 	dt.job.status.Offset = -1
 	dt.job.subscribers.PushBack(struct{}{})
-	dt.job.cancelCtx = nil
-	dt.job.cancelFunc = nil
 
 	dt.job.init()
 
@@ -120,8 +118,6 @@ func (dt *downloaderTest) Test_init() {
 	AssertEq(nil, dt.job.status.Err)
 	AssertEq(0, dt.job.status.Offset)
 	AssertTrue(reflect.DeepEqual(list.List{}, dt.job.subscribers))
-	AssertNe(nil, dt.job.cancelCtx)
-	AssertNe(nil, dt.job.cancelFunc)
 }
 
 func (dt *downloaderTest) Test_subscribe() {
@@ -292,6 +288,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanSequentialReadSize() 
 	objectSize := 50 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 
 	// start download
 	dt.job.downloadObjectAsync()
@@ -312,6 +309,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_LessThanChunkSize() {
 	objectSize := 2 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, 25, uint64(2*objectSize))
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 
 	// start download
 	dt.job.downloadObjectAsync()
@@ -332,6 +330,7 @@ func (dt *downloaderTest) Test_downloadObjectAsync_Notification() {
 	objectSize := 50 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize))
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	// Add subscriber
 	subscribedOffset := int64(45 * util.MiB)
 	notificationC := dt.job.subscribe(subscribedOffset)
