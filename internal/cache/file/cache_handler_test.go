@@ -305,6 +305,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsObjectHavingF
 	chrT.object.Name = oldObjectName
 
 	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+
 	ExpectEq(nil, err)
 	ExpectEq(nil, newCacheHandle.validateCacheHandle())
 	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
