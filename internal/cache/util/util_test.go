@@ -254,7 +254,10 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryC
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
 
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
+	fileInfo, err := os.Stat(dirPath)
+	AssertEq(nil, err)
+	AssertEq(0755, fileInfo.Mode().Perm())
 }
 
 func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
