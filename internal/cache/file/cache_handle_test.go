@@ -259,7 +259,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FailedFileDownloadJobErrMsg))
 }
 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
@@ -373,7 +373,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
+	ExpectTrue(strings.Contains(err.Error(), util.FailedFileDownloadJobErrMsg))
 }
 
 func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {

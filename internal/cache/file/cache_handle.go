@@ -81,9 +81,10 @@ func (fch *CacheHandle) validateCacheHandle() error {
 // shouldReadFromCache returns nil if the data should be read from the local,
 // downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
-	if jobStatus.Err != nil ||
-		jobStatus.Name == downloader.INVALID ||
-		jobStatus.Name == downloader.FAILED {
+	if jobStatus.Err != nil || jobStatus.Name == downloader.FAILED {
+		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.FailedFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
+		return err
+	} else if jobStatus.Name == downloader.INVALID {
 		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
 		return err
 	} else if jobStatus.Offset < requiredOffset {

@@ -233,6 +233,16 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 	n = 0
 
 	if cacheutil.IsCacheHandleInvalid(err) {
+		// Sort of hack: this is to restart the failed async download job by invalidating
+		// the cache. Next read call will create fresh async job and download the content if needed.
+		if strings.Contains(err.Error(), cacheutil.FailedFileDownloadJobErrMsg) {
+			err = rr.fileCacheHandler.InvalidateCache(rr.object.Name, rr.bucket.Name())
+			if err != nil {
+				err = fmt.Errorf("tryReadingFromFileCache: while invalidating cache for failed job: %w", err)
+				return
+			}
+		}
+
 		logger.Tracef("Closing cacheHandle:%p for object: %s:/%s", rr.fileCacheHandle, rr.bucket.Name(), rr.object.Name)
 		err = rr.fileCacheHandle.Close()
 		if err != nil {

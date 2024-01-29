@@ -27,6 +27,7 @@ import (
 const (
 	InvalidFileHandleErrMsg                   = "invalid file handle"
 	InvalidFileDownloadJobErrMsg              = "invalid download job"
+	FailedFileDownloadJobErrMsg               = "failed download job"
 	InvalidCacheHandleErrMsg                  = "invalid cache handle"
 	InvalidFileInfoCacheErrMsg                = "invalid file info cache"
 	ErrInSeekingFileHandleMsg                 = "error while seeking file handle"
@@ -95,6 +96,7 @@ func GetDownloadPath(cacheLocation string, objectPath string) string {
 func IsCacheHandleInvalid(readErr error) bool {
 	return strings.Contains(readErr.Error(), InvalidFileHandleErrMsg) ||
 		strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
+		strings.Contains(readErr.Error(), FailedFileDownloadJobErrMsg) ||
 		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
 		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
