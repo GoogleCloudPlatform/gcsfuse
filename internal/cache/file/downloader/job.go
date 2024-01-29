@@ -128,7 +128,6 @@ func (job *Job) checkInvariants() {
 func (job *Job) init() {
 	job.status = JobStatus{NOT_STARTED, nil, 0}
 	job.subscribers = list.List{}
-	job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 	job.doneCh = make(chan struct{})
 }
 
@@ -138,6 +137,13 @@ func (job *Job) init() {
 //
 // Requires and releases LOCK(job.mu)
 func (job *Job) cancel() {
+	// job.cancelFunc = nil means that the async job has already
+	// completed/cancelled/failed.
+	if job.cancelFunc == nil {
+		job.mu.Unlock()
+		return
+	}
+
 	job.cancelFunc()
 	// Unlock job.mu for the job.downloadAsync to terminate as it may require lock
 	// to complete the inflight operations. In case, failure/update of offset
@@ -278,8 +284,13 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Note: There can only be one async download running for a job at a time.
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
-	// Close the job.doneCh and call job.cancelFunc() in any case -
+	// Close the job.doneCh and clear the cancelFunc & cancelCtx in any case -
 	// completion/cancellation/failure of this goroutine.
+	defer func() {
+		job.mu.Lock()
+		job.cancelCtx, job.cancelFunc = nil, nil
+		job.mu.Unlock()
+	}()
 	defer close(job.doneCh)
 	defer job.cancelFunc()
 
@@ -416,8 +427,9 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		defer job.mu.Unlock()
 		return job.status, nil
 	} else if job.status.Name == NOT_STARTED {
-		// start the async download
+		// Start the async download
 		job.status.Name = DOWNLOADING
+		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 		go job.downloadObjectAsync()
 	} else if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Name == INVALID || job.status.Offset >= offset {
 		defer job.mu.Unlock()
