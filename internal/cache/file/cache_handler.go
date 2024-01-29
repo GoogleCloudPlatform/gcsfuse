@@ -145,7 +145,7 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		// https://cloud.google.com/storage/docs/metadata#generation-number)
 		//
 		// Also, invalidate the cache for the object corresponding to failed async job, to restart the
-		// failed job and fill the content into file in cache from scratch.
+		// failed job and re-populate the cache for the file from the start.
 		job := chr.jobManager.GetJob(object, bucket)
 		jobStatus := job.GetStatus()
 
