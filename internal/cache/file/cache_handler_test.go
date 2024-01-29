@@ -289,6 +289,29 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneratio
 	ExpectEq(jobStatusOfNewHandle.Name, downloader.NOT_STARTED)
 }
 
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsObjectHavingFailedAsyncJob() {
+	// Existing cacheHandle.
+	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+	AssertEq(nil, err)
+	buf := make([]byte, 3)
+	oldObjectName := chrT.object.Name
+	chrT.object.Name = chrT.object.Name + "test" // Hack: to fail the download job while reading from GCS.
+	_, cacheHit, err := oldCacheHandle.Read(context.Background(), chrT.bucket, chrT.object, 0, buf)
+	ExpectNe(nil, err)
+	ExpectEq(false, cacheHit)
+	jobStatusOfOldHandle := oldCacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.FAILED, jobStatusOfOldHandle.Name)
+	// Assigning the correct object before further call.
+	chrT.object.Name = oldObjectName
+
+	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+
+	ExpectEq(nil, err)
+	ExpectEq(nil, newCacheHandle.validateCacheHandle())
+	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.NOT_STARTED, jobStatusOfNewHandle.Name)
+}
+
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryAlreadyInCache() {
 	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 
