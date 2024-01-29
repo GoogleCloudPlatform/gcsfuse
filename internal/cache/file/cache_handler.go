@@ -184,12 +184,8 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 			}
 		}
 	} else {
-		job := chr.jobManager.GetJob(object, bucket)
-		jobStatus := job.GetStatus()
-		if jobStatus.Name != downloader.FAILED {
-			// Move this entry on top of LRU.
-			_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
-		}
+		// Move this entry on top of LRU.
+		_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
 	}
 
 	return nil
