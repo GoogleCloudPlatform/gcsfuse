@@ -1046,6 +1046,46 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen
 	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
 }
 
+func (t *RandomReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
+	t.rr.wrapped.fileCacheHandler = t.cacheHandler
+	objectSize := t.object.Size
+	testContent := testutil.GenerateRandomBytes(int(objectSize))
+	rc1 := getReadCloser(testContent)
+	// First NewReader call will throw error, hence async job will fail.
+	// Later NewReader call returns a valid readCloser object hence fallback to
+	// GCS read will succeed.
+	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
+		WillOnce(Return(nil, errors.New(""))).WillRepeatedly(Return(rc1, nil))
+	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))
+	buf := make([]byte, objectSize)
+	_, cacheHit, err := t.rr.ReadAt(buf, 0)
+	AssertEq(nil, err)
+	ExpectFalse(cacheHit)
+	AssertTrue(reflect.DeepEqual(testContent, buf))
+	job := t.jobManager.GetJob(t.object, t.bucket)
+	jobStatus := job.GetStatus()
+	// GetJob method creates a new Job object if not already present, hence the job
+	// status is NOT_STARTED.
+	ExpectEq(jobStatus.Name, downloader.NOT_STARTED)
+	// Second reader (rc2) is required, since first reader (rc) is completely read.
+	// Reading again will return EOF.
+	rc2 := getReadCloser(testContent)
+	t.mockNewReaderCallForTestBucket(0, objectSize, rc2)
+	// This call will populate the cache again.
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+	ExpectEq(nil, err)
+	ExpectFalse(cacheHit)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+
+	_, cacheHit, err = t.rr.ReadAt(buf, 0)
+
+	ExpectEq(nil, err)
+	ExpectTrue(cacheHit)
+	ExpectTrue(reflect.DeepEqual(testContent, buf))
+	ExpectNe(nil, t.rr.wrapped.fileCacheHandle)
+}
+
 // Only writing two unit tests for tryReadingFromFileCache as
 // unit tests of ReadAt method covers all the workflows.
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
