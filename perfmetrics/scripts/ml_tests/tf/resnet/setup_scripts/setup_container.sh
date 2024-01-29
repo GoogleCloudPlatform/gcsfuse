@@ -29,7 +29,7 @@ logging:
       max-file-size-mb: 1024
       backup-file-count: 3
       compress: true
-cache-location: /tmp/cache
+cache-location: /home/cache
 file-cache:
   max-size-in-mb: 409600
   cache-file-for-range-read: true
