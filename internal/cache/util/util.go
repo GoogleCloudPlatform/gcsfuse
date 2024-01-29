@@ -96,12 +96,14 @@ func GetDownloadPath(cacheLocation string, objectPath string) string {
 // for next call onwards.
 func IsCacheHandleInvalid(readErr error) bool {
 	return strings.Contains(readErr.Error(), InvalidFileHandleErrMsg) ||
-		strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
-		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
-		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
-		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
+			strings.Contains(readErr.Error(), InvalidFileDownloadJobErrMsg) ||
+			strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
+			strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
+			strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
+// Creates directory at given path with 766 permissions in case not already present,
+// returns error in case unable to create directory or directory has insufficient permissions.
 func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	_, statErr := os.Stat(dirPath)
 
@@ -116,13 +118,13 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	f, err := fsutil.AnonymousFile(dirPath)
 	if err != nil {
 		return fmt.Errorf(
-			"error creating file at directory (%s), error : (%q)", dirPath, err.Error())
+			"error creating file at directory (%s), error : (%v)", dirPath, err.Error())
 	}
 
 	tempFileErr := f.Close()
 	if tempFileErr != nil {
 		return fmt.Errorf(
-			"error closing annonymous temp file, error : (%q)", tempFileErr.Error())
+			"error closing annonymous temp file, error : (%v)", tempFileErr.Error())
 	}
 
 	return nil

@@ -235,9 +235,9 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 	}
 }
 
-func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
-	base := "./" + string(testutil.GenerateRandomBytes(4))
-	dirPath := base + "/" + "path/cachedir"
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
+	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirPath := path.Join(base, "/", "path/cachedir")
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
 
@@ -247,9 +247,9 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryExists(t *testin
 	ExpectEq(nil, err)
 }
 
-func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
-	base := "./" + string(testutil.GenerateRandomBytes(4))
-	dirPath := base + "/" + "path/cachedir"
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
+	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirPath := path.Join(base, "/", "path/cachedir")
 	defer os.RemoveAll(base)
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
@@ -257,8 +257,8 @@ func TestCheckPermissionsForShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *
 	ExpectEq(nil, err)
 }
 
-func TestCheckPermissionsForShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
-	dirPath := "./" + string(testutil.GenerateRandomBytes(4))
+func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
+	dirPath := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(dirPath)
 
