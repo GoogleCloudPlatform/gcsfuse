@@ -143,8 +143,14 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		// from the generation of object in inode (we can't compare generations and
 		// decide to evict or not because generations are not always increasing:
 		// https://cloud.google.com/storage/docs/metadata#generation-number)
+		//
+		// Also, invalidate the cache for the object corresponding to failed async job, to restart the
+		// failed job and re-populate the cache for the file from the start.
+		job := chr.jobManager.GetJob(object, bucket)
+		jobStatus := job.GetStatus()
+
 		fileInfoData := fileInfo.(data.FileInfo)
-		if fileInfoData.ObjectGeneration != object.Generation {
+		if fileInfoData.ObjectGeneration != object.Generation || jobStatus.Name == downloader.FAILED {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
 				erasedFileInfo := erasedVal.(data.FileInfo)
@@ -178,12 +184,8 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 			}
 		}
 	} else {
-		job := chr.jobManager.GetJob(object, bucket)
-		jobStatus := job.GetStatus()
-		if jobStatus.Name != downloader.FAILED {
-			// Move this entry on top of LRU.
-			_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
-		}
+		// Move this entry on top of LRU.
+		_ = chr.fileInfoCache.LookUp(fileInfoKeyName)
 	}
 
 	return nil
