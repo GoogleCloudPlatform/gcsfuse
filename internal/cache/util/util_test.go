@@ -240,11 +240,11 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryE
 	dirPath := path.Join(base, "/", "path/cachedir")
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
 	defer os.RemoveAll(base)
+	AssertEq(nil, dirCreationErr)
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
 
-	ExpectEq(nil, dirCreationErr)
-	ExpectEq(nil, err)
+	AssertEq(nil, err)
 }
 
 func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
@@ -261,10 +261,10 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNot
 	dirPath := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
 	defer os.RemoveAll(dirPath)
+	AssertEq(nil, dirCreationErr)
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
 
-	ExpectEq(nil, dirCreationErr)
-	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
 }
