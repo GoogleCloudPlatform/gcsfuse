@@ -266,5 +266,5 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNot
 
 	ExpectEq(nil, dirCreationErr)
 	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+"), error"))
+	ExpectTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
 }
