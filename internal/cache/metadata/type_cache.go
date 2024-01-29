@@ -18,10 +18,8 @@ import (
 	"fmt"
 	"math"
 	"time"
-	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 type Type int
@@ -40,7 +38,7 @@ const (
 // TTL-based expiration.
 // Sample usage:
 //
-//	tc := NewTypeCache(size, ttl)
+//	tc := NewTypeCache(maxEntries, ttl)
 //	tc.Insert(time.Now(), "file", RegularFileType)
 //	tc.Insert(time.Now(), "dir", ExplicitDirType)
 //	tc.Get(time.Now(),"file") -> RegularFileType
@@ -68,11 +66,11 @@ type cacheEntry struct {
 	inodeType Type
 }
 
-// Size returns the size of cacheEntry, which is a fixed 32-byte
-// for each entry (including negative ones). This size is specific
-// to 64-bit linux machines, and might differ on other platforms.
+// Size returns the size of cacheEntry.
+// It is currently set to dummy value 1 to avoid
+// the unnecessary  actual size calculation.
 func (ce cacheEntry) Size() uint64 {
-	return uint64(unsafe.Sizeof(ce))
+	return 1
 }
 
 // A cache that maps from a name to information about the type of the object
@@ -102,20 +100,20 @@ type typeCache struct {
 	entries *lru.Cache
 }
 
-// NewTypeCache creates an LRU-policy-based cache with given max-size and TTL.
+// NewTypeCache creates an LRU-policy-based cache with given max-entries and TTL.
 // Any entry whose TTL has expired, is removed from the cache on next access (Get).
-// When insertion of next entry would cause size of cache > sizeInMB,
+// When insertion of next entry would cause #entries of cache > maxEntries,
 // older entries are evicted according to the LRU-policy.
-// If either of TTL or sizeInMB is zero, nothing is ever cached.
-func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
-	if ttl > 0 && sizeInMB != 0 {
-		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1
-		if sizeInMB > 0 {
-			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
+// If either of TTL or maxEntries is zero, nothing is ever cached.
+func NewTypeCache(maxEntries int, ttl time.Duration) TypeCache {
+	if ttl > 0 && maxEntries != 0 {
+		var lruMaxEntries uint64 = math.MaxUint64 // default for when maxEntries = -1
+		if maxEntries > 0 {
+			lruMaxEntries = uint64(maxEntries)
 		}
 		return &typeCache{
 			ttl:     ttl,
-			entries: lru.NewCache(lruSizeInBytesToUse),
+			entries: lru.NewCache(lruMaxEntries),
 		}
 	}
 	return &typeCache{}

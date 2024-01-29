@@ -35,10 +35,9 @@ const (
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
-	// DefaultTypeCacheMaxSizeInMb is the default vlaue of type-cache max-size for every directory in MiBs.
-	// The value is set at the size needed for 1,048,476 (2^20) type-cache entries,
-	// each of which is 32 bytes in size.
-	DefaultTypeCacheMaxSizeInMb int = 32
+	// DefaultTypeCacheMaxEntries is the default vlaue of type-cache-max-entries.
+	// The value is set high at 1,048,476 (2^20) as it is not supposed to be set by users.
+	DefaultTypeCacheMaxEntries int = 2 << 20
 )
 
 type WriteConfig struct {
@@ -66,11 +65,10 @@ type MetadataCacheConfig struct {
 	// no cache and > 0 for ttl-controlled metadata-cache.
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
-	// TypeCacheMaxSizeMb is the upper limit
-	// on the maximum size of type-cache maps,
-	// which are currently
-	// maintained at per-directory level.
-	TypeCacheMaxSizeMb int `yaml:"type-cache-max-size-mb,omitempty"`
+	// TypeCacheMaxEntries is the upper limit
+	// on the maximum number of type-cache entries,
+	// which are maintained at per-directory level.
+	TypeCacheMaxEntries int `yaml:"type-cache-max-entries,omitempty"`
 }
 
 type MountConfig struct {
@@ -116,8 +114,8 @@ func NewMountConfig() *MountConfig {
 		MaxSizeInMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds:       TtlInSecsUnsetSentinel,
-		TypeCacheMaxSizeMb: DefaultTypeCacheMaxSizeInMb,
+		TtlInSeconds:        TtlInSecsUnsetSentinel,
+		TypeCacheMaxEntries: DefaultTypeCacheMaxEntries,
 	}
 	return mountConfig
 }

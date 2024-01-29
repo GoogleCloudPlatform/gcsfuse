@@ -207,35 +207,3 @@ type customTypeForError struct {
 func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
-
-func (t *UtilTest) TestMiBsToBytes() {
-	cases := []struct {
-		mib   uint64
-		bytes uint64
-	}{
-		{
-			mib:   0,
-			bytes: 0,
-		},
-		{
-			mib:   1,
-			bytes: 1048576,
-		},
-		{
-			mib:   5,
-			bytes: 5242880,
-		},
-		{
-			mib:   1024,
-			bytes: 1073741824,
-		},
-		{
-			mib:   17592186044415,       // MaxMiBsInMaxUint64 i.e. 2^44 - 1
-			bytes: 18446744073708503040, // 0xFFFFFFFFFFF00000, i.e. 2^20 * (2^44 - 1)
-		},
-	}
-
-	for _, tc := range cases {
-		AssertEq(tc.bytes, MiBsToBytes(tc.mib))
-	}
-}
