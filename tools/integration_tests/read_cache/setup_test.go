@@ -42,6 +42,7 @@ const (
 	smallContentSize                = 13
 	chunkSizeToRead                 = util.MiB
 	fileSize                        = 3 * util.MiB
+	fileSizeForRangeRead            = 9 * util.MiB
 	chunksRead                      = fileSize / util.MiB
 	testFileName                    = "foo"
 	cacheCapacityInMB               = 9
@@ -53,8 +54,11 @@ const (
 	chunksReadAfterUpdate           = 1
 	metadataCacheTTlInSec           = 10
 	testFileNameSuffixLength        = 4
+	zeroOffset                      = 0
 	randomReadOffset                = 9 * util.MiB
 	configFileName                  = "config"
+	offsetForFirstRangeRead         = 5000
+	offsetForSecondRangeRead        = 1000
 )
 
 var (
