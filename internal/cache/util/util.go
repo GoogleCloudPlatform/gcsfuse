@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jacobsa/fuse/fsutil"
+
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 )
 
@@ -98,4 +100,31 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), InvalidFileInfoCacheErrMsg) ||
 		strings.Contains(readErr.Error(), ErrInSeekingFileHandleMsg) ||
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
+}
+
+// Creates directory at given path with FileDirPerm(0755) permissions in case not already present,
+// returns error in case unable to create directory or directory is not writable.
+func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
+	_, statErr := os.Stat(dirPath)
+
+	if os.IsNotExist(statErr) {
+		err := os.MkdirAll(dirPath, FileDirPerm)
+		if err != nil {
+			return fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
+		}
+	}
+
+	f, err := fsutil.AnonymousFile(dirPath)
+	if err != nil {
+		return fmt.Errorf(
+			"error creating file at directory (%s), error : (%v)", dirPath, err.Error())
+	}
+
+	tempFileErr := f.Close()
+	if tempFileErr != nil {
+		return fmt.Errorf(
+			"error closing annonymous temp file, error : (%v)", tempFileErr.Error())
+	}
+
+	return nil
 }
