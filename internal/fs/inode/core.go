@@ -17,19 +17,9 @@ package inode
 import (
 	"fmt"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-)
-
-type Type int
-
-var (
-	UnknownType     Type = 0
-	SymlinkType     Type = 1
-	RegularFileType Type = 2
-	ExplicitDirType Type = 3
-	ImplicitDirType Type = 4
-	NonexistentType Type = 5
 )
 
 // Core contains critical information about an inode before its creation.
@@ -54,18 +44,18 @@ func (c *Core) Exists() bool {
 	return c != nil
 }
 
-func (c *Core) Type() Type {
+func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
-		return UnknownType
+		return metadata.UnknownType
 	case c.Object == nil && !c.Local:
-		return ImplicitDirType
+		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
-		return ExplicitDirType
+		return metadata.ExplicitDirType
 	case IsSymlink(c.Object):
-		return SymlinkType
+		return metadata.SymlinkType
 	default:
-		return RegularFileType
+		return metadata.RegularFileType
 	}
 }
 
