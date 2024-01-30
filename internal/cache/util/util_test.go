@@ -245,6 +245,9 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryE
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
 
 	AssertEq(nil, err)
+	fileInfo, err := os.Stat(dirPath)
+	AssertEq(nil, err)
+	AssertEq(0700, fileInfo.Mode().Perm())
 }
 
 func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
