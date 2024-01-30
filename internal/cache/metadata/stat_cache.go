@@ -81,11 +81,10 @@ type entry struct {
 	expiration time.Time
 }
 
+// Size returns the size of entry.
+// It is currently set to dummy value 1 to avoid
+// the unnecessary actual size calculation.
 func (e entry) Size() uint64 {
-	return 1
-}
-
-func StatCacheEntrySize() uint64 {
 	return 1
 }
 

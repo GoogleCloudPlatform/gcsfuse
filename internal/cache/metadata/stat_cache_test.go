@@ -107,14 +107,14 @@ func init() {
 }
 
 func (t *StatCacheTest) SetUp(ti *TestInfo) {
-	cache := lru.NewCache(capacity * metadata.StatCacheEntrySize())
+	cache := lru.NewCache(uint64(capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	// that if you are using a cache for a single bucket, then
 	// its prepending bucketName can be left empty("") without any problem.
 }
 
 func (t *MultiBucketStatCacheTest) SetUp(ti *TestInfo) {
-	sharedCache := lru.NewCache(capacity * metadata.StatCacheEntrySize())
+	sharedCache := lru.NewCache(uint64(capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
