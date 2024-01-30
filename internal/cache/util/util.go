@@ -102,8 +102,8 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-// Creates directory at given path with 766 permissions in case not already present,
-// returns error in case unable to create directory or directory has insufficient permissions.
+// Creates directory at given path with FileDirPerm(0755) permissions in case not already present,
+// returns error in case unable to create directory or directory is not writable.
 func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
 	_, statErr := os.Stat(dirPath)
 
