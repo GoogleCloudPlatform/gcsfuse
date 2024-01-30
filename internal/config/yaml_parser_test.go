@@ -114,6 +114,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// metadata-cache config
 	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	ExpectEq(1, mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -167,4 +168,19 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
 
 	AssertNe(nil, err)
 	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsTooHighError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCacheMaxEntries() {
+	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-max-entries.yaml")
+
+	AssertNe(nil, err)
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(TypeCacheMaxEntriesInvalidValueError)))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheMaxEntriesNotSet() {
+	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_type-cache-max-entries_unset.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(DefaultTypeCacheMaxEntries, mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
 }
