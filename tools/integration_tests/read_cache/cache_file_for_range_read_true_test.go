@@ -57,7 +57,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
 	time.Sleep(1 * time.Second)
 	// Validate cached content with gcs.
-	validateFileInCacheDirectory(testFileName, fileSize, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
 	// Validate cache size within limit.
 	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	// Read file again from zeroOffset 1000 and validate from gcs.
