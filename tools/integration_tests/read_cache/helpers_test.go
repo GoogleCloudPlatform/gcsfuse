@@ -41,7 +41,7 @@ type Expected struct {
 	content               string
 }
 
-func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, offset int64, t *testing.T) *Expected {
+func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bool, offset int64, t *testing.T) *Expected {
 	expected := &Expected{
 		StartTimeStampSeconds: time.Now().Unix(),
 		BucketName:            setup.TestBucket(),
@@ -54,7 +54,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, isSeq bool, off
 	var content []byte
 	var err error
 
-	if isSeq {
+	if readFullFile {
 		content, err = operations.ReadFileSequentially(path.Join(testDirPath, fileName), chunkSizeToRead)
 		if err != nil {
 			t.Errorf("Failed to read file sequentially: %v", err)
@@ -212,9 +212,9 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 }
 
 func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.Client,
-	filename string, isSeq bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
+	filename string, offset int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, offset, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, false, offset, t)
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectChunkFromGCS(ctx, storageClient, testDirName, filename, offset, chunkSizeToRead,
 		expectedOutcome.content, t)
@@ -223,13 +223,13 @@ func readChunkAndValidateObjectContentsFromGCS(ctx context.Context, storageClien
 }
 
 func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *storage.Client,
-	filename string, isSeq bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
+	filename string, readFullFile bool, offset int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, isSeq, offset, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, readFullFile, offset, t)
 	// Validate that the file is not cached.
 	validateFileIsNotCached(filename, t)
 	// validate the content read matches the content on GCS.
-	if isSeq {
+	if readFullFile {
 		client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 			expectedOutcome.content, t)
 	} else {
