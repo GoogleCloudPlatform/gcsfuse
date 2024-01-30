@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
@@ -232,4 +233,44 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 	for _, errMsg := range errMessages {
 		ExpectFalse(IsCacheHandleInvalid(errors.New(errMsg)))
 	}
+}
+
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
+	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirPath := path.Join(base, "/", "path/cachedir")
+	dirCreationErr := os.MkdirAll(dirPath, 0700)
+	defer os.RemoveAll(base)
+	AssertEq(nil, dirCreationErr)
+
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+
+	AssertEq(nil, err)
+	fileInfo, err := os.Stat(dirPath)
+	AssertEq(nil, err)
+	AssertEq(0700, fileInfo.Mode().Perm())
+}
+
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
+	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirPath := path.Join(base, "/", "path/cachedir")
+	defer os.RemoveAll(base)
+
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+
+	AssertEq(nil, err)
+	fileInfo, err := os.Stat(dirPath)
+	AssertEq(nil, err)
+	AssertEq(0755, fileInfo.Mode().Perm())
+}
+
+func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
+	dirPath := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirCreationErr := os.MkdirAll(dirPath, 0444)
+	defer os.RemoveAll(dirPath)
+	AssertEq(nil, dirCreationErr)
+
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
 }
