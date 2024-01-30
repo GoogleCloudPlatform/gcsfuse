@@ -199,7 +199,7 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
-	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, offset, t)
+	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, zeroOffset, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	// Validate cache size within limit.

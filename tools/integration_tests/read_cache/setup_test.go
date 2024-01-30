@@ -53,9 +53,9 @@ const (
 	largeFileChunksRead             = 15
 	chunksReadAfterUpdate           = 1
 	metadataCacheTTlInSec           = 10
-	testFileNameSuffixLength        = 4
-	offset                          = 0
-	randomReadOffset                = 9 * util.MiB
+	testFileNameSuffixLength = 4
+	zeroOffset               = 0
+	randomReadOffset         = 9 * util.MiB
 	configFileName                  = "config"
 	offsetForFirstRangeRead         = 5000
 	offsetForSecondRangeRead        = 1000
