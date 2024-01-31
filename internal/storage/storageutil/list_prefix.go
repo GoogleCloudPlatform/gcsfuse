@@ -27,7 +27,7 @@ func ListPrefix(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	prefix string,
-	objects chan<- *gcs.Object) (err error) {
+	objects chan<- *gcs.MinObject) (err error) {
 	req := &gcs.ListObjectsRequest{
 		Prefix: prefix,
 	}

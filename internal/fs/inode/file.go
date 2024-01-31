@@ -17,6 +17,7 @@ package inode
 import (
 	"errors"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"io"
 	"strconv"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
@@ -103,7 +103,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.Object,
+	o *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
@@ -119,7 +119,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            storageutil.ConvertObjToMinObject(o),
+		src:            storageutil.MinRefToMinObject(o),
 		local:          localFile,
 		unlinked:       false,
 	}
@@ -164,13 +164,50 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered_force(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
+
+	o, err = f.bucket.OldStatObject(ctx, req)
+
+	// Special case: "not found" means we have been clobbered.
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &notFoundErr) {
+		err = nil
+		if f.IsLocal() {
+			// For localFile, it is expected that object doesn't exist in GCS.
+			return
+		}
+
+		b = true
+		return
+	}
+
+	// Propagate other errors.
+	if err != nil {
+		err = fmt.Errorf("StatObject: %w", err)
+		return
+	}
+
+	// We are clobbered iff the generation doesn't match our source generation.
+	oGen := Generation{o.Generation, o.MetaGeneration}
+	b = f.SourceGeneration().Compare(oGen) != 0
+
+	return
+}
+
+func (f *FileInode) clobbered_not_force(ctx context.Context, forceFetchFromGcs bool) (o *gcs.MinObject, b bool, err error) {
+	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
+	// gcs and not cache.
+	req := &gcs.StatObjectRequest{
+		Name:              f.name.GcsObjectName(),
+		ForceFetchFromGcs: forceFetchFromGcs,
+	}
+
 	o, err = f.bucket.StatObject(ctx, req)
 
 	// Special case: "not found" means we have been clobbered.
@@ -400,7 +437,7 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	_, clobbered, err := f.clobbered(ctx, false)
+	_, clobbered, err := f.clobbered_not_force(ctx, false)
 	if err != nil {
 		err = fmt.Errorf("clobbered: %w", err)
 		return
@@ -517,7 +554,7 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		f.src = storageutil.ConvertObjToMinObject(o)
+		f.src = *o
 		return
 	}
 
@@ -564,7 +601,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties and using that when object is synced below. StatObject by
 	// default sets the projection to full, which fetches all the object
 	// properties.
-	latestGcsObj, isClobbered, err := f.clobbered(ctx, true)
+	latestGcsObj, isClobbered, err := f.clobbered_force(ctx, true)
 
 	// Clobbered is treated as being unlinked. There's no reason to return an
 	// error in that case. We simply return without syncing the object.
@@ -593,7 +630,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
-		f.src = storageutil.ConvertObjToMinObject(newObj)
+		f.src = *newObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false

@@ -35,11 +35,11 @@ import (
 var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Equivalent to NewConn(clock).GetBucket(name).
-func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
-	b := &bucket{clock: clock, name: name}
-	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
-	return b
-}
+//func NewFakeBucket(clock timeutil.Clock, name string) gcs.Bucket {
+//	b := &bucket{clock: clock, name: name}
+//	b.mu = syncutil.NewInvariantMutex(b.checkInvariants)
+//	return b
+//}
 
 ////////////////////////////////////////////////////////////////////////
 // Helper types
@@ -501,7 +501,7 @@ func (b *bucket) ListObjects(
 
 		// Otherwise, return as an object result. Make a copy to avoid handing back
 		// internal state.
-		listing.Objects = append(listing.Objects, copyObject(&o.metadata))
+		//listing.Objects = append(listing.Objects, copyObject(&o.metadata))
 	}
 
 	// Set up a cursor for where to start the next scan if we didn't exhaust the

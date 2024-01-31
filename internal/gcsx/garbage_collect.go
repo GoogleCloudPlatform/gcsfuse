@@ -35,7 +35,7 @@ func garbageCollectOnce(
 	b := syncutil.NewBundle(ctx)
 
 	// List all objects with the temporary prefix.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *gcs.MinObject, 100)
 	b.Add(func(ctx context.Context) (err error) {
 		defer close(objects)
 		err = storageutil.ListPrefix(ctx, bucket, tmpObjectPrefix, objects)

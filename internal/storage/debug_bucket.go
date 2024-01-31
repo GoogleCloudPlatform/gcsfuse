@@ -151,7 +151,7 @@ func (b *debugBucket) NewReader(
 
 func (b *debugBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -161,7 +161,7 @@ func (b *debugBucket) CreateObject(
 
 func (b *debugBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest(
 		"CopyObject(%q, %q)",
 		req.SrcName,
@@ -175,7 +175,7 @@ func (b *debugBucket) CopyObject(
 
 func (b *debugBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest(
 		"ComposeObjects(%q)",
 		req.DstName)
@@ -188,11 +188,21 @@ func (b *debugBucket) ComposeObjects(
 
 func (b *debugBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("StatObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
 	o, err = b.wrapped.StatObject(ctx, req)
+	return
+}
+
+func (b *debugBucket) OldStatObject(
+	ctx context.Context,
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	id, desc, start := b.startRequest("StatObject(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	o, err = b.wrapped.OldStatObject(ctx, req)
 	return
 }
 
@@ -208,7 +218,7 @@ func (b *debugBucket) ListObjects(
 
 func (b *debugBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("UpdateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 

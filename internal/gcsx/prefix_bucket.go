@@ -77,7 +77,7 @@ func (b *prefixBucket) NewReader(
 
 func (b *prefixBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.MinObject, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CreateObjectRequest)
 	*mReq = *req
@@ -95,7 +95,7 @@ func (b *prefixBucket) CreateObject(
 
 func (b *prefixBucket) CopyObject(
 	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CopyObjectRequest) (o *gcs.MinObject, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CopyObjectRequest)
 	*mReq = *req
@@ -114,7 +114,7 @@ func (b *prefixBucket) CopyObject(
 
 func (b *prefixBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.MinObject, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.ComposeObjectsRequest)
 	*mReq = *req
@@ -138,13 +138,31 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.MinObject, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
 	o, err = b.wrapped.StatObject(ctx, mReq)
+
+	// Modify the returned object.
+	if o != nil {
+		o.Name = b.localName(o.Name)
+	}
+
+	return
+}
+
+func (b *prefixBucket) OldStatObject(
+	ctx context.Context,
+	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	// Modify the request and call through.
+	mReq := new(gcs.StatObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	o, err = b.wrapped.OldStatObject(ctx, mReq)
 
 	// Modify the returned object.
 	if o != nil {
@@ -180,7 +198,7 @@ func (b *prefixBucket) ListObjects(
 
 func (b *prefixBucket) UpdateObject(
 	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.UpdateObjectRequest) (o *gcs.MinObject, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.UpdateObjectRequest)
 	*mReq = *req

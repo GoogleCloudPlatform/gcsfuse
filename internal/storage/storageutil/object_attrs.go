@@ -101,6 +101,23 @@ func ObjectAttrsToBucketObject(attrs *storage.ObjectAttrs) *gcs.Object {
 	}
 }
 
+func ObjectAttrsToMinObject(attrs *storage.ObjectAttrs) *gcs.MinObject {
+	// Converting MD5[] slice to MD5[md5.Size] type fixed array as accepted by GCSFuse.
+	var md5 [md5.Size]byte
+	copy(md5[:], attrs.MD5)
+
+	// Setting the parameters in Object and doing conversions as necessary.
+	return &gcs.MinObject{
+		Name:            attrs.Name,
+		Size:            uint64(attrs.Size),
+		ContentEncoding: attrs.ContentEncoding,
+		Metadata:        attrs.Metadata,
+		Generation:      attrs.Generation,
+		MetaGeneration:  attrs.Metageneration,
+		Updated:         attrs.Updated,
+	}
+}
+
 // SetAttrsInWriter - for setting object-attributes filed in storage.Writer object.
 // These attributes will be assigned to the newly created or old object.
 func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage.Writer {
@@ -149,4 +166,13 @@ func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
 	}
+}
+
+func MinRefToMinObject(o *gcs.MinObject) gcs.MinObject {
+	var min gcs.MinObject
+	if o == nil {
+		return min
+	}
+
+	return *o
 }

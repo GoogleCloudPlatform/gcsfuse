@@ -162,7 +162,7 @@ func (bm *bucketManager) SetUpBucket(
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
-		b = canned.MakeFakeBucket(ctx)
+		//b = canned.MakeFakeBucket(ctx)
 	} else {
 		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 	}

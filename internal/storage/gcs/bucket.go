@@ -54,7 +54,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/how-tos/upload
 	CreateObject(
 		ctx context.Context,
-		req *CreateObjectRequest) (*Object, error)
+		req *CreateObjectRequest) (*MinObject, error)
 
 	// Copy an object to a new name, preserving all metadata. Any existing
 	// generation of the destination name will be overwritten.
@@ -65,7 +65,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/copy
 	CopyObject(
 		ctx context.Context,
-		req *CopyObjectRequest) (*Object, error)
+		req *CopyObjectRequest) (*MinObject, error)
 
 	// Compose one or more source objects into a single destination object by
 	// concatenating. Any existing generation of the destination name will be
@@ -77,13 +77,21 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/compose
 	ComposeObjects(
 		ctx context.Context,
-		req *ComposeObjectsRequest) (*Object, error)
+		req *ComposeObjectsRequest) (*MinObject, error)
 
 	// Return current information about the object with the given name.
 	//
 	// Official documentation:
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
 	StatObject(
+		ctx context.Context,
+		req *StatObjectRequest) (*MinObject, error)
+
+	// Return current information about the object with the given name.
+	//
+	// Official documentation:
+	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
+	OldStatObject(
 		ctx context.Context,
 		req *StatObjectRequest) (*Object, error)
 
@@ -105,7 +113,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/patch
 	UpdateObject(
 		ctx context.Context,
-		req *UpdateObjectRequest) (*Object, error)
+		req *UpdateObjectRequest) (*MinObject, error)
 
 	// Delete an object. Non-existence of the object is not treated as an error.
 	//

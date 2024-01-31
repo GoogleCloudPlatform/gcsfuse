@@ -34,7 +34,7 @@ type contentTypeBucket struct {
 
 func (b contentTypeBucket) CreateObject(
 	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.CreateObjectRequest) (o *gcs.MinObject, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
@@ -47,7 +47,7 @@ func (b contentTypeBucket) CreateObject(
 
 func (b contentTypeBucket) ComposeObjects(
 	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	req *gcs.ComposeObjectsRequest) (o *gcs.MinObject, err error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.DstName))

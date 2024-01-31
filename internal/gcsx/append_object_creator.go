@@ -86,7 +86,7 @@ func (oc *appendObjectCreator) Create(
 	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *gcs.MinObject, err error) {
 	// Choose a name for a temporary object.
 	tmpName, err := oc.chooseName()
 	if err != nil {
