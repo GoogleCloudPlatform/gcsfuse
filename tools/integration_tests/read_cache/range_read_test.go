@@ -20,9 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
-
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
@@ -31,17 +30,17 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type cacheFileForRangeReadTrueTest struct {
+type rangeReadTest struct {
 	flags         []string
 	storageClient *storage.Client
 	ctx           context.Context
 }
 
-func (s *cacheFileForRangeReadTrueTest) Setup(t *testing.T) {
+func (s *rangeReadTest) Setup(t *testing.T) {
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
-func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
+func (s *rangeReadTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
 }
 
@@ -49,41 +48,60 @@ func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T) {
+func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
-	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForFirstRangeRead, t)
-	// Wait for the cache to propagate the updates before proceeding to get cache hit.
-	time.Sleep(2 * time.Second)
-	// Validate cached content with gcs.
-	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
-	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
-	// Read file again from zeroOffset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForSecondRangeRead, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+}
+
+func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithWait(t *testing.T) {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	// Sleep until file is downloaded.
+	time.Sleep(2 * time.Second)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadBeyond8MB, t)
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
+	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
+	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
+}
+
+func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutWait(t *testing.T) {
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadBeyond8MB, t)
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
+	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestCacheFileForRangeReadTrueTest(t *testing.T) {
+func TestRangeReadTest(t *testing.T) {
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet,
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName))
+		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName+"1"),
+		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName+"2"))
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
-	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background()}
+	ts := &rangeReadTest{ctx: context.Background()}
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
 	defer closeStorageClient()
 
