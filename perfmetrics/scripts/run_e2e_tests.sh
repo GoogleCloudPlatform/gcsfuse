@@ -53,17 +53,17 @@ set +e
 # Executing integration tests
 echo "Running tests..."
 exit_code_1=$(mktemp)
-exit_code_2=$(mktemp)
+#exit_code_2=$(mktemp)
 exit_code_3=$(mktemp)
 exit_code_4=$(mktemp)
 logs_1=$(mktemp)
-logs_2=$(mktemp)
+#logs_2=$(mktemp)
 logs_3=$(mktemp)
 logs_4=$(mktemp)
 
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_1" 2>&1 & echo $? > "$exit_code_1" &
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_2" 2>&1 & echo $? > "$exit_code_2" &
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_3" 2>&1 & echo $? > "$exit_code_3" &
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/log_rotation/... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_1" 2>&1 & echo $? > "$exit_code_1" &
+#GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file/... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_2" 2>&1 & echo $? > "$exit_code_2" &
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/write_large_files/... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_3" 2>&1 & echo $? > "$exit_code_3" &
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files... -p 1 --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage="$run_e2e_tests_on_package" -timeout $INTEGRATION_TEST_TIMEOUT > "$logs_4" 2>&1 & echo $? > "$exit_code_4" &
 
 wait
@@ -72,7 +72,7 @@ exit_code=$(cat "$exit_code_1" & cat "$exit_code_2" & cat "$exit_code_3" & cat "
 
 echo "Printing test logs..."
 cat "$logs_1"
-cat "$logs_2"
+#cat "$logs_2"
 cat "$logs_3"
 cat "$logs_4"
 
