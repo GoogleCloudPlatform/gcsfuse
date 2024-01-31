@@ -53,15 +53,17 @@ set +e
 # Executing integration tests
 echo "Running tests..."
 exit_code_1=$(mktemp)
-logs_1=$(mktemp)
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/gzip... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT > logs_1 2>&1 & echo $? > exit_code_1 &
-
 exit_code_2=$(mktemp)
+logs_1=$(mktemp)
 logs_2=$(mktemp)
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT > logs_2 2>&1 & echo $? > exit_code_2 &
+
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/gzip... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT > logs_1 & echo $? > exit_code_1 &
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/local_file... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT > logs_2 & echo $? > exit_code_2 &
 
 wait
 echo "Checking exit code of all integration_tests..."
+cat "$exit_code_1"
+cat "$exit_code_2"
 exit_code=$(cat "$exit_code_1" & cat "$exit_code_2")
 echo "$exit_code"
 
