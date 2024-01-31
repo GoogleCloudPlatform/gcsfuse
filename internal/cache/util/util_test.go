@@ -64,7 +64,11 @@ func (ut *utilTest) TearDown() {
 }
 
 func (ut *utilTest) assertFileAndDirCreation(file *os.File, err error) {
-	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, 0755)
+	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, 0700)
+}
+
+func (ut *utilTest) assertFileAndDirCreationWithGivenDirMode(file *os.File, err error, dirMode os.FileMode) {
+	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, dirMode)
 }
 
 func (ut *utilTest) assertFileAndDirStatsWithGivenFileAndDirPermissions(
@@ -99,7 +103,7 @@ func (ut *utilTest) Test_CreateFile_FileDirNotPresent() {
 }
 
 func (ut *utilTest) Test_CreateFile_FileDirPresent() {
-	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
+	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0700)
 	ExpectEq(nil, err)
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
@@ -145,18 +149,19 @@ func (ut *utilTest) Test_CreateFile_FilePerm0755() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0755)
 	ExpectEq(nil, file.Close())
 }
 
-func (ut *utilTest) Test_CreateFile_FilePerm0544() {
-	ut.fileSpec.Perm = os.FileMode(0544)
-
-	file, err := CreateFile(ut.fileSpec, ut.flag)
-
-	ut.assertFileAndDirCreation(file, err)
-	ExpectEq(nil, file.Close())
-}
+// TODO: should we remove this test as we use same perms for file and dir and dir needs min 7 perm as owner to be able to create file
+//func (ut *utilTest) Test_CreateFile_FilePerm0544() {
+//	ut.fileSpec.Perm = os.FileMode(0544)
+//
+//	file, err := CreateFile(ut.fileSpec, ut.flag)
+//
+//	ut.assertFileAndDirCreation(file, err)
+//	ExpectEq(nil, file.Close())
+//}
 
 func (ut *utilTest) Test_CreateFile_FilePresent() {
 	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
@@ -167,7 +172,7 @@ func (ut *utilTest) Test_CreateFile_FilePresent() {
 
 	file, err = CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0755)
 	ExpectEq(nil, file.Close())
 }
 

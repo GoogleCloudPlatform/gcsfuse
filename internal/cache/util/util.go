@@ -55,7 +55,7 @@ const (
 func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
 	fileDir := filepath.Dir(fileSpec.Path)
-	err = os.MkdirAll(fileDir, FileDirPerm)
+	err = os.MkdirAll(fileDir, fileSpec.Perm.Perm())
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error in creating directory structure %s: %v", fileDir, err))
 		return
