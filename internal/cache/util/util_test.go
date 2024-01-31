@@ -64,19 +64,28 @@ func (ut *utilTest) TearDown() {
 }
 
 func (ut *utilTest) assertFileAndDirCreation(file *os.File, err error) {
+	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, 0755)
+}
+
+func (ut *utilTest) assertFileAndDirStatsWithGivenFileAndDirPermissions(
+	file *os.File,
+	err error,
+	filePerm os.FileMode,
+	dirPerm os.FileMode,
+) {
 	ExpectEq(nil, err)
 
 	dirStat, dirErr := os.Stat(path.Dir(file.Name()))
 	ExpectEq(false, os.IsNotExist(dirErr))
 	ExpectEq(path.Dir(ut.fileSpec.Path), path.Dir(file.Name()))
-	ExpectEq(0755, dirStat.Mode().Perm())
+	ExpectEq(dirPerm, dirStat.Mode().Perm())
 	ExpectEq(ut.uid, dirStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, dirStat.Sys().(*syscall.Stat_t).Gid)
 
 	fileStat, fileErr := os.Stat(file.Name())
 	ExpectEq(false, os.IsNotExist(fileErr))
 	ExpectEq(ut.fileSpec.Path, file.Name())
-	ExpectEq(ut.fileSpec.Perm, fileStat.Mode())
+	ExpectEq(filePerm, fileStat.Mode())
 	ExpectEq(ut.uid, fileStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, fileStat.Sys().(*syscall.Stat_t).Gid)
 }
