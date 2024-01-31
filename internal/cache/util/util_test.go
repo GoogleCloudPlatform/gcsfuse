@@ -69,7 +69,7 @@ func (ut *utilTest) assertFileAndDirCreation(file *os.File, err error) {
 	dirStat, dirErr := os.Stat(path.Dir(file.Name()))
 	ExpectEq(false, os.IsNotExist(dirErr))
 	ExpectEq(path.Dir(ut.fileSpec.Path), path.Dir(file.Name()))
-	ExpectEq(FileDirPerm|os.ModeDir, dirStat.Mode())
+	ExpectEq(0755, dirStat.Mode().Perm())
 	ExpectEq(ut.uid, dirStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, dirStat.Sys().(*syscall.Stat_t).Gid)
 
