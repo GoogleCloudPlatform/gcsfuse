@@ -42,8 +42,8 @@ const (
 	FileDirPerm            = os.FileMode(0755) | os.ModeDir
 	MiB                    = 1024 * 1024
 	KiB                    = 1024
-	DefaultFilePerm        = os.FileMode(0600)
-	FilePermWithAllowOther = os.FileMode(0644)
+	DefaultFilePerm        = os.FileMode(0700)
+	FilePermWithAllowOther = os.FileMode(0755)
 	FileCache              = "gcsfuse-file-cache"
 )
 
