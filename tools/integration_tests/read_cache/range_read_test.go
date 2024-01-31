@@ -64,7 +64,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithWait(t *testing.T) 
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	// Sleep until file is downloaded.
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadBeyond8MB, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

@@ -42,7 +42,7 @@ const (
 	smallContentSize                   = 13
 	chunkSizeToRead                    = util.MiB
 	fileSize                           = 3 * util.MiB
-	fileSizeForRangeRead               = 40 * util.MiB
+	fileSizeForRangeRead               = 50 * util.MiB
 	chunksRead                         = fileSize / util.MiB
 	testFileName                       = "foo"
 	cacheCapacityInMB                  = 9
@@ -60,8 +60,8 @@ const (
 	offsetForFirstRangeRead            = 5000
 	offsetForSecondRangeRead           = 1000
 	offsetForRangeReadWithin8MB        = 4 * util.MiB
-	offsetForRangeReadBeyond8MB        = fileSizeForRangeRead - 2*util.MiB
-	cacheCapacityForRangeReadTestInMiB = 40
+	offsetForRangeReadBeyond8MB        = fileSizeForRangeRead - 1*util.MiB
+	cacheCapacityForRangeReadTestInMiB = 50
 )
 
 var (

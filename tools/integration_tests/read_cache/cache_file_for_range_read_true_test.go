@@ -55,7 +55,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 	// Do a random read on file and validate from gcs.
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForFirstRangeRead, t)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
 	// Validate cache size within limit.
