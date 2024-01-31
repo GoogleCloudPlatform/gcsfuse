@@ -45,7 +45,7 @@ var (
 )
 
 func newLruCache(capacity uint64) *lru.Cache {
-	return lru.NewCache(metadata.StatCacheEntrySize() * capacity)
+	return lru.NewCache(capacity)
 }
 
 type cachingTestCommon struct {

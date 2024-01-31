@@ -85,10 +85,7 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheCapacity > 0 {
-		// This conversion is temporary until config.StatCacheCapacity itself is replaced
-		// with config.StatCacheSizeMB, which is a planned change.
-		statCacheSize := uint64(config.StatCacheCapacity) * metadata.StatCacheEntrySize()
-		c = lru.NewCache(statCacheSize)
+		c = lru.NewCache(uint64(config.StatCacheCapacity))
 	}
 
 	bm := &bucketManager{
