@@ -53,7 +53,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, false, offsetForFirstRangeRead, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForFirstRangeRead, t)
 	// Wait for the cache to propagate the updates before proceeding to get cache hit.
 	time.Sleep(1 * time.Second)
 	// Validate cached content with gcs.
@@ -61,7 +61,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 	// Validate cache size within limit.
 	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	// Read file again from zeroOffset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, false, offsetForSecondRangeRead, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForSecondRangeRead, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
@@ -79,7 +79,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName))
+		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName))
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
