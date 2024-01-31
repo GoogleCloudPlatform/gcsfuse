@@ -104,11 +104,11 @@ func IsCacheHandleInvalid(readErr error) bool {
 
 // Creates directory at given path with FileDirPerm(0755) permissions in case not already present,
 // returns error in case unable to create directory or directory is not writable.
-func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
+func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPermissions os.FileMode) error {
 	_, statErr := os.Stat(dirPath)
 
 	if os.IsNotExist(statErr) {
-		err := os.MkdirAll(dirPath, FileDirPerm)
+		err := os.MkdirAll(dirPath, dirPermissions)
 		if err != nil {
 			return fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
 		}

@@ -256,7 +256,7 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryE
 	defer os.RemoveAll(base)
 	AssertEq(nil, dirCreationErr)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0700)
 
 	AssertEq(nil, err)
 	fileInfo, err := os.Stat(dirPath)
@@ -269,7 +269,7 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryC
 	dirPath := path.Join(base, "/", "path/cachedir")
 	defer os.RemoveAll(base)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0755)
 
 	AssertEq(nil, err)
 	fileInfo, err := os.Stat(dirPath)
@@ -283,7 +283,7 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNot
 	defer os.RemoveAll(dirPath)
 	AssertEq(nil, dirCreationErr)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0444)
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
