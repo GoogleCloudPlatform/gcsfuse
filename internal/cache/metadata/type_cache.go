@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
@@ -140,22 +141,29 @@ func NewTypeCache(maxSizeMB int, ttl time.Duration) TypeCache {
 	return &typeCache{}
 }
 
+func logf(now time.Time, msg string, v ...any) {
+	logger.Infof("TypeCache @{%v}: "+msg, append([]any{now.Format(time.DateTime)}, v...)...)
+}
+
 func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 	if tc.entries != nil { // only if caching is enabled
+		localExpiryVar := now.Add(tc.ttl)
 		_, err := tc.entries.Insert(name, cacheEntry{
-			expiry:    now.Add(tc.ttl),
+			expiry:    localExpiryVar,
 			inodeType: it,
 			key:       name,
 		})
 		if err != nil {
 			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))
 		}
+		logf(now, "Inserted \"%s\" as %v with ttl=%q", name, it, localExpiryVar.Format(time.DateTime))
 	}
 }
 
 func (tc *typeCache) Erase(name string) {
 	if tc.entries != nil { // only if caching is enabled
 		tc.entries.Erase(name)
+		logf(time.Time{}, "Erased \"%s\"", name)
 	}
 }
 
@@ -166,14 +174,17 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 
 	val := tc.entries.LookUp(name)
 	if val == nil {
+		logf(now, "Queried \"%s\". Got: %v", name, "UnknownType")
 		return UnknownType
 	}
 
 	entry := val.(cacheEntry)
 	// Has the entry expired?
 	if entry.expiry.Before(now) {
+		logf(now, "Queried \"%s\". Removing entry because of TTL expiry", name)
 		tc.entries.Erase(name)
 		return UnknownType
 	}
+	logf(now, "Queried \"%s\". Got: %v", name, entry.inodeType)
 	return entry.inodeType
 }
