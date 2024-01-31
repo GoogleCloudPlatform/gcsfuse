@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 // Predefined error messages returned by the Cache.
@@ -46,7 +47,8 @@ type Cache struct {
 	/////////////////////////
 
 	// Sum of entry.Value.Size() of all the entries in the cache.
-	currentSize uint64
+	currentSize  uint64
+	currentCount uint64
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -130,9 +132,12 @@ func (c *Cache) evictOne() ValueType {
 
 	evictedEntry := e.Value.(entry).Value
 	c.currentSize -= evictedEntry.Size()
+	c.currentCount--
 
 	c.entries.Remove(e)
 	delete(c.index, key)
+
+	logger.Infof("LRU: Evicted entry for (%s), currentSize=%v, currentCount=%v", key, c.currentSize, c.currentCount)
 
 	return evictedEntry
 }
@@ -171,6 +176,9 @@ func (c *Cache) Insert(
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
 		c.currentSize += valueSize
+		c.currentCount++
+
+		logger.Infof("LRU: Inserted entry for (%s)->(%v). currentSize=%v, currentCount=%v", key, value, c.currentSize, c.currentCount)
 	}
 
 	var evictedValues []ValueType
@@ -194,9 +202,12 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 	deletedEntry := e.Value.(entry).Value
 	c.currentSize -= deletedEntry.Size()
+	c.currentCount--
 
 	delete(c.index, key)
 	c.entries.Remove(e)
+
+	logger.Infof("LRU: Erased entry for (%s). currentSize=%v, currentCount=%v", key, c.currentSize, c.currentCount)
 
 	return deletedEntry
 }
