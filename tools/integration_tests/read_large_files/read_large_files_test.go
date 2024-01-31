@@ -28,6 +28,7 @@ import (
 
 const OneMB = 1024 * 1024
 const FiveHundredMB = 500 * OneMB
+const testDirectory = "ReadLargeFileTest"
 const FiveHundredMBFile = "fiveHundredMBFile.txt"
 const ChunkSize = 200 * OneMB
 const NumberOfRandomReadCalls = 200
