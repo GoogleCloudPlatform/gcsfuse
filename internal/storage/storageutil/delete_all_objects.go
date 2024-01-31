@@ -28,7 +28,7 @@ func DeleteAllObjects(
 	bundle := syncutil.NewBundle(ctx)
 
 	// List all of the objects in the bucket.
-	objects := make(chan *gcs.Object, 100)
+	objects := make(chan *gcs.MinObject, 100)
 	bundle.Add(func(ctx context.Context) error {
 		defer close(objects)
 		return ListPrefix(ctx, bucket, "", objects)

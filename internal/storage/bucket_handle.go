@@ -106,7 +106,28 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.MinObject, err error) {
+	var attrs *storage.ObjectAttrs
+	// Retrieving object attrs through Go Storage Client.
+	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
+
+	// If error is of type storage.ErrObjectNotExist
+	if err == storage.ErrObjectNotExist {
+		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		return
+	}
+	if err != nil {
+		err = fmt.Errorf("Error in fetching object attributes: %w", err)
+		return
+	}
+
+	// Converting attrs to type *Object
+	o = storageutil.ObjectAttrsToMinObject(attrs)
+
+	return
+}
+
+func (b *bucketHandle) OldStatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -127,7 +148,7 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	return
 }
 
-func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.MinObject, err error) {
 	obj := bh.bucket.Object(req.Name)
 
 	// GenerationPrecondition - If non-nil, the object will be created/overwritten
@@ -183,11 +204,11 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	attrs := wc.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToMinObject(attrs)
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.MinObject, err error) {
 	srcObj := b.bucket.Object(req.SrcName)
 	dstObj := b.bucket.Object(req.DstName)
 
@@ -218,7 +239,7 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 		return
 	}
 	// Converting objAttrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(objAttrs)
+	o = storageutil.ObjectAttrsToMinObject(objAttrs)
 	return
 }
 
@@ -275,7 +296,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
 			// Converting attrs to *Object type.
-			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			currObject := storageutil.ObjectAttrsToMinObject(attrs)
 			list.Objects = append(list.Objects, currObject)
 		}
 
@@ -296,7 +317,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.MinObject, err error) {
 	obj := b.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
@@ -338,7 +359,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 
 	if err == nil {
 		// Converting objAttrs to type *Object
-		o = storageutil.ObjectAttrsToBucketObject(attrs)
+		o = storageutil.ObjectAttrsToMinObject(attrs)
 		return
 	}
 
@@ -360,7 +381,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.MinObject, err error) {
 	dstObj := b.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
@@ -414,7 +435,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 
 	// Converting attrs to type *Object.
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o = storageutil.ObjectAttrsToMinObject(attrs)
 
 	return
 }

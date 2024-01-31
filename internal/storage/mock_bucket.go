@@ -18,7 +18,7 @@ import (
 )
 
 type MockBucket interface {
-	gcs.Bucket
+	//gcs.Bucket
 	oglemock.MockObject
 }
 

@@ -180,7 +180,7 @@ func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 

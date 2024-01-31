@@ -27,7 +27,7 @@ func CreateObject(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	name string,
-	contents []byte) (*gcs.Object, error) {
+	contents []byte) (*gcs.MinObject, error) {
 	req := &gcs.CreateObjectRequest{
 		Name:     name,
 		Contents: bytes.NewReader(contents),

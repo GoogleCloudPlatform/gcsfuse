@@ -27,7 +27,7 @@ func ListAll(
 	ctx context.Context,
 	bucket gcs.Bucket,
 	req *gcs.ListObjectsRequest) (
-	objects []*gcs.Object,
+	objects []*gcs.MinObject,
 	runs []string,
 	err error) {
 	for {

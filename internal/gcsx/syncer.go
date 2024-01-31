@@ -41,7 +41,7 @@ type Syncer interface {
 		ctx context.Context,
 		fileName string,
 		srcObject *gcs.Object,
-		content TempFile) (o *gcs.Object, err error)
+		content TempFile) (o *gcs.MinObject, err error)
 }
 
 // NewSyncer creates a syncer that syncs into the supplied bucket.
@@ -85,7 +85,7 @@ func (oc *fullObjectCreator) Create(
 	objectName string,
 	srcObject *gcs.Object,
 	mtime *time.Time,
-	r io.Reader) (o *gcs.Object, err error) {
+	r io.Reader) (o *gcs.MinObject, err error) {
 	metadataMap := make(map[string]string)
 
 	var req *gcs.CreateObjectRequest
@@ -143,7 +143,7 @@ type objectCreator interface {
 		objectName string,
 		srcObject *gcs.Object,
 		mtime *time.Time,
-		r io.Reader) (o *gcs.Object, err error)
+		r io.Reader) (o *gcs.MinObject, err error)
 }
 
 // Create a syncer that stats the mutable content to see if it's dirty before
@@ -182,7 +182,7 @@ func (os *syncer) SyncObject(
 	ctx context.Context,
 	objectName string,
 	srcObject *gcs.Object,
-	content TempFile) (o *gcs.Object, err error) {
+	content TempFile) (o *gcs.MinObject, err error) {
 	// Stat the content.
 	sr, err := content.Stat()
 	if err != nil {

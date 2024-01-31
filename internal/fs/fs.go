@@ -1848,7 +1848,7 @@ func (fs *fileSystem) renameFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
-	oldObject *gcs.Object,
+	oldObject *gcs.MinObject,
 	newParent inode.DirInode,
 	newFileName string) error {
 	// Clone into the new location.
