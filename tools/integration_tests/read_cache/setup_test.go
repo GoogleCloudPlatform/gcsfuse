@@ -35,30 +35,33 @@ import (
 )
 
 const (
-	testDirName                     = "ReadCacheTest"
-	onlyDirMounted                  = "Test"
-	cacheSubDirectoryName           = "gcsfuse-file-cache"
-	smallContent                    = "small content"
-	smallContentSize                = 13
-	chunkSizeToRead                 = util.MiB
-	fileSize                        = 3 * util.MiB
-	fileSizeForRangeRead            = 9 * util.MiB
-	chunksRead                      = fileSize / util.MiB
-	testFileName                    = "foo"
-	cacheCapacityInMB               = 9
-	NumberOfFilesWithinCacheLimit   = (cacheCapacityInMB * util.MiB) / fileSize
-	NumberOfFilesMoreThanCacheLimit = (cacheCapacityInMB*util.MiB)/fileSize + 1
-	largeFileSize                   = 15 * util.MiB
-	largeFileName                   = "15MBFile"
-	largeFileChunksRead             = 15
-	chunksReadAfterUpdate           = 1
-	metadataCacheTTlInSec           = 10
-	testFileNameSuffixLength        = 4
-	zeroOffset                      = 0
-	randomReadOffset                = 9 * util.MiB
-	configFileName                  = "config"
-	offsetForFirstRangeRead         = 5000
-	offsetForSecondRangeRead        = 1000
+	testDirName                        = "ReadCacheTest"
+	onlyDirMounted                     = "Test"
+	cacheSubDirectoryName              = "gcsfuse-file-cache"
+	smallContent                       = "small content"
+	smallContentSize                   = 13
+	chunkSizeToRead                    = util.MiB
+	fileSize                           = 3 * util.MiB
+	fileSizeForRangeRead               = 50 * util.MiB
+	chunksRead                         = fileSize / util.MiB
+	testFileName                       = "foo"
+	cacheCapacityInMB                  = 9
+	NumberOfFilesWithinCacheLimit      = (cacheCapacityInMB * util.MiB) / fileSize
+	NumberOfFilesMoreThanCacheLimit    = (cacheCapacityInMB*util.MiB)/fileSize + 1
+	largeFileSize                      = 15 * util.MiB
+	largeFileName                      = "15MBFile"
+	largeFileChunksRead                = 15
+	chunksReadAfterUpdate              = 1
+	metadataCacheTTlInSec              = 10
+	testFileNameSuffixLength           = 4
+	zeroOffset                         = 0
+	randomReadOffset                   = 9 * util.MiB
+	configFileName                     = "config"
+	offsetForFirstRangeRead            = 5000
+	offsetForSecondRangeRead           = 1000
+	offsetForRangeReadWithin8MB        = 4 * util.MiB
+	offsetForRangeReadBeyond8MB        = fileSizeForRangeRead - 1*util.MiB
+	cacheCapacityForRangeReadTestInMiB = 50
 )
 
 var (
