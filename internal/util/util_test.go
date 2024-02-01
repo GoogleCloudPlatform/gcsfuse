@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -207,85 +206,4 @@ type customTypeForError struct {
 // MarshalJSON returns an error to simulate a failure during JSON marshaling
 func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
-}
-
-func (t *UtilTest) TestDeepSizeof() {
-	// tests for pointers
-	var i int
-	// var nilPtr *int
-	// emptyStr := ""
-	helloStr := "hello"
-	// emptyIntSlice := []int{}
-	// intSlice := []int{1, 2, 3}
-
-	for _, input := range []struct {
-		val          any
-		expectedSize int
-	}{
-		// // tests for built-in types
-		// {expectedSize: int(unsafe.Sizeof(int(0))), val: int(0)},
-		// {expectedSize: int(unsafe.Sizeof(uint(0))), val: uint(0)},
-		// {expectedSize: 1, val: int8(0)},
-		// {expectedSize: 1, val: uint8(0)},
-		// {expectedSize: 2, val: int16(0)},
-		// {expectedSize: 2, val: uint16(0)},
-		// {expectedSize: 4, val: int32(0)},
-		// {expectedSize: 4, val: uint32(0)},
-		// {expectedSize: 8, val: int64(0)},
-		// {expectedSize: 8, val: uint64(0)},
-		// {expectedSize: 1, val: true},
-		// {expectedSize: 4, val: float32(0)},
-		// {expectedSize: 8, val: float64(0)},
-		// // tests for strings
-		// {
-		// 	expectedSize: int(unsafe.Sizeof(emptyStr)), val: "",
-		// },
-		// {
-		// 	expectedSize: int(unsafe.Sizeof(emptyStr)) + len(helloStr), val: helloStr,
-		// },
-		// // tests for pointers
-		// {
-		// 	expectedSize: int(unsafe.Sizeof(&i)) + DeepSizeof(i), val: &i,
-		// },
-		// {
-		// 	expectedSize: int(unsafe.Sizeof(&emptyStr)) + DeepSizeof(emptyStr), val: &emptyStr,
-		// },
-		// {
-		// 	// expectedSize: DeepSizeof(&emptyStr) + DeepSizeof(helloStr), val: &helloStr,
-		// 	expectedSize: 8 + 21, val: &helloStr,
-		// },
-		// // tests for structs
-		// // empty struct
-		// {
-		// 	expectedSize: 0, val: (struct{}{}),
-		// },
-		// // struct with int
-		// {
-		// 	expectedSize: DeepSizeof(i), val: (struct{ x int }{x: 0}),
-		// },
-		// // struct with int-pointer
-		// {
-		// 	expectedSize: DeepSizeof(nilPtr), val: (struct{ x *int }{x: &i}),
-		// },
-		// struct with int-pointer and string
-		{
-			// expectedSize: DeepSizeof(nilPtr) + DeepSizeof(helloStr),
-			expectedSize: 29,
-			val: (struct {
-				x *int
-				s string
-			}{x: &i, s: helloStr}),
-		},
-		// // tests for slices
-		// {
-		// 	expectedSize: int(unsafe.Sizeof(emptyIntSlice)), val: emptyIntSlice,
-		// },
-		// {
-		// 	expectedSize: len(intSlice)*DeepSizeof(i) + DeepSizeof(emptyIntSlice), val: intSlice,
-		// },
-	} {
-		actualSize := DeepSizeof(input.val)
-		logger.Infof("input-type: %T, input: %+v, actual-size: %v", input.val, input, actualSize)
-		AssertEq(input.expectedSize, actualSize)
-	}
 }
