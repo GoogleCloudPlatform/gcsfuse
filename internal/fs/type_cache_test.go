@@ -59,21 +59,6 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 		TtlInSeconds:       ttlInSeconds,
 	}
 
-	// logging is needed for debugging if logs need to be
-	// redirected to a log file.
-	logFilePath := "/tmp/type-cache-fs-composite-tests.log"
-	// os.Remove(logFilePath)
-	t.serverCfg.MountConfig.LogConfig = config.LogConfig{
-		Severity: "TRACE",
-		FilePath: logFilePath,
-		Format:   "text",
-		LogRotateConfig: config.LogRotateConfig{
-			MaxFileSizeMB:   10240,
-			BackupFileCount: 10,
-			Compress:        false,
-		},
-	}
-
 	// Call through.
 	t.fsTest.SetUpTestSuite()
 }
