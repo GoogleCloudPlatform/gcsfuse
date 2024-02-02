@@ -31,7 +31,7 @@ nohup gcsfuse/gcsfuse --foreground \
       --max-conns-per-host 100 \
       --stackdriver-export-interval 60s \
       --config-file /tmp/gcsfuse_config.yaml \
-      ml-models-data-gcsfuse myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
+      gcsfuse-ml-tf-data myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
 pip3 install --user tf-models-official==2.13.2
