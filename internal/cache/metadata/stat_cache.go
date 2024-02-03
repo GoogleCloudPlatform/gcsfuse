@@ -19,6 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -85,7 +86,7 @@ type entry struct {
 // It is currently set to dummy value 1 to avoid
 // the unnecessary actual size calculation.
 func (e entry) Size() uint64 {
-	return 1
+	return uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsObject(e.o))
 }
 
 // Should the supplied object for a new positive entry replace the given
