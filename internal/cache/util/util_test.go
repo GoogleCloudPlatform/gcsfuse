@@ -153,15 +153,15 @@ func (ut *utilTest) Test_CreateFile_FilePerm0755() {
 	ExpectEq(nil, file.Close())
 }
 
-// TODO: should we remove this test as we use same perms for file and dir and dir needs min 7 perm as owner to be able to create file
-//func (ut *utilTest) Test_CreateFile_FilePerm0544() {
-//	ut.fileSpec.Perm = os.FileMode(0544)
-//
-//	file, err := CreateFile(ut.fileSpec, ut.flag)
-//
-//	ut.assertFileAndDirCreation(file, err)
-//	ExpectEq(nil, file.Close())
-//}
+func (ut *utilTest) Test_CreateFileShouldReturnErrorIfDirIsNotPresentAndFileSpecPermissionsAreLessThan700() {
+	ut.fileSpec.Perm = os.FileMode(0544)
+
+	_, err := CreateFile(ut.fileSpec, ut.flag)
+
+	ExpectNe(nil, err)
+	ExpectEq("error in creating file "+ut.fileSpec.Path+
+		": open "+ut.fileSpec.Path+": permission denied", err.Error())
+}
 
 func (ut *utilTest) Test_CreateFile_FilePresent() {
 	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
