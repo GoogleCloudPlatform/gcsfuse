@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
@@ -81,11 +82,12 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	// Mocked cached handler object.
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm, util.DefaultDirPerm)
 
-	// Follow consistency, local-cache file and entry in fileInfo cache should exist atomically.
+	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
 	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
-	_, err = chrT.cacheHandler.createLocalFileReadHandle(chrT.object.Name, chrT.bucket.Name())
+	_, err = util.CreateFile(data.FileSpec{Path: chrT.downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	AssertEq(nil, err)
+	_ = chrT.getDownloadJobForTestObject()
 }
 
 func (chrT *cacheHandlerTest) TearDown() {
@@ -128,13 +130,10 @@ func (chrT *cacheHandlerTest) isEntryInFileInfoCache(objectName string, bucketNa
 	return fileInfo != nil
 }
 
-func (chrT *cacheHandlerTest) getCacheHandleForSetupEntryInCache() *CacheHandle {
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
-	AssertEq(nil, err)
-	AssertNe(nil, cacheHandle)
-	AssertEq(true, doesFileExist(chrT.downloadPath))
-
-	return cacheHandle
+func (chrT *cacheHandlerTest) getDownloadJobForTestObject() *downloader.Job {
+	job := chrT.jobManager.CreateJobIfNotExists(chrT.object, chrT.bucket)
+	AssertNe(nil, job)
+	return job
 }
 
 func (chrT *cacheHandlerTest) getMinObject(objName string, objContent []byte) *gcs.MinObject {
@@ -177,105 +176,173 @@ func (chrT *cacheHandlerTest) Test_createLocalFileReadHandle_OnlyForRead() {
 }
 
 func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile() {
-	// Existing cacheHandle.
-	cacheHandle := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle.validateCacheHandle())
+	fileDownloadJob := chrT.getDownloadJobForTestObject()
 	fileInfo := chrT.cache.LookUp(chrT.fileInfoKeyName)
 	fileInfoData := fileInfo.(data.FileInfo)
-	jobStatusBefore := cacheHandle.fileDownloadJob.GetStatus()
-	AssertEq(jobStatusBefore.Name, downloader.NOT_STARTED)
-	jobStatusBefore, err := cacheHandle.fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
+	jobStatusBefore := fileDownloadJob.GetStatus()
+	AssertEq(jobStatusBefore.Name, downloader.NotStarted)
+	jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
 	AssertEq(nil, err)
-	AssertEq(jobStatusBefore.Name, downloader.DOWNLOADING)
+	AssertEq(jobStatusBefore.Name, downloader.Downloading)
 
 	err = chrT.cacheHandler.cleanUpEvictedFile(&fileInfoData)
 
 	ExpectEq(nil, err)
-	jobStatusAfter := cacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(jobStatusAfter.Name, downloader.INVALID)
-	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	jobStatusAfter := fileDownloadJob.GetStatus()
+	ExpectEq(jobStatusAfter.Name, downloader.Invalid)
+	ExpectFalse(doesFileExist(chrT.downloadPath))
+	// Job should be removed from job manager
+	ExpectEq(nil, chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name()))
 }
 
 func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile_WhenLocalFileNotExist() {
-	cacheHandle := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle.validateCacheHandle())
-	err := os.Remove(chrT.downloadPath)
-	AssertEq(nil, err)
+	fileDownloadJob := chrT.getDownloadJobForTestObject()
 	fileInfo := chrT.cache.LookUp(chrT.fileInfoKeyName)
 	fileInfoData := fileInfo.(data.FileInfo)
-	jobStatusBefore := cacheHandle.fileDownloadJob.GetStatus()
-	AssertEq(jobStatusBefore.Name, downloader.NOT_STARTED)
-	jobStatusBefore, err = cacheHandle.fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
+	jobStatusBefore := fileDownloadJob.GetStatus()
+	AssertEq(jobStatusBefore.Name, downloader.NotStarted)
+	jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
 	AssertEq(nil, err)
-	AssertEq(jobStatusBefore.Name, downloader.DOWNLOADING)
+	AssertEq(jobStatusBefore.Name, downloader.Downloading)
+	err = os.Remove(chrT.downloadPath)
+	AssertEq(nil, err)
 
 	err = chrT.cacheHandler.cleanUpEvictedFile(&fileInfoData)
 
 	ExpectEq(nil, err)
+	jobStatusAfter := fileDownloadJob.GetStatus()
+	ExpectEq(jobStatusAfter.Name, downloader.Invalid)
+	ExpectFalse(doesFileExist(chrT.downloadPath))
+	// Job should be removed from job manager
+	ExpectEq(nil, chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name()))
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfAlready() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_IfAlready() {
+	existingJob := chrT.getDownloadJobForTestObject()
 
-	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+	err := chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	// File download job should also be same
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectEq(existingJob, actualJob)
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_GenerationChanged() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
-
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_GenerationChanged() {
+	existingJob := chrT.getDownloadJobForTestObject()
 	chrT.object.Generation = chrT.object.Generation + 1
 
-	err := chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+	err := chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	// File download job should be new as the file info and job should be cleaned
+	// up.
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectNe(existingJob, actualJob)
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfNotAlready() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_IfNotAlready() {
+	oldJob := chrT.getDownloadJobForTestObject()
 	// Content of size more than 20 leads to eviction of initial TestObjectName.
 	// Here, content size is 21.
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
+	// There should be no file download job corresponding to minObject
+	existingJob := chrT.jobManager.GetJob(minObject.Name, chrT.bucket.Name())
+	AssertEq(nil, existingJob)
 
 	// Insertion will happen and that leads to eviction.
-	err := chrT.cacheHandler.addFileInfoEntryToCache(minObject, chrT.bucket)
+	err := chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(minObject, chrT.bucket)
 
 	ExpectEq(nil, err)
 	ExpectTrue(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
-	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
+	jobStatus := oldJob.GetStatus()
+	ExpectEq(downloader.Invalid, jobStatus.Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	// Job should be added for minObject
+	minObjectJob := chrT.jobManager.GetJob(minObject.Name, chrT.bucket.Name())
+	ExpectNe(nil, minObjectJob)
+	ExpectEq(downloader.NotStarted, minObjectJob.GetStatus().Name)
 }
 
-func (chrT *cacheHandlerTest) Test_addFileInfoEntryToCache_IfLocalFileGetsDeleted() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_IfLocalFileGetsDeleted() {
 	// Delete the local cache file.
 	err := os.Remove(chrT.downloadPath)
 	AssertEq(nil, err)
 
 	// There is a fileInfoEntry in the fileInfoCache but the corresponding local file doesn't exist.
 	// Hence, this will return error containing util.FileNotPresentInCacheErrMsg.
-	err = chrT.cacheHandler.addFileInfoEntryToCache(chrT.object, chrT.bucket)
+	err = chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneration() {
-	// Existing cacheHandle.
-	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasCompleted() {
+	existingJob := chrT.getDownloadJobForTestObject()
+	// Make the job completed, so it's removed from job manager.
+	jobStatus, err := existingJob.Download(context.Background(), int64(chrT.object.Size), true)
 	AssertEq(nil, err)
+	AssertEq(jobStatus.Offset, chrT.object.Size)
+	// Give time for execution of callback to remove from job manager
+	time.Sleep(time.Second)
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectEq(nil, actualJob)
+
+	err = chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
+
+	ExpectEq(nil, err)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	// No new job should be added to job manager
+	actualJob = chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectEq(nil, actualJob)
+}
+
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_WhenJobIsInvalidatedAndRemoved() {
+	chrT.jobManager.InvalidateAndRemoveJob(chrT.object.Name, chrT.bucket.Name())
+	existingJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectEq(nil, existingJob)
+
+	// Because the job has been removed and file info entry is still present, new
+	// file info entry and job should be created.
+	err := chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
+
+	ExpectEq(nil, err)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	// New job should be added to job manager
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectNe(nil, actualJob)
+	ExpectEq(downloader.NotStarted, actualJob.GetStatus().Name)
+}
+
+func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasFailed() {
+	existingJob := chrT.getDownloadJobForTestObject()
+	// Hack to fail the async job
+	correctSize := chrT.object.Size
+	chrT.object.Size = 2
+	jobStatus, err := existingJob.Download(context.Background(), 1, true)
+	AssertEq(nil, err)
+	AssertEq(downloader.Failed, jobStatus.Name)
+	chrT.object.Size = correctSize
+
+	// Because the job has been failed and file info entry is still present with
+	// size less than the object's size (because the async job failed), new job
+	// should be created
+	err = chrT.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chrT.object, chrT.bucket)
+
+	ExpectEq(nil, err)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	// New job should be added to job manager
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectNe(nil, actualJob)
+	ExpectEq(downloader.NotStarted, actualJob.GetStatus().Name)
+}
+
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneration() {
+	existingJob := chrT.getDownloadJobForTestObject()
+	AssertNe(nil, existingJob)
+	AssertEq(downloader.NotStarted, existingJob.GetStatus().Name)
 	// Change the version of the object, but cache still keeps old generation
 	chrT.object.Generation = chrT.object.Generation + 1
 
@@ -283,55 +350,65 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneratio
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, newCacheHandle.validateCacheHandle())
-	jobStatusOfOldHandle := oldCacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(jobStatusOfOldHandle.Name, downloader.INVALID)
+	jobStatusOfOldJob := existingJob.GetStatus()
+	ExpectEq(jobStatusOfOldJob.Name, downloader.Invalid)
 	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(jobStatusOfNewHandle.Name, downloader.NOT_STARTED)
+	ExpectEq(jobStatusOfNewHandle.Name, downloader.NotStarted)
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheContainsObjectHavingFailedAsyncJob() {
-	// Existing cacheHandle.
-	oldCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed() {
+	existingJob := chrT.getDownloadJobForTestObject()
+	// Hack to fail the async job
+	correctSize := chrT.object.Size
+	chrT.object.Size = 2
+	jobStatus, err := existingJob.Download(context.Background(), 1, true)
 	AssertEq(nil, err)
-	buf := make([]byte, 3)
-	oldObjectName := chrT.object.Name
-	chrT.object.Name = chrT.object.Name + "test" // Hack: to fail the download job while reading from GCS.
-	_, cacheHit, err := oldCacheHandle.Read(context.Background(), chrT.bucket, chrT.object, 0, buf)
-	ExpectNe(nil, err)
-	ExpectEq(false, cacheHit)
-	jobStatusOfOldHandle := oldCacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.FAILED, jobStatusOfOldHandle.Name)
-	// Assigning the correct object before further call.
-	chrT.object.Name = oldObjectName
+	AssertEq(downloader.Failed, jobStatus.Name)
+	chrT.object.Size = correctSize
 
 	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 
+	// New job should be created because the earlier job has failed.
 	ExpectEq(nil, err)
 	ExpectEq(nil, newCacheHandle.validateCacheHandle())
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.NOT_STARTED, jobStatusOfNewHandle.Name)
+	ExpectEq(downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryAlreadyInCache() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPresent() {
+	// File info and download job are already present for test object.
+	existingJob := chrT.getDownloadJobForTestObject()
+
 	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle.validateCacheHandle())
+	// Job and file info are still present
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	ExpectEq(existingJob, cacheHandle.fileDownloadJob)
+	jobStatusOfNewHandle := cacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
-func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenEntryNotInCache() {
+func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresent() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
 
 	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle.validateCacheHandle())
+	// Job and file info are still present
+	ExpectTrue(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
+	jobStatusOfNewHandle := cacheHandle.fileDownloadJob.GetStatus()
+	ExpectEq(downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+	// Start the existing job
+	existingJob := chrT.getDownloadJobForTestObject()
+	_, err := existingJob.Download(context.Background(), 1, false)
+	AssertEq(nil, err)
 	// Content of size more than 20 leads to eviction of initial TestObjectName.
 	// Here, content size is 21.
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
@@ -340,23 +417,28 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle2.validateCacheHandle())
-	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
-	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	jobStatus := existingJob.GetStatus()
+	ExpectEq(downloader.Invalid, jobStatus.Name)
+	ExpectFalse(doesFileExist(chrT.downloadPath))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
-	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
-	_, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
-	AssertEq(nil, err)
 	// Delete the local cache file.
-	err = os.Remove(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), minObject.Name)))
+	err := os.Remove(chrT.downloadPath)
 	AssertEq(nil, err)
+	existingJob := chrT.getDownloadJobForTestObject()
 
-	_, err = chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
+	AssertEq(nil, cacheHandle)
+	// Check file info and download job are not removed
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
+	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
+	ExpectEq(existingJob, actualJob)
+	ExpectEq(downloader.NotStarted, existingJob.GetStatus().Name)
+
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_CacheForRangeRead() {
@@ -381,16 +463,16 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_CacheForRangeRead() {
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
-
+	// Check async job and file info cache not preset for object_1
+	testObjectName := "object_1"
+	existingJob := chrT.jobManager.GetJob(testObjectName, chrT.bucket.Name())
+	AssertEq(nil, existingJob)
 	wg := sync.WaitGroup{}
-
 	getCacheHandleTestFun := func() {
 		defer wg.Done()
-		minObj := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
+		minObj := chrT.getMinObject(testObjectName, []byte("content of object_1 ..."))
 
+		var err error
 		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, false, 0)
 
 		AssertEq(nil, err)
@@ -404,15 +486,16 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
 	}
 	wg.Wait()
 
-	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
-	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	// Job should be added now
+	actualJob := chrT.jobManager.GetJob(testObjectName, chrT.bucket.Name())
+	jobStatus := actualJob.GetStatus()
+	ExpectEq(downloader.NotStarted, jobStatus.Name)
+	ExpectTrue(doesFileExist(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), testObjectName))))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+	existingJob := chrT.getDownloadJobForTestObject()
+	AssertEq(downloader.NotStarted, existingJob.GetStatus().Name)
 	wg := sync.WaitGroup{}
 
 	getCacheHandleTestFun := func(index int) {
@@ -434,29 +517,40 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
 	}
 	wg.Wait()
 
-	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
+	// Existing job for default chrT object should be invalidated.
+	ExpectNe(nil, existingJob)
+	ExpectEq(downloader.Invalid, existingJob.GetStatus().Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	// File info should also be removed.
+	ExpectFalse(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryAlreadyInCache() {
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
-	ExpectEq(nil, err)
+func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenAlreadyInCache() {
+	existingJob := chrT.getDownloadJobForTestObject()
+	AssertEq(downloader.NotStarted, existingJob.GetStatus().Name)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 
-	err = chrT.cacheHandler.InvalidateCache(chrT.object.Name, chrT.bucket.Name())
+	err := chrT.cacheHandler.InvalidateCache(chrT.object.Name, chrT.bucket.Name())
 
 	ExpectEq(nil, err)
-	jobStatus := cacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
+	// Existing job for default chrT object should be invalidated.
+	ExpectNe(nil, existingJob)
+	ExpectEq(downloader.Invalid, existingJob.GetStatus().Name)
 	ExpectEq(false, doesFileExist(chrT.downloadPath))
+	// File info should also be removed.
+	ExpectFalse(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
 
 func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryNotInCache() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
+	ExpectFalse(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
+	ExpectEq(nil, chrT.jobManager.GetJob(minObject.Name, chrT.bucket.Name()))
 
 	err := chrT.cacheHandler.InvalidateCache(minObject.Name, chrT.bucket.Name())
 
 	ExpectEq(nil, err)
+	ExpectFalse(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
+	ExpectEq(nil, chrT.jobManager.GetJob(minObject.Name, chrT.bucket.Name()))
 }
 
 func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
@@ -491,19 +585,21 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 }
 
 func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
-
+	existingJob := chrT.getDownloadJobForTestObject()
+	AssertEq(downloader.NotStarted, existingJob.GetStatus().Name)
+	ExpectTrue(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 	wg := sync.WaitGroup{}
-
 	InvalidateCacheTestFun := func() {
 		defer wg.Done()
-		minObj := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
 
-		err := chrT.cacheHandler.InvalidateCache(minObj.Name, chrT.bucket.Name())
+		err := chrT.cacheHandler.InvalidateCache(chrT.object.Name, chrT.bucket.Name())
 
 		AssertEq(nil, err)
+		ExpectNe(nil, existingJob)
+		ExpectEq(downloader.Invalid, existingJob.GetStatus().Name)
+		ExpectEq(false, doesFileExist(chrT.downloadPath))
+		// File info should also be removed.
+		ExpectFalse(chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 	}
 
 	// Start concurrent GetCacheHandle()
@@ -515,9 +611,6 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {
 }
 
 func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
 	wg := sync.WaitGroup{}
 
 	InvalidateCacheTestFun := func(index int) {
@@ -529,6 +622,8 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
 		err := chrT.cacheHandler.InvalidateCache(minObj.Name, chrT.bucket.Name())
 
 		AssertEq(nil, err)
+		AssertEq(nil, chrT.jobManager.GetJob(objName, chrT.bucket.Name()))
+		AssertFalse(chrT.isEntryInFileInfoCache(objName, chrT.bucket.Name()))
 	}
 
 	// Start concurrent GetCacheHandle()
@@ -539,10 +634,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentDifferentFiles() {
 	wg.Wait()
 }
 
-func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
-	// Existing cacheHandle.
-	cacheHandle1 := chrT.getCacheHandleForSetupEntryInCache()
-	AssertEq(nil, cacheHandle1.validateCacheHandle())
+func (chrT *cacheHandlerTest) Test_InvalidateCache_GetCacheHandle_Concurrent() {
 	wg := sync.WaitGroup{}
 
 	invalidateCacheTestFun := func(index int) {
@@ -576,12 +668,6 @@ func (chrT *cacheHandlerTest) Test_InvalidateCacheAndGetHandle_Concurrent() {
 		go getCacheHandleTestFun(i)
 	}
 	wg.Wait()
-
-	// Any fileInfo addition with content size greater than ObjectSizeToCauseEviction will
-	// evict the existing cache handle.
-	jobStatus := cacheHandle1.fileDownloadJob.GetStatus()
-	ExpectEq(downloader.INVALID, jobStatus.Name)
-	ExpectEq(false, doesFileExist(chrT.downloadPath))
 }
 
 func (chrT *cacheHandlerTest) Test_Destroy() {
@@ -604,8 +690,6 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	AssertEq(nil, err)
 	err = cacheHandle2.Close()
 	AssertEq(nil, err)
-	job1 := cacheHandle1.fileDownloadJob
-	job2 := cacheHandle2.fileDownloadJob
 
 	err = chrT.cacheHandler.Destroy()
 
@@ -614,7 +698,12 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	_, err = os.Stat(path.Join(chrT.cacheLocation, util.FileCache))
 	AssertNe(nil, err)
 	AssertTrue(errors.Is(err, os.ErrNotExist))
-	// Verify jobs are invalidated
-	AssertEq(downloader.INVALID, job1.GetStatus().Name)
-	AssertEq(downloader.INVALID, job2.GetStatus().Name)
+	// Verify jobs are either removed or completed and removed themselves.
+	job1 := chrT.jobManager.GetJob(minObject1.Name, chrT.bucket.Name())
+	job2 := chrT.jobManager.GetJob(minObject1.Name, chrT.bucket.Name())
+	AssertTrue((job1 == nil) || (job1.GetStatus().Name == downloader.Completed))
+	AssertTrue((job2 == nil) || (job2.GetStatus().Name == downloader.Completed))
+	// Job manager should no longer contain the jobs
+	AssertEq(nil, chrT.jobManager.GetJob(minObject1.Name, chrT.bucket.Name()))
+	AssertEq(nil, chrT.jobManager.GetJob(minObject2.Name, chrT.bucket.Name()))
 }

@@ -32,26 +32,27 @@ type CacheHandle struct {
 	// fileHandle to a local file which contains locally downloaded data.
 	fileHandle *os.File
 
-	//	fileDownloadJob is a reference to async download Job.
+	// fileDownloadJob is a reference to async download Job.
 	fileDownloadJob *downloader.Job
 
-	// fileInfoCache contains the reference of fileInfo cache.
+	// fileInfoCache contains the reference to fileInfo cache.
 	fileInfoCache *lru.Cache
 
-	// cacheFileForRangeRead if true, object content will be downloaded for random
-	// reads as well too.
+	// cacheFileForRangeRead if true, async download job will start even for range
+	// reads.
 	cacheFileForRangeRead bool
 
 	// isSequential saves if the current read performed via cache handle is sequential or
 	// random.
 	isSequential bool
 
-	// prevOffset stores the offset of previous cache_handle read call. This is used
+	// prevOffset stores the offset of previous cache handle read call. This is used
 	// to decide the type of read.
 	prevOffset int64
 }
 
-func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job, fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
+	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -67,10 +68,6 @@ func (fch *CacheHandle) validateCacheHandle() error {
 		return errors.New(util.InvalidFileHandleErrMsg)
 	}
 
-	if fch.fileDownloadJob == nil {
-		return errors.New(util.InvalidFileDownloadJobErrMsg)
-	}
-
 	if fch.fileInfoCache == nil {
 		return errors.New(util.InvalidFileInfoCacheErrMsg)
 	}
@@ -78,12 +75,12 @@ func (fch *CacheHandle) validateCacheHandle() error {
 	return nil
 }
 
-// shouldReadFromCache returns nil if the data should be read from the local,
-// downloaded file. Otherwise, it returns a non-nil error with an appropriate error message.
+// shouldReadFromCache returns nil if the data should be read from the locally
+// downloaded cache file. Otherwise, it returns an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
-		jobStatus.Name == downloader.INVALID ||
-		jobStatus.Name == downloader.FAILED {
+		jobStatus.Name == downloader.Invalid ||
+		jobStatus.Name == downloader.Failed {
 		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
 		return err
 	} else if jobStatus.Offset < requiredOffset {
@@ -94,33 +91,41 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 }
 
 // checkEntryInFileInfoCache checks if entry is present for a given object in
-// file info cache with same generation. It returns nil if entry is present,
-// otherwise returns an error with appropriate message.
-func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset int64) error {
+// file info cache with same generation and at least requiredOffset.
+// It returns nil if entry is present, otherwise returns an appropriate error.
+// Whether to change the order in cache while lookup is controlled via
+// changeCacheOrder.
+func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return fmt.Errorf("read: while creating key: %v", fileInfoKeyName)
+		return fmt.Errorf("error while creating key for bucket %s and object %s: %w", bucket.Name(), object.Name, err)
 	}
-	// Look up of file being read in file info cache is required to update the LRU
-	// order on every read request from kernel i.e. with every read request from
-	// kernel, the file being read becomes most recently used.
-	fileInfo := fch.fileInfoCache.LookUp(fileInfoKeyName)
 
-	// The generation check below is required because it may happen that file
-	// being read is evicted from cache during or after reading the required offset
-	// from local cached file to `dst` buffer.
+	var fileInfo lru.ValueType
+	if changeCacheOrder {
+		fileInfo = fch.fileInfoCache.LookUp(fileInfoKeyName)
+	} else {
+		fileInfo = fch.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
+	}
 	if fileInfo == nil {
 		err = fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 		return err
 	}
 
+	// The generation check below is required because it may happen that file
+	// being read is evicted from cache during or after reading the required offset
+	// from local cached file to `dst` buffer.
 	fileInfoData := fileInfo.(data.FileInfo)
 	if fileInfoData.ObjectGeneration != object.Generation {
 		err = fmt.Errorf("%v: generation of cached object: %v is different from required generation: %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration, object.Generation)
+		return err
+	}
+	if fileInfoData.Offset < requiredOffset {
+		err = fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.InvalidFileInfoCacheErrMsg, fileInfoData.Offset, requiredOffset)
 		return err
 	}
 
@@ -161,30 +166,44 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		requiredOffset = objSize
 	}
 
-	jobStatus := fch.fileDownloadJob.GetStatus()
-	// If cacheFileForRangeRead is false and readType is random, download will not be initiated.
-	if !fch.cacheFileForRangeRead && !isSequentialRead {
+	// If fileDownloadJob is not nil, it's better to get status of cache file
+	// from the job itself than to use file info cache.
+	if fch.fileDownloadJob != nil {
+		jobStatus := fch.fileDownloadJob.GetStatus()
+		// If cacheFileForRangeRead is false and readType is random, download will
+		// not be initiated.
+		if !fch.cacheFileForRangeRead && !isSequentialRead {
+			if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
+				return 0, false, err
+			}
+		}
+
+		if jobStatus.Offset >= requiredOffset {
+			cacheHit = true
+		}
+
+		fch.prevOffset = offset
+
+		jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
+		if err != nil {
+			n = 0
+			cacheHit = false
+			err = fmt.Errorf("read: while downloading through job: %w", err)
+			return
+		}
+
 		if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
 			return 0, false, err
 		}
-	}
-
-	if jobStatus.Offset >= requiredOffset {
+	} else {
+		// If fileDownloadJob is nil then it means either the job is successfully
+		// completed or failed. The offset must be equal to size of object for job
+		// to be completed.
+		err = fch.checkEntryInFileInfoCache(bucket, object, object.Size, false)
+		if err != nil {
+			return 0, false, err
+		}
 		cacheHit = true
-	}
-
-	fch.prevOffset = offset
-
-	jobStatus, err = fch.fileDownloadJob.Download(ctx, requiredOffset, waitForDownload)
-	if err != nil {
-		n = 0
-		cacheHit = false
-		err = fmt.Errorf("read: while downloading through job: %w", err)
-		return
-	}
-
-	if err = fch.shouldReadFromCache(&jobStatus, requiredOffset); err != nil {
-		return 0, false, err
 	}
 
 	// We are here means, we have the data downloaded which kernel has asked for.
@@ -203,13 +222,15 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		}
 		err = nil
 	}
-
 	if err != nil {
 		err = fmt.Errorf("%s: while reading from %d offset of the local file: %w", util.ErrInReadingFileHandleMsg, offset, err)
 		return 0, false, err
 	}
 
-	err = fch.checkEntryInFileInfoCache(bucket, object, requiredOffset)
+	// Look up of file being read in file info cache is required to update the LRU
+	// order on every read request from kernel i.e. with every read request from
+	// kernel, the file being read becomes most recently used.
+	err = fch.checkEntryInFileInfoCache(bucket, object, uint64(requiredOffset), true)
 	if err != nil {
 		return 0, false, err
 	}
@@ -235,7 +256,7 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 	return true
 }
 
-// Close closes the underlined fileHandle points to locally downloaded data.
+// Close closes the underlying fileHandle pointing to locally downloaded cache file.
 func (fch *CacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
 		err = fch.fileHandle.Close()

@@ -16,7 +16,6 @@ package downloader
 
 import (
 	"container/list"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,12 +36,11 @@ import (
 type jobStatusName string
 
 const (
-	NOT_STARTED jobStatusName = "NOT_STARTED"
-	DOWNLOADING jobStatusName = "DOWNLOADING"
-	COMPLETED   jobStatusName = "COMPLETED"
-	FAILED      jobStatusName = "FAILED"
-	CANCELLED   jobStatusName = "CANCELLED"
-	INVALID     jobStatusName = "INVALID"
+	NotStarted  jobStatusName = "NotStarted"
+	Downloading jobStatusName = "Downloading"
+	Completed   jobStatusName = "Completed"
+	Failed      jobStatusName = "Failed"
+	Invalid     jobStatusName = "Invalid"
 )
 
 const ReadChunkSize = 8 * cacheutil.MiB
@@ -64,21 +62,26 @@ type Job struct {
 	// Mutable state
 	/////////////////////////
 
-	// Represents the current status of Job.
+	// status represents the current status of Job.
 	// status.Offset means data in cache is present in range [0, status.offset)
 	status JobStatus
 
-	// list of subscribers waiting on async download.
+	// subscribers is list of subscribers waiting on async download.
 	//
 	// INVARIANT: Each element is of type jobSubscriber
 	subscribers list.List
 
 	// Context & its CancelFunc for cancelling async download in progress.
+	// These properties are non-nil only while the async job is running.
 	cancelCtx  context.Context
 	cancelFunc context.CancelFunc
 
 	// doneCh for waiting for cancellation of async download in progress.
 	doneCh chan struct{}
+
+	// removeJobCallback is a callback function to remove job from JobManager. It
+	// is responsibility of JobManager to pass this function.
+	removeJobCallback func()
 
 	mu locker.Locker
 }
@@ -98,13 +101,14 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec) (job *Job) {
+	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func()) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
 		fileInfoCache:        fileInfoCache,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
+		removeJobCallback:    removeJobCallback,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -126,7 +130,7 @@ func (job *Job) checkInvariants() {
 // init initializes the mutable members of Job corresponding to not started
 // state.
 func (job *Job) init() {
-	job.status = JobStatus{NOT_STARTED, nil, 0}
+	job.status = JobStatus{NotStarted, nil, 0}
 	job.subscribers = list.List{}
 	job.doneCh = make(chan struct{})
 }
@@ -157,59 +161,35 @@ func (job *Job) cancel() {
 	<-job.doneCh
 }
 
-// Cancel changes the state of job to cancelled and cancels the async download
-// job if there. Also, notifies the subscribers of job if any.
-//
-// Acquires and releases LOCK(job.mu)
-func (job *Job) Cancel() {
-	job.mu.Lock()
-	if job.status.Name == NOT_STARTED {
-		job.status.Name = CANCELLED
-		logger.Tracef("Job:%p (%s:/%s) cancelled.", job, job.bucket.Name(), job.object.Name)
-		job.notifySubscribers()
-		job.mu.Unlock()
-		return
-	}
-
-	if job.status.Name == DOWNLOADING {
-		job.status.Name = CANCELLED
-		job.cancel()
-
-		job.mu.Lock()
-		// If the job fails or is invalidated at the time of cancellation, then
-		// we shouldn't change the status to cancelled.
-		if job.status.Name != FAILED && job.status.Name != INVALID {
-			job.status.Name = CANCELLED
-			logger.Tracef("Job:%p (%s:/%s) cancelled.", job, job.bucket.Name(), job.object.Name)
-			job.notifySubscribers()
-		}
-	}
-	job.mu.Unlock()
-}
-
-// Invalidate invalidates the download job i.e. changes the state to INVALID.
+// Invalidate invalidates the download job i.e. changes the state to Invalid.
 // If the async download is in progress, this function cancels that. The caller
-// should not read from the file in cache if job is in INVALID state.
+// should not read from the file in cache if job is in Invalid state.
+// Note: job.removeJobCallback function is also executed as part of invalidation.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Invalidate() {
 	job.mu.Lock()
-	if job.status.Name == DOWNLOADING {
-		job.status.Name = INVALID
+	if job.status.Name == Downloading {
+		job.status.Name = Invalid
 		job.cancel()
-		// Lock again for rest of statements because even after cancellation, the
-		// final state of job should always be INVALID.
+
+		// Lock again to execute common notification logic.
 		job.mu.Lock()
 	}
 	defer job.mu.Unlock()
-	job.status.Name = INVALID
+	job.status.Name = Invalid
 	logger.Tracef("Job:%p (%s:/%s) is no longer valid.", job, job.bucket.Name(), job.object.Name)
+	if job.removeJobCallback != nil {
+		job.removeJobCallback()
+		job.removeJobCallback = nil
+	}
 	job.notifySubscribers()
+	return
 }
 
 // subscribe adds subscriber for download job and returns channel which is
 // notified when the download is completed at least till the subscribed offset
-// or in case of failure and cancellation.
+// or in case of failure and invalidation.
 //
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatus) {
@@ -219,7 +199,7 @@ func (job *Job) subscribe(subscribedOffset int64) (notificationC <-chan JobStatu
 }
 
 // notifySubscribers notifies all the subscribers of download job in case of
-// error/cancellation or when download is completed till the subscribed offset.
+// failure or invalidation or completion till the subscribed offset.
 //
 // Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) notifySubscribers() {
@@ -227,7 +207,7 @@ func (job *Job) notifySubscribers() {
 	for subItr := job.subscribers.Front(); subItr != nil; subItr = nextSubItr {
 		subItrValue := subItr.Value.(jobSubscriber)
 		nextSubItr = subItr.Next()
-		if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Name == INVALID || job.status.Offset >= subItrValue.subscribedOffset {
+		if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= subItrValue.subscribedOffset {
 			subItrValue.notificationC <- job.status
 			close(subItrValue.notificationC)
 			job.subscribers.Remove(subItr)
@@ -243,7 +223,7 @@ func (job *Job) failWhileDownloading(downloadErr error) {
 	logger.Errorf("Job:%p (%s:/%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
 	job.mu.Lock()
 	job.status.Err = downloadErr
-	job.status.Name = FAILED
+	job.status.Name = Failed
 	job.notifySubscribers()
 	job.mu.Unlock()
 }
@@ -259,7 +239,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		err = fmt.Errorf("init: error while calling FileInfoKey.Key() for bucket %s and object %s %w",
+		err = fmt.Errorf("updateFileInfoCache: error while creating fileInfoKeyName for bucket %s and object %s %w",
 			fileInfoKey.BucketName, fileInfoKey.ObjectName, err)
 		return
 	}
@@ -272,7 +252,7 @@ func (job *Job) updateFileInfoCache() (err error) {
 	logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err != nil {
-		err = fmt.Errorf("error while inserting updatedFileInfo to the FileInfoCache %s: %w", updatedFileInfo.Key, err)
+		err = fmt.Errorf("updateFileInfoCache: error while inserting into fileInfoCache %s: %w", updatedFileInfo.Key, err)
 		return
 	}
 	return
@@ -284,15 +264,20 @@ func (job *Job) updateFileInfoCache() (err error) {
 // Note: There can only be one async download running for a job at a time.
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
-	// Close the job.doneCh and clear the cancelFunc & cancelCtx in any case -
-	// completion/cancellation/failure of this goroutine.
+	// Close the job.doneCh, clear the cancelFunc & cancelCtx and call the
+	// remove job callback function in any case - completion/failure.
 	defer func() {
+		job.cancelFunc()
+		close(job.doneCh)
+
 		job.mu.Lock()
+		if job.removeJobCallback != nil {
+			job.removeJobCallback()
+			job.removeJobCallback = nil
+		}
 		job.cancelCtx, job.cancelFunc = nil, nil
 		job.mu.Unlock()
 	}()
-	defer close(job.doneCh)
-	defer job.cancelFunc()
 
 	// Create, open and truncate cache file for writing object into it.
 	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
@@ -301,20 +286,13 @@ func (job *Job) downloadObjectAsync() {
 		job.failWhileDownloading(err)
 		return
 	}
-	defer func(cacheFile *os.File) {
+	defer func() {
 		err = cacheFile.Close()
 		if err != nil {
 			err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
 			job.failWhileDownloading(err)
 		}
-	}(cacheFile)
-
-	notifyCancelled := func() {
-		job.mu.Lock()
-		job.status.Name = CANCELLED
-		job.notifySubscribers()
-		job.mu.Unlock()
-	}
+	}()
 
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
@@ -341,10 +319,6 @@ func (job *Job) downloadObjectAsync() {
 							ReadCompressed: job.object.HasContentEncodingGzip(),
 						})
 					if err != nil {
-						if errors.Is(err, context.Canceled) {
-							notifyCancelled()
-							return
-						}
 						err = fmt.Errorf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 						job.failWhileDownloading(err)
 						return
@@ -360,13 +334,9 @@ func (job *Job) downloadObjectAsync() {
 					return
 				}
 
-				// copy the contents from NewReader to cache file.
+				// Copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
 				if readErr != nil {
-					if errors.Is(readErr, context.Canceled) {
-						notifyCancelled()
-						return
-					}
 					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %w", readErr)
 					job.failWhileDownloading(err)
 					return
@@ -386,21 +356,22 @@ func (job *Job) downloadObjectAsync() {
 					// Download job expects entry in file info cache for the file it is
 					// downloading. If the entry is deleted in between which is expected
 					// to happen at the time of eviction, then the job should be
-					// marked INVALID instead of FAILED.
-					job.status.Name = INVALID
+					// marked Invalid instead of Failed.
+					job.status.Name = Invalid
 					job.notifySubscribers()
+					logger.Tracef("Job:%p (%s:/%s) is no longer valid due to absense of entry in file info cache.", job, job.bucket.Name(), job.object.Name)
 					job.mu.Unlock()
 					return
 				}
 				job.mu.Unlock()
-				// change status of job in case of error while updating file cache.
+				// Change status of job in case of error while updating file cache.
 				if err != nil {
 					job.failWhileDownloading(err)
 					return
 				}
 			} else {
 				job.mu.Lock()
-				job.status.Name = COMPLETED
+				job.status.Name = Completed
 				job.notifySubscribers()
 				job.mu.Unlock()
 				return
@@ -410,9 +381,9 @@ func (job *Job) downloadObjectAsync() {
 }
 
 // Download downloads object till the given offset and returns the status of
-// job. If the object is already downloaded or there was failure/cancellation in
-// download, then it returns the job status. The caller shouldn't read data
-// from file in cache if jobStatus is FAILED or INVALID.
+// job. If the object is already downloaded or there was failure in download,
+// then it returns the job status. The caller shouldn't read data from file in
+// cache if jobStatus is Failed or Invalid.
 //
 // Acquires and releases LOCK(job.mu)
 func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool) (jobStatus JobStatus, err error) {
@@ -423,15 +394,15 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		return job.status, err
 	}
 
-	if job.status.Name == COMPLETED {
+	if job.status.Name == Completed {
 		defer job.mu.Unlock()
 		return job.status, nil
-	} else if job.status.Name == NOT_STARTED {
+	} else if job.status.Name == NotStarted {
 		// Start the async download
-		job.status.Name = DOWNLOADING
+		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 		go job.downloadObjectAsync()
-	} else if job.status.Name == FAILED || job.status.Name == CANCELLED || job.status.Name == INVALID || job.status.Offset >= offset {
+	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
 	}
@@ -441,12 +412,13 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		return job.status, nil
 	}
 
-	// subscribe to an offset.
+	// Subscribe to the given offset.
 	notificationC := job.subscribe(offset)
-	// lock is not required when the subscriber is waiting for async download job.
+	// Lock is not required when the subscriber is waiting for async download job
+	// to download the requested contents.
 	job.mu.Unlock()
 
-	// Wait till subscriber is notified by async job or the async job is cancelled
+	// Wait till subscriber is notified or the context is cancelled.
 	select {
 	case <-ctx.Done():
 		err = fmt.Errorf("Download: %w", ctx.Err())
