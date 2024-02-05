@@ -228,13 +228,10 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 		// an unnecessary constant pointerSize, but that would
 		// have added cost of an extra unsafe.Sizeof on each
 		// member.
-		size += pointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
+		size += PointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
 	}
 	return
 }
-
-var TotalNumNestedSizeOfGcsObjectInvocations uint64
-var NumNestedSizeOfGcsObjectInvocationsWithNullInput uint64
 
 // NestedSizeOfGcsObject returns the full nested memory size
 // of the gcs.Object pointed by the passed pointer.
@@ -242,10 +239,7 @@ var NumNestedSizeOfGcsObjectInvocationsWithNullInput uint64
 // but that needs better understanding of the reflect package
 // and other related packages.
 func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
-	TotalNumNestedSizeOfGcsObjectInvocations++
-
 	if o == nil {
-		NumNestedSizeOfGcsObjectInvocationsWithNullInput++
 		return
 	}
 
