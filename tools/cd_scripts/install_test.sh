@@ -17,7 +17,7 @@
 set -x
 
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gsutil cp  gs://gcsfuse-beta-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 echo $vm_instance_name >> details.txt
@@ -97,7 +97,7 @@ if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     sudo apt-get install --only-upgrade gcsfuse |& tee -a ~/logs.txt
 else
-    sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
+    sudo yum -y upgrade --nogpgcheck gcsfuse |& tee -a ~/logs.txt
 fi
 
 gcsfuse --version |& tee version.txt
@@ -112,8 +112,8 @@ if grep -q Failure ~/logs.txt; then
     echo "Test failed" &>> ~/logs.txt ;
 else
     touch success.txt
-    gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
+    gsutil cp success.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/   ;
 fi
 
-gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
+gsutil cp ~/logs.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/installation-test/$(sed -n 3p details.txt)/
 
