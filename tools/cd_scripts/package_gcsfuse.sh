@@ -84,7 +84,7 @@ sudo apt-get install git -y
 # It is require for multi-arch support
 sudo apt-get install qemu-user-static binfmt-support
 
-git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
+git clone -b "beta_louhi_cd_script_change" https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
 
 # Setting set +e to capture error output in log file and send it on the bucket.
