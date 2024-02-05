@@ -49,8 +49,8 @@ const (
 // CreateFile creates file with given file spec i.e. permissions and returns
 // file handle for that file opened with given flag.
 //
-// Note: If directories in path are not present, they are created with FileDirPerm
-// permission.
+// Note: If directories in path are not present, they are also created with permissions
+// provided in file spec.
 func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
 	fileDir := filepath.Dir(fileSpec.Path)
@@ -101,7 +101,7 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-// Creates directory at given path with FileDirPerm(0755) permissions in case not already present,
+// Creates directory at given path with provided access permissions in case not already present,
 // returns error in case unable to create directory or directory is not writable.
 func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPermissions os.FileMode) error {
 	_, statErr := os.Stat(dirPath)
