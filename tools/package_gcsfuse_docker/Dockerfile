@@ -36,8 +36,8 @@ ARG DEBFULLNAME="GCSFuse Team"
 
 # Build Arg for building through a particular branch/commit. By default, it uses
 # the tag corresponding to passed GCSFUSE VERSION
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
+#ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git checkout "beta_louhi_cd_script_change"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile

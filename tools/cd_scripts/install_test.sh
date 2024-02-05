@@ -28,7 +28,7 @@ touch ~/logs.txt
 if grep -q ubuntu details.txt || grep -q debian details.txt;
 then
     #  For ubuntu and debian os
-    export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+    export GCSFUSE_REPO=gcsfuse-beta
     # Don't use apt-key for Debian 11+ and Ubuntu 21+
     if { [[ $vm_instance_name == *"debian"*  &&  !( "$vm_instance_name" < "release-test-debian-11") ]]; } || { [[ $vm_instance_name == *"ubuntu"*  && !("$vm_instance_name" < "release-test-ubuntu-21") ]]; }
     then
@@ -53,7 +53,7 @@ else
     sudo tee /etc/yum.repos.d/gcsfuse.repo > /dev/null <<EOF
 [gcsfuse]
 name=gcsfuse (packages.cloud.google.com)
-baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64
+baseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64-beta
 enabled=1
 gpgcheck=1
 repo_gpgcheck=0

@@ -64,6 +64,10 @@ function exit_in_failure() {
 RELEASE_VERSION=$(fetch_meta_data_value "RELEASE_VERSION")
 echo RELEASE_VERSION="$RELEASE_VERSION"
 
+# '~' is not accepted as docker build suffix.
+DOCKER_BUILD_TAG_SUFFIX=$(echo $RELEASE_VERSION | tr '~' '_')
+echo DOCKER_BUILD_TAG_SUFFIX="$DOCKER_BUILD_TAG_SUFFIX"
+
 # Fetch metadata value of the key "UPLOAD_BUCKET"
 UPLOAD_BUCKET=$(fetch_meta_data_value "UPLOAD_BUCKET")
 echo UPLOAD_BUCKET="$UPLOAD_BUCKET"
@@ -87,13 +91,13 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 set +e
 exit_code=0
 echo "Building docker for amd64 ..."
-sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --platform=linux/amd64 &> docker_amd64.log &
+sudo docker buildx build --load . -t gcsfuse-release-amd64:"$DOCKER_BUILD_TAG_SUFFIX" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --platform=linux/amd64 &> docker_amd64.log &
 pid1=$!
 echo "Building docker for arm64 ..."
 # It is necessary for cross-platform image building because it creates a builder instance that is capable of
 # building images for multiple architectures.
 sudo docker buildx create --name mybuilder --bootstrap --use
-sudo docker buildx build --load . -t gcsfuse-release-arm64:"$RELEASE_VERSION" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=arm64 --platform=linux/arm64 &> docker_arm64.log &
+sudo docker buildx build --load . -t gcsfuse-release-arm64:"$DOCKER_BUILD_TAG_SUFFIX" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=arm64 --platform=linux/arm64 &> docker_arm64.log &
 pid2=$!
 echo "Waiting for both builds to complete ..."
 wait $pid1
@@ -109,8 +113,8 @@ exit_in_failure
 set -e
 # Below steps are taking less than one second, so we are not parallelising them.
 # Copy packages from docket container to disk.
-sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-amd64:"$RELEASE_VERSION" cp -r /packages/. /release/v"$RELEASE_VERSION"
-sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-arm64:"$RELEASE_VERSION" cp -r /packages/. /release/v"$RELEASE_VERSION"
+sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-amd64:"$DOCKER_BUILD_TAG_SUFFIX" cp -r /packages/. /release/v"$RELEASE_VERSION"
+sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-arm64:"$DOCKER_BUILD_TAG_SUFFIX" cp -r /packages/. /release/v"$RELEASE_VERSION"
 
 echo "Upload files in the bucket ..."
 gsutil cp -r $HOME/gcsfuse/release/v"$RELEASE_VERSION" gs://"$UPLOAD_BUCKET"/
