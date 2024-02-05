@@ -58,7 +58,7 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), 200, CacheMaxSize)
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, cacheLocation, DefaultSequentialReadSizeMb)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheLocation, DefaultSequentialReadSizeMb)
 }
 
 func (dt *downloaderTest) TearDown() {

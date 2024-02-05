@@ -253,11 +253,13 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	// When user passes allow_other flag, then other users should be able to
 	// read from cache
 	filePerm := util.DefaultFilePerm
+	dirPerm := util.DefaultDirPerm
 	if cfg.AllowOther {
 		filePerm = util.FilePermWithAllowOther
+		dirPerm = util.DirPermWithAllowOther
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheLocation,
 		cfg.SequentialReadSizeMb)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
 		cacheLocation, filePerm)

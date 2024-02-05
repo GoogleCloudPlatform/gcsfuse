@@ -45,9 +45,9 @@ const (
 	DefaultFilePerm        = os.FileMode(0600)
 	FilePermWithAllowOther = os.FileMode(0644)
 
-	DefaultDirPerm            = os.FileMode(0700)
-	FileDirPermWithAllowOther = os.FileMode(0755)
-	FileCache                 = "gcsfuse-file-cache"
+	DefaultDirPerm        = os.FileMode(0700)
+	DirPermWithAllowOther = os.FileMode(0755)
+	FileCache             = "gcsfuse-file-cache"
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns

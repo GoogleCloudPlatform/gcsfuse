@@ -34,6 +34,9 @@ type JobManager struct {
 	// filePerm is passed to Job created by JobManager. filePerm decides the
 	// permission of file in cache created by Job.
 	filePerm os.FileMode
+	// dirPerm is passed to Job created by JobManager. dirPerm decides the
+	// permission of directory at cache location created by Job.
+	dirPerm os.FileMode
 	// cacheLocation is the path to directory where cache files should be created.
 	cacheLocation string
 	// sequentialReadSizeMb is passed to Job created by JobManager, and it decides
@@ -54,9 +57,9 @@ type JobManager struct {
 	mu   locker.Locker
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, cacheLocation string, sequentialReadSizeMb int32) (jm *JobManager) {
+func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheLocation string, sequentialReadSizeMb int32) (jm *JobManager) {
 	jm = &JobManager{fileInfoCache: fileInfoCache, filePerm: filePerm,
-		cacheLocation: cacheLocation, sequentialReadSizeMb: sequentialReadSizeMb}
+		dirPerm: dirPerm, cacheLocation: cacheLocation, sequentialReadSizeMb: sequentialReadSizeMb}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
 	return
