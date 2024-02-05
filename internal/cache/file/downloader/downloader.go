@@ -76,7 +76,7 @@ func (jm *JobManager) GetJob(object *gcs.MinObject, bucket gcs.Bucket) (job *Job
 	job, ok := jm.jobs[objectPath]
 	if !ok {
 		downloadPath := util.GetDownloadPath(jm.cacheLocation, objectPath)
-		fileSpec := data.FileSpec{Path: downloadPath, Perm: jm.filePerm}
+		fileSpec := data.FileSpec{Path: downloadPath, Perm: jm.filePerm, DirPerm: jm.dirPerm}
 		job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec)
 		jm.jobs[objectPath] = job
 	}

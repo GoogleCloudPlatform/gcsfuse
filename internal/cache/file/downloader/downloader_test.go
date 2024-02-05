@@ -100,6 +100,20 @@ func (dt *downloaderTest) Test_GetJob_Existing() {
 	ExpectEq(expectedJob, job)
 }
 
+func (dt *downloaderTest) Test_GetJob_Existing_WithDefaultFileAndDirPerm() {
+	// first create new job
+	expectedJob := dt.jm.GetJob(&dt.object, dt.bucket)
+	dt.jm.mu.Lock()
+	dt.verifyJob(expectedJob, &dt.object, dt.bucket, dt.jm.sequentialReadSizeMb)
+	dt.jm.mu.Unlock()
+
+	// again call GetJob
+	job := dt.jm.GetJob(&dt.object, dt.bucket)
+
+	ExpectEq(0700, job.fileSpec.DirPerm.Perm())
+	ExpectEq(0600, job.fileSpec.Perm.Perm())
+}
+
 func (dt *downloaderTest) Test_GetJob_Concurrent() {
 	jobs := [5]*Job{}
 	wg := sync.WaitGroup{}

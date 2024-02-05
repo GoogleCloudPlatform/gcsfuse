@@ -84,6 +84,7 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	fileStat, err := os.Stat(cht.fileSpec.Path)
 	AssertEq(nil, err)
 	AssertEq(cht.fileSpec.Perm, fileStat.Mode())
+	AssertEq(cht.fileSpec.DirPerm, 0700)
 
 	// Create a byte buffer of same len as expectedContent.
 	buf := make([]byte, len(expectedContent))
@@ -126,7 +127,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	cht.addTestFileInfoEntryInCache()
 
 	localDownloadedPath := path.Join(cht.cacheLocation, cht.bucket.Name(), cht.object.Name)
-	cht.fileSpec = data.FileSpec{Path: localDownloadedPath, Perm: util.DefaultFilePerm}
+	cht.fileSpec = data.FileSpec{Path: localDownloadedPath, Perm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}
 
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	AssertEq(nil, err)
