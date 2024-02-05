@@ -134,7 +134,7 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 			expected_size: sizeOfEmptyStringIntMap,
 		},
 	} {
-		calculatedSize := unsafeSizeOf(&tc.t)
+		calculatedSize := UnsafeSizeOf(&tc.t)
 		AssertEq(tc.expected_size, calculatedSize)
 	}
 }

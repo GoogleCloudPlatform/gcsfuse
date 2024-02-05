@@ -81,13 +81,13 @@ func init() {
 // that they are calculating the sizes of
 // the struct/object/built-int pointed to by the passed pointer.
 
-// unsafeSizeOf returns the unsafe.Sizeof or
+// UnsafeSizeOf returns the unsafe.Sizeof or
 // raw-size of the object pointed to by the given pointer.
 // It does not account for the pointer's size on memory itself.
 // For e.g. if an int is 8 bytes and an empty string is 16 bytes,
-// then unsafeSizeOf(&struct{int, string})
+// then UnsafeSizeOf(&struct{int, string})
 // return 24 (8+16).
-func unsafeSizeOf[T any](ptr *T) int {
+func UnsafeSizeOf[T any](ptr *T) int {
 	if ptr == nil {
 		return 0
 	}
@@ -102,7 +102,7 @@ func contentSizeOfString(s *string) int {
 }
 
 func nestedSizeOfString(s *string) int {
-	return unsafeSizeOf(s) + contentSizeOfString(s)
+	return UnsafeSizeOf(s) + contentSizeOfString(s)
 }
 
 func nestedContentSizeOfArrayOfStrings(arr *[]string) (size int) {
@@ -117,7 +117,7 @@ func nestedContentSizeOfArrayOfStrings(arr *[]string) (size int) {
 }
 
 func nestedSizeOfArrayOfStrings(arr *[]string) int {
-	return unsafeSizeOf(arr) + nestedContentSizeOfArrayOfStrings(arr)
+	return UnsafeSizeOf(arr) + nestedContentSizeOfArrayOfStrings(arr)
 }
 
 func nestedContentSizeOfStringToStringMap(m *map[string]string) (size int) {
@@ -163,7 +163,7 @@ func nestedSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessCon
 		return
 	}
 
-	size = unsafeSizeOf(oacpt)
+	size = UnsafeSizeOf(oacpt)
 
 	// string members
 	for _, strPtr := range []*string{
@@ -187,7 +187,7 @@ func nestedSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size i
 		return
 	}
 
-	size = unsafeSizeOf(acl)
+	size = UnsafeSizeOf(acl)
 
 	// string members
 	for _, strPtr := range []*string{
@@ -239,7 +239,7 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 	}
 
 	// get raw size of the structure.
-	size = unsafeSizeOf(o)
+	size = UnsafeSizeOf(o)
 
 	// string members
 	for _, strPtr := range []*string{
@@ -250,9 +250,9 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 	}
 
 	// integer-pointer members
-	size += unsafeSizeOf(o.CRC32C)
+	size += UnsafeSizeOf(o.CRC32C)
 	// pointer-to-integer-array members
-	size += unsafeSizeOf(o.MD5)
+	size += UnsafeSizeOf(o.MD5)
 
 	// integer members - Size, Generation, MetaGeneration, ComponentCount
 	// time members - Deleted, Updated
@@ -277,7 +277,7 @@ func NestedSizeOfMinObject(o *gcs.MinObject) (size int) {
 	}
 
 	// get raw size of the structure.
-	size = unsafeSizeOf(o)
+	size = UnsafeSizeOf(o)
 
 	// string members
 	for _, strPtr := range []*string{
