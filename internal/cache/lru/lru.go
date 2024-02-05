@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 // Predefined error messages returned by the Cache.
@@ -46,7 +47,8 @@ type Cache struct {
 	/////////////////////////
 
 	// Sum of entry.Value.Size() of all the entries in the cache.
-	currentSize uint64
+	currentSize       uint64
+	currentNumEntries uint64
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -130,6 +132,7 @@ func (c *Cache) evictOne() ValueType {
 
 	evictedEntry := e.Value.(entry).Value
 	c.currentSize -= evictedEntry.Size()
+	c.currentNumEntries--
 
 	c.entries.Remove(e)
 	delete(c.index, key)
@@ -151,7 +154,8 @@ func (c *Cache) Insert(
 		return nil, errors.New(InvalidEntryErrorMsg)
 	}
 
-	if value.Size() > c.maxSize {
+	valueSize := value.Size()
+	if valueSize > c.maxSize {
 		return nil, errors.New(InvalidEntrySizeErrorMsg)
 	}
 
@@ -162,14 +166,15 @@ func (c *Cache) Insert(
 	if ok {
 		// Update an entry if already exist.
 		c.currentSize -= e.Value.(entry).Value.Size()
-		c.currentSize += value.Size()
+		c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
-		c.currentSize += value.Size()
+		c.currentSize += valueSize
+		c.currentNumEntries++
 	}
 
 	var evictedValues []ValueType
@@ -177,6 +182,8 @@ func (c *Cache) Insert(
 	for c.currentSize > c.maxSize {
 		evictedValues = append(evictedValues, c.evictOne())
 	}
+
+	logger.Infof("Total current lru size=%v,count=%v after insertion", c.currentSize, c.currentNumEntries)
 
 	return evictedValues, nil
 }
@@ -193,9 +200,12 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 	deletedEntry := e.Value.(entry).Value
 	c.currentSize -= deletedEntry.Size()
+	c.currentNumEntries--
 
 	delete(c.index, key)
 	c.entries.Remove(e)
+
+	logger.Infof("Total current lru size=%v,count=%v after deletion", c.currentSize, c.currentNumEntries)
 
 	return deletedEntry
 }
@@ -265,4 +275,8 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	c.index[key] = e
 
 	return nil
+}
+
+func (c *Cache) GenerateSizeLog() string {
+	return fmt.Sprintf("current-size: %v, max-size: %v", c.currentSize, c.maxSize)
 }
