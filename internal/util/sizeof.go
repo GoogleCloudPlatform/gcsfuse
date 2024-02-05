@@ -228,7 +228,7 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 		// an unnecessary constant pointerSize, but that would
 		// have added cost of an extra unsafe.Sizeof on each
 		// member.
-		size += PointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
+		size += pointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
 	}
 	return
 }
