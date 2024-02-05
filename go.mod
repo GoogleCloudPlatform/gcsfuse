@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/storage v1.37.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
-	github.com/fsouza/fake-gcs-server v1.40.3
+	github.com/fsouza/fake-gcs-server v1.47.7
 	github.com/googleapis/gax-go/v2 v2.12.0
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20231003132804-d0f3daf365c3
@@ -39,7 +39,6 @@ require (
 	cloud.google.com/go/monitoring v1.17.0 // indirect
 	cloud.google.com/go/pubsub v1.33.0 // indirect
 	cloud.google.com/go/trace v1.10.4 // indirect
-	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5 // indirect
 	github.com/aws/aws-sdk-go v1.44.217 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
@@ -48,17 +47,17 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
-	github.com/gorilla/handlers v1.5.1 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/gorilla/handlers v1.5.2 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/prometheus/prometheus v0.35.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.47.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.47.0 // indirect
 	go.opentelemetry.io/otel v1.22.0 // indirect
