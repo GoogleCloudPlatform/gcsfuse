@@ -63,10 +63,6 @@ func (ut *utilTest) TearDown() {
 	operations.RemoveDir(path.Dir(ut.fileSpec.Path))
 }
 
-func (ut *utilTest) assertFileAndDirCreation(file *os.File, err error) {
-	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, 0700)
-}
-
 func (ut *utilTest) assertFileAndDirCreationWithGivenDirMode(file *os.File, err error, dirMode os.FileMode) {
 	ut.assertFileAndDirStatsWithGivenFileAndDirPermissions(file, err, ut.fileSpec.Perm, dirMode)
 }
@@ -98,7 +94,7 @@ func (ut *utilTest) Test_CreateFile_FileDirNotPresent() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
@@ -108,7 +104,7 @@ func (ut *utilTest) Test_CreateFile_FileDirPresent() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
@@ -117,7 +113,7 @@ func (ut *utilTest) Test_CreateFile_ReadOnlyFile() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0700)
 	content := "foo"
 	_, err = file.Write([]byte(content))
 	ExpectNe(nil, err)
@@ -133,7 +129,7 @@ func (ut *utilTest) Test_CreateFile_ReadWriteFile() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0700)
 	content := "foo"
 	n, err := file.Write([]byte(content))
 	ExpectEq(nil, err)
@@ -194,7 +190,7 @@ func (ut *utilTest) Test_CreateFile_RelativePath() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirMode(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
