@@ -233,13 +233,19 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 	return
 }
 
+var TotalNumNestedSizeOfGcsObjectInvocations uint64
+var NumNestedSizeOfGcsObjectInvocationsWithNullInput uint64
+
 // NestedSizeOfGcsObject returns the full nested memory size
 // of the gcs.Object pointed by the passed pointer.
 // Improvement scope: This can be generalized to a general-struct
 // but that needs better understanding of the reflect package
 // and other related packages.
 func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
+	TotalNumNestedSizeOfGcsObjectInvocations++
+
 	if o == nil {
+		NumNestedSizeOfGcsObjectInvocationsWithNullInput++
 		return
 	}
 

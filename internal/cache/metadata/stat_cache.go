@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
@@ -48,6 +49,8 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, o *gcs.Object)
+
+	GenerateSizeLog() string
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -86,7 +89,15 @@ type entry struct {
 // It is currently set to dummy value 1 to avoid
 // the unnecessary actual size calculation.
 func (e entry) Size() uint64 {
-	return uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsObject(e.o))
+	var size uint64
+	size += uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsObject(e.o))
+	var name string
+	if e.o != nil {
+		name = e.o.Name
+	}
+
+	logger.Infof("size of stat-cache entry for %v = %v", name, size)
+	return size
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -182,4 +193,8 @@ func (sc *statCacheBucketView) LookUp(
 	o = e.o
 
 	return
+}
+
+func (c *statCacheBucketView) GenerateSizeLog() string {
+	return c.sharedCache.GenerateSizeLog()
 }

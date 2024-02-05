@@ -385,7 +385,10 @@ func handlePanicWhileMounting() {
 }
 
 func main() {
-	defer handlePanicWhileMounting()
+	defer func() {
+		handlePanicWhileMounting()
+		logger.Infof("NumNestedSizeOfGcsObjectInvocationsWithNullInput=%v,TotalNumNestedSizeOfGcsObjectInvocations=%v", util.NumNestedSizeOfGcsObjectInvocationsWithNullInput, util.TotalNumNestedSizeOfGcsObjectInvocations)
+	}()
 
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
