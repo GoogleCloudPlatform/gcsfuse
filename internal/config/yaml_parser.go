@@ -35,13 +35,13 @@ const (
 	ERROR   LogSeverity = "ERROR"
 	OFF     LogSeverity = "OFF"
 
-	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
-	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxEntriesInvalidValueError  = "the value of type-cache-max-entries for metadata-cache can't be less than -1"
+	parseConfigFileErrMsgFormat             = "error parsing config file: %v"
+	MetadataCacheTtlSecsInvalidValueError   = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError        = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
+	TypeCacheMaxEntriesInvalidValueError    = "the value of type-cache-max-entries for metadata-cache can't be less than -1"
 	StatCacheMaxSizeInMiBsInvalidValueError = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeInMiBsTooHighError = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeInMiBs = util.MaxMiBsInUint64
+	StatCacheMaxSizeInMiBsTooHighError      = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	MaxSupportedStatCacheMaxSizeInMiBs      = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {

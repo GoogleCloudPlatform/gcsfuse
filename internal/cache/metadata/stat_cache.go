@@ -81,7 +81,7 @@ type entry struct {
 	o          *gcs.Object
 	expiration time.Time
 	// size is total nested size of this entry object.
-	// If 0, it indicates that this size has not been 
+	// If 0, it indicates that this size has not been
 	// calculated yet, and should be calculated on the next Size() call.
 	size int
 }

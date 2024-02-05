@@ -204,4 +204,3 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeToo
 	AssertNe(nil, err)
 	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeInMiBsTooHighError)))
 }
-
