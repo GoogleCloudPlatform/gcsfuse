@@ -222,6 +222,23 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 	AssertNe(nil, err)
 }
 
+func (t *RandomReaderTest) ExistingReader_WrongOffsetButWithinRange() {
+	// Simulate an existing reader.
+	rc := io.NopCloser(strings.NewReader(strings.Repeat("x", 15)))
+	t.rr.wrapped.reader = rc
+	t.rr.wrapped.cancel = func() {}
+	t.rr.wrapped.start = 2
+	t.rr.wrapped.limit = 15
+
+	buf := make([]byte, 1)
+	_, err := t.rr.ReadAt(buf, 10)
+
+	AssertEq(nil, err)
+	ExpectThat(rc, DeepEquals(t.rr.wrapped.reader))
+	ExpectEq(11, t.rr.wrapped.start)
+	ExpectEq(15, t.rr.wrapped.limit)
+}
+
 func (t *RandomReaderTest) NewReaderReturnsError() {
 	ExpectCall(t.bucket, "NewReader")(Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))

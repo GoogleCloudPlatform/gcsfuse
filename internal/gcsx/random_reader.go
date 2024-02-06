@@ -179,7 +179,7 @@ func (rr *randomReader) ReadAt(
 		if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 			bytesToSkip := int64(offset - rr.start)
 			p := make([]byte, bytesToSkip)
-			n, _ := rr.reader.Read(p)
+			n, _ := io.ReadFull(rr.reader, p)
 			rr.start += int64(n)
 		}
 
