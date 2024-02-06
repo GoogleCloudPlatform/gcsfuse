@@ -19,7 +19,7 @@ set -x
 set -e
 
 #details.txt file contains the release version and commit hash of the current release.
-gsutil cp  gs://gcsfuse-release-packages/version-detail/details.txt .
+gsutil cp  gs://gcsfuse-beta-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >> details.txt
 
@@ -62,7 +62,7 @@ then
     sudo apt install -y fuse
 
     # download and install gcsfuse deb package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
+    gsutil cp gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb .
     sudo dpkg -i gcsfuse_$(sed -n 1p details.txt)_${architecture}.deb |& tee -a ~/logs.txt
 
     # install wget
@@ -97,7 +97,7 @@ else
     sudo yum -y install fuse
 
     #download and install gcsfuse rpm package
-    gsutil cp gs://gcsfuse-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
+    gsutil cp gs://gcsfuse-beta-release-packages/v$(sed -n 1p details.txt)/gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm .
     sudo yum -y localinstall gcsfuse-$(sed -n 1p details.txt)-1.${uname}.rpm
 
     #install wget
@@ -146,8 +146,8 @@ then
     echo "Test failures detected" &>> ~/logs.txt
 else
     touch success.txt
-    gsutil cp success.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+    gsutil cp success.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 fi
 
-gsutil cp ~/logs.txt gs://gcsfuse-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
+gsutil cp ~/logs.txt gs://gcsfuse-beta-release-packages/v$(sed -n 1p ~/details.txt)/$(sed -n 3p ~/details.txt)/
 '
