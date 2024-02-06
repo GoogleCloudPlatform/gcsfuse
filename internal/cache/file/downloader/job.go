@@ -184,7 +184,6 @@ func (job *Job) Invalidate() {
 		job.removeJobCallback = nil
 	}
 	job.notifySubscribers()
-	return
 }
 
 // subscribe adds subscriber for download job and returns channel which is

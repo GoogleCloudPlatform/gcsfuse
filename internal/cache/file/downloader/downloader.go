@@ -109,7 +109,7 @@ func (jm *JobManager) GetJob(objectName string, bucketName string) *Job {
 	objectPath := util.GetObjectPath(bucketName, objectName)
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
-	job, _ := jm.jobs[objectPath]
+	job := jm.jobs[objectPath]
 	return job
 }
 
