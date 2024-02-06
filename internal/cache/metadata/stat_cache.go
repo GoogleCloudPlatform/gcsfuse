@@ -80,13 +80,16 @@ type statCacheBucketView struct {
 type entry struct {
 	o          *gcs.Object
 	expiration time.Time
+	key        string
 }
 
 // Size returns the size of entry.
 // It is currently set to dummy value 1 to avoid
 // the unnecessary actual size calculation.
 func (e entry) Size() uint64 {
-	return uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsObject(e.o))
+	return uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsObject(e.o))
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
+	// struct stored in the cache map and in the cache linked-list.
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -136,6 +139,7 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 	e := entry{
 		o:          o,
 		expiration: expiration,
+		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -144,13 +148,15 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 }
 
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+	name := sc.key(objectName)
+
 	// Insert a negative entry.
 	e := entry{
 		o:          nil,
 		expiration: expiration,
+		key:        name,
 	}
 
-	name := sc.key(objectName)
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
