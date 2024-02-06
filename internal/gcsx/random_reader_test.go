@@ -223,20 +223,25 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 }
 
 func (t *RandomReaderTest) ExistingReader_WrongOffsetButWithinRange() {
+	var currentStartOffset int64 = 2
+	var readerLimit int64 = 15
+	var readAtOffset int64 = 10
+	var readSize int64 = 1
+	var expectedStartOffsetAfterRead = readAtOffset + readSize
 	// Simulate an existing reader.
-	rc := io.NopCloser(strings.NewReader(strings.Repeat("x", 15)))
+	rc := io.NopCloser(strings.NewReader(strings.Repeat("x", int(readerLimit))))
 	t.rr.wrapped.reader = rc
 	t.rr.wrapped.cancel = func() {}
-	t.rr.wrapped.start = 2
-	t.rr.wrapped.limit = 15
+	t.rr.wrapped.start = currentStartOffset
+	t.rr.wrapped.limit = readerLimit
 
-	buf := make([]byte, 1)
-	_, err := t.rr.ReadAt(buf, 10)
+	buf := make([]byte, readSize)
+	_, err := t.rr.ReadAt(buf, readAtOffset)
 
 	AssertEq(nil, err)
 	ExpectThat(rc, DeepEquals(t.rr.wrapped.reader))
-	ExpectEq(11, t.rr.wrapped.start)
-	ExpectEq(15, t.rr.wrapped.limit)
+	ExpectEq(expectedStartOffsetAfterRead, t.rr.wrapped.start)
+	ExpectEq(readerLimit, t.rr.wrapped.limit)
 }
 
 func (t *RandomReaderTest) NewReaderReturnsError() {
