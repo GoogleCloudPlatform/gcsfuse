@@ -79,7 +79,7 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, util.DefaultDirPerm, chrT.cacheLocation, DefaultSequentialReadSizeMb)
 
 	// Mocked cached handler object.
-	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm)
+	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Follow consistency, local-cache file and entry in fileInfo cache should exist atomically.
 	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)

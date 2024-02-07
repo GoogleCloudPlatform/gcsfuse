@@ -175,7 +175,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
 	lruCache := lru.NewCache(CacheMaxSize)
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheLocation, sequentialReadSizeInMb)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheLocation, util.DefaultFilePerm)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheLocation, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
