@@ -111,7 +111,7 @@ func (dt *downloaderTest) Test_GetJob_Existing_WithDefaultFileAndDirPerm() {
 	job := dt.jm.GetJob(&dt.object, dt.bucket)
 
 	ExpectEq(0700, job.fileSpec.DirPerm.Perm())
-	ExpectEq(0600, job.fileSpec.Perm.Perm())
+	ExpectEq(0600, job.fileSpec.FilePerm.Perm())
 }
 
 func (dt *downloaderTest) Test_GetJob_Concurrent() {

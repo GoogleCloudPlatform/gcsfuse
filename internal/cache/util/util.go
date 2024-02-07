@@ -74,7 +74,7 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 			return
 		}
 	}
-	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.Perm)
+	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error in creating file %s: %v", fileSpec.Path, err))
 		return

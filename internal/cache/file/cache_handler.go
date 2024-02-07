@@ -66,9 +66,9 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
-		Path:    util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
-		Perm:    chr.filePerm,
-		DirPerm: chr.dirPerm,
+		Path:     util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
+		FilePerm: chr.filePerm,
+		DirPerm:  chr.dirPerm,
 	}
 
 	return util.CreateFile(fileSpec, os.O_RDONLY)

@@ -55,8 +55,7 @@ func (fi FileInfo) Size() uint64 {
 }
 
 type FileSpec struct {
-	Path string
-	Perm os.FileMode
-	//TODO(Ankita): rename
-	DirPerm os.FileMode
+	Path     string
+	FilePerm os.FileMode
+	DirPerm  os.FileMode
 }

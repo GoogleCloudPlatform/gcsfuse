@@ -52,9 +52,9 @@ func (ut *utilTest) SetUp(*TestInfo) {
 		panic(fmt.Errorf("error while finding home directory: %w", err))
 	}
 	ut.fileSpec = data.FileSpec{
-		Path:    path.Join(homeDir, FileDir, FileName),
-		Perm:    DefaultFilePerm,
-		DirPerm: DefaultDirPerm,
+		Path:     path.Join(homeDir, FileDir, FileName),
+		FilePerm: DefaultFilePerm,
+		DirPerm:  DefaultDirPerm,
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
@@ -77,7 +77,7 @@ func (ut *utilTest) assertFileAndDirCreationWithGivenDirPerm(file *os.File, err 
 	fileStat, fileErr := os.Stat(file.Name())
 	ExpectEq(false, os.IsNotExist(fileErr))
 	ExpectEq(ut.fileSpec.Path, file.Name())
-	ExpectEq(ut.fileSpec.Perm, fileStat.Mode())
+	ExpectEq(ut.fileSpec.FilePerm, fileStat.Mode())
 	ExpectEq(ut.uid, fileStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, fileStat.Sys().(*syscall.Stat_t).Gid)
 }
@@ -134,7 +134,7 @@ func (ut *utilTest) Test_CreateFile_ReadWriteFile() {
 }
 
 func (ut *utilTest) Test_CreateFile_FilePerm0755() {
-	ut.fileSpec.Perm = os.FileMode(0755)
+	ut.fileSpec.FilePerm = os.FileMode(0755)
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
@@ -143,7 +143,7 @@ func (ut *utilTest) Test_CreateFile_FilePerm0755() {
 }
 
 func (ut *utilTest) Test_CreateFile_FilePerm0544() {
-	ut.fileSpec.Perm = os.FileMode(0544)
+	ut.fileSpec.FilePerm = os.FileMode(0544)
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
