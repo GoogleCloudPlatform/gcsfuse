@@ -64,9 +64,9 @@ function exit_in_failure() {
 RELEASE_VERSION=$(fetch_meta_data_value "RELEASE_VERSION")
 echo RELEASE_VERSION="$RELEASE_VERSION"
 
-# '~' is not accepted as docker build tag and git tag. Hence, we will it instead of RELEASE_VERSION.
+# '~' is not accepted as docker build tag and git tag. Hence, we will use `_` instead of RELEASE_VERSION.
 RELEASE_VERSION_TAG=$(echo $RELEASE_VERSION | tr '~' '_')
-echo RELEASE_VERSION_TAG="$DOCKER_BUILD_TAG_SUFFIX"
+echo RELEASE_VERSION_TAG="$RELEASE_VERSION_TAG"
 
 # Fetch metadata value of the key "UPLOAD_BUCKET"
 UPLOAD_BUCKET=$(fetch_meta_data_value "UPLOAD_BUCKET")
@@ -92,13 +92,13 @@ cd gcsfuse/tools/package_gcsfuse_docker/
 set +e
 exit_code=0
 echo "Building docker for amd64 ..."
-sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --build-arg GIT_BUILD_TAG="v$RELEASE_VERSION_TAG" --platform=linux/amd64 &> docker_amd64.log &
+sudo docker buildx build --load . -t gcsfuse-release-amd64:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=amd64 --build-arg BRANCH_NAME="v$RELEASE_VERSION_TAG" --platform=linux/amd64 &> docker_amd64.log &
 pid1=$!
 echo "Building docker for arm64 ..."
 # It is necessary for cross-platform image building because it creates a builder instance that is capable of
 # building images for multiple architectures.
 sudo docker buildx create --name mybuilder --bootstrap --use
-sudo docker buildx build --load . -t gcsfuse-release-arm64:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=arm64 --build-arg GIT_BUILD_TAG="v$RELEASE_VERSION_TAG" --platform=linux/arm64 &> docker_arm64.log &
+sudo docker buildx build --load . -t gcsfuse-release-arm64:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=arm64 --build-arg BRANCH_NAME="v$RELEASE_VERSION_TAG" --platform=linux/arm64 &> docker_arm64.log &
 pid2=$!
 echo "Waiting for both builds to complete ..."
 wait $pid1

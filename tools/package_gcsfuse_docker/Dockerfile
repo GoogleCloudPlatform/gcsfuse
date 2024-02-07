@@ -37,12 +37,7 @@ ARG DEBFULLNAME="GCSFuse Team"
 # Build Arg for building through a particular branch/commit. By default, it uses
 # the tag corresponding to passed GCSFUSE VERSION
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-ARG GIT_BUILD_TAG
-RUN if [ "${GIT_BUILD_TAG}" = "" ]; then  \
-      git checkout ${BRANCH_NAME}; \
-    else \
-      git checkout ${GIT_BUILD_TAG}; \
-    fi
+RUN git checkout "${BRANCH_NAME}"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
