@@ -80,28 +80,18 @@ type statCacheBucketView struct {
 type entry struct {
 	o          *gcs.Object
 	expiration time.Time
-	// size is total nested size of this entry object.
-	// If 0, it indicates that this size has not been
-	// calculated yet, and should be calculated on the next Size() call.
-	size int
 }
 
 // Size returns the size of entry.
 // It is currently set to dummy value 1 to avoid
 // the unnecessary actual size calculation.
-func (e *entry) Size() uint64 {
-	if e == nil {
-		return 0
-	}
-	if e.size == 0 {
-		e.size = util.UnsafeSizeOf(e) + util.NestedSizeOfGcsObject(e.o)
-	}
-	return uint64(e.size)
+func (e entry) Size() uint64 {
+	return uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsObject(e.o))
 }
 
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
-func shouldReplace(o *gcs.Object, existing *entry) bool {
+func shouldReplace(o *gcs.Object, existing entry) bool {
 	// Negative entries should always be replaced with positive entries.
 	if existing.o == nil {
 		return true
@@ -137,7 +127,7 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(o, existing.(*entry)) {
+		if !shouldReplace(o, existing.(entry)) {
 			return
 		}
 	}
@@ -148,7 +138,7 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 		expiration: expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, &e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
 }
@@ -161,7 +151,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	}
 
 	name := sc.key(objectName)
-	if _, err := sc.sharedCache.Insert(name, &e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
 }
@@ -180,7 +170,7 @@ func (sc *statCacheBucketView) LookUp(
 		return
 	}
 
-	e := value.(*entry)
+	e := value.(entry)
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
