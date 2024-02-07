@@ -53,7 +53,7 @@ const (
 // CreateFile creates file with given file spec i.e. permissions and returns
 // file handle for that file opened with given flag.
 //
-// Note: If directories in path are not present, they are created with FileDirPerm
+// Note: If directories in path are not present, they are created with directory permissions provided in fileSpec
 // permission.
 func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
@@ -105,7 +105,6 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-// TODO(Ankita): rename
 // Creates directory at given path with provided permissions in case not already present,
 // returns error in case unable to create directory or directory is not writable.
 func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) error {
