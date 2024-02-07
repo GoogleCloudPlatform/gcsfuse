@@ -52,8 +52,9 @@ func (ut *utilTest) SetUp(*TestInfo) {
 		panic(fmt.Errorf("error while finding home directory: %w", err))
 	}
 	ut.fileSpec = data.FileSpec{
-		Path: path.Join(homeDir, FileDir, FileName),
-		Perm: DefaultFilePerm,
+		Path:    path.Join(homeDir, FileDir, FileName),
+		Perm:    DefaultFilePerm,
+		DirPerm: DefaultDirPerm,
 	}
 	ut.uid = os.Getuid()
 	ut.gid = os.Getgid()
@@ -63,13 +64,13 @@ func (ut *utilTest) TearDown() {
 	operations.RemoveDir(path.Dir(ut.fileSpec.Path))
 }
 
-func (ut *utilTest) assertFileAndDirCreation(file *os.File, err error) {
+func (ut *utilTest) assertFileAndDirCreationWithGivenDirPerm(file *os.File, err error, dirPerm os.FileMode) {
 	ExpectEq(nil, err)
 
 	dirStat, dirErr := os.Stat(path.Dir(file.Name()))
 	ExpectEq(false, os.IsNotExist(dirErr))
 	ExpectEq(path.Dir(ut.fileSpec.Path), path.Dir(file.Name()))
-	ExpectEq(FileDirPerm|os.ModeDir, dirStat.Mode())
+	ExpectEq(dirPerm, dirStat.Mode().Perm())
 	ExpectEq(ut.uid, dirStat.Sys().(*syscall.Stat_t).Uid)
 	ExpectEq(ut.gid, dirStat.Sys().(*syscall.Stat_t).Gid)
 
@@ -85,17 +86,18 @@ func (ut *utilTest) Test_CreateFile_FileDirNotPresent() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
 func (ut *utilTest) Test_CreateFile_FileDirPresent() {
 	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
+
 	ExpectEq(nil, err)
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0755)
 	ExpectEq(nil, file.Close())
 }
 
@@ -104,7 +106,7 @@ func (ut *utilTest) Test_CreateFile_ReadOnlyFile() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	content := "foo"
 	_, err = file.Write([]byte(content))
 	ExpectNe(nil, err)
@@ -120,7 +122,7 @@ func (ut *utilTest) Test_CreateFile_ReadWriteFile() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	content := "foo"
 	n, err := file.Write([]byte(content))
 	ExpectEq(nil, err)
@@ -136,7 +138,7 @@ func (ut *utilTest) Test_CreateFile_FilePerm0755() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
@@ -145,7 +147,7 @@ func (ut *utilTest) Test_CreateFile_FilePerm0544() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
@@ -158,7 +160,7 @@ func (ut *utilTest) Test_CreateFile_FilePresent() {
 
 	file, err = CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0755)
 	ExpectEq(nil, file.Close())
 }
 
@@ -180,7 +182,7 @@ func (ut *utilTest) Test_CreateFile_RelativePath() {
 
 	file, err := CreateFile(ut.fileSpec, ut.flag)
 
-	ut.assertFileAndDirCreation(file, err)
+	ut.assertFileAndDirCreationWithGivenDirPerm(file, err, 0700)
 	ExpectEq(nil, file.Close())
 }
 
@@ -242,7 +244,7 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryE
 	defer os.RemoveAll(base)
 	AssertEq(nil, dirCreationErr)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0000)
 
 	AssertEq(nil, err)
 	fileInfo, err := os.Stat(dirPath)
@@ -250,12 +252,25 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryE
 	AssertEq(0700, fileInfo.Mode().Perm())
 }
 
-func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreated(t *testing.T) {
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreatedWithOwnerPermissions(t *testing.T) {
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")
 	defer os.RemoveAll(base)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0700)
+
+	AssertEq(nil, err)
+	fileInfo, err := os.Stat(dirPath)
+	AssertEq(nil, err)
+	AssertEq(0700, fileInfo.Mode().Perm())
+}
+
+func TestCreateCacheDirectoryIfNotPresentAtShouldNotReturnAnyErrorWhenDirectoryCanBeCreatedWithOthersPermissions(t *testing.T) {
+	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
+	dirPath := path.Join(base, "/", "path/cachedir")
+	defer os.RemoveAll(base)
+
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0755)
 
 	AssertEq(nil, err)
 	fileInfo, err := os.Stat(dirPath)
@@ -269,7 +284,7 @@ func TestCreateCacheDirectoryIfNotPresentAtShouldReturnErrorWhenDirectoryDoesNot
 	defer os.RemoveAll(dirPath)
 	AssertEq(nil, dirCreationErr)
 
-	err := CreateCacheDirectoryIfNotPresentAt(dirPath)
+	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0755)
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error creating file at directory ("+dirPath+")"))
