@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 
 const (
-	TTL                 time.Duration = time.Millisecond
-	TypeCacheMaxEntries               = 5
+	TTL             time.Duration = time.Millisecond
+	TypeCacheSizeMb               = 1
 )
 
 var (
@@ -48,7 +49,7 @@ type TypeCacheTest struct {
 	ttl   time.Duration
 }
 
-type ZeroMaxEntriesTypeCacheTest struct {
+type ZeroSizeTypeCacheTest struct {
 	cache TypeCache
 	ttl   time.Duration
 }
@@ -59,30 +60,30 @@ type ZeroTtlTypeCacheTest struct {
 
 func init() {
 	RegisterTestSuite(&TypeCacheTest{})
-	RegisterTestSuite(&ZeroMaxEntriesTypeCacheTest{})
+	RegisterTestSuite(&ZeroSizeTypeCacheTest{})
 	RegisterTestSuite(&ZeroTtlTypeCacheTest{})
 }
 
 func (t *TypeCacheTest) SetUp(ti *TestInfo) {
 	t.ttl = TTL
-	t.cache = createNewTypeCache(TypeCacheMaxEntries, t.ttl)
+	t.cache = createNewTypeCache(TypeCacheSizeMb, t.ttl)
 }
 
-func (t *ZeroMaxEntriesTypeCacheTest) SetUp(ti *TestInfo) {
+func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
 	t.ttl = TTL
 	t.cache = createNewTypeCache(0, t.ttl)
 }
 
 func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
-	t.cache = createNewTypeCache(TypeCacheMaxEntries, 0)
+	t.cache = createNewTypeCache(TypeCacheSizeMb, 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func createNewTypeCache(maxEntries int, ttl time.Duration) *typeCache {
-	tc := NewTypeCache(maxEntries, ttl)
+func createNewTypeCache(sizeInMB int, ttl time.Duration) *typeCache {
+	tc := NewTypeCache(sizeInMB, ttl)
 
 	AssertNe(nil, tc)
 	AssertNe(nil, tc.(*typeCache))
@@ -96,31 +97,31 @@ func createNewTypeCache(maxEntries int, ttl time.Duration) *typeCache {
 
 func (t *TypeCacheTest) TestNewTypeCache() {
 	input := []struct {
-		maxEntries         int
+		sizeInMb           int
 		ttl                time.Duration
 		entriesShouldBeNil bool
 	}{
 		{
-			maxEntries:         0,
+			sizeInMb:           0,
 			ttl:                time.Second,
 			entriesShouldBeNil: true,
 		},
 		{
-			maxEntries:         1,
+			sizeInMb:           1,
 			ttl:                0,
 			entriesShouldBeNil: true,
 		},
 		{
-			maxEntries: -1,
-			ttl:        time.Second,
+			sizeInMb: -1,
+			ttl:      time.Second,
 		},
 		{
-			maxEntries: 1,
-			ttl:        time.Second,
+			sizeInMb: 1,
+			ttl:      time.Second,
 		}}
 
 	for _, input := range input {
-		tc := createNewTypeCache(input.maxEntries, input.ttl)
+		tc := createNewTypeCache(input.sizeInMb, input.ttl)
 
 		AssertEq(input.entriesShouldBeNil, tc.entries == nil)
 	}
@@ -155,8 +156,8 @@ func (t *TypeCacheTest) TestGetAfterTtlExpiration() {
 	ExpectEq(UnknownType, t.cache.Get(afterExpiration, "abcd"))
 }
 
-func (t *TypeCacheTest) TestGetAfterMaxEntriesExpiration() {
-	entriesToBeInserted := TypeCacheMaxEntries + 1
+func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
+	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheSizeMb)/cacheEntry{}.Size()) + 1
 
 	for i := 0; i < entriesToBeInserted; i++ {
 		t.cache.Insert(now, fmt.Sprint(i), RegularFileType)
@@ -167,9 +168,6 @@ func (t *TypeCacheTest) TestGetAfterMaxEntriesExpiration() {
 
 	// The first inserted entry should have been evicted by all the later insertions.
 	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, fmt.Sprint(0)))
-
-	// The second entry should not have been evicted
-	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, fmt.Sprint(1)))
 }
 
 func (t *TypeCacheTest) TestGetErasedEntry() {
@@ -188,21 +186,21 @@ func (t *TypeCacheTest) TestGetReinsertedEntry() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests for ZeroMaxCountTypeCacheTest
+// Tests for TypeCache created with size=0 - ZeroSizeTypeCacheTest
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ZeroMaxEntriesTypeCacheTest) TestGetFromEmptyTypeCache() {
+func (t *ZeroSizeTypeCacheTest) TestGetFromEmptyTypeCache() {
 	ExpectEq(UnknownType, t.cache.Get(now, "abc"))
 }
 
-func (t *ZeroMaxEntriesTypeCacheTest) TestGetInsertedEntry() {
+func (t *ZeroSizeTypeCacheTest) TestGetInsertedEntry() {
 	t.cache.Insert(now, "abcd", RegularFileType)
 
 	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests for ZeroTtlTypeCacheTest
+// Tests for TypeCache created with ttl=0 - ZeroTtlTypeCacheTest
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ZeroTtlTypeCacheTest) TestGetFromEmptyTypeCache() {
