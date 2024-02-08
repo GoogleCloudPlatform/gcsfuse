@@ -19,6 +19,7 @@
 package fs_test
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -40,22 +41,22 @@ type typeCacheTestCommon struct {
 }
 
 var (
-	// The following should be configued for different tests
+	// The following should be configured for different tests
 	// differently inside SetUpTestSuite as these need to
 	// set for mount itself.
 
 	// ttlInSeconds is equivalent of metadata-cache:ttl-secs in config-file.
 	ttlInSeconds int64
 
-	// typeCacheMaxEntries is equivalent of metadata-cache:type-cache-max-entries in config-file.
-	typeCacheMaxEntries int
+	// typeCacheMaxSizeMb is equivalent of metadata-cache:type-cache-max-entries in config-file.
+	typeCacheMaxSizeMb int
 )
 
 func (t *typeCacheTestCommon) SetUpTestSuite() {
 	t.serverCfg.MountConfig = config.NewMountConfig()
 	t.serverCfg.MountConfig.MetadataCacheConfig = config.MetadataCacheConfig{
-		TypeCacheMaxEntries: typeCacheMaxEntries,
-		TtlInSeconds:        ttlInSeconds,
+		TypeCacheMaxSizeMb: typeCacheMaxSizeMb,
+		TtlInSeconds:       ttlInSeconds,
 	}
 
 	// logging is needed for debugging if logs need to be
@@ -81,13 +82,13 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 // Specific test classes
 ////////////////////////////////////////////////////////////////////////
 
-type TypeCacheTestWithMaxEntries1 struct {
+type TypeCacheTestWithMaxSize1MB struct {
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithMaxEntries1) SetUpTestSuite() {
+func (t *TypeCacheTestWithMaxSize1MB) SetUpTestSuite() {
 	ttlInSeconds = 30
-	typeCacheMaxEntries = 1
+	typeCacheMaxSizeMb = 1
 
 	t.typeCacheTestCommon.SetUpTestSuite()
 }
@@ -98,7 +99,7 @@ type TypeCacheTestWithZeroCapacity struct {
 
 func (t *TypeCacheTestWithZeroCapacity) SetUpTestSuite() {
 	ttlInSeconds = 30
-	typeCacheMaxEntries = 0
+	typeCacheMaxSizeMb = 0
 
 	t.typeCacheTestCommon.SetUpTestSuite()
 }
@@ -109,7 +110,7 @@ type TypeCacheTestWithZeroTTL struct {
 
 func (t *TypeCacheTestWithZeroTTL) SetUpTestSuite() {
 	ttlInSeconds = 0
-	typeCacheMaxEntries = 10
+	typeCacheMaxSizeMb = 1
 
 	t.typeCacheTestCommon.SetUpTestSuite()
 }
@@ -120,13 +121,13 @@ type TypeCacheTestWithInfiniteTTL struct {
 
 func (t *TypeCacheTestWithInfiniteTTL) SetUpTestSuite() {
 	ttlInSeconds = -1
-	typeCacheMaxEntries = 10
+	typeCacheMaxSizeMb = 1
 
 	t.typeCacheTestCommon.SetUpTestSuite()
 }
 
 func init() {
-	RegisterTestSuite(&TypeCacheTestWithMaxEntries1{})
+	RegisterTestSuite(&TypeCacheTestWithMaxSize1MB{})
 	RegisterTestSuite(&TypeCacheTestWithZeroCapacity{})
 	RegisterTestSuite(&TypeCacheTestWithZeroTTL{})
 	RegisterTestSuite(&TypeCacheTestWithInfiniteTTL{})
@@ -183,9 +184,8 @@ func (t *typeCacheTestCommon) testNoInsertion() {
 // //////////////////////////////////////////////////////////////////////
 // Tests for TypeCacheTestWithMaxEntries1
 // //////////////////////////////////////////////////////////////////////
-func (t *TypeCacheTestWithMaxEntries1) TestSizeBasedEviction() {
+func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	const name1 = "foo"
-	const name2 = "bar"
 	const contents = "taco"
 	var fi fs.FileInfo
 	var err error
@@ -225,31 +225,40 @@ func (t *TypeCacheTestWithMaxEntries1) TestSizeBasedEviction() {
 	ExpectNe(nil, dirObject)
 
 	// Stat-call with the directory object. It should
-	// fail there is currently an entry for the first
+	// fail as there is currently an entry for the first
 	// file object, which has the same name.
 	_, err = os.Stat(path.Join(mntDir, name1) + "/")
 
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
 
-	// Create second file object in GCS.
-	fileObject, err = storageutil.CreateObject(
-		ctx,
-		bucket,
-		name2,
-		[]byte(contents))
+	// type-cache-max-size-mb = 1MiB = 1048576,
+	// and each entry-size = 92 (80 fixed + 12 key-length) Bytes.
+	// let's add another 11397(1048576/92) entries to evict
+	// the first file object ("foo") entry.
+	for i := 0; i < 11397; i++ {
+		name := fmt.Sprintf("object%06d", i)
 
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+		// Create a new file object in GCS.
+		fileObject, err = storageutil.CreateObject(
+			ctx,
+			bucket,
+			name,
+			[]byte(contents))
 
-	// Stat-call with the second file object will insert it into type-cache.
-	// As a side-effect, this would also evict the first file object from type-cache
-	// because of type-cache capacity=1 .
-	fi, err = os.Stat(path.Join(mntDir, name2))
+		ExpectEq(nil, err)
+		ExpectNe(nil, fileObject)
 
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+		// Stat-call will insert the new file objects into the type-cache.
+		// As a side-effect of all these insertions,
+		// the first file object (foo) will be evicted from type-cache
+		// because of type-cache-max-size-mb=1 .
+		fi, err = os.Stat(path.Join(mntDir, name))
+
+		ExpectEq(nil, err)
+		AssertNe(nil, fi)
+		ExpectFalse(fi.IsDir())
+	}
 
 	// Stat-call with directory object again, to verify that the first file's
 	// type-cache entry got removed, and this time type-cache inserts a directory entry
@@ -261,7 +270,7 @@ func (t *TypeCacheTestWithMaxEntries1) TestSizeBasedEviction() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *TypeCacheTestWithMaxEntries1) TestTTLBasedEviction() {
+func (t *TypeCacheTestWithMaxSize1MB) TestTTLBasedEviction() {
 	const name1 = "foo"
 	const contents = "taco"
 	var fi fs.FileInfo
