@@ -207,7 +207,7 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: mount.DefaultStatCacheCapacity,
-				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag will be deprecated in the future and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 320 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
+				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag will be deprecated in the future and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1200 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{

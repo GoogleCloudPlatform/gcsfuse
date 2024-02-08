@@ -34,7 +34,7 @@ const (
 	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	DefaultStatCacheCapacity = 1 << 20 // 1048576 = 1024x1024 = 1Mi
+	DefaultStatCacheCapacity = 4096
 )
 
 func (cp ClientProtocol) IsValid() bool {
