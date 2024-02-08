@@ -222,7 +222,7 @@ func (t *RandomReaderTest) ExistingReader_WrongOffset() {
 	AssertNe(nil, err)
 }
 
-func (t *RandomReaderTest) ExistingReader_WrongOffsetButWithinRange() {
+func (t *RandomReaderTest) ExistingReader_ReadAtOffsetAfterTheReaderPosition() {
 	var currentStartOffset int64 = 2
 	var readerLimit int64 = 15
 	var readAtOffset int64 = 10
