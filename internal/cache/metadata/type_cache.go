@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-	unsafe "unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -66,13 +65,25 @@ type TypeCache interface {
 type cacheEntry struct {
 	expiry    time.Time
 	inodeType Type
+	// Copy of key string (internally only
+	// points to a copy of the original
+	// string data, so size overhead is a fixed 16 bytes, i.e. O(1),
+	// irrespective of actual key value.
+	// This is needed to calculate the
+	// accurate size of the type-cache entry on heap.
+	key string
 }
 
-// Size returns the size of cacheEntry, which is a fixed 32-byte
-// for each entry (including negative ones). This size is specific
+// Size returns the size of cacheEntry, which is
+// 80-bytes (24 for expriy, 8 for inodeType, 3*16 for 3 copies of
+// string structures containing the key ) + length of the key itself,
+// for each entry (including negative ones).
+// This size is specific
 // to 64-bit linux machines, and might differ on other platforms.
 func (ce cacheEntry) Size() uint64 {
-	return uint64(unsafe.Sizeof(ce))
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
+	// struct stored in the cache map and in the cache linked-list.
+	return uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
 }
 
 // A cache that maps from a name to information about the type of the object
@@ -126,6 +137,7 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 		_, err := tc.entries.Insert(name, cacheEntry{
 			expiry:    now.Add(tc.ttl),
 			inodeType: it,
+			key:       name,
 		})
 		if err != nil {
 			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))

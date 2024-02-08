@@ -37,8 +37,8 @@ const (
 
 	// DefaultTypeCacheMaxSizeInMb is the default vlaue of type-cache max-size for every directory in MiBs.
 	// The value is set at the size needed for 1,048,476 (2^20) type-cache entries,
-	// each of which is 32 bytes in size.
-	DefaultTypeCacheMaxSizeInMb int = 32
+	// each of which is 80 bytes in size.
+	DefaultTypeCacheMaxSizeInMb int = 80
 )
 
 type WriteConfig struct {
