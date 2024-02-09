@@ -96,7 +96,7 @@ func (ut *utilTest) Test_CreateFileShouldThrowErrorIfFileDirNotPresentAndProvide
 	_, err := CreateFile(ut.fileSpec, ut.flag)
 
 	ExpectNe(nil, err)
-	ExpectEq("error in stating file /usr/local/google/home/lankita/some/dir/foo.txt: stat /usr/local/google/home/lankita/some/dir/foo.txt: permission denied", err.Error())
+	ExpectEq("error in stating file "+ut.fileSpec.Path+": stat "+ut.fileSpec.Path+": permission denied", err.Error())
 }
 
 func (ut *utilTest) Test_CreateFile_FileDirPresent() {
