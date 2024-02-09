@@ -164,38 +164,31 @@ func (t *SizeofTest) TestContentSizeOfString() {
 
 func (t *SizeofTest) TestNestedContentSizeOfArrayOfStrings() {
 	for _, tc := range []struct {
-		strs                         []string
-		expected_nested_content_size int
-		expected_nested_size         int
+		strs                  []string
+		expected_content_size int
 	}{
 		{
-			strs:                         []string{},
-			expected_nested_content_size: 0,
-			expected_nested_size:         sizeOfEmptyStringArray,
+			strs:                  []string{},
+			expected_content_size: 0,
 		},
 		{
-			strs:                         []string{""},
-			expected_nested_content_size: sizeOfEmptyString,
-			expected_nested_size:         sizeOfEmptyStringArray + sizeOfEmptyString,
+			strs:                  []string{""},
+			expected_content_size: sizeOfEmptyString,
 		},
 		{
-			strs:                         []string{"", ""},
-			expected_nested_content_size: 2 * sizeOfEmptyString,
-			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString,
+			strs:                  []string{"", ""},
+			expected_content_size: 2 * sizeOfEmptyString,
 		},
 		{
-			strs:                         []string{"hello", ""},
-			expected_nested_content_size: 2*sizeOfEmptyString + 5,
-			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString + 5,
+			strs:                  []string{"hello", ""},
+			expected_content_size: 2*sizeOfEmptyString + 5,
 		},
 		{
-			strs:                         []string{"hello", "hello-world"},
-			expected_nested_content_size: 2*sizeOfEmptyString + 5 + 11,
-			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString + 5 + 11,
+			strs:                  []string{"hello", "hello-world"},
+			expected_content_size: 2*sizeOfEmptyString + 5 + 11,
 		},
 	} {
-		AssertEq(tc.expected_nested_content_size, contentSizeOfArrayOfStrings(&tc.strs))
-		AssertEq(tc.expected_nested_size, nestedSizeOfArrayOfStrings(&tc.strs))
+		AssertEq(tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
 	}
 }
 

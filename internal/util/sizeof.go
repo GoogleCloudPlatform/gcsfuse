@@ -24,15 +24,18 @@ import (
 
 var (
 	// pointerSize represents the size of the pointer of any type.
-	pointerSize     int
-	emptyStringSize int
+	pointerSize          int
+	emptyStringSize      int
+	emptyStringArraySize int
 )
 
 func init() {
 	var i int
 	pointerSize = int(reflect.TypeOf(&i).Size())
 	var s string
-	emptyStringSize = int(reflect.TypeOf(&s).Size())
+	emptyStringSize = int(reflect.TypeOf(s).Size())
+	var sArray []string
+	emptyStringArraySize = int(reflect.TypeOf(sArray).Size())
 }
 
 // Definitions/conventions (not based on a standard, but just made up for convenience).
@@ -120,10 +123,6 @@ func contentSizeOfArrayOfStrings(arr *[]string) (size int) {
 	return
 }
 
-func nestedSizeOfArrayOfStrings(arr *[]string) int {
-	return UnsafeSizeOf(arr) + contentSizeOfArrayOfStrings(arr)
-}
-
 func contentSizeOfStringToStringMap(m *map[string]string) (size int) {
 	if m == nil {
 		return
@@ -143,7 +142,7 @@ func contentSizeOfStringToStringArrayMap(m *map[string][]string) (size int) {
 
 	for k, v := range *m {
 		size += emptyStringSize + contentSizeOfString(&k)
-		size += nestedSizeOfArrayOfStrings(&v)
+		size += emptyStringArraySize + contentSizeOfArrayOfStrings(&v)
 	}
 	return
 }
