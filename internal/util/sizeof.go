@@ -86,7 +86,7 @@ func init() {
 //      In case of slices, this is the sum of the full-sizes of all its members.
 //      In case of maps, this is the sum of the full-sizes of all its keys and values.
 //
-//   3. Full-size (or nested-size): The full size of a struct/object
+//   3. Nested-size: The full size of a struct/object
 //      in memory, including the full/nested sizes of all its
 //      members.
 //
