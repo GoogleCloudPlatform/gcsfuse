@@ -60,7 +60,11 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	err := storageutil.CreateObjects(ctx, dt.bucket, objects)
 	AssertEq(nil, err)
 	dt.object = dt.getMinObject(objectName)
-	dt.fileSpec = data.FileSpec{Path: dt.fileCachePath(dt.bucket.Name(), dt.object.Name), FilePerm: util.DefaultFilePerm}
+	dt.fileSpec = data.FileSpec{
+		Path:     dt.fileCachePath(dt.bucket.Name(), dt.object.Name),
+		FilePerm: util.DefaultFilePerm,
+		DirPerm:  util.DefaultDirPerm,
+	}
 	dt.cache = lru.NewCache(lruCacheSize)
 	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec)
 	fileInfoKey := data.FileInfoKey{

@@ -90,6 +90,15 @@ func (ut *utilTest) Test_CreateFile_FileDirNotPresent() {
 	ExpectEq(nil, file.Close())
 }
 
+func (ut *utilTest) Test_CreateFileShouldThrowErrorIfFileDirNotPresentAndProvidedPermissionsAreInsufficient() {
+	ut.fileSpec.DirPerm = 644
+
+	_, err := CreateFile(ut.fileSpec, ut.flag)
+
+	ExpectNe(nil, err)
+	ExpectEq("error in stating file /usr/local/google/home/lankita/some/dir/foo.txt: stat /usr/local/google/home/lankita/some/dir/foo.txt: permission denied", err.Error())
+}
+
 func (ut *utilTest) Test_CreateFile_FileDirPresent() {
 	err := os.MkdirAll(path.Dir(ut.fileSpec.Path), 0755)
 

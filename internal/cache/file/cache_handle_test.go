@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -82,9 +83,10 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 
 func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedContent []byte) {
 	fileStat, err := os.Stat(cht.fileSpec.Path)
+	dirStat, err := os.Stat(filepath.Dir(cht.fileSpec.Path))
 	AssertEq(nil, err)
 	AssertEq(cht.fileSpec.FilePerm, fileStat.Mode())
-	AssertEq(cht.fileSpec.DirPerm, 0700)
+	AssertEq(cht.fileSpec.DirPerm, dirStat.Mode().Perm())
 
 	// Create a byte buffer of same len as expectedContent.
 	buf := make([]byte, len(expectedContent))
