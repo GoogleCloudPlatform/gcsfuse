@@ -139,7 +139,7 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 	}
 }
 
-func (t *SizeofTest) Test_ContentSizeOfString_And_NestedSizeOfString() {
+func (t *SizeofTest) TestContentSizeOfString() {
 	for _, tc := range []struct {
 		str                   string
 		expected_content_size int
@@ -148,21 +148,17 @@ func (t *SizeofTest) Test_ContentSizeOfString_And_NestedSizeOfString() {
 		{
 			str:                   "",
 			expected_content_size: 0,
-			expected_nested_size:  sizeOfEmptyString,
 		},
 		{
 			str:                   "hello",
 			expected_content_size: 5,
-			expected_nested_size:  sizeOfEmptyString + 5,
 		},
 		{
 			str:                   "hello-world",
 			expected_content_size: 11,
-			expected_nested_size:  sizeOfEmptyString + 11,
 		},
 	} {
 		AssertEq(tc.expected_content_size, contentSizeOfString(&tc.str))
-		AssertEq(tc.expected_nested_size, nestedSizeOfString(&tc.str))
 	}
 }
 
@@ -317,7 +313,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsObject() {
 	customMetadaField2 := "google-xyz-field"
 	customMetadaValue2 := "google-symlink"
 	customMetadataFields := map[string]string{customMetadaField1: customMetadaValue1, customMetadaField2: customMetadaValue2}
-	customMetadataFieldsContentSize := nestedSizeOfString(&customMetadaField1) + nestedSizeOfString(&customMetadaValue1) + nestedSizeOfString(&customMetadaField2) + nestedSizeOfString(&customMetadaValue2)
+	customMetadataFieldsContentSize := emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
 	customAcls := []*storagev1.ObjectAccessControl{
 		{
 			Bucket:     "my-bucket",
