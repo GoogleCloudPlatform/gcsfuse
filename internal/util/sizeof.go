@@ -55,8 +55,9 @@ func init() {
 //
 //      Raw/unsafe size of a struct is the sum of Raw/unsafe sizes of all its constituents.
 //
-//   2. Content-size (or nested-content-size): This is the additional size added when some content is
+//   2. Content-size: This is the additional size added when some content is
 //      added/set to a variable/pointer/struct or to any of its constituents/members.
+//      This is calculated recursively.
 //
 // 		Content size of built-ins such as integers/booleans is 0.
 //
