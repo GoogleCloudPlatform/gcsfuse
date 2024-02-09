@@ -42,16 +42,12 @@ var (
 	i            int
 	intArray     []int
 	b            byte
-	emptyString  string = ""
-	stringArray  []string
 	stringIntMap map[string]int
 
 	sizeOfInt               int
 	sizeOfIntPtr            int
 	sizeOfByte              int
-	sizeOfEmptyString       int
 	sizeOfEmptyIntArray     int
-	sizeOfEmptyStringArray  int
 	sizeOfEmptyStringIntMap int
 	sizeOfEmptyStruct       int
 	sizeOfEmptyGcsObject    int
@@ -64,9 +60,7 @@ func init() {
 	sizeOfInt = int(unsafe.Sizeof(i))
 	sizeOfIntPtr = int(unsafe.Sizeof(&i))
 	sizeOfByte = int(unsafe.Sizeof(b))
-	sizeOfEmptyString = int(unsafe.Sizeof(emptyString))
 	sizeOfEmptyIntArray = int(unsafe.Sizeof(intArray))
-	sizeOfEmptyStringArray = int(unsafe.Sizeof(stringArray))
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
 	sizeOfEmptyStruct = int(unsafe.Sizeof(emptyStruct{}))
@@ -111,15 +105,15 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 				b1, b2, b3 byte
 				c          string
 			}{},
-			expected_size: sizeOfEmptyStruct + sizeOfInt + 3*sizeOfByte + 5 /*for-padding-for-alignment*/ + sizeOfEmptyString,
+			expected_size: sizeOfEmptyStruct + sizeOfInt + 3*sizeOfByte + 5 /*for-padding-for-alignment*/ + emptyStringSize,
 		},
 		{
 			t:             "",
-			expected_size: sizeOfEmptyString,
+			expected_size: emptyStringSize,
 		},
 		{
 			t:             "hello",
-			expected_size: sizeOfEmptyString,
+			expected_size: emptyStringSize,
 		},
 		{
 			t:             []int{1, 2, 3},
@@ -127,7 +121,7 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 		},
 		{
 			t:             []string{"few ", "fewfgwe", "", "fewawef"},
-			expected_size: sizeOfEmptyStringArray,
+			expected_size: emptyStringArraySize,
 		},
 		{
 			t:             map[string]int{"few ": 432, "fewfgwe": -21, "": 1, "fewawef": 0},
@@ -173,19 +167,19 @@ func (t *SizeofTest) TestNestedContentSizeOfArrayOfStrings() {
 		},
 		{
 			strs:                  []string{""},
-			expected_content_size: sizeOfEmptyString,
+			expected_content_size: emptyStringSize,
 		},
 		{
 			strs:                  []string{"", ""},
-			expected_content_size: 2 * sizeOfEmptyString,
+			expected_content_size: 2 * emptyStringSize,
 		},
 		{
 			strs:                  []string{"hello", ""},
-			expected_content_size: 2*sizeOfEmptyString + 5,
+			expected_content_size: 2*emptyStringSize + 5,
 		},
 		{
 			strs:                  []string{"hello", "hello-world"},
-			expected_content_size: 2*sizeOfEmptyString + 5 + 11,
+			expected_content_size: 2*emptyStringSize + 5 + 11,
 		},
 	} {
 		AssertEq(tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
@@ -203,19 +197,19 @@ func (t *SizeofTest) TestNestedContentSizeOfStringToStringMap() {
 		},
 		{
 			m:                            map[string]string{"hello": "to you"},
-			expected_nested_content_size: sizeOfEmptyString + 5 + sizeOfEmptyString + 6,
+			expected_nested_content_size: emptyStringSize + 5 + emptyStringSize + 6,
 		},
 		{
 			m:                            map[string]string{"a": ""},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyString,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringSize,
 		},
 		{
 			m:                            map[string]string{"": ":"},
-			expected_nested_content_size: sizeOfEmptyString + sizeOfEmptyString + 1,
+			expected_nested_content_size: emptyStringSize + emptyStringSize + 1,
 		},
 		{
 			m:                            map[string]string{"a": "b1", "xyz": "alpha"},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyString + 5,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringSize + 5,
 		},
 	} {
 		AssertEq(tc.expected_nested_content_size, contentSizeOfStringToStringMap(&tc.m))
@@ -233,19 +227,19 @@ func (t *SizeofTest) TestNestedContentSizeOfStringToStringArrayMap() {
 		},
 		{
 			m:                            map[string][]string{"hello": {"to you"}},
-			expected_nested_content_size: sizeOfEmptyString + 5 + sizeOfEmptyStringArray + sizeOfEmptyString + 6,
+			expected_nested_content_size: emptyStringSize + 5 + emptyStringArraySize + emptyStringSize + 6,
 		},
 		{
 			m:                            map[string][]string{"a": {""}},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize,
 		},
 		{
 			m:                            map[string][]string{"": {":"}},
-			expected_nested_content_size: sizeOfEmptyString + sizeOfEmptyStringArray + sizeOfEmptyString + 1,
+			expected_nested_content_size: emptyStringSize + emptyStringArraySize + emptyStringSize + 1,
 		},
 		{
 			m:                            map[string][]string{"a": {"b1", "b2"}, "xyz": {"alpha", "beta"}},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString + 2 + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyStringArray + sizeOfEmptyString + 5 + sizeOfEmptyString + 4,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5 + emptyStringSize + 4,
 		},
 	} {
 		AssertEq(tc.expected_nested_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
@@ -263,19 +257,19 @@ func (t *SizeofTest) TestNestedContentSizeOfServerResponse() {
 		},
 		{
 			sr:                           googleapi.ServerResponse{HTTPStatusCode: 200, Header: http.Header{"hello": {"to you"}}},
-			expected_nested_content_size: sizeOfEmptyString + 5 + sizeOfEmptyStringArray + sizeOfEmptyString + 6,
+			expected_nested_content_size: emptyStringSize + 5 + emptyStringArraySize + emptyStringSize + 6,
 		},
 		{
 			sr:                           googleapi.ServerResponse{HTTPStatusCode: 200, Header: http.Header{"a": {""}}},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize,
 		},
 		{
 			sr:                           googleapi.ServerResponse{HTTPStatusCode: 200, Header: http.Header{"": {":"}}},
-			expected_nested_content_size: sizeOfEmptyString + sizeOfEmptyStringArray + sizeOfEmptyString + 1,
+			expected_nested_content_size: emptyStringSize + emptyStringArraySize + emptyStringSize + 1,
 		},
 		{
 			sr:                           googleapi.ServerResponse{HTTPStatusCode: 200, Header: http.Header{"a": {"b1"}, "xyz": {"alpha"}}},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyStringArray + sizeOfEmptyString + 5,
+			expected_nested_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5,
 		},
 	} {
 		AssertEq(tc.expected_nested_content_size, contentSizeOfServerResponse(&tc.sr))
