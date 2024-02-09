@@ -24,10 +24,11 @@ import (
 
 var (
 	// pointerSize represents the size of the pointer of any type.
-	pointerSize                  int
-	emptyStringSize              int
-	emptyStringArraySize         int
-	emptyObjectAccessControlSize int
+	pointerSize                             int
+	emptyStringSize                         int
+	emptyStringArraySize                    int
+	emptyObjectAccessControlSize            int
+	emptyObjectAccessControlProjectTeamSize int
 )
 
 func init() {
@@ -39,6 +40,8 @@ func init() {
 	emptyStringArraySize = int(reflect.TypeOf(sArray).Size())
 	var emptyObjectAccessControl storagev1.ObjectAccessControl
 	emptyObjectAccessControlSize = int(reflect.TypeOf(emptyObjectAccessControl).Size())
+	var emptyObjectAccessControlProjectTeam storagev1.ObjectAccessControlProjectTeam
+	emptyObjectAccessControlProjectTeamSize = int(reflect.TypeOf(emptyObjectAccessControlProjectTeam).Size())
 }
 
 // Definitions/conventions (not based on a standard, but just made up for convenience).
@@ -164,12 +167,10 @@ func contentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
 	return
 }
 
-func nestedSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessControlProjectTeam) (size int) {
+func contentSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessControlProjectTeam) (size int) {
 	if oacpt == nil {
 		return
 	}
-
-	size = UnsafeSizeOf(oacpt)
 
 	// Account for string members.
 	for _, strPtr := range []*string{
@@ -205,7 +206,7 @@ func contentSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size 
 	// Nothing to be added here as described in the documentation at the top.
 
 	// Account for pointer-members.
-	size += nestedSizeOfObjectAccessControlProjectTeam(acl.ProjectTeam)
+	size += emptyObjectAccessControlProjectTeamSize + contentSizeOfObjectAccessControlProjectTeam(acl.ProjectTeam)
 
 	// Account for other struct members.
 	size += contentSizeOfServerResponse(&acl.ServerResponse)
