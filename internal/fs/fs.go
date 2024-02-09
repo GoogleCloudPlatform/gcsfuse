@@ -244,23 +244,25 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	// gcsfuse related files.
 	cacheLocation = path.Join(cacheLocation, util.FileCache)
 
+	// When user passes allow_other flag, then other users should be able to
+	// read from cache
+	filePerm := util.DefaultFilePerm
+	dirPerm := util.DefaultDirPerm
+	if cfg.AllowOther {
+		filePerm = util.FilePermWithAllowOther
+		dirPerm = util.DirPermWithAllowOther
+	}
+
 	// Panic in case cacheLocation does not have required permissions
-	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation)
+	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation, dirPerm)
 	if cacheLocationErr != nil {
 		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheLocationErr.Error()))
 	}
 
-	// When user passes allow_other flag, then other users should be able to
-	// read from cache
-	filePerm := util.DefaultFilePerm
-	if cfg.AllowOther {
-		filePerm = util.FilePermWithAllowOther
-	}
-
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheLocation,
 		cfg.SequentialReadSizeMb)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheLocation, filePerm)
+		cacheLocation, filePerm, dirPerm)
 	return
 }
 
