@@ -139,26 +139,30 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 	}
 }
 
-func (t *SizeofTest) TestContentSizeOfString() {
+func (t *SizeofTest) Test_ContentSizeOfString_And_NestedSizeOfString() {
 	for _, tc := range []struct {
 		str                   string
 		expected_content_size int
+		expected_nested_size  int
 	}{
 		{
 			str:                   "",
 			expected_content_size: 0,
+			expected_nested_size:  sizeOfEmptyString,
 		},
 		{
 			str:                   "hello",
 			expected_content_size: 5,
+			expected_nested_size:  sizeOfEmptyString + 5,
 		},
 		{
 			str:                   "hello-world",
 			expected_content_size: 11,
+			expected_nested_size:  sizeOfEmptyString + 11,
 		},
 	} {
 		AssertEq(tc.expected_content_size, contentSizeOfString(&tc.str))
-		AssertEq(tc.expected_content_size+sizeOfEmptyString, nestedSizeOfString(&tc.str))
+		AssertEq(tc.expected_nested_size, nestedSizeOfString(&tc.str))
 	}
 }
 
@@ -166,30 +170,36 @@ func (t *SizeofTest) TestNestedContentSizeOfArrayOfStrings() {
 	for _, tc := range []struct {
 		strs                         []string
 		expected_nested_content_size int
+		expected_nested_size         int
 	}{
 		{
 			strs:                         []string{},
 			expected_nested_content_size: 0,
+			expected_nested_size:         sizeOfEmptyStringArray,
 		},
 		{
 			strs:                         []string{""},
 			expected_nested_content_size: sizeOfEmptyString,
+			expected_nested_size:         sizeOfEmptyStringArray + sizeOfEmptyString,
 		},
 		{
 			strs:                         []string{"", ""},
 			expected_nested_content_size: 2 * sizeOfEmptyString,
+			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString,
 		},
 		{
 			strs:                         []string{"hello", ""},
 			expected_nested_content_size: 2*sizeOfEmptyString + 5,
+			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString + 5,
 		},
 		{
 			strs:                         []string{"hello", "hello-world"},
 			expected_nested_content_size: 2*sizeOfEmptyString + 5 + 11,
+			expected_nested_size:         sizeOfEmptyStringArray + 2*sizeOfEmptyString + 5 + 11,
 		},
 	} {
-		AssertEq(tc.expected_nested_content_size, nestedContentSizeOfArrayOfStrings(&tc.strs))
-		AssertEq(tc.expected_nested_content_size+sizeOfEmptyStringArray, nestedSizeOfArrayOfStrings(&tc.strs))
+		AssertEq(tc.expected_nested_content_size, contentSizeOfArrayOfStrings(&tc.strs))
+		AssertEq(tc.expected_nested_size, nestedSizeOfArrayOfStrings(&tc.strs))
 	}
 }
 
@@ -219,7 +229,7 @@ func (t *SizeofTest) TestNestedContentSizeOfStringToStringMap() {
 			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyString + 5,
 		},
 	} {
-		AssertEq(tc.expected_nested_content_size, nestedContentSizeOfStringToStringMap(&tc.m))
+		AssertEq(tc.expected_nested_content_size, contentSizeOfStringToStringMap(&tc.m))
 	}
 }
 
@@ -245,11 +255,11 @@ func (t *SizeofTest) TestNestedContentSizeOfStringToStringArrayMap() {
 			expected_nested_content_size: sizeOfEmptyString + sizeOfEmptyStringArray + sizeOfEmptyString + 1,
 		},
 		{
-			m:                            map[string][]string{"a": {"b1"}, "xyz": {"alpha"}},
-			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyStringArray + sizeOfEmptyString + 5,
+			m:                            map[string][]string{"a": {"b1", "b2"}, "xyz": {"alpha", "beta"}},
+			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString + 2 + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyStringArray + sizeOfEmptyString + 5 + sizeOfEmptyString + 4,
 		},
 	} {
-		AssertEq(tc.expected_nested_content_size, nestedContentSizeOfStringToStringArrayMap(&tc.m))
+		AssertEq(tc.expected_nested_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
 	}
 }
 
@@ -279,7 +289,7 @@ func (t *SizeofTest) TestNestedContentSizeOfServerResponse() {
 			expected_nested_content_size: sizeOfEmptyString + 1 + sizeOfEmptyStringArray + sizeOfEmptyString + 2 + sizeOfEmptyString + 3 + sizeOfEmptyStringArray + sizeOfEmptyString + 5,
 		},
 	} {
-		AssertEq(tc.expected_nested_content_size, nestedContentSizeOfServerResponse(&tc.sr))
+		AssertEq(tc.expected_nested_content_size, contentSizeOfServerResponse(&tc.sr))
 	}
 }
 
@@ -364,13 +374,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsObject() {
 	expectedSize += md5.Size // for MD5 [md5.Size]byte
 	expectedSize += 4        // for CRC 32 uint32
 	expectedSize += customMetadataFieldsContentSize
-	expectedSize += nestedContentSizeOfArrayOfAclPointers(&customAcls)
+	expectedSize += contentSizeOfArrayOfAclPointers(&customAcls)
 
 	AssertEq(expectedSize, NestedSizeOfGcsObject(&o))
-}
-
-func (t *SizeofTest) TestNestedSizeOfMinObject() {
-	o := gcs.MinObject{}
-
-	AssertEq(sizeOfEmptyMinObject, NestedSizeOfMinObject(&o))
 }

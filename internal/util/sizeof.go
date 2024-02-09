@@ -40,14 +40,14 @@ func init() {
 //      This is same as what is returned by unsafe.Sizeof(...)
 //
 //      Built-in types ([u]int*, bool, time.*) have the same
-//      same raw/unsafe size as their actual space in memory.
+//      raw/unsafe size as their actual space in memory.
 //
 //      More complex types like string, array/slice have a fixed
 //      /standard raw/unsafe size e.g. string is 16 bytes (8 for
 //      holding pointer to its content, 8 bytes for holding length).
 //      But it doesn't account for string's content, so any string,
-//  	be it emoty-string, or "hello" or a million-char string, all
-//      have Raw/unsafe size of 16.
+//  	be it empty-string, or "hello" or a million-char string, all
+//      have raw/unsafe size of 16.
 //
 //      Pointers have a raw/unsafe size of 8 bytes on 64-bit platforms.
 //
@@ -57,6 +57,10 @@ func init() {
 //
 //   2. Content-size (or nested-content-size): This is the additional size added when some content is
 //      added/set to a variable/pointer/struct or to any of its constituents/members.
+//
+// 		Content size of built-ins such as integers/booleans is 0.
+//
+//      It is contributed by the content-sizes of the struct/pointer/slice/map members.
 //
 //      For example, for a string, this is same as the length of the
 //       string e.g. 5 for "hello", but 0 for "", and so on.
@@ -105,7 +109,7 @@ func nestedSizeOfString(s *string) int {
 	return UnsafeSizeOf(s) + contentSizeOfString(s)
 }
 
-func nestedContentSizeOfArrayOfStrings(arr *[]string) (size int) {
+func contentSizeOfArrayOfStrings(arr *[]string) (size int) {
 	if arr == nil {
 		return
 	}
@@ -117,10 +121,10 @@ func nestedContentSizeOfArrayOfStrings(arr *[]string) (size int) {
 }
 
 func nestedSizeOfArrayOfStrings(arr *[]string) int {
-	return UnsafeSizeOf(arr) + nestedContentSizeOfArrayOfStrings(arr)
+	return UnsafeSizeOf(arr) + contentSizeOfArrayOfStrings(arr)
 }
 
-func nestedContentSizeOfStringToStringMap(m *map[string]string) (size int) {
+func contentSizeOfStringToStringMap(m *map[string]string) (size int) {
 	if m == nil {
 		return
 	}
@@ -132,7 +136,7 @@ func nestedContentSizeOfStringToStringMap(m *map[string]string) (size int) {
 	return
 }
 
-func nestedContentSizeOfStringToStringArrayMap(m *map[string][]string) (size int) {
+func contentSizeOfStringToStringArrayMap(m *map[string][]string) (size int) {
 	if m == nil {
 		return
 	}
@@ -144,16 +148,16 @@ func nestedContentSizeOfStringToStringArrayMap(m *map[string][]string) (size int
 	return
 }
 
-func nestedContentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
+func contentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
 	if sr == nil {
 		return
 	}
 
-	// integer members - HTTPStatusCode
-	// nothing to be added here
+	// Account for integer members - HTTPStatusCode.
+	// Nothing to be added here, as explained in the documentation at the top.
 
-	// map members
-	size += nestedContentSizeOfStringToStringArrayMap((*map[string][]string)(&sr.Header))
+	// Account for map members.
+	size += contentSizeOfStringToStringArrayMap((*map[string][]string)(&sr.Header))
 
 	return
 }
@@ -165,18 +169,18 @@ func nestedSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessCon
 
 	size = UnsafeSizeOf(oacpt)
 
-	// string members
+	// Account for string members.
 	for _, strPtr := range []*string{
 		&oacpt.ProjectNumber, &oacpt.Team,
 	} {
 		size += contentSizeOfString(strPtr)
 	}
 
-	// string-array members
+	// Account for string-array members.
 	for _, strArrayPtr := range []*[]string{
 		&oacpt.ForceSendFields, &oacpt.NullFields,
 	} {
-		size += nestedContentSizeOfArrayOfStrings(strArrayPtr)
+		size += contentSizeOfArrayOfStrings(strArrayPtr)
 	}
 
 	return
@@ -189,7 +193,7 @@ func nestedSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size i
 
 	size = UnsafeSizeOf(acl)
 
-	// string members
+	// Account for string members.
 	for _, strPtr := range []*string{
 		&acl.Bucket, &acl.Domain, &acl.Email, &acl.Entity,
 		&acl.EntityId, &acl.Etag, &acl.Id, &acl.Kind,
@@ -197,23 +201,23 @@ func nestedSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size i
 		size += contentSizeOfString(strPtr)
 	}
 
-	// integer-members - Generation
-	// nothing to be added here
+	// Account for integer-members - Generation.
+	// Nothing to be added here as described in the documentation at the top.
 
-	// pointer-members - ProjectTeam
+	// Account for pointer-members.
 	size += nestedSizeOfObjectAccessControlProjectTeam(acl.ProjectTeam)
 
-	// other struct members
-	size += nestedContentSizeOfServerResponse(&acl.ServerResponse)
+	// Account for other struct members.
+	size += contentSizeOfServerResponse(&acl.ServerResponse)
 
-	// string-array members
-	size += nestedContentSizeOfArrayOfStrings(&acl.ForceSendFields)
-	size += nestedContentSizeOfArrayOfStrings(&acl.NullFields)
+	// Account for string-array members.
+	size += contentSizeOfArrayOfStrings(&acl.ForceSendFields)
+	size += contentSizeOfArrayOfStrings(&acl.NullFields)
 
 	return
 }
 
-func nestedContentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (size int) {
+func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (size int) {
 	if acls == nil {
 		return
 	}
@@ -238,10 +242,10 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 		return
 	}
 
-	// get raw size of the structure.
+	// Get raw size of the structure.
 	size = UnsafeSizeOf(o)
 
-	// string members
+	// Account for string members.
 	for _, strPtr := range []*string{
 		&o.Name, &o.ContentType, &o.ContentLanguage, &o.CacheControl,
 		&o.Owner, &o.ContentEncoding, &o.MediaLink, &o.StorageClass,
@@ -249,49 +253,21 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 		size += contentSizeOfString(strPtr)
 	}
 
-	// integer-pointer members
+	// Account for integer-pointer members.
 	size += UnsafeSizeOf(o.CRC32C)
-	// pointer-to-integer-array members
+	// Account for pointer-to-integer-array members.
 	size += UnsafeSizeOf(o.MD5)
 
-	// integer members - Size, Generation, MetaGeneration, ComponentCount
-	// time members - Deleted, Updated
-	// boolean members - EventBasedHold
-	// nothing to be added for any built-in types - already accounted for in unsafeSizeOf(o)
+	// Account for integer members - Size, Generation, MetaGeneration, ComponentCount.
+	// Account for time members - Deleted, Updated.
+	// Account for boolean members - EventBasedHold.
+	// Nothing to be added for any built-in types - already accounted for in unsafeSizeOf(o).
 
-	// map members
-	size += nestedContentSizeOfStringToStringMap(&o.Metadata)
+	// Account for map members.
+	size += contentSizeOfStringToStringMap(&o.Metadata)
 
-	// slice members
-	size += nestedContentSizeOfArrayOfAclPointers(&o.Acl)
-
-	return
-}
-
-// NestedSizeOfMinObject returns the full nested memory size
-// of the gcs.MinObject pointed by the passed pointer.
-// The logic used here is a subset of the logic used in NestedSizeOfGcsObject.
-func NestedSizeOfMinObject(o *gcs.MinObject) (size int) {
-	if o == nil {
-		return
-	}
-
-	// get raw size of the structure.
-	size = UnsafeSizeOf(o)
-
-	// string members
-	for _, strPtr := range []*string{
-		&o.Name, &o.ContentEncoding} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// integer members - Size, Generation, MetaGeneration
-	// time members - Updated
-	// boolean members - EventBasedHold
-	// nothing to be added for any built-in types - already accounted for in unsafeSizeOf(o)
-
-	// map members
-	size += nestedContentSizeOfStringToStringMap(&o.Metadata)
+	// Account for slice members.
+	size += contentSizeOfArrayOfAclPointers(&o.Acl)
 
 	return
 }
