@@ -68,7 +68,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
    If this is missing, then `--stat-cache-capacity` is used.
    2. `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count. 
    This is ignored if user sets `metadata-cache:stat-cache-max-size-mb` .
-   This can be set to 0 for disabling stat-cache and >0 for setting a finite stat-cache size. If this is not set, the stat cache capacity will default to 1048576 (2^20) items (or ~320 MiBs). 
+   This can be set to 0 for disabling stat-cache and >0 for setting a finite stat-cache size. If this is not set, the stat cache capacity will default to 4096 items (or about 4 MiBs). 
    
    If you have more objects (folders or files) than that in your bucket that you want to access, then you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
     - ListObjects will return information on the items within the folder. Each item's data is cached
