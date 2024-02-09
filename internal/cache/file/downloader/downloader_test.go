@@ -58,7 +58,7 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), 200, CacheMaxSize)
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, cacheLocation, DefaultSequentialReadSizeMb)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheLocation, DefaultSequentialReadSizeMb)
 }
 
 func (dt *downloaderTest) TearDown() {
@@ -98,6 +98,20 @@ func (dt *downloaderTest) Test_GetJob_Existing() {
 	job := dt.jm.GetJob(&dt.object, dt.bucket)
 
 	ExpectEq(expectedJob, job)
+}
+
+func (dt *downloaderTest) Test_GetJob_Existing_WithDefaultFileAndDirPerm() {
+	// first create new job
+	expectedJob := dt.jm.GetJob(&dt.object, dt.bucket)
+	dt.jm.mu.Lock()
+	dt.verifyJob(expectedJob, &dt.object, dt.bucket, dt.jm.sequentialReadSizeMb)
+	dt.jm.mu.Unlock()
+
+	// again call GetJob
+	job := dt.jm.GetJob(&dt.object, dt.bucket)
+
+	ExpectEq(0700, job.fileSpec.DirPerm.Perm())
+	ExpectEq(0600, job.fileSpec.FilePerm.Perm())
 }
 
 func (dt *downloaderTest) Test_GetJob_Concurrent() {

@@ -44,18 +44,21 @@ const (
 	KiB                    = 1024
 	DefaultFilePerm        = os.FileMode(0600)
 	FilePermWithAllowOther = os.FileMode(0644)
-	FileCache              = "gcsfuse-file-cache"
+
+	DefaultDirPerm        = os.FileMode(0700)
+	DirPermWithAllowOther = os.FileMode(0755)
+	FileCache             = "gcsfuse-file-cache"
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns
 // file handle for that file opened with given flag.
 //
-// Note: If directories in path are not present, they are created with FileDirPerm
+// Note: If directories in path are not present, they are created with directory permissions provided in fileSpec
 // permission.
 func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 	// Create directory structure if not present
 	fileDir := filepath.Dir(fileSpec.Path)
-	err = os.MkdirAll(fileDir, FileDirPerm)
+	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error in creating directory structure %s: %v", fileDir, err))
 		return
@@ -71,7 +74,7 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 			return
 		}
 	}
-	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.Perm)
+	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("error in creating file %s: %v", fileSpec.Path, err))
 		return
@@ -102,13 +105,13 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-// Creates directory at given path with FileDirPerm(0755) permissions in case not already present,
+// Creates directory at given path with provided permissions in case not already present,
 // returns error in case unable to create directory or directory is not writable.
-func CreateCacheDirectoryIfNotPresentAt(dirPath string) error {
+func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) error {
 	_, statErr := os.Stat(dirPath)
 
 	if os.IsNotExist(statErr) {
-		err := os.MkdirAll(dirPath, FileDirPerm)
+		err := os.MkdirAll(dirPath, dirPerm)
 		if err != nil {
 			return fmt.Errorf("error in creating directory structure %s: %v", dirPath, err)
 		}
