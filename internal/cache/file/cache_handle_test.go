@@ -82,17 +82,18 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 }
 
 func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedContent []byte) {
-	fileStat, err := os.Stat(cht.fileSpec.Path)
-	dirStat, err := os.Stat(filepath.Dir(cht.fileSpec.Path))
-	AssertEq(nil, err)
+	fileStat, fileErr := os.Stat(cht.fileSpec.Path)
+	dirStat, dirErr := os.Stat(filepath.Dir(cht.fileSpec.Path))
+	AssertEq(nil, fileErr)
 	AssertEq(cht.fileSpec.FilePerm, fileStat.Mode())
+	AssertEq(nil, dirErr)
 	AssertEq(cht.fileSpec.DirPerm, dirStat.Mode().Perm())
 
 	// Create a byte buffer of same len as expectedContent.
 	buf := make([]byte, len(expectedContent))
 
 	// Read from file and compare with expectedContent.
-	_, err = cht.cacheHandle.fileHandle.Seek(readStartOffset, 0)
+	_, err := cht.cacheHandle.fileHandle.Seek(readStartOffset, 0)
 	AssertEq(nil, err)
 	_, err = io.ReadFull(cht.cacheHandle.fileHandle, buf)
 	AssertEq(nil, err)
