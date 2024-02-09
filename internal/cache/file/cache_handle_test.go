@@ -83,9 +83,9 @@ func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
 
 func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedContent []byte) {
 	fileStat, fileErr := os.Stat(cht.fileSpec.Path)
-	dirStat, dirErr := os.Stat(filepath.Dir(cht.fileSpec.Path))
 	AssertEq(nil, fileErr)
 	AssertEq(cht.fileSpec.FilePerm, fileStat.Mode())
+	dirStat, dirErr := os.Stat(filepath.Dir(cht.fileSpec.Path))
 	AssertEq(nil, dirErr)
 	AssertEq(cht.fileSpec.DirPerm, dirStat.Mode().Perm())
 
