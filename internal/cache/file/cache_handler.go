@@ -46,24 +46,29 @@ type CacheHandler struct {
 	// filePerm parameter specifies the permission of file in cache.
 	filePerm os.FileMode
 
+	// dirPerm parameter specifies the permission of cache directory.
+	dirPerm os.FileMode
+
 	// mu guards the handling of insertion into and eviction from file cache.
 	mu locker.Locker
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string, filePerm os.FileMode) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
 		cacheLocation: cacheLocation,
 		filePerm:      filePerm,
+		dirPerm:       dirPerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
 	}
 }
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
-		Path: util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
-		Perm: chr.filePerm,
+		Path:     util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
+		FilePerm: chr.filePerm,
+		DirPerm:  chr.dirPerm,
 	}
 
 	return util.CreateFile(fileSpec, os.O_RDONLY)

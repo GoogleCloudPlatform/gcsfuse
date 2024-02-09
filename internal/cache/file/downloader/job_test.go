@@ -60,7 +60,11 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	err := storageutil.CreateObjects(ctx, dt.bucket, objects)
 	AssertEq(nil, err)
 	dt.object = dt.getMinObject(objectName)
-	dt.fileSpec = data.FileSpec{Path: dt.fileCachePath(dt.bucket.Name(), dt.object.Name), Perm: util.DefaultFilePerm}
+	dt.fileSpec = data.FileSpec{
+		Path:     dt.fileCachePath(dt.bucket.Name(), dt.object.Name),
+		FilePerm: util.DefaultFilePerm,
+		DirPerm:  util.DefaultDirPerm,
+	}
 	dt.cache = lru.NewCache(lruCacheSize)
 	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec)
 	fileInfoKey := data.FileInfoKey{
@@ -82,7 +86,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 func (dt *downloaderTest) verifyFile(content []byte) {
 	fileStat, err := os.Stat(dt.fileSpec.Path)
 	AssertEq(nil, err)
-	AssertEq(dt.fileSpec.Perm, fileStat.Mode())
+	AssertEq(dt.fileSpec.FilePerm, fileStat.Mode())
 	AssertLe(len(content), fileStat.Size())
 	// verify the content of file downloaded. only verified till
 	fileContent, err := os.ReadFile(dt.fileSpec.Path)
