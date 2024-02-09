@@ -24,9 +24,10 @@ import (
 
 var (
 	// pointerSize represents the size of the pointer of any type.
-	pointerSize          int
-	emptyStringSize      int
-	emptyStringArraySize int
+	pointerSize                  int
+	emptyStringSize              int
+	emptyStringArraySize         int
+	emptyObjectAccessControlSize int
 )
 
 func init() {
@@ -36,6 +37,8 @@ func init() {
 	emptyStringSize = int(reflect.TypeOf(s).Size())
 	var sArray []string
 	emptyStringArraySize = int(reflect.TypeOf(sArray).Size())
+	var emptyObjectAccessControl storagev1.ObjectAccessControl
+	emptyObjectAccessControlSize = int(reflect.TypeOf(emptyObjectAccessControl).Size())
 }
 
 // Definitions/conventions (not based on a standard, but just made up for convenience).
@@ -185,12 +188,10 @@ func nestedSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessCon
 	return
 }
 
-func nestedSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size int) {
+func contentSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size int) {
 	if acl == nil {
 		return
 	}
-
-	size = UnsafeSizeOf(acl)
 
 	// Account for string members.
 	for _, strPtr := range []*string{
@@ -226,7 +227,7 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 		// an unnecessary constant pointerSize, but that would
 		// have added cost of an extra unsafe.Sizeof on each
 		// member.
-		size += pointerSize + nestedSizeOfObjectAccessControl(acl)
+		size += pointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
 	}
 	return
 }
