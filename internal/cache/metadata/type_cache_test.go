@@ -25,7 +25,7 @@ import (
 
 const (
 	TTL             time.Duration = time.Millisecond
-	TypeCacheSizeMb               = 1
+	TypeCacheSizeMB               = 1
 )
 
 var (
@@ -66,7 +66,7 @@ func init() {
 
 func (t *TypeCacheTest) SetUp(ti *TestInfo) {
 	t.ttl = TTL
-	t.cache = createNewTypeCache(TypeCacheSizeMb, t.ttl)
+	t.cache = createNewTypeCache(TypeCacheSizeMB, t.ttl)
 }
 
 func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
@@ -75,7 +75,7 @@ func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
-	t.cache = createNewTypeCache(TypeCacheSizeMb, 0)
+	t.cache = createNewTypeCache(TypeCacheSizeMB, 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -97,31 +97,31 @@ func createNewTypeCache(sizeInMB int, ttl time.Duration) *typeCache {
 
 func (t *TypeCacheTest) TestNewTypeCache() {
 	input := []struct {
-		sizeInMb           int
+		sizeInMB           int
 		ttl                time.Duration
 		entriesShouldBeNil bool
 	}{
 		{
-			sizeInMb:           0,
+			sizeInMB:           0,
 			ttl:                time.Second,
 			entriesShouldBeNil: true,
 		},
 		{
-			sizeInMb:           1,
+			sizeInMB:           1,
 			ttl:                0,
 			entriesShouldBeNil: true,
 		},
 		{
-			sizeInMb: -1,
+			sizeInMB: -1,
 			ttl:      time.Second,
 		},
 		{
-			sizeInMb: 1,
+			sizeInMB: 1,
 			ttl:      time.Second,
 		}}
 
 	for _, input := range input {
-		tc := createNewTypeCache(input.sizeInMb, input.ttl)
+		tc := createNewTypeCache(input.sizeInMB, input.ttl)
 
 		AssertEq(input.entriesShouldBeNil, tc.entries == nil)
 	}
@@ -157,7 +157,7 @@ func (t *TypeCacheTest) TestGetAfterTtlExpiration() {
 }
 
 func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
-	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheSizeMb)/cacheEntry{}.Size()) + 1
+	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheSizeMB)/cacheEntry{}.Size()) + 1
 
 	for i := 0; i < entriesToBeInserted; i++ {
 		t.cache.Insert(now, fmt.Sprint(i), RegularFileType)
