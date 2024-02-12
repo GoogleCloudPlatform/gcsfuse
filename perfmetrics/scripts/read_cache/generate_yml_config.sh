@@ -25,7 +25,7 @@ write:
 logging:
   format: text
   severity: error
-cache-dir: ${CACHE_LOCATION:-/tmp/read_cache/}
+cache-dir: ${CACHE_DIR:-/tmp/read_cache/}
 file-cache:
   max-size-mb: ${MAX_SIZE_IN_MB:-100}
   cache-file-for-range-read: ${CACHE_FILE_FOR_RANGE_READ-false}
