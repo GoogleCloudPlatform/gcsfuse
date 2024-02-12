@@ -142,7 +142,7 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-in-mb for file-cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-mb for file-cache can't be less than -1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {

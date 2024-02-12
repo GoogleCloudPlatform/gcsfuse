@@ -224,7 +224,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	cacheLocation := string(cfg.MountConfig.CacheLocation)
-	// Use temp-dir as default cache-location.
+	// Use temp-dir as default cache-dir.
 	if cacheLocation == "" {
 		if cfg.TempDir == "" {
 			cacheLocation = os.TempDir()
@@ -234,7 +234,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 	cacheLocation, err := filepath.Abs(cacheLocation)
 	if err != nil {
-		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
+		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-dir (%s) in config-file: %w", cacheLocation, err))
 	}
 	// Adding a new directory inside cacheLocation, so that at the time of Destroy
 	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
