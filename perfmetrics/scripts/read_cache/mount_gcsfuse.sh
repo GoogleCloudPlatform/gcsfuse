@@ -19,7 +19,7 @@ set -e
 print_usage() {
   echo "Help/Supported options..."
   printf "./mount_gcsfuse.sh  "
-  printf "[-s max_size_in_mb] "
+  printf "[-s max_size_mb] "
   printf "[-b bucket_name] "
   printf "[-c cache_dir] "
   printf "[-d (means cache_file_for_range_read is true)] "
@@ -30,7 +30,7 @@ print_usage() {
 # Default value to edit, value via argument will override
 # these values if provided.
 cache_file_for_range_read=false
-max_size_in_mb=100
+max_size_mb=100
 cache_dir=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
 stat_or_type_cache_ttl_secs=6048000 # 168h or 1 week
@@ -41,7 +41,7 @@ while getopts lhds:b:c:m: flag
 do
   case "${flag}" in
 
-    s) max_size_in_mb=${OPTARG};;
+    s) max_size_mb=${OPTARG};;
     b) bucket_name=${OPTARG};;
     d) cache_file_for_range_read=true;;
     c) cache_dir=${OPTARG};;
@@ -78,7 +78,7 @@ if mountpoint -q -- "$mount_dir"; then
 fi
 
 # Generate yml config.
-export MAX_SIZE_IN_MB="${max_size_in_mb}"
+export MAX_SIZE_IN_MB="${max_size_mb}"
 export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
 export CACHE_LOCATION="${cache_dir}"
 export TTL_SECS="${stat_or_type_cache_ttl_secs}"
