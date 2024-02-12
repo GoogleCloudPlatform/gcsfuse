@@ -60,7 +60,7 @@ func init() { RegisterTestSuite(&cacheHandlerTest{}) }
 
 func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	chrT.cacheDir = path.Join(os.Getenv("HOME"), "cache/location")
+	chrT.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 	// Create bucket in fake storage.
 	chrT.fakeStorage = storage.NewFakeStorage()

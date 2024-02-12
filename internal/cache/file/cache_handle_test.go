@@ -102,7 +102,7 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 
 func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/location")
+	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 	// Create bucket in fake storage.
 	cht.fakeStorage = storage.NewFakeStorage()

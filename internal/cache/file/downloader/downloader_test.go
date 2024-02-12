@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var cacheDir = path.Join(os.Getenv("HOME"), "cache/location")
+var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 func TestDownloader(t *testing.T) { RunTests(t) }
 
