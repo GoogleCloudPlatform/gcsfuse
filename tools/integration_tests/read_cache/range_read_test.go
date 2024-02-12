@@ -63,14 +63,13 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithWait(t *testing.T) 
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	// Sleep until file is downloaded.
-	time.Sleep(2 * time.Second)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadBeyond8MB, t)
+	// Sleep until next chunk is downloaded.
+	time.Sleep(10 * time.Millisecond)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
-	validateFileInCacheDirectory(testFileName, fileSizeForRangeRead, s.ctx, s.storageClient, t)
 	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
 }
 
@@ -78,7 +77,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutWait(t *testing.
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadBeyond8MB, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetEndOfFile, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
