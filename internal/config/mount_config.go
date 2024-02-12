@@ -36,9 +36,9 @@ const (
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
 	// DefaultTypeCacheMaxSizeMB is the default vlaue of type-cache max-size for every directory in MiBs.
-	// The value is set at the size needed for 1,048,476 (2^20) type-cache entries,
-	// each of which is 80 bytes in size.
-	DefaultTypeCacheMaxSizeMB int = 80
+	// The value is set at the size needed for about 42k type-cache entries,
+	// each of which is about 100 bytes in size.
+	DefaultTypeCacheMaxSizeMB int = 4
 
 	// StatCacheMaxSizeMBUnsetSentinel is the value internally
 	// set for metada-cache:stat-cache-max-size-mb

@@ -66,7 +66,7 @@ type cacheEntry struct {
 	expiry    time.Time
 	inodeType Type
 	// Copy of key string (internally only
-	// points to a copy of the original
+	// points to the original
 	// string data, so size overhead is a fixed 16 bytes, i.e. O(1),
 	// irrespective of actual key value.
 	// This is needed to calculate the
@@ -75,13 +75,13 @@ type cacheEntry struct {
 }
 
 // Size returns the size of cacheEntry, which is
-// 80-bytes (24 for expriy, 8 for inodeType, 3*16 for 3 copies of
-// string structures containing the key ) + length of the key itself,
+// 80-bytes (24 for expiry, 8 for inodeType, 3*16 for 3 copies of
+// string structure for the key ) + length of the key itself,
 // for each entry (including negative ones).
 // This size is specific
 // to 64-bit linux machines, and might differ on other platforms.
 func (ce cacheEntry) Size() uint64 {
-	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the 2 other copies of string
 	// struct stored in the cache map and in the cache linked-list.
 	return uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
 }
