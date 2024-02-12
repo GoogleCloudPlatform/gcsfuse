@@ -106,7 +106,7 @@ func (dt *downloaderTest) Test_CreateJobIfNotExists_Existing() {
 	dt.jm.mu.Unlock()
 
 	// Call CreateJobIfNotExists for existing job.
-	job := dt.jm.CreateJobIfNotExists(dt.object.Name, dt.bucket.Name())
+	job := dt.jm.CreateJobIfNotExists(&dt.object, dt.bucket)
 
 	AssertEq(dt.job, job)
 	dt.jm.mu.Lock()
