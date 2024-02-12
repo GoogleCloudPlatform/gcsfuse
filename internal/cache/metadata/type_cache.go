@@ -113,16 +113,16 @@ type typeCache struct {
 	entries *lru.Cache
 }
 
-// NewTypeCache creates an LRU-policy-based cache with given max-size and TTL.
+// NewTypeCache creates an LRU-policy-based cache with given parameters.
 // Any entry whose TTL has expired, is removed from the cache on next access (Get).
-// When insertion of next entry would cause size of cache > sizeInMB,
+// When insertion of next entry would cause size of cache > maxSizeMB,
 // older entries are evicted according to the LRU-policy.
-// If either of TTL or sizeInMB is zero, nothing is ever cached.
-func NewTypeCache(sizeInMB int, ttl time.Duration) TypeCache {
-	if ttl > 0 && sizeInMB != 0 {
-		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when sizeInMb = -1
-		if sizeInMB > 0 {
-			lruSizeInBytesToUse = util.MiBsToBytes(uint64(sizeInMB))
+// If either of TTL or maxSizeMB is zero, nothing is ever cached.
+func NewTypeCache(maxSizeMB int, ttl time.Duration) TypeCache {
+	if ttl > 0 && maxSizeMB != 0 {
+		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when maxSizeMB = -1
+		if maxSizeMB > 0 {
+			lruSizeInBytesToUse = util.MiBsToBytes(uint64(maxSizeMB))
 		}
 		return &typeCache{
 			ttl:     ttl,
