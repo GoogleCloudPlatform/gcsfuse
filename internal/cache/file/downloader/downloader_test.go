@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
+var cacheDir = path.Join(os.Getenv("HOME"), "cache/location")
 
 func TestDownloader(t *testing.T) { RunTests(t) }
 
@@ -51,7 +51,7 @@ func init() { RegisterTestSuite(&downloaderTest{}) }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	operations.RemoveDir(cacheLocation)
+	operations.RemoveDir(cacheDir)
 
 	// Create bucket in fake storage.
 	dt.fakeStorage = storage.NewFakeStorage()
@@ -59,13 +59,13 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheLocation, DefaultSequentialReadSizeMb)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb)
 
 }
 
 func (dt *downloaderTest) TearDown() {
 	dt.fakeStorage.ShutDown()
-	operations.RemoveDir(cacheLocation)
+	operations.RemoveDir(cacheDir)
 }
 
 func (dt *downloaderTest) verifyJob(job *Job, object *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) {
@@ -74,7 +74,7 @@ func (dt *downloaderTest) verifyJob(job *Job, object *gcs.MinObject, bucket gcs.
 	ExpectEq(object.Generation, job.object.Generation)
 	ExpectEq(object.Name, job.object.Name)
 	ExpectEq(bucket.Name(), job.bucket.Name())
-	downloadPath := util.GetDownloadPath(dt.jm.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
+	downloadPath := util.GetDownloadPath(dt.jm.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	ExpectEq(downloadPath, job.fileSpec.Path)
 	ExpectEq(sequentialReadSizeMb, job.sequentialReadSizeMb)
 	ExpectNe(nil, job.removeJobCallback)

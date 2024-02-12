@@ -51,7 +51,7 @@ type LogConfig struct {
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
 }
 
-type CacheLocation string
+type CacheDir string
 
 type FileCacheConfig struct {
 	MaxSizeInMB           int64 `yaml:"max-size-mb"`
@@ -75,7 +75,7 @@ type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheLocation       `yaml:"cache-dir"`
+	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 }
 

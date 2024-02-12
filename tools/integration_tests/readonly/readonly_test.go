@@ -58,7 +58,7 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 }
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dir")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
 
 	// Set up config file for file cache
 	mountConfig := config.MountConfig{
@@ -67,7 +67,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			// files
 			MaxSizeInMB: 3,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),

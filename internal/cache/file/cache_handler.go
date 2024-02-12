@@ -40,8 +40,8 @@ type CacheHandler struct {
 	// jobManager contains reference to a singleton jobManager.
 	jobManager *downloader.JobManager
 
-	// cacheLocation is the local path which contains the cache data i.e. objects stored as file.
-	cacheLocation string
+	// cacheDir is the local path which contains the cache data i.e. objects stored as file.
+	cacheDir string
 
 	// filePerm parameter specifies the permission of file in cache.
 	filePerm os.FileMode
@@ -53,11 +53,11 @@ type CacheHandler struct {
 	mu locker.Locker
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheLocation string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
 	return &CacheHandler{
 		fileInfoCache: fileInfoCache,
 		jobManager:    jobManager,
-		cacheLocation: cacheLocation,
+		cacheDir:      cacheDir,
 		filePerm:      filePerm,
 		dirPerm:       dirPerm,
 		mu:            locker.New("FileCacheHandler", func() {}),
@@ -66,7 +66,7 @@ func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
 	fileSpec := data.FileSpec{
-		Path:     util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucketName, objectName)),
+		Path:     util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucketName, objectName)),
 		FilePerm: chr.filePerm,
 		DirPerm:  chr.dirPerm,
 	}
@@ -86,7 +86,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 
 	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
-	localFilePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(key.BucketName, key.ObjectName))
+	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
 	// Truncate the file to 0 size, so that even if there are open file handles
 	// and linux doesn't delete the file, the file will not take space.
 	err = os.Truncate(localFilePath, 0)
@@ -136,7 +136,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	} else {
 		// Throw an error, if there is an entry in the file-info cache and cache file doesn't
 		// exist locally.
-		filePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
+		filePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 		_, err := os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
@@ -284,6 +284,6 @@ func (chr *CacheHandler) Destroy() (err error) {
 	defer chr.mu.Unlock()
 
 	chr.jobManager.Destroy()
-	err = os.RemoveAll(chr.cacheLocation)
+	err = os.RemoveAll(chr.cacheDir)
 	return
 }

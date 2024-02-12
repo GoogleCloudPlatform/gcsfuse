@@ -108,7 +108,7 @@ func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
-	return path.Join(cacheLocation, bucketName, objectName)
+	return path.Join(cacheDir, bucketName, objectName)
 }
 
 func (dt *downloaderTest) Test_init() {

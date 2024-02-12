@@ -145,12 +145,12 @@ const sequentialReadSizeInBytes = sequentialReadSizeInMb * MB
 const CacheMaxSize = 2 * sequentialReadSizeInMb * util.MiB
 
 type RandomReaderTest struct {
-	object        *gcs.MinObject
-	bucket        storage.MockBucket
-	rr            checkingRandomReader
-	cacheLocation string
-	jobManager    *downloader.JobManager
-	cacheHandler  *file.CacheHandler
+	object       *gcs.MinObject
+	bucket       storage.MockBucket
+	rr           checkingRandomReader
+	cacheDir     string
+	jobManager   *downloader.JobManager
+	cacheHandler *file.CacheHandler
 }
 
 func init() { RegisterTestSuite(&RandomReaderTest{}) }
@@ -172,10 +172,10 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
-	t.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
+	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/location")
 	lruCache := lru.NewCache(CacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheLocation, sequentialReadSizeInMb)
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheLocation, util.DefaultFilePerm, util.DefaultDirPerm)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
 	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
@@ -1001,7 +1001,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	AssertEq(nil, err)
 	t.rr.wrapped.fileCacheHandle = nil
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
@@ -1029,7 +1029,7 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen
 	AssertTrue(reflect.DeepEqual(testContent, buf))
 	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheLocation, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
 

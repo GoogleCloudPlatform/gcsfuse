@@ -223,37 +223,37 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	cacheLocation := string(cfg.MountConfig.CacheLocation)
+	cacheDir := string(cfg.MountConfig.CacheDir)
 	// Use temp-dir as default cache-dir.
-	if cacheLocation == "" {
+	if cacheDir == "" {
 		if cfg.TempDir == "" {
-			cacheLocation = os.TempDir()
+			cacheDir = os.TempDir()
 		} else {
-			cacheLocation = cfg.TempDir
+			cacheDir = cfg.TempDir
 		}
 	}
-	cacheLocation, err := filepath.Abs(cacheLocation)
+	cacheDir, err := filepath.Abs(cacheDir)
 	if err != nil {
-		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-dir (%s) in config-file: %w", cacheLocation, err))
+		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-dir (%s) in config-file: %w", cacheDir, err))
 	}
-	// Adding a new directory inside cacheLocation, so that at the time of Destroy
-	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
+	// Adding a new directory inside cacheDir, so that at the time of Destroy
+	// during unmount we can do os.RemoveAll(cacheDir) without deleting non
 	// gcsfuse related files.
-	cacheLocation = path.Join(cacheLocation, util.FileCache)
+	cacheDir = path.Join(cacheDir, util.FileCache)
 
 	filePerm := util.DefaultFilePerm
 	dirPerm := util.DefaultDirPerm
 
-	// Panic in case cacheLocation does not have required permissions
-	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation, dirPerm)
-	if cacheLocationErr != nil {
-		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheLocationErr.Error()))
+	// Panic in case cacheDir does not have required permissions
+	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
+	if cacheDirErr != nil {
+		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheDirErr.Error()))
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheLocation,
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
 		cfg.SequentialReadSizeMb)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheLocation, filePerm, dirPerm)
+		cacheDir, filePerm, dirPerm)
 	return
 }
 

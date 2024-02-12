@@ -21,7 +21,7 @@ print_usage() {
   printf "./mount_gcsfuse.sh  "
   printf "[-s max_size_in_mb] "
   printf "[-b bucket_name] "
-  printf "[-c cache_location] "
+  printf "[-c cache_dir] "
   printf "[-d (means cache_file_for_range_read is true)] "
   printf "[-m (means metadata cache capacity)] "
   printf "[-l (start_logging on $WORKING_DIR/gcsfuse_logs.txt)] \n"
@@ -31,7 +31,7 @@ print_usage() {
 # these values if provided.
 cache_file_for_range_read=false
 max_size_in_mb=100
-cache_location=/tmp/read_cache/
+cache_dir=/tmp/read_cache/
 bucket_name=gcsfuse-read-cache-fio-load-test
 stat_or_type_cache_ttl_secs=6048000 # 168h or 1 week
 stat_cache_capacity=4096
@@ -44,7 +44,7 @@ do
     s) max_size_in_mb=${OPTARG};;
     b) bucket_name=${OPTARG};;
     d) cache_file_for_range_read=true;;
-    c) cache_location=${OPTARG};;
+    c) cache_dir=${OPTARG};;
     m) stat_cache_capacity=${OPTARG};;
     h) print_usage
         exit 0 ;;
@@ -80,7 +80,7 @@ fi
 # Generate yml config.
 export MAX_SIZE_IN_MB="${max_size_in_mb}"
 export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
-export CACHE_LOCATION="${cache_location}"
+export CACHE_LOCATION="${cache_dir}"
 export TTL_SECS="${stat_or_type_cache_ttl_secs}"
 ./generate_yml_config.sh
 
