@@ -90,10 +90,10 @@ func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeInMb, typeCacheTTL)
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMbPerDirectory int, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -112,7 +112,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMbPerDirectory)
+		typeCacheMaxSizeMB)
 
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
@@ -644,18 +644,18 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 
 func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 	inputs := []struct {
-		typeCacheSizeInMb int
-		typeCacheTTL      time.Duration
+		typeCacheMaxSizeMB int
+		typeCacheTTL       time.Duration
 	}{{
-		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMb,
-		typeCacheTTL:      time.Second,
+		typeCacheMaxSizeMB: config.DefaultTypeCacheMaxSizeMB,
+		typeCacheTTL:       time.Second,
 	}, {
-		typeCacheSizeInMb: -1,
-		typeCacheTTL:      time.Second,
+		typeCacheMaxSizeMB: -1,
+		typeCacheTTL:       time.Second,
 	}}
 
 	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheSizeInMb, input.typeCacheTTL)
+		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
 
 		const name = "qux"
 		objName := path.Join(dirInodeName, name)
@@ -677,18 +677,18 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 
 func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 	inputs := []struct {
-		typeCacheSizeInMb int
-		typeCacheTTL      time.Duration
+		typeCacheMaxSizeMB int
+		typeCacheTTL       time.Duration
 	}{{
-		typeCacheSizeInMb: 0,
-		typeCacheTTL:      time.Second,
+		typeCacheMaxSizeMB: 0,
+		typeCacheTTL:       time.Second,
 	}, {
-		typeCacheSizeInMb: config.DefaultTypeCacheMaxSizeInMb,
-		typeCacheTTL:      0,
+		typeCacheMaxSizeMB: config.DefaultTypeCacheMaxSizeMB,
+		typeCacheTTL:       0,
 	}}
 
 	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheSizeInMb, input.typeCacheTTL)
+		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
 
 		const name = "qux"
 		objName := path.Join(dirInodeName, name)

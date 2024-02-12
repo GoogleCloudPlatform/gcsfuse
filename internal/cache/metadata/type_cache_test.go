@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	TTL             time.Duration = time.Millisecond
-	TypeCacheSizeMB               = 1
+	TTL                time.Duration = time.Millisecond
+	TypeCacheMaxSizeMB               = 1
 )
 
 var (
@@ -66,7 +66,7 @@ func init() {
 
 func (t *TypeCacheTest) SetUp(ti *TestInfo) {
 	t.ttl = TTL
-	t.cache = createNewTypeCache(TypeCacheSizeMB, t.ttl)
+	t.cache = createNewTypeCache(TypeCacheMaxSizeMB, t.ttl)
 }
 
 func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
@@ -75,7 +75,7 @@ func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
-	t.cache = createNewTypeCache(TypeCacheSizeMB, 0)
+	t.cache = createNewTypeCache(TypeCacheMaxSizeMB, 0)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -157,7 +157,7 @@ func (t *TypeCacheTest) TestGetAfterTtlExpiration() {
 }
 
 func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
-	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheSizeMB)/cacheEntry{}.Size()) + 1
+	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheMaxSizeMB)/cacheEntry{}.Size()) + 1
 
 	for i := 0; i < entriesToBeInserted; i++ {
 		t.cache.Insert(now, fmt.Sprint(i), RegularFileType)
