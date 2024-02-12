@@ -69,7 +69,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           FileCacheSizeInMb,
+			MaxSizeMB:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
 		},
 		CacheDir: config.CacheDir(CacheDir),
@@ -602,7 +602,7 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
 		CacheDir: config.CacheDir(CacheDir),
@@ -739,7 +739,7 @@ func (t *FileCacheWithDefaultCacheDir) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
 	}
@@ -750,7 +750,7 @@ func (t *FileCacheWithUserDefinedTempAsCacheDir) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
 	}
@@ -787,7 +787,7 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
 		CacheDir: config.CacheDir(CacheDir),

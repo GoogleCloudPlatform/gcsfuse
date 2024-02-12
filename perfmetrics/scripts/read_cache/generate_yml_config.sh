@@ -27,7 +27,7 @@ logging:
   severity: error
 cache-dir: ${CACHE_DIR:-/tmp/read_cache/}
 file-cache:
-  max-size-mb: ${MAX_SIZE_IN_MB:-100}
+  max-size-mb: ${MAX_SIZE_MB:-100}
   cache-file-for-range-read: ${CACHE_FILE_FOR_RANGE_READ-false}
 metadata-cache:
   ttl-secs: ${TTL_SECS}

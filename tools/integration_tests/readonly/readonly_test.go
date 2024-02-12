@@ -65,7 +65,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as small because the operations are performed on small
 			// files
-			MaxSizeInMB: 3,
+			MaxSizeMB: 3,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{

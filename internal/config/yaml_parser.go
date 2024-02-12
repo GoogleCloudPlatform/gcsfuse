@@ -65,7 +65,7 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 }
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
-	if fileCacheConfig.MaxSizeInMB < -1 {
+	if fileCacheConfig.MaxSizeMB < -1 {
 		return fmt.Errorf("the value of max-size-mb for file-cache can't be less than -1")
 	}
 	return nil

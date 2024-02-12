@@ -40,7 +40,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
 	ExpectEq("", mountConfig.CacheDir)
-	ExpectEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
+	ExpectEq(0, mountConfig.FileCacheConfig.MaxSizeMB)
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 }
 

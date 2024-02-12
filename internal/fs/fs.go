@@ -156,7 +156,7 @@ func NewFileSystem(
 
 	// Create file cache handler if cache is enabled by user.
 	var fileCacheHandler *file.CacheHandler
-	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB != 0 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB != 0 {
 		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
@@ -216,10 +216,10 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB == -1 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeInMB) * util.MiB
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * util.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 

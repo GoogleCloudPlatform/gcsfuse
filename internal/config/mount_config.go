@@ -54,7 +54,7 @@ type LogConfig struct {
 type CacheDir string
 
 type FileCacheConfig struct {
-	MaxSizeInMB           int64 `yaml:"max-size-mb"`
+	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 }
 
@@ -111,7 +111,7 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeInMB: 0,
+		MaxSizeMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:        TtlInSecsUnsetSentinel,

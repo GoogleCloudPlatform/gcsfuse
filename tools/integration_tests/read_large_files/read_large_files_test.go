@@ -44,7 +44,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as high because the operations are performed on large
 			// files
-			MaxSizeInMB:           700,
+			MaxSizeMB:             700,
 			CacheFileForRangeRead: true,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
@@ -59,7 +59,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	// Set up config file for file cache with unlimited capacity
 	mountConfig2 := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: false,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),

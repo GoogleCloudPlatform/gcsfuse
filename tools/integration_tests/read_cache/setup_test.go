@@ -92,7 +92,7 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB:           cacheSize,
+			MaxSizeMB:             cacheSize,
 			CacheFileForRangeRead: cacheFileForRangeRead,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),

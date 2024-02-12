@@ -78,7 +78,7 @@ if mountpoint -q -- "$mount_dir"; then
 fi
 
 # Generate yml config.
-export MAX_SIZE_IN_MB="${max_size_mb}"
+export MAX_SIZE_MB="${max_size_mb}"
 export CACHE_FILE_FOR_RANGE_READ="${cache_file_for_range_read}"
 export CACHE_DIR="${cache_dir}"
 export TTL_SECS="${stat_or_type_cache_ttl_secs}"
