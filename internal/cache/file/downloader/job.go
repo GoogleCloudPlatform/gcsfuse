@@ -16,6 +16,7 @@ package downloader
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -293,6 +294,13 @@ func (job *Job) downloadObjectAsync() {
 		}
 	}()
 
+	notifyInvalid := func() {
+		job.mu.Lock()
+		job.status.Name = Invalid
+		job.notifySubscribers()
+		job.mu.Unlock()
+	}
+
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
@@ -318,6 +326,12 @@ func (job *Job) downloadObjectAsync() {
 							ReadCompressed: job.object.HasContentEncodingGzip(),
 						})
 					if err != nil {
+						// Context is canceled when job.cancel is called at the tine of
+						// invalidation and hence caller should be notified as invalid.
+						if errors.Is(err, context.Canceled) {
+							notifyInvalid()
+							return
+						}
 						err = fmt.Errorf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 						job.failWhileDownloading(err)
 						return
@@ -336,6 +350,12 @@ func (job *Job) downloadObjectAsync() {
 				// Copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
 				if readErr != nil {
+					// Context is canceled when job.cancel is called at the tine of
+					// invalidation and hence caller should be notified as invalid.
+					if errors.Is(readErr, context.Canceled) {
+						notifyInvalid()
+						return
+					}
 					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %w", readErr)
 					job.failWhileDownloading(err)
 					return

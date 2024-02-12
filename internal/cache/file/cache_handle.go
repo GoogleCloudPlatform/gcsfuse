@@ -32,7 +32,8 @@ type CacheHandle struct {
 	// fileHandle to a local file which contains locally downloaded data.
 	fileHandle *os.File
 
-	// fileDownloadJob is a reference to async download Job.
+	// fileDownloadJob is a reference to async download Job. It can be nil if
+	// job is already completed.
 	fileDownloadJob *downloader.Job
 
 	// fileInfoCache contains the reference to fileInfo cache.

@@ -398,7 +398,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresen
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle.validateCacheHandle())
-	// Job and file info are still present
+	// New Job and file info are created.
 	ExpectTrue(chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
 	jobStatusOfNewHandle := cacheHandle.fileDownloadJob.GetStatus()
 	ExpectEq(downloader.NotStarted, jobStatusOfNewHandle.Name)

@@ -594,7 +594,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(jobStatus.Name, downloader.NotStarted)
+	ExpectEq(downloader.NotStarted, jobStatus.Name)
 	ExpectLt(jobStatus.Offset, offset)
 	ExpectEq(n, 0)
 	ExpectFalse(cacheHit)
