@@ -83,9 +83,13 @@ type entry struct {
 	key        string
 }
 
-// Size returns the size of entry.
-// It is currently set to dummy value 1 to avoid
-// the unnecessary actual size calculation.
+// Size returns the memory-size of the receiver entry.
+// The size calculated by the unsafe.Sizeof calls, and
+// NestedSizeOfGcsObject etc. does not account for
+// hidden memembers in data structures like maps, slices, linked-lists etc.
+// To account for those, we are adding a fixed constant of 553 bytes (deduced from
+// benchmark runs) per
+// entry, to calculate a size closer to the actual memory utilization.
 func (e entry) Size() uint64 {
 	return 553 + uint64(util.UnsafeSizeOf(&e)+len(e.key)+2*util.UnsafeSizeOf(&e.key)+util.NestedSizeOfGcsObject(e.o))
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
