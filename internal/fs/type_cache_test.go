@@ -55,7 +55,7 @@ var (
 func (t *typeCacheTestCommon) SetUpTestSuite() {
 	t.serverCfg.MountConfig = config.NewMountConfig()
 	t.serverCfg.MountConfig.MetadataCacheConfig = config.MetadataCacheConfig{
-		TypeCacheMaxSizeMb: typeCacheMaxSizeMb,
+		TypeCacheMaxSizeMB: typeCacheMaxSizeMb,
 		TtlInSeconds:       ttlInSeconds,
 	}
 
