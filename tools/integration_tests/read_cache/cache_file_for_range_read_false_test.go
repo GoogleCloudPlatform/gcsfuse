@@ -62,7 +62,6 @@ func readFileAsync(t *testing.T, wg *sync.WaitGroup, testFileName string, expect
 ////////////////////////////////////////////////////////////////////////
 
 func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.T) {
-	t.SkipNow()
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	// Do a random read on file and validate from gcs.
