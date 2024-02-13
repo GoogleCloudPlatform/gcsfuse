@@ -15,15 +15,14 @@
 package read_cache
 
 import (
-	"context"
-	"log"
-	"testing"
-	"time"
-
 	"cloud.google.com/go/storage"
+	"context"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
+	"log"
+	"testing"
+	"time"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -59,12 +58,11 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
 }
 
-func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithWait(t *testing.T) {
+func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	// Sleep until next chunk is downloaded.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
@@ -73,7 +71,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithWait(t *testing.T) 
 	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
 }
 
-func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutWait(t *testing.T) {
+func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
