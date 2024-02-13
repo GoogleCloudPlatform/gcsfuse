@@ -135,7 +135,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	AssertEq(nil, err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec)
+	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {})
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -162,7 +162,7 @@ func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileDownloadJob() {
 
 	err := cht.cacheHandle.validateCacheHandle()
 
-	ExpectEq(util.InvalidFileDownloadJobErrMsg, err.Error())
+	ExpectEq(nil, err)
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileInfoCache() {
@@ -247,7 +247,7 @@ func (cht *cacheHandleTest) Test_IsSequential_WhenOffsetDiffIsEqualToMaxAllowed(
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	AssertEq(downloader.NOT_STARTED, jobStatus.Name)
+	AssertEq(downloader.NotStarted, jobStatus.Name)
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
@@ -258,7 +258,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsNotStarted() 
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.FAILED
+	jobStatus.Name = downloader.Failed
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
@@ -269,7 +269,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsFailed() {
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.INVALID
+	jobStatus.Name = downloader.Invalid
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
 
@@ -280,7 +280,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsInvalid() {
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsCompleted() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.COMPLETED
+	jobStatus.Name = downloader.Completed
 	jobStatus.Offset = int64(cht.object.Size)
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
@@ -291,7 +291,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobStateIsCompleted() {
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsLessThanRequiredOffset() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.DOWNLOADING
+	jobStatus.Name = downloader.Downloading
 	jobStatus.Offset = requiredOffset - 1
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
@@ -303,41 +303,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsLe
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetSameAsRequiredOffset() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.DOWNLOADING
-	jobStatus.Offset = requiredOffset
-
-	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
-
-	ExpectEq(nil, err)
-}
-
-func (cht *cacheHandleTest) Test_shouldReadFromCache_WithCancelledJobOffsetIsGreaterThanRequiredOffset() {
-	requiredOffset := int64(util.MiB)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.CANCELLED
-	jobStatus.Offset = requiredOffset + 1
-
-	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
-
-	ExpectEq(nil, err)
-}
-
-func (cht *cacheHandleTest) Test_shouldReadFromCache_WithCancelledJobOffsetIsLessThanRequiredOffset() {
-	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.CANCELLED
-	jobStatus.Offset = requiredOffset - 1
-
-	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
-
-	ExpectNe(nil, err)
-	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
-}
-
-func (cht *cacheHandleTest) Test_shouldReadFromCache_WithCancelledJobOffsetSameAsRequiredOffset() {
-	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.CANCELLED
+	jobStatus.Name = downloader.Downloading
 	jobStatus.Offset = requiredOffset
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
@@ -348,18 +314,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithCancelledJobOffsetSameA
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsGreaterThanRequiredOffset() {
 	requiredOffset := int64(util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.DOWNLOADING
-	jobStatus.Offset = requiredOffset + 1
-
-	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
-
-	ExpectEq(nil, err)
-}
-
-func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsMoreThanRequiredOffset() {
-	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.DOWNLOADING
+	jobStatus.Name = downloader.Downloading
 	jobStatus.Offset = requiredOffset + 1
 
 	err := cht.cacheHandle.shouldReadFromCache(&jobStatus, requiredOffset)
@@ -370,7 +325,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithJobDownloadedOffsetIsMo
 func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	requiredOffset := int64(downloader.ReadChunkSize + util.MiB)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	jobStatus.Name = downloader.DOWNLOADING
+	jobStatus.Name = downloader.Downloading
 	jobStatus.Offset = requiredOffset + 1
 	jobStatus.Err = errors.New("job error")
 
@@ -380,7 +335,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -396,12 +351,12 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size, false)
 
 	AssertEq(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoNotPresent() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -410,13 +365,13 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoNotPresent() 
 	AssertEq(nil, err)
 
 	_ = cht.cache.Erase(fileInfoKeyName)
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
 	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationChanged() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGenerationChanged() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -432,10 +387,122 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationCha
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, int64(cht.object.Size-1))
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
 
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfo.ObjectGeneration)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
+}
+
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLessThanRequired() {
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: cht.object.Name,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: cht.object.Generation,
+		FileSize:         cht.object.Size,
+		Offset:           10, // Insert offset less than required
+	}
+	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
+
+	AssertNe(nil, err)
+	expectedErr := fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.InvalidFileInfoCacheErrMsg, 10, 11)
+	AssertEq(expectedErr.Error(), err.Error())
+}
+
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsTrue() {
+	// Adding one more entry to file info cache other than the one already added
+	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
+	// full
+	newObjectName := "new_test_object"
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: newObjectName,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
+	}
+	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(0, len(evictedEntries))
+
+	// Because changeCacheOrder is true, the entry corresponding to cht.object.Size
+	// should come on top
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, true)
+
+	AssertEq(nil, err)
+	// Inserting new entry should evict the newObjectName
+	fileInfoKey = data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: "one more object",
+	}
+	fileInfoKeyName, err = fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo = data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
+	}
+	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(1, len(evictedEntries))
+	AssertEq(newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
+}
+
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsFalse() {
+	// Adding one more entry to file info cache other than the one already added
+	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
+	// full
+	newObjectName := "new_test_object"
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: newObjectName,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
+	}
+	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(0, len(evictedEntries))
+
+	// Because changeCacheOrder is false, the new object entry should remain on top.
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
+
+	AssertEq(nil, err)
+	// Inserting new entry should evict the entry corresponding to cht.object.
+	fileInfoKey = data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: "one more object",
+	}
+	fileInfoKeyName, err = fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo = data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
+	}
+	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(1, len(evictedEntries))
+	AssertEq(cht.object.Name, evictedEntries[0].(data.FileInfo).Key.ObjectName)
 }
 
 func (cht *cacheHandleTest) Test_Read_RequestingMoreOffsetThanSize() {
@@ -456,10 +523,48 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileHandle() {
 	cht.cacheHandle.fileHandle = nil
 
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
 	ExpectNe(nil, err)
 	ExpectEq(0, n)
 	ExpectFalse(cacheHit)
 	ExpectEq(util.InvalidFileHandleErrMsg, err.Error())
+}
+
+func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheMiss() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(5)
+	cht.cacheHandle.fileDownloadJob = nil
+
+	// The file info entry added by cht.addTestFileInfoEntryInCache() has offset 0.
+	// This means file info entry is there but download job and hence this should
+	// throw.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	ExpectNe(nil, err)
+	ExpectEq(0, n)
+	ExpectFalse(cacheHit)
+	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileInfoCacheErrMsg))
+}
+
+func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
+	ctx := context.Background()
+	// Download the complete object via job.
+	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(ctx, int64(cht.object.Size), true)
+	AssertEq(nil, err)
+	AssertEq(downloader.Downloading, jobStatus.Name)
+	dst := make([]byte, cht.object.Size)
+	offset := int64(0)
+	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.fileDownloadJob = nil
+
+	// Because the whole object is downloaded into the cache, file info cache
+	// should have offset equal to object.Size, so even with nil download job,
+	// read should be served from cache.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	ExpectEq(nil, err)
+	ExpectEq(cht.object.Size, n)
+	ExpectTrue(cacheHit)
 }
 
 func (cht *cacheHandleTest) Test_Read_Random() {
@@ -473,7 +578,8 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectLt(jobStatus.Offset, offset)
-	ExpectEq(n, 0)
+	ExpectEq(downloader.Downloading, jobStatus.Name)
+	ExpectEq(0, n)
 	ExpectFalse(cacheHit)
 	ExpectNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
@@ -488,7 +594,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
 	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectEq(jobStatus.Name, downloader.NOT_STARTED)
+	ExpectEq(downloader.NotStarted, jobStatus.Name)
 	ExpectLt(jobStatus.Offset, offset)
 	ExpectEq(n, 0)
 	ExpectFalse(cacheHit)
@@ -501,7 +607,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
 	// Download the job till util.MiB
 	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(ctx, int64(2*util.MiB), true)
 	AssertEq(nil, err)
-	AssertEq(jobStatus.Name, downloader.DOWNLOADING)
+	AssertEq(downloader.Downloading, jobStatus.Name)
 	dst := make([]byte, ReadContentSize)
 	offset := int64(1)
 	cht.cacheHandle.isSequential = false
@@ -510,34 +616,10 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
+	ExpectTrue(jobStatus.Name == downloader.Downloading || jobStatus.Name == downloader.Completed)
 	ExpectGe(jobStatus.Offset, offset)
-	ExpectEq(cacheHit, true)
-	ExpectEq(nil, err)
-	cht.verifyContentRead(offset, dst)
-}
-
-func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHitInCancelledState() {
-	ctx := context.Background()
-	// Download the job till util.MiB
-	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(ctx, int64(2*util.MiB), true)
-	AssertEq(nil, err)
-	AssertEq(jobStatus.Name, downloader.DOWNLOADING)
-	cht.cacheHandle.fileDownloadJob.Cancel()
-	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
-	AssertEq(jobStatus.Name, downloader.CANCELLED)
-	dst := make([]byte, ReadContentSize)
-	offset := int64(1)
-	cht.cacheHandle.isSequential = false
-
-	// Since, it's a random read hence will not wait to download till requested offset.
-	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
-
-	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
-	ExpectTrue(jobStatus.Name == downloader.CANCELLED)
-	ExpectGe(jobStatus.Offset, offset)
-	ExpectEq(nil, err)
 	ExpectTrue(cacheHit)
+	ExpectEq(nil, err)
 	cht.verifyContentRead(offset, dst)
 }
 
@@ -546,16 +628,70 @@ func (cht *cacheHandleTest) Test_Read_Sequential() {
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
 	cht.cacheHandle.prevOffset = offset - util.MiB
-	cht.cacheHandle.cacheFileForRangeRead = true
+	cht.cacheHandle.cacheFileForRangeRead = false
 
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
+	ExpectEq(nil, err)
+	ExpectFalse(cacheHit)
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	ExpectGe(jobStatus.Offset, offset)
+	cht.verifyContentRead(offset, dst)
+}
+
+func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
+	// Adding one more entry to file info cache other than the one already added
+	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
+	// full
+	newObjectName := "new_test_object"
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: newObjectName,
+	}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo := data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,                              // Adding random generation.
+		FileSize:         CacheMaxSize - cht.object.Size, // This makes cache size full.
+		Offset:           1,                              // Insert offset less than required
+	}
+	evictedEntries, err := cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(0, len(evictedEntries))
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.cacheFileForRangeRead = false
+
+	// Read should change the order in cache and bring cht.Object to most recently
+	// used.
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	ExpectEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectFalse(cacheHit)
 	ExpectGe(jobStatus.Offset, offset)
 	cht.verifyContentRead(offset, dst)
-	ExpectEq(nil, err)
+	// Inserting new entry should evict the newObjectName
+	fileInfoKey = data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: "one more object",
+	}
+	fileInfoKeyName, err = fileInfoKey.Key()
+	AssertEq(nil, err)
+	fileInfo = data.FileInfo{
+		Key:              fileInfoKey,
+		ObjectGeneration: 1,
+		FileSize:         1,
+		Offset:           1,
+	}
+	evictedEntries, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
+	AssertEq(nil, err)
+	AssertEq(1, len(evictedEntries))
+	AssertEq(newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
 }
 
 func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
@@ -565,21 +701,21 @@ func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
+	AssertEq(nil, err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	AssertGe(jobStatus.Offset, firstReqOffset)
-	AssertEq(nil, err)
 	ExpectFalse(cacheHit)
 	AssertEq(cht.cacheHandle.isSequential, true)
 
 	secondReqOffset := int64(cht.object.Size - ReadContentSize) // type will change to random.
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, secondReqOffset, dst)
 
+	ExpectNe(nil, err)
+	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+	ExpectFalse(cacheHit)
+	ExpectEq(cht.cacheHandle.isSequential, false)
 	jobStatus = cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectLe(jobStatus.Offset, secondReqOffset)
-	ExpectNe(nil, err)
-	ExpectFalse(cacheHit)
-	ExpectTrue(strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
-	ExpectEq(cht.cacheHandle.isSequential, false)
 }
 
 func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
@@ -594,11 +730,11 @@ func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
+	ExpectEq(nil, err)
+	ExpectFalse(cacheHit)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	ExpectGe(jobStatus.Offset, offset)
-	ExpectFalse(cacheHit)
 	cht.verifyContentRead(offset, dst[:len(dst)-extraBuffer])
-	ExpectEq(nil, err)
 }
 
 func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
@@ -623,6 +759,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	_ = cht.cache.Erase(fileInfoKeyName)
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
+	AssertNe(nil, err)
 	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 	AssertFalse(cacheHit)
@@ -654,6 +791,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	AssertEq(nil, err)
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
+	AssertNe(nil, err)
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfoData.ObjectGeneration)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 	AssertFalse(cacheHit)
