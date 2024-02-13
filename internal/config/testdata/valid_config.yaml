@@ -15,4 +15,4 @@ file-cache:
 metadata-cache:
   ttl-secs: 5
   type-cache-max-entries: 1
-  stat-cache-max-size-mb: 32
+  stat-cache-max-size-mb: 3

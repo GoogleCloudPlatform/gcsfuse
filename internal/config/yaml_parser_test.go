@@ -112,7 +112,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	// metadata-cache config
 	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
 	ExpectEq(1, mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
-	ExpectEq(32, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
+	ExpectEq(3, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
