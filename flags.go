@@ -240,11 +240,6 @@ func newApp() (app *cli.App) {
 				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
 			},
 
-			cli.BoolFlag{
-				Name:  "experimental-local-file-cache",
-				Usage: "Experimental: Cache GCS files on local disk for reads.",
-			},
-
 			cli.StringFlag{
 				Name:  "temp-dir",
 				Value: "",
@@ -503,7 +498,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		HttpClientTimeout:          c.Duration("http-client-timeout"),
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
-		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		// This flag is deprecated.
+		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
