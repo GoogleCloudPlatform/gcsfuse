@@ -11,7 +11,7 @@
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "config_file_flags_as_json": {
         "file-cache": {
-          "max-size-in-mb": -1,
+          "max-size-mb": -1,
           "cache-file-for-range-read": true
         }
       },
@@ -23,7 +23,7 @@
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "config_file_flags_as_json": {
         "file-cache": {
-          "max-size-in-mb": -1,
+          "max-size-mb": -1,
           "cache-file-for-range-read": false
         }
       },
