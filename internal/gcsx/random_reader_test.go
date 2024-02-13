@@ -781,9 +781,9 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
-	job := t.jobManager.GetJob(t.object, t.bucket)
+	job := t.jobManager.CreateJobIfNotExists(t.object, t.bucket)
 	jobStatus := job.GetStatus()
-	ExpectTrue(jobStatus.Name == downloader.NOT_STARTED)
+	ExpectTrue(jobStatus.Name == downloader.NotStarted)
 
 	// Second read call should be a cache miss
 	_, cacheHit, err = t.rr.ReadAt(buf, int64(start))
@@ -811,9 +811,8 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	ExpectFalse(cacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
-	job := t.jobManager.GetJob(t.object, t.bucket)
-	jobStatus := job.GetStatus()
-	ExpectTrue(jobStatus.Name == downloader.DOWNLOADING || jobStatus.Name == downloader.COMPLETED)
+	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
+	ExpectTrue(job == nil || job.GetStatus().Name == downloader.Downloading)
 }
 
 func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThanReadChunkSize() {
@@ -897,9 +896,8 @@ func (t *RandomReaderTest) Test_ReadAt_CacheMissDueToInvalidJob() {
 	AssertEq(nil, err)
 	ExpectFalse(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
-	job := t.jobManager.GetJob(t.object, t.bucket)
-	jobStatus := job.GetStatus()
-	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
+	AssertTrue(job == nil || job.GetStatus().Name == downloader.Completed)
 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
@@ -927,9 +925,8 @@ func (t *RandomReaderTest) Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvali
 	AssertEq(nil, err)
 	AssertFalse(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
-	job := t.jobManager.GetJob(t.object, t.bucket)
-	jobStatus := job.GetStatus()
-	ExpectEq(jobStatus.Name, downloader.COMPLETED)
+	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
+	AssertTrue(job == nil || job.GetStatus().Name == downloader.Completed)
 	err = t.rr.wrapped.fileCacheHandler.InvalidateCache(t.object.Name, t.bucket.Name())
 	AssertEq(nil, err)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
@@ -1062,9 +1059,8 @@ func (t *RandomReaderTest) Test_ReadAt_FailedJobRestartAndCacheHit() {
 	AssertEq(nil, err)
 	ExpectFalse(cacheHit)
 	AssertTrue(reflect.DeepEqual(testContent, buf))
-	job := t.jobManager.GetJob(t.object, t.bucket)
-	jobStatus := job.GetStatus()
-	ExpectEq(jobStatus.Name, downloader.FAILED)
+	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
+	AssertTrue(job == nil || job.GetStatus().Name == downloader.Failed)
 	// Second reader (rc2) is required, since first reader (rc) is completely read.
 	// Reading again will return EOF.
 	rc2 := getReadCloser(testContent)

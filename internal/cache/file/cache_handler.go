@@ -81,13 +81,10 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	key := fileInfo.Key
 	_, err := key.Key()
 	if err != nil {
-		return fmt.Errorf("cleanUpEvictedFile: while performing post eviction: %w", err)
+		return fmt.Errorf("cleanUpEvictedFile: while creating key: %w", err)
 	}
 
-	// Removing Job doesn't delete the job object itself but invalidates the job and
-	// hence it's possible that some existing cache handle will have reference to older
-	// job object, but that job object will have INVALID status.
-	chr.jobManager.RemoveJob(key.ObjectName, key.BucketName)
+	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(key.BucketName, key.ObjectName))
 	// Truncate the file to 0 size, so that even if there are open file handles
@@ -113,22 +110,23 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	return nil
 }
 
-// addFileInfoEntryToCache adds a data.FileInfo entry for the given object and bucket
-// in the file info cache if it does not already exist. It also cleans up for entries
-// that are evicted at the time of adding new entry.
-// In case the cache contains the data.FileInfo entry with different generation,
-// it cleans up (job and local cache file) the old entry and adds the new entry with the
-// given generation to the cache.
+// addFileInfoEntryAndCreateDownloadJob adds data.FileInfo entry for the given
+// object and bucket in the file info cache and creates download job if they do
+// not already exist. It also cleans up for entries that are evicted at the time
+// of adding new entry. In case the cache contains the data.FileInfo entry with
+// different generation or if the job is failed/invalidated, it cleans up
+// (job and local cache file) the old entry and adds the new entry and download
+// job with the given generation to the cache.
 //
 // Requires Lock(chr.mu)
-func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket gcs.Bucket) error {
+func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObject, bucket gcs.Bucket) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		return fmt.Errorf("addFileInfoEntryToCache: while creating key: %v", fileInfoKeyName)
+		return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while creating key: %v", fileInfoKeyName)
 	}
 
 	addEntryToCache := false
@@ -141,27 +139,30 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 		filePath := util.GetDownloadPath(chr.cacheLocation, util.GetObjectPath(bucket.Name(), object.Name))
 		_, err := os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
-			return fmt.Errorf("addFileInfoEntryToCache: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
+			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %s: %s", util.FileNotPresentInCacheErrMsg, filePath)
 		}
 
 		// Evict object in cache if the generation of object in cache is different
 		// from the generation of object in inode (we can't compare generations and
 		// decide to evict or not because generations are not always increasing:
 		// https://cloud.google.com/storage/docs/metadata#generation-number)
-		//
-		// Also, invalidate the cache for the object corresponding to failed async job, to restart the
-		// failed job and re-populate the cache for the file from the start.
-		job := chr.jobManager.GetJob(object, bucket)
-		jobStatus := job.GetStatus()
-
+		// Also, invalidate the cache if download job has failed or not invalid.
 		fileInfoData := fileInfo.(data.FileInfo)
-		if fileInfoData.ObjectGeneration != object.Generation || jobStatus.Name == downloader.FAILED {
+		// If offset in file info cache is less than object size and there is no
+		// reference to download job then it means the job has failed.
+		existingJob := chr.jobManager.GetJob(object.Name, bucket.Name())
+		shouldInvalidate := (existingJob == nil) && (fileInfoData.Offset < object.Size)
+		if (!shouldInvalidate) && (existingJob != nil) {
+			existingJobStatus := existingJob.GetStatus().Name
+			shouldInvalidate = (existingJobStatus == downloader.Failed) || (existingJobStatus == downloader.Invalid)
+		}
+		if (fileInfoData.ObjectGeneration != object.Generation) || shouldInvalidate {
 			erasedVal := chr.fileInfoCache.Erase(fileInfoKeyName)
 			if erasedVal != nil {
 				erasedFileInfo := erasedVal.(data.FileInfo)
 				err := chr.cleanUpEvictedFile(&erasedFileInfo)
 				if err != nil {
-					return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %w", erasedFileInfo.Key.ObjectName, err)
+					return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while performing post eviction of %s object error: %w", erasedFileInfo.Key.ObjectName, err)
 				}
 			}
 			addEntryToCache = true
@@ -178,14 +179,15 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 
 		evictedValues, err := chr.fileInfoCache.Insert(fileInfoKeyName, fileInfo)
 		if err != nil {
-			return fmt.Errorf("addFileInfoEntryToCache: while inserting into the cache: %w", err)
+			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: %w", err)
 		}
-
+		// Create download job for new entry added to cache.
+		_ = chr.jobManager.CreateJobIfNotExists(object, bucket)
 		for _, val := range evictedValues {
 			fileInfo := val.(data.FileInfo)
 			err := chr.cleanUpEvictedFile(&fileInfo)
 			if err != nil {
-				return fmt.Errorf("addFileInfoEntryToCache: while performing post eviction of %s object error: %w", fileInfo.Key.ObjectName, err)
+				return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while performing post eviction of %s object error: %w", fileInfo.Key.ObjectName, err)
 			}
 		}
 	} else {
@@ -197,13 +199,14 @@ func (chr *CacheHandler) addFileInfoEntryToCache(object *gcs.MinObject, bucket g
 }
 
 // GetCacheHandle creates an entry in fileInfoCache if it does not already exist. It
-// creates downloader.Job if not already exist. Also, creates local file into which
-// the download job downloads the object content. Finally, it returns a CacheHandle
-// that contains the reference to downloader.Job and the local file handle. This method
-// is atomic, that means all the above-mentioned tasks are completed in one uninterrupted
-// sequence guarded by (CacheHandler.mu). Note: It returns nil if cacheForRangeRead is
-// set to False, initialOffset is non-zero (i.e. random read) and entry for file
-// doesn't already exist in fileInfoCache then no need to create file in cache.
+// creates downloader.Job if not already exis and requiredt. Also, creates local
+// file into which the download job downloads the object content. Finally, it
+// returns a CacheHandle that contains the reference to downloader.Job and the
+// local file handle. This method is atomic, that means all the above-mentioned
+// tasks are completed in one uninterrupted sequence guarded by (CacheHandler.mu).
+// Note: It returns nil if cacheForRangeRead is set to False, initialOffset is
+// non-zero (i.e. random read) and entry for file doesn't already exist in
+// fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
 func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
@@ -220,26 +223,26 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		}
 		fileInfoKeyName, err := fileInfoKey.Key()
 		if err != nil {
-			return nil, fmt.Errorf("addFileInfoEntryToCache: while creating key: %v", fileInfoKeyName)
+			return nil, fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while creating key: %v", fileInfoKeyName)
 		}
 
 		fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 		if fileInfo == nil {
-			return nil, fmt.Errorf("addFileInfoEntryToCache: %s", util.CacheHandleNotRequiredForRandomReadErrMsg)
+			return nil, fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %s", util.CacheHandleNotRequiredForRandomReadErrMsg)
 		}
 	}
 
-	err := chr.addFileInfoEntryToCache(object, bucket)
+	err := chr.addFileInfoEntryAndCreateDownloadJob(object, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("GetCacheHandle: while adding the entry in the cache: %w", err)
 	}
 
 	localFileReadHandle, err := chr.createLocalFileReadHandle(object.Name, bucket.Name())
 	if err != nil {
-		return nil, fmt.Errorf("GetCacheHandle: while create local-file read handle: %w", err)
+		return nil, fmt.Errorf("GetCacheHandle: while creating local-file read handle: %w", err)
 	}
 
-	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object, bucket), chr.fileInfoCache, cacheForRangeRead, initialOffset), nil
+	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object.Name, bucket.Name()), chr.fileInfoCache, cacheForRangeRead, initialOffset), nil
 }
 
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean
