@@ -35,7 +35,7 @@ const (
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is never really used by GCSFuse for configuring stat-cache size.
-	// It is used to determine if the user has explicitly set a value of stat-cache-capacity.
+	// It is used only to determine if the user has explicitly set a value of stat-cache-capacity.
 	DefaultStatCacheCapacity = math.MinInt
 	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
 	// and is to be used when neither stat-cache-max-size-mb nor
