@@ -157,17 +157,22 @@ func (t *TypeCacheTest) TestGetAfterTtlExpiration() {
 }
 
 func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
-	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheMaxSizeMB)/cacheEntry{}.Size()) + 1
+	sizePerEntry := cacheEntry{key: "abcde"}.Size()
+	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheMaxSizeMB) / sizePerEntry)
 
-	for i := 0; i < entriesToBeInserted; i++ {
-		t.cache.Insert(now, fmt.Sprint(i), RegularFileType)
+	// adding 1 entry more than can be fit in the cache.
+	for i := 0; i <= entriesToBeInserted; i++ {
+		t.cache.Insert(now, fmt.Sprintf("%05d", i), RegularFileType)
 	}
 
 	// Verify that Get works, by accessing the last entry inserted.
-	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, fmt.Sprint(entriesToBeInserted-1)))
+	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, fmt.Sprintf("%05d", entriesToBeInserted-1)))
 
 	// The first inserted entry should have been evicted by all the later insertions.
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, fmt.Sprint(0)))
+	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, fmt.Sprintf("%05d", 0)))
+
+	// The second entry should not have been evicted
+	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, fmt.Sprintf("%05d", 1)))
 }
 
 func (t *TypeCacheTest) TestGetErasedEntry() {
