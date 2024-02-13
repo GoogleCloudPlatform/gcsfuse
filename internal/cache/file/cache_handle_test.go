@@ -335,7 +335,7 @@ func (cht *cacheHandleTest) Test_shouldReadFromCache_WithNonNilJobStatusErr() {
 	ExpectTrue(strings.Contains(err.Error(), util.InvalidFileDownloadJobErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoPresent() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -351,12 +351,12 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoPresent() {
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size, false)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size, false)
 
 	AssertEq(nil, err)
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoNotPresent() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoNotPresent() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -365,13 +365,13 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoNotPresent() 
 	AssertEq(nil, err)
 
 	_ = cht.cache.Erase(fileInfoKeyName)
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
 	expectedErr := fmt.Errorf("%v: no entry found in file info cache for key %v", util.InvalidFileInfoCacheErrMsg, fileInfoKeyName)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationChanged() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoGenerationChanged() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -387,13 +387,13 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoGenerationCha
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, cht.object.Size-1, true)
 
 	expectedErr := fmt.Errorf("%v: generation of cached object: %v is different from required generation: ", util.InvalidFileInfoCacheErrMsg, fileInfo.ObjectGeneration)
 	AssertTrue(strings.Contains(err.Error(), expectedErr.Error()))
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoOffsetLessThanRequired() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_FileInfoOffsetLessThanRequired() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -409,14 +409,14 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_FileInfoOffsetLessTha
 	_, err = cht.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 11, true)
 
 	AssertNe(nil, err)
 	expectedErr := fmt.Errorf("%v offset of cached object: %v is less than required offset %v", util.InvalidFileInfoCacheErrMsg, 10, 11)
 	AssertEq(expectedErr.Error(), err.Error())
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_changeCacheOrderIsTrue() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsTrue() {
 	// Adding one more entry to file info cache other than the one already added
 	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
 	// full
@@ -439,7 +439,7 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_changeCacheOrderIsTru
 
 	// Because changeCacheOrder is true, the entry corresponding to cht.object.Size
 	// should come on top
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0, true)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, true)
 
 	AssertEq(nil, err)
 	// Inserting new entry should evict the newObjectName
@@ -461,7 +461,7 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_changeCacheOrderIsTru
 	AssertEq(newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
 }
 
-func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_changeCacheOrderIsFalse() {
+func (cht *cacheHandleTest) Test_validateEntryInFileInfoCache_changeCacheOrderIsFalse() {
 	// Adding one more entry to file info cache other than the one already added
 	// by cht.addTestFileInfoEntryInCache, such that the file info cache becomes
 	// full
@@ -483,7 +483,7 @@ func (cht *cacheHandleTest) Test_checkEntryInFileInfoCache_changeCacheOrderIsFal
 	AssertEq(0, len(evictedEntries))
 
 	// Because changeCacheOrder is false, the new object entry should remain on top.
-	err = cht.cacheHandle.checkEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
+	err = cht.cacheHandle.validateEntryInFileInfoCache(cht.bucket, cht.object, 0, false)
 
 	AssertEq(nil, err)
 	// Inserting new entry should evict the entry corresponding to cht.object.

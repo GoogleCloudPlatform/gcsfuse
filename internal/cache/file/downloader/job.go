@@ -326,7 +326,7 @@ func (job *Job) downloadObjectAsync() {
 							ReadCompressed: job.object.HasContentEncodingGzip(),
 						})
 					if err != nil {
-						// Context is canceled when job.cancel is called at the tine of
+						// Context is canceled when job.cancel is called at the time of
 						// invalidation and hence caller should be notified as invalid.
 						if errors.Is(err, context.Canceled) {
 							notifyInvalid()
@@ -350,7 +350,7 @@ func (job *Job) downloadObjectAsync() {
 				// Copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
 				if readErr != nil {
-					// Context is canceled when job.cancel is called at the tine of
+					// Context is canceled when job.cancel is called at the time of
 					// invalidation and hence caller should be notified as invalid.
 					if errors.Is(readErr, context.Canceled) {
 						notifyInvalid()

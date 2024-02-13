@@ -91,12 +91,12 @@ func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, req
 	return err
 }
 
-// checkEntryInFileInfoCache checks if entry is present for a given object in
+// validateEntryInFileInfoCache checks if entry is present for a given object in
 // file info cache with same generation and at least requiredOffset.
 // It returns nil if entry is present, otherwise returns an appropriate error.
 // Whether to change the order in cache while lookup is controlled via
 // changeCacheOrder.
-func (fch *CacheHandle) checkEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
+func (fch *CacheHandle) validateEntryInFileInfoCache(bucket gcs.Bucket, object *gcs.MinObject, requiredOffset uint64, changeCacheOrder bool) error {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: bucket.Name(),
 		ObjectName: object.Name,
@@ -200,7 +200,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 		// If fileDownloadJob is nil then it means either the job is successfully
 		// completed or failed. The offset must be equal to size of object for job
 		// to be completed.
-		err = fch.checkEntryInFileInfoCache(bucket, object, object.Size, false)
+		err = fch.validateEntryInFileInfoCache(bucket, object, object.Size, false)
 		if err != nil {
 			return 0, false, err
 		}
@@ -231,7 +231,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	// Look up of file being read in file info cache is required to update the LRU
 	// order on every read request from kernel i.e. with every read request from
 	// kernel, the file being read becomes most recently used.
-	err = fch.checkEntryInFileInfoCache(bucket, object, uint64(requiredOffset), true)
+	err = fch.validateEntryInFileInfoCache(bucket, object, uint64(requiredOffset), true)
 	if err != nil {
 		return 0, false, err
 	}
