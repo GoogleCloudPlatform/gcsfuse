@@ -41,11 +41,11 @@ const (
 	// and is to be used when neither stat-cache-max-size-mb nor
 	// stat-cache-capacity is set.
 	DefaultStatCacheMaxSizeMB = 32
-	// AssumedSizeOfStatCacheEntry is the assumed size of each stat-cache-entry,
+	// AverageSizeOfStatCacheEntry is the assumed size of each stat-cache-entry,
 	// meant for two purposes..
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
-	AssumedSizeOfStatCacheEntry = 1200
+	AverageSizeOfStatCacheEntry = 1200
 )
 
 func (cp ClientProtocol) IsValid() bool {
@@ -126,7 +126,7 @@ func StatCacheMaxSizeInMiBs(mountConfigStatCacheMaxSizeInMiBs int64, flagStatCac
 				return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
 			}
 			return util.BytesToHigherMiBs(
-				uint64(flagStatCacheCapacity) * AssumedSizeOfStatCacheEntry), nil
+				uint64(flagStatCacheCapacity) * AverageSizeOfStatCacheEntry), nil
 		} else {
 			return DefaultStatCacheMaxSizeMB, nil
 		}
