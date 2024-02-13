@@ -54,7 +54,6 @@ func readFileAsync(t *testing.T, wg *sync.WaitGroup, testFileName string, expect
 		defer wg.Done()
 		*expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, true, zeroOffset, t)
 	}()
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
