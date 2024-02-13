@@ -31,7 +31,6 @@ const Sequential = "Sequential"
 const Random = "Random"
 
 const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
-const BytesInMaxMiBsInUint64 uint64 = MaxMiBsInUint64 << 20
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
@@ -84,7 +83,7 @@ func Stringify(input any) (string, error) {
 }
 
 // MiBsToBytes returns the bytes equivalent
-// of given no.s of MiBs (Mibi Bytes).
+// of given number of MiBs.
 // For reference, each MiB = 2^20 bytes.
 // It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
@@ -95,16 +94,15 @@ func MiBsToBytes(mibs uint64) uint64 {
 	return mibs << 20
 }
 
-// BytesToHigherMiBs returns the MiBs (Mibi Bytes) equivalent
-// of given no.s of bytes. If bytes is not an exact number of MiBs,
+// BytesToHigherMiBs returns the MiBs equivalent
+// to the given number of bytes.
+// If bytes is not an exact number of MiBs,
 // then it returns the next higher no. of MiBs.
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
-	if bytes > BytesInMaxMiBsInUint64 {
+	if bytes > (MaxMiBsInUint64 << 20) {
 		return MaxMiBsInUint64 + 1
 	}
-	var bytesInOneMiB uint64 = 1 << 20
-	// Adding (bytesInOneMiB - 1), and then dividing by bytesInOneMiB,
-	// to calculate the next MiB value corresponding to the given bytes.
-	return (bytes + (bytesInOneMiB - 1)) >> 20
+	const bytesInOneMiB uint64 = 1 << 20
+	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
 }

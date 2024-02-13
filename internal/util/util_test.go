@@ -248,6 +248,10 @@ func (t *UtilTest) TestBytesToHigherMiBs() {
 			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
 		},
 		{
+			bytes: 0xFFFFFFFFFFF00001, // 2^20 * (2^44 - 1) + 1
+			mib:   0x100000000000,     // 2^44
+		},
+		{
 			bytes: math.MaxUint64, // (2^64 - 1)
 			mib:   0x100000000000, // 2^44
 		},
