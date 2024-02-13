@@ -712,11 +712,11 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
 	// modify the file in cache
-	err = os.WriteFile(downloadPath, []byte(changedContent), os.FileMode(655))
+	err = os.WriteFile(downloadPath, []byte(changedContent), os.FileMode(0655))
 	AssertEq(nil, err)
 
 	// read the file again, should give modified content
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, os.FileMode(655))
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, os.FileMode(0655))
 	defer closeFile(file)
 	AssertEq(nil, err)
 	buf := make([]byte, len(objectContent))
