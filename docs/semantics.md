@@ -63,13 +63,16 @@ The cost of the consistency guarantees discussed in the rest of this document is
 To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
 
 The behavior of stat cache is controlled by the following flags/config parameters:
-1. Stat-cache capacity/size: It controls the maximum number/memory-size of the stat-cache entries. It can be configured in the following ways.
-   1. `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter to be set through the config-file. It sets the stat-cache size in MiBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting. The maximum supported value of this parameter is 17592186044415 (2^44 - 1) .
+
+1. **Stat-cache size**: It controls the maximum memory-size of the stat-cache entries. It can be configured in the following ways.
+   - `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter set through the config-file. It sets the stat-cache size in MBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting. The maximum supported value of this parameter is 17592186044415 (2^44 - 1) .
    If this is missing, then `--stat-cache-capacity` is used.
-   2. `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count. 
-   This is ignored if user sets `metadata-cache:stat-cache-max-size-mb` .
-   This can be set to 0 for disabling stat-cache and >0 for setting a finite stat-cache size. If this is not set, the stat cache capacity will default to 4096 items (or about 4 MiBs). 
-   
+   - `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count.
+   This has been deprecated (starting v2.0) and is ignored if the user sets `metadata-cache:stat-cache-max-size-mb` .
+   This can be set to 0 for disabling stat-cache and `> 0` for setting a finite stat-cache size.
+
+   If neither of these two is set, then a size of 32MB is used, which is equivalent to about 25,400 stat-cache entries (assuming just as many negative stat-cache entries).
+
    If you have more objects (folders or files) than that in your bucket that you want to access, then you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
     - ListObjects will return information on the items within the folder. Each item's data is cached
     - Because there are more objects than cache capacity, the earliest entries will be evicted
@@ -77,7 +80,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
     - As the earliest cache entries were evicted, this is a fresh GetObjectDetails request
     - This cycle repeats and sends a GetObjectDetails request for every item in the folder, as though caching were disabled
 
-2. Stat-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
+2. **Stat-cache TTL**: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
    * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache.
    If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
    * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This has been deprecated (starting v2.0) and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
