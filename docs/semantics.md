@@ -80,7 +80,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
 2. Stat-cache TTL: It controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. It can be set in one of the following two ways.
    * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the stat-cache.
    If this config variable is missing, then the value of ```--stat-cache-ttl``` is used.
-   * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
+   * ```--stat-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This has been deprecated (starting v2.0) and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--stat-cache-ttl``` is ignored.
    
    Positive and negative stat results will be cached for the specified amount of time.
 
@@ -106,14 +106,15 @@ The behavior of type cache is controlled by the following flags/config parameter
 
 **Type-cache TTL**: It controls the duration for which Cloud Storage FUSE caches an inode's type attribute. It can be set in one of the following two ways.
 * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
-* ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This will be deprecated in a future version and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
+- ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This has been deprecated (starting v2.0) and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
 
 **Warning**: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
 - The type (file or directory) for any given path never changes.
 
 **Note**: 
-1. ```--stat-cache-ttl``` and ```--type-cache-ttl``` will be deprecated in the future and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```.
+
+1. ```--stat-cache-ttl``` and ```--type-cache-ttl``` have been deprecated (starting v2.0) and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```.
 For now, for backward compatibility, both are accepted, and the minimum of the two, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
 1. Both stat-cache and type-cache internally use the same TTL.
 

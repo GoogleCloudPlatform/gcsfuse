@@ -242,12 +242,12 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
-		logger.Warnf("Old flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
+		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
 	// the following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
 	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
-		logger.Warnf("Old flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon

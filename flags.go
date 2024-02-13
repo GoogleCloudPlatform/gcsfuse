@@ -207,19 +207,19 @@ func newApp() (app *cli.App) {
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: mount.DefaultStatCacheCapacity,
-				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag will be deprecated in the future and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1200 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
+				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1200 bytes), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
