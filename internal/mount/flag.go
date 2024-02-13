@@ -35,15 +35,16 @@ const (
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is never really used by GCSFuse for configuring stat-cache size.
-	DefaultStatCacheCapacity = 4096
-	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb 
-	// and is to be used when neither stat-cache-max-size-mb nor 
+	// It is used to determine if the user has explicitly set a value of stat-cache-capacity.
+	DefaultStatCacheCapacity = math.MinInt
+	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
+	// and is to be used when neither stat-cache-max-size-mb nor
 	// stat-cache-capacity is set.
-	DefaultStatCacheMaxSizeMB   = 32
+	DefaultStatCacheMaxSizeMB = 32
 	// AssumedSizeOfStatCacheEntry is the assumed size of each stat-cache-entry,
-	// meant for two purposes.. 
-	// 1. for conversion from stat-cache-capacity to 
-	// 2. internal testing
+	// meant for two purposes..
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
 	AssumedSizeOfStatCacheEntry = 1200
 )
 
@@ -120,15 +121,15 @@ func StatCacheMaxSizeInMiBs(mountConfigStatCacheMaxSizeInMiBs int64, flagStatCac
 			statCacheMaxSizeInMiBs = uint64(mountConfigStatCacheMaxSizeInMiBs)
 		}
 	} else {
-		if flagStatCacheCapacity < 0 {
-			return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
-		}
-
-		if flagStatCacheCapacity == DefaultStatCacheCapacity {
+		if flagStatCacheCapacity != DefaultStatCacheCapacity {
+			if flagStatCacheCapacity < 0 {
+				return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
+			}
+			return util.BytesToHigherMiBs(
+				uint64(flagStatCacheCapacity) * AssumedSizeOfStatCacheEntry), nil
+		} else {
 			return DefaultStatCacheMaxSizeMB, nil
 		}
-		return util.BytesToHigherMiBs(
-			uint64(flagStatCacheCapacity) * AssumedSizeOfStatCacheEntry), nil
 	}
 	return
 }
