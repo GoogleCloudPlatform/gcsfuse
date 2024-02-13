@@ -39,15 +39,11 @@ const (
 )
 
 const (
-	FileDirPerm            = os.FileMode(0755) | os.ModeDir
-	MiB                    = 1024 * 1024
-	KiB                    = 1024
-	DefaultFilePerm        = os.FileMode(0600)
-	FilePermWithAllowOther = os.FileMode(0644)
-
-	DefaultDirPerm        = os.FileMode(0700)
-	DirPermWithAllowOther = os.FileMode(0755)
-	FileCache             = "gcsfuse-file-cache"
+	MiB             = 1024 * 1024
+	KiB             = 1024
+	DefaultFilePerm = os.FileMode(0600)
+	DefaultDirPerm  = os.FileMode(0700)
+	FileCache       = "gcsfuse-file-cache"
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns
@@ -105,8 +101,9 @@ func IsCacheHandleInvalid(readErr error) bool {
 		strings.Contains(readErr.Error(), ErrInReadingFileHandleMsg)
 }
 
-// Creates directory at given path with provided permissions in case not already present,
-// returns error in case unable to create directory or directory is not writable.
+// CreateCacheDirectoryIfNotPresentAt Creates directory at given path with
+// provided permissions in case not already present, returns error in case
+// unable to create directory or directory is not writable.
 func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) error {
 	_, statErr := os.Stat(dirPath)
 
