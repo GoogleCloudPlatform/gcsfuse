@@ -46,8 +46,7 @@ type Cache struct {
 	/////////////////////////
 
 	// Sum of entry.Value.Size() of all the entries in the cache.
-	currentSize  uint64
-	currentCount uint64
+	currentSize uint64
 
 	// List of cache entries, with least recently used at the tail.
 	//
@@ -131,12 +130,9 @@ func (c *Cache) evictOne() ValueType {
 
 	evictedEntry := e.Value.(entry).Value
 	c.currentSize -= evictedEntry.Size()
-	c.currentCount--
 
 	c.entries.Remove(e)
 	delete(c.index, key)
-
-	fmt.Printf("LRU: currentSize=%08d,currenCount=%05d after evicting entry (%s)\n", c.currentSize, c.currentCount, key)
 
 	return evictedEntry
 }
@@ -170,16 +166,11 @@ func (c *Cache) Insert(
 		c.currentSize += valueSize
 		e.Value = entry{key, value}
 		c.entries.MoveToFront(e)
-
-		fmt.Printf("LRU: currentSize=%08d,currenCount=%05d after moving    entry (%s)->(%v) to front\n", c.currentSize, c.currentCount, key, value)
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value})
 		c.index[key] = e
 		c.currentSize += valueSize
-		c.currentCount++
-
-		fmt.Printf("LRU: currentSize=%08d,currenCount=%05d after inserting entry (%s)->(%v) to front\n", c.currentSize, c.currentCount, key, value)
 	}
 
 	var evictedValues []ValueType
@@ -203,12 +194,9 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 	deletedEntry := e.Value.(entry).Value
 	c.currentSize -= deletedEntry.Size()
-	c.currentCount--
 
 	delete(c.index, key)
 	c.entries.Remove(e)
-
-	fmt.Printf("LRU: currentSize=%08d,currenCount=%05d after erasing   entry (%s)\n", c.currentSize, c.currentCount, key)
 
 	return deletedEntry
 }
@@ -226,8 +214,6 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	}
 	// This is now the most recently used entry.
 	c.entries.MoveToFront(e)
-
-	fmt.Printf("LRU: currentSize=%08d,currenCount=%05d after moving    entry (%s)->(%v) to front\n", c.currentSize, c.currentCount, key, e.Value.(entry).Value)
 
 	// Return the value.
 	return e.Value.(entry).Value
