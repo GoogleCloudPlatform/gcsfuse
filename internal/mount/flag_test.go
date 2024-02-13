@@ -139,80 +139,80 @@ func (t *FlagTest) TestMetadataCacheTTL() {
 	}
 }
 
-func (t *FlagTest) TestStatCacheMaxSizeInMiBs() {
+func (t *FlagTest) TestStatCacheMaxSizeMB() {
 	for _, input := range []struct {
 		// Equivalent of user-setting of flag --stat-cache-capacity.
 		flagStatCacheCapacity int
 
 		// Equivalent of user-setting of metadata-cache:stat-cache-max-size-mb in --config-file.
-		mountConfigStatCacheMaxSizeInMiBs int64
+		mountConfigStatCacheMaxSizeMB int64
 
 		// expected output
-		expectedStatCacheMaxSizeInMiBs uint64
+		expectedStatCacheMaxSizeMB uint64
 	}{
 		{
 			// most common scenario, when user doesn't set either the flag or the config
-			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
-			expectedStatCacheMaxSizeInMiBs:    DefaultStatCacheMaxSizeMB,
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    DefaultStatCacheMaxSizeMB,
 		},
 		{
 			// scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to -1
-			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: -1,
-			expectedStatCacheMaxSizeInMiBs:    config.MaxSupportedStatCacheMaxSizeInMiBs,
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: -1,
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to 0
-			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: 0,
-			expectedStatCacheMaxSizeInMiBs:    0,
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: 0,
+			expectedStatCacheMaxSizeMB:    0,
 		},
 		{
 			// scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to a positive value
-			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: 100,
-			expectedStatCacheMaxSizeInMiBs:    100,
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: 100,
+			expectedStatCacheMaxSizeMB:    100,
 		},
 		{
 			// scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to its highest user-input value.
-			flagStatCacheCapacity:             DefaultStatCacheCapacity,
-			mountConfigStatCacheMaxSizeInMiBs: int64(config.MaxSupportedStatCacheMaxSizeInMiBs),
-			expectedStatCacheMaxSizeInMiBs:    config.MaxSupportedStatCacheMaxSizeInMiBs,
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: int64(config.MaxSupportedStatCacheMaxSizeMB),
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 1.
-			flagStatCacheCapacity:             10000,
-			mountConfigStatCacheMaxSizeInMiBs: 100,
-			expectedStatCacheMaxSizeInMiBs:    100,
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: 100,
+			expectedStatCacheMaxSizeMB:    100,
 		},
 		{
 			// scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 2.
-			flagStatCacheCapacity:             10000,
-			mountConfigStatCacheMaxSizeInMiBs: -1,
-			expectedStatCacheMaxSizeInMiBs:    config.MaxSupportedStatCacheMaxSizeInMiBs,
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: -1,
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 3.
-			flagStatCacheCapacity:             10000,
-			mountConfigStatCacheMaxSizeInMiBs: 0,
-			expectedStatCacheMaxSizeInMiBs:    0,
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: 0,
+			expectedStatCacheMaxSizeMB:    0,
 		},
 		{
 			// old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 1.
-			flagStatCacheCapacity:             0,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
-			expectedStatCacheMaxSizeInMiBs:    0,
+			flagStatCacheCapacity:         0,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    0,
 		},
 		{
 			// old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 2. Stat-cache enabled, but not type-cache.
-			flagStatCacheCapacity:             10000,
-			mountConfigStatCacheMaxSizeInMiBs: config.StatCacheMaxSizeInMiBsUnsetSentinel,
-			expectedStatCacheMaxSizeInMiBs:    12, // 12 MiB = MiB-ceiling (10k entries * AssumedSizeOfStatCacheEntry /entry)
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    12, // 12 MiB = MiB-ceiling (10k entries * AssumedSizeOfStatCacheEntry /entry)
 		},
 	} {
-		statCacheMaxSizeInMiBs, err := StatCacheMaxSizeInMiBs(input.mountConfigStatCacheMaxSizeInMiBs, input.flagStatCacheCapacity)
+		statCacheMaxSizeMB, err := StatCacheMaxSizeMB(input.mountConfigStatCacheMaxSizeMB, input.flagStatCacheCapacity)
 		AssertEq(nil, err)
-		AssertEq(input.expectedStatCacheMaxSizeInMiBs, statCacheMaxSizeInMiBs)
+		AssertEq(input.expectedStatCacheMaxSizeMB, statCacheMaxSizeMB)
 	}
 }

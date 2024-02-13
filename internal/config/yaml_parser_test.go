@@ -112,7 +112,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	// metadata-cache config
 	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
 	ExpectEq(1, mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
-	ExpectEq(32, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMiBs)
+	ExpectEq(32, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -184,23 +184,23 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheMaxEntr
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidStatCacheSize() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_stat_cache_size.yaml")
+	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_stat-cache-max-size-mb.yaml")
 
 	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeInMiBsInvalidValueError)))
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeMBInvalidValueError)))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNotSet() {
-	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_stat_cache_size_unset.yaml")
+	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_stat-cache-max-size-mb_unset.yaml")
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(StatCacheMaxSizeInMiBsUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeInMiBs)
+	AssertEq(StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeTooHigh() {
-	_, err := ParseConfigFile("testdata/metadata_cache_config_stat_cache_size_too_high.yaml")
+	_, err := ParseConfigFile("testdata/metadata_cache_config_stat-cache-max-size-mb_too_high.yaml")
 
 	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeInMiBsTooHighError)))
+	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeMBTooHighError)))
 }

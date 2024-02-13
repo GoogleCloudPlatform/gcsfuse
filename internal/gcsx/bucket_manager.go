@@ -38,7 +38,7 @@ type BucketConfig struct {
 	OnlyDir                            string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
-	StatCacheMaxSizeMiB                uint64
+	StatCacheMaxSizeMB                 uint64
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
 	DebugGCS                           bool
@@ -85,8 +85,8 @@ type bucketManager struct {
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
-	if config.StatCacheMaxSizeMiB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMiB))
+	if config.StatCacheMaxSizeMB > 0 {
+		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
 	}
 
 	bm := &bucketManager{

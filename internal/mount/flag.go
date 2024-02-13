@@ -112,13 +112,13 @@ func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int
 	return
 }
 
-// StatCacheMaxSizeInMiBs returns the stat-cache size in MiBs based on the user old and new flags/configs.
-func StatCacheMaxSizeInMiBs(mountConfigStatCacheMaxSizeInMiBs int64, flagStatCacheCapacity int) (statCacheMaxSizeInMiBs uint64, err error) {
-	if mountConfigStatCacheMaxSizeInMiBs != config.StatCacheMaxSizeInMiBsUnsetSentinel {
-		if mountConfigStatCacheMaxSizeInMiBs == -1 {
-			statCacheMaxSizeInMiBs = config.MaxSupportedStatCacheMaxSizeInMiBs
+// StatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
+func StatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
+	if mountConfigStatCacheMaxSizeMB != config.StatCacheMaxSizeMBUnsetSentinel {
+		if mountConfigStatCacheMaxSizeMB == -1 {
+			statCacheMaxSizeMB = config.MaxSupportedStatCacheMaxSizeMB
 		} else {
-			statCacheMaxSizeInMiBs = uint64(mountConfigStatCacheMaxSizeInMiBs)
+			statCacheMaxSizeMB = uint64(mountConfigStatCacheMaxSizeMB)
 		}
 	} else {
 		if flagStatCacheCapacity != DefaultStatCacheCapacity {

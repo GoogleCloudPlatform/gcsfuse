@@ -85,7 +85,7 @@ be interacting with the file system.`)
 	}
 
 	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	statCacheMaxSizeInMiBs, err := mount.StatCacheMaxSizeInMiBs(mountConfig.StatCacheMaxSizeInMiBs, flags.StatCacheCapacity)
+	statCacheMaxSizeMB, err := mount.StatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate stat-cache-size in MiBs: %w", err)
 	}
@@ -95,7 +95,7 @@ be interacting with the file system.`)
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
-		StatCacheMaxSizeMiB:                statCacheMaxSizeInMiBs,
+		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
 		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
