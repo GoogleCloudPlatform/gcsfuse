@@ -88,12 +88,16 @@ type entry struct {
 // NestedSizeOfGcsObject etc. does not account for
 // hidden memembers in data structures like maps, slices, linked-lists etc.
 // To account for those, we are adding a fixed constant of 553 bytes (deduced from
-// benchmark runs) per
-// entry, to calculate a size closer to the actual memory utilization.
-func (e entry) Size() uint64 {
-	return 553 + uint64(util.UnsafeSizeOf(&e)+len(e.key)+2*util.UnsafeSizeOf(&e.key)+util.NestedSizeOfGcsObject(e.o))
+// benchmark runs) per positive stat-cache entry
+// to calculate a size closer to the actual memory utilization.
+func (e entry) Size() (size uint64) {
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsObject(e.o))
+	if e.o != nil {
+		size += 553
+	}
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
+	return
 }
 
 // Should the supplied object for a new positive entry replace the given
