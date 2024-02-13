@@ -240,12 +240,12 @@ func runCLIApp(c *cli.Context) (err error) {
 		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
 	}
 
-	// the following will not warn if the user explicitly passed the default value for StatCacheCapacity.
+	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
 	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
 		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
-	// the following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
+	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
 	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
