@@ -491,14 +491,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:              c.Duration("max-retry-sleep"),
-		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:               c.Duration("type-cache-ttl"),
-		HttpClientTimeout:          c.Duration("http-client-timeout"),
-		MaxRetryDuration:           c.Duration("max-retry-duration"),
-		RetryMultiplier:            c.Float64("retry-multiplier"),
-		// This flag is deprecated.
+		MaxRetrySleep:     c.Duration("max-retry-sleep"),
+		StatCacheCapacity: c.Int("stat-cache-capacity"),
+		StatCacheTTL:      c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		HttpClientTimeout: c.Duration("http-client-timeout"),
+		MaxRetryDuration:  c.Duration("max-retry-duration"),
+		RetryMultiplier:   c.Float64("retry-multiplier"),
+		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
 		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
