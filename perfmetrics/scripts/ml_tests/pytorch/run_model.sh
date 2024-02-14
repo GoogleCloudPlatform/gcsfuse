@@ -49,7 +49,7 @@ logging:
     compress: true
 metadata-cache:
   ttl-secs: 1728000
-  stat-cache-max-size-mb: 1511
+  stat-cache-max-size-mb: 1600
 EOF
 echo "Created config-file at "$config_filename
 

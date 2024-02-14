@@ -69,7 +69,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
    If this is missing, then `--stat-cache-capacity` is used.
    - `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count.
    This has been deprecated (starting v2.0) and is ignored if the user sets `metadata-cache:stat-cache-max-size-mb` .
-   This can be set to 0 for disabling stat-cache and `> 0` for setting a finite stat-cache size.
+   This can be set to 0 for disabling stat-cache and > 0 for setting a finite stat-cache size.
 
    If neither of these two is set, then a size of 32MB is used, which is equivalent to about 25,400 stat-cache entries (assuming just as many negative stat-cache entries).
 

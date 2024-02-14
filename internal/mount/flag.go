@@ -36,13 +36,13 @@ const (
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is never really used by GCSFuse for configuring stat-cache size.
 	// It is used only to determine if the user has explicitly set a value of stat-cache-capacity.
-	DefaultStatCacheCapacity = math.MinInt
+	DefaultStatCacheCapacity = 25420
 	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
 	// and is to be used when neither stat-cache-max-size-mb nor
 	// stat-cache-capacity is set.
 	DefaultStatCacheMaxSizeMB = 32
 	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
-	// meant for two purposes..
+	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
 	AverageSizeOfPositiveStatCacheEntry uint64 = 1200
@@ -99,9 +99,9 @@ func ParseOptions(m map[string]string, s string) {
 
 }
 
-// MetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
-func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
-	// if metadata-cache:ttl-secs has been set in config-file, then
+// ResolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
+	// If metadata-cache:ttl-secs has been set in config-file, then
 	// it overrides both stat-cache-ttl and type-cache-tll.
 	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
 		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
@@ -117,8 +117,8 @@ func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int
 	return
 }
 
-// StatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
-func StatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
+// ResolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
+func ResolveStatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
 	if mountConfigStatCacheMaxSizeMB != config.StatCacheMaxSizeMBUnsetSentinel {
 		if mountConfigStatCacheMaxSizeMB == -1 {
 			statCacheMaxSizeMB = config.MaxSupportedStatCacheMaxSizeMB
