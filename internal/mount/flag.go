@@ -36,7 +36,7 @@ const (
 	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
 	// This is never really used by GCSFuse for configuring stat-cache size.
 	// It is used only to determine if the user has explicitly set a value of stat-cache-capacity.
-	DefaultStatCacheCapacity = 25420
+	DefaultStatCacheCapacity = 12710
 	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
 	// and is to be used when neither stat-cache-max-size-mb nor
 	// stat-cache-capacity is set.
@@ -45,12 +45,12 @@ const (
 	// meant for two purposes.
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
-	AverageSizeOfPositiveStatCacheEntry uint64 = 1200
+	AverageSizeOfPositiveStatCacheEntry uint64 = 2400
 	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
 	// meant for two purposes..
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
-	AverageSizeOfNegativeStatCacheEntry uint64 = 120
+	AverageSizeOfNegativeStatCacheEntry uint64 = 240
 )
 
 func (cp ClientProtocol) IsValid() bool {

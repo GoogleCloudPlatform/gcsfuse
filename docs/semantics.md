@@ -71,7 +71,7 @@ The behavior of stat cache is controlled by the following flags/config parameter
    This has been deprecated (starting v2.0) and is ignored if the user sets `metadata-cache:stat-cache-max-size-mb` .
    This can be set to 0 for disabling stat-cache and > 0 for setting a finite stat-cache size.
 
-   If neither of these two is set, then a size of 32MB is used, which is equivalent to about 25,400 stat-cache entries (assuming just as many negative stat-cache entries).
+   If neither of these two is set, then a size of 32MB is used, which is equivalent to about 12710 stat-cache entries (assuming just as many negative stat-cache entries).
 
    If you have more objects (folders or files) than that in your bucket that you want to access, then you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
     - ListObjects will return information on the items within the folder. Each item's data is cached
