@@ -254,7 +254,7 @@ func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheTest) CacheFilePermissionWithoutAllowOther() {
+func (t *FileCacheTest) CacheFilePermission() {
 	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
@@ -607,7 +607,6 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -654,8 +653,8 @@ func (t *FileCacheWithCacheForRangeRead) SequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheLocation)
 }
 
-func (t *FileCacheWithCacheForRangeRead) CacheFilePermissionWithAllowOther() {
-	cacheFilePermissionTest(&t.fsTest, util.FilePermWithAllowOther)
+func (t *FileCacheWithCacheForRangeRead) CacheFilePermission() {
+	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
 func (t *FileCacheWithCacheForRangeRead) WriteShouldNotPopulateCache() {
@@ -713,11 +712,11 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
 	// modify the file in cache
-	err = os.WriteFile(downloadPath, []byte(changedContent), util.FilePermWithAllowOther)
+	err = os.WriteFile(downloadPath, []byte(changedContent), os.FileMode(0655))
 	AssertEq(nil, err)
 
 	// read the file again, should give modified content
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.FilePermWithAllowOther)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, os.FileMode(0655))
 	defer closeFile(file)
 	AssertEq(nil, err)
 	buf := make([]byte, len(objectContent))
@@ -744,7 +743,6 @@ func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
 			CacheFileForRangeRead: true,
 		},
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -756,7 +754,6 @@ func (t *FileCacheWithUserDefinedTempAsCacheLocation) SetUpTestSuite() {
 			CacheFileForRangeRead: true,
 		},
 	}
-	t.serverCfg.AllowOther = true
 	t.serverCfg.TempDir = UserTempLocation
 	t.fsTest.SetUpTestSuite()
 }
@@ -795,7 +792,6 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 		},
 		CacheLocation: config.CacheLocation(CacheLocation),
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
