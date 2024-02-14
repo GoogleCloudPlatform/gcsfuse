@@ -87,7 +87,7 @@ be interacting with the file system.`)
 	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
 	statCacheMaxSizeMB, err := mount.StatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate stat-cache-size in MiBs: %w", err)
+		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-ttl=%v, metadata-cache:stat-cache-max-size-mb=%v: %w", flags.StatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
