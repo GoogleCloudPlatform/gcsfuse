@@ -150,7 +150,7 @@ func (t *typeCacheTestCommon) testNoInsertion() {
 	ExpectNe(nil, fileObject)
 
 	// Stat-call with file object. It should
-	// be stattable, bypassing type-cache, as a file.
+	// pass stat call, bypassing type-cache, as a file.
 	fi, err = os.Stat(path.Join(mntDir, name1))
 
 	ExpectEq(nil, err)
@@ -168,7 +168,7 @@ func (t *typeCacheTestCommon) testNoInsertion() {
 	ExpectNe(nil, dirObject)
 
 	// Stat-call with directory object. It should
-	// be stattable, bypassing type-cache, as a directory.
+	// pass stat call, bypassing type-cache, as a directory.
 	// It works because no entries are inserted in type-cache
 	// in this case.
 	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
@@ -214,7 +214,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	ExpectNe(nil, fileObject)
 
 	// Stat-call with first file object. It should
-	// be stattable through type-cache as a file.
+	// pass stat call, through type-cache as a file.
 	fi, err = os.Stat(path.Join(mntDir, name1))
 
 	ExpectEq(nil, err)
@@ -374,7 +374,7 @@ func (t *TypeCacheTestWithInfiniteTTL) TestNoTTLExpiryEver() {
 	ExpectNe(nil, fileObject)
 
 	// Stat-call with file object. It should
-	// be stattable, as a file.
+	// pass stat call, as a file.
 	fi, err = os.Stat(path.Join(mntDir, name1))
 
 	ExpectEq(nil, err)
