@@ -35,6 +35,14 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
+// The following is the control-flow of an os.Stat(name) call in case of GCSFuse,
+// for understanding how the tests work. The stat call
+// 1. comes as fs.LookUpInode() call to gcsfuse, which
+// 2. queries type-cache of the parent directory, without the suffix '/'.
+// 2.1 If entry is found in type-cache, then that is returned as type.
+// 2.2 If entry is not found in type-cache, then its type is queried from GCS, and the returned type is stored in type-cache and is also returned as cache.
+// 3. If the input to os.Stat() had a suffix '/' and the return type is not ExplicitDir or ImplicitDir, then an error containing 'not a directory' is returned.
+
 ////////////////////////////////////////////////////////////////////////
 // Common
 ////////////////////////////////////////////////////////////////////////
