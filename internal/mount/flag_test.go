@@ -152,6 +152,7 @@ func (t *FlagTest) TestResolveStatCacheMaxSizeMB() {
 	}{
 		{
 			// Most common scenario, when user doesn't set either the flag or the config.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
 			expectedStatCacheMaxSizeMB:    DefaultStatCacheMaxSizeMB,
 		},
