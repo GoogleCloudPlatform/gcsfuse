@@ -26,7 +26,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	gcsfusefs "github.com/googlecloudplatform/gcsfuse/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -58,6 +61,15 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 		TypeCacheMaxSizeMB: typeCacheMaxSizeMb,
 		TtlInSeconds:       ttlInSeconds,
 	}
+
+	// Fill server-cfg from mount-config.
+	func(mountConfig *config.MountConfig, serverCfg *gcsfusefs.ServerConfig) {
+		serverCfg.DirTypeCacheTTL = mount.MetadataCacheTTL(mount.DefaultStatOrTypeCacheTTL, mount.DefaultStatOrTypeCacheTTL,
+			mountConfig.TtlInSeconds)
+		serverCfg.InodeAttributeCacheTTL = serverCfg.DirTypeCacheTTL
+		// We can add more logic here to fill other fileds in serverCfg
+		// from mountConfig here as needed.
+	}(t.serverCfg.MountConfig, &t.serverCfg)
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()
@@ -172,8 +184,18 @@ func (t *typeCacheTestCommon) testNoInsertion() {
 func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	const name1 = "foo"
 	const contents = "taco"
+	contentInBytes := []byte(contents)
 	var fi fs.FileInfo
 	var err error
+	objectNameTemplate := "object%06d" // 12
+	for i := 0; i < 93; i++ {
+		objectNameTemplate += "abcdefjhij" // +930
+	}
+	nameOfIthObject := func(i int) string {
+		return fmt.Sprintf(objectNameTemplate, i)
+	}
+	objectNameSample := nameOfIthObject(0)
+	perEntrySize := 80 + len(objectNameSample)
 
 	// Initially, without any existing object, type-cache
 	// should not contain any entry and os.Stat should fail.
@@ -204,7 +226,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 		ctx,
 		bucket,
 		name1+"/",
-		[]byte(contents))
+		contentInBytes)
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, dirObject)
@@ -217,19 +239,20 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
 
-	// type-cache-max-size-mb = 1MiB = 1048576,
-	// and each entry-size = 92 (80 fixed + 12 key-length) Bytes.
-	// let's add another 11397(1048576/92) entries to evict
+	// type-cache-max-size-mb = 1MiB.
+	// let's add another 1MiB/perEntrySize entries to evict
 	// the first file object ("foo") entry.
-	for i := 0; i < 11397; i++ {
-		name := fmt.Sprintf("object%06d", i)
+	numObjectsToBeInserted := int(util.MiBsToBytes(1)) / perEntrySize
+
+	for i := 0; i < numObjectsToBeInserted; i++ {
+		name := nameOfIthObject(i)
 
 		// Create a new file object in GCS.
 		fileObject, err = storageutil.CreateObject(
 			ctx,
 			bucket,
 			name,
-			[]byte(contents))
+			contentInBytes)
 
 		ExpectEq(nil, err)
 		ExpectNe(nil, fileObject)

@@ -34,7 +34,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perms"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -141,11 +140,6 @@ func (t *fsTest) SetUpTestSuite() {
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 	if t.serverCfg.MountConfig == nil {
 		t.serverCfg.MountConfig = config.NewMountConfig()
-	} else {
-		mountConfig := t.serverCfg.MountConfig
-		t.serverCfg.DirTypeCacheTTL = mount.MetadataCacheTTL(mount.DefaultStatOrTypeCacheTTL, mount.DefaultStatOrTypeCacheTTL,
-			mountConfig.TtlInSeconds)
-		t.serverCfg.InodeAttributeCacheTTL = t.serverCfg.DirTypeCacheTTL
 	}
 
 	// Set up ownership.
