@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"os"
 	"path"
 	"testing"
 
@@ -44,6 +45,8 @@ func (s *localModificationTest) Setup(t *testing.T) {
 
 func (s *localModificationTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	os.RemoveAll(cacheLocationPath)
 }
 
 ////////////////////////////////////////////////////////////////////////

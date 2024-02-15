@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -44,6 +45,8 @@ func (s *smallCacheTTLTest) Setup(t *testing.T) {
 
 func (s *smallCacheTTLTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	os.RemoveAll(cacheLocationPath)
 }
 
 ////////////////////////////////////////////////////////////////////////

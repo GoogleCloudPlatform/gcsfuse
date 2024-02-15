@@ -156,14 +156,9 @@ func unmountGCSFuseAndDeleteLogFile() {
 	}
 }
 
-func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
+func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
-
-	// Adding sleep of 2s for the file system to complete the deletion of cached files.
-	// Todo: Remove sleep after b/317437499 is resolved.
-	time.Sleep(2 * time.Second)
-	validateCacheSizeWithinLimit(0, t)
 
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)

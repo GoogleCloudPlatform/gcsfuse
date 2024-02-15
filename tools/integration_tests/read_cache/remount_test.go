@@ -64,15 +64,15 @@ func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx conte
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
+func (s *remountTest) TestCacheIsNotReusedOnRemount(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	// Re-mount GCSFuse and validate cache deleted.
-	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	// Re-mount GCSFuse.
+	remountGCSFuse(s.flags, t)
 	// Run read operations again on GCSFuse mount.
 	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
 	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
@@ -84,7 +84,7 @@ func (s *remountTest) TestCacheClearsOnRemount(t *testing.T) {
 	validate(expectedOutcome4, structuredReadLogsMount2[1], true, true, chunksRead, t)
 }
 
-func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
+func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	runTestsOnlyForDynamicMount(t)
 	testBucket1 := setup.TestBucket()
 	testFileName1 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
@@ -101,7 +101,7 @@ func (s *remountTest) TestCacheClearsOnDynamicRemount(t *testing.T) {
 	expectedOutcome1 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
 	expectedOutcome2 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
 	structuredReadLogs1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
-	remountGCSFuseAndValidateCacheDeleted(s.flags, t)
+	remountGCSFuse(s.flags, t)
 	// Reading files in different buckets again.
 	expectedOutcome3 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket1, s.ctx, s.storageClient, testFileName1, t)
 	expectedOutcome4 := readFileAndValidateCacheWithGCSForDynamicMount(testBucket2, s.ctx, s.storageClient, testFileName2, t)
