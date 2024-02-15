@@ -114,8 +114,8 @@ The negative result for ```foo/``` will be cached, but that only helps with the 
 To alleviate this, Cloud Storage FUSE supports a "type cache" on directory inodes. When type cache is enabled, each directory inode will maintain a mapping from the name of its children to whether those children are known to be files or directories or both. When a child is looked up, if the parent's cache says that the child is a file but not a directory, only one Cloud Storage object will need to be stated. Similarly if the child is a directory but not a file.
 
 The behavior of type cache is controlled by the following flags/config parameters:
-
-**Type-cache TTL**: It controls the duration for which Cloud Storage FUSE caches an inode's type attribute. It can be set in one of the following two ways.
+1. **Type-cache size**: This is configurable at per-directory level by setting `metadata-cache: type-cache-max-size-mb` in config-file. This is the maximum size of type-cache per-directory in MiBs. By default, this is set at 4, which roughly equates to about 21k entries.
+1. **Type-cache TTL**: It controls the duration for which Cloud Storage FUSE caches an inode's type attribute. It can be set in one of the following two ways.
 * ```metadata-cache: ttl-secs``` in the config-file. This is set as an integer, which sets the TTL in seconds. If this is -1, TTL is taken as infinite i.e. no-TTL based expirations of entries. If this is 0, that disables the type-cache. If this is <-1, then an error is thrown on mount.
 - ```--type-cache-ttl``` commandline flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. This has been deprecated (starting v2.0) and is currently only available for backward compatibility. If ```metadata-cache: ttl-secs``` is set, ```--type-cache-ttl``` is ignored.
 

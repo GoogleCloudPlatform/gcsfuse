@@ -14,5 +14,5 @@ file-cache:
   cache-file-for-range-read: true
 metadata-cache:
   ttl-secs: 5
-  type-cache-max-entries: 1
+  type-cache-max-size-mb: 1
   stat-cache-max-size-mb: 3
