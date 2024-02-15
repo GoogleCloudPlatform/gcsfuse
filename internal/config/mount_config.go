@@ -135,7 +135,7 @@ func NewMountConfig() *MountConfig {
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
 		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
-		StatCacheMaxSizeMB:  StatCacheMaxSizeMBUnsetSentinel,
+		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	return mountConfig
 }
