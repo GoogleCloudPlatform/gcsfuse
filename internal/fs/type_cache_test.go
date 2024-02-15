@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
 
@@ -54,6 +55,11 @@ type typeCacheTestCommon struct {
 	fsTest
 }
 
+const (
+	foo  = "foo"
+	taco = "taco"
+)
+
 var (
 	// The following should be configured for different tests
 	// differently inside SetUpTestSuite as these need to
@@ -64,6 +70,11 @@ var (
 
 	// typeCacheMaxSizeMb is equivalent of metadata-cache:type-cache-max-entries in config-file.
 	typeCacheMaxSizeMb int
+
+	contentInBytes []byte
+
+	fi  fs.FileInfo
+	err error
 )
 
 func (t *typeCacheTestCommon) SetUpTestSuite() {
@@ -139,153 +150,99 @@ func init() {
 	RegisterTestSuite(&TypeCacheTestWithZeroSize{})
 	RegisterTestSuite(&TypeCacheTestWithZeroTTL{})
 	RegisterTestSuite(&TypeCacheTestWithInfiniteTTL{})
+
+	const contents string = "taco"
+	contentInBytes = []byte(contents)
 }
 
 // //////////////////////////////////////////////////////////////////////
 // helpers
 // //////////////////////////////////////////////////////////////////////
-func (t *typeCacheTestCommon) testNoInsertion() {
-	const name1 = "foo"
-	const contents = "taco"
-	var fi fs.FileInfo
-	var err error
-
+func (t *typeCacheTestCommon) createObjectOnGCS(name string) *gcs.Object {
 	// Create a file object in GCS.
 	fileObject, err := storageutil.CreateObject(
 		ctx,
 		bucket,
-		name1,
-		[]byte(contents))
+		name,
+		contentInBytes)
 
 	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	AssertNe(nil, fileObject)
 
-	// Stat-call with file object. It should
-	// pass stat call, bypassing type-cache, as a file.
-	fi, err = os.Stat(path.Join(mntDir, name1))
+	return fileObject
+}
+
+func (t *typeCacheTestCommon) statAndConfirmIsDir(name string, isDir bool) {
+	fi, err = os.Stat(name)
 
 	ExpectEq(nil, err)
 	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	ExpectEq(isDir, fi.IsDir())
+}
+
+func (t *typeCacheTestCommon) statAndConfirmNotADirectoryError(name string) {
+	_, err = os.Stat(name)
+
+	ExpectNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+}
+
+func (t *typeCacheTestCommon) testNoInsertion() {
+	// Create a file object in GCS.
+	t.createObjectOnGCS(foo)
+
+	// Stat-call with file object. It should
+	// pass stat call, bypassing type-cache, as a file.
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Create a directory object in GCS with same name as the file object.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with directory object. It should
 	// pass stat call, bypassing type-cache, as a directory.
 	// It works because no entries are inserted in type-cache
 	// in this case.
-	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectTrue(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo)+"/", true)
 }
 
 // //////////////////////////////////////////////////////////////////////
 // Tests for TypeCacheTestWithMaxSize1MB
 // //////////////////////////////////////////////////////////////////////
 func (t *TypeCacheTestWithMaxSize1MB) TestStatBehavior_DirHiddenByFile() {
-	const name1 = "foo"
-	const contents = "taco"
-	contentInBytes := []byte(contents)
-	var fi fs.FileInfo
-	var err error
-
 	// Create a file object in GCS.
-	fileObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1,
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	t.createObjectOnGCS(foo)
 
 	// Stat-call with the file object. It should
 	// pass stat call, as a file.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Create a directory object in GCS with same name as the file object.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		contentInBytes)
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with the directory object should fail
 	// as there is currently an entry for the
 	// file object in type-cache, which has the same name.
-	_, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+	t.statAndConfirmNotADirectoryError(path.Join(mntDir, foo) + "/")
 }
 
 func (t *TypeCacheTestWithMaxSize1MB) TestStatBehavior_FileHiddenByDir() {
-	const name1 = "foo"
-	const contents = "taco"
-	contentInBytes := []byte(contents)
-	var fi fs.FileInfo
-	var err error
-
 	// Create a directory object in GCS.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		contentInBytes)
-
-	ExpectEq(nil, err)
-	AssertNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with the directory object. It should
 	// pass and return type as directory.
-	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectEq(nil, err)
-	ExpectTrue(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo)+"/", true)
 
 	// Create a file object in GCS with same name as the directory object.
-	fileObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1,
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	t.createObjectOnGCS(foo)
 
 	// Stat-call with the file object should
 	// pass but it should still report it as a directory
 	// because of its old type-cache entry.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectTrue(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), true)
 }
 
 func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
-	const name1 = "foo"
-	const contents = "taco"
-	contentInBytes := []byte(contents)
-	var fi fs.FileInfo
-	var err error
 	objectNameTemplate := "type_cache_test_object_%06d" // Will create a 29 character string.
 	// Increase the object-name size to increase per-entry-size (max allowed is 1024)
 	// to decrease count of objects being created for this,
@@ -301,45 +258,24 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 
 	// Initially, without any existing object, type-cache
 	// should not contain any entry and os.Stat should fail.
-	_, err = os.Stat(path.Join(mntDir, name1))
+	_, err = os.Stat(path.Join(mntDir, foo))
 
 	ExpectNe(nil, err)
 
 	// Create a file object in GCS.
-	fileObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1,
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	t.createObjectOnGCS(foo)
 
 	// Stat-call with first file object. It should
 	// pass stat call, through type-cache as a file.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Create a directory object in GCS with same name as the first file object.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		contentInBytes)
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with the directory object. It should
 	// fail as there is currently an entry for the first
 	// file object, which has the same name.
-	_, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+	t.statAndConfirmNotADirectoryError(path.Join(mntDir, foo) + "/")
 
 	// type-cache-max-size-mb = 1MiB.
 	// let's add another 1MiB/perEntrySize entries to evict
@@ -357,24 +293,13 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 			name := nameOfIthObject(i)
 
 			// Create a new file object in GCS.
-			fileObject, err = storageutil.CreateObject(
-				ctx,
-				bucket,
-				name,
-				contentInBytes)
-
-			ExpectEq(nil, err)
-			ExpectNe(nil, fileObject)
+			t.createObjectOnGCS(name)
 
 			// Stat-call will insert the new file objects into the type-cache.
 			// As a side-effect of all these insertions,
 			// the first file object (foo) will be evicted from type-cache
 			// because of type-cache-max-size-mb=1 .
-			fi, err = os.Stat(path.Join(mntDir, name))
-
-			ExpectEq(nil, err)
-			AssertNe(nil, fi)
-			ExpectFalse(fi.IsDir())
+			t.statAndConfirmIsDir(path.Join(mntDir, name), false)
 		}
 	}
 	maxNumParallelBatches := 8
@@ -398,61 +323,27 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	// Stat-call with directory object again, to verify that the first file's
 	// type-cache entry got removed, and this time type-cache inserts a directory entry
 	// and stat returns a directory successfully.
-	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectTrue(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo)+"/", true)
 }
 
 func (t *TypeCacheTestWithMaxSize1MB) TestTTLBasedEviction() {
-	const name1 = "foo"
-	const contents = "taco"
-	var fi fs.FileInfo
-	var err error
-
 	// Create a file object in GCS.
-	fileObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1,
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	t.createObjectOnGCS(foo)
 
 	// Stat-call with existing object, found in type-cache.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Create a directory object in GCS with same name as the file object.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with the directory object. It should
 	// fail as there is already an entry for the
 	// file object, which has the same name.
-	_, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+	t.statAndConfirmNotADirectoryError(path.Join(mntDir, foo) + "/")
 
 	// Doubly confirming that the type-cache still has
 	// the entry for the file object.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Advance time to cross TTL to let the file-object entry be
 	// removed from type-cache.
@@ -460,11 +351,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestTTLBasedEviction() {
 
 	// Stat-call with directory object to verify that the file object's
 	// type-cache entry got removed.
-	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectTrue(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo)+"/", true)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -485,56 +372,26 @@ func (t *TypeCacheTestWithZeroTTL) TestNoInsertion() {
 // Tests for TypeCacheTestWithInfiniteTTL
 // //////////////////////////////////////////////////////////////////////
 func (t *TypeCacheTestWithInfiniteTTL) TestNoTTLExpiryEver() {
-	const name1 = "foo"
-	const contents = "taco"
-	var fi fs.FileInfo
-	var err error
-
 	// Create a file object in GCS.
-	fileObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1,
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, fileObject)
+	t.createObjectOnGCS(foo)
 
 	// Stat-call with file object. It should
 	// pass stat call, as a file.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 
 	// Let 100 years pass in the type-cache's simulated clock.
 	// Surely, type-cache won't forget about the file entry.
 	cacheClock.AdvanceTime(100 * 365.2425 * 24 * time.Hour)
 
 	// Create a directory object in GCS with same name as the file object.
-	dirObject, err := storageutil.CreateObject(
-		ctx,
-		bucket,
-		name1+"/",
-		[]byte(contents))
-
-	ExpectEq(nil, err)
-	ExpectNe(nil, dirObject)
+	t.createObjectOnGCS(foo + "/")
 
 	// Stat-call with the directory object. It should
 	// fail as there is already a type-cache entry for the
 	// file object, which has the same name.
-	_, err = os.Stat(path.Join(mntDir, name1) + "/")
-
-	ExpectNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+	t.statAndConfirmNotADirectoryError(path.Join(mntDir, foo) + "/")
 
 	// Doubly confirming that the type-cache still has
 	// the entry for the file object.
-	fi, err = os.Stat(path.Join(mntDir, name1))
-
-	ExpectEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectFalse(fi.IsDir())
+	t.statAndConfirmIsDir(path.Join(mntDir, foo), false)
 }
