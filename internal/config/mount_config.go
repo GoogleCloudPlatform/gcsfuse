@@ -46,7 +46,7 @@ const (
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
 	// AverageTypeCacheEntrySize is for internal testing
-	// purposes. This is 2x avg. heap-size. Heap-size
+	// purposes. This is util.HeapSizeToRssConversionFactor * avg. heap-size. Heap-size
 	// is fixed 80 bytes + length of entry-key string
 	// (which is assumed to be 20 for common cases).
 	AverageTypeCacheEntrySize int = 200

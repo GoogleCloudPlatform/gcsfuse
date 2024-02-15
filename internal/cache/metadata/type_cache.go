@@ -89,7 +89,7 @@ func (ce cacheEntry) Size() (size uint64) {
 	size = uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
 
 	// Convert heap-size to rss (resident set size).
-	size *= 2
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
 	return
 }
