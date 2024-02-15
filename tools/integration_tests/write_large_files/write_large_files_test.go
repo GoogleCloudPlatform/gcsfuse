@@ -17,6 +17,7 @@ package write_large_files
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"log"
 	"os"
 	"testing"
@@ -32,8 +33,8 @@ const (
 	WritePermission_0200 = 0200
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
-	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string, t *testing.T) error {
+	err := client.DownloadFileWithStorageClient(gcsFile,localFilePathToDownloadGcsFile,t)
 	if err != nil {
 		return fmt.Errorf("Error in downloading object: %v", err)
 	}

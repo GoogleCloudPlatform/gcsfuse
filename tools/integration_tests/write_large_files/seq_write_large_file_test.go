@@ -52,7 +52,7 @@ func TestWriteLargeFileSequentially(t *testing.T) {
 	// the file content we wrote in mntDir.
 	filePathInGcsBucket := path.Join(setup.TestBucket(), DirForSeqWrite, FiveHundredMBFile)
 	localFilePath := path.Join(TmpDir, FiveHundredMBFileForSeqWriteInLocalSystem)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath, t)
 	if err != nil {
 		t.Fatalf("Error:%v", err)
 	}
