@@ -63,7 +63,7 @@ const (
 	randomReadChunkCount               = 100
 	cacheCapacityForVeryLargeFileInMiB = 1000
 	veryLargeFileSize                  = cacheCapacityForVeryLargeFileInMiB * util.MiB
-	offsetEndOfFile                    = cacheCapacityForVeryLargeFileInMiB - 1*util.MiB
+	offsetEndOfFile                    = veryLargeFileSize - 1*util.MiB
 )
 
 var (
