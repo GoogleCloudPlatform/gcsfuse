@@ -453,7 +453,7 @@ func GetGcsObjectSize(gcsObjPath string) (int, error) {
 // Fails if the object doesn't exist or permission to read object is not
 // available.
 func DownloadGcsObject(gcsObjPath, localPath string) error {
-	_, err := ExecuteGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
+	_, err := ExecuteGcloudCommandf("alpha storage cp gs://%s %s", gcsObjPath, localPath)
 	if err != nil {
 		return err
 	}
