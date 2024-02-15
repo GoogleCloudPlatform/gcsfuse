@@ -21,10 +21,13 @@ package fs_test
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path"
+	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -195,15 +198,18 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	contentInBytes := []byte(contents)
 	var fi fs.FileInfo
 	var err error
-	objectNameTemplate := "object%06d" // 12
-	for i := 0; i < 93; i++ {
-		objectNameTemplate += "abcdefjhij" // +930
+	objectNameTemplate := "type_cache_test_object_%06d" // Will create a 29 character string.
+	// Increase the object-name size to increase per-entry-size (max allowed is 1024)
+	// to decrease count of objects being created for this,
+	// to reduce the runtime.
+	for i := 0; i < 99; i++ {
+		objectNameTemplate += "abcdefjhij" // This makes it length+=10.
 	}
 	nameOfIthObject := func(i int) string {
 		return fmt.Sprintf(objectNameTemplate, i)
 	}
 	objectNameSample := nameOfIthObject(0)
-	perEntrySize := 80 + len(objectNameSample)
+	perEntrySize := int(metadata.SizeOfTypeCacheEntry(objectNameSample))
 
 	// Initially, without any existing object, type-cache
 	// should not contain any entry and os.Stat should fail.
@@ -252,29 +258,54 @@ func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	// the first file object ("foo") entry.
 	numObjectsToBeInserted := int(util.MiBsToBytes(1)) / perEntrySize
 
-	for i := 0; i < numObjectsToBeInserted; i++ {
-		name := nameOfIthObject(i)
+	// If we run a single for-loop over all numObjectsToBeInserted,
+	// then object creation might take a long time.
+	// Let us parallelize it to reduce runtime, by breaking it into batches.
+	wg := sync.WaitGroup{}
+	createAndStatBatchOfObjects := func(batchOffset, batchSize int) {
+		defer wg.Done()
 
-		// Create a new file object in GCS.
-		fileObject, err = storageutil.CreateObject(
-			ctx,
-			bucket,
-			name,
-			contentInBytes)
+		for i := batchOffset; i < batchOffset+batchSize; i++ {
+			name := nameOfIthObject(i)
 
-		ExpectEq(nil, err)
-		ExpectNe(nil, fileObject)
+			// Create a new file object in GCS.
+			fileObject, err = storageutil.CreateObject(
+				ctx,
+				bucket,
+				name,
+				contentInBytes)
 
-		// Stat-call will insert the new file objects into the type-cache.
-		// As a side-effect of all these insertions,
-		// the first file object (foo) will be evicted from type-cache
-		// because of type-cache-max-size-mb=1 .
-		fi, err = os.Stat(path.Join(mntDir, name))
+			ExpectEq(nil, err)
+			ExpectNe(nil, fileObject)
 
-		ExpectEq(nil, err)
-		AssertNe(nil, fi)
-		ExpectFalse(fi.IsDir())
+			// Stat-call will insert the new file objects into the type-cache.
+			// As a side-effect of all these insertions,
+			// the first file object (foo) will be evicted from type-cache
+			// because of type-cache-max-size-mb=1 .
+			fi, err = os.Stat(path.Join(mntDir, name))
+
+			ExpectEq(nil, err)
+			AssertNe(nil, fi)
+			ExpectFalse(fi.IsDir())
+		}
 	}
+	maxNumParallelBatches := 8
+	maxNumObjectsPerBatch := int(math.Ceil(float64(numObjectsToBeInserted) / float64(maxNumParallelBatches)))
+	AssertGt(maxNumObjectsPerBatch, 0) // To avoid an infinite for-loop.
+	var batchOffset int
+	for remainingObjectsToBeInserted := numObjectsToBeInserted; remainingObjectsToBeInserted > 0; {
+		objectsInsertedInThisBatch := maxNumObjectsPerBatch
+		if objectsInsertedInThisBatch > remainingObjectsToBeInserted {
+			objectsInsertedInThisBatch = remainingObjectsToBeInserted
+		}
+
+		wg.Add(1)
+		go createAndStatBatchOfObjects(batchOffset, objectsInsertedInThisBatch)
+
+		remainingObjectsToBeInserted -= objectsInsertedInThisBatch
+		batchOffset += objectsInsertedInThisBatch
+	}
+	wg.Wait()
 
 	// Stat-call with directory object again, to verify that the first file's
 	// type-cache entry got removed, and this time type-cache inserts a directory entry
