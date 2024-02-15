@@ -51,10 +51,10 @@ type LogConfig struct {
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
 }
 
-type CacheLocation string
+type CacheDir string
 
 type FileCacheConfig struct {
-	MaxSizeInMB           int64 `yaml:"max-size-in-mb"`
+	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 }
 
@@ -75,7 +75,7 @@ type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheLocation       `yaml:"cache-location"`
+	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 }
 
@@ -111,7 +111,7 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeInMB: 0,
+		MaxSizeMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:        TtlInSecsUnsetSentinel,

@@ -85,8 +85,8 @@ func GetObjectPath(bucketName string, objectName string) string {
 }
 
 // GetDownloadPath gives file path to file in cache for given object path.
-func GetDownloadPath(cacheLocation string, objectPath string) string {
-	return path.Join(cacheLocation, objectPath)
+func GetDownloadPath(cacheDir string, objectPath string) string {
+	return path.Join(cacheDir, objectPath)
 }
 
 // IsCacheHandleInvalid says either the current cacheHandle is invalid or not, based

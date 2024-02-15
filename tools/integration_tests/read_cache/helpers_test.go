@@ -104,7 +104,7 @@ func getCachedFilePath(fileName string) string {
 	if setup.DynamicBucketMounted() != "" {
 		bucketName = setup.DynamicBucketMounted()
 	}
-	return path.Join(cacheLocationPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
+	return path.Join(cacheDirPath, cacheSubDirectoryName, bucketName, testDirName, fileName)
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
@@ -248,7 +248,7 @@ func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName
 }
 
 func validateCacheSizeWithinLimit(cacheCapacity int64, t *testing.T) {
-	cacheSize, err := operations.DirSizeMiB(cacheLocationPath)
+	cacheSize, err := operations.DirSizeMiB(cacheDirPath)
 	if err != nil {
 		t.Errorf("Error in getting cache size: %v", cacheSize)
 	}

@@ -39,8 +39,8 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
 	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
-	ExpectEq("", mountConfig.CacheLocation)
-	ExpectEq(0, mountConfig.FileCacheConfig.MaxSizeInMB)
+	ExpectEq("", mountConfig.CacheDir)
+	ExpectEq(0, mountConfig.FileCacheConfig.MaxSizeMB)
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 }
 
@@ -142,7 +142,7 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-in-mb for file-cache can't be less than -1"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-mb for file-cache can't be less than -1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {

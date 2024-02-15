@@ -86,7 +86,7 @@ const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLeve
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
 	// Set up config file with create-empty-file: false.
 	mountConfig1 := config.MountConfig{
@@ -106,9 +106,9 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB: 2,
+			MaxSizeMB: 2,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),

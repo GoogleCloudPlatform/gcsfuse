@@ -209,13 +209,13 @@ func (ut *utilTest) Test_getObjectPath() {
 
 func (ut *utilTest) Test_getDownloadPath() {
 	inputs := []string{"/", "a/b", "a/b/c/d", "/a", "a/"}
-	cacheLocation := "/test/dir"
-	expectedOutputs := [5]string{cacheLocation, cacheLocation + "/a/b",
-		cacheLocation + "/a/b/c/d", cacheLocation + "/a", cacheLocation + "/a"}
+	cacheDir := "/test/dir"
+	expectedOutputs := [5]string{cacheDir, cacheDir + "/a/b",
+		cacheDir + "/a/b/c/d", cacheDir + "/a", cacheDir + "/a"}
 
 	results := [5]string{}
 	for i := 0; i < 5; i++ {
-		results[i] = GetDownloadPath(cacheLocation, inputs[i])
+		results[i] = GetDownloadPath(cacheDir, inputs[i])
 	}
 
 	ExpectTrue(reflect.DeepEqual(expectedOutputs, results))

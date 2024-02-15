@@ -49,13 +49,13 @@ const DefaultSequentialReadSizeMb = 17
 func TestCacheHandle(t *testing.T) { RunTests(t) }
 
 type cacheHandleTest struct {
-	bucket        gcs.Bucket
-	fakeStorage   storage.FakeStorage
-	object        *gcs.MinObject
-	cache         *lru.Cache
-	cacheHandle   *CacheHandle
-	cacheLocation string
-	fileSpec      data.FileSpec
+	bucket      gcs.Bucket
+	fakeStorage storage.FakeStorage
+	object      *gcs.MinObject
+	cache       *lru.Cache
+	cacheHandle *CacheHandle
+	cacheDir    string
+	fileSpec    data.FileSpec
 }
 
 func init() {
@@ -102,7 +102,7 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 
 func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	cht.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
+	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 	// Create bucket in fake storage.
 	cht.fakeStorage = storage.NewFakeStorage()
@@ -129,7 +129,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	cht.cache = lru.NewCache(CacheMaxSize)
 	cht.addTestFileInfoEntryInCache()
 
-	localDownloadedPath := path.Join(cht.cacheLocation, cht.bucket.Name(), cht.object.Name)
+	localDownloadedPath := path.Join(cht.cacheDir, cht.bucket.Name(), cht.object.Name)
 	cht.fileSpec = data.FileSpec{Path: localDownloadedPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}
 
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
@@ -146,7 +146,7 @@ func (cht *cacheHandleTest) TearDown() {
 	err := cht.cacheHandle.Close()
 	AssertEq(nil, err)
 
-	operations.RemoveDir(cht.cacheLocation)
+	operations.RemoveDir(cht.cacheDir)
 }
 
 func (cht *cacheHandleTest) Test_validateCacheHandle_WithNilFileHandle() {

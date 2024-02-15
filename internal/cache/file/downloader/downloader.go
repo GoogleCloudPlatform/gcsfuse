@@ -37,8 +37,8 @@ type JobManager struct {
 	// dirPerm is passed to Job created by JobManager. dirPerm decides the
 	// permission of directory at cache location created by Job.
 	dirPerm os.FileMode
-	// cacheLocation is the path to directory where cache files should be created.
-	cacheLocation string
+	// cacheDir is the path to directory where cache files should be created.
+	cacheDir string
 	// sequentialReadSizeMb is passed to Job created by JobManager, and it decides
 	// the size of GCS read requests by Job at the time of downloading object to
 	// file in cache.
@@ -57,9 +57,9 @@ type JobManager struct {
 	mu   locker.Locker
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheLocation string, sequentialReadSizeMb int32) (jm *JobManager) {
+func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheDir string, sequentialReadSizeMb int32) (jm *JobManager) {
 	jm = &JobManager{fileInfoCache: fileInfoCache, filePerm: filePerm,
-		dirPerm: dirPerm, cacheLocation: cacheLocation, sequentialReadSizeMb: sequentialReadSizeMb}
+		dirPerm: dirPerm, cacheDir: cacheDir, sequentialReadSizeMb: sequentialReadSizeMb}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
 	return
@@ -89,7 +89,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	if ok {
 		return job
 	}
-	downloadPath := util.GetDownloadPath(jm.cacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(jm.cacheDir, objectPath)
 	fileSpec := data.FileSpec{Path: downloadPath, FilePerm: jm.filePerm, DirPerm: jm.dirPerm}
 	// Pass call back function to Job. When this callback function is called, it
 	// removes the job reference from jobs map.
