@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
@@ -100,7 +101,7 @@ func (e entry) Size() (size uint64) {
 	// struct stored in the cache map and in the cache linked-list.
 
 	// Convert heap-size to RSS (resident set size).
-	size *= 2
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
 	return
 }

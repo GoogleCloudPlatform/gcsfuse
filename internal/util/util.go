@@ -32,6 +32,11 @@ const Random = "Random"
 
 const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 
+// HeapSizeToRssConversionFactor is a constant factor
+// which we multiply to the calculated heap-size
+// to get the corresponding resident set size.
+const HeapSizeToRssConversionFactor float64 = 2
+
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
 // ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
