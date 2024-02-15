@@ -53,14 +53,14 @@ type cacheHandlerTest struct {
 	cacheHandler    *CacheHandler
 	downloadPath    string
 	fileInfoKeyName string
-	cacheLocation   string
+	cacheDir        string
 }
 
 func init() { RegisterTestSuite(&cacheHandlerTest{}) }
 
 func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	locker.EnableInvariantsCheck()
-	chrT.cacheLocation = path.Join(os.Getenv("HOME"), "cache/location")
+	chrT.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
 	// Create bucket in fake storage.
 	chrT.fakeStorage = storage.NewFakeStorage()
@@ -77,14 +77,14 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	chrT.cache = lru.NewCache(HandlerCacheMaxSize)
 
 	// Job manager
-	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, util.DefaultDirPerm, chrT.cacheLocation, DefaultSequentialReadSizeMb)
+	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb)
 
 	// Mocked cached handler object.
-	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheLocation, util.DefaultFilePerm, util.DefaultDirPerm)
+	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
-	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
+	chrT.downloadPath = util.GetDownloadPath(chrT.cacheHandler.cacheDir, util.GetObjectPath(chrT.bucket.Name(), chrT.object.Name))
 	_, err = util.CreateFile(data.FileSpec{Path: chrT.downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	AssertEq(nil, err)
 	_ = chrT.getDownloadJobForTestObject()
@@ -92,7 +92,7 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 
 func (chrT *cacheHandlerTest) TearDown() {
 	chrT.fakeStorage.ShutDown()
-	operations.RemoveDir(chrT.cacheLocation)
+	operations.RemoveDir(chrT.cacheDir)
 }
 
 func (chrT *cacheHandlerTest) addTestFileInfoEntryInCache(bucketName string, objectName string) string {
@@ -490,7 +490,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
 	actualJob := chrT.jobManager.GetJob(testObjectName, chrT.bucket.Name())
 	jobStatus := actualJob.GetStatus()
 	ExpectEq(downloader.NotStarted, jobStatus.Name)
-	ExpectTrue(doesFileExist(util.GetDownloadPath(chrT.cacheLocation, util.GetObjectPath(chrT.bucket.Name(), testObjectName))))
+	ExpectTrue(doesFileExist(util.GetDownloadPath(chrT.cacheDir, util.GetObjectPath(chrT.bucket.Name(), testObjectName))))
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
@@ -568,7 +568,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 	AssertEq(nil, cacheHandle.Close())
 	// Open cache file before invalidation
 	objectPath := util.GetObjectPath(chrT.bucket.Name(), minObject.Name)
-	downloadPath := util.GetDownloadPath(chrT.cacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(chrT.cacheDir, objectPath)
 	file, err := os.OpenFile(downloadPath, os.O_RDONLY, 0600)
 	AssertEq(nil, err)
 	_, err = file.Read(buf)
@@ -694,8 +694,8 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	err = chrT.cacheHandler.Destroy()
 
 	AssertEq(nil, err)
-	// Verify the cacheLocation is deleted.
-	_, err = os.Stat(path.Join(chrT.cacheLocation, util.FileCache))
+	// Verify the cacheDir is deleted.
+	_, err = os.Stat(path.Join(chrT.cacheDir, util.FileCache))
 	AssertNe(nil, err)
 	AssertTrue(errors.Is(err, os.ErrNotExist))
 	// Verify jobs are either removed or completed and removed themselves.

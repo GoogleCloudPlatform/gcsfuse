@@ -65,9 +65,9 @@ const (
 )
 
 var (
-	testDirPath       string
-	cacheLocationPath string
-	mountFunc         func([]string) error
+	testDirPath  string
+	cacheDirPath string
+	mountFunc    func([]string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
@@ -85,17 +85,17 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 }
 
 func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
-	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
+	cacheDirPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
 	mountConfig := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB:           cacheSize,
+			MaxSizeMB:             cacheSize,
 			CacheFileForRangeRead: cacheFileForRangeRead,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			Format:          "json",
