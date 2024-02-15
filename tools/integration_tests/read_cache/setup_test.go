@@ -58,10 +58,12 @@ const (
 	offsetForFirstRangeRead            = 5000
 	offsetForSecondRangeRead           = 1000
 	offsetForRangeReadWithin8MB        = 4 * util.MiB
-	offsetEndOfFile                    = fileSizeForRangeRead - 1*util.MiB
 	offset10MiB                        = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB = 100
 	randomReadChunkCount               = 100
+	cacheCapacityForVeryLargeFileInMiB = 1000
+	veryLargeFileSize                  = cacheCapacityForVeryLargeFileInMiB * util.MiB
+	offsetEndOfFile                    = cacheCapacityForVeryLargeFileInMiB - 1*util.MiB
 )
 
 var (
