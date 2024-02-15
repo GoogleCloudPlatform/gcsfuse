@@ -17,7 +17,6 @@ package read_cache
 import (
 	"context"
 	"log"
-	"os"
 	"path"
 	"testing"
 
@@ -38,6 +37,8 @@ type localModificationTest struct {
 }
 
 func (s *localModificationTest) Setup(t *testing.T) {
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(cacheLocationPath)
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = setup.SetupTestDirectory(testDirName)
@@ -45,8 +46,6 @@ func (s *localModificationTest) Setup(t *testing.T) {
 
 func (s *localModificationTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	os.RemoveAll(cacheLocationPath)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -58,14 +57,14 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 	operations.CreateFileOfSize(fileSize, path.Join(testDirPath, testFileName), t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	// Append data in the same file to change object generation.
 	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
 	if err != nil {
 		t.Errorf("Error in appending data in file: %v", err)
 	}
 	// Read file 2nd time.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

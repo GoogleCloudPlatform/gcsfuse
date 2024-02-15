@@ -17,12 +17,12 @@ package read_cache
 import (
 	"context"
 	"log"
-	"os"
 	"sync"
 	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"github.com/jacobsa/ogletest"
@@ -39,13 +39,13 @@ type cacheFileForRangeReadFalseTest struct {
 }
 
 func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
 	unmountGCSFuseAndDeleteLogFile()
-	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	os.RemoveAll(cacheDirPath)
 }
 
 ////////////////////////////////////////////////////////////////////////

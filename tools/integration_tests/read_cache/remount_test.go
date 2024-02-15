@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
@@ -40,6 +42,7 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
+	operations.RemoveDir(cacheLocationPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
@@ -55,7 +58,7 @@ func readFileAndValidateCacheWithGCSForDynamicMount(bucketName string, ctx conte
 	setup.SetDynamicBucketMounted(bucketName)
 	defer setup.SetDynamicBucketMounted("")
 	testDirPath = path.Join(rootDir, bucketName, testDirName)
-	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, t)
+	expectedOutcome = readFileAndValidateCacheWithGCS(ctx, storageClient, fileName, fileSize, false, t)
 
 	return expectedOutcome
 }
@@ -68,14 +71,14 @@ func (s *remountTest) TestCacheIsNotReusedOnRemount(t *testing.T) {
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Run read operations on GCSFuse mount.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
 	structuredReadLogsMount1 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	// Re-mount GCSFuse.
 	remountGCSFuse(s.flags, t)
 	// Run read operations again on GCSFuse mount.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
-	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
+	expectedOutcome4 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
 	structuredReadLogsMount2 := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 
 	validate(expectedOutcome1, structuredReadLogsMount1[0], true, false, chunksRead, t)
