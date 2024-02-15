@@ -16,10 +16,14 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"log"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -71,7 +75,7 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 		t.Fatalf("Error while reading synced local file from GCS, Err: %v", err)
 	}
 
-	if expectedContent != gotContent {
+	if expectedContent != string(gotContent) {
 		t.Fatalf("GCS file %s content mismatch. Got: %s, Expected: %s ", fileName, gotContent, expectedContent)
 	}
 }
@@ -103,4 +107,76 @@ func CreateObjectInGCSTestDir(ctx context.Context, storageClient *storage.Client
 	if err != nil {
 		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
 	}
+}
+
+func createStorageClient(ctx *context.Context, storageClient **storage.Client, t *testing.T) func() {
+	var err error
+	var cancel context.CancelFunc
+	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
+	*storageClient, err = CreateStorageClient(*ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+	// return func to close storage client and release resources.
+	return func() {
+		err := (*storageClient).Close()
+		if err != nil {
+			t.Errorf("Failed to close storage client")
+		}
+		defer cancel()
+	}
+}
+
+func ReadLargeFileFromGCS(gcsObjPath ,localPath string, size int64, t *testing.T) (data []byte, err error) {
+	ctx:= context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := createStorageClient(&ctx, &storageClient, t)
+	defer closeStorageClient()
+
+	data, err = ReadObjectFromGCS(ctx,storageClient,gcsObjPath,size)
+	if err != nil {
+		err = fmt.Errorf("Error in reading object from gcs: %v",err)
+	}
+
+	return data,err
+}
+
+// downloadFile downloads an object to a file.
+func DownloadFile(w io.Writer, bucket, object string, destFileName string) error {
+	// bucket := "bucket-name"
+	// object := "object-name"
+	// destFileName := "file.txt"
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*15)
+	defer cancel()
+
+	f, err := os.Create(destFileName)
+	if err != nil {
+		return fmt.Errorf("os.Create: %w", err)
+	}
+
+	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("Object(%q).NewReader: %w", object, err)
+	}
+	defer rc.Close()
+
+	if _, err := io.Copy(f, rc); err != nil {
+		return fmt.Errorf("io.Copy: %w", err)
+	}
+
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("f.Close: %w", err)
+	}
+
+	fmt.Println(w, "Blob %v downloaded to local file %v\n", object, destFileName)
+
+	return nil
+
 }

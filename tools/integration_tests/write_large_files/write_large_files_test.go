@@ -17,12 +17,14 @@ package write_large_files
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"io"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -32,10 +34,11 @@ const (
 	WritePermission_0200 = 0200
 )
 
-func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string) error {
-	err := operations.DownloadGcsObject(gcsFile, localFilePathToDownloadGcsFile)
-	if err != nil {
-		return fmt.Errorf("Error in downloading object: %v", err)
+func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string, fileSize int64, t *testing.T) error {
+	var w io.Writer
+	err := client.DownloadFile(w, setup.TestBucket(),gcsFile,localFilePathToDownloadGcsFile)
+	if err != nil{
+		t.Errorf("Error in downloading file: %v",err)
 	}
 
 	// Remove file after testing.
@@ -45,6 +48,24 @@ func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownl
 	if !identical {
 		return fmt.Errorf("Download of GCS object %s didn't match the Mounted local file (%s): %v", localFilePathToDownloadGcsFile, mntDirFile, err)
 	}
+
+	return nil
+
+
+	//expectedContent, err := client.ReadLargeFileFromGCS(gcsFile, localFilePathToDownloadGcsFile,fileSize,t)
+	//if err != nil {
+	//	return fmt.Errorf("Error in downloading object: %v", err)
+	//}
+	//
+	//gotContent , err:= operations.ReadFile(mntDirFile)
+	//if err != nil{
+	//	t.Errorf("Error in reading file: %v", err)
+	//}
+	//
+	//fmt.Println("Size: ",len(gotContent))
+	//if bytes.Compare(expectedContent,gotContent) != 0{
+	//	t.Fatalf("GCS file %s content mismatch", gcsFile)
+	//}
 
 	return nil
 }
