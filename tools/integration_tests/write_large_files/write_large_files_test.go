@@ -34,7 +34,7 @@ const (
 )
 
 func compareFileFromGCSBucketAndMntDir(gcsFile, mntDirFile, localFilePathToDownloadGcsFile string, t *testing.T) error {
-	err := client.DownloadFileWithStorageClient(gcsFile,localFilePathToDownloadGcsFile,t)
+	err := client.DownloadFileWithStorageClient(gcsFile, localFilePathToDownloadGcsFile, t)
 	if err != nil {
 		return fmt.Errorf("Error in downloading object: %v", err)
 	}

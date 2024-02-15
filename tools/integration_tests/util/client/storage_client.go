@@ -121,13 +121,13 @@ func createStorageClient(ctx *context.Context, storageClient **storage.Client, t
 }
 
 // Downloads an object to a file.
-func DownloadFileWithStorageClient(gcsFile string, destFileName string,t *testing.T) error {
+func DownloadFileWithStorageClient(gcsFile string, destFileName string, t *testing.T) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
 
-	ctx:=context.Background()
-	var  storageClient *storage.Client
-	closeStorageClient := createStorageClient(&ctx, &storageClient,t)
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := createStorageClient(&ctx, &storageClient, t)
 	defer closeStorageClient()
 
 	f, err := os.Create(destFileName)

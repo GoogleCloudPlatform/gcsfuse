@@ -50,7 +50,7 @@ func writeFile(fileName string, fileSize int64, t *testing.T) error {
 
 	filePathInGcsBucket := path.Join(DirForConcurrentWrite, fileName)
 	localFilePath := path.Join(TmpDir, fileName)
-	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath,t)
+	err = compareFileFromGCSBucketAndMntDir(filePathInGcsBucket, filePath, localFilePath, t)
 	if err != nil {
 		return fmt.Errorf("Error: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 
 		// Thread to write the current file.
 		eG.Go(func() error {
-			return writeFile(files[fileIndex], FiveHundredMB,t)
+			return writeFile(files[fileIndex], FiveHundredMB, t)
 		})
 	}
 
