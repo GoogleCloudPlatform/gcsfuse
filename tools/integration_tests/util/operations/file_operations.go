@@ -452,8 +452,6 @@ func GetGcsObjectSize(gcsObjPath string) (int, error) {
 // Downloads given GCS object (with path without 'gs://') to localPath.
 // Fails if the object doesn't exist or permission to read object is not
 // available.
-// Uses 'gsutil cp gs://gcsObjPath localPath'
-// Alternative 'gcloud storage cp gs://gcsObjPath localPath' but it doesn't work on kokoro VM.
 func DownloadGcsObject(gcsObjPath, localPath string) error {
 	_, err := ExecuteGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
 	if err != nil {
