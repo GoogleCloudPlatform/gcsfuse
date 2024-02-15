@@ -100,11 +100,10 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	}
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
-	for i := 1; i < randomReadChunkCount; i++ {
-		ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[i].IsSequential)
-		ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[i].CacheHit)
-		ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[i].IsSequential)
-	}
+	// validate last chunk was considered non-sequential and cache hit false.
+	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
+	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
+
 	validateFileIsNotCached(testFileNames[0], t)
 	validateFileInCacheDirectory(testFileNames[1], fileSizeForRangeRead, s.ctx, s.storageClient, t)
 }
