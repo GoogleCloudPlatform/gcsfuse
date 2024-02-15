@@ -121,7 +121,7 @@ func createStorageClient(ctx *context.Context, storageClient **storage.Client, t
 }
 
 // Downloads an object to a file.
-func DownloadFileWithStorageClient(gcsFile string, destFileName string, t *testing.T) error {
+func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
 
