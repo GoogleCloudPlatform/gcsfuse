@@ -205,7 +205,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 
-	err = util.ResolveConfigFilePaths(mountConfig)
+	err = config.ResolveConfigFilePaths(mountConfig)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
@@ -225,12 +225,29 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
-	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
-	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
 
-	// the following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
+	flagsStringified, err := util.Stringify(*flags)
+	if err != nil {
+		logger.Warnf("failed to stringify cli flags: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+	}
+
+	mountConfigStringified, err := util.Stringify(*mountConfig)
+	if err != nil {
+		logger.Warnf("failed to stringify config-file: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+	}
+
+	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
+	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
+		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
+	}
+
+	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
 	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
-		logger.Warnf("Old flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon

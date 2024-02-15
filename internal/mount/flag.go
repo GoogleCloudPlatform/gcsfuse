@@ -15,11 +15,13 @@
 package mount
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 type ClientProtocol string
@@ -31,6 +33,23 @@ const (
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
 	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
+	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
+	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
+	DefaultStatCacheCapacity = 12710
+	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
+	// and is to be used when neither stat-cache-max-size-mb nor
+	// stat-cache-capacity is set.
+	DefaultStatCacheMaxSizeMB = 32
+	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
+	// meant for two purposes.
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfPositiveStatCacheEntry uint64 = 2400
+	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
+	// meant for two purposes..
+	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
+	// 2. internal testing.
+	AverageSizeOfNegativeStatCacheEntry uint64 = 240
 )
 
 func (cp ClientProtocol) IsValid() bool {
@@ -79,9 +98,9 @@ func ParseOptions(m map[string]string, s string) {
 
 }
 
-// MetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
-func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
-	// if metadata-cache:ttl-secs has been set in config-file, then
+// ResolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
+	// If metadata-cache:ttl-secs has been set in config-file, then
 	// it overrides both stat-cache-ttl and type-cache-tll.
 	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
 		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
@@ -94,5 +113,28 @@ func MetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int
 		metadataCacheTTL = time.Second * time.Duration(uint64(math.Ceil(math.Min(statCacheTTL.Seconds(), typeCacheTTL.Seconds()))))
 	}
 
+	return
+}
+
+// ResolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
+func ResolveStatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
+	if mountConfigStatCacheMaxSizeMB != config.StatCacheMaxSizeMBUnsetSentinel {
+		if mountConfigStatCacheMaxSizeMB == -1 {
+			statCacheMaxSizeMB = config.MaxSupportedStatCacheMaxSizeMB
+		} else {
+			statCacheMaxSizeMB = uint64(mountConfigStatCacheMaxSizeMB)
+		}
+	} else {
+		if flagStatCacheCapacity != DefaultStatCacheCapacity {
+			if flagStatCacheCapacity < 0 {
+				return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
+			}
+			avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+			return util.BytesToHigherMiBs(
+				uint64(flagStatCacheCapacity) * avgTotalStatCacheEntrySize), nil
+		} else {
+			return DefaultStatCacheMaxSizeMB, nil
+		}
+	}
 	return
 }
