@@ -17,13 +17,14 @@ package read_cache
 import (
 	"context"
 	"log"
+	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
-
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
+	"github.com/jacobsa/ogletest"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -45,6 +46,17 @@ func (s *cacheFileForRangeReadFalseTest) Teardown(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func readFileAsync(t *testing.T, wg *sync.WaitGroup, testFileName string, expectedOutcome **Expected) {
+	go func() {
+		defer wg.Done()
+		*expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, testFileName, true, zeroOffset, t)
+	}()
+}
+
+////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +72,38 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], false, false, 1, t)
 	validateFileIsNotCached(testFileName, t)
+}
+
+func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
+	var testFileNames [2]string
+	var expectedOutcome [2]*Expected
+	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		readFileAsync(t, &wg, testFileNames[i], &expectedOutcome[i])
+	}
+	wg.Wait()
+
+	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	// Goroutine execution order isn't guaranteed.
+	// If the object name in expected outcome doesn't align with the logs, swap
+	// the expected outcome objects and file names at positions 0 and 1.
+	if expectedOutcome[0].ObjectName != structuredReadLogs[0].ObjectName {
+		expectedOutcome[0], expectedOutcome[1] = expectedOutcome[1], expectedOutcome[0]
+		testFileNames[0], testFileNames[1] = testFileNames[1], testFileNames[0]
+	}
+	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
+	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
+	for i := 1; i < randomReadChunkCount; i++ {
+		ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[i].IsSequential)
+		ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[i].CacheHit)
+		ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[i].IsSequential)
+	}
+	validateFileIsNotCached(testFileNames[0], t)
+	validateFileInCacheDirectory(testFileNames[1], fileSizeForRangeRead, s.ctx, s.storageClient, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
