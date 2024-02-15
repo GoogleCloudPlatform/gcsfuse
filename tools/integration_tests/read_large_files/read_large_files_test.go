@@ -37,17 +37,17 @@ const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheLocationPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
 	// Set up config file for file cache with cache-file-for-range-read: false
 	mountConfig1 := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as high because the operations are performed on large
 			// files
-			MaxSizeInMB:           700,
+			MaxSizeMB:             700,
 			CacheFileForRangeRead: true,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
@@ -59,10 +59,10 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	// Set up config file for file cache with unlimited capacity
 	mountConfig2 := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: false,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
