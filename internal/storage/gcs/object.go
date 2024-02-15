@@ -90,6 +90,24 @@ type MinObject struct {
 	ContentEncoding string
 }
 
+// ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
+type ExtendedObjectAttributes struct {
+	ContentType        string
+	ContentLanguage    string
+	CacheControl       string
+	Owner              string
+	MD5                *[md5.Size]byte // Missing for composite objects
+	CRC32C             *uint32         //Missing for CMEK buckets
+	MediaLink          string
+	StorageClass       string
+	Deleted            time.Time
+	ComponentCount     int64
+	ContentDisposition string
+	CustomTime         string
+	EventBasedHold     bool
+	Acl                []*storagev1.ObjectAccessControl
+}
+
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
 }
