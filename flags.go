@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -32,8 +33,6 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	DefaultStatCacheCapacity = 4096
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -207,20 +206,20 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: DefaultStatCacheCapacity,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+				Value: mount.DefaultStatCacheCapacity,
+				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 2640 bytes, including 2400 for positive entry and 240 for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
@@ -419,6 +418,8 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 	if err != nil {
 		return
 	}
+
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", flagKey, flagValue, resolvedPath)
 
 	err = c.Set(flagKey, resolvedPath)
 	return

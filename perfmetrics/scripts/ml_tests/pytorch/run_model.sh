@@ -49,12 +49,12 @@ echo "logging:
           compress: true
 metadata-cache:
   ttl-secs: 1728000
+  stat-cache-max-size-mb: 3200
        " > /tmp/gcsfuse_config.yaml
 
 echo "Created config-file at "$config_filename
 echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
-        --stat-cache-capacity=1320000 \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
