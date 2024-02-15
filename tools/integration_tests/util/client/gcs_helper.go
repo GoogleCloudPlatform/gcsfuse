@@ -15,13 +15,14 @@
 package client
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"os"
 	"path"
 	"strings"
 	"testing"
+
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 )
 
 const (
