@@ -39,7 +39,7 @@ const (
 
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxEntriesInvalidValueError  = "the value of type-cache-max-entries for metadata-cache can't be less than -1"
+	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
 	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
@@ -85,8 +85,8 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
-	if metadataCacheConfig.TypeCacheMaxEntries < -1 {
-		return fmt.Errorf(TypeCacheMaxEntriesInvalidValueError)
+	if metadataCacheConfig.TypeCacheMaxSizeMB < -1 {
+		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
 	}
 
 	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {

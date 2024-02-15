@@ -35,14 +35,21 @@ const (
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
-	// DefaultTypeCacheMaxEntries is the default vlaue of type-cache-max-entries.
-	// The value is set high at 1,048,476 (2^20) as it is not supposed to be set by users.
-	DefaultTypeCacheMaxEntries int = 2 << 20
+	// DefaultTypeCacheMaxSizeMB is the default vlaue of type-cache max-size for every directory in MiBs.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
+	DefaultTypeCacheMaxSizeMB int = 4
 
 	// StatCacheMaxSizeMBUnsetSentinel is the value internally
 	// set for metada-cache:stat-cache-max-size-mb
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
+
+	// AverageTypeCacheEntrySize is for internal size calculation
+	// purposes. This is util.HeapSizeToRssConversionFactor * avg. heap-size. Heap-size
+	// is fixed 80 bytes + length of entry-key string
+	// (which is assumed to be 20 for common cases).
+	AverageTypeCacheEntrySize int = 200
 )
 
 type WriteConfig struct {
@@ -70,10 +77,11 @@ type MetadataCacheConfig struct {
 	// no cache and > 0 for ttl-controlled metadata-cache.
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
-	// TypeCacheMaxEntries is the upper limit
-	// on the maximum number of type-cache entries,
-	// which are maintained at per-directory level.
-	TypeCacheMaxEntries int `yaml:"type-cache-max-entries,omitempty"`
+	// TypeCacheMaxSizeMB is the upper limit
+	// on the maximum size of type-cache maps,
+	// which are currently
+	// maintained at per-directory level.
+	TypeCacheMaxSizeMB int `yaml:"type-cache-max-size-mb,omitempty"`
 
 	// StatCacheMaxSizeMB is the maximum size of stat-cache
 	// in MiBs.
@@ -125,9 +133,9 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB: 0,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds:        TtlInSecsUnsetSentinel,
-		TypeCacheMaxEntries: DefaultTypeCacheMaxEntries,
-		StatCacheMaxSizeMB:  StatCacheMaxSizeMBUnsetSentinel,
+		TtlInSeconds:       TtlInSecsUnsetSentinel,
+		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
+		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	return mountConfig
 }
