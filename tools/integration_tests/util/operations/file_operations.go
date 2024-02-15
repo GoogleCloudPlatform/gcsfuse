@@ -455,7 +455,7 @@ func GetGcsObjectSize(gcsObjPath string) (int, error) {
 // Uses 'gsutil cp gs://gcsObjPath localPath'
 // Alternative 'gcloud storage cp gs://gcsObjPath localPath' but it doesn't work on kokoro VM.
 func DownloadGcsObject(gcsObjPath, localPath string) error {
-	_, err := ExecuteGsutilCommandf("cp gs://%s %s", gcsObjPath, localPath)
+	_, err := ExecuteGcloudCommandf("storage cp gs://%s %s", gcsObjPath, localPath)
 	if err != nil {
 		return err
 	}
