@@ -101,11 +101,11 @@ func (t *TypeCacheTestWithMaxSize1MB) SetUpTestSuite() {
 	t.typeCacheTestCommon.SetUpTestSuite()
 }
 
-type TypeCacheTestWithZeroCapacity struct {
+type TypeCacheTestWithZeroSize struct {
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithZeroCapacity) SetUpTestSuite() {
+func (t *TypeCacheTestWithZeroSize) SetUpTestSuite() {
 	ttlInSeconds = 30
 	typeCacheMaxSizeMb = 0
 
@@ -136,7 +136,7 @@ func (t *TypeCacheTestWithInfiniteTTL) SetUpTestSuite() {
 
 func init() {
 	RegisterTestSuite(&TypeCacheTestWithMaxSize1MB{})
-	RegisterTestSuite(&TypeCacheTestWithZeroCapacity{})
+	RegisterTestSuite(&TypeCacheTestWithZeroSize{})
 	RegisterTestSuite(&TypeCacheTestWithZeroTTL{})
 	RegisterTestSuite(&TypeCacheTestWithInfiniteTTL{})
 }
@@ -190,8 +190,96 @@ func (t *typeCacheTestCommon) testNoInsertion() {
 }
 
 // //////////////////////////////////////////////////////////////////////
-// Tests for TypeCacheTestWithMaxEntries1
+// Tests for TypeCacheTestWithMaxSize1MB
 // //////////////////////////////////////////////////////////////////////
+func (t *TypeCacheTestWithMaxSize1MB) TestStatBehavior_DirHiddenByFile() {
+	const name1 = "foo"
+	const contents = "taco"
+	contentInBytes := []byte(contents)
+	var fi fs.FileInfo
+	var err error
+
+	// Create a file object in GCS.
+	fileObject, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		name1,
+		[]byte(contents))
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, fileObject)
+
+	// Stat-call with the file object. It should
+	// pass stat call, as a file.
+	fi, err = os.Stat(path.Join(mntDir, name1))
+
+	ExpectEq(nil, err)
+	AssertNe(nil, fi)
+	ExpectFalse(fi.IsDir())
+
+	// Create a directory object in GCS with same name as the file object.
+	dirObject, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		name1+"/",
+		contentInBytes)
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, dirObject)
+
+	// Stat-call with the directory object should fail
+	// as there is currently an entry for the
+	// file object in type-cache, which has the same name.
+	_, err = os.Stat(path.Join(mntDir, name1) + "/")
+
+	ExpectNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
+}
+
+func (t *TypeCacheTestWithMaxSize1MB) TestStatBehavior_FileHiddenByDir() {
+	const name1 = "foo"
+	const contents = "taco"
+	contentInBytes := []byte(contents)
+	var fi fs.FileInfo
+	var err error
+
+	// Create a directory object in GCS.
+	dirObject, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		name1+"/",
+		contentInBytes)
+
+	ExpectEq(nil, err)
+	AssertNe(nil, dirObject)
+
+	// Stat-call with the directory object. It should
+	// pass and return type as directory.
+	fi, err = os.Stat(path.Join(mntDir, name1) + "/")
+
+	ExpectEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	// Create a file object in GCS with same name as the directory object.
+	fileObject, err := storageutil.CreateObject(
+		ctx,
+		bucket,
+		name1,
+		[]byte(contents))
+
+	ExpectEq(nil, err)
+	ExpectNe(nil, fileObject)
+
+	// Stat-call with the file object should
+	// pass but it should still report it as a directory
+	// because of its old type-cache entry.
+	fi, err = os.Stat(path.Join(mntDir, name1))
+
+	ExpectEq(nil, err)
+	AssertNe(nil, fi)
+	ExpectTrue(fi.IsDir())
+}
+
 func (t *TypeCacheTestWithMaxSize1MB) TestSizeBasedEviction() {
 	const name1 = "foo"
 	const contents = "taco"
@@ -380,9 +468,9 @@ func (t *TypeCacheTestWithMaxSize1MB) TestTTLBasedEviction() {
 }
 
 // //////////////////////////////////////////////////////////////////////
-// Tests for TypeCacheTestWithZeroCapacity
+// Tests for TypeCacheTestWithZeroSize
 // //////////////////////////////////////////////////////////////////////
-func (t *TypeCacheTestWithZeroCapacity) TestNoInsertion() {
+func (t *TypeCacheTestWithZeroSize) TestNoInsertion() {
 	t.typeCacheTestCommon.testNoInsertion()
 }
 
