@@ -102,7 +102,6 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-
 func createStorageClient(ctx *context.Context, storageClient **storage.Client, t *testing.T) func() {
 	var err error
 	var cancel context.CancelFunc
