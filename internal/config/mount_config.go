@@ -36,14 +36,20 @@ const (
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
 	// DefaultTypeCacheMaxSizeMB is the default vlaue of type-cache max-size for every directory in MiBs.
-	// The value is set at the size needed for about 42k type-cache entries,
-	// each of which is about 100 bytes in size.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
 	DefaultTypeCacheMaxSizeMB int = 4
 
 	// StatCacheMaxSizeMBUnsetSentinel is the value internally
 	// set for metada-cache:stat-cache-max-size-mb
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
+
+	// AverageTypeCacheEntrySize is for internal testing
+	// purposes. This is 2x avg. heap-size. Heap-size
+	// is fixed 80 bytes + length of entry-key string
+	// (which is assumed to be 20 for common cases).
+	AverageTypeCacheEntrySize int = 200
 )
 
 type WriteConfig struct {

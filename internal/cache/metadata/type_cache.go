@@ -74,16 +74,24 @@ type cacheEntry struct {
 	key string
 }
 
-// Size returns the size of cacheEntry, which is
+// Size returns the size of cacheEntry on RSS (Resident Set Size), which is
+// approximated as twice as calculated heap-size.
+// The calculated heap-size for each entry is
 // 80-bytes (24 for expiry, 8 for inodeType, 3*16 for 3 copies of
 // string structure for the key ) + length of the key itself,
 // for each entry (including negative ones).
 // This size is specific
 // to 64-bit linux machines, and might differ on other platforms.
-func (ce cacheEntry) Size() uint64 {
+func (ce cacheEntry) Size() (size uint64) {
+	// First calculate size on heap.
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the 2 other copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	return uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
+	size = uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
+
+	// Convert heap-size to rss (resident set size).
+	size *= 2
+
+	return
 }
 
 // A cache that maps from a name to information about the type of the object
