@@ -43,7 +43,7 @@ func NewExplicitDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxEntries int) (d ExplicitDirInode) {
+	typeCacheMaxSizeMB int) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
@@ -54,7 +54,7 @@ func NewExplicitDirInode(
 		bucket,
 		mtimeClock,
 		cacheClock,
-		typeCacheMaxEntries)
+		typeCacheMaxSizeMB)
 
 	d = &explicitDirInode{
 		dirInode: wrapped.(*dirInode),
