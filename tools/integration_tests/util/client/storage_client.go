@@ -102,7 +102,7 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-func createStorageClient(ctx *context.Context, storageClient **storage.Client, t *testing.T) func() {
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, t *testing.T) func() {
 	var err error
 	var cancel context.CancelFunc
 	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
@@ -127,7 +127,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := createStorageClient(&ctx, &storageClient, t)
+	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, t)
 	defer closeStorageClient()
 
 	f, err := os.Create(destFileName)
