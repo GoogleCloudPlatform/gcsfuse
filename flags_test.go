@@ -112,7 +112,7 @@ func (t *FlagsTest) Bools() {
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
-		"disable-managed-folder-listing",
+		"enable-managed-folders",
 	}
 
 	var args []string
