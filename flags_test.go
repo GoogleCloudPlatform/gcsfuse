@@ -88,7 +88,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(0, f.HttpClientTimeout)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
-	ExpectTrue(f.DisableManagedFolderListing)
+	ExpectTrue(f.EnableManagedFolders)
 	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// Logging
@@ -134,7 +134,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
-	ExpectTrue(f.DisableManagedFolderListing)
+	ExpectTrue(f.EnableManagedFolders)
 
 	// --foo=false form
 	args = nil
@@ -151,7 +151,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 	ExpectFalse(f.EnableNonexistentTypeCache)
-	ExpectFalse(f.DisableManagedFolderListing)
+	ExpectFalse(f.EnableManagedFolders)
 
 	// --foo=true form
 	args = nil
@@ -168,7 +168,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
-	ExpectTrue(f.DisableManagedFolderListing)
+	ExpectTrue(f.EnableManagedFolders)
 }
 
 func (t *FlagsTest) DecimalNumbers() {
