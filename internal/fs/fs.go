@@ -224,9 +224,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	cacheDir := string(cfg.MountConfig.CacheDir)
-	// Adding a new directory inside cacheDir, so that at the time of Destroy
-	// during unmount we can do os.RemoveAll(cacheDir) without deleting non
-	// gcsfuse related files.
+	// Adding a new directory inside cacheDir to keep file-cache separate from
+	// metadata cache if and when we support storing metadata cache on disk in
+	// the future.
 	cacheDir = path.Join(cacheDir, util.FileCache)
 
 	filePerm := util.DefaultFilePerm
