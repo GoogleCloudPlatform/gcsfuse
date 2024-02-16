@@ -273,10 +273,9 @@ func (chr *CacheHandler) InvalidateCache(objectName string, bucketName string) e
 	return nil
 }
 
-// Destroy destroys the job manager (i.e. invalidate all the jobs) and delete the
-// file cache directory (i.e. deleting all the files in cache). Note: This method
-// is expected to be called at the time of unmounting and because file info cache
-// is in-memory, it is not required to destroy it.
+// Destroy destroys the job manager (i.e. invalidate all the jobs).
+// Note: This method is expected to be called at the time of unmounting and
+// because file info cache is in-memory, it is not required to destroy it.
 //
 // Acquires and releases Lock(chr.mu)
 func (chr *CacheHandler) Destroy() (err error) {
@@ -284,6 +283,5 @@ func (chr *CacheHandler) Destroy() (err error) {
 	defer chr.mu.Unlock()
 
 	chr.jobManager.Destroy()
-	err = os.RemoveAll(chr.cacheDir)
 	return
 }
