@@ -17,7 +17,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"io"
 	"log"
 	"os"
@@ -25,6 +24,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
