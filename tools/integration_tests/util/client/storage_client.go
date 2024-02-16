@@ -132,6 +132,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 	defer closeStorageClient()
 
 	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
 
 	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
 	if err != nil {
@@ -142,8 +143,6 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 	if _, err := io.Copy(f, rc); err != nil {
 		return fmt.Errorf("io.Copy: %w", err)
 	}
-
-	operations.CloseFile(f)
 
 	return nil
 }
