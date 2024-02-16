@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -132,10 +131,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
 	defer closeStorageClient()
 
-	f, err := os.Create(destFileName)
-	if err != nil {
-		return fmt.Errorf("os.Create: %w", err)
-	}
+	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
 
 	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
 	if err != nil {
