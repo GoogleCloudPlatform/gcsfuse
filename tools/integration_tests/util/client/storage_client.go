@@ -114,7 +114,6 @@ func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storag
 	}
 
 	// return func to close storage client and release resources.
-	// Return a closure to close the client and cancel the context
 	return func() error {
 		err := (*storageClient).Close()
 		defer cancel()
