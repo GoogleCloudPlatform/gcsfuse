@@ -156,14 +156,9 @@ func unmountGCSFuseAndDeleteLogFile() {
 	}
 }
 
-func remountGCSFuseAndValidateCacheDeleted(flags []string, t *testing.T) {
+func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	unmountGCSFuseAndDeleteLogFile()
-
-	// Adding sleep of 2s for the file system to complete the deletion of cached files.
-	// Todo: Remove sleep after b/317437499 is resolved.
-	time.Sleep(2 * time.Second)
-	validateCacheSizeWithinLimit(0, t)
 
 	mountGCSFuse(flags)
 	setup.SetMntDir(mountDir)
@@ -197,13 +192,15 @@ func createStorageClient(t *testing.T, ctx *context.Context, storageClient **sto
 }
 
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
-	filename string, fileSize int64, t *testing.T) (expectedOutcome *Expected) {
+	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, zeroOffset, t)
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
-	// Validate cache size within limit.
-	validateCacheSizeWithinLimit(cacheCapacityInMB, t)
+	if checkCacheSize {
+		// Validate cache size within limit.
+		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
+	}
 	// Validate content read via gcsfuse with gcs.
 	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
 		expectedOutcome.content, t)
