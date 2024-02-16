@@ -50,6 +50,8 @@ const (
 	// is fixed 80 bytes + length of entry-key string
 	// (which is assumed to be 20 for common cases).
 	AverageTypeCacheEntrySize int = 200
+
+	DefaultFileCacheMaxSizeMB int64 = -1
 )
 
 type WriteConfig struct {
@@ -130,7 +132,7 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB: 0,
+		MaxSizeMB: DefaultFileCacheMaxSizeMB,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

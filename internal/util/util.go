@@ -68,15 +68,6 @@ func GetResolvedPath(filePath string) (resolvedPath string, err error) {
 	}
 }
 
-func ResolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
-	resolvedPath, err = GetResolvedPath(filePath)
-	if filePath == resolvedPath || err != nil {
-		return
-	}
-
-	return resolvedPath, nil
-}
-
 // Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
 func Stringify(input any) (string, error) {
 	inputBytes, err := json.Marshal(input)

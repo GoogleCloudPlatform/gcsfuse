@@ -14,10 +14,6 @@
 
 package config
 
-import (
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
-)
-
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
 func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
@@ -35,14 +31,4 @@ func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logForma
 	if debugFuse || debugGCS || debugMutex {
 		mountConfig.LogConfig.Severity = TRACE
 	}
-}
-
-// ResolveConfigFilePaths resolves the config file paths specified in the config file.
-func ResolveConfigFilePaths(config *MountConfig) (err error) {
-	config.LogConfig.FilePath, err = util.ResolveFilePath(config.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-
-	return
 }
