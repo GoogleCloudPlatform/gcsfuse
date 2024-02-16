@@ -112,7 +112,7 @@ func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storag
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
-	// return func to close storage client and release resources.
+	// Return func to close storage client and release resources.
 	return func() {
 		err := (*storageClient).Close()
 		if err != nil {
