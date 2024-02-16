@@ -412,15 +412,23 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
-// This method resolves path in the context dictionary.
-func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
-	flagValue := c.String(flagKey)
-	resolvedPath, err := util.GetResolvedPath(flagValue)
-	if err != nil {
+func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
+	resolvedPath, err = util.GetResolvedPath(filePath)
+	if filePath == resolvedPath || err != nil {
 		return
 	}
 
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", flagKey, flagValue, resolvedPath)
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
+	return resolvedPath, nil
+}
+
+// This method resolves path in the context dictionary.
+func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
+	flagValue := c.String(flagKey)
+	resolvedPath, err := resolveFilePath(flagValue, flagKey)
+	if err != nil {
+		return
+	}
 
 	err = c.Set(flagKey, resolvedPath)
 	return
@@ -451,21 +459,17 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 
 // resolveConfigFilePaths resolves the config file paths specified in the config file.
 func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
-	filePath := mountConfig.LogConfig.FilePath
-	mountConfig.LogConfig.FilePath, err = util.GetResolvedPath(filePath)
+	mountConfig.LogConfig.FilePath, err = resolveFilePath(mountConfig.LogConfig.FilePath, "logging: file")
 	if err != nil {
 		return
 	}
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", "logging: file", filePath, mountConfig.LogConfig.FilePath)
 
 	// Resolve cache-dir path
-	filePath = string(mountConfig.CacheDir)
-	resolvedPath, err := util.GetResolvedPath(filePath)
+	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
 	mountConfig.CacheDir = config.CacheDir(resolvedPath)
 	if err != nil {
 		return
 	}
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", "cache-dir", filePath, mountConfig.CacheDir)
 
 	return
 }
