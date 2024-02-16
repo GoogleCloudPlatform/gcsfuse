@@ -162,7 +162,7 @@ func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
 	localFileInodes map[inode.Name]inode.Inode,
-	disabledManagedFolder bool) (entries []fuseutil.Dirent, err error) {
+	enableManagedFolders bool) (entries []fuseutil.Dirent, err error) {
 	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
@@ -170,7 +170,7 @@ func readAllEntries(
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok, disabledManagedFolder)
+		batch, tok, err = in.ReadEntries(ctx, tok, enableManagedFolders)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return
@@ -238,13 +238,13 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode, disableManagedFolder bool) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode, enableManagedFolders bool) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileInodes, disableManagedFolder)
+	entries, err = readAllEntries(ctx, dh.in, localFileInodes, enableManagedFolders)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -273,7 +273,7 @@ func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
 	localFileInodes map[inode.Name]inode.Inode,
-	disableManagedFolder bool) (err error) {
+	enableManagedFolders bool) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -283,7 +283,7 @@ func (dh *DirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx, localFileInodes, disableManagedFolder)
+		err = dh.ensureEntries(ctx, localFileInodes, enableManagedFolders)
 		if err != nil {
 			return
 		}
