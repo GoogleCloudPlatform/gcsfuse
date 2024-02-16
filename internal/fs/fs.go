@@ -22,7 +22,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -154,9 +153,10 @@ func NewFileSystem(
 		}
 	}
 
-	// Create file cache handler if cache is enabled by user.
+	// Create file cache handler if cache is enabled by user. Cache is considered
+	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMB != 0 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB != 0 && string(cfg.MountConfig.CacheDir) != "" {
 		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
@@ -224,21 +224,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
 	cacheDir := string(cfg.MountConfig.CacheDir)
-	// Use temp-dir as default cache-dir.
-	if cacheDir == "" {
-		if cfg.TempDir == "" {
-			cacheDir = os.TempDir()
-		} else {
-			cacheDir = cfg.TempDir
-		}
-	}
-	cacheDir, err := filepath.Abs(cacheDir)
-	if err != nil {
-		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-dir (%s) in config-file: %w", cacheDir, err))
-	}
-	// Adding a new directory inside cacheDir, so that at the time of Destroy
-	// during unmount we can do os.RemoveAll(cacheDir) without deleting non
-	// gcsfuse related files.
+	// Adding a new directory inside cacheDir to keep file-cache separate from
+	// metadata cache if and when we support storing metadata cache on disk in
+	// the future.
 	cacheDir = path.Join(cacheDir, util.FileCache)
 
 	filePerm := util.DefaultFilePerm

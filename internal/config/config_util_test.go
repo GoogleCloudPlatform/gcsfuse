@@ -15,8 +15,6 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -89,18 +87,4 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 	AssertEq(mountConfig.LogConfig.Format, "json")
 	AssertEq(mountConfig.LogConfig.FilePath, "a.txt")
 	AssertEq(mountConfig.LogConfig.Severity, INFO)
-}
-
-func (t *ConfigTest) TestResolveConfigFilePaths() {
-	mountConfig := &MountConfig{}
-	mountConfig.LogConfig = LogConfig{
-		FilePath: "~/test.txt",
-	}
-
-	err := ResolveConfigFilePaths(mountConfig)
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
 }
