@@ -36,8 +36,7 @@ const (
 	testDirName                        = "ReadCacheTest"
 	onlyDirMounted                     = "Test"
 	cacheSubDirectoryName              = "gcsfuse-file-cache"
-	smallContent                       = "small content"
-	smallContentSize                   = 13
+	smallContentSize                   = 128 * util.KiB
 	chunkSizeToRead                    = 128 * util.KiB
 	fileSize                           = 3 * util.MiB
 	fileSizeForRangeRead               = cacheCapacityForRangeReadTestInMiB * util.MiB
@@ -61,7 +60,7 @@ const (
 	offset10MiB                        = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB = 100
 	randomReadChunkCount               = fileSizeForRangeRead / chunkSizeToRead
-	cacheCapacityForVeryLargeFileInMiB = 1000
+	cacheCapacityForVeryLargeFileInMiB = 500
 	veryLargeFileSize                  = cacheCapacityForVeryLargeFileInMiB * util.MiB
 	offsetEndOfFile                    = veryLargeFileSize - 1*util.MiB
 )

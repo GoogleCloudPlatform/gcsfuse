@@ -59,7 +59,8 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 	// Read file 1st time.
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	// Append data in the same file to change object generation.
-	err := operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), smallContent)
+	smallContent, err := operations.GenerateRandomData(smallContentSize)
+	err = operations.WriteFileInAppendMode(path.Join(testDirPath, testFileName), string(smallContent))
 	if err != nil {
 		t.Errorf("Error in appending data in file: %v", err)
 	}
