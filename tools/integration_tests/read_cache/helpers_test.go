@@ -239,6 +239,9 @@ func readFileAndValidateFileIsNotCached(ctx context.Context, storageClient *stor
 func modifyFile(ctx context.Context, storageClient *storage.Client, testFileName string, t *testing.T) {
 	objectName := path.Join(testDirName, testFileName)
 	smallContent, err := operations.GenerateRandomData(smallContentSize)
+	if err != nil {
+		t.Errorf("Could not generate random data to modify file: %v", err)
+	}
 	err = client.WriteToObject(ctx, storageClient, objectName, string(smallContent), storage.Conditions{})
 	if err != nil {
 		t.Errorf("Could not modify object %s: %v", objectName, err)
