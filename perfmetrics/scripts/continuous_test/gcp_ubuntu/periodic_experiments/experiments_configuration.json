@@ -13,7 +13,8 @@
         "file-cache": {
           "max-size-mb": -1,
           "cache-file-for-range-read": true
-        }
+        },
+        "cache-dir": "/tmp/cache"
       },
       "branch": "read_cache_release",
       "end_date": "2024-03-31 05:30:00+00:00"
@@ -25,7 +26,8 @@
         "file-cache": {
           "max-size-mb": -1,
           "cache-file-for-range-read": false
-        }
+        },
+        "cache-dir": "/tmp/cache"
       },
       "branch": "read_cache_release",
       "end_date": "2024-03-31 05:30:00+00:00"

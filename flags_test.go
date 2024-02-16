@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/oglematchers"
@@ -359,4 +360,30 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) Test_resolveConfigFilePaths() {
+	mountConfig := &config.MountConfig{}
+	mountConfig.LogConfig = config.LogConfig{
+		FilePath: "~/test.txt",
+	}
+	mountConfig.CacheDir = "~/cache-dir"
+
+	err := resolveConfigFilePaths(mountConfig)
+
+	AssertEq(nil, err)
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
+	ExpectEq(filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
+}
+
+func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
+	mountConfig := &config.MountConfig{}
+
+	err := resolveConfigFilePaths(mountConfig)
+
+	AssertEq(nil, err)
+	ExpectEq("", mountConfig.LogConfig.FilePath)
+	ExpectEq("", mountConfig.CacheDir)
 }

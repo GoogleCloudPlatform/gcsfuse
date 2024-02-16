@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -414,7 +415,7 @@ type flagStorage struct {
 // This method resolves path in the context dictionary.
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
-	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
+	resolvedPath, err := util.GetResolvedPath(flagValue)
 	if err != nil {
 		return
 	}
@@ -444,6 +445,27 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("resolving for config-file: %w", err)
 	}
+
+	return
+}
+
+// resolveConfigFilePaths resolves the config file paths specified in the config file.
+func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
+	filePath := mountConfig.LogConfig.FilePath
+	mountConfig.LogConfig.FilePath, err = util.GetResolvedPath(filePath)
+	if err != nil {
+		return
+	}
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", "logging: file", filePath, mountConfig.LogConfig.FilePath)
+
+	// Resolve cache-dir path
+	filePath = string(mountConfig.CacheDir)
+	resolvedPath, err := util.GetResolvedPath(filePath)
+	mountConfig.CacheDir = config.CacheDir(resolvedPath)
+	if err != nil {
+		return
+	}
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", "cache-dir", filePath, mountConfig.CacheDir)
 
 	return
 }
