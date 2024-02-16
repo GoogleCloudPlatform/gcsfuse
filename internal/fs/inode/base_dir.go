@@ -155,7 +155,7 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,
 	tok string,
-	disableManagedFolder bool) (entries []fuseutil.Dirent, newTok string, err error) {
+	enableManagedFolders bool) (entries []fuseutil.Dirent, newTok string, err error) {
 
 	// The subdirectories of the base directory should be all the accessible
 	// buckets. Although the user is allowed to visit each individual

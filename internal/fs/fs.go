@@ -173,7 +173,7 @@ func NewFileSystem(
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
-		enableManagedFolders:       cfg.enableManagedFolders,
+		enableManagedFolders:       cfg.EnableManagedFolders,
 	}
 
 	// Set up root bucket
