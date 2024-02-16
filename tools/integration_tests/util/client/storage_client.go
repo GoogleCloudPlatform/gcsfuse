@@ -103,8 +103,8 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-// Create storage client with a configurable timeout and retrun a function to cancel the storage client
-func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration) (func() error, error) {
+// Create storage client with a configurable timeout and return a function to cancel the storage client
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
 	var err error
 	var cancel context.CancelFunc
 	*ctx, cancel = context.WithTimeout(*ctx, time)
@@ -112,16 +112,14 @@ func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storag
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
-
 	// return func to close storage client and release resources.
-	return func() error {
+	return func() {
 		err := (*storageClient).Close()
-		defer cancel()
 		if err != nil {
-			return fmt.Errorf("Failed to close storage client: %v", err)
+			t.Log("Failed to close storage client")
 		}
-		return nil // No error during close
-	}, nil // No error during setup
+		defer cancel()
+	}
 }
 
 // Downloads an object to a file.
@@ -131,15 +129,8 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient, err := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := closeStorageClient(); err != nil {
-			t.Errorf("Error in closing client (deferred): %v", err)
-		}
-	}()
+	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
+	defer closeStorageClient()
 
 	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
