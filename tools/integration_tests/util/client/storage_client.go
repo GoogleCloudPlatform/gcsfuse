@@ -17,6 +17,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"io"
 	"log"
 	"os"
@@ -102,10 +103,10 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, t *testing.T) func() {
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
 	var err error
 	var cancel context.CancelFunc
-	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
+	*ctx, cancel = context.WithTimeout(*ctx, time)
 	*storageClient, err = CreateStorageClient(*ctx)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
@@ -127,7 +128,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, t)
+	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
 	defer closeStorageClient()
 
 	f, err := os.Create(destFileName)
@@ -145,9 +146,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 		return fmt.Errorf("io.Copy: %w", err)
 	}
 
-	if err = f.Close(); err != nil {
-		return fmt.Errorf("f.Close: %w", err)
-	}
+	operations.CloseFile(f)
 
 	return nil
 }
