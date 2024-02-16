@@ -94,6 +94,14 @@ func (ce cacheEntry) Size() (size uint64) {
 	return
 }
 
+// Return the size (rss) of a type-cache entry
+// for a given key-string.
+func SizeOfTypeCacheEntry(key string) uint64 {
+	ce := cacheEntry{}
+	ce.key = key
+	return ce.Size()
+}
+
 // A cache that maps from a name to information about the type of the object
 // with that name. Each name N is in one of the following states:
 //
