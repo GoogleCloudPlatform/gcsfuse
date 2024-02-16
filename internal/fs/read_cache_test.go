@@ -52,8 +52,7 @@ func init() {
 	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
 	RegisterTestSuite(&FileCacheTest{})
 	RegisterTestSuite(&FileCacheDestroyTest{})
-	RegisterTestSuite(&FileCacheWithDefaultCacheDir{})
-	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheDir{})
+	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
 }
 
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
@@ -725,57 +724,49 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	AssertTrue(reflect.DeepEqual(changedContent, string(buf)))
 }
 
-// A collection of tests for a file system where the file cache is enabled
-// with default cache location.
-type FileCacheWithDefaultCacheDir struct {
+// Tests for file system where the file cache is disabled if cache-dir is passed
+// but file-cache: max-size-mb is 0.
+type FileCacheIsDisabledWithCacheDirAndZeroMaxSize struct {
 	fsTest
 }
 
-type FileCacheWithUserDefinedTempAsCacheDir struct {
-	fsTest
-}
-
-func (t *FileCacheWithDefaultCacheDir) SetUpTestSuite() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
+			MaxSizeMB:             0,
 			CacheFileForRangeRead: true,
 		},
+		CacheDir: config.CacheDir(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *FileCacheWithUserDefinedTempAsCacheDir) SetUpTestSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
-			CacheFileForRangeRead: true,
-		},
-	}
-	t.serverCfg.TempDir = UserTempLocation
-	t.fsTest.SetUpTestSuite()
-}
-
-func (t *FileCacheWithDefaultCacheDir) TearDown() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDown() {
 	t.fsTest.TearDown()
-	err := os.RemoveAll(path.Join(os.TempDir(), util.FileCache))
+}
+
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopulateCache() {
+	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
+	objects := map[string]string{DefaultObjectName: objectContent}
+	err := t.createObjects(objects)
 	AssertEq(nil, err)
-}
-
-func (t *FileCacheWithUserDefinedTempAsCacheDir) TearDown() {
-	t.fsTest.TearDown()
-	err := os.RemoveAll(path.Join(UserTempLocation, util.FileCache))
+	filePath := path.Join(mntDir, DefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	defer closeFile(file)
 	AssertEq(nil, err)
-}
 
-func (t *FileCacheWithDefaultCacheDir) DefaultLocationIsTempDir() {
-	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(os.TempDir(), util.FileCache))
-}
+	// Reading object with cache disabled should not cache the object into file.
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	AssertEq(objectContent, string(buf))
 
-func (t *FileCacheWithUserDefinedTempAsCacheDir) CacheDirIsUserDefinedTempDir() {
-	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(UserTempLocation, util.FileCache))
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err))
 }
 
 // Test to check cache is not deleted at the time of unmounting.
