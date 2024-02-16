@@ -310,7 +310,7 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolTFlag{
-				Name:  "disable-managed-folder-listing",
+				Name: "disable-managed-folder-listing",
 				Usage: "GCSFuse automatically lists managed folders found within a bucket. " +
 					"This default behavior can be disabled by setting a flag to 'false'.",
 			},
@@ -401,13 +401,13 @@ type flagStorage struct {
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval  time.Duration
-	OtelCollectorAddress       string
-	LogFile                    string
-	LogFormat                  string
-	ExperimentalEnableJsonRead bool
+	StackdriverExportInterval   time.Duration
+	OtelCollectorAddress        string
+	LogFile                     string
+	LogFormat                   string
+	ExperimentalEnableJsonRead  bool
 	DisableManagedFolderListing bool
-	DebugFuseErrors            bool
+	DebugFuseErrors             bool
 
 	// Debugging
 	DebugFuse       bool
@@ -497,20 +497,20 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:              c.Duration("max-retry-sleep"),
-		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:               c.Duration("type-cache-ttl"),
-		HttpClientTimeout:          c.Duration("http-client-timeout"),
-		MaxRetryDuration:           c.Duration("max-retry-duration"),
-		RetryMultiplier:            c.Float64("retry-multiplier"),
-		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		MaxRetrySleep:               c.Duration("max-retry-sleep"),
+		StatCacheCapacity:           c.Int("stat-cache-capacity"),
+		StatCacheTTL:                c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:                c.Duration("type-cache-ttl"),
+		HttpClientTimeout:           c.Duration("http-client-timeout"),
+		MaxRetryDuration:            c.Duration("max-retry-duration"),
+		RetryMultiplier:             c.Float64("retry-multiplier"),
+		LocalFileCache:              c.Bool("experimental-local-file-cache"),
 		DisableManagedFolderListing: c.Bool("disable-managed-folder-listing"),
-		TempDir:                    c.String("temp-dir"),
-		ClientProtocol:             clientProtocol,
-		MaxConnsPerHost:            c.Int("max-conns-per-host"),
-		MaxIdleConnsPerHost:        c.Int("max-idle-conns-per-host"),
-		EnableNonexistentTypeCache: c.Bool("enable-nonexistent-type-cache"),
+		TempDir:                     c.String("temp-dir"),
+		ClientProtocol:              clientProtocol,
+		MaxConnsPerHost:             c.Int("max-conns-per-host"),
+		MaxIdleConnsPerHost:         c.Int("max-idle-conns-per-host"),
+		EnableNonexistentTypeCache:  c.Bool("enable-nonexistent-type-cache"),
 
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
