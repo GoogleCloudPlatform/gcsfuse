@@ -244,7 +244,7 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inod
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileInodes,disableManagedFolder)
+	entries, err = readAllEntries(ctx, dh.in, localFileInodes, disableManagedFolder)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
