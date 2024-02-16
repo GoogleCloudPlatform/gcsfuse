@@ -103,7 +103,7 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	return nil
 }
 
-// Create storage client with a configurable timeout and return a function to cancel the storage client
+// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
 func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
 	var err error
 	var cancel context.CancelFunc
@@ -122,7 +122,7 @@ func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storag
 	}
 }
 
-// Downloads an object to a file.
+// DownloadObjectFromGCS downloads an object to a local file.
 func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
