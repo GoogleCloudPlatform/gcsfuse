@@ -18,8 +18,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"path"
 	"strings"
+	"testing"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -93,6 +98,51 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 	}
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close: %w", err)
+	}
+
+	return nil
+}
+
+// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
+	var err error
+	var cancel context.CancelFunc
+	*ctx, cancel = context.WithTimeout(*ctx, time)
+	*storageClient, err = CreateStorageClient(*ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+	// Return func to close storage client and release resources.
+	return func() {
+		err := (*storageClient).Close()
+		if err != nil {
+			t.Log("Failed to close storage client")
+		}
+		defer cancel()
+	}
+}
+
+// DownloadObjectFromGCS downloads an object to a local file.
+func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
+
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
+	defer closeStorageClient()
+
+	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
+
+	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("Object(%q).NewReader: %w", gcsFile, err)
+	}
+	defer rc.Close()
+
+	if _, err := io.Copy(f, rc); err != nil {
+		return fmt.Errorf("io.Copy: %w", err)
 	}
 
 	return nil
