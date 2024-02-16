@@ -114,7 +114,7 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	tok := ""
 	for {
 		var tmp []fuseutil.Dirent
-		tmp, tok, err = t.in.ReadEntries(t.ctx, tok)
+		tmp, tok, err = t.in.ReadEntries(t.ctx, tok, true)
 		entries = append(entries, tmp...)
 		if err != nil {
 			return
