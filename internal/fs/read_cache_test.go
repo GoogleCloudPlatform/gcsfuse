@@ -778,7 +778,7 @@ func (t *FileCacheWithUserDefinedTempAsCacheDir) CacheDirIsUserDefinedTempDir() 
 	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(UserTempLocation, util.FileCache))
 }
 
-// Test to check cache is deleted at the time of unmounting.
+// Test to check cache is not deleted at the time of unmounting.
 type FileCacheDestroyTest struct {
 	fsTest
 }
@@ -800,10 +800,12 @@ func (t *FileCacheDestroyTest) TearDownTestSuite() {
 }
 
 func (t *FileCacheDestroyTest) TearDown() {
-	// Do nothing as fs is unmounted in the test itself
+	// Do nothing and just delete cache as fs is unmounted in the test itself
+	err := os.RemoveAll(FileCacheDir)
+	AssertEq(nil, err)
 }
 
-func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
+func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
 	// Read to populate cache
 	objectContent := generateRandomString(50)
 	objects := map[string]string{DefaultObjectName: objectContent}
@@ -823,8 +825,7 @@ func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
 		AddFailure("MountedFileSystem.Unmount: %v", err)
 		AbortTest()
 	}
-	// Check the cache location is deleted
+	// Check the cache location is not deleted
 	_, err = os.Stat(FileCacheDir)
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	AssertEq(nil, err)
 }
