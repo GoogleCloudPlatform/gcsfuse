@@ -135,7 +135,11 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 	if err != nil {
 		return err
 	}
-	defer closeStorageClient()
+	defer func() {
+		if err := closeStorageClient(); err != nil {
+			t.Errorf("Error in closing client (deferred): %v", err)
+		}
+	}()
 
 	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
