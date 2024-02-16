@@ -309,6 +309,12 @@ func newApp() (app *cli.App) {
 					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
 			},
 
+			cli.BoolTFlag{
+				Name:  "disable-managed-folder-listing",
+				Usage: "GCSFuse automatically lists managed folders found within a bucket. " +
+					"This default behavior can be disabled by setting a flag to 'false'.",
+			},
+
 			/////////////////////////
 			// Debugging
 			/////////////////////////
@@ -400,6 +406,7 @@ type flagStorage struct {
 	LogFile                    string
 	LogFormat                  string
 	ExperimentalEnableJsonRead bool
+	DisableManagedFolderListing bool
 	DebugFuseErrors            bool
 
 	// Debugging
@@ -498,6 +505,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		MaxRetryDuration:           c.Duration("max-retry-duration"),
 		RetryMultiplier:            c.Float64("retry-multiplier"),
 		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		DisableManagedFolderListing: c.Bool("disable-managed-folder-listing"),
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),

@@ -116,6 +116,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
+		DisableManagedFolderListing: flags.DisableManagedFolderListing,
 	}
 
 	logger.Infof("Creating a new server...\n")

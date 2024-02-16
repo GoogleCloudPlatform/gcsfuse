@@ -80,7 +80,8 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+		tok string,
+		disableManagedFolder bool) (entries []fuseutil.Dirent, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -541,7 +542,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+	tok string, disableManagedFolder bool) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -552,6 +553,7 @@ func (d *dirInode) readObjects(
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
 		ProjectionVal: gcs.NoAcl,
+		IncludeFoldersAsPrefixes: disableManagedFolder,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -625,9 +627,10 @@ func (d *dirInode) readObjects(
 
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string,
+	disableManagedFolder bool) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok)
+	cores, newTok, err = d.readObjects(ctx, tok, disableManagedFolder)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return

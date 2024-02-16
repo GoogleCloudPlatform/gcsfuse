@@ -246,6 +246,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		Prefix:                   req.Prefix,
 		Projection:               getProjectionValue(req.ProjectionVal),
 		IncludeTrailingDelimiter: req.IncludeTrailingDelimiter,
+		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.

@@ -161,7 +161,8 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
-	localFileInodes map[inode.Name]inode.Inode) (entries []fuseutil.Dirent, err error) {
+	localFileInodes map[inode.Name]inode.Inode,
+	disabledManagedFolder bool) (entries []fuseutil.Dirent, err error) {
 	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
@@ -169,7 +170,7 @@ func readAllEntries(
 		// Read a batch.
 		var batch []fuseutil.Dirent
 
-		batch, tok, err = in.ReadEntries(ctx, tok)
+		batch, tok, err = in.ReadEntries(ctx, tok, disabledManagedFolder)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return
@@ -237,13 +238,13 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode, disableManagedFolder bool) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileInodes)
+	entries, err = readAllEntries(ctx, dh.in, localFileInodes,disableManagedFolder)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -271,7 +272,8 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inod
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
-	localFileInodes map[inode.Name]inode.Inode) (err error) {
+	localFileInodes map[inode.Name]inode.Inode,
+	disableManagedFolder bool) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -281,7 +283,7 @@ func (dh *DirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx, localFileInodes)
+		err = dh.ensureEntries(ctx, localFileInodes, disableManagedFolder)
 		if err != nil {
 			return
 		}
