@@ -42,7 +42,7 @@ type remountTest struct {
 }
 
 func (s *remountTest) Setup(t *testing.T) {
-	operations.RemoveDir(cacheLocationPath)
+	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 

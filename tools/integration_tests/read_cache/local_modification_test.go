@@ -38,7 +38,7 @@ type localModificationTest struct {
 
 func (s *localModificationTest) Setup(t *testing.T) {
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	operations.RemoveDir(cacheLocationPath)
+	operations.RemoveDir(cacheDirPath)
 	mountGCSFuse(s.flags)
 	setup.SetMntDir(mountDir)
 	testDirPath = setup.SetupTestDirectory(testDirName)

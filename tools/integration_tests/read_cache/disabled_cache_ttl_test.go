@@ -39,7 +39,7 @@ type disabledCacheTTLTest struct {
 
 func (s *disabledCacheTTLTest) Setup(t *testing.T) {
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
-	operations.RemoveDir(cacheLocationPath)
+	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
