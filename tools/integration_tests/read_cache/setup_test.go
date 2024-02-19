@@ -22,15 +22,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
-
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
-
-	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -42,7 +40,7 @@ const (
 	smallContentSize                   = 13
 	chunkSizeToRead                    = util.MiB
 	fileSize                           = 3 * util.MiB
-	fileSizeForRangeRead               = 50 * util.MiB
+	fileSizeForRangeRead               = cacheCapacityForRangeReadTestInMiB * util.MiB
 	chunksRead                         = fileSize / util.MiB
 	testFileName                       = "foo"
 	cacheCapacityInMB                  = 9
@@ -60,14 +58,16 @@ const (
 	offsetForFirstRangeRead            = 5000
 	offsetForSecondRangeRead           = 1000
 	offsetForRangeReadWithin8MB        = 4 * util.MiB
-	offsetForRangeReadBeyond8MB        = fileSizeForRangeRead - 1*util.MiB
-	cacheCapacityForRangeReadTestInMiB = 50
+	offsetEndOfFile                    = fileSizeForRangeRead - 1*util.MiB
+	offset10MiB                        = 10 * util.MiB
+	cacheCapacityForRangeReadTestInMiB = 100
+	randomReadChunkCount               = 100
 )
 
 var (
-	testDirPath       string
-	cacheLocationPath string
-	mountFunc         func([]string) error
+	testDirPath  string
+	cacheDirPath string
+	mountFunc    func([]string) error
 	// mount directory is where our tests run.
 	mountDir string
 	// root directory is the directory to be unmounted.
@@ -85,17 +85,17 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 }
 
 func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
-	cacheLocationPath = path.Join(setup.TestDir(), "cache-dir")
+	cacheDirPath = path.Join(setup.TestDir(), "cache-dir")
 
 	// Set up config file for file cache.
 	mountConfig := config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeInMB:           cacheSize,
+			MaxSizeMB:             cacheSize,
 			CacheFileForRangeRead: cacheFileForRangeRead,
 		},
-		CacheLocation: config.CacheLocation(cacheLocationPath),
+		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			Format:          "json",

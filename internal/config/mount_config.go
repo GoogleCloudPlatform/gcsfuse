@@ -35,9 +35,17 @@ const (
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
-	// DefaultTypeCacheMaxEntries is the default vlaue of type-cache-max-entries.
-	// The value is set high at 1,048,476 (2^20) as it is not supposed to be set by users.
-	DefaultTypeCacheMaxEntries int = 2 << 20
+	// DefaultTypeCacheMaxSizeMB is the default vlaue of type-cache max-size for every directory in MiBs.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
+	DefaultTypeCacheMaxSizeMB int = 4
+
+	// StatCacheMaxSizeMBUnsetSentinel is the value internally
+	// set for metada-cache:stat-cache-max-size-mb
+	// when it is not set in the gcsfuse mount config file.
+	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
+
+	DefaultFileCacheMaxSizeMB int64 = -1
 )
 
 type WriteConfig struct {
@@ -51,10 +59,10 @@ type LogConfig struct {
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
 }
 
-type CacheLocation string
+type CacheDir string
 
 type FileCacheConfig struct {
-	MaxSizeInMB           int64 `yaml:"max-size-in-mb"`
+	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 }
 
@@ -65,17 +73,24 @@ type MetadataCacheConfig struct {
 	// no cache and > 0 for ttl-controlled metadata-cache.
 	// Any value set below -1 will throw an error.
 	TtlInSeconds int64 `yaml:"ttl-secs,omitempty"`
-	// TypeCacheMaxEntries is the upper limit
-	// on the maximum number of type-cache entries,
-	// which are maintained at per-directory level.
-	TypeCacheMaxEntries int `yaml:"type-cache-max-entries,omitempty"`
+	// TypeCacheMaxSizeMB is the upper limit
+	// on the maximum size of type-cache maps,
+	// which are currently
+	// maintained at per-directory level.
+	TypeCacheMaxSizeMB int `yaml:"type-cache-max-size-mb,omitempty"`
+
+	// StatCacheMaxSizeMB is the maximum size of stat-cache
+	// in MiBs.
+	// It can also be set to -1 for no-size-limit, 0 for
+	// no cache. Values below -1 are not supported.
+	StatCacheMaxSizeMB int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
 type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheLocation       `yaml:"cache-location"`
+	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 }
 
@@ -111,11 +126,12 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeInMB: 0,
+		MaxSizeMB: DefaultFileCacheMaxSizeMB,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds:        TtlInSecsUnsetSentinel,
-		TypeCacheMaxEntries: DefaultTypeCacheMaxEntries,
+		TtlInSeconds:       TtlInSecsUnsetSentinel,
+		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
+		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	return mountConfig
 }

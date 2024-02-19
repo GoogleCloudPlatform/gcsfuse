@@ -19,6 +19,8 @@ import (
 	"log"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -36,6 +38,8 @@ type disabledCacheTTLTest struct {
 }
 
 func (s *disabledCacheTTLTest) Setup(t *testing.T) {
+	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
+	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
@@ -51,13 +55,13 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	// Read file 1st time.
-	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, t)
+	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, t)
 	// Modify the file.
 	modifyFile(s.ctx, s.storageClient, testFileName, t)
 	// Read same file again immediately. New content should be served as cache ttl is 0.
-	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
+	expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, t)
 	// Read the same file again. The data should be served from cache.
-	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, t)
+	expectedOutcome3 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, smallContentSize, true, t)
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)

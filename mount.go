@@ -84,13 +84,18 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
-	metadataCacheTTL := mount.MetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	metadataCacheTTL := mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-ttl=%v, metadata-cache:stat-cache-max-size-mb=%v: %w", flags.StatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
+	}
+
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
-		StatCacheCapacity:                  flags.StatCacheCapacity,
+		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
 		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
@@ -98,8 +103,6 @@ be interacting with the file system.`)
 		DebugGCS:                           flags.DebugGCS,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
-
-	_, allowOther := flags.MountOptions["allow_other"]
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
@@ -120,7 +123,6 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
-		AllowOther:                 allowOther,
 	}
 
 	logger.Infof("Creating a new server...\n")
