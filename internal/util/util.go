@@ -17,13 +17,11 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 )
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -31,6 +29,13 @@ const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 // Constants for read types - Sequential/Random
 const Sequential = "Sequential"
 const Random = "Random"
+
+const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
+
+// HeapSizeToRssConversionFactor is a constant factor
+// which we multiply to the calculated heap-size
+// to get the corresponding resident set size.
+const HeapSizeToRssConversionFactor float64 = 2
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
@@ -63,32 +68,37 @@ func GetResolvedPath(filePath string) (resolvedPath string, err error) {
 	}
 }
 
-func ResolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
-	resolvedPath, err = GetResolvedPath(filePath)
-	if filePath == resolvedPath || err != nil {
-		return
-	}
-
-	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
-	return resolvedPath, nil
-}
-
-// ResolveConfigFilePaths resolved the config file paths specified in the config file.
-func ResolveConfigFilePaths(config *config.MountConfig) (err error) {
-	config.LogConfig.FilePath, err = ResolveFilePath(config.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-	return
-}
-
 // Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
-func Stringify(input any) string {
+func Stringify(input any) (string, error) {
 	inputBytes, err := json.Marshal(input)
 
 	if err != nil {
-		logger.Warnf("Error in Stringify %v", err)
-		return ""
+		return "", fmt.Errorf("error in Stringify %w", err)
 	}
-	return string(inputBytes)
+	return string(inputBytes), nil
+}
+
+// MiBsToBytes returns the bytes equivalent
+// of given number of MiBs.
+// For reference, each MiB = 2^20 bytes.
+// It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
+// as inputs, and panics for higher inputs.
+func MiBsToBytes(mibs uint64) uint64 {
+	if mibs > MaxMiBsInUint64 {
+		panic("Inputs above (2^44 - 1) not supported.")
+	}
+	return mibs << 20
+}
+
+// BytesToHigherMiBs returns the MiBs equivalent
+// to the given number of bytes.
+// If bytes is not an exact number of MiBs,
+// then it returns the next higher no. of MiBs.
+// For reference, each MiB = 2^20 bytes.
+func BytesToHigherMiBs(bytes uint64) uint64 {
+	if bytes > (MaxMiBsInUint64 << 20) {
+		return MaxMiBsInUint64 + 1
+	}
+	const bytesInOneMiB uint64 = 1 << 20
+	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
 }

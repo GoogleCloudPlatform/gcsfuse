@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/util"
@@ -32,8 +34,6 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	DefaultStatCacheCapacity = 4096
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -207,20 +207,20 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "stat-cache-capacity",
-				Value: DefaultStatCacheCapacity,
-				Usage: "How many entries can the stat cache hold (impacts memory consumption)",
+				Value: mount.DefaultStatCacheCapacity,
+				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 2640 bytes, including 2400 for positive entry and 240 for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "stat-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache StatObject results and inode attributes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache StatObject results and inode attributes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
 				Name:  "type-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
-				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag will be deprecated in the future and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
 			cli.DurationFlag{
@@ -238,11 +238,6 @@ func newApp() (app *cli.App) {
 				Name:  "retry-multiplier",
 				Value: 2,
 				Usage: "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.",
-			},
-
-			cli.BoolFlag{
-				Name:  "experimental-local-file-cache",
-				Usage: "Experimental: Cache GCS files on local disk for reads.",
 			},
 
 			cli.StringFlag{
@@ -417,10 +412,20 @@ type flagStorage struct {
 	DebugMutex      bool
 }
 
+func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
+	resolvedPath, err = util.GetResolvedPath(filePath)
+	if filePath == resolvedPath || err != nil {
+		return
+	}
+
+	logger.Infof("Value of [%s] resolved from [%s] to [%s]\n", configKey, filePath, resolvedPath)
+	return resolvedPath, nil
+}
+
 // This method resolves path in the context dictionary.
 func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) {
 	flagValue := c.String(flagKey)
-	resolvedPath, err := util.ResolveFilePath(flagValue, flagKey)
+	resolvedPath, err := resolveFilePath(flagValue, flagKey)
 	if err != nil {
 		return
 	}
@@ -447,6 +452,23 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagInContext("config-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for config-file: %w", err)
+	}
+
+	return
+}
+
+// resolveConfigFilePaths resolves the config file paths specified in the config file.
+func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
+	mountConfig.LogConfig.FilePath, err = resolveFilePath(mountConfig.LogConfig.FilePath, "logging: file")
+	if err != nil {
+		return
+	}
+
+	// Resolve cache-dir path
+	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
+	mountConfig.CacheDir = config.CacheDir(resolvedPath)
+	if err != nil {
+		return
 	}
 
 	return
@@ -496,14 +518,15 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:              c.Duration("max-retry-sleep"),
-		StatCacheCapacity:          c.Int("stat-cache-capacity"),
-		StatCacheTTL:               c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:               c.Duration("type-cache-ttl"),
-		HttpClientTimeout:          c.Duration("http-client-timeout"),
-		MaxRetryDuration:           c.Duration("max-retry-duration"),
-		RetryMultiplier:            c.Float64("retry-multiplier"),
-		LocalFileCache:             c.Bool("experimental-local-file-cache"),
+		MaxRetrySleep:     c.Duration("max-retry-sleep"),
+		StatCacheCapacity: c.Int("stat-cache-capacity"),
+		StatCacheTTL:      c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:      c.Duration("type-cache-ttl"),
+		HttpClientTimeout: c.Duration("http-client-timeout"),
+		MaxRetryDuration:  c.Duration("max-retry-duration"),
+		RetryMultiplier:   c.Float64("retry-multiplier"),
+		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
+		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),

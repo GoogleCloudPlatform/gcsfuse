@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -37,7 +38,10 @@ const (
 	parseConfigFileErrMsgFormat           = "error parsing config file: %v"
 	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
 	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxEntriesInvalidValueError  = "the value of type-cache-max-entries for metadata-cache can't be less than -1"
+	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -65,8 +69,8 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 }
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
-	if fileCacheConfig.MaxSizeInMB < -1 {
-		return fmt.Errorf("the value of max-size-in-mb for file-cache can't be less than -1")
+	if fileCacheConfig.MaxSizeMB < -1 {
+		return fmt.Errorf("the value of max-size-mb for file-cache can't be less than -1")
 	}
 	return nil
 }
@@ -80,8 +84,17 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
 		}
 	}
-	if metadataCacheConfig.TypeCacheMaxEntries < -1 {
-		return fmt.Errorf(TypeCacheMaxEntriesInvalidValueError)
+	if metadataCacheConfig.TypeCacheMaxSizeMB < -1 {
+		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
+	}
+
+	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
+		if metadataCacheConfig.StatCacheMaxSizeMB < -1 {
+			return fmt.Errorf(StatCacheMaxSizeMBInvalidValueError)
+		}
+		if metadataCacheConfig.StatCacheMaxSizeMB > int64(MaxSupportedStatCacheMaxSizeMB) {
+			return fmt.Errorf(StatCacheMaxSizeMBTooHighError)
+		}
 	}
 	return nil
 }

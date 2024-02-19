@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -37,7 +38,7 @@ type BucketConfig struct {
 	OnlyDir                            string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
-	StatCacheCapacity                  int
+	StatCacheMaxSizeMB                 uint64
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
 	DebugGCS                           bool
@@ -84,8 +85,8 @@ type bucketManager struct {
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
 	var c *lru.Cache
-	if config.StatCacheCapacity > 0 {
-		c = lru.NewCache(uint64(config.StatCacheCapacity))
+	if config.StatCacheMaxSizeMB > 0 {
+		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
 	}
 
 	bm := &bucketManager{

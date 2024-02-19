@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 type Type int
@@ -38,7 +39,7 @@ const (
 // TTL-based expiration.
 // Sample usage:
 //
-//	tc := NewTypeCache(maxEntries, ttl)
+//	tc := NewTypeCache(size, ttl)
 //	tc.Insert(time.Now(), "file", RegularFileType)
 //	tc.Insert(time.Now(), "dir", ExplicitDirType)
 //	tc.Get(time.Now(),"file") -> RegularFileType
@@ -64,13 +65,41 @@ type TypeCache interface {
 type cacheEntry struct {
 	expiry    time.Time
 	inodeType Type
+	// Copy of key string (internally only
+	// points to the original
+	// string data, so size overhead is a fixed 16 bytes, i.e. O(1),
+	// irrespective of actual key value.
+	// This is needed to calculate the
+	// accurate size of the type-cache entry on heap.
+	key string
 }
 
-// Size returns the size of cacheEntry.
-// It is currently set to dummy value 1 to avoid
-// the unnecessary  actual size calculation.
-func (ce cacheEntry) Size() uint64 {
-	return 1
+// Size returns the size of cacheEntry on RSS (Resident Set Size), which is
+// approximated as twice as calculated heap-size.
+// The calculated heap-size for each entry is
+// 80-bytes (24 for expiry, 8 for inodeType, 3*16 for 3 copies of
+// string structure for the key ) + length of the key itself,
+// for each entry (including negative ones).
+// This size is specific
+// to 64-bit linux machines, and might differ on other platforms.
+func (ce cacheEntry) Size() (size uint64) {
+	// First calculate size on heap.
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the 2 other copies of string
+	// struct stored in the cache map and in the cache linked-list.
+	size = uint64(util.UnsafeSizeOf(&ce) + 2*util.UnsafeSizeOf(&ce.key) + len(ce.key))
+
+	// Convert heap-size to rss (resident set size).
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
+
+	return
+}
+
+// Return the size (rss) of a type-cache entry
+// for a given key-string.
+func SizeOfTypeCacheEntry(key string) uint64 {
+	ce := cacheEntry{}
+	ce.key = key
+	return ce.Size()
 }
 
 // A cache that maps from a name to information about the type of the object
@@ -100,20 +129,20 @@ type typeCache struct {
 	entries *lru.Cache
 }
 
-// NewTypeCache creates an LRU-policy-based cache with given max-entries and TTL.
+// NewTypeCache creates an LRU-policy-based cache with given parameters.
 // Any entry whose TTL has expired, is removed from the cache on next access (Get).
-// When insertion of next entry would cause #entries of cache > maxEntries,
+// When insertion of next entry would cause size of cache > maxSizeMB,
 // older entries are evicted according to the LRU-policy.
-// If either of TTL or maxEntries is zero, nothing is ever cached.
-func NewTypeCache(maxEntries int, ttl time.Duration) TypeCache {
-	if ttl > 0 && maxEntries != 0 {
-		var lruMaxEntries uint64 = math.MaxUint64 // default for when maxEntries = -1
-		if maxEntries > 0 {
-			lruMaxEntries = uint64(maxEntries)
+// If either of TTL or maxSizeMB is zero, nothing is ever cached.
+func NewTypeCache(maxSizeMB int, ttl time.Duration) TypeCache {
+	if ttl > 0 && maxSizeMB != 0 {
+		var lruSizeInBytesToUse uint64 = math.MaxUint64 // default for when maxSizeMB = -1
+		if maxSizeMB > 0 {
+			lruSizeInBytesToUse = util.MiBsToBytes(uint64(maxSizeMB))
 		}
 		return &typeCache{
 			ttl:     ttl,
-			entries: lru.NewCache(lruMaxEntries),
+			entries: lru.NewCache(lruSizeInBytesToUse),
 		}
 	}
 	return &typeCache{}
@@ -124,6 +153,7 @@ func (tc *typeCache) Insert(now time.Time, name string, it Type) {
 		_, err := tc.entries.Insert(name, cacheEntry{
 			expiry:    now.Add(tc.ttl),
 			inodeType: it,
+			key:       name,
 		})
 		if err != nil {
 			panic(fmt.Errorf("failed to insert entry in typeCache: %v", err))

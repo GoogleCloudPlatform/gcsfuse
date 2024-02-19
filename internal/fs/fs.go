@@ -22,7 +22,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -127,9 +126,6 @@ type ServerConfig struct {
 
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
-
-	// AllowOther is true when -o allow_other flag is passed.
-	AllowOther bool
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -157,9 +153,10 @@ func NewFileSystem(
 		}
 	}
 
-	// Create file cache handler if cache is enabled by user.
+	// Create file cache handler if cache is enabled by user. Cache is considered
+	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB != 0 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB != 0 && string(cfg.MountConfig.CacheDir) != "" {
 		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
@@ -219,48 +216,32 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeInMB == -1 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeInMB) * util.MiB
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * util.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	cacheLocation := string(cfg.MountConfig.CacheLocation)
-	// Use temp-dir as default cache-location.
-	if cacheLocation == "" {
-		if cfg.TempDir == "" {
-			cacheLocation = os.TempDir()
-		} else {
-			cacheLocation = cfg.TempDir
-		}
-	}
-	cacheLocation, err := filepath.Abs(cacheLocation)
-	if err != nil {
-		panic(fmt.Errorf("createFileCacheHandler: error while resolving cache-location (%s) in config-file: %w", cacheLocation, err))
-	}
-	// Adding a new directory inside cacheLocation, so that at the time of Destroy
-	// during unmount we can do os.RemoveAll(cacheLocation) without deleting non
-	// gcsfuse related files.
-	cacheLocation = path.Join(cacheLocation, util.FileCache)
+	cacheDir := string(cfg.MountConfig.CacheDir)
+	// Adding a new directory inside cacheDir to keep file-cache separate from
+	// metadata cache if and when we support storing metadata cache on disk in
+	// the future.
+	cacheDir = path.Join(cacheDir, util.FileCache)
 
-	// Panic in case cacheLocation does not have required permissions
-	cacheLocationErr := util.CreateCacheDirectoryIfNotPresentAt(cacheLocation)
-	if cacheLocationErr != nil {
-		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheLocationErr.Error()))
-	}
-
-	// When user passes allow_other flag, then other users should be able to
-	// read from cache
 	filePerm := util.DefaultFilePerm
-	if cfg.AllowOther {
-		filePerm = util.FilePermWithAllowOther
+	dirPerm := util.DefaultDirPerm
+
+	// Panic in case cacheDir does not have required permissions
+	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
+	if cacheDirErr != nil {
+		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheDirErr.Error()))
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, cacheLocation,
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
 		cfg.SequentialReadSizeMb)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheLocation, filePerm)
+		cacheDir, filePerm, dirPerm)
 	return
 }
 
@@ -287,7 +268,7 @@ func makeRootForBucket(
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxEntries,
+		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
 	)
 }
 
@@ -710,7 +691,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -733,7 +714,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxEntries)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 
 	case inode.IsSymlink(ic.Object):
 		in = inode.NewSymlinkInode(

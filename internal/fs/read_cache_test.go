@@ -52,12 +52,11 @@ func init() {
 	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
 	RegisterTestSuite(&FileCacheTest{})
 	RegisterTestSuite(&FileCacheDestroyTest{})
-	RegisterTestSuite(&FileCacheWithDefaultCacheLocation{})
-	RegisterTestSuite(&FileCacheWithUserDefinedTempAsCacheLocation{})
+	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
 }
 
-var CacheLocation = path.Join(os.Getenv("HOME"), "cache-dir")
-var FileCacheLocation = path.Join(CacheLocation, util.FileCache)
+var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
+var FileCacheDir = path.Join(CacheDir, util.FileCache)
 
 // A collection of tests for a file system where the file cache is enabled
 // with cache-file-for-range-read set to False.
@@ -69,17 +68,17 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           FileCacheSizeInMb,
+			MaxSizeMB:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
 		},
-		CacheLocation: config.CacheLocation(CacheLocation),
+		CacheDir: config.CacheDir(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }
 
 func (t *FileCacheTest) TearDown() {
 	t.fsTest.TearDown()
-	err := os.RemoveAll(FileCacheLocation)
+	err := os.RemoveAll(FileCacheDir)
 	AssertEq(nil, err)
 }
 
@@ -92,7 +91,7 @@ func closeFile(file *os.File) {
 	AssertEq(nil, err)
 }
 
-func sequentialReadShouldPopulateCache(t *fsTest, cacheLocation string) {
+func sequentialReadShouldPopulateCache(t *fsTest, cacheDir string) {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -109,7 +108,7 @@ func sequentialReadShouldPopulateCache(t *fsTest, cacheLocation string) {
 	AssertEq(objectContent, string(buf))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(cacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(cacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(buf, cachedContent))
@@ -132,7 +131,7 @@ func cacheFilePermissionTest(t *fsTest, fileMode os.FileMode) {
 	AssertTrue(reflect.DeepEqual(objectContent, string(buf)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	stat, err := os.Stat(downloadPath)
 	AssertEq(nil, err)
 	// confirm file mode is as expected
@@ -153,7 +152,7 @@ func writeShouldNotPopulateCache(t *fsTest) {
 	AssertEq(n, len(objectContent))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
@@ -183,7 +182,7 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent[offsetForRandom:offsetForRandom+util.MiB], string(buf)))
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(cachedContent[offsetForRandom:offsetForRandom+util.MiB], buf))
@@ -218,9 +217,9 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	AssertEq(string(buf), objectContent2[0:len(buf)])
 	// Assert cache files are created.
 	objectPath1 := util.GetObjectPath(bucket.Name(), objectName1)
-	downloadPath1 := util.GetDownloadPath(FileCacheLocation, objectPath1)
+	downloadPath1 := util.GetDownloadPath(FileCacheDir, objectPath1)
 	objectPath2 := util.GetObjectPath(bucket.Name(), objectName2)
-	downloadPath2 := util.GetDownloadPath(FileCacheLocation, objectPath2)
+	downloadPath2 := util.GetDownloadPath(FileCacheDir, objectPath2)
 	_, err = os.Stat(downloadPath1)
 	AssertEq(nil, err)
 	_, err = os.Stat(downloadPath2)
@@ -247,14 +246,14 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 }
 
 func (t *FileCacheTest) SequentialReadShouldPopulateCache() {
-	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheLocation)
+	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheDir)
 }
 
 func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheTest) CacheFilePermissionWithoutAllowOther() {
+func (t *FileCacheTest) CacheFilePermission() {
 	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
@@ -279,7 +278,7 @@ func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(buf)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
@@ -300,7 +299,7 @@ func (t *FileCacheTest) EvictionWhenFileCacheIsFull() {
 	AssertTrue(reflect.DeepEqual(objectContent1, string(gotObjectContent1)))
 	// verify file is cached
 	objectPath1 := util.GetObjectPath(bucket.Name(), objectName1)
-	downloadPath1 := util.GetDownloadPath(FileCacheLocation, objectPath1)
+	downloadPath1 := util.GetDownloadPath(FileCacheDir, objectPath1)
 	cachedContent, err := os.ReadFile(downloadPath1)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent1, string(cachedContent)))
@@ -335,7 +334,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent[util.MiB:2*util.MiB], string(buf)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(CacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(CacheDir, objectPath)
 	// Cache should not be populated
 	_, err = os.Stat(downloadPath)
 	AssertNe(nil, err)
@@ -355,7 +354,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	AssertEq(nil, err)
 	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
 	// delete the file in cache
@@ -384,7 +383,7 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	AssertEq(nil, err)
@@ -411,7 +410,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertEq(nil, err)
 	closeFile(file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
@@ -438,7 +437,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	closeFile(file)
 	renamedPath := path.Join(mntDir, RenamedObjectName)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
@@ -466,7 +465,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	dir := path.Join(mntDir, DefaultDir)
 	renamedDir := path.Join(mntDir, RenamedDir)
 	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
 	AssertEq(nil, err)
 
@@ -511,7 +510,7 @@ func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 	wg.Wait()
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
@@ -530,7 +529,7 @@ func (t *FileCacheTest) FileSizeEqualToFileCacheSize() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(gotContent)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
@@ -558,7 +557,7 @@ func (t *FileCacheTest) WriteToFileCachedAndThenReadingItShouldBeCorrect() {
 	// the file in cache should not be updated because the file that is being
 	// cached is still dirty.
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertFalse(reflect.DeepEqual(objectContent, string(cachedContent)))
@@ -586,7 +585,7 @@ func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
 
 	AssertTrue(reflect.DeepEqual(objectContent, string(gotContent)))
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
@@ -602,18 +601,17 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheLocation: config.CacheLocation(CacheLocation),
+		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
 func (t *FileCacheWithCacheForRangeRead) TearDown() {
 	t.fsTest.TearDown()
-	err := os.RemoveAll(FileCacheLocation)
+	err := os.RemoveAll(FileCacheDir)
 	AssertEq(nil, err)
 }
 
@@ -638,7 +636,7 @@ func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent[tenKiB:2*tenKiB], string(buf)))
 
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	// Sleep for async job to complete download
 	time.Sleep(50 * time.Millisecond)
 	cacheFile, err := os.OpenFile(downloadPath, os.O_RDWR|syscall.O_DIRECT, 0644)
@@ -651,11 +649,11 @@ func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 }
 
 func (t *FileCacheWithCacheForRangeRead) SequentialReadShouldPopulateCache() {
-	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheLocation)
+	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheDir)
 }
 
-func (t *FileCacheWithCacheForRangeRead) CacheFilePermissionWithAllowOther() {
-	cacheFilePermissionTest(&t.fsTest, util.FilePermWithAllowOther)
+func (t *FileCacheWithCacheForRangeRead) CacheFilePermission() {
+	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
 func (t *FileCacheWithCacheForRangeRead) WriteShouldNotPopulateCache() {
@@ -691,7 +689,7 @@ func (t *FileCacheWithCacheForRangeRead) NewGenerationShouldRebuildCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(gotContent)))
 	// check cache also contains updated content
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cacheContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(cacheContent)))
@@ -711,13 +709,13 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	// change the file in cache
 	changedContent := generateRandomString(util.MiB)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
-	downloadPath := util.GetDownloadPath(FileCacheLocation, objectPath)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	// modify the file in cache
-	err = os.WriteFile(downloadPath, []byte(changedContent), util.FilePermWithAllowOther)
+	err = os.WriteFile(downloadPath, []byte(changedContent), os.FileMode(0655))
 	AssertEq(nil, err)
 
 	// read the file again, should give modified content
-	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.FilePermWithAllowOther)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, os.FileMode(0655))
 	defer closeFile(file)
 	AssertEq(nil, err)
 	buf := make([]byte, len(objectContent))
@@ -726,62 +724,52 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	AssertTrue(reflect.DeepEqual(changedContent, string(buf)))
 }
 
-// A collection of tests for a file system where the file cache is enabled
-// with default cache location.
-type FileCacheWithDefaultCacheLocation struct {
+// Tests for file system where the file cache is disabled if cache-dir is passed
+// but file-cache: max-size-mb is 0.
+type FileCacheIsDisabledWithCacheDirAndZeroMaxSize struct {
 	fsTest
 }
 
-type FileCacheWithUserDefinedTempAsCacheLocation struct {
-	fsTest
-}
-
-func (t *FileCacheWithDefaultCacheLocation) SetUpTestSuite() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             0,
 			CacheFileForRangeRead: true,
 		},
+		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *FileCacheWithUserDefinedTempAsCacheLocation) SetUpTestSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
-			CacheFileForRangeRead: true,
-		},
-	}
-	t.serverCfg.AllowOther = true
-	t.serverCfg.TempDir = UserTempLocation
-	t.fsTest.SetUpTestSuite()
-}
-
-func (t *FileCacheWithDefaultCacheLocation) TearDown() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDown() {
 	t.fsTest.TearDown()
-	err := os.RemoveAll(path.Join(os.TempDir(), util.FileCache))
+}
+
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopulateCache() {
+	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
+	objects := map[string]string{DefaultObjectName: objectContent}
+	err := t.createObjects(objects)
 	AssertEq(nil, err)
-}
-
-func (t *FileCacheWithUserDefinedTempAsCacheLocation) TearDown() {
-	t.fsTest.TearDown()
-	err := os.RemoveAll(path.Join(UserTempLocation, util.FileCache))
+	filePath := path.Join(mntDir, DefaultObjectName)
+	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
+	defer closeFile(file)
 	AssertEq(nil, err)
+
+	// Reading object with cache disabled should not cache the object into file.
+	buf := make([]byte, len(objectContent))
+	_, err = file.Read(buf)
+	AssertEq(nil, err)
+	AssertEq(objectContent, string(buf))
+
+	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
+	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
+	_, err = os.Stat(downloadPath)
+	AssertNe(nil, err)
+	AssertTrue(os.IsNotExist(err))
 }
 
-func (t *FileCacheWithDefaultCacheLocation) DefaultLocationIsTempDir() {
-	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(os.TempDir(), util.FileCache))
-}
-
-func (t *FileCacheWithUserDefinedTempAsCacheLocation) CacheLocationIsUserDefinedTempDir() {
-	sequentialReadShouldPopulateCache(&t.fsTest, path.Join(UserTempLocation, util.FileCache))
-}
-
-// Test to check cache is deleted at the time of unmounting.
+// Test to check cache is not deleted at the time of unmounting.
 type FileCacheDestroyTest struct {
 	fsTest
 }
@@ -790,12 +778,11 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeInMB:           -1,
+			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheLocation: config.CacheLocation(CacheLocation),
+		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.serverCfg.AllowOther = true
 	t.fsTest.SetUpTestSuite()
 }
 
@@ -804,10 +791,12 @@ func (t *FileCacheDestroyTest) TearDownTestSuite() {
 }
 
 func (t *FileCacheDestroyTest) TearDown() {
-	// Do nothing as fs is unmounted in the test itself
+	// Do nothing and just delete cache as fs is unmounted in the test itself
+	err := os.RemoveAll(FileCacheDir)
+	AssertEq(nil, err)
 }
 
-func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
+func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
 	// Read to populate cache
 	objectContent := generateRandomString(50)
 	objects := map[string]string{DefaultObjectName: objectContent}
@@ -817,7 +806,7 @@ func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
 	gotContent, err := os.ReadFile(filePath)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(objectContent, string(gotContent)))
-	_, err = os.Stat(FileCacheLocation)
+	_, err = os.Stat(FileCacheDir)
 	ExpectEq(nil, err)
 
 	t.fsTest.TearDown()
@@ -827,8 +816,7 @@ func (t *FileCacheDestroyTest) CacheIsDeletedOnUnmount() {
 		AddFailure("MountedFileSystem.Unmount: %v", err)
 		AbortTest()
 	}
-	// Check the cache location is deleted
-	_, err = os.Stat(FileCacheLocation)
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	// Check the cache location is not deleted
+	_, err = os.Stat(FileCacheDir)
+	AssertEq(nil, err)
 }

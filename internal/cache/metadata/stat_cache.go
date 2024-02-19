@@ -15,10 +15,12 @@
 package metadata
 
 import (
+	"math"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -79,13 +81,29 @@ type statCacheBucketView struct {
 type entry struct {
 	o          *gcs.Object
 	expiration time.Time
+	key        string
 }
 
-// Size returns the size of entry.
-// It is currently set to dummy value 1 to avoid
-// the unnecessary actual size calculation.
-func (e entry) Size() uint64 {
-	return 1
+// Size returns the memory-size (resident set size) of the receiver entry.
+// The size calculated by the unsafe.Sizeof calls, and
+// NestedSizeOfGcsObject etc. does not account for
+// hidden members in data structures like maps, slices, linked-lists etc.
+// To account for those, we are adding a fixed constant of 553 bytes (deduced from
+// benchmark runs) to heap-size per positive stat-cache entry
+// to calculate a size closer to the actual memory utilization.
+func (e entry) Size() (size uint64) {
+	// First, calculate size on heap.
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
+	// struct stored in the cache map and in the cache linked-list.
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsObject(e.o))
+	if e.o != nil {
+		size += 553
+	}
+
+	// Convert heap-size to RSS (resident set size).
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
+
+	return
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -135,6 +153,7 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 	e := entry{
 		o:          o,
 		expiration: expiration,
+		key:        name,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -143,13 +162,15 @@ func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
 }
 
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+	name := sc.key(objectName)
+
 	// Insert a negative entry.
 	e := entry{
 		o:          nil,
 		expiration: expiration,
+		key:        name,
 	}
 
-	name := sc.key(objectName)
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
