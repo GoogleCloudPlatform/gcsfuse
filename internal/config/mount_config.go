@@ -45,12 +45,6 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	// AverageTypeCacheEntrySize is for internal size calculation
-	// purposes. This is util.HeapSizeToRssConversionFactor * avg. heap-size. Heap-size
-	// is fixed 80 bytes + length of entry-key string
-	// (which is assumed to be 20 for common cases).
-	AverageTypeCacheEntrySize int = 200
-
 	DefaultFileCacheMaxSizeMB int64 = -1
 )
 
