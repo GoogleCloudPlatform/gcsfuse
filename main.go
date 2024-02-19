@@ -70,29 +70,29 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName string, configString string) string {
+func getUserAgent(appName string, config string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, gcsfuseMetadataImageType, configString)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, gcsfuseMetadataImageType, config)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, configString)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", getVersion(), configString)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", getVersion(), config)
 	}
 }
 
 func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
-	if mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != "" {
+	if config.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
 	}
 	isFileCacheForRangeReadEnabled := "0"
 	if mountConfig.FileCacheConfig.CacheFileForRangeRead {
 		isFileCacheForRangeReadEnabled = "1"
 	}
-	return fmt.Sprintf("%s%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
+	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
 func createStorageHandle(flags *flagStorage, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{

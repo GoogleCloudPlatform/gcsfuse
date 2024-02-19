@@ -49,7 +49,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:00)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
@@ -57,7 +57,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:00)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
@@ -67,7 +67,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 	// Test Default Case - No File Cache
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:00)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent, userAgent)
 
 	// Test File Cache Enabled and Random Read Enabled
@@ -79,7 +79,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 		},
 	}
 	userAgent1 := getUserAgent("AppName", getConfigForUserAgent(mountConfig1))
-	expectedUserAgent1 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:11)", getVersion()))
+	expectedUserAgent1 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
 	ExpectEq(expectedUserAgent1, userAgent1)
 
 	// Test File Cache Enabled but Random Read Disabled
@@ -90,7 +90,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 		},
 	}
 	userAgent2 := getUserAgent("AppName", getConfigForUserAgent(mountConfig2))
-	expectedUserAgent2 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:10)", getVersion()))
+	expectedUserAgent2 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
 	ExpectEq(expectedUserAgent2, userAgent2)
 
 	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
@@ -100,10 +100,10 @@ func (t *MainTest) TestGetUserAgentConfig() {
 		},
 	}
 	userAgent3 := getUserAgent("AppName", getConfigForUserAgent(mountConfig3))
-	expectedUserAgent3 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:00)", getVersion()))
+	expectedUserAgent3 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent3, userAgent3)
 
-	// Test File Cache disabled when Cache Dir is given but maxSize is not set.
+	// Test File Cache disabled when Cache Dir is given but maxSize is set 0.
 	mountConfig4 := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
@@ -111,7 +111,7 @@ func (t *MainTest) TestGetUserAgentConfig() {
 		},
 	}
 	userAgent4 := getUserAgent("AppName", getConfigForUserAgent(mountConfig4))
-	expectedUserAgent4 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:00)", getVersion()))
+	expectedUserAgent4 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent4, userAgent4)
 }
 
@@ -121,7 +121,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:00)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
