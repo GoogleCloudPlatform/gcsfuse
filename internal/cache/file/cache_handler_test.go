@@ -142,11 +142,10 @@ func (chrT *cacheHandlerTest) getMinObject(objName string, objContent []byte) *g
 	err := storageutil.CreateObjects(ctx, chrT.bucket, objects)
 	AssertEq(nil, err)
 
-	gcsObj, err := chrT.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objName,
+	minObject, _, err := chrT.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objName,
 		ForceFetchFromGcs: true})
 	AssertEq(nil, err)
-	minObject := storageutil.ConvertObjToMinObject(gcsObj)
-	return &minObject
+	return minObject
 }
 
 // doesFileExist returns true if the file exists and false otherwise.

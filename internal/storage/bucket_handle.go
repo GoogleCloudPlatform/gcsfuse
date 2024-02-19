@@ -106,7 +106,8 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucketHandle) StatObject(ctx context.Context,
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -122,7 +123,9 @@ func (b *bucketHandle) StatObject(ctx context.Context, req *gcs.StatObjectReques
 	}
 
 	// Converting attrs to type *Object
-	o = storageutil.ObjectAttrsToBucketObject(attrs)
+	o := storageutil.ObjectAttrsToBucketObject(attrs)
+	m = storageutil.ConvertObjToMinObject(o)
+	e = storageutil.ConvertObjToExtendedAttributes(o)
 
 	return
 }

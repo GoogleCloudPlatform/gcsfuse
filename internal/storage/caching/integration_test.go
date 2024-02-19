@@ -68,12 +68,12 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		t.wrapped)
 }
 
-func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
+func (t *IntegrationTest) stat(name string) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	o, err = t.bucket.StatObject(t.ctx, req)
+	m, e, err = t.bucket.StatObject(t.ctx, req)
 	return
 }
 
@@ -94,9 +94,9 @@ func (t *IntegrationTest) CreateInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
+	m, _, err := t.stat(name)
 	AssertEq(nil, err)
-	ExpectNe(nil, o)
+	ExpectNe(nil, m)
 }
 
 func (t *IntegrationTest) StatInsertsIntoCache() {
@@ -108,7 +108,7 @@ func (t *IntegrationTest) StatInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// Stat it so that it's in cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertEq(nil, err)
 
 	// Delete it through the back door.
@@ -116,7 +116,7 @@ func (t *IntegrationTest) StatInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -138,7 +138,7 @@ func (t *IntegrationTest) ListInsertsIntoCache() {
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -164,7 +164,7 @@ func (t *IntegrationTest) UpdateUpdatesCache() {
 	AssertEq(nil, err)
 
 	// StatObject should still see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -185,7 +185,7 @@ func (t *IntegrationTest) PositiveCacheExpiration() {
 	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	// StatObject should no longer see it.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -194,7 +194,7 @@ func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
 	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object.
@@ -202,7 +202,7 @@ func (t *IntegrationTest) CreateInvalidatesNegativeCache() {
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -212,7 +212,7 @@ func (t *IntegrationTest) StatAddsToNegativeCache() {
 	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
@@ -220,7 +220,7 @@ func (t *IntegrationTest) StatAddsToNegativeCache() {
 	AssertEq(nil, err)
 
 	// StatObject should still not see it yet.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -229,7 +229,7 @@ func (t *IntegrationTest) ListInvalidatesNegativeCache() {
 	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
@@ -241,7 +241,7 @@ func (t *IntegrationTest) ListInvalidatesNegativeCache() {
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -251,7 +251,7 @@ func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
 	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
@@ -267,7 +267,7 @@ func (t *IntegrationTest) UpdateInvalidatesNegativeCache() {
 	AssertEq(nil, err)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }
@@ -277,7 +277,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	var err error
 
 	// Stat an unknown object, getting it into the negative cache.
-	_, err = t.stat(name)
+	_, _, err = t.stat(name)
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Create the object through the back door.
@@ -288,7 +288,7 @@ func (t *IntegrationTest) NegativeCacheExpiration() {
 	t.clock.AdvanceTime(ttl + time.Millisecond)
 
 	// Now StatObject should see it.
-	o, err := t.stat(name)
+	o, _, err := t.stat(name)
 	AssertEq(nil, err)
 	ExpectNe(nil, o)
 }

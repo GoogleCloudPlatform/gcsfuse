@@ -119,7 +119,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            storageutil.ConvertObjToMinObject(o),
+		src:            *storageutil.ConvertObjToMinObject(o),
 		local:          localFile,
 		unlinked:       false,
 	}
@@ -171,7 +171,8 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *g
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
 	}
-	o, err = f.bucket.StatObject(ctx, req)
+	m, e, err := f.bucket.StatObject(ctx, req)
+	o = storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
 
 	// Special case: "not found" means we have been clobbered.
 	var notFoundErr *gcs.NotFoundError
@@ -517,7 +518,7 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		f.src = storageutil.ConvertObjToMinObject(o)
+		f.src = *storageutil.ConvertObjToMinObject(o)
 		return
 	}
 
@@ -593,7 +594,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
-		f.src = storageutil.ConvertObjToMinObject(newObj)
+		f.src = *storageutil.ConvertObjToMinObject(newObj)
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false

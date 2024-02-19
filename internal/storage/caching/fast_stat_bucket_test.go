@@ -126,7 +126,7 @@ func (t *CreateObjectTest) WrappedSucceeds() {
 		WillOnce(Return(obj, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	o, err := t.bucket.CreateObject(context.TODO(), &gcs.CreateObjectRequest{})
@@ -202,7 +202,7 @@ func (t *CopyObjectTest) WrappedSucceeds() {
 		WillOnce(Return(obj, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	o, err := t.bucket.CopyObject(context.TODO(), &gcs.CopyObjectRequest{})
@@ -280,7 +280,7 @@ func (t *ComposeObjectsTest) WrappedSucceeds() {
 		WillOnce(Return(obj, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	o, err := t.bucket.ComposeObjects(context.TODO(), &gcs.ComposeObjectsRequest{})
@@ -304,35 +304,34 @@ func (t *StatObjectTest) CallsCache() {
 
 	// LookUp
 	ExpectCall(t.cache, "LookUp")(name, timeutil.TimeEq(t.clock.Now())).
-		WillOnce(Return(true, &gcs.Object{}))
+		WillOnce(Return(true, &gcs.MinObject{}))
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, _ = t.bucket.StatObject(context.TODO(), req)
+	_, _, _ = t.bucket.StatObject(context.TODO(), req)
 }
 
 func (t *StatObjectTest) CacheHit_Positive() {
 	const name = "taco"
-
 	// LookUp
-	obj := &gcs.Object{
+	minObj := &gcs.MinObject{
 		Name: name,
 	}
-
 	ExpectCall(t.cache, "LookUp")(Any(), Any()).
-		WillOnce(Return(true, obj))
+		WillOnce(Return(true, minObj))
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
+	m, e, err := t.bucket.StatObject(context.TODO(), req)
 
-	o, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	ExpectThat(m, Pointee(DeepEquals(*minObj)))
+	ExpectEq(nil, e)
 }
 
 func (t *StatObjectTest) CacheHit_Negative() {
@@ -347,7 +346,7 @@ func (t *StatObjectTest) CacheHit_Negative() {
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(context.TODO(), req)
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -364,20 +363,23 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	}
 
 	// Wrapped
-	objFromGcs := &gcs.Object{
-		Name:         name,
+	minObj := &gcs.MinObject{
+		Name: name,
+	}
+	extAttr := &gcs.ExtendedObjectAttributes{
 		CacheControl: "testControl",
 	}
 
 	ExpectCall(t.wrapped, "StatObject")(Any(), req).
-		WillOnce(Return(objFromGcs, nil))
+		WillOnce(Return(minObj, extAttr, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(objFromGcs, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(minObj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
-	o, err := t.bucket.StatObject(context.TODO(), req)
+	m, e, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
-	ExpectEq(objFromGcs, o)
+	ExpectEq(minObj, m)
+	ExpectEq(extAttr, e)
 }
 
 func (t *StatObjectTest) CallsWrapped() {
@@ -392,10 +394,10 @@ func (t *StatObjectTest) CallsWrapped() {
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), req).
-		WillOnce(Return(nil, errors.New("")))
+		WillOnce(Return(nil, nil, errors.New("")))
 
 	// Call
-	_, _ = t.bucket.StatObject(context.TODO(), req)
+	_, _, _ = t.bucket.StatObject(context.TODO(), req)
 }
 
 func (t *StatObjectTest) WrappedFails() {
@@ -407,14 +409,14 @@ func (t *StatObjectTest) WrappedFails() {
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+		WillOnce(Return(nil, nil, errors.New("taco")))
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(context.TODO(), req)
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
 
@@ -427,7 +429,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 
 	// Wrapped
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
+		WillOnce(Return(nil, nil, &gcs.NotFoundError{Err: errors.New("burrito")}))
 
 	// AddNegativeEntry
 	ExpectCall(t.cache, "AddNegativeEntry")(
@@ -439,7 +441,7 @@ func (t *StatObjectTest) WrappedSaysNotFound() {
 		Name: name,
 	}
 
-	_, err := t.bucket.StatObject(context.TODO(), req)
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	ExpectThat(err, Error(HasSubstr("burrito")))
 }
@@ -452,24 +454,25 @@ func (t *StatObjectTest) WrappedSucceeds() {
 		WillOnce(Return(false, nil))
 
 	// Wrapped
-	obj := &gcs.Object{
+	minObj := &gcs.MinObject{
 		Name: name,
 	}
 
 	ExpectCall(t.wrapped, "StatObject")(Any(), Any()).
-		WillOnce(Return(obj, nil))
+		WillOnce(Return(minObj, nil, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(minObj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	req := &gcs.StatObjectRequest{
 		Name: name,
 	}
 
-	o, err := t.bucket.StatObject(context.TODO(), req)
+	m, e, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
-	ExpectEq(obj, o)
+	ExpectEq(minObj, m)
+	ExpectEq(nil, e)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -519,8 +522,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 		WillOnce(Return(expected, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(o0, timeutil.TimeEq(t.clock.Now().Add(ttl)))
-	ExpectCall(t.cache, "Insert")(o1, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
@@ -594,7 +596,7 @@ func (t *UpdateObjectTest) WrappedSucceeds() {
 		WillOnce(Return(obj, nil))
 
 	// Insert
-	ExpectCall(t.cache, "Insert")(obj, timeutil.TimeEq(t.clock.Now().Add(ttl)))
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
 
 	// Call
 	o, err := t.bucket.UpdateObject(context.TODO(), &gcs.UpdateObjectRequest{})

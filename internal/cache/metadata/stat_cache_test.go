@@ -36,9 +36,9 @@ type testHelperCache struct {
 }
 
 func (c *testHelperCache) Insert(
-	o *gcs.Object,
+	minObj *gcs.MinObject,
 	expiration time.Time) {
-	c.wrapped.Insert(o, expiration)
+	c.wrapped.Insert(minObj, expiration)
 }
 
 func (c *testHelperCache) AddNegativeEntry(
@@ -53,14 +53,14 @@ func (c *testHelperCache) Erase(name string) {
 
 func (c *testHelperCache) LookUp(
 	name string,
-	now time.Time) (hit bool, o *gcs.Object) {
+	now time.Time) (hit bool, o *gcs.MinObject) {
 	hit, o = c.wrapped.LookUp(name, now)
 	return
 }
 
 func (c *testHelperCache) LookUpOrNil(
 	name string,
-	now time.Time) (o *gcs.Object) {
+	now time.Time) (o *gcs.MinObject) {
 	_, o = c.LookUp(name, now)
 	return
 }
@@ -130,8 +130,8 @@ func (t *StatCacheTest) LookUpInEmptyCache() {
 }
 
 func (t *StatCacheTest) LookUpUnknownKey() {
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &gcs.MinObject{Name: "burrito"}
+	o1 := &gcs.MinObject{Name: "taco"}
 
 	t.cache.Insert(o0, someTime.Add(time.Second))
 	t.cache.Insert(o1, someTime.Add(time.Second))
@@ -141,8 +141,8 @@ func (t *StatCacheTest) LookUpUnknownKey() {
 }
 
 func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
+	o0 := &gcs.MinObject{Name: "burrito"}
+	o1 := &gcs.MinObject{Name: "taco"}
 
 	t.cache.Insert(o0, someTime.Add(-time.Second))
 	t.cache.Insert(o1, someTime.Add(-time.Second))
@@ -154,9 +154,9 @@ func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
 func (t *StatCacheTest) FillUpToCapacity() {
 	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
 
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
-	o2 := &gcs.Object{Name: "quesadilla"}
+	o0 := &gcs.MinObject{Name: "burrito"}
+	o1 := &gcs.MinObject{Name: "taco"}
+	o2 := &gcs.MinObject{Name: "quesadilla"}
 
 	t.cache.Insert(o0, expiration)                    // size = 1886 bytes
 	t.cache.Insert(o1, expiration)                    // size = 1874 bytes (cumulative = 3760 bytes)
@@ -191,9 +191,9 @@ func (t *StatCacheTest) FillUpToCapacity() {
 func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
 
-	o0 := &gcs.Object{Name: "burrito"}
-	o1 := &gcs.Object{Name: "taco"}
-	o2 := &gcs.Object{Name: "quesadilla"}
+	o0 := &gcs.MinObject{Name: "burrito"}
+	o1 := &gcs.MinObject{Name: "taco"}
+	o2 := &gcs.MinObject{Name: "quesadilla"}
 
 	t.cache.Insert(o0, expiration)                         // size = 1886 bytes
 	t.cache.Insert(o1, expiration)                         // Least recent, size = 1874 bytes (cumulative = 3760 bytes)
@@ -202,7 +202,7 @@ func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
 
 	// Insert another.
-	o3 := &gcs.Object{Name: "queso"}
+	o3 := &gcs.MinObject{Name: "queso"}
 	t.cache.Insert(o3, expiration) // size = 1878 bytes (cumulative = 7714 bytes)
 	// This would evict the least recent entry i.e o1/"taco".
 
@@ -215,8 +215,8 @@ func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 }
 
 func (t *StatCacheTest) Overwrite_NewerGeneration() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 19, MetaGeneration: 1}
+	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &gcs.MinObject{Name: "taco", Generation: 19, MetaGeneration: 1}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -226,8 +226,8 @@ func (t *StatCacheTest) Overwrite_NewerGeneration() {
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
 
-	t.cache.Insert(&gcs.Object{Name: "burrito"}, expiration)
-	t.cache.Insert(&gcs.Object{Name: "enchilada"}, expiration)
+	t.cache.Insert(&gcs.MinObject{Name: "burrito"}, expiration)
+	t.cache.Insert(&gcs.MinObject{Name: "enchilada"}, expiration)
 
 	ExpectNe(nil, t.cache.LookUpOrNil("taco", someTime))
 	ExpectNe(nil, t.cache.LookUpOrNil("burrito", someTime))
@@ -235,8 +235,8 @@ func (t *StatCacheTest) Overwrite_NewerGeneration() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 7}
+	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -246,8 +246,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
 
-	t.cache.Insert(&gcs.Object{Name: "burrito"}, expiration)
-	t.cache.Insert(&gcs.Object{Name: "enchilada"}, expiration)
+	t.cache.Insert(&gcs.MinObject{Name: "burrito"}, expiration)
+	t.cache.Insert(&gcs.MinObject{Name: "enchilada"}, expiration)
 
 	ExpectNe(nil, t.cache.LookUpOrNil("taco", someTime))
 	ExpectNe(nil, t.cache.LookUpOrNil("burrito", someTime))
@@ -255,8 +255,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_SameMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -265,8 +265,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_SameMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_OlderMetadataGen() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 3}
+	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -275,8 +275,8 @@ func (t *StatCacheTest) Overwrite_SameGeneration_OlderMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_OlderGeneration() {
-	o0 := &gcs.Object{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.Object{Name: "taco", Generation: 13, MetaGeneration: 7}
+	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	o1 := &gcs.MinObject{Name: "taco", Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.Insert(o1, expiration)
@@ -286,7 +286,7 @@ func (t *StatCacheTest) Overwrite_OlderGeneration() {
 
 func (t *StatCacheTest) Overwrite_NegativeWithPositive() {
 	const name = "taco"
-	o1 := &gcs.Object{Name: name, Generation: 13, MetaGeneration: 7}
+	o1 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.AddNegativeEntry(name, expiration)
 	t.cache.Insert(o1, expiration)
@@ -296,7 +296,7 @@ func (t *StatCacheTest) Overwrite_NegativeWithPositive() {
 
 func (t *StatCacheTest) Overwrite_PositiveWithNegative() {
 	const name = "taco"
-	o0 := &gcs.Object{Name: name, Generation: 13, MetaGeneration: 7}
+	o0 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.Insert(o0, expiration)
 	t.cache.AddNegativeEntry(name, expiration)
@@ -317,9 +317,9 @@ func (t *StatCacheTest) Overwrite_NegativeWithNegative() {
 // ////// Tests for multi-bucket cache scenarios /////////////////
 // ///////////////////////////////////////////////////////////////
 var (
-	apple    = &gcs.Object{Name: "apple"}
-	orange   = &gcs.Object{Name: "orange"}
-	cardamom = &gcs.Object{Name: "cardamom"}
+	apple    = &gcs.MinObject{Name: "apple"}
+	orange   = &gcs.MinObject{Name: "orange"}
+	cardamom = &gcs.MinObject{Name: "cardamom"}
 )
 
 func (t *MultiBucketStatCacheTest) CreateEntriesWithSameNameInDifferentBuckets() {
@@ -393,7 +393,7 @@ func (t *MultiBucketStatCacheTest) ExpiresLeastRecentlyUsed() {
 	AssertEq(apple, fruits.LookUpOrNil("apple", someTime)) // Most recent
 
 	// Insert another.
-	saffron := &gcs.Object{Name: "saffron"}
+	saffron := &gcs.MinObject{Name: "saffron"}
 	spices.Insert(saffron, expiration) // size = 1900 bytes (cumulative = 7592 bytes)
 	// This will evict the least recent entry, i.e. orange.
 

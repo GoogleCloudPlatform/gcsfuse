@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -77,13 +78,16 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 	for _, o := range objs {
-		b.cache.Insert(o, expiration)
+		b.cache.Insert(storageutil.ConvertObjToMinObject(o), expiration)
 	}
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(o *gcs.Object) {
-	b.insertMultiple([]*gcs.Object{o})
+func (b *fastStatBucket) insert(minObj *gcs.MinObject) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.Insert(minObj, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -104,7 +108,7 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs.Object) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -141,7 +145,7 @@ func (b *fastStatBucket) CreateObject(
 	}
 
 	// Record the new object.
-	b.insert(o)
+	b.insert(storageutil.ConvertObjToMinObject(o))
 
 	return
 }
@@ -160,7 +164,7 @@ func (b *fastStatBucket) CopyObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(storageutil.ConvertObjToMinObject(o))
 
 	return
 }
@@ -179,7 +183,7 @@ func (b *fastStatBucket) ComposeObjects(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(storageutil.ConvertObjToMinObject(o))
 
 	return
 }
@@ -187,7 +191,7 @@ func (b *fastStatBucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
 		return b.StatObjectFromGcs(ctx, req)
@@ -198,14 +202,16 @@ func (b *fastStatBucket) StatObject(
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
-				Err: fmt.Errorf("Negative cache entry for %v", req.Name),
+				Err: fmt.Errorf("negative cache entry for %v", req.Name),
 			}
 
 			return
 		}
 
-		// Otherwise, return the object.
-		o = entry
+		// Otherwise, return the object and nil ExtendedObjectAttributes.
+		m = entry
+		e = nil
+
 		return
 	}
 
@@ -242,7 +248,7 @@ func (b *fastStatBucket) UpdateObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	b.insert(storageutil.ConvertObjToMinObject(o))
 
 	return
 }
@@ -256,8 +262,9 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
-func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
-	o, err = b.wrapped.StatObject(ctx, req)
+func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	m, e, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
@@ -268,7 +275,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObj
 	}
 
 	// Put the object in cache.
-	b.insert(o)
+	b.insert(m)
 
 	return
 }

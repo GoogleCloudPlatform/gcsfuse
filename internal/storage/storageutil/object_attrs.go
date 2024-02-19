@@ -134,13 +134,13 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 	return wc
 }
 
-func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
+func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 	var min gcs.MinObject
 	if o == nil {
-		return min
+		return &min
 	}
 
-	return gcs.MinObject{
+	return &gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,
@@ -149,4 +149,60 @@ func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
 	}
+}
+
+func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
+	if o == nil {
+		return nil
+	}
+
+	return &gcs.ExtendedObjectAttributes{
+		ContentType:        o.ContentType,
+		ContentLanguage:    o.ContentLanguage,
+		CacheControl:       o.CacheControl,
+		Owner:              o.Owner,
+		MD5:                o.MD5,
+		CRC32C:             o.CRC32C,
+		MediaLink:          o.MediaLink,
+		StorageClass:       o.StorageClass,
+		Deleted:            o.Deleted,
+		ComponentCount:     o.ComponentCount,
+		ContentDisposition: o.ContentDisposition,
+		CustomTime:         o.CustomTime,
+		EventBasedHold:     o.EventBasedHold,
+		Acl:                o.Acl,
+	}
+}
+
+func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
+	e *gcs.ExtendedObjectAttributes) *gcs.Object {
+	if m == nil {
+		return nil
+	}
+
+	o := gcs.Object{
+		Name:           m.Name,
+		Size:           m.Size,
+		Generation:     m.Generation,
+		MetaGeneration: m.MetaGeneration,
+		Updated:        m.Updated,
+		Metadata:       m.Metadata,
+	}
+
+	if e != nil {
+		o.ContentType = e.ContentType
+		o.ContentLanguage = e.ContentLanguage
+		o.CacheControl = e.CacheControl
+		o.Owner = e.Owner
+		o.MD5 = e.MD5
+		o.CRC32C = e.CRC32C
+		o.MediaLink = e.MediaLink
+		o.StorageClass = e.StorageClass
+		o.ContentDisposition = e.ContentDisposition
+		o.CustomTime = e.CustomTime
+		o.EventBasedHold = e.EventBasedHold
+		o.Acl = e.Acl
+	}
+
+	return &o
 }

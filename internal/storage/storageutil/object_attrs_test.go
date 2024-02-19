@@ -222,7 +222,7 @@ func (t objectAttrsTest) TestSetAttrsInWriterMethod() {
 func (t objectAttrsTest) Test_ConvertObjToMinObject_WithNilObject() {
 	var gcsObject *gcs.Object
 
-	gcsMinObject := ConvertObjToMinObject(gcsObject)
+	gcsMinObject := *ConvertObjToMinObject(gcsObject)
 
 	ExpectTrue(reflect.DeepEqual(gcs.MinObject{}, gcsMinObject))
 }
@@ -245,7 +245,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 		ContentEncoding: contentEncode,
 	}
 
-	gcsMinObject := ConvertObjToMinObject(&gcsObject)
+	gcsMinObject := *ConvertObjToMinObject(&gcsObject)
 
 	ExpectEq(name, gcsMinObject.Name)
 	ExpectEq(size, gcsMinObject.Size)

@@ -35,7 +35,7 @@ type StatCache interface {
 	// replace negative entries.
 	//
 	// The entry will expire after the supplied time.
-	Insert(o *gcs.Object, expiration time.Time)
+	Insert(minObj *gcs.MinObject, expiration time.Time)
 
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -48,7 +48,7 @@ type StatCache interface {
 	// Return the current entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUp(name string, now time.Time) (hit bool, o *gcs.Object)
+	LookUp(name string, now time.Time) (hit bool, o *gcs.MinObject)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -79,7 +79,7 @@ type statCacheBucketView struct {
 // An entry in the cache, pairing an object with the expiration time for the
 // entry. Nil object means negative entry.
 type entry struct {
-	o          *gcs.Object
+	o          *gcs.MinObject
 	expiration time.Time
 	key        string
 }
@@ -108,20 +108,20 @@ func (e entry) Size() (size uint64) {
 
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
-func shouldReplace(o *gcs.Object, existing entry) bool {
+func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	// Negative entries should always be replaced with positive entries.
 	if existing.o == nil {
 		return true
 	}
 
 	// Compare first on generation.
-	if o.Generation != existing.o.Generation {
-		return o.Generation > existing.o.Generation
+	if m.Generation != existing.o.Generation {
+		return m.Generation > existing.o.Generation
 	}
 
 	// Break ties on metadata generation.
-	if o.MetaGeneration != existing.o.MetaGeneration {
-		return o.MetaGeneration > existing.o.MetaGeneration
+	if m.MetaGeneration != existing.o.MetaGeneration {
+		return m.MetaGeneration > existing.o.MetaGeneration
 	}
 
 	// Break ties by preferring fresher entries.
@@ -139,19 +139,19 @@ func (sc *statCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
-func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
-	name := sc.key(o.Name)
+func (sc *statCacheBucketView) Insert(minObj *gcs.MinObject, expiration time.Time) {
+	name := sc.key(minObj.Name)
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(o, existing.(entry)) {
+		if !shouldReplace(minObj, existing.(entry)) {
 			return
 		}
 	}
 
 	// Insert an entry.
 	e := entry{
-		o:          o,
+		o:          minObj,
 		expiration: expiration,
 		key:        name,
 	}
@@ -183,7 +183,7 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
-	now time.Time) (hit bool, o *gcs.Object) {
+	now time.Time) (hit bool, o *gcs.MinObject) {
 	// Look up in the LRU cache.
 	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {

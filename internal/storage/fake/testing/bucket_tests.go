@@ -789,7 +789,7 @@ func (t *createTest) IncorrectCRC32C() {
 		Name: name,
 	}
 
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -834,7 +834,7 @@ func (t *createTest) IncorrectMD5() {
 		Name: name,
 	}
 
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 
@@ -1235,6 +1235,8 @@ func (t *copyTest) DestinationDoesntExist() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObj := storageutil.ConvertObjToMinObject(dst)
+	dstExtAttr := storageutil.ConvertObjToExtendedAttributes(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("bar", dst.Name)
@@ -1262,12 +1264,13 @@ func (t *copyTest) DestinationDoesntExist() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statO, err := t.bucket.StatObject(
+	statMinObjO, statExtAttrO, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObjO, Pointee(DeepEquals(*dstMinObj)))
+	ExpectThat(statExtAttrO, Pointee(DeepEquals(*dstExtAttr)))
 }
 
 func (t *copyTest) DestinationExists() {
@@ -1320,6 +1323,8 @@ func (t *copyTest) DestinationExists() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObj := storageutil.ConvertObjToMinObject(dst)
+	dstExtAttr := storageutil.ConvertObjToExtendedAttributes(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("bar", dst.Name)
@@ -1347,12 +1352,13 @@ func (t *copyTest) DestinationExists() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statO, err := t.bucket.StatObject(
+	statMinObjO, statExtAttrO, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObjO, Pointee(DeepEquals(*dstMinObj)))
+	ExpectThat(statExtAttrO, Pointee(DeepEquals(*dstExtAttr)))
 }
 
 func (t *copyTest) DestinationIsSameName() {
@@ -1388,6 +1394,8 @@ func (t *copyTest) DestinationIsSameName() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObj := storageutil.ConvertObjToMinObject(dst)
+	dstExtAttr := storageutil.ConvertObjToExtendedAttributes(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("foo", dst.Name)
@@ -1415,12 +1423,13 @@ func (t *copyTest) DestinationIsSameName() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statO, err := t.bucket.StatObject(
+	statMinObjO, statExtAttrO, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObjO, Pointee(DeepEquals(*dstMinObj)))
+	ExpectThat(statExtAttrO, Pointee(DeepEquals(*dstExtAttr)))
 }
 
 func (t *copyTest) InterestingNames() {
@@ -1586,7 +1595,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Unsatisfied() {
 	AssertThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// The object should not have been created.
-	_, err = t.bucket.StatObject(
+	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
@@ -1617,7 +1626,7 @@ func (t *copyTest) SrcMetaGenerationPrecondition_Satisfied() {
 	AssertEq(nil, err)
 
 	// The object should have been created.
-	_, err = t.bucket.StatObject(
+	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
 
@@ -2116,7 +2125,7 @@ func (t *composeTest) OneSourceDoesntExist() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Make sure the destination object doesn't exist.
-	_, err = t.bucket.StatObject(
+	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
@@ -2193,7 +2202,7 @@ func (t *composeTest) ExplicitGenerations_OneDoesntExist() {
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 
 	// Make sure the destination object doesn't exist.
-	_, err = t.bucket.StatObject(
+	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
@@ -2272,13 +2281,13 @@ func (t *composeTest) DestinationExists_GenerationPreconditionNotSatisfied() {
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// Make sure the object wasn't overwritten.
-	o, err := t.bucket.StatObject(
+	m, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, o.Generation)
-	ExpectEq(len("taco"), o.Size)
+	ExpectEq(sources[0].Generation, m.Generation)
+	ExpectEq(len("taco"), m.Size)
 }
 
 func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied() {
@@ -2312,14 +2321,14 @@ func (t *composeTest) DestinationExists_MetaGenerationPreconditionNotSatisfied()
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// Make sure the object wasn't overwritten.
-	o, err := t.bucket.StatObject(
+	m, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: sources[0].Name})
 
 	AssertEq(nil, err)
-	ExpectEq(sources[0].Generation, o.Generation)
-	ExpectEq(sources[0].MetaGeneration, o.MetaGeneration)
-	ExpectEq(len("taco"), o.Size)
+	ExpectEq(sources[0].Generation, m.Generation)
+	ExpectEq(sources[0].MetaGeneration, m.MetaGeneration)
+	ExpectEq(len("taco"), m.Size)
 }
 
 func (t *composeTest) DestinationExists_PreconditionsSatisfied() {
@@ -2397,7 +2406,7 @@ func (t *composeTest) DestinationDoesntExist_PreconditionNotSatisfied() {
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// Make sure the destination object doesn't exist.
-	_, err = t.bucket.StatObject(
+	_, _, err = t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
 
@@ -3001,7 +3010,7 @@ func (t *statTest) NonExistentObject() {
 		Name: "foo",
 	}
 
-	_, err := t.bucket.StatObject(t.ctx, req)
+	_, _, err := t.bucket.StatObject(t.ctx, req)
 
 	AssertThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
@@ -3022,15 +3031,16 @@ func (t *statTest) StatAfterCreating() {
 		Name: "foo",
 	}
 
-	o, err := t.bucket.StatObject(t.ctx, req)
+	m, e, err := t.bucket.StatObject(t.ctx, req)
 	AssertEq(nil, err)
-	AssertNe(nil, o)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
 
-	ExpectEq("foo", o.Name)
-	ExpectEq(orig.Generation, o.Generation)
-	ExpectEq(len("taco"), o.Size)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, timeutil.TimeEq(orig.Updated))
+	ExpectEq("foo", m.Name)
+	ExpectEq(orig.Generation, m.Generation)
+	ExpectEq(len("taco"), m.Size)
+	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
 }
 
 func (t *statTest) StatAfterOverwriting() {
@@ -3055,15 +3065,16 @@ func (t *statTest) StatAfterOverwriting() {
 		Name: "foo",
 	}
 
-	o, err := t.bucket.StatObject(t.ctx, req)
+	m, e, err := t.bucket.StatObject(t.ctx, req)
 	AssertEq(nil, err)
-	AssertNe(nil, o)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
 
-	ExpectEq("foo", o.Name)
-	ExpectEq(o2.Generation, o.Generation)
-	ExpectEq(len("burrito"), o.Size)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, timeutil.TimeEq(o2.Updated))
+	ExpectEq("foo", m.Name)
+	ExpectEq(o2.Generation, m.Generation)
+	ExpectEq(len("burrito"), m.Size)
+	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
 }
 
 func (t *statTest) StatAfterUpdating() {
@@ -3104,16 +3115,17 @@ func (t *statTest) StatAfterUpdating() {
 		Name: "foo",
 	}
 
-	o, err := t.bucket.StatObject(t.ctx, req)
+	m, e, err := t.bucket.StatObject(t.ctx, req)
 	AssertEq(nil, err)
-	AssertNe(nil, o)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
 
-	ExpectEq("foo", o.Name)
-	ExpectEq(o2.Generation, o.Generation)
-	ExpectEq(o2.MetaGeneration, o.MetaGeneration)
-	ExpectEq(len("taco"), o.Size)
-	ExpectThat(o.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(o.Updated, timeutil.TimeEq(o2.Updated))
+	ExpectEq("foo", m.Name)
+	ExpectEq(o2.Generation, m.Generation)
+	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
+	ExpectEq(len("taco"), m.Size)
+	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
+	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3462,12 +3474,12 @@ func (t *updateTest) ParticularGeneration_GenerationDoesntExist() {
 	ExpectThat(err, Error(MatchesRegexp("not found|404")))
 
 	// The original object should be unaffected.
-	o, err = t.bucket.StatObject(
+	_, e, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
-	ExpectEq("", o.ContentLanguage)
+	ExpectEq("", e.ContentLanguage)
 }
 
 func (t *updateTest) ParticularGeneration_Successful() {
@@ -3493,12 +3505,12 @@ func (t *updateTest) ParticularGeneration_Successful() {
 	ExpectEq("fr", o.ContentLanguage)
 
 	// Stat and make sure it took effect.
-	o, err = t.bucket.StatObject(
+	_, e, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
-	ExpectEq("fr", o.ContentLanguage)
+	ExpectEq("fr", e.ContentLanguage)
 }
 
 func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
@@ -3523,12 +3535,12 @@ func (t *updateTest) MetaGenerationPrecondition_Unsatisfied() {
 	ExpectThat(err, HasSameTypeAs(&gcs.PreconditionError{}))
 
 	// The original object should be unaffected.
-	o, err = t.bucket.StatObject(
+	_, e, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
-	ExpectEq("", o.ContentLanguage)
+	ExpectEq("", e.ContentLanguage)
 }
 
 func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
@@ -3552,12 +3564,12 @@ func (t *updateTest) MetaGenerationPrecondition_Satisfied() {
 	AssertEq(nil, err)
 
 	// The object should have been updated.
-	o, err = t.bucket.StatObject(
+	_, e, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: o.Name})
 
 	AssertEq(nil, err)
-	ExpectEq("fr", o.ContentLanguage)
+	ExpectEq("fr", e.ContentLanguage)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -4364,7 +4376,7 @@ func (t *cancellationTest) CreateObject() {
 		Name: name,
 	}
 
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
 }
 

@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
@@ -297,7 +298,8 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		Name: name.GcsObjectName(),
 	}
 
-	o, err := bucket.StatObject(ctx, req)
+	m, e, err := bucket.StatObject(ctx, req)
+	o := storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
