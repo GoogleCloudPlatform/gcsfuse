@@ -238,7 +238,7 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 // Improvement scope: This can be generalized to a general-struct
 // but that needs better understanding of the reflect package
 // and other related packages.
-func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
+func NestedSizeOfGcsObject(o *gcs.MinObject) (size int) {
 	if o == nil {
 		return
 	}
@@ -248,16 +248,9 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 
 	// Account for string members.
 	for _, strPtr := range []*string{
-		&o.Name, &o.ContentType, &o.ContentLanguage, &o.CacheControl,
-		&o.Owner, &o.ContentEncoding, &o.MediaLink, &o.StorageClass,
-		&o.ContentDisposition, &o.CustomTime} {
+		&o.Name, &o.ContentEncoding} {
 		size += contentSizeOfString(strPtr)
 	}
-
-	// Account for integer-pointer members.
-	size += UnsafeSizeOf(o.CRC32C)
-	// Account for pointer-to-integer-array members.
-	size += UnsafeSizeOf(o.MD5)
 
 	// Account for integer members - Size, Generation, MetaGeneration, ComponentCount.
 	// Account for time members - Deleted, Updated.
@@ -266,9 +259,6 @@ func NestedSizeOfGcsObject(o *gcs.Object) (size int) {
 
 	// Account for map members.
 	size += contentSizeOfStringToStringMap(&o.Metadata)
-
-	// Account for slice members.
-	size += contentSizeOfArrayOfAclPointers(&o.Acl)
 
 	return
 }

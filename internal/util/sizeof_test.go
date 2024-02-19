@@ -15,7 +15,6 @@
 package util
 
 import (
-	"crypto/md5"
 	"net/http"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 	"google.golang.org/api/googleapi"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 func TestSizeof(t *testing.T) { RunTests(t) }
@@ -277,86 +275,30 @@ func (t *SizeofTest) TestContentSizeOfServerResponse() {
 
 func (t *SizeofTest) TestNestedSizeOfGcsObject() {
 	const name string = "my-object"
-	const contentType string = "plain/bin/gzip"
-	const contentLanguage string = "en/fr/jp"
-	const cacheControl string = "off/on"
 	const contentEncoding string = "gzip/none"
-	const owner string = "my-user"
-	var md5Value [md5.Size]byte = [md5.Size]byte{0, 2, 42, 2, 4, 54, 3}
-	var crc32 uint32 = 758734925
-	var mediaLink string = "media-link"
 	var generation int64 = 858734898
 	var metaGeneration int64 = 858734899
-	const storageClass string = "standard"
-	deleted := time.Now()
 	updated := time.Now()
-	const componentCount int64 = 1
-	const contentDisposition string = "my-content-disposition"
-	const customTime string = "my-custom-time"
-	const eventBasedHold bool = true
 	customMetadaField1 := "google-symlink"
 	customMetadaValue1 := "true"
 	customMetadaField2 := "google-xyz-field"
 	customMetadaValue2 := "google-symlink"
 	customMetadataFields := map[string]string{customMetadaField1: customMetadaValue1, customMetadaField2: customMetadaValue2}
 	customMetadataFieldsContentSize := emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
-	customAcls := []*storagev1.ObjectAccessControl{
-		{
-			Bucket:     "my-bucket",
-			Domain:     "my-domain",
-			Email:      "my-email@my-domain.com",
-			Entity:     "my-entity",
-			EntityId:   "my-entity-id",
-			Etag:       "my-etag",
-			Generation: generation,
-			Id:         "object-id",
-			Kind:       "object-kind",
-			Object:     "my-object",
-			ProjectTeam: &storagev1.ObjectAccessControlProjectTeam{
-				ProjectNumber: "78358753894",
-				Team:          "project-team",
-				ForceSendFields: []string{
-					"field1", "field2", "field3",
-				},
-			},
-			Role:            "my-role",
-			SelfLink:        "",
-			ServerResponse:  googleapi.ServerResponse{},
-			ForceSendFields: []string{},
-			NullFields:      []string{},
-		},
+
+	o := gcs.MinObject{
+		Name:            name,
+		Size:            100,
+		ContentEncoding: contentEncoding,
+		Metadata:        customMetadataFields,
+		Generation:      generation,
+		MetaGeneration:  metaGeneration,
+		Updated:         updated,
 	}
 
-	o := gcs.Object{
-		Name:               name,
-		ContentType:        contentType,
-		ContentLanguage:    contentLanguage,
-		CacheControl:       cacheControl,
-		Owner:              owner,
-		Size:               100,
-		ContentEncoding:    contentEncoding,
-		MD5:                &md5Value,
-		CRC32C:             &crc32,
-		MediaLink:          mediaLink,
-		Metadata:           customMetadataFields,
-		Generation:         generation,
-		MetaGeneration:     metaGeneration,
-		StorageClass:       storageClass,
-		Deleted:            deleted,
-		Updated:            updated,
-		ComponentCount:     componentCount,
-		ContentDisposition: contentDisposition,
-		CustomTime:         customTime,
-		EventBasedHold:     eventBasedHold,
-		Acl:                customAcls,
-	}
-
-	var expectedSize int = sizeOfEmptyGcsObject
-	expectedSize += len(contentType) + len(name) + len(contentLanguage) + len(cacheControl) + len(contentEncoding) + len(owner) + len(mediaLink) + len(storageClass) + len(contentDisposition) + len(customTime)
-	expectedSize += md5.Size // for MD5 [md5.Size]byte
-	expectedSize += 4        // for CRC 32 uint32
+	var expectedSize int = sizeOfEmptyMinObject
+	expectedSize += len(name) + len(contentEncoding)
 	expectedSize += customMetadataFieldsContentSize
-	expectedSize += contentSizeOfArrayOfAclPointers(&customAcls)
 
 	AssertEq(expectedSize, NestedSizeOfGcsObject(&o))
 }
