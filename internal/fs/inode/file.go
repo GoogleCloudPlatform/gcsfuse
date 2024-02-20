@@ -164,12 +164,13 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, returnFullObject bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
 		Name:              f.name.GcsObjectName(),
 		ForceFetchFromGcs: forceFetchFromGcs,
+		ReturnFull:        returnFullObject,
 	}
 	o, err = f.bucket.StatObject(ctx, req)
 
@@ -400,7 +401,7 @@ func (f *FileInode) Attributes(
 
 	// If the object has been clobbered, we reflect that as the inode being
 	// unlinked.
-	_, clobbered, err := f.clobbered(ctx, false)
+	_, clobbered, err := f.clobbered(ctx, false, false)
 	if err != nil {
 		err = fmt.Errorf("clobbered: %w", err)
 		return
@@ -564,7 +565,7 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 	// properties and using that when object is synced below. StatObject by
 	// default sets the projection to full, which fetches all the object
 	// properties.
-	latestGcsObj, isClobbered, err := f.clobbered(ctx, true)
+	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
 
 	// Clobbered is treated as being unlinked. There's no reason to return an
 	// error in that case. We simply return without syncing the object.
