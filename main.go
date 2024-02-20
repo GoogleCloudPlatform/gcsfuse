@@ -70,19 +70,31 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName string) string {
+func getUserAgent(appName string, config string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s)", getVersion(), appName, gcsfuseMetadataImageType)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, gcsfuseMetadataImageType, config)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s)", getVersion(), appName)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", getVersion())
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", getVersion(), config)
 	}
 }
 
-func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+func getConfigForUserAgent(mountConfig *config.MountConfig) string {
+	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
+	isFileCacheEnabled := "0"
+	if config.IsFileCacheEnabled(mountConfig) {
+		isFileCacheEnabled = "1"
+	}
+	isFileCacheForRangeReadEnabled := "0"
+	if mountConfig.FileCacheConfig.CacheFileForRangeRead {
+		isFileCacheForRangeReadEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
+}
+func createStorageHandle(flags *flagStorage, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -90,14 +102,14 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:          flags.HttpClientTimeout,
 		MaxRetrySleep:              flags.MaxRetrySleep,
 		RetryMultiplier:            flags.RetryMultiplier,
-		UserAgent:                  getUserAgent(flags.AppName),
+		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,
 		KeyFile:                    flags.KeyFile,
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
-
+	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
@@ -126,8 +138,9 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
+		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(flags)
+		storageHandle, err = createStorageHandle(flags, userAgent)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return

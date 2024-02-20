@@ -36,7 +36,8 @@ func (t *MainTest) TestCreateStorageHandle() {
 		KeyFile:             "testdata/test_creds.json",
 	}
 
-	storageHandle, err := createStorageHandle(flags)
+	userAgent := "AppName"
+	storageHandle, err := createStorageHandle(flags, userAgent)
 
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)
@@ -46,23 +47,75 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
-	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
-	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
-func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarAndAppNameAreNotSet() {
-	userAgent := getUserAgent("")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", getVersion()))
+func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
 
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled() {
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB:             -1,
+			CacheFileForRangeRead: true,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
+	// Test File Cache Enabled but Random Read Disabled
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
+	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
+	mountConfig := &config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
+	// Test File Cache disabled when Cache Dir is given but maxSize is set 0.
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: 0,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
@@ -70,8 +123,9 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
-	userAgent := getUserAgent("")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }

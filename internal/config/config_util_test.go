@@ -88,3 +88,32 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 	AssertEq(mountConfig.LogConfig.FilePath, "a.txt")
 	AssertEq(mountConfig.LogConfig.Severity, INFO)
 }
+
+func (t *ConfigTest) TestIsFileCacheEnabled() {
+	mountConfig := &MountConfig{
+		CacheDir: "/tmp/folder/",
+		FileCacheConfig: FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	AssertEq(IsFileCacheEnabled(mountConfig), true)
+
+	mountConfig1 := &MountConfig{}
+	AssertEq(IsFileCacheEnabled(mountConfig1), false)
+
+	mountConfig2 := &MountConfig{
+		CacheDir: "",
+		FileCacheConfig: FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	AssertEq(IsFileCacheEnabled(mountConfig2), false)
+
+	mountConfig3 := &MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: FileCacheConfig{
+			MaxSizeMB: 0,
+		},
+	}
+	AssertEq(IsFileCacheEnabled(mountConfig3), false)
+}
