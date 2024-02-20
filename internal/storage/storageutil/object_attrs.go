@@ -181,12 +181,13 @@ func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
 	}
 
 	o := gcs.Object{
-		Name:           m.Name,
-		Size:           m.Size,
-		Generation:     m.Generation,
-		MetaGeneration: m.MetaGeneration,
-		Updated:        m.Updated,
-		Metadata:       m.Metadata,
+		Name:            m.Name,
+		Size:            m.Size,
+		Generation:      m.Generation,
+		MetaGeneration:  m.MetaGeneration,
+		Updated:         m.Updated,
+		Metadata:        m.Metadata,
+		ContentEncoding: m.ContentEncoding,
 	}
 
 	if e != nil {
@@ -198,6 +199,8 @@ func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
 		o.CRC32C = e.CRC32C
 		o.MediaLink = e.MediaLink
 		o.StorageClass = e.StorageClass
+		o.Deleted = e.Deleted
+		o.ComponentCount = e.ComponentCount
 		o.ContentDisposition = e.ContentDisposition
 		o.CustomTime = e.CustomTime
 		o.EventBasedHold = e.EventBasedHold
