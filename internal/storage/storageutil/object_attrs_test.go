@@ -259,9 +259,9 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilObject() {
 	var gcsObject *gcs.Object
 
-	extendedObjAttr := *ConvertObjToExtendedAttributes(gcsObject)
+	extendedObjAttr := ConvertObjToExtendedAttributes(gcsObject)
 
-	ExpectTrue(reflect.DeepEqual(gcs.ExtendedObjectAttributes{}, extendedObjAttr))
+	ExpectEq(nil, extendedObjAttr)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObject() {
@@ -307,9 +307,9 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNilMinObjectAnd
 	var minObject *gcs.MinObject
 	var extendedObjectAttr *gcs.ExtendedObjectAttributes
 
-	object := *ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectTrue(reflect.DeepEqual(gcs.Object{}, object))
+	ExpectEq(nil, object)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNilMinObjectAndNonNilAttributes() {
@@ -318,9 +318,9 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNilMinObjectAnd
 		ContentType: "ContentType",
 	}
 
-	object := *ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectTrue(reflect.DeepEqual(gcs.Object{}, object))
+	ExpectEq(nil, object)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObjectAndNilAttributes() {
@@ -330,9 +330,9 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObject
 	}
 	var extendedObjectAttr *gcs.ExtendedObjectAttributes
 
-	object := *ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
 
-	ExpectTrue(reflect.DeepEqual(gcs.Object{Name: name}, object))
+	ExpectEq(nil, object)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObjectAndNonNilAttributes() {
@@ -388,4 +388,52 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObject
 	ExpectEq(gcsObject.CustomTime, extendedObjAttr.CustomTime)
 	ExpectEq(gcsObject.EventBasedHold, extendedObjAttr.EventBasedHold)
 	ExpectEq(gcsObject.Acl, extendedObjAttr.Acl)
+}
+
+func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNilMinObject() {
+	var minObject *gcs.MinObject
+
+	object := ConvertMinObjectToObject(minObject)
+
+	ExpectEq(nil, object)
+}
+
+func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
+	var attrMd5 *[16]byte
+	var crc32C *uint32 = nil
+
+	timeAttr := time.Now()
+	minObject := &gcs.MinObject{
+		Name:            "test",
+		Size:            uint64(36),
+		Generation:      int64(444),
+		MetaGeneration:  int64(555),
+		Updated:         timeAttr,
+		Metadata:        map[string]string{"test_key": "test_value"},
+		ContentEncoding: "test_encoding",
+	}
+
+	gcsObject := *ConvertMinObjectToObject(minObject)
+
+	ExpectEq(gcsObject.Name, minObject.Name)
+	ExpectEq(gcsObject.Size, minObject.Size)
+	ExpectEq(gcsObject.Generation, minObject.Generation)
+	ExpectEq(gcsObject.MetaGeneration, minObject.MetaGeneration)
+	ExpectEq(0, gcsObject.Updated.Compare(minObject.Updated))
+	ExpectEq(gcsObject.Metadata, minObject.Metadata)
+	ExpectEq(gcsObject.ContentEncoding, minObject.ContentEncoding)
+	ExpectEq(gcsObject.ContentType, "")
+	ExpectEq(gcsObject.ContentLanguage, "")
+	ExpectEq(gcsObject.CacheControl, "")
+	ExpectEq(gcsObject.Owner, "")
+	ExpectEq(gcsObject.MD5, attrMd5)
+	ExpectEq(gcsObject.CRC32C, crc32C)
+	ExpectEq(gcsObject.MediaLink, "")
+	ExpectEq(gcsObject.StorageClass, "")
+	ExpectEq(0, gcsObject.Deleted.Compare(time.Time{}))
+	ExpectEq(gcsObject.ComponentCount, 0)
+	ExpectEq(gcsObject.ContentDisposition, "")
+	ExpectEq(gcsObject.CustomTime, "")
+	ExpectEq(gcsObject.EventBasedHold, false)
+	ExpectEq(gcsObject.Acl, []*storagev1.ObjectAccessControl(nil))
 }

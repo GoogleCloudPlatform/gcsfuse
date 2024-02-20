@@ -152,9 +152,8 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 }
 
 func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
-	var extObjAttr gcs.ExtendedObjectAttributes
 	if o == nil {
-		return &extObjAttr
+		return nil
 	}
 
 	return &gcs.ExtendedObjectAttributes{
@@ -177,12 +176,41 @@ func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes
 
 func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
 	e *gcs.ExtendedObjectAttributes) *gcs.Object {
-	var object gcs.Object
-	if m == nil {
-		return &object
+	if m == nil || e == nil {
+		return nil
 	}
 
-	o := gcs.Object{
+	return &gcs.Object{
+		Name:               m.Name,
+		Size:               m.Size,
+		Generation:         m.Generation,
+		MetaGeneration:     m.MetaGeneration,
+		Updated:            m.Updated,
+		Metadata:           m.Metadata,
+		ContentEncoding:    m.ContentEncoding,
+		ContentType:        e.ContentType,
+		ContentLanguage:    e.ContentLanguage,
+		CacheControl:       e.CacheControl,
+		Owner:              e.Owner,
+		MD5:                e.MD5,
+		CRC32C:             e.CRC32C,
+		MediaLink:          e.MediaLink,
+		StorageClass:       e.StorageClass,
+		Deleted:            e.Deleted,
+		ComponentCount:     e.ComponentCount,
+		ContentDisposition: e.ContentDisposition,
+		CustomTime:         e.CustomTime,
+		EventBasedHold:     e.EventBasedHold,
+		Acl:                e.Acl,
+	}
+}
+
+func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
+	if m == nil {
+		return nil
+	}
+
+	return &gcs.Object{
 		Name:            m.Name,
 		Size:            m.Size,
 		Generation:      m.Generation,
@@ -191,23 +219,4 @@ func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
 		Metadata:        m.Metadata,
 		ContentEncoding: m.ContentEncoding,
 	}
-
-	if e != nil {
-		o.ContentType = e.ContentType
-		o.ContentLanguage = e.ContentLanguage
-		o.CacheControl = e.CacheControl
-		o.Owner = e.Owner
-		o.MD5 = e.MD5
-		o.CRC32C = e.CRC32C
-		o.MediaLink = e.MediaLink
-		o.StorageClass = e.StorageClass
-		o.Deleted = e.Deleted
-		o.ComponentCount = e.ComponentCount
-		o.ContentDisposition = e.ContentDisposition
-		o.CustomTime = e.CustomTime
-		o.EventBasedHold = e.EventBasedHold
-		o.Acl = e.Acl
-	}
-
-	return &o
 }
