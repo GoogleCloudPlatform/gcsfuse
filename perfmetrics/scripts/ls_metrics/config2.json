@@ -1,0 +1,61 @@
+{
+  "name": "gcsfuse-managed-folder-list-test" ,
+  "num_folders": 11 ,
+  "folders": [
+    {
+      "name": "1000_managed_folders" ,
+      "num_folders": 1000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "2000_managed_folders" ,
+      "num_folders": 2000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "3000_managed_folders" ,
+      "num_folders": 3000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "5000_managed_folders" ,
+      "num_folders": 5000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "10000_managed_folders" ,
+      "num_folders": 10000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "25000_managed_folders" ,
+      "num_folders": 25000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "35000_managed_folders" ,
+      "num_folders": 35000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "50000_managed_folders" ,
+      "num_folders": 50000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "75000_managed_folders" ,
+      "num_folders": 75000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "100000_managed_folders" ,
+      "num_folders": 100000 ,
+      "file_name_prefix": "managed-folder"
+    } ,
+    {
+      "name": "200000_managed_folders" ,
+      "num_folders": 200000 ,
+      "file_name_prefix": "managed-folder"
+    }
+  ]
+}

@@ -1662,7 +1662,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok, true)
+		entries, tok, err = childDir.ReadEntries(ctx, tok, fs.enableManagedFolders)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
