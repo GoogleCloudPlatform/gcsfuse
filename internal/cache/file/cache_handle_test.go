@@ -123,7 +123,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 		ForceFetchFromGcs: true})
 	AssertEq(nil, err)
 	minObject := storageutil.ConvertObjToMinObject(gcsObj)
-	cht.object = minObject
+	cht.object = &minObject
 
 	// fileInfoCache with testFileInfoEntry
 	cht.cache = lru.NewCache(CacheMaxSize)

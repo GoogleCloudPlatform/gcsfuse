@@ -134,13 +134,13 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 	return wc
 }
 
-func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
-	var min gcs.MinObject
+func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
+	var minObj gcs.MinObject
 	if o == nil {
-		return &min
+		return minObj
 	}
 
-	return &gcs.MinObject{
+	return gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,
