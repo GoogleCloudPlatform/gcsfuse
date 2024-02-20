@@ -1378,9 +1378,9 @@ func (t *DirectoryTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// There should be no content type set in GCS.
-		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
-		ExpectEq("", o.ContentType, "name: %q", name)
+		ExpectEq("", e.ContentType, "name: %q", name)
 	}
 }
 
@@ -2049,7 +2049,7 @@ func (t *FileTest) Sync_NotDirty() {
 	statReq := &gcs.StatObjectRequest{
 		Name: "foo",
 	}
-	o1, err := bucket.StatObject(ctx, statReq)
+	m1, _, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 
 	// Sync the file again.
@@ -2057,9 +2057,9 @@ func (t *FileTest) Sync_NotDirty() {
 	AssertEq(nil, err)
 
 	// A new generation need not have been written.
-	o2, err := bucket.StatObject(ctx, statReq)
+	m2, _, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
-	ExpectEq(o1.Generation, o2.Generation)
+	ExpectEq(m1.Generation, m2.Generation)
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -2138,7 +2138,7 @@ func (t *FileTest) Close_NotDirty() {
 	statReq := &gcs.StatObjectRequest{
 		Name: "foo",
 	}
-	_, err = bucket.StatObject(ctx, statReq)
+	_, _, err = bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
 }
 
@@ -2231,9 +2231,9 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
 		AssertEq(nil, err)
-		ExpectEq(expected, o.ContentType, "name: %q", name)
+		ExpectEq(expected, e.ContentType, "name: %q", name)
 	}
 
 	for name, expected := range testCases {
@@ -2270,7 +2270,7 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 
 	// Check the object in the bucket.
-	o, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
+	o, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
 	ExpectEq(0, o.Size)

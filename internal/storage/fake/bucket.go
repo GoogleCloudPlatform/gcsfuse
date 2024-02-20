@@ -28,6 +28,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 )
@@ -706,9 +707,8 @@ func (b *bucket) ComposeObjects(
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *bucket) StatObject(
-	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+func (b *bucket) StatObject(ctx context.Context,
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -723,7 +723,9 @@ func (b *bucket) StatObject(
 	}
 
 	// Make a copy to avoid handing back internal state.
-	o = copyObject(&b.objects[index].metadata)
+	o := copyObject(&b.objects[index].metadata)
+	m = storageutil.ConvertObjToMinObject(o)
+	e = storageutil.ConvertObjToExtendedAttributes(o)
 
 	return
 }

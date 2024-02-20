@@ -177,7 +177,8 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 		ForceFetchFromGcs:              forceFetchFromGcs,
 		ReturnExtendedObjectAttributes: includeExtendedObjectAttributes,
 	}
-	o, err = f.bucket.StatObject(ctx, req)
+	m, e, err := f.bucket.StatObject(ctx, req)
+	o = storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
 
 	// Special case: "not found" means we have been clobbered.
 	var notFoundErr *gcs.NotFoundError

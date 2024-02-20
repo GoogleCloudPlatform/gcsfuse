@@ -364,7 +364,7 @@ func (t *FileTest) WriteThenSync() {
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
@@ -411,7 +411,7 @@ func (t *FileTest) WriteToLocalFileThenSync() {
 	AssertFalse(t.in.IsLocal())
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
 	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
@@ -448,7 +448,7 @@ func (t *FileTest) SyncEmptyLocalFile() {
 	AssertFalse(t.in.IsLocal())
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
 	ExpectEq(t.in.SourceGeneration().Metadata, o.MetaGeneration)
@@ -492,7 +492,7 @@ func (t *FileTest) AppendThenSync() {
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
@@ -538,7 +538,7 @@ func (t *FileTest) TruncateDownwardThenSync() {
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(t.in.SourceGeneration().Object, o.Generation)
@@ -580,7 +580,7 @@ func (t *FileTest) TruncateUpwardThenSync() {
 
 	// Stat the current object in the bucket.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 	ExpectEq(
 		truncateTime.UTC().Format(time.RFC3339Nano),
 		o.Metadata["gcsfuse_mtime"])
@@ -619,7 +619,7 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 	AssertEq(6, attrs.Size)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
@@ -648,7 +648,7 @@ func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttribut
 	AssertEq(2, attrs.Size)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
@@ -678,7 +678,7 @@ func (t *FileTest) Sync_Clobbered() {
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(newObj.Generation, o.Generation)
@@ -703,7 +703,7 @@ func (t *FileTest) SetMtime_ContentNotFaultedIn() {
 
 	// The inode should have added the mtime to the backing object's metadata.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(
@@ -733,7 +733,7 @@ func (t *FileTest) SetMtime_ContentClean() {
 
 	// The inode should have added the mtime to the backing object's metadata.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(
@@ -767,7 +767,7 @@ func (t *FileTest) SetMtime_ContentDirty() {
 
 	// Now the object in the bucket should have the appropriate mtime.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(
@@ -794,7 +794,7 @@ func (t *FileTest) SetMtime_SourceObjectGenerationChanged() {
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(newObj.Generation, o.Generation)
@@ -822,7 +822,7 @@ func (t *FileTest) SetMtime_SourceObjectMetaGenerationChanged() {
 
 	// The object in the bucket should not have been changed.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	o, err := t.bucket.StatObject(t.ctx, statReq)
+	o, _, err := t.bucket.StatObject(t.ctx, statReq)
 
 	AssertEq(nil, err)
 	ExpectEq(newObj.Generation, o.Generation)
@@ -855,7 +855,7 @@ func (t *FileTest) TestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	ExpectThat(attrs.Atime, timeutil.TimeEq(mtime))
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }
@@ -925,7 +925,7 @@ func (t *FileTest) UnlinkLocalFile() {
 	AssertTrue(t.in.IsUnlinked())
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
-	_, err = t.bucket.StatObject(t.ctx, statReq)
+	_, _, err = t.bucket.StatObject(t.ctx, statReq)
 	AssertNe(nil, err)
 	AssertEq("gcs.NotFoundError: Object test not found", err.Error())
 }

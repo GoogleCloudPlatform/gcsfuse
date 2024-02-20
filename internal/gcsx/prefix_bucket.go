@@ -138,13 +138,13 @@ func (b *prefixBucket) ComposeObjects(
 
 func (b *prefixBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (o *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.StatObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
-	o, err = b.wrapped.StatObject(ctx, mReq)
+	o, e, err = b.wrapped.StatObject(ctx, mReq)
 
 	// Modify the returned object.
 	if o != nil {
