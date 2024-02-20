@@ -85,6 +85,7 @@ func makeGcsfuseArgs(
 			"experimental_local_file_cache",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache",
+			"enable_managed_folders",
 			"experimental_enable_json_read":
 			if value == "" {
 				value = "true"
