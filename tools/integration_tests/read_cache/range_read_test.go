@@ -53,7 +53,7 @@ func (s *rangeReadTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
@@ -64,20 +64,20 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset10MiB, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
-	validateCacheSizeWithinLimit(cacheCapacityForRangeReadTestInMiB, t)
+	validateCacheSizeWithinLimit(cacheCapacityForVeryLargeFileInMiB, t)
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetEndOfFile, t)
@@ -98,8 +98,8 @@ func TestRangeReadTest(t *testing.T) {
 		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet,
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName+"1"),
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName+"2"))
+		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, false, configFileName+"1"),
+		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, true, configFileName+"2"))
 	appendFlags(&flagSet, "--o=ro", "")
 
 	// Create storage client before running tests.
