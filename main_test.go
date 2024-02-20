@@ -62,57 +62,61 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
-func (t *MainTest) TestGetUserAgentConfig() {
-
-	// Test Default Case - No File Cache
+func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent, userAgent)
+}
 
-	// Test File Cache Enabled and Random Read Enabled
-	mountConfig1 := &config.MountConfig{
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled() {
+	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
 	}
-	userAgent1 := getUserAgent("AppName", getConfigForUserAgent(mountConfig1))
-	expectedUserAgent1 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
-	ExpectEq(expectedUserAgent1, userAgent1)
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
 
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
 	// Test File Cache Enabled but Random Read Disabled
-	mountConfig2 := &config.MountConfig{
+	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB: -1,
 		},
 	}
-	userAgent2 := getUserAgent("AppName", getConfigForUserAgent(mountConfig2))
-	expectedUserAgent2 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
-	ExpectEq(expectedUserAgent2, userAgent2)
-
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
 	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
-	mountConfig3 := &config.MountConfig{
+	mountConfig := &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB: -1,
 		},
 	}
-	userAgent3 := getUserAgent("AppName", getConfigForUserAgent(mountConfig3))
-	expectedUserAgent3 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
-	ExpectEq(expectedUserAgent3, userAgent3)
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
 
+func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
 	// Test File Cache disabled when Cache Dir is given but maxSize is set 0.
-	mountConfig4 := &config.MountConfig{
+	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB: 0,
 		},
 	}
-	userAgent4 := getUserAgent("AppName", getConfigForUserAgent(mountConfig4))
-	expectedUserAgent4 := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
-	ExpectEq(expectedUserAgent4, userAgent4)
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
