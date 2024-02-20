@@ -73,8 +73,8 @@ func (t *IntegrationTest) stat(name string) (o *gcs.Object, err error) {
 		Name: name,
 	}
 
-	m, e, err := t.bucket.StatObject(t.ctx, req)
-	o = storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
+	m, _, err := t.bucket.StatObject(t.ctx, req)
+	o = storageutil.ConvertMinObjectToObject(m)
 	return
 }
 

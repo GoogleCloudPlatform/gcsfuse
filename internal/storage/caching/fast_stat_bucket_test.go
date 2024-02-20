@@ -331,8 +331,8 @@ func (t *StatObjectTest) CacheHit_Positive() {
 		Name: name,
 	}
 
-	m, e, err := t.bucket.StatObject(context.TODO(), req)
-	o := storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
+	m, _, err := t.bucket.StatObject(context.TODO(), req)
+	o := storageutil.ConvertMinObjectToObject(m)
 	AssertEq(nil, err)
 	ExpectThat(o, Pointee(DeepEquals(*obj)))
 }

@@ -298,8 +298,8 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		Name: name.GcsObjectName(),
 	}
 
-	m, e, err := bucket.StatObject(ctx, req)
-	o := storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
+	m, _, err := bucket.StatObject(ctx, req)
+	o := storageutil.ConvertMinObjectToObject(m)
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError

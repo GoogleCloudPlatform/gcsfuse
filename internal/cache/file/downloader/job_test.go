@@ -52,8 +52,11 @@ func (dt *downloaderTest) getMinObject(objectName string) gcs.MinObject {
 	if err != nil {
 		panic(fmt.Errorf("error whlie stating object: %w", err))
 	}
-	
-	return *minObject
+
+	if minObject != nil {
+		return *minObject
+	}
+	return gcs.MinObject{}
 }
 
 func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, sequentialReadSize int32, lruCacheSize uint64, removeCallback func()) {

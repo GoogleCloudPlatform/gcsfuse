@@ -206,7 +206,8 @@ func (b *fastStatBucket) StatObject(
 		}
 
 		// Otherwise, return object and ExtendedObjectAttributes.
-		m = storageutil.ConvertObjToMinObject(entry)
+		minObj := storageutil.ConvertObjToMinObject(entry)
+		m = &minObj
 		e = storageutil.ConvertObjToExtendedAttributes(entry)
 		return
 	}
@@ -271,6 +272,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
+	// TODO: Store only MinObject in Stat Cache.
 	o := storageutil.ConvertMinObjectAndExtendedAttributesToObject(m, e)
 	b.insert(o)
 

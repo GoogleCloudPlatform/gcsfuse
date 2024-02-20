@@ -724,7 +724,8 @@ func (b *bucket) StatObject(ctx context.Context,
 
 	// Make a copy to avoid handing back internal state.
 	o := copyObject(&b.objects[index].metadata)
-	m = storageutil.ConvertObjToMinObject(o)
+	minObj := storageutil.ConvertObjToMinObject(o)
+	m = &minObj
 	e = storageutil.ConvertObjToExtendedAttributes(o)
 
 	return

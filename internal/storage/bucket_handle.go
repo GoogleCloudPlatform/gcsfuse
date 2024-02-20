@@ -124,7 +124,8 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 
 	// Converting attrs to type *Object
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
-	m = storageutil.ConvertObjToMinObject(o)
+	minObj := storageutil.ConvertObjToMinObject(o)
+	m = &minObj
 	e = storageutil.ConvertObjToExtendedAttributes(o)
 
 	return

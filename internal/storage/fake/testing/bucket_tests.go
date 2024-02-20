@@ -1235,6 +1235,7 @@ func (t *copyTest) DestinationDoesntExist() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObject := storageutil.ConvertObjToMinObject(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("bar", dst.Name)
@@ -1262,13 +1263,12 @@ func (t *copyTest) DestinationDoesntExist() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statMinObj, statExtAttr, err := t.bucket.StatObject(
+	statMinObj, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
-	statO := storageutil.ConvertMinObjectAndExtendedAttributesToObject(statMinObj, statExtAttr)
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObj, Pointee(DeepEquals(dstMinObject)))
 }
 
 func (t *copyTest) DestinationExists() {
@@ -1321,6 +1321,7 @@ func (t *copyTest) DestinationExists() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObject := storageutil.ConvertObjToMinObject(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("bar", dst.Name)
@@ -1348,13 +1349,12 @@ func (t *copyTest) DestinationExists() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statMinObjO, statExtAttrO, err := t.bucket.StatObject(
+	statMinObjO, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "bar"})
-	statO := storageutil.ConvertMinObjectAndExtendedAttributesToObject(statMinObjO, statExtAttrO)
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObjO, Pointee(DeepEquals(dstMinObject)))
 }
 
 func (t *copyTest) DestinationIsSameName() {
@@ -1390,6 +1390,7 @@ func (t *copyTest) DestinationIsSameName() {
 	}
 
 	dst, err := t.bucket.CopyObject(t.ctx, req)
+	dstMinObject := storageutil.ConvertObjToMinObject(dst)
 
 	AssertEq(nil, err)
 	ExpectEq("foo", dst.Name)
@@ -1417,13 +1418,12 @@ func (t *copyTest) DestinationIsSameName() {
 	ExpectEq("taco", string(contents))
 
 	// And stattable.
-	statMinObjO, statExtAttrO, err := t.bucket.StatObject(
+	statMinObjO, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{Name: "foo"})
-	statO := storageutil.ConvertMinObjectAndExtendedAttributesToObject(statMinObjO, statExtAttrO)
 
 	AssertEq(nil, err)
-	ExpectThat(statO, Pointee(DeepEquals(*dst)))
+	ExpectThat(statMinObjO, Pointee(DeepEquals(dstMinObject)))
 }
 
 func (t *copyTest) InterestingNames() {
