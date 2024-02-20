@@ -300,5 +300,5 @@ func (t *SizeofTest) TestNestedSizeOfGcsObject() {
 	expectedSize += len(name) + len(contentEncoding)
 	expectedSize += customMetadataFieldsContentSize
 
-	AssertEq(expectedSize, NestedSizeOfGcsObject(&o))
+	AssertEq(expectedSize, NestedSizeOfGcsMinObject(&o))
 }

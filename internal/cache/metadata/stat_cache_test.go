@@ -195,16 +195,16 @@ func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 	o1 := &gcs.MinObject{Name: "taco"}
 	o2 := &gcs.MinObject{Name: "quesadilla"}
 
-	t.cache.Insert(o0, expiration)                         // size = 1886 bytes
-	t.cache.Insert(o1, expiration)                         // Least recent, size = 1874 bytes (cumulative = 3760 bytes)
-	t.cache.AddNegativeEntry("enchilada", expiration)      // Third most recent, size = 178 bytes (cumulative = 3938 bytes)
-	t.cache.Insert(o2, expiration)                         // Second most recent, size = 1898 bytes (cumulative = 5836 bytes)
+	t.cache.Insert(o0, expiration)                         // size = 95 bytes
+	t.cache.Insert(o1, expiration)                         // Least recent, size = 92 bytes (cumulative = 187 bytes)
+	t.cache.AddNegativeEntry("enchilada", expiration)      // Third most recent, size = 97 bytes (cumulative = 284 bytes)
+	t.cache.Insert(o2, expiration)                         // Second most recent, size = 98 bytes (cumulative = 382 bytes)
 	AssertEq(o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
 
 	// Insert another.
 	o3 := &gcs.MinObject{Name: "queso"}
-	t.cache.Insert(o3, expiration) // size = 1878 bytes (cumulative = 7714 bytes)
-	// This would evict the least recent entry i.e o1/"taco".
+	t.cache.Insert(o3, expiration) // size = 93 bytes (cumulative = 475 bytes)
+	// This would evict the least recent entry i.e., o1/"taco".
 
 	// See what's left.
 	ExpectFalse(t.cache.Hit("taco", someTime))
