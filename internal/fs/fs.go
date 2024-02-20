@@ -156,7 +156,7 @@ func NewFileSystem(
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMB != 0 && string(cfg.MountConfig.CacheDir) != "" {
+	if config.IsFileCacheEnabled(cfg.MountConfig) {
 		fileCacheHandler = createFileCacheHandler(cfg)
 	}
 
