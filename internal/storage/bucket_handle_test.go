@@ -37,12 +37,10 @@ var CustomTime string = "CustomTime"
 var StorageClass string = "StorageClass"
 var ContentDisposition string = "ContentDisposition"
 
-// FakeGCSServer is not handling generation and metageneration checks for Delete flow.
+// FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
 
-// FakeGCSServer is not handling IncludeFoldersAsPrefixes checks for ListObjects flow.
-// Hence, we are not writing tests for these flows.
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
 type BucketHandleTest struct {
