@@ -36,19 +36,18 @@ const (
 	testDirName                        = "ReadCacheTest"
 	onlyDirMounted                     = "Test"
 	cacheSubDirectoryName              = "gcsfuse-file-cache"
-	smallContent                       = "small content"
-	smallContentSize                   = 13
-	chunkSizeToRead                    = util.MiB
+	smallContentSize                   = 128 * util.KiB
+	chunkSizeToRead                    = 128 * util.KiB
 	fileSize                           = 3 * util.MiB
 	fileSizeForRangeRead               = cacheCapacityForRangeReadTestInMiB * util.MiB
-	chunksRead                         = fileSize / util.MiB
+	chunksRead                         = fileSize / chunkSizeToRead
 	testFileName                       = "foo"
 	cacheCapacityInMB                  = 9
 	NumberOfFilesWithinCacheLimit      = (cacheCapacityInMB * util.MiB) / fileSize
 	NumberOfFilesMoreThanCacheLimit    = (cacheCapacityInMB*util.MiB)/fileSize + 1
 	largeFileSize                      = 15 * util.MiB
 	largeFileName                      = "15MBFile"
-	largeFileChunksRead                = 15
+	largeFileChunksRead                = largeFileSize / chunkSizeToRead
 	chunksReadAfterUpdate              = 1
 	metadataCacheTTlInSec              = 10
 	testFileNameSuffixLength           = 4
@@ -58,10 +57,12 @@ const (
 	offsetForFirstRangeRead            = 5000
 	offsetForSecondRangeRead           = 1000
 	offsetForRangeReadWithin8MB        = 4 * util.MiB
-	offsetEndOfFile                    = fileSizeForRangeRead - 1*util.MiB
 	offset10MiB                        = 10 * util.MiB
-	cacheCapacityForRangeReadTestInMiB = 100
-	randomReadChunkCount               = 100
+	cacheCapacityForRangeReadTestInMiB = 50
+	randomReadChunkCount               = fileSizeForRangeRead / chunkSizeToRead
+	cacheCapacityForVeryLargeFileInMiB = 500
+	veryLargeFileSize                  = cacheCapacityForVeryLargeFileInMiB * util.MiB
+	offsetEndOfFile                    = veryLargeFileSize - 1*util.MiB
 )
 
 var (
