@@ -89,7 +89,7 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 	AssertEq(mountConfig.LogConfig.Severity, INFO)
 }
 
-func (t *ConfigTest) TestIsReadCacheEnabled() {
+func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig := &MountConfig{
 		CacheDir: "/tmp/folder/",
 		FileCacheConfig: FileCacheConfig{
