@@ -152,8 +152,9 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 }
 
 func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
+	var extObjAttr gcs.ExtendedObjectAttributes
 	if o == nil {
-		return nil
+		return &extObjAttr
 	}
 
 	return &gcs.ExtendedObjectAttributes{
@@ -176,8 +177,9 @@ func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes
 
 func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
 	e *gcs.ExtendedObjectAttributes) *gcs.Object {
+	var object gcs.Object
 	if m == nil {
-		return nil
+		return &object
 	}
 
 	o := gcs.Object{
