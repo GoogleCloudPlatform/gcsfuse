@@ -401,7 +401,6 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNilMinObject() {
 func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	var attrMd5 *[16]byte
 	var crc32C *uint32 = nil
-
 	timeAttr := time.Now()
 	minObject := &gcs.MinObject{
 		Name:            "test",
