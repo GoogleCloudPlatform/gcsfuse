@@ -150,7 +150,7 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 	}
 }
 
-func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
+func ConvertObjToExtendedObjectAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
 	if o == nil {
 		return nil
 	}
@@ -173,7 +173,7 @@ func ConvertObjToExtendedAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes
 	}
 }
 
-func ConvertMinObjectAndExtendedAttributesToObject(m *gcs.MinObject,
+func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 	e *gcs.ExtendedObjectAttributes) *gcs.Object {
 	if m == nil || e == nil {
 		return nil

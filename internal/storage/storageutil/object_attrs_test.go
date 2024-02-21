@@ -259,7 +259,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilObject() {
 	var gcsObject *gcs.Object
 
-	extendedObjAttr := ConvertObjToExtendedAttributes(gcsObject)
+	extendedObjAttr := ConvertObjToExtendedObjectAttributes(gcsObject)
 
 	ExpectEq(nil, extendedObjAttr)
 }
@@ -285,7 +285,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 		Acl:                nil,
 	}
 
-	extendedObjAttr := ConvertObjToExtendedAttributes(&gcsObject)
+	extendedObjAttr := ConvertObjToExtendedObjectAttributes(&gcsObject)
 
 	AssertNe(nil, extendedObjAttr)
 	ExpectEq(gcsObject.ContentType, extendedObjAttr.ContentType)
@@ -304,39 +304,39 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 	ExpectEq(gcsObject.Acl, extendedObjAttr.Acl)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNilMinObjectAndNilAttributes() {
+func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNilAttributes() {
 	var minObject *gcs.MinObject
 	var extendedObjectAttr *gcs.ExtendedObjectAttributes
 
-	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
 	ExpectEq(nil, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNilMinObjectAndNonNilAttributes() {
+func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilMinObjectAndNonNilAttributes() {
 	var minObject *gcs.MinObject
 	extendedObjectAttr := &gcs.ExtendedObjectAttributes{
 		ContentType: "ContentType",
 	}
 
-	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
 	ExpectEq(nil, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObjectAndNilAttributes() {
+func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNilAttributes() {
 	name := "test"
 	minObject := &gcs.MinObject{
 		Name: name,
 	}
 	var extendedObjectAttr *gcs.ExtendedObjectAttributes
 
-	object := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjectAttr)
+	object := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjectAttr)
 
 	ExpectEq(nil, object)
 }
 
-func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObjectAndNonNilAttributes() {
+func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes() {
 	var attrMd5 *[16]byte
 	var crc32C uint32 = 0
 	timeAttr := time.Now()
@@ -366,7 +366,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObject
 		Acl:                nil,
 	}
 
-	gcsObject := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjAttr)
+	gcsObject := ConvertMinObjectAndExtendedObjectAttributesToObject(minObject, extendedObjAttr)
 
 	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
