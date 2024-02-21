@@ -16,7 +16,6 @@ package storageutil
 
 import (
 	"crypto/md5"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -224,7 +223,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithNilObject() {
 
 	gcsMinObject := ConvertObjToMinObject(gcsObject)
 
-	ExpectTrue(reflect.DeepEqual(gcs.MinObject{}, gcsMinObject))
+	ExpectEq(nil, gcsMinObject)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
@@ -247,6 +246,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 
 	gcsMinObject := ConvertObjToMinObject(&gcsObject)
 
+	AssertNe(nil, gcsMinObject)
 	ExpectEq(name, gcsMinObject.Name)
 	ExpectEq(size, gcsMinObject.Size)
 	ExpectEq(generation, gcsMinObject.Generation)
@@ -285,8 +285,9 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 		Acl:                nil,
 	}
 
-	extendedObjAttr := *ConvertObjToExtendedAttributes(&gcsObject)
+	extendedObjAttr := ConvertObjToExtendedAttributes(&gcsObject)
 
+	AssertNe(nil, extendedObjAttr)
 	ExpectEq(gcsObject.ContentType, extendedObjAttr.ContentType)
 	ExpectEq(gcsObject.ContentLanguage, extendedObjAttr.ContentLanguage)
 	ExpectEq(gcsObject.CacheControl, extendedObjAttr.CacheControl)
@@ -367,6 +368,7 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedAttributes_WithNonNilMinObject
 
 	gcsObject := ConvertMinObjectAndExtendedAttributesToObject(minObject, extendedObjAttr)
 
+	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
 	ExpectEq(gcsObject.Generation, minObject.Generation)
@@ -414,6 +416,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 
 	gcsObject := ConvertMinObjectToObject(minObject)
 
+	AssertNe(nil, gcsObject)
 	ExpectEq(gcsObject.Name, minObject.Name)
 	ExpectEq(gcsObject.Size, minObject.Size)
 	ExpectEq(gcsObject.Generation, minObject.Generation)
