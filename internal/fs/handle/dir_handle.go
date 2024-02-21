@@ -161,7 +161,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
-	localFileInodes map[inode.Name]inode.Inode) (entries []fuseutil.Dirent, err error) {
+	localEntries []fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
 	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
@@ -185,7 +185,6 @@ func readAllEntries(
 	}
 
 	// Append local file entries (not synced to GCS).
-	localEntries := in.LocalFileEntries(localFileInodes)
 	entries = append(entries, localEntries...)
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
@@ -237,13 +236,13 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inode.Name]inode.Inode) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries []fuseutil.Dirent) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
 	// Read entries.
 	var entries []fuseutil.Dirent
-	entries, err = readAllEntries(ctx, dh.in, localFileInodes)
+	entries, err = readAllEntries(ctx, dh.in, localFileEntries)
 	if err != nil {
 		err = fmt.Errorf("readAllEntries: %w", err)
 		return
@@ -271,7 +270,7 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileInodes map[inod
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
-	localFileInodes map[inode.Name]inode.Inode) (err error) {
+	localFileEntries []fuseutil.Dirent) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {
@@ -281,7 +280,7 @@ func (dh *DirHandle) ReadDir(
 
 	// Do we need to read entries from GCS?
 	if !dh.entriesValid {
-		err = dh.ensureEntries(ctx, localFileInodes)
+		err = dh.ensureEntries(ctx, localFileEntries)
 		if err != nil {
 			return
 		}

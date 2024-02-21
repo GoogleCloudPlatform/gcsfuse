@@ -128,8 +128,9 @@ type DirInode interface {
 		name string,
 		isImplicitDir bool) (err error)
 
-	// localFileEntries lists the local files present in the directory.
+	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
+	// LOCKS_REQUIRED(fs)
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 

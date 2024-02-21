@@ -1733,7 +1733,9 @@ func (fs *fileSystem) RmDir(
 	//
 
 	// Check for local file entries.
+	fs.mu.Lock()
 	localFileEntries := childDir.LocalFileEntries(fs.localFileInodes)
+	fs.mu.Unlock()
 	// Are there any local entries?
 	if len(localFileEntries) != 0 {
 		err = fuse.ENOTEMPTY
@@ -1908,9 +1910,9 @@ func (fs *fileSystem) renameDir(
 	pendingInodes = append(pendingInodes, oldDir)
 
 	// If old directory contains local (un-synced) files, rename operation is not supported.
-	// We are not acquiring any lock here as kernel locks the directory while
-	// performing rename operations.
+	fs.mu.Lock()
 	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	fs.mu.Unlock()
 	if len(entries) != 0 {
 		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
 	}
@@ -2067,13 +2069,21 @@ func (fs *fileSystem) ReadDir(
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
+	in := fs.dirInodeOrDie(op.Inode)
 	fs.mu.Unlock()
+
+	// Fetch local file entries beforehand and pass it to directory handle as
+	// we need fs lock to fetch local file entries.
+	in.Lock()
+	fs.mu.Lock()
+	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
+	fs.mu.Unlock()
+	in.Unlock()
 
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()
-
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op, fs.localFileInodes); err != nil {
+	if err := dh.ReadDir(ctx, op, localFileEntries); err != nil {
 		return err
 	}
 
