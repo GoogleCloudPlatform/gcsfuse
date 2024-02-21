@@ -38,27 +38,27 @@ then
 fi
 
 config_filename=/tmp/gcsfuse_config.yaml
-
-echo "logging:
-        file-path: run_artifacts/gcsfuse.log
-        format: text
-        severity: trace
-        log-rotate:
-          max-file-size-mb: 1024
-          backup-file-count: 3
-          compress: true
+cat > $config_filename << EOF
+logging:
+  file-path: run_artifacts/gcsfuse.log
+  format: text
+  severity: trace
+  log-rotate:
+    max-file-size-mb: 1024
+    backup-file-count: 3
+    compress: true
 metadata-cache:
   ttl-secs: 1728000
   stat-cache-max-size-mb: 3200
-       " > /tmp/gcsfuse_config.yaml
-
+EOF
 echo "Created config-file at "$config_filename
+
 echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
         --max-conns-per-host=100 \
-        --config-file /tmp/gcsfuse_config.yaml \
+        --config-file $config_filename \
       $TEST_BUCKET gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 
 # Update the pytorch library code to bypass the kernel-cache

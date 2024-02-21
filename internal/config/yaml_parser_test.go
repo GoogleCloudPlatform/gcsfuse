@@ -103,9 +103,6 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq(ERROR, mountConfig.LogConfig.Severity)
 	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	ExpectEq("text", mountConfig.LogConfig.Format)
-	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
 
 	// log-rotate config
 	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
