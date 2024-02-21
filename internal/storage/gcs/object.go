@@ -97,7 +97,7 @@ type ExtendedObjectAttributes struct {
 	CacheControl       string
 	Owner              string
 	MD5                *[md5.Size]byte // Missing for composite objects
-	CRC32C             *uint32         //Missing for CMEK buckets
+	CRC32C             *uint32         // Missing for CMEK buckets
 	MediaLink          string
 	StorageClass       string
 	Deleted            time.Time
