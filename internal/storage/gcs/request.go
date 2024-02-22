@@ -202,8 +202,8 @@ type StatObjectRequest struct {
 	// to fetch from gcs or from cache.
 	ForceFetchFromGcs bool
 
-	// Controls whether StatObject requests includes GCS ExtendedObjectAttributes.
-	ReturnFull bool
+	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
+	ReturnExtendedObjectAttributes bool
 }
 
 type Projection int64

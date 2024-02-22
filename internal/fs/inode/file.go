@@ -164,13 +164,13 @@ func (f *FileInode) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, returnFullObject bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
-		Name:              f.name.GcsObjectName(),
-		ForceFetchFromGcs: forceFetchFromGcs,
-		ReturnFull:        returnFullObject,
+		Name:                           f.name.GcsObjectName(),
+		ForceFetchFromGcs:              forceFetchFromGcs,
+		ReturnExtendedObjectAttributes: includeExtendedObjectAttributes,
 	}
 	o, err = f.bucket.StatObject(ctx, req)
 
