@@ -132,7 +132,7 @@ func (t *DirHandleTest) EnsureEntriesWithLocalAndGCSFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileInodes, true)
+	err = t.dh.ensureEntries(t.ctx, localFileInodes)
 
 	// Validations
 	AssertEq(nil, err)
@@ -155,7 +155,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyLocalFiles() {
 	localFileInodes := map[inode.Name]inode.Inode{}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileInodes, true)
+	err = t.dh.ensureEntries(t.ctx, localFileInodes)
 
 	// Validations
 	AssertEq(nil, err)
@@ -176,7 +176,7 @@ func (t *DirHandleTest) EnsureEntriesWithOnlyGCSFiles() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileInodes, true)
+	err = t.dh.ensureEntries(t.ctx, localFileInodes)
 
 	// Validations
 	AssertEq(nil, err)
@@ -199,7 +199,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalAndGCSFile() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileInodes, true)
+	err = t.dh.ensureEntries(t.ctx, localFileInodes)
 
 	// Validations
 	AssertNe(nil, err)
@@ -220,7 +220,7 @@ func (t *DirHandleTest) EnsureEntriesWithSameNameLocalFileAndGCSDirectory() {
 	}
 
 	// Ensure entries.
-	err = t.dh.ensureEntries(t.ctx, localFileInodes, true)
+	err = t.dh.ensureEntries(t.ctx, localFileInodes)
 
 	// Validations
 	AssertEq(nil, err)
