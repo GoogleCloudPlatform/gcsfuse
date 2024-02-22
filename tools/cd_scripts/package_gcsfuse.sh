@@ -83,11 +83,8 @@ echo Install git
 sudo apt-get install git -y
 # It is require for multi-arch support
 sudo apt-get install qemu-user-static binfmt-support
-
-# TODO (raj-prince): to remove this branch once read-cache-release branched is merged into the master branch.
-git clone -b "read_cache_release" https://github.com/GoogleCloudPlatform/gcsfuse.git
+git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
-
 # Setting set +e to capture error output in log file and send it on the bucket.
 set +e
 exit_code=0
