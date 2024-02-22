@@ -201,6 +201,9 @@ type StatObjectRequest struct {
 	// Relevant only when fast_stat_bucket is used. This field controls whether
 	// to fetch from gcs or from cache.
 	ForceFetchFromGcs bool
+
+	// Controls whether StatObject response includes GCS ExtendedObjectAttributes.
+	ReturnExtendedObjectAttributes bool
 }
 
 type Projection int64
