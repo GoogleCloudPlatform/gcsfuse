@@ -69,7 +69,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
-	t.resetInode(false, false)
+	t.resetInode(false, false, true)
 }
 
 func (t *DirTest) TearDown() {
@@ -86,7 +86,7 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool) {
+func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool, enableManagedFolderListing bool) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -100,6 +100,7 @@ func (t *DirTest) resetInode(implicitDirs bool, enableNonexistentTypeCache bool)
 			Mode: dirMode,
 		},
 		implicitDirs,
+		enableManagedFolderListing,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
@@ -114,7 +115,7 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 	tok := ""
 	for {
 		var tmp []fuseutil.Dirent
-		tmp, tok, err = t.in.ReadEntries(t.ctx, tok, true)
+		tmp, tok, err = t.in.ReadEntries(t.ctx, tok)
 		entries = append(entries, tmp...)
 		if err != nil {
 			return
@@ -281,7 +282,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
@@ -430,7 +431,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Create backing objects.
 	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
@@ -512,7 +513,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	// Enable enableNonexistentTypeCache for type cache
-	t.resetInode(false, true)
+	t.resetInode(false, true, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -550,7 +551,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	// Enable implicitDirs and enableNonexistentTypeCache for type cache
-	t.resetInode(true, true)
+	t.resetInode(true, true, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -679,7 +680,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	var entry fuseutil.Dirent
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Set up contents.
 	objs := []string{

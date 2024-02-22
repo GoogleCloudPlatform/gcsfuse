@@ -88,7 +88,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(0, f.HttpClientTimeout)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
-	ExpectTrue(f.EnableManagedFolders)
+	ExpectTrue(f.EnableManagedFoldersListing)
 	ExpectFalse(f.EnableNonexistentTypeCache)
 
 	// Logging
@@ -112,7 +112,7 @@ func (t *FlagsTest) Bools() {
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
-		"enable-managed-folders",
+		"enable-managed-folders-listing",
 	}
 
 	var args []string
@@ -134,7 +134,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
-	ExpectTrue(f.EnableManagedFolders)
+	ExpectTrue(f.EnableManagedFoldersListing)
 
 	// --foo=false form
 	args = nil
@@ -151,7 +151,7 @@ func (t *FlagsTest) Bools() {
 	ExpectFalse(f.DebugHTTP)
 	ExpectFalse(f.DebugInvariants)
 	ExpectFalse(f.EnableNonexistentTypeCache)
-	ExpectFalse(f.EnableManagedFolders)
+	ExpectFalse(f.EnableManagedFoldersListing)
 
 	// --foo=true form
 	args = nil
@@ -168,7 +168,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugHTTP)
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
-	ExpectTrue(f.EnableManagedFolders)
+	ExpectTrue(f.EnableManagedFoldersListing)
 }
 
 func (t *FlagsTest) DecimalNumbers() {

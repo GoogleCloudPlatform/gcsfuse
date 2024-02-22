@@ -80,8 +80,7 @@ type DirInode interface {
 	// undefined.
 	ReadEntries(
 		ctx context.Context,
-		tok string,
-		enableManagedFolders bool) (entries []fuseutil.Dirent, newTok string, err error)
+		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -152,8 +151,9 @@ type dirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	implicitDirs bool
+	id                          fuseops.InodeID
+	implicitDirs                bool
+	enableManagedFoldersListing bool
 
 	enableNonexistentTypeCache bool
 
@@ -205,6 +205,7 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
+	enableManagedFoldersListing bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
@@ -218,15 +219,16 @@ func NewDirInode(
 	// Set up the struct.
 	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
-		bucket:                     bucket,
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 cacheClock,
-		id:                         id,
-		implicitDirs:               implicitDirs,
-		enableNonexistentTypeCache: enableNonexistentTypeCache,
-		name:                       name,
-		attrs:                      attrs,
-		cache:                      newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		bucket:                      bucket,
+		mtimeClock:                  mtimeClock,
+		cacheClock:                  cacheClock,
+		id:                          id,
+		implicitDirs:                implicitDirs,
+		enableManagedFoldersListing: enableManagedFoldersListing,
+		enableNonexistentTypeCache:  enableNonexistentTypeCache,
+		name:                        name,
+		attrs:                       attrs,
+		cache:                       newTypeCache(typeCacheCapacity/2, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -542,7 +544,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string, enableManagedFolders bool) (cores map[Name]*Core, newTok string, err error) {
+	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -552,8 +554,8 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal: gcs.NoAcl,
-		IncludeFoldersAsPrefixes: enableManagedFolders,
+		ProjectionVal:            gcs.NoAcl,
+		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)
@@ -627,10 +629,9 @@ func (d *dirInode) readObjects(
 
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
-	tok string,
-	enableManagedFolders bool) (entries []fuseutil.Dirent, newTok string, err error) {
+	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
-	cores, newTok, err = d.readObjects(ctx, tok, enableManagedFolders)
+	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
 		return

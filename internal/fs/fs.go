@@ -74,7 +74,11 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	EnableManagedFolders bool
+	// By default, if a managed-folder exist in bucket, this state will list managed-folders in mounted directory provided
+	// --implicit-dirs flag is set to 'true'.
+	//
+	// Setting this bool to false disables the visibility of empty managed folders.
+	EnableManagedFoldersListing bool
 
 	// By default, if a file/directory does not exist in GCS, this nonexistent state is
 	// not cached in type cache. So the inode lookup request will hit GCS every
@@ -151,29 +155,29 @@ func NewFileSystem(
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 cfg.CacheClock,
-		bucketManager:              cfg.BucketManager,
-		localFileCache:             cfg.LocalFileCache,
-		contentCache:               contentCache,
-		implicitDirs:               cfg.ImplicitDirectories,
-		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
-		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		renameDirLimit:             cfg.RenameDirLimit,
-		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
-		uid:                        cfg.Uid,
-		gid:                        cfg.Gid,
-		fileMode:                   cfg.FilePerms,
-		dirMode:                    cfg.DirPerms | os.ModeDir,
-		inodes:                     make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:                fuseops.RootInodeID + 1,
-		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
-		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]interface{}),
-		mountConfig:                cfg.MountConfig,
-		enableManagedFolders:       cfg.EnableManagedFolders,
+		mtimeClock:                  mtimeClock,
+		cacheClock:                  cfg.CacheClock,
+		bucketManager:               cfg.BucketManager,
+		localFileCache:              cfg.LocalFileCache,
+		contentCache:                contentCache,
+		implicitDirs:                cfg.ImplicitDirectories,
+		enableNonexistentTypeCache:  cfg.EnableNonexistentTypeCache,
+		inodeAttributeCacheTTL:      cfg.InodeAttributeCacheTTL,
+		dirTypeCacheTTL:             cfg.DirTypeCacheTTL,
+		renameDirLimit:              cfg.RenameDirLimit,
+		sequentialReadSizeMb:        cfg.SequentialReadSizeMb,
+		uid:                         cfg.Uid,
+		gid:                         cfg.Gid,
+		fileMode:                    cfg.FilePerms,
+		dirMode:                     cfg.DirPerms | os.ModeDir,
+		inodes:                      make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:                 fuseops.RootInodeID + 1,
+		generationBackedInodes:      make(map[inode.Name]inode.GenerationBackedInode),
+		implicitDirInodes:           make(map[inode.Name]inode.DirInode),
+		localFileInodes:             make(map[inode.Name]inode.Inode),
+		handles:                     make(map[fuseops.HandleID]interface{}),
+		mountConfig:                 cfg.MountConfig,
+		enableManagedFoldersListing: cfg.EnableManagedFoldersListing,
 	}
 
 	// Set up root bucket
@@ -218,6 +222,7 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
+		fs.enableManagedFoldersListing,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
@@ -285,15 +290,15 @@ type fileSystem struct {
 	// Constant data
 	/////////////////////////
 
-	localFileCache             bool
-	contentCache               *contentcache.ContentCache
-	implicitDirs               bool
-	enableNonexistentTypeCache bool
-	enableManagedFolders       bool
-	inodeAttributeCacheTTL     time.Duration
-	dirTypeCacheTTL            time.Duration
-	renameDirLimit             int64
-	sequentialReadSizeMb       int32
+	localFileCache              bool
+	contentCache                *contentcache.ContentCache
+	implicitDirs                bool
+	enableNonexistentTypeCache  bool
+	enableManagedFoldersListing bool
+	inodeAttributeCacheTTL      time.Duration
+	dirTypeCacheTTL             time.Duration
+	renameDirLimit              int64
+	sequentialReadSizeMb        int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -633,6 +638,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableManagedFoldersListing,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
@@ -655,6 +661,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
+			fs.enableManagedFoldersListing,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
@@ -1662,7 +1669,7 @@ func (fs *fileSystem) RmDir(
 	var tok string
 	for {
 		var entries []fuseutil.Dirent
-		entries, tok, err = childDir.ReadEntries(ctx, tok, fs.enableManagedFolders)
+		entries, tok, err = childDir.ReadEntries(ctx, tok)
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
@@ -1978,7 +1985,7 @@ func (fs *fileSystem) ReadDir(
 	defer dh.Mu.Unlock()
 
 	// Serve the request.
-	if err := dh.ReadDir(ctx, op, fs.localFileInodes, fs.enableManagedFolders); err != nil {
+	if err := dh.ReadDir(ctx, op, fs.localFileInodes); err != nil {
 		return err
 	}
 
