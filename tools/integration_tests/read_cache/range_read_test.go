@@ -65,7 +65,6 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *testing.T) {
-	runTestsOnlyForStaticMount(t)
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
@@ -79,7 +78,6 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(t *testing.T) {
-	runTestsOnlyForStaticMount(t)
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
@@ -95,6 +93,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(
 ////////////////////////////////////////////////////////////////////////
 
 func TestRangeReadTest(t *testing.T) {
+	runTestsOnlyForStaticMount(t)
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
