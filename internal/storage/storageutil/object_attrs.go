@@ -134,13 +134,12 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 	return wc
 }
 
-func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
-	var min gcs.MinObject
+func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 	if o == nil {
-		return min
+		return nil
 	}
 
-	return gcs.MinObject{
+	return &gcs.MinObject{
 		Name:            o.Name,
 		Size:            o.Size,
 		Generation:      o.Generation,
@@ -148,5 +147,75 @@ func ConvertObjToMinObject(o *gcs.Object) gcs.MinObject {
 		Updated:         o.Updated,
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
+	}
+}
+
+func ConvertObjToExtendedObjectAttributes(o *gcs.Object) *gcs.ExtendedObjectAttributes {
+	if o == nil {
+		return nil
+	}
+
+	return &gcs.ExtendedObjectAttributes{
+		ContentType:        o.ContentType,
+		ContentLanguage:    o.ContentLanguage,
+		CacheControl:       o.CacheControl,
+		Owner:              o.Owner,
+		MD5:                o.MD5,
+		CRC32C:             o.CRC32C,
+		MediaLink:          o.MediaLink,
+		StorageClass:       o.StorageClass,
+		Deleted:            o.Deleted,
+		ComponentCount:     o.ComponentCount,
+		ContentDisposition: o.ContentDisposition,
+		CustomTime:         o.CustomTime,
+		EventBasedHold:     o.EventBasedHold,
+		Acl:                o.Acl,
+	}
+}
+
+func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
+	e *gcs.ExtendedObjectAttributes) *gcs.Object {
+	if m == nil || e == nil {
+		return nil
+	}
+
+	return &gcs.Object{
+		Name:               m.Name,
+		Size:               m.Size,
+		Generation:         m.Generation,
+		MetaGeneration:     m.MetaGeneration,
+		Updated:            m.Updated,
+		Metadata:           m.Metadata,
+		ContentEncoding:    m.ContentEncoding,
+		ContentType:        e.ContentType,
+		ContentLanguage:    e.ContentLanguage,
+		CacheControl:       e.CacheControl,
+		Owner:              e.Owner,
+		MD5:                e.MD5,
+		CRC32C:             e.CRC32C,
+		MediaLink:          e.MediaLink,
+		StorageClass:       e.StorageClass,
+		Deleted:            e.Deleted,
+		ComponentCount:     e.ComponentCount,
+		ContentDisposition: e.ContentDisposition,
+		CustomTime:         e.CustomTime,
+		EventBasedHold:     e.EventBasedHold,
+		Acl:                e.Acl,
+	}
+}
+
+func ConvertMinObjectToObject(m *gcs.MinObject) *gcs.Object {
+	if m == nil {
+		return nil
+	}
+
+	return &gcs.Object{
+		Name:            m.Name,
+		Size:            m.Size,
+		Generation:      m.Generation,
+		MetaGeneration:  m.MetaGeneration,
+		Updated:         m.Updated,
+		Metadata:        m.Metadata,
+		ContentEncoding: m.ContentEncoding,
 	}
 }
