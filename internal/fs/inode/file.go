@@ -111,6 +111,11 @@ func NewFileInode(
 	mtimeClock timeutil.Clock,
 	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
+	var minObj gcs.MinObject
+	minObjPtr := storageutil.ConvertObjToMinObject(o)
+	if minObjPtr != nil {
+		minObj = *minObjPtr
+	}
 	f = &FileInode{
 		bucket:         bucket,
 		mtimeClock:     mtimeClock,
@@ -119,7 +124,7 @@ func NewFileInode(
 		attrs:          attrs,
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            storageutil.ConvertObjToMinObject(o),
+		src:            minObj,
 		local:          localFile,
 		unlinked:       false,
 	}
@@ -517,7 +522,12 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		f.src = storageutil.ConvertObjToMinObject(o)
+		var minObj gcs.MinObject
+		minObjPtr := storageutil.ConvertObjToMinObject(o)
+		if minObjPtr != nil {
+			minObj = *minObjPtr
+		}
+		f.src = minObj
 		return
 	}
 
@@ -593,7 +603,12 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	// If we wrote out a new object, we need to update our state.
 	if newObj != nil && !f.localFileCache {
-		f.src = storageutil.ConvertObjToMinObject(newObj)
+		var minObj gcs.MinObject
+		minObjPtr := storageutil.ConvertObjToMinObject(newObj)
+		if minObjPtr != nil {
+			minObj = *minObjPtr
+		}
+		f.src = minObj
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
