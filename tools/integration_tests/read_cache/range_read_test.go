@@ -53,7 +53,6 @@ func (s *rangeReadTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
-	runTestsOnlyForStaticMount(t)
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
