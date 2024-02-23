@@ -151,8 +151,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-		objName string,
-		target string) (err error) {
+	objName string,
+	target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
@@ -659,7 +659,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 	}}
 
 	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, true,input.typeCacheMaxSizeMB, input.typeCacheTTL)
+		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
 
 		const name = "qux"
 		objName := path.Join(dirInodeName, name)

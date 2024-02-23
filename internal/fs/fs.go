@@ -171,7 +171,6 @@ func NewFileSystem(
 
 	// Set up the basic struct.
 	fs := &fileSystem{
-<<<<<<< HEAD
 		mtimeClock:                  mtimeClock,
 		cacheClock:                  cfg.CacheClock,
 		bucketManager:               cfg.BucketManager,
@@ -195,32 +194,8 @@ func NewFileSystem(
 		handles:                     make(map[fuseops.HandleID]interface{}),
 		mountConfig:                 cfg.MountConfig,
 		enableManagedFoldersListing: cfg.EnableManagedFoldersListing,
-=======
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 cfg.CacheClock,
-		bucketManager:              cfg.BucketManager,
-		localFileCache:             cfg.LocalFileCache,
-		contentCache:               contentCache,
-		implicitDirs:               cfg.ImplicitDirectories,
-		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
-		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		renameDirLimit:             cfg.RenameDirLimit,
-		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
-		uid:                        cfg.Uid,
-		gid:                        cfg.Gid,
-		fileMode:                   cfg.FilePerms,
-		dirMode:                    cfg.DirPerms | os.ModeDir,
-		inodes:                     make(map[fuseops.InodeID]inode.Inode),
-		nextInodeID:                fuseops.RootInodeID + 1,
-		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
-		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
-		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]interface{}),
-		mountConfig:                cfg.MountConfig,
-		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
->>>>>>> master
+		fileCacheHandler:            fileCacheHandler,
+		cacheFileForRangeRead:       cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
