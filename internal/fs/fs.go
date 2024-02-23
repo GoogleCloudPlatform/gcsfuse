@@ -74,10 +74,13 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// By default, if a managed-folder exist in bucket, this state will list managed-folders in mounted directory provided
-	// --implicit-dirs flag is set to 'true'.
+	// This flag is specially added to handle the corner case in listing managed folders.
+	// There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
+	// This flag always works in conjunction with ImplicitDirectories flag.
 	//
-	// Setting this bool to false disables the visibility of empty managed folders.
+	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
+	// (b) If both ImplicitDirectories and EnableManagedFoldersListing are true, then all the managed folders are listed including the above mentioned corner case.
+	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFoldersListing flag.
 	EnableManagedFoldersListing bool
 
 	// By default, if a file/directory does not exist in GCS, this nonexistent state is
