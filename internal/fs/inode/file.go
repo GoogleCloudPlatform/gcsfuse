@@ -103,7 +103,7 @@ var _ Inode = &FileInode{}
 func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.Object,
+	o *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
@@ -112,7 +112,7 @@ func NewFileInode(
 	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
-	minObjPtr := storageutil.ConvertObjToMinObject(o)
+	minObjPtr := o
 	if minObjPtr != nil {
 		minObj = *minObjPtr
 	}

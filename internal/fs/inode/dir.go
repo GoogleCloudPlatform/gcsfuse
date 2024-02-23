@@ -96,7 +96,7 @@ type DirInode interface {
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
 	// Return the full name of the child and the GCS object it backs up.
-	CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error)
+	CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error)
 
 	// Create a symlink object with the supplied (relative) name and the supplied
 	// target, failing with *gcs.PreconditionError if a backing object already
@@ -299,7 +299,6 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
-	o := storageutil.ConvertMinObjectToObject(m)
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
@@ -313,9 +312,9 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}
 
 	return &Core{
-		Bucket:   bucket,
-		FullName: name,
-		Object:   o,
+		Bucket:    bucket,
+		FullName:  name,
+		MinObject: m,
 	}, nil
 }
 
@@ -344,7 +343,7 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		FullName: name,
 	}
 	if o := listing.Objects[0]; o.Name == name.GcsObjectName() {
-		result.Object = o
+		result.MinObject = storageutil.ConvertObjToMinObject(o)
 	}
 	return result, nil
 }
@@ -459,9 +458,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		dirResult = &Core{
-			Bucket:   d.Bucket(),
-			FullName: NewDirName(d.Name(), name),
-			Object:   nil,
+			Bucket:    d.Bucket(),
+			FullName:  NewDirName(d.Name(), name),
+			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
 		b.Add(lookUpExplicitDir)
@@ -523,9 +522,9 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			}
 			name := NewDescendantName(d.Name(), o.Name)
 			descendants[name] = &Core{
-				Bucket:   d.Bucket(),
-				FullName: name,
-				Object:   o,
+				Bucket:    d.Bucket(),
+				FullName:  name,
+				MinObject: storageutil.ConvertObjToMinObject(o),
 			}
 		}
 
@@ -581,17 +580,17 @@ func (d *dirInode) readObjects(
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{
-				Bucket:   d.Bucket(),
-				FullName: dirName,
-				Object:   o,
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: storageutil.ConvertObjToMinObject(o),
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
-				Bucket:   d.Bucket(),
-				FullName: fileName,
-				Object:   o,
+				Bucket:    d.Bucket(),
+				FullName:  fileName,
+				MinObject: storageutil.ConvertObjToMinObject(o),
 			}
 			cores[fileName] = file
 		}
@@ -613,9 +612,9 @@ func (d *dirInode) readObjects(
 		}
 
 		implicitDir := &Core{
-			Bucket:   d.Bucket(),
-			FullName: dirName,
-			Object:   nil,
+			Bucket:    d.Bucket(),
+			FullName:  dirName,
+			MinObject: nil,
 		}
 		cores[dirName] = implicitDir
 	}
@@ -661,12 +660,13 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	if err != nil {
 		return nil, err
 	}
+	m := storageutil.ConvertObjToMinObject(o)
 
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
 	return &Core{
-		Bucket:   d.Bucket(),
-		FullName: fullName,
-		Object:   o,
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: m,
 	}, nil
 }
 
@@ -674,15 +674,15 @@ func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
 
 	return &Core{
-		Bucket:   d.Bucket(),
-		FullName: fullName,
-		Object:   nil,
-		Local:    true,
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: nil,
+		Local:     true,
 	}, nil
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
 	// Erase any existing type information for this name.
 	d.cache.Erase(name)
 	fullName := NewFileName(d.Name(), name)
@@ -699,11 +699,12 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.O
 	if err != nil {
 		return nil, err
 	}
+	m := storageutil.ConvertObjToMinObject(o)
 
 	c := &Core{
-		Bucket:   d.Bucket(),
-		FullName: fullName,
-		Object:   o,
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: m,
 	}
 	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
 	return c, nil
@@ -720,13 +721,14 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	if err != nil {
 		return nil, err
 	}
+	m := storageutil.ConvertObjToMinObject(o)
 
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
 
 	return &Core{
-		Bucket:   d.Bucket(),
-		FullName: fullName,
-		Object:   o,
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: m,
 	}, nil
 }
 
@@ -737,13 +739,14 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	if err != nil {
 		return nil, err
 	}
+	m := storageutil.ConvertObjToMinObject(o)
 
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
 	return &Core{
-		Bucket:   d.Bucket(),
-		FullName: fullName,
-		Object:   o,
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: m,
 	}, nil
 }
 
