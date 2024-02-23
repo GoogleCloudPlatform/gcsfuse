@@ -362,8 +362,9 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 
 	// Request
 	req := &gcs.StatObjectRequest{
-		Name:              name,
-		ForceFetchFromGcs: true,
+		Name:                           name,
+		ForceFetchFromGcs:              true,
+		ReturnExtendedObjectAttributes: true,
 	}
 
 	// Wrapped

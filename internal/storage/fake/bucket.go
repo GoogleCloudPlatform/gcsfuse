@@ -709,6 +709,10 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
+	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
+		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnFull: true")
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

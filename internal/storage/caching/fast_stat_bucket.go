@@ -189,9 +189,17 @@ func (b *fastStatBucket) ComposeObjects(
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
+	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
+		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnFull: true")
+	}
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
-		return b.StatObjectFromGcs(ctx, req)
+		m, e, err = b.StatObjectFromGcs(ctx, req)
+		if !req.ReturnExtendedObjectAttributes {
+			e = nil
+		}
+		return
 	}
 
 	// Do we have an entry in the cache?
@@ -207,7 +215,6 @@ func (b *fastStatBucket) StatObject(
 
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = storageutil.ConvertObjToMinObject(entry)
-		e = nil
 		return
 	}
 
