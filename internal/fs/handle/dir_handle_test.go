@@ -72,7 +72,8 @@ func (t *DirHandleTest) resetDirHandle() {
 			Gid:  456,
 			Mode: 0712,
 		},
-		false, // implicitDirs
+		false, // implicitDirs,
+		true,  // enableManagedFoldersListing
 		false, // enableNonExistentTypeCache
 		0,     // typeCacheTTL
 		&t.bucket,

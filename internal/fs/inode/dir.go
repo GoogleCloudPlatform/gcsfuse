@@ -152,8 +152,9 @@ type dirInode struct {
 	// Constant data
 	/////////////////////////
 
-	id           fuseops.InodeID
-	implicitDirs bool
+	id                          fuseops.InodeID
+	implicitDirs                bool
+	enableManagedFoldersListing bool
 
 	enableNonexistentTypeCache bool
 
@@ -205,6 +206,7 @@ func NewDirInode(
 	name Name,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
+	enableManagedFoldersListing bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
@@ -222,6 +224,7 @@ func NewDirInode(
 		cacheClock:                 cacheClock,
 		id:                         id,
 		implicitDirs:               implicitDirs,
+		enableManagedFoldersListing: enableManagedFoldersListing,
 		enableNonexistentTypeCache: enableNonexistentTypeCache,
 		name:                       name,
 		attrs:                      attrs,
@@ -548,7 +551,8 @@ func (d *dirInode) readObjects(
 		MaxResults:               MaxResultsForListObjectsCall,
 		// Setting Projection param to noAcl since fetching owner and acls are not
 		// required.
-		ProjectionVal: gcs.NoAcl,
+		ProjectionVal:            gcs.NoAcl,
+		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 	}
 
 	listing, err := d.bucket.ListObjects(ctx, req)

@@ -258,6 +258,10 @@ type ListObjectsRequest struct {
 	//     listing.Objects.
 	IncludeTrailingDelimiter bool
 
+	// IncludeFoldersAsPrefixes includes Folders and Managed Folders in the set of
+	// prefixes returned by the query.
+	IncludeFoldersAsPrefixes bool
+
 	// Used to continue a listing where a previous one left off. See
 	// Listing.ContinuationToken for more information.
 	ContinuationToken string

@@ -72,7 +72,7 @@ func (t *DirTest) SetUp(ti *TestInfo) {
 		".gcsfuse_tmp/",
 		bucket)
 	// Create the inode. No implicit dirs by default.
-	t.resetInode(false, false)
+	t.resetInode(false, false, true)
 }
 
 func (t *DirTest) TearDown() {
@@ -89,11 +89,14 @@ func (p DirentSlice) Len() int           { return len(p) }
 func (p DirentSlice) Less(i, j int) bool { return p[i].Name < p[j].Name }
 func (p DirentSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache bool) {
-	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
+// NOTE: A limitation in the fake bucket's API prevents the direct creation of managed folders.
+// This poses a challenge for writing unit tests for enableManagedFoldersListing.
+
+func (t *DirTest) resetInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
+	t.resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
 }
 
-func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
+func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
 	if t.in != nil {
 		t.in.Unlock()
 	}
@@ -107,6 +110,7 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 			Mode: dirMode,
 		},
 		implicitDirs,
+		enableManagedFoldersListing,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
@@ -307,7 +311,7 @@ func (t *DirTest) LookUpChild_ImplicitDirOnly_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Create an object that implicitly defines the directory.
 	otherObjName := path.Join(objName, "asdf")
@@ -471,7 +475,7 @@ func (t *DirTest) LookUpChild_FileAndDirAndImplicitDir_Enabled() {
 	var err error
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Create backing objects.
 	fileObj, err := storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
@@ -559,7 +563,7 @@ func (t *DirTest) LookUpChild_TypeCaching() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 	// Enable enableNonexistentTypeCache for type cache
-	t.resetInode(false, true)
+	t.resetInode(false, true, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -599,7 +603,7 @@ func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsDisabled() {
 
 func (t *DirTest) LookUpChild_NonExistentTypeCache_ImplicitDirsEnabled() {
 	// Enable implicitDirs and enableNonexistentTypeCache for type cache
-	t.resetInode(true, true)
+	t.resetInode(true, true, true)
 
 	const name = "qux"
 	objName := path.Join(dirInodeName, name) + "/"
@@ -655,7 +659,7 @@ func (t *DirTest) LookUpChild_TypeCacheEnabled() {
 	}}
 
 	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
+		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
 
 		const name = "qux"
 		objName := path.Join(dirInodeName, name)
@@ -688,7 +692,7 @@ func (t *DirTest) LookUpChild_TypeCacheDisabled() {
 	}}
 
 	for _, input := range inputs {
-		t.resetInodeWithTypeCacheConfigs(true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
+		t.resetInodeWithTypeCacheConfigs(true, true, true, input.typeCacheMaxSizeMB, input.typeCacheTTL)
 
 		const name = "qux"
 		objName := path.Join(dirInodeName, name)
@@ -801,7 +805,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	var entry fuseutil.Dirent
 
 	// Enable implicit dirs.
-	t.resetInode(true, false)
+	t.resetInode(true, false, true)
 
 	// Set up contents.
 	objs := []string{
