@@ -196,15 +196,16 @@ func (t *PrefixBucketTest) StatObject() {
 	AssertEq(nil, err)
 
 	// Stat it.
-	o, _, err := t.bucket.StatObject(
+	m, _, err := t.bucket.StatObject(
 		t.ctx,
 		&gcs.StatObjectRequest{
 			Name: suffix,
 		})
 
 	AssertEq(nil, err)
-	ExpectEq(suffix, o.Name)
-	ExpectEq(len(contents), o.Size)
+	AssertNe(nil, m)
+	ExpectEq(suffix, m.Name)
+	ExpectEq(len(contents), m.Size)
 }
 
 func (t *PrefixBucketTest) ListObjects_NoOptions() {

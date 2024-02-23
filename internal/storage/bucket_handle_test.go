@@ -609,6 +609,7 @@ func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 		})
 
 	AssertEq(nil, err)
+	AssertNe(nil, minObj)
 	AssertEq(MetaDataValue, minObj.Metadata[MetaDataKey])
 
 	updatedMetaData := time.RFC3339Nano
@@ -680,13 +681,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 		})
 	ExpectEq(ContentInTestObject, buffer)
 	// Checking if srcObject exists or not
-	srcMinObj, srcExtAttr, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj)
-	AssertNe(nil, srcExtAttr)
 
 	// Composing the object
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
@@ -747,13 +747,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcMinObj, srcExtAttr, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj)
-	AssertNe(nil, srcExtAttr)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
@@ -810,20 +809,18 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcMinObj1, srcExtAttr1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj1)
-	AssertNe(nil, srcExtAttr1)
-	srcMinObj2, srcExtAttr2, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj2)
-	AssertNe(nil, srcExtAttr2)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
@@ -982,20 +979,18 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcMinObj1, srcExtAttr1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj1)
-	AssertNe(nil, srcExtAttr1)
-	srcMinObj2, srcExtAttr2, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj2)
-	AssertNe(nil, srcExtAttr2)
 
 	// Add DstGenerationPrecondition = 0 as the Destination object doesn't exist.
 	// Note: fake-gcs-server doesn't respect precondition checks but still adding
@@ -1069,13 +1064,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
 	// Checking source object 1 exists. This will also be the destination object.
-	srcMinObj1, srcExtAttr1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj1)
-	AssertNe(nil, srcExtAttr1)
 
 	// Reading source object 1 content before composing it
 	srcObj1Buffer := t.readObjectContent(context.Background(),
@@ -1089,13 +1083,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 	ExpectEq(ContentInTestObject, srcObj1Buffer)
 
 	// Checking source object 2 exists.
-	srcMinObj2, srcExtAttr2, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
 	AssertNe(nil, srcMinObj2)
-	AssertNe(nil, srcExtAttr2)
 
 	// Reading source object 2 content before composing it
 	srcObj2Buffer := t.readObjectContent(context.Background(),

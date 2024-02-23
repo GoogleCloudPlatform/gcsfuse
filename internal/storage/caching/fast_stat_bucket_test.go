@@ -334,6 +334,7 @@ func (t *StatObjectTest) CacheHit_Positive() {
 	m, _, err := t.bucket.StatObject(context.TODO(), req)
 	o := storageutil.ConvertMinObjectToObject(m)
 	AssertEq(nil, err)
+	AssertNe(nil, o)
 	ExpectThat(o, Pointee(DeepEquals(*obj)))
 }
 
@@ -381,6 +382,8 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 
 	m, e, err := t.bucket.StatObject(context.TODO(), req)
 	AssertEq(nil, err)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
 	ExpectEq(minObjFromGcs, m)
 	ExpectEq(extObjAttrFromGcs, e)
 }

@@ -145,6 +145,7 @@ func (chrT *cacheHandlerTest) getMinObject(objName string, objContent []byte) *g
 	minObject, _, err := chrT.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objName,
 		ForceFetchFromGcs: true})
 	AssertEq(nil, err)
+	AssertNe(nil, minObject)
 	return minObject
 }
 

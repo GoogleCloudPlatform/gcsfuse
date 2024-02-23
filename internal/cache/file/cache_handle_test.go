@@ -122,6 +122,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	minObject, _, err := cht.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: TestObjectName,
 		ForceFetchFromGcs: true})
 	AssertEq(nil, err)
+	AssertNe(nil, minObject)
 	cht.object = minObject
 
 	// fileInfoCache with testFileInfoEntry

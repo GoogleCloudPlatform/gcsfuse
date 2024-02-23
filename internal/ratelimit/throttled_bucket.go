@@ -122,7 +122,7 @@ func (b *throttledBucket) ComposeObjects(
 
 func (b *throttledBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -130,7 +130,7 @@ func (b *throttledBucket) StatObject(
 	}
 
 	// Call through.
-	o, e, err = b.wrapped.StatObject(ctx, req)
+	m, e, err = b.wrapped.StatObject(ctx, req)
 
 	return
 }

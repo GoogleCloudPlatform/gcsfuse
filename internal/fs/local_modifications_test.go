@@ -1378,8 +1378,12 @@ func (t *DirectoryTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// There should be no content type set in GCS.
-		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{
+			Name:                           name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 		AssertEq(nil, err)
+		AssertNe(nil, e)
 		ExpectEq("", e.ContentType, "name: %q", name)
 	}
 }
@@ -2051,6 +2055,7 @@ func (t *FileTest) Sync_NotDirty() {
 	}
 	m1, _, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
+	AssertNe(nil, m1)
 
 	// Sync the file again.
 	err = t.f1.Sync()
@@ -2059,6 +2064,7 @@ func (t *FileTest) Sync_NotDirty() {
 	// A new generation need not have been written.
 	m2, _, err := bucket.StatObject(ctx, statReq)
 	AssertEq(nil, err)
+	AssertNe(nil, m2)
 	ExpectEq(m1.Generation, m2.Generation)
 }
 
@@ -2231,8 +2237,12 @@ func (t *FileTest) ContentTypes() {
 		AssertEq(nil, err)
 
 		// The GCS content type should still be correct.
-		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: name})
+		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{
+			Name:                           name,
+			ForceFetchFromGcs:              true,
+			ReturnExtendedObjectAttributes: true})
 		AssertEq(nil, err)
+		AssertNe(nil, e)
 		ExpectEq(expected, e.ContentType, "name: %q", name)
 	}
 
@@ -2273,6 +2283,7 @@ func (t *SymlinkTest) CreateLink() {
 	o, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
+	AssertNe(nil, o)
 	ExpectEq(0, o.Size)
 	ExpectEq("foo", o.Metadata["gcsfuse_symlink_target"])
 
