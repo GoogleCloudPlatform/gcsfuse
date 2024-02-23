@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -82,9 +84,9 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(nil, f.CustomEndpoint)
 
 	// Tuning
-	ExpectEq(4096, f.StatCacheCapacity)
-	ExpectEq(time.Minute, f.StatCacheTTL)
-	ExpectEq(time.Minute, f.TypeCacheTTL)
+	ExpectEq(mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
+	ExpectEq(mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
+	ExpectEq(mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	ExpectEq(0, f.HttpClientTimeout)
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
@@ -220,16 +222,16 @@ func (t *FlagsTest) Strings() {
 
 func (t *FlagsTest) Durations() {
 	args := []string{
-		"--stat-cache-ttl", "1m17s",
-		"--type-cache-ttl", "19ns",
+		"--stat-cache-ttl", "1m17s100ms",
+		"--type-cache-ttl", "50s900ms",
 		"--http-client-timeout", "800ms",
 		"--max-retry-duration", "-1s",
 		"--max-retry-sleep", "30s",
 	}
 
 	f := parseArgs(args)
-	ExpectEq(77*time.Second, f.StatCacheTTL)
-	ExpectEq(19*time.Nanosecond, f.TypeCacheTTL)
+	ExpectEq(time.Minute+17*time.Second+100*time.Millisecond, f.StatCacheTTL)
+	ExpectEq(50*time.Second+900*time.Millisecond, f.TypeCacheTTL)
 	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
 	ExpectEq(-1*time.Second, f.MaxRetryDuration)
 	ExpectEq(30*time.Second, f.MaxRetrySleep)
@@ -363,4 +365,30 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	err := validateFlags(flags)
 
 	AssertEq(nil, err)
+}
+
+func (t *FlagsTest) Test_resolveConfigFilePaths() {
+	mountConfig := &config.MountConfig{}
+	mountConfig.LogConfig = config.LogConfig{
+		FilePath: "~/test.txt",
+	}
+	mountConfig.CacheDir = "~/cache-dir"
+
+	err := resolveConfigFilePaths(mountConfig)
+
+	AssertEq(nil, err)
+	homeDir, err := os.UserHomeDir()
+	AssertEq(nil, err)
+	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
+	ExpectEq(filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
+}
+
+func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
+	mountConfig := &config.MountConfig{}
+
+	err := resolveConfigFilePaths(mountConfig)
+
+	AssertEq(nil, err)
+	ExpectEq("", mountConfig.LogConfig.FilePath)
+	ExpectEq("", mountConfig.CacheDir)
 }

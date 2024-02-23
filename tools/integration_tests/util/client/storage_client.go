@@ -18,11 +18,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"path"
+	"reflect"
 	"strings"
+	"testing"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"google.golang.org/api/iterator"
 )
 
 func separateBucketAndObjectName(bucket, object *string) {
@@ -42,7 +49,11 @@ func setBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 		*bucket = setup.DynamicBucketMounted()
 	}
 	if setup.OnlyDirMounted() != "" {
-		*object = path.Join(setup.OnlyDirMounted(), *object)
+		var suffix string
+		if strings.HasSuffix(*object, "/") {
+			suffix = "/"
+		}
+		*object = path.Join(setup.OnlyDirMounted(), *object) + suffix
 	}
 }
 
@@ -56,7 +67,7 @@ func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 }
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
-func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string, size int64) (string, error) {
+func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string) (string, error) {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
@@ -67,24 +78,43 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	}
 	defer rc.Close()
 
-	// Variable buf will contain the output from reader.
-	buf := make([]byte, size)
-	_, err = rc.Read(buf)
-	if err != nil && !strings.Contains(err.Error(), "EOF") {
-		return "", fmt.Errorf("rc.Read: %w", err)
+	content, err := io.ReadAll(rc)
+	if err != nil {
+		return "", fmt.Errorf("io.ReadAll failed: %v", err)
 	}
 
-	// Remove any extra null characters from buf before returning.
-	return strings.Trim(string(buf), "\x00"), nil
+	return string(content), nil
 }
 
-// CreateObjectOnGCS creates an object with given name and content on GCS.
-func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+// ReadChunkFromGCS downloads the object chunk from GCS and returns the data.
+func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string,
+	offset, size int64) (string, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	// Create storage reader to read from GCS.
+	rc, err := client.Bucket(bucket).Object(object).NewRangeReader(ctx, offset, size)
+	if err != nil {
+		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
+	}
+	defer rc.Close()
+
+	content, err := io.ReadAll(rc)
+	if err != nil {
+		return "", fmt.Errorf("io.ReadAll failed: %v", err)
+	}
+
+	return string(content), nil
+}
+
+func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	o := client.Bucket(bucket).Object(object)
-	o = o.If(storage.Conditions{DoesNotExist: true})
+	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
+		o = o.If(precondition)
+	}
 
 	// Upload an object with storage.Writer.
 	wc := o.NewWriter(ctx)
@@ -95,5 +125,91 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 		return fmt.Errorf("Writer.Close: %w", err)
 	}
 
+	return nil
+}
+
+// CreateObjectOnGCS creates an object with given name and content on GCS.
+func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
+	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
+}
+
+// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
+	var err error
+	var cancel context.CancelFunc
+	*ctx, cancel = context.WithTimeout(*ctx, time)
+	*storageClient, err = CreateStorageClient(*ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+	// Return func to close storage client and release resources.
+	return func() {
+		err := (*storageClient).Close()
+		if err != nil {
+			t.Log("Failed to close storage client")
+		}
+		defer cancel()
+	}
+}
+
+// DownloadObjectFromGCS downloads an object to a local file.
+func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
+
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
+	defer closeStorageClient()
+
+	f := operations.CreateFile(destFileName, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
+
+	rc, err := storageClient.Bucket(bucket).Object(gcsFile).NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("Object(%q).NewReader: %w", gcsFile, err)
+	}
+	defer rc.Close()
+
+	if _, err := io.Copy(f, rc); err != nil {
+		return fmt.Errorf("io.Copy: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
+	var bucket, obj string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &obj)
+
+	// Get handle to the object
+	object := client.Bucket(bucket).Object(objectName)
+
+	// Delete the object
+	err := object.Delete(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
+	var bucket, object string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	// Get an object iterator
+	query := &storage.Query{Prefix: prefix}
+	objectItr := client.Bucket(bucket).Objects(ctx, query)
+
+	// Iterate through objects with the specified prefix and delete them
+	for {
+		attrs, err := objectItr.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -92,6 +92,15 @@ gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 
+# Run tests with config "file-cache: max-size-mb" static mounting.
+echo "file-cache:
+       max-size-mb: 2
+cache-dir: ./cache-dir
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+sudo umount $MOUNT_DIR
+
 # package readonly
 # Run tests with static mounting. (flags: --implicit-dirs=true,--o=ro)
 gcsfuse --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
@@ -130,6 +139,15 @@ sudo umount $MOUNT_DIR
 
 # Run test with persistent mounting. (flags: --implicit-dirs=true, --file-mode=544, --dir-mode=544, --only-dir=testDir)
 mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o only_dir=testDir,file_mode=544,dir_mode=544,implicit_dirs=true
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
+sudo umount $MOUNT_DIR
+
+# Run tests with config "file-cache: max-size-mb" static mounting.
+echo "file-cache:
+       max-size-mb: 3
+cache-dir: ./cache-dir
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file /tmp/gcsfuse_config.yaml --only-dir testDir --file-mode=544 --dir-mode=544 --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/readonly/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME/testDir
 sudo umount $MOUNT_DIR
 
@@ -225,6 +243,26 @@ sudo umount $MOUNT_DIR
 # package read_large_files
 # Run tests with static mounting. (flags: --implicit-dirs)
 gcsfuse --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+sudo umount $MOUNT_DIR
+
+# Run tests with config "file-cache: max-size-mb, cache-file-for-range-read".
+echo "file-cache:
+       max-size-mb: 700
+       cache-file-for-range-read: true
+cache-dir: ./cache-dir
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
+sudo umount $MOUNT_DIR
+
+# Run tests with config "file-cache: max-size-mb".
+echo "file-cache:
+       max-size-mb: -1
+       cache-file-for-range-read: false
+cache-dir: ./cache-dir
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file /tmp/gcsfuse_config.yaml --implicit-dirs=true  $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_large_files/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR
 sudo umount $MOUNT_DIR
 

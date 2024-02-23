@@ -60,8 +60,9 @@ var (
 // First argument will be name of scipt script
 func RunScriptForTestData(args ...string) {
 	cmd := exec.Command("/bin/bash", args...)
-	_, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
+		log.Printf("Error: %s", out)
 		panic(err)
 	}
 }
@@ -277,6 +278,14 @@ func ParseSetUpFlags() {
 	if !*integrationTest {
 		log.Print("Pass --integrationTest flag to run the tests.")
 		os.Exit(0)
+	}
+}
+
+func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
+	flag.Parse()
+
+	if *integrationTest {
+		t.SkipNow()
 	}
 }
 

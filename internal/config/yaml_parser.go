@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,6 +36,13 @@ const (
 	OFF     LogSeverity = "OFF"
 
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
+
+	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
+	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -57,6 +65,37 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 	}
 	if config.BackupFileCount < 0 {
 		return fmt.Errorf("backup-file-count should be 0 (to retain all backup files) or a positive value")
+	}
+	return nil
+}
+
+func (fileCacheConfig *FileCacheConfig) validate() error {
+	if fileCacheConfig.MaxSizeMB < -1 {
+		return fmt.Errorf("the value of max-size-mb for file-cache can't be less than -1")
+	}
+	return nil
+}
+
+func (metadataCacheConfig *MetadataCacheConfig) validate() error {
+	if metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
+		if metadataCacheConfig.TtlInSeconds < -1 {
+			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
+		}
+		if metadataCacheConfig.TtlInSeconds > MaxSupportedTtlInSeconds {
+			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
+		}
+	}
+	if metadataCacheConfig.TypeCacheMaxSizeMB < -1 {
+		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
+	}
+
+	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
+		if metadataCacheConfig.StatCacheMaxSizeMB < -1 {
+			return fmt.Errorf(StatCacheMaxSizeMBInvalidValueError)
+		}
+		if metadataCacheConfig.StatCacheMaxSizeMB > int64(MaxSupportedStatCacheMaxSizeMB) {
+			return fmt.Errorf(StatCacheMaxSizeMBTooHighError)
+		}
 	}
 	return nil
 }
@@ -98,5 +137,12 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return
 	}
 
+	if err = mountConfig.FileCacheConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing file-cache configs: %w", err)
+	}
+
+	if err = mountConfig.MetadataCacheConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %w", err)
+	}
 	return
 }

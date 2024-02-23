@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"golang.org/x/net/context"
 
@@ -31,7 +32,7 @@ import (
 // bucket, and after the supplied TTL.
 func NewFastStatBucket(
 	ttl time.Duration,
-	cache StatCache,
+	cache metadata.StatCache,
 	clock timeutil.Clock,
 	wrapped gcs.Bucket) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
@@ -53,7 +54,7 @@ type fastStatBucket struct {
 	/////////////////////////
 
 	// GUARDED_BY(mu)
-	cache StatCache
+	cache metadata.StatCache
 
 	clock   timeutil.Clock
 	wrapped gcs.Bucket

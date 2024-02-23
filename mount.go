@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"golang.org/x/net/context"
 
@@ -83,13 +84,19 @@ be interacting with the file system.`)
 		gid = uint32(flags.Gid)
 	}
 
+	metadataCacheTTL := mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-ttl=%v, metadata-cache:stat-cache-max-size-mb=%v: %w", flags.StatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
+	}
+
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     flags.BillingProject,
 		OnlyDir:                            flags.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
 		OpRateLimitHz:                      flags.OpRateLimitHz,
-		StatCacheCapacity:                  flags.StatCacheCapacity,
-		StatCacheTTL:                       flags.StatCacheTTL,
+		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
+		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
@@ -106,8 +113,8 @@ be interacting with the file system.`)
 		DebugFS:                     flags.DebugFS,
 		TempDir:                     flags.TempDir,
 		ImplicitDirectories:         flags.ImplicitDirs,
-		InodeAttributeCacheTTL:      flags.StatCacheTTL,
-		DirTypeCacheTTL:             flags.TypeCacheTTL,
+		InodeAttributeCacheTTL:      metadataCacheTTL,
+		DirTypeCacheTTL:             metadataCacheTTL,
 		Uid:                         uid,
 		Gid:                         gid,
 		FilePerms:                   os.FileMode(flags.FileMode),

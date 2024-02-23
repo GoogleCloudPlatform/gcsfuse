@@ -18,9 +18,11 @@ package read_large_files
 import (
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -34,10 +36,50 @@ const NumberOfRandomReadCalls = 200
 const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
+
+	// Set up config file for file cache with cache-file-for-range-read: false
+	mountConfig1 := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			// Keeping the size as high because the operations are performed on large
+			// files
+			MaxSizeMB:             700,
+			CacheFileForRangeRead: true,
+		},
+		CacheDir: config.CacheDir(cacheDirPath),
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1})
+
+	// Set up config file for file cache with unlimited capacity
+	mountConfig2 := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB:             -1,
+			CacheFileForRangeRead: false,
+		},
+		CacheDir: config.CacheDir(cacheDirPath),
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	flags := [][]string{{"--implicit-dirs"}}
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags...)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

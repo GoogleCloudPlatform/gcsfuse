@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/internal/perf"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
@@ -69,19 +70,31 @@ func registerSIGINTHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName string) string {
+func getUserAgent(appName string, config string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s)", getVersion(), appName, gcsfuseMetadataImageType)
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, gcsfuseMetadataImageType, config)
 		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s)", getVersion(), appName)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", getVersion(), appName, config)
 	} else {
-		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", getVersion())
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", getVersion(), config)
 	}
 }
 
-func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandle, err error) {
+func getConfigForUserAgent(mountConfig *config.MountConfig) string {
+	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
+	isFileCacheEnabled := "0"
+	if config.IsFileCacheEnabled(mountConfig) {
+		isFileCacheEnabled = "1"
+	}
+	isFileCacheForRangeReadEnabled := "0"
+	if mountConfig.FileCacheConfig.CacheFileForRangeRead {
+		isFileCacheForRangeReadEnabled = "1"
+	}
+	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
+}
+func createStorageHandle(flags *flagStorage, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -89,14 +102,14 @@ func createStorageHandle(flags *flagStorage) (storageHandle storage.StorageHandl
 		HttpClientTimeout:          flags.HttpClientTimeout,
 		MaxRetrySleep:              flags.MaxRetrySleep,
 		RetryMultiplier:            flags.RetryMultiplier,
-		UserAgent:                  getUserAgent(flags.AppName),
+		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,
 		KeyFile:                    flags.KeyFile,
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 	}
-
+	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
 	return
 }
@@ -125,8 +138,9 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
+		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(flags)
+		storageHandle, err = createStorageHandle(flags, userAgent)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -204,7 +218,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 
-	err = util.ResolveConfigFilePaths(mountConfig)
+	err = resolveConfigFilePaths(mountConfig)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
@@ -224,8 +238,30 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
-	logger.Infof("GCSFuse mount command flags: %s", util.Stringify(*flags))
-	logger.Infof("GCSFuse mount config flags: %s", util.Stringify(*mountConfig))
+
+	flagsStringified, err := util.Stringify(*flags)
+	if err != nil {
+		logger.Warnf("failed to stringify cli flags: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+	}
+
+	mountConfigStringified, err := util.Stringify(*mountConfig)
+	if err != nil {
+		logger.Warnf("failed to stringify config-file: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+	}
+
+	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
+	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
+		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
+	}
+
+	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
+	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
+		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
+	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.

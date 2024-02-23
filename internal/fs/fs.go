@@ -19,12 +19,18 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"math"
 	"os"
+	"path"
 	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
@@ -156,8 +162,16 @@ func NewFileSystem(
 		}
 	}
 
+	// Create file cache handler if cache is enabled by user. Cache is considered
+	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
+	var fileCacheHandler *file.CacheHandler
+	if config.IsFileCacheEnabled(cfg.MountConfig) {
+		fileCacheHandler = createFileCacheHandler(cfg)
+	}
+
 	// Set up the basic struct.
 	fs := &fileSystem{
+<<<<<<< HEAD
 		mtimeClock:                  mtimeClock,
 		cacheClock:                  cfg.CacheClock,
 		bucketManager:               cfg.BucketManager,
@@ -181,6 +195,32 @@ func NewFileSystem(
 		handles:                     make(map[fuseops.HandleID]interface{}),
 		mountConfig:                 cfg.MountConfig,
 		enableManagedFoldersListing: cfg.EnableManagedFoldersListing,
+=======
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cfg.CacheClock,
+		bucketManager:              cfg.BucketManager,
+		localFileCache:             cfg.LocalFileCache,
+		contentCache:               contentCache,
+		implicitDirs:               cfg.ImplicitDirectories,
+		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
+		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
+		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
+		renameDirLimit:             cfg.RenameDirLimit,
+		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
+		uid:                        cfg.Uid,
+		gid:                        cfg.Gid,
+		fileMode:                   cfg.FilePerms,
+		dirMode:                    cfg.DirPerms | os.ModeDir,
+		inodes:                     make(map[fuseops.InodeID]inode.Inode),
+		nextInodeID:                fuseops.RootInodeID + 1,
+		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
+		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		localFileInodes:            make(map[inode.Name]inode.Inode),
+		handles:                    make(map[fuseops.HandleID]interface{}),
+		mountConfig:                cfg.MountConfig,
+		fileCacheHandler:           fileCacheHandler,
+		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+>>>>>>> master
 	}
 
 	// Set up root bucket
@@ -190,7 +230,7 @@ func NewFileSystem(
 		root = makeRootForAllBuckets(fs)
 	} else {
 		logger.Info("Set up root directory for bucket " + cfg.BucketName)
-		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName, false)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
@@ -205,6 +245,39 @@ func NewFileSystem(
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
 	return fs, nil
+}
+
+func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler) {
+	var sizeInBytes uint64
+	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
+	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
+		sizeInBytes = math.MaxUint64
+	} else {
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * util.MiB
+	}
+	fileInfoCache := lru.NewCache(sizeInBytes)
+
+	cacheDir := string(cfg.MountConfig.CacheDir)
+	// Adding a new directory inside cacheDir to keep file-cache separate from
+	// metadata cache if and when we support storing metadata cache on disk in
+	// the future.
+	cacheDir = path.Join(cacheDir, util.FileCache)
+
+	filePerm := util.DefaultFilePerm
+	dirPerm := util.DefaultDirPerm
+
+	// Panic in case cacheDir does not have required permissions
+	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
+	if cacheDirErr != nil {
+		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheDirErr.Error()))
+	}
+
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
+		cfg.SequentialReadSizeMb)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
+		cacheDir, filePerm, dirPerm)
+	return
 }
 
 func makeRootForBucket(
@@ -231,6 +304,7 @@ func makeRootForBucket(
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
+		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
 	)
 }
 
@@ -412,6 +486,14 @@ type fileSystem struct {
 
 	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
+
+	// fileCacheHandler manages read only file cache. It is non-nil only when
+	// file cache is enabled at the time of mounting.
+	fileCacheHandler *file.CacheHandler
+
+	// cacheFileForRangeRead when true downloads file into cache even for
+	// random file access.
+	cacheFileForRangeRead bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -646,7 +728,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
-			fs.cacheClock)
+			fs.cacheClock,
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -669,7 +752,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
-			fs.cacheClock)
+			fs.cacheClock,
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 
 	case inode.IsSymlink(ic.Object):
 		in = inode.NewSymlinkInode(
@@ -1197,12 +1281,39 @@ func (fs *fileSystem) symlinkInodeOrDie(
 	return
 }
 
+// invalidateChildFileCacheIfExist invalidates the file in read cache. This is used to
+// invalidate the file in read cache after deletion of original file.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fileSystem) invalidateChildFileCacheIfExist(parentInode inode.DirInode, objectGCSName string) (err error) {
+	if fs.fileCacheHandler != nil {
+		if bucketOwnedDirInode, ok := parentInode.(inode.BucketOwnedDirInode); ok {
+			bucketName := bucketOwnedDirInode.Bucket().Name()
+			// Invalidate the file cache entry if it exists.
+			err := fs.fileCacheHandler.InvalidateCache(objectGCSName, bucketName)
+			if err != nil {
+				return fmt.Errorf("invalidateChildFileCacheIfExist: while invalidating the file cache: %w", err)
+			}
+		} else {
+			// The parentInode is not owned by any bucket, which means it's the base
+			// directory that holds all the buckets' root directories. So, this op
+			// is to delete a bucket, which is not supported.
+			return fmt.Errorf("invalidateChildFileCacheIfExist: not an BucketOwnedDirInode: %w", syscall.ENOTSUP)
+		}
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // fuse.FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fileSystem) Destroy() {
 	fs.bucketManager.ShutDown()
+	if fs.fileCacheHandler != nil {
+		_ = fs.fileCacheHandler.Destroy()
+	}
 }
 
 func (fs *fileSystem) StatFS(
@@ -1535,7 +1646,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode))
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -1788,6 +1899,11 @@ func (fs *fileSystem) renameFile(
 		oldName,
 		oldObject.Generation,
 		&oldObject.MetaGeneration)
+
+	if err := fs.invalidateChildFileCacheIfExist(oldParent, oldObject.Name); err != nil {
+		return fmt.Errorf("renameFile: while invalidating cache for delete file: %w", err)
+	}
+
 	oldParent.Unlock()
 
 	if err != nil {
@@ -1893,6 +2009,10 @@ func (fs *fileSystem) renameDir(
 		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
 			return fmt.Errorf("delete file %q: %w", o.Name, err)
 		}
+
+		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+		}
 	}
 
 	// We are done with both directories.
@@ -1923,10 +2043,10 @@ func (fs *fileSystem) Unlink(
 
 	// if inode is a local file, mark it unlinked.
 	fileName := inode.NewFileName(parent.Name(), op.Name)
-	inode, ok := fs.localFileInodes[fileName]
+	fileInode, ok := fs.localFileInodes[fileName]
 	if ok {
 		fs.mu.Lock()
-		file := fs.fileInodeOrDie(inode.ID())
+		file := fs.fileInodeOrDie(fileInode.ID())
 		fs.mu.Unlock()
 		file.Lock()
 		defer file.Unlock()
@@ -1948,6 +2068,10 @@ func (fs *fileSystem) Unlink(
 	if err != nil {
 		err = fmt.Errorf("DeleteChildFile: %w", err)
 		return err
+	}
+
+	if err := fs.invalidateChildFileCacheIfExist(parent, fileName.GcsObjectName()); err != nil {
+		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 	}
 
 	return
@@ -2025,7 +2149,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
@@ -2041,6 +2165,10 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+
+	// Save readOp in context for access in logs.
+	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
+
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)

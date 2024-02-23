@@ -21,6 +21,7 @@ if [ $? -eq 1 ]; then
     echo "Bucket already exist."
     rm ~/output.txt
   else
+    echo $(cat output.txt)
     rm ~/output.txt
     exit 1
   fi

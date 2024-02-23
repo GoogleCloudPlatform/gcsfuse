@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package caching
+package metadata
 
 import (
+	"math"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
-	"github.com/jacobsa/util/lrucache"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -47,24 +49,31 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, o *gcs.Object)
-
-	// Panic if any internal invariants have been violated. The careful user can
-	// arrange to call this at crucial moments.
-	CheckInvariants()
 }
 
-// Create a new stat cache that holds the given number of entries, which must
-// be positive.
-func NewStatCache(capacity int) (sc StatCache) {
-	sc = &statCache{
-		c: lrucache.New(capacity),
+// Create a new bucket-view to the passed shared-cache object.
+// For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
+// For static-mout (mount for single bucket), pass bn as "".
+func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+	return &statCacheBucketView{
+		sharedCache: sc,
+		bucketName:  bn,
 	}
-
-	return
 }
 
-type statCache struct {
-	c lrucache.Cache
+// statCacheBucketView is a special type of StatCache which
+// shares its underlying cache map object with other
+// statCacheBucketView objects (for dynamically mounts) through
+// a specific bucket-name. It does so by prepending its
+// bucket-name to its entry keys to make them unique
+// to it.
+type statCacheBucketView struct {
+	sharedCache *lru.Cache
+	// bucketName is the unique identifier for this
+	// statCache object among all statCache objects
+	// using the same shared lru.Cache object.
+	// It can be empty ("").
+	bucketName string
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -72,6 +81,29 @@ type statCache struct {
 type entry struct {
 	o          *gcs.Object
 	expiration time.Time
+	key        string
+}
+
+// Size returns the memory-size (resident set size) of the receiver entry.
+// The size calculated by the unsafe.Sizeof calls, and
+// NestedSizeOfGcsObject etc. does not account for
+// hidden members in data structures like maps, slices, linked-lists etc.
+// To account for those, we are adding a fixed constant of 553 bytes (deduced from
+// benchmark runs) to heap-size per positive stat-cache entry
+// to calculate a size closer to the actual memory utilization.
+func (e entry) Size() (size uint64) {
+	// First, calculate size on heap.
+	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
+	// struct stored in the cache map and in the cache linked-list.
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsObject(e.o))
+	if e.o != nil {
+		size += 553
+	}
+
+	// Convert heap-size to RSS (resident set size).
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
+
+	return
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -96,9 +128,22 @@ func shouldReplace(o *gcs.Object, existing entry) bool {
 	return true
 }
 
-func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
+func (sc *statCacheBucketView) key(objectName string) string {
+	// path.Join(sc.bucketName, objectName) does not work
+	// because that normalizes the trailing "/"
+	// which breaks functionality by removing
+	// differentiation between files and directories.
+	if sc.bucketName != "" {
+		return sc.bucketName + "/" + objectName
+	}
+	return objectName
+}
+
+func (sc *statCacheBucketView) Insert(o *gcs.Object, expiration time.Time) {
+	name := sc.key(o.Name)
+
 	// Is there already a better entry?
-	if existing := sc.c.LookUp(o.Name); existing != nil {
+	if existing := sc.sharedCache.LookUp(name); existing != nil {
 		if !shouldReplace(o, existing.(entry)) {
 			return
 		}
@@ -108,30 +153,39 @@ func (sc *statCache) Insert(o *gcs.Object, expiration time.Time) {
 	e := entry{
 		o:          o,
 		expiration: expiration,
+		key:        name,
 	}
 
-	sc.c.Insert(o.Name, e)
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }
 
-func (sc *statCache) AddNegativeEntry(name string, expiration time.Time) {
+func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+	name := sc.key(objectName)
+
 	// Insert a negative entry.
 	e := entry{
 		o:          nil,
 		expiration: expiration,
+		key:        name,
 	}
 
-	sc.c.Insert(name, e)
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }
 
-func (sc *statCache) Erase(name string) {
-	sc.c.Erase(name)
+func (sc *statCacheBucketView) Erase(objectName string) {
+	name := sc.key(objectName)
+	sc.sharedCache.Erase(name)
 }
 
-func (sc *statCache) LookUp(
-	name string,
+func (sc *statCacheBucketView) LookUp(
+	objectName string,
 	now time.Time) (hit bool, o *gcs.Object) {
 	// Look up in the LRU cache.
-	value := sc.c.LookUp(name)
+	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {
 		return
 	}
@@ -140,7 +194,7 @@ func (sc *statCache) LookUp(
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
-		sc.Erase(name)
+		sc.Erase(objectName)
 		return
 	}
 
@@ -148,8 +202,4 @@ func (sc *statCache) LookUp(
 	o = e.o
 
 	return
-}
-
-func (sc *statCache) CheckInvariants() {
-	sc.c.CheckInvariants()
 }

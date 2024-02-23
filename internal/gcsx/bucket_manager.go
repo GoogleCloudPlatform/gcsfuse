@@ -21,12 +21,15 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/internal/ratelimit"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/util"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -35,7 +38,7 @@ type BucketConfig struct {
 	OnlyDir                            string
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
-	StatCacheCapacity                  int
+	StatCacheMaxSizeMB                 uint64
 	StatCacheTTL                       time.Duration
 	EnableMonitoring                   bool
 	DebugGCS                           bool
@@ -64,15 +67,16 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
 }
 
 type bucketManager struct {
-	config        BucketConfig
-	storageHandle storage.StorageHandle
+	config          BucketConfig
+	storageHandle   storage.StorageHandle
+	sharedStatCache *lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -80,9 +84,15 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
+	var c *lru.Cache
+	if config.StatCacheMaxSizeMB > 0 {
+		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+	}
+
 	bm := &bucketManager{
-		config:        config,
-		storageHandle: storageHandle,
+		config:          config,
+		storageHandle:   storageHandle,
+		sharedStatCache: c,
 	}
 	bm.gcCtx, bm.stopGarbageCollecting = context.WithCancel(context.Background())
 	return bm
@@ -142,31 +152,26 @@ func setUpRateLimiting(
 	return
 }
 
-// Configure a bucket based on the supplied config.
-//
-// Special case: if the bucket name is canned.FakeBucketName, set up a fake
-// bucket as described in that package.
-func (bm *bucketManager) SetUpGcsBucket(name string) (b gcs.Bucket, err error) {
-	b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
-
-	b = storage.NewDebugBucket(b)
-	return
-}
-
 func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
-	name string) (sb SyncerBucket, err error) {
+	name string,
+	isMultibucketMount bool,
+) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b, err = bm.SetUpGcsBucket(name)
-		if err != nil {
-			err = fmt.Errorf("OpenBucket: %w", err)
-			return
-		}
+		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 	}
+
+	// Enable monitoring.
+	if bm.config.EnableMonitoring {
+		b = monitor.NewMonitoringBucket(b)
+	}
+
+	// Enable gcs logs.
+	b = storage.NewDebugBucket(b)
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
@@ -189,22 +194,23 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Enable cached StatObject results, if appropriate.
-	if bm.config.StatCacheTTL != 0 {
-		cacheCapacity := bm.config.StatCacheCapacity
+	if bm.config.StatCacheTTL != 0 && bm.sharedStatCache != nil {
+		var statCache metadata.StatCache
+		if isMultibucketMount {
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, name)
+		} else {
+			statCache = metadata.NewStatCacheBucketView(bm.sharedStatCache, "")
+		}
+
 		b = caching.NewFastStatBucket(
 			bm.config.StatCacheTTL,
-			caching.NewStatCache(cacheCapacity),
+			statCache,
 			timeutil.RealClock(),
 			b)
 	}
 
 	// Enable content type awareness
 	b = NewContentTypeBucket(b)
-
-	// Enable monitoring
-	if bm.config.EnableMonitoring {
-		b = monitor.NewMonitoringBucket(b)
-	}
 
 	// Enable Syncer
 	if bm.config.TmpObjectPrefix == "" {

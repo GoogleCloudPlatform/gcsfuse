@@ -16,11 +16,11 @@ package util
 
 import (
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -145,20 +145,6 @@ func (t *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 	ExpectEq("/var/dir/test.txt", resolvedPath)
 }
 
-func (t *UtilTest) TestResolveConfigFilePaths() {
-	mountConfig := &config.MountConfig{}
-	mountConfig.LogConfig = config.LogConfig{
-		FilePath: "~/test.txt",
-	}
-
-	err := ResolveConfigFilePaths(mountConfig)
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
-}
-
 func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
 	sampleMap := map[string]int{
 		"1": 1,
@@ -174,7 +160,7 @@ func (t *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarsh
 		NestedValue: sampleNestedValue,
 	}
 
-	actual := Stringify(customObject)
+	actual, _ := Stringify(customObject)
 
 	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
 	AssertEq(expected, actual)
@@ -185,7 +171,7 @@ func (t *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 		value: "example",
 	}
 
-	actual := Stringify(customInstance)
+	actual, _ := Stringify(customInstance)
 
 	expected := ""
 	AssertEq(expected, actual)
@@ -206,4 +192,72 @@ type customTypeForError struct {
 // MarshalJSON returns an error to simulate a failure during JSON marshaling
 func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
+}
+
+func (t *UtilTest) TestMiBsToBytes() {
+	cases := []struct {
+		mib   uint64
+		bytes uint64
+	}{
+		{
+			mib:   0,
+			bytes: 0,
+		},
+		{
+			mib:   1,
+			bytes: 1048576,
+		},
+		{
+			mib:   5,
+			bytes: 5242880,
+		},
+		{
+			mib:   1024,
+			bytes: 1073741824,
+		},
+		{
+			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
+			bytes: 0xFFFFFFFFFFF00000, // 2^20 * (2^44 - 1)
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.bytes, MiBsToBytes(tc.mib))
+	}
+}
+
+func (t *UtilTest) TestBytesToHigherMiBs() {
+	cases := []struct {
+		bytes uint64
+		mib   uint64
+	}{
+		{
+			bytes: 0,
+			mib:   0,
+		},
+		{
+			bytes: 1048576,
+			mib:   1,
+		},
+		{
+			bytes: 1,
+			mib:   1,
+		},
+		{
+			bytes: 0xFFFFFFFFFFF00000, // 2^20 * (2^44 - 1)
+			mib:   0xFFFFFFFFFFF,      // 2^44 - 1
+		},
+		{
+			bytes: 0xFFFFFFFFFFF00001, // 2^20 * (2^44 - 1) + 1
+			mib:   0x100000000000,     // 2^44
+		},
+		{
+			bytes: math.MaxUint64, // (2^64 - 1)
+			mib:   0x100000000000, // 2^44
+		},
+	}
+
+	for _, tc := range cases {
+		AssertEq(tc.mib, BytesToHigherMiBs(tc.bytes))
+	}
 }

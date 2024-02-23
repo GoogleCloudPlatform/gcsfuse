@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
@@ -176,7 +177,7 @@ type dirInode struct {
 	// cache.CheckInvariants() does not panic.
 	//
 	// GUARDED_BY(mu)
-	cache typeCache
+	cache metadata.TypeCache
 }
 
 var _ DirInode = &dirInode{}
@@ -210,25 +211,24 @@ func NewDirInode(
 	typeCacheTTL time.Duration,
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
-	cacheClock timeutil.Clock) (d DirInode) {
+	cacheClock timeutil.Clock,
+	typeCacheMaxSizeMB int) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
 	}
 
-	// Set up the struct.
-	const typeCacheCapacity = 1 << 16
 	typed := &dirInode{
-		bucket:                      bucket,
-		mtimeClock:                  mtimeClock,
-		cacheClock:                  cacheClock,
-		id:                          id,
-		implicitDirs:                implicitDirs,
+		bucket:                     bucket,
+		mtimeClock:                 mtimeClock,
+		cacheClock:                 cacheClock,
+		id:                         id,
+		implicitDirs:               implicitDirs,
 		enableManagedFoldersListing: enableManagedFoldersListing,
-		enableNonexistentTypeCache:  enableNonexistentTypeCache,
-		name:                        name,
-		attrs:                       attrs,
-		cache:                       newTypeCache(typeCacheCapacity/2, typeCacheTTL),
+		enableNonexistentTypeCache: enableNonexistentTypeCache,
+		name:                       name,
+		attrs:                      attrs,
+		cache:                      metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)
@@ -249,9 +249,6 @@ func (d *dirInode) checkInvariants() {
 	if !d.name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", d.name))
 	}
-
-	// cache.CheckInvariants() does not panic.
-	d.cache.CheckInvariants()
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
@@ -461,19 +458,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
-	case ImplicitDirType:
+	case metadata.ImplicitDirType:
 		dirResult = &Core{
 			Bucket:   d.Bucket(),
 			FullName: NewDirName(d.Name(), name),
 			Object:   nil,
 		}
-	case ExplicitDirType:
+	case metadata.ExplicitDirType:
 		b.Add(lookUpExplicitDir)
-	case RegularFileType, SymlinkType:
+	case metadata.RegularFileType, metadata.SymlinkType:
 		b.Add(lookUpFile)
-	case NonexistentType:
+	case metadata.NonexistentType:
 		return nil, nil
-	case UnknownType:
+	case metadata.UnknownType:
 		b.Add(lookUpFile)
 		if d.implicitDirs {
 			b.Add(lookUpImplicitOrExplicitDir)
@@ -495,8 +492,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 	if result != nil {
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
-	} else if d.enableNonexistentTypeCache && cachedType == UnknownType {
-		d.cache.Insert(d.cacheClock.Now(), name, NonexistentType)
+	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
+		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
 	}
 
 	return result, nil
@@ -613,7 +610,7 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == ExplicitDirType {
+		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
 			continue
 		}
 
@@ -643,11 +640,11 @@ func (d *dirInode) ReadEntries(
 			Type: fuseutil.DT_Unknown,
 		}
 		switch core.Type() {
-		case SymlinkType:
+		case metadata.SymlinkType:
 			entry.Type = fuseutil.DT_Link
-		case RegularFileType:
+		case metadata.RegularFileType:
 			entry.Type = fuseutil.DT_File
-		case ImplicitDirType, ExplicitDirType:
+		case metadata.ImplicitDirType, metadata.ExplicitDirType:
 			entry.Type = fuseutil.DT_Directory
 		}
 		entries = append(entries, entry)
@@ -657,17 +654,17 @@ func (d *dirInode) ReadEntries(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, error) {
-	metadata := map[string]string{
+	childMetadata := map[string]string{
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
 	fullName := NewFileName(d.Name(), name)
 
-	o, err := d.createNewObject(ctx, fullName, metadata)
+	o, err := d.createNewObject(ctx, fullName, childMetadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, RegularFileType)
+	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
 	return &Core{
 		Bucket:   d.Bucket(),
 		FullName: fullName,
@@ -717,16 +714,16 @@ func (d *dirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.O
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target string) (*Core, error) {
 	fullName := NewFileName(d.Name(), name)
-	metadata := map[string]string{
+	childMetadata := map[string]string{
 		SymlinkMetadataKey: target,
 	}
 
-	o, err := d.createNewObject(ctx, fullName, metadata)
+	o, err := d.createNewObject(ctx, fullName, childMetadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, SymlinkType)
+	d.cache.Insert(d.cacheClock.Now(), name, metadata.SymlinkType)
 
 	return &Core{
 		Bucket:   d.Bucket(),
@@ -743,7 +740,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		return nil, err
 	}
 
-	d.cache.Insert(d.cacheClock.Now(), name, ExplicitDirType)
+	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
 	return &Core{
 		Bucket:   d.Bucket(),

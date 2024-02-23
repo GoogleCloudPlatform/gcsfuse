@@ -12,13 +12,13 @@ import (
 	time "time"
 	unsafe "unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 )
 
 type MockStatCache interface {
-	caching.StatCache
+	metadata.StatCache
 	oglemock.MockObject
 }
 
@@ -58,23 +58,6 @@ func (m *mockStatCache) AddNegativeEntry(p0 string, p1 time.Time) {
 
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.AddNegativeEntry: invalid return values: %v", retVals))
-	}
-}
-
-func (m *mockStatCache) CheckInvariants() {
-	// Get a file name and line number for the caller.
-	_, file, line, _ := runtime.Caller(1)
-
-	// Hand the call off to the controller, which does most of the work.
-	retVals := m.controller.HandleMethodCall(
-		m,
-		"CheckInvariants",
-		file,
-		line,
-		[]interface{}{})
-
-	if len(retVals) != 0 {
-		panic(fmt.Sprintf("mockStatCache.CheckInvariants: invalid return values: %v", retVals))
 	}
 }
 

@@ -36,7 +36,8 @@ func (t *MainTest) TestCreateStorageHandle() {
 		KeyFile:             "testdata/test_creds.json",
 	}
 
-	storageHandle, err := createStorageHandle(flags)
+	userAgent := "AppName"
+	storageHandle, err := createStorageHandle(flags, userAgent)
 
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)
@@ -46,23 +47,75 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
-	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
-	userAgent := getUserAgent("AppName")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
-func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarAndAppNameAreNotSet() {
-	userAgent := getUserAgent("")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", getVersion()))
+func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
 
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled() {
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB:             -1,
+			CacheFileForRangeRead: true,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
+	// Test File Cache Enabled but Random Read Disabled
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
+	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
+	mountConfig := &config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: -1,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	ExpectEq(expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
+	// Test File Cache disabled when Cache Dir is given but maxSize is set 0.
+	mountConfig := &config.MountConfig{
+		CacheDir: "//tmp//folder//",
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB: 0,
+		},
+	}
+	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 	ExpectEq(expectedUserAgent, userAgent)
 }
 
@@ -70,8 +123,9 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 	os.Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	defer os.Unsetenv("GCSFUSE_METADATA_IMAGE_TYPE")
 
-	userAgent := getUserAgent("")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM)", getVersion()))
+	mountConfig := &config.MountConfig{}
+	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
 	ExpectEq(expectedUserAgent, userAgent)
 }
@@ -92,9 +146,10 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		},
 	}
 
-	actual := util.Stringify(mountConfig)
+	actual, err := util.Stringify(mountConfig)
+	AssertEq(nil, err)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true}}"
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0}"
 	AssertEq(expected, actual)
 }
 
@@ -110,7 +165,8 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		MountOptions:         mountOptions,
 	}
 
-	actual := util.Stringify(flags)
+	actual, err := util.Stringify(flags)
+	AssertEq(nil, err)
 
 	expected := "{\"AppName\":\"\",\"Foreground\":false,\"ConfigFile\":\"\",\"MountOptions\":{\"1\":\"one\",\"2\":\"two\",\"3\":\"three\"},\"DirMode\":0,\"FileMode\":0,\"Uid\":0,\"Gid\":0,\"ImplicitDirs\":false,\"OnlyDir\":\"\",\"RenameDirLimit\":0,\"CustomEndpoint\":null,\"BillingProject\":\"\",\"KeyFile\":\"\",\"TokenUrl\":\"\",\"ReuseTokenFromUrl\":false,\"EgressBandwidthLimitBytesPerSecond\":0,\"OpRateLimitHz\":0,\"SequentialReadSizeMb\":10,\"MaxRetrySleep\":0,\"StatCacheCapacity\":0,\"StatCacheTTL\":0,\"TypeCacheTTL\":0,\"HttpClientTimeout\":0,\"MaxRetryDuration\":0,\"RetryMultiplier\":0,\"LocalFileCache\":false,\"TempDir\":\"\",\"ClientProtocol\":\"http4\",\"MaxConnsPerHost\":0,\"MaxIdleConnsPerHost\":0,\"EnableNonexistentTypeCache\":false,\"StackdriverExportInterval\":0,\"OtelCollectorAddress\":\"\",\"LogFile\":\"\",\"LogFormat\":\"\",\"ExperimentalEnableJsonRead\":false,\"EnableManagedFoldersListing\":false,\"DebugFuseErrors\":false,\"DebugFuse\":false,\"DebugFS\":false,\"DebugGCS\":false,\"DebugHTTP\":false,\"DebugInvariants\":false,\"DebugMutex\":false}"
 	AssertEq(expected, actual)

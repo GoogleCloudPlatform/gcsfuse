@@ -18,9 +18,11 @@ package readonly_test
 import (
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
@@ -55,6 +57,28 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 	}
 }
 
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
+
+	// Set up config file for file cache
+	mountConfig := config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			// Keeping the size as small because the operations are performed on small
+			// files
+			MaxSizeMB: 3,
+		},
+		CacheDir: config.CacheDir(cacheDirPath),
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -78,6 +102,11 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
+
+	// Setup config file for tests when --testbucket flag is enabled.
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flags = append(flags, mountConfigFlags...)
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {

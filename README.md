@@ -1,3 +1,8 @@
+# Upcoming
+
+This file and the documents in docs folder are in sync with the latest released version. 
+The code however is ahead of the latest released version, as we are getting ready for the V2.0 release. To get the documentation to match with the latest code, pull the read_cache_release branch.
+
 # Current status
 
 Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that it is used within its documented supported applications, platforms, and limits. Support requests, feature requests, and general questions should be submitted as a support request via Google Cloud support channels or via GitHub [here](https://github.com/GoogleCloudPlatform/gcsfuse/issues).
