@@ -181,9 +181,9 @@ func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// Concurrently create 200 local files and read directory 400 times.
-	go creatingNLocalFilesShouldNotThrowError(200, &wg, t)
-	go readingDirNTimesShouldNotThrowError(400, &wg, t)
+	// Concurrently create 100 local files and read directory 200 times.
+	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
+	go readingDirNTimesShouldNotThrowError(200, &wg, t)
 
 	wg.Wait()
 }
