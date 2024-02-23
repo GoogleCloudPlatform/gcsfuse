@@ -92,6 +92,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(
 ////////////////////////////////////////////////////////////////////////
 
 func TestRangeReadTest(t *testing.T) {
+	runTestsOnlyForStaticMount(t)
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
