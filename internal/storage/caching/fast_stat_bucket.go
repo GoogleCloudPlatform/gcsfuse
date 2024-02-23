@@ -78,13 +78,18 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 	for _, o := range objs {
-		b.cache.Insert(o, expiration)
+		m := storageutil.ConvertObjToMinObject(o)
+		b.cache.Insert(m, expiration)
 	}
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(o *gcs.Object) {
-	b.insertMultiple([]*gcs.Object{o})
+func (b *fastStatBucket) insert(m *gcs.MinObject) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.Insert(m, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -105,11 +110,11 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, o *gcs.Object) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, o = b.cache.LookUp(name, b.clock.Now())
+	hit, m = b.cache.LookUp(name, b.clock.Now())
 	return
 }
 
@@ -142,7 +147,8 @@ func (b *fastStatBucket) CreateObject(
 	}
 
 	// Record the new object.
-	b.insert(o)
+	m := storageutil.ConvertObjToMinObject(o)
+	b.insert(m)
 
 	return
 }
@@ -161,7 +167,8 @@ func (b *fastStatBucket) CopyObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	m := storageutil.ConvertObjToMinObject(o)
+	b.insert(m)
 
 	return
 }
@@ -180,7 +187,8 @@ func (b *fastStatBucket) ComposeObjects(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	m := storageutil.ConvertObjToMinObject(o)
+	b.insert(m)
 
 	return
 }
@@ -214,7 +222,7 @@ func (b *fastStatBucket) StatObject(
 		}
 
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
-		m = storageutil.ConvertObjToMinObject(entry)
+		m = entry
 		return
 	}
 
@@ -251,7 +259,8 @@ func (b *fastStatBucket) UpdateObject(
 	}
 
 	// Record the new version.
-	b.insert(o)
+	m := storageutil.ConvertObjToMinObject(o)
+	b.insert(m)
 
 	return
 }
@@ -278,9 +287,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	// TODO: Store only MinObject in Stat Cache.
-	o := storageutil.ConvertMinObjectToObject(m)
-	b.insert(o)
+	b.insert(m)
 
 	return
 }
