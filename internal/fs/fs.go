@@ -2074,11 +2074,9 @@ func (fs *fileSystem) ReadDir(
 
 	// Fetch local file entries beforehand and pass it to directory handle as
 	// we need fs lock to fetch local file entries.
-	in.Lock()
 	fs.mu.Lock()
 	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
-	in.Unlock()
 
 	dh.Mu.Lock()
 	defer dh.Mu.Unlock()

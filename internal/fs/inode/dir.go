@@ -130,7 +130,6 @@ type DirInode interface {
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
-	// LOCKS_REQUIRED(fs)
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
 }
 
@@ -804,6 +803,7 @@ func (d *dirInode) DeleteChildDir(
 	return
 }
 
+// LOCKS_REQUIRED(fs)
 func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
 	for localInodeName, in := range localFileInodes {
 		// It is possible that the local file inode has been unlinked, but
