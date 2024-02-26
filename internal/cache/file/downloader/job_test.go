@@ -47,18 +47,16 @@ const DefaultSequentialReadSizeMb = 100
 
 func (dt *downloaderTest) getMinObject(objectName string) gcs.MinObject {
 	ctx := context.Background()
-	object, err := dt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
+	minObject, _, err := dt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
 		ForceFetchFromGcs: true})
 	if err != nil {
 		panic(fmt.Errorf("error whlie stating object: %w", err))
 	}
 
-	var minObj gcs.MinObject
-	minObjPtr := storageutil.ConvertObjToMinObject(object)
-	if minObjPtr != nil {
-		minObj = *minObjPtr
+	if minObject != nil {
+		return *minObject
 	}
-	return minObj
+	return gcs.MinObject{}
 }
 
 func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, sequentialReadSize int32, lruCacheSize uint64, removeCallback func()) {

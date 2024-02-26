@@ -157,11 +157,11 @@ func (mb *monitoringBucket) ComposeObjects(
 
 func (mb *monitoringBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (*gcs.Object, error) {
+	req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
 	startTime := time.Now()
-	o, err := mb.wrapped.StatObject(ctx, req)
+	m, e, err := mb.wrapped.StatObject(ctx, req)
 	recordRequest(ctx, "StatObject", startTime)
-	return o, err
+	return m, e, err
 }
 
 func (mb *monitoringBucket) ListObjects(

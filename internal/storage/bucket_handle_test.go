@@ -253,7 +253,7 @@ func (t *BucketHandleTest) TestDeleteObjectMethodWithZeroGeneration() {
 }
 
 func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
@@ -261,10 +261,34 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 	AssertEq(nil, err)
 }
 
+func (t *BucketHandleTest) TestStatObjectMethodWithReturnExtendedObjectAttributesTrue() {
+	m, e, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:                           TestObjectName,
+			ReturnExtendedObjectAttributes: true,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
+}
+
+func (t *BucketHandleTest) TestStatObjectMethodWithReturnExtendedObjectAttributesFalse() {
+	m, e, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:                           TestObjectName,
+			ReturnExtendedObjectAttributes: false,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	AssertEq(nil, e)
+}
+
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 	var notfound *gcs.NotFoundError
 
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
 		})
@@ -603,13 +627,14 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	// Metadata value before updating object
-	obj, err := t.bucketHandle.StatObject(context.Background(),
+	minObj, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 
 	AssertEq(nil, err)
-	AssertEq(MetaDataValue, obj.Metadata[MetaDataKey])
+	AssertNe(nil, minObj)
+	AssertEq(MetaDataValue, minObj.Metadata[MetaDataKey])
 
 	updatedMetaData := time.RFC3339Nano
 	expectedMetaData := map[string]string{
@@ -680,12 +705,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 		})
 	ExpectEq(ContentInTestObject, buffer)
 	// Checking if srcObject exists or not
-	srcObj, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj)
+	AssertNe(nil, srcMinObj)
 
 	// Composing the object
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
@@ -735,23 +760,23 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithDstObjectExist() {
 	// Destination object's content will get overwrite by srcObject.
 	ExpectEq(srcBuffer, dstBuffer)
 	AssertNe(nil, composedObj)
-	AssertEq(srcObj.Size, composedObj.Size)
+	AssertEq(srcMinObj.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 	var notfound *gcs.NotFoundError
 	// Checking that dstObject does not exist
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcObj, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj)
+	AssertNe(nil, srcMinObj)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
@@ -798,28 +823,28 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObject() {
 		})
 	ExpectEq(srcBuffer, dstBuffer)
 	AssertNe(nil, composedObj)
-	AssertEq(srcObj.Size, composedObj.Size)
+	AssertEq(srcMinObj.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	var notfound *gcs.NotFoundError
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj1)
-	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+	AssertNe(nil, srcMinObj1)
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj2)
+	AssertNe(nil, srcMinObj2)
 
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
@@ -879,12 +904,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	// Comparing content of destination object
 	ExpectEq(srcBuffer1+srcBuffer2, dstBuffer)
 	AssertNe(nil, composedObj)
-	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
+	AssertEq(srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
 	var notfound *gcs.NotFoundError
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: missingObjectName,
 		})
@@ -973,23 +998,23 @@ func (t *BucketHandleTest) TestIsStorageConditionsNotEmptyWithNonEmptyConditions
 
 func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 	var notfound *gcs.NotFoundError
-	_, err := t.bucketHandle.StatObject(context.Background(),
+	_, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: dstObjectName,
 		})
 	AssertTrue(errors.As(err, &notfound))
-	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj1)
-	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+	AssertNe(nil, srcMinObj1)
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj2)
+	AssertNe(nil, srcMinObj2)
 
 	// Add DstGenerationPrecondition = 0 as the Destination object doesn't exist.
 	// Note: fake-gcs-server doesn't respect precondition checks but still adding
@@ -1058,17 +1083,17 @@ func (t *BucketHandleTest) TestComposeObjectMethodWhenDstObjectDoesNotExist() {
 	// Comparing content of destination object
 	ExpectEq(srcBuffer1+srcBuffer2, dstBuffer)
 	AssertNe(nil, composedObj)
-	AssertEq(srcObj1.Size+srcObj2.Size, composedObj.Size)
+	AssertEq(srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
 }
 
 func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() {
 	// Checking source object 1 exists. This will also be the destination object.
-	srcObj1, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj1, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj1)
+	AssertNe(nil, srcMinObj1)
 
 	// Reading source object 1 content before composing it
 	srcObj1Buffer := t.readObjectContent(context.Background(),
@@ -1082,12 +1107,12 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 	ExpectEq(ContentInTestObject, srcObj1Buffer)
 
 	// Checking source object 2 exists.
-	srcObj2, err := t.bucketHandle.StatObject(context.Background(),
+	srcMinObj2, _, err := t.bucketHandle.StatObject(context.Background(),
 		&gcs.StatObjectRequest{
 			Name: TestSubObjectName,
 		})
 	AssertEq(nil, err)
-	AssertNe(nil, srcObj2)
+	AssertNe(nil, srcMinObj2)
 
 	// Reading source object 2 content before composing it
 	srcObj2Buffer := t.readObjectContent(context.Background(),
@@ -1103,19 +1128,19 @@ func (t *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstObject() 
 	// Note: fake-gcs-server doesn't respect precondition checks but still adding
 	// to make sure that it works when precondition checks are supported or we
 	// shift to different testing storage.
-	var preCond int64 = srcObj1.Generation
+	var preCond int64 = srcMinObj1.Generation
 	// Compose srcObj1 and srcObj2 back into srcObj1
 	composedObj, err := t.bucketHandle.ComposeObjects(context.Background(),
 		&gcs.ComposeObjectsRequest{
-			DstName:                       srcObj1.Name,
+			DstName:                       srcMinObj1.Name,
 			DstGenerationPrecondition:     &preCond,
 			DstMetaGenerationPrecondition: nil,
 			Sources: []gcs.ComposeSource{
 				{
-					Name: srcObj1.Name,
+					Name: srcMinObj1.Name,
 				},
 				{
-					Name: srcObj2.Name,
+					Name: srcMinObj2.Name,
 				},
 			},
 			ContentType: ContentType,

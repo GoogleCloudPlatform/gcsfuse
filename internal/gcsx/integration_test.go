@@ -124,7 +124,7 @@ func (t *IntegrationTest) create(o *gcs.Object) {
 func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 	// Stat.
 	req := &gcs.StatObjectRequest{Name: name}
-	o, err := t.bucket.StatObject(t.ctx, req)
+	m, _, err := t.bucket.StatObject(t.ctx, req)
 
 	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &notFoundErr) {
@@ -136,7 +136,7 @@ func (t *IntegrationTest) objectGeneration(name string) (gen int64) {
 		panic(err)
 	}
 
-	gen = o.Generation
+	gen = m.Generation
 	return
 }
 
