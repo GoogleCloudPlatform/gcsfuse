@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
@@ -187,10 +188,18 @@ func (b *fastStatBucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
 	ctx context.Context,
-	req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
+	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
+		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
+	}
 	// If fetching from gcs is enabled, directly make a call to GCS.
 	if req.ForceFetchFromGcs {
-		return b.StatObjectFromGcs(ctx, req)
+		m, e, err = b.StatObjectFromGcs(ctx, req)
+		if !req.ReturnExtendedObjectAttributes {
+			e = nil
+		}
+		return
 	}
 
 	// Do we have an entry in the cache?
@@ -204,8 +213,8 @@ func (b *fastStatBucket) StatObject(
 			return
 		}
 
-		// Otherwise, return the object.
-		o = entry
+		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+		m = storageutil.ConvertObjToMinObject(entry)
 		return
 	}
 
@@ -256,8 +265,9 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
-func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObjectRequest) (o *gcs.Object, err error) {
-	o, err = b.wrapped.StatObject(ctx, req)
+func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	m, e, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
@@ -268,6 +278,8 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context, req *gcs.StatObj
 	}
 
 	// Put the object in cache.
+	// TODO: Store only MinObject in Stat Cache.
+	o := storageutil.ConvertMinObjectToObject(m)
 	b.insert(o)
 
 	return
