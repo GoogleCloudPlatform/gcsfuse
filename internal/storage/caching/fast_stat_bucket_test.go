@@ -331,9 +331,10 @@ func (t *StatObjectTest) CacheHit_Positive() {
 		Name: name,
 	}
 
-	m, _, err := t.bucket.StatObject(context.TODO(), req)
+	m, e, err := t.bucket.StatObject(context.TODO(), req)
 	o := storageutil.ConvertMinObjectToObject(m)
 	AssertEq(nil, err)
+	AssertEq(nil, e)
 	AssertNe(nil, o)
 	ExpectThat(o, Pointee(DeepEquals(*obj)))
 }
@@ -387,6 +388,56 @@ func (t *StatObjectTest) IgnoresCacheEntryWhenForceFetchFromGcsIsTrue() {
 	AssertNe(nil, e)
 	ExpectEq(minObjFromGcs, m)
 	ExpectEq(extObjAttrFromGcs, e)
+}
+
+func (t *StatObjectTest) TestStatObject_ForceFetchFromGcsTrueAndReturnExtendedObjectAttributesFalse() {
+	const name = "taco"
+
+	// Lookup
+	ExpectCall(t.cache, "LookUp")(Any(), Any()).Times(0)
+
+	// Request
+	req := &gcs.StatObjectRequest{
+		Name:                           name,
+		ForceFetchFromGcs:              true,
+		ReturnExtendedObjectAttributes: false,
+	}
+
+	// Wrapped
+	minObjFromGcs := &gcs.MinObject{
+		Name: name,
+	}
+
+	ExpectCall(t.wrapped, "StatObject")(Any(), req).
+		WillOnce(Return(minObjFromGcs, &gcs.ExtendedObjectAttributes{}, nil))
+
+	// Insert
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl)))
+
+	m, e, err := t.bucket.StatObject(context.TODO(), req)
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	ExpectEq(minObjFromGcs, m)
+	ExpectEq(nil, e)
+}
+
+func (t *StatObjectTest) TestStatObjectPanics_ForceFetchFromGcsFalseAndReturnExtendedObjectAttributesTrue() {
+	const name = "taco"
+	const panic = "invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true"
+
+	// Request
+	req := &gcs.StatObjectRequest{
+		Name:                           name,
+		ForceFetchFromGcs:              false,
+		ReturnExtendedObjectAttributes: true,
+	}
+
+	defer func() {
+		r := recover()
+		AssertEq(panic, r)
+	}()
+	_, _, err := t.bucket.StatObject(context.TODO(), req)
+	AssertEq(nil, err)
 }
 
 func (t *StatObjectTest) CallsWrapped() {

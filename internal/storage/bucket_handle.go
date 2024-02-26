@@ -108,10 +108,6 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 func (b *bucketHandle) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
-	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
-	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
-		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnFull: true")
-	}
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)

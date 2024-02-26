@@ -2280,12 +2280,12 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 
 	// Check the object in the bucket.
-	o, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
+	m, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
 	AssertEq(nil, err)
-	AssertNe(nil, o)
-	ExpectEq(0, o.Size)
-	ExpectEq("foo", o.Metadata["gcsfuse_symlink_target"])
+	AssertNe(nil, m)
+	ExpectEq(0, m.Size)
+	ExpectEq("foo", m.Metadata["gcsfuse_symlink_target"])
 
 	// Read the link.
 	target, err := os.Readlink(symlinkName)

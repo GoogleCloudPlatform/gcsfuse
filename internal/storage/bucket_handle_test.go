@@ -261,6 +261,30 @@ func (t *BucketHandleTest) TestStatObjectMethodWithValidObject() {
 	AssertEq(nil, err)
 }
 
+func (t *BucketHandleTest) TestStatObjectMethodWithReturnExtendedObjectAttributesTrue() {
+	m, e, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:                           TestObjectName,
+			ReturnExtendedObjectAttributes: true,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	AssertNe(nil, e)
+}
+
+func (t *BucketHandleTest) TestStatObjectMethodWithReturnExtendedObjectAttributesFalse() {
+	m, e, err := t.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name:                           TestObjectName,
+			ReturnExtendedObjectAttributes: false,
+		})
+
+	AssertEq(nil, err)
+	AssertNe(nil, m)
+	AssertEq(nil, e)
+}
+
 func (t *BucketHandleTest) TestStatObjectMethodWithMissingObject() {
 	var notfound *gcs.NotFoundError
 
