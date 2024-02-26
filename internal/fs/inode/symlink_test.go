@@ -44,20 +44,20 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
 	metadata := map[string]string{
 		inode.SymlinkMetadataKey: "target",
 	}
-	o := gcs.Object{
+	m := gcs.MinObject{
 		Name:     "test",
 		Metadata: metadata,
 	}
 
-	AssertEq(true, inode.IsSymlink(&o))
+	AssertEq(true, inode.IsSymlink(&m))
 }
 
 func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
-	o := gcs.Object{
+	m := gcs.MinObject{
 		Name: "test",
 	}
 
-	AssertEq(false, inode.IsSymlink(&o))
+	AssertEq(false, inode.IsSymlink(&m))
 }
 
 func (t *SymlinkTest) TestIsSymLinkForNilObject() {
