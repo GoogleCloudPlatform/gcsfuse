@@ -85,7 +85,7 @@ type Bucket interface {
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects/get
 	StatObject(
 		ctx context.Context,
-		req *StatObjectRequest) (*Object, error)
+		req *StatObjectRequest) (*MinObject, *ExtendedObjectAttributes, error)
 
 	// List the objects in the bucket that meet the criteria defined by the
 	// request, returning a result object that contains the results and

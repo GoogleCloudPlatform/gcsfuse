@@ -237,7 +237,8 @@ func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o
 	return
 }
 
-func (m *mockBucket) StatObject(p0 context.Context, p1 *gcs.StatObjectRequest) (o0 *gcs.Object, o1 error) {
+func (m *mockBucket) StatObject(p0 context.Context,
+	p1 *gcs.StatObjectRequest) (o0 *gcs.MinObject, o1 *gcs.ExtendedObjectAttributes, o2 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -249,18 +250,23 @@ func (m *mockBucket) StatObject(p0 context.Context, p1 *gcs.StatObjectRequest) (
 		line,
 		[]interface{}{p0, p1})
 
-	if len(retVals) != 2 {
+	if len(retVals) != 3 {
 		panic(fmt.Sprintf("mockBucket.StatObject: invalid return values: %v", retVals))
 	}
 
-	// o0 *Object
+	// o0 *MinObject
 	if retVals[0] != nil {
-		o0 = retVals[0].(*gcs.Object)
+		o0 = retVals[0].(*gcs.MinObject)
 	}
 
-	// o1 error
+	// o1 *ExtendedObjectAttributes
 	if retVals[1] != nil {
-		o1 = retVals[1].(error)
+		o1 = retVals[1].(*gcs.ExtendedObjectAttributes)
+	}
+
+	// o2 error
+	if retVals[2] != nil {
+		o2 = retVals[2].(error)
 	}
 
 	return
