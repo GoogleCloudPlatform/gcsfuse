@@ -39,6 +39,7 @@ type cacheFileForRangeReadFalseTest struct {
 }
 
 func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
+	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
@@ -116,6 +117,17 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 ////////////////////////////////////////////////////////////////////////
 
 func TestCacheFileForRangeReadFalseTest(t *testing.T) {
+	ts := &cacheFileForRangeReadFalseTest{ctx: context.Background()}
+	// Create storage client before running tests.
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
@@ -124,11 +136,6 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	appendFlags(&flagSet,
 		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName))
 	appendFlags(&flagSet, "--o=ro", "")
-
-	// Create storage client before running tests.
-	ts := &cacheFileForRangeReadFalseTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {

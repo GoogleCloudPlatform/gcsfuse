@@ -38,6 +38,7 @@ type disabledCacheTTLTest struct {
 }
 
 func (s *disabledCacheTTLTest) Setup(t *testing.T) {
+	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
@@ -75,6 +76,17 @@ func (s *disabledCacheTTLTest) TestReadAfterObjectUpdateIsCacheMiss(t *testing.T
 ////////////////////////////////////////////////////////////////////////
 
 func TestDisabledCacheTTLTest(t *testing.T) {
+	ts := &disabledCacheTTLTest{ctx: context.Background()}
+	// Create storage client before running tests.
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
+	defer closeStorageClient()
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
@@ -83,11 +95,6 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
 	appendFlags(&flagSet, "--stat-cache-ttl=0s")
 	appendFlags(&flagSet, "--o=ro", "")
-
-	// Create storage client before running tests.
-	ts := &disabledCacheTTLTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
