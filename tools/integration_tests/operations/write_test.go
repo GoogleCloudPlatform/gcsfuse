@@ -16,19 +16,46 @@
 package operations_test
 
 import (
+	"context"
 	"os"
+	"reflect"
 	"syscall"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+func validateExtendedObjectAttributesWrittenSuccessfully(objectName string, t *testing.T) {
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
+	defer closeStorageClient()
+
+	attrs, err := client.StatObject(ctx, storageClient, objectName)
+	t.Logf("Object name: %s", objectName)
+	if err != nil {
+		t.Errorf("Could not read file from GCS: %v", err)
+	}
+	o := storageutil.ObjectAttrsToBucketObject(attrs)
+	e := storageutil.ConvertObjToExtendedObjectAttributes(o)
+
+	if e == nil || reflect.DeepEqual(*e, gcs.ExtendedObjectAttributes{}) {
+		t.Errorf("Received nil/empty extended object attributes.")
+	}
+}
 
 func TestWriteAtEndOfFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
+	objectName := "tmpFile"
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
@@ -36,6 +63,8 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	}
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
@@ -43,6 +72,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
+	objectName := "tmpFile"
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
@@ -50,6 +80,8 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	}
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
 }
 
 func TestWriteAtRandom(t *testing.T) {
@@ -57,6 +89,7 @@ func TestWriteAtRandom(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
+	objectName := "tmpFile"
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -72,6 +105,8 @@ func TestWriteAtRandom(t *testing.T) {
 	operations.CloseFile(f)
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
 }
 
 func TestCreateFile(t *testing.T) {
@@ -79,6 +114,7 @@ func TestCreateFile(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
+	objectName := "tmpFile"
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
@@ -86,4 +122,6 @@ func TestCreateFile(t *testing.T) {
 	}
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\n")
+	// Validate that extended object attributes are non nil/ non-empty.
+	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
 }
