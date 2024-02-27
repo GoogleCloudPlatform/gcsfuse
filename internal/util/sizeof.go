@@ -29,6 +29,9 @@ var (
 	emptyStringArraySize                    int
 	emptyObjectAccessControlSize            int
 	emptyObjectAccessControlProjectTeamSize int
+	TotalCountPositive                      int64
+	TotalCountNegative                      int64
+	TotalSize                               int64
 )
 
 func init() {
@@ -240,8 +243,10 @@ func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (si
 // and other related packages.
 func NestedSizeOfGcsMinObject(m *gcs.MinObject) (size int) {
 	if m == nil {
+		TotalCountNegative++
 		return
 	}
+	TotalCountPositive++
 
 	// Get raw size of the structure.
 	size = UnsafeSizeOf(m)
@@ -257,6 +262,6 @@ func NestedSizeOfGcsMinObject(m *gcs.MinObject) (size int) {
 
 	// Account for map members.
 	size += contentSizeOfStringToStringMap(&m.Metadata)
-
+	TotalSize += int64(size)
 	return
 }

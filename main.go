@@ -415,7 +415,12 @@ func handlePanicWhileMounting() {
 }
 
 func main() {
-	defer handlePanicWhileMounting()
+	defer func() {
+		handlePanicWhileMounting()
+		logger.Infof("Got +ve count %d", util.TotalCountPositive)
+		logger.Infof("Got -ve count %d", util.TotalCountNegative)
+		logger.Infof("Got size %d", util.TotalSize)
+	}()
 
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
