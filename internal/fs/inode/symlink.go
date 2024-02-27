@@ -28,12 +28,12 @@ import (
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 
 // IsSymlink Does the supplied object represent a symlink inode?
-func IsSymlink(o *gcs.MinObject) bool {
-	if o == nil {
+func IsSymlink(m *gcs.MinObject) bool {
+	if m == nil {
 		return false
 	}
 
-	_, ok := o.Metadata[SymlinkMetadataKey]
+	_, ok := m.Metadata[SymlinkMetadataKey]
 	return ok
 }
 
@@ -66,26 +66,26 @@ var _ Inode = &SymlinkInode{}
 func NewSymlinkInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.MinObject,
+	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes) (s *SymlinkInode) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:   id,
 		name: name,
 		sourceGeneration: Generation{
-			Object:   o.Generation,
-			Metadata: o.MetaGeneration,
+			Object:   m.Generation,
+			Metadata: m.MetaGeneration,
 		},
 		attrs: fuseops.InodeAttributes{
 			Nlink: 1,
 			Uid:   attrs.Uid,
 			Gid:   attrs.Gid,
 			Mode:  attrs.Mode,
-			Atime: o.Updated,
-			Ctime: o.Updated,
-			Mtime: o.Updated,
+			Atime: m.Updated,
+			Ctime: m.Updated,
+			Mtime: m.Updated,
 		},
-		target: o.Metadata[SymlinkMetadataKey],
+		target: m.Metadata[SymlinkMetadataKey],
 	}
 
 	// Set up lookup counting.

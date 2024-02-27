@@ -92,18 +92,18 @@ type FileInode struct {
 
 var _ Inode = &FileInode{}
 
-// Create a file inode for the given object in GCS. The initial lookup count is
+// Create a file inode for the given min object in GCS. The initial lookup count is
 // zero.
 //
-// REQUIRES: o != nil
-// REQUIRES: o.Generation > 0
-// REQUIRES: o.MetaGeneration > 0
-// REQUIRES: len(o.Name) > 0
-// REQUIRES: o.Name[len(o.Name)-1] != '/'
+// REQUIRES: m != nil
+// REQUIRES: m.Generation > 0
+// REQUIRES: m.MetaGeneration > 0
+// REQUIRES: len(m.Name) > 0
+// REQUIRES: m.Name[len(m.Name)-1] != '/'
 func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
-	o *gcs.MinObject,
+	m *gcs.MinObject,
 	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
@@ -112,7 +112,7 @@ func NewFileInode(
 	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
-	minObjPtr := o
+	minObjPtr := m
 	if minObjPtr != nil {
 		minObj = *minObjPtr
 	}
