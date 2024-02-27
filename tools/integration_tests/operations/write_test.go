@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -31,16 +32,20 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func validateExtendedObjectAttributesWrittenSuccessfully(objectName string, t *testing.T) {
+const tempFileName = "tmpFile"
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *storage.ObjectAttrs {
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*5, t)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*2, t)
 	defer closeStorageClient()
 
 	attrs, err := client.StatObject(ctx, storageClient, objectName)
-	t.Logf("Object name: %s", objectName)
 	if err != nil {
-		t.Errorf("Could not read file from GCS: %v", err)
+		t.Errorf("Could not fetch object attributes: %v", err)
 	}
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
 	e := storageutil.ConvertObjToExtendedObjectAttributes(o)
@@ -48,14 +53,17 @@ func validateExtendedObjectAttributesWrittenSuccessfully(objectName string, t *t
 	if e == nil || reflect.DeepEqual(*e, gcs.ExtendedObjectAttributes{}) {
 		t.Errorf("Received nil/empty extended object attributes.")
 	}
+	return attrs
 }
 
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
 func TestWriteAtEndOfFile(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
-	objectName := "tmpFile"
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
@@ -64,7 +72,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
+	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
@@ -72,7 +80,6 @@ func TestWriteAtStartOfFile(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
-	objectName := "tmpFile"
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
@@ -81,7 +88,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
+	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 }
 
 func TestWriteAtRandom(t *testing.T) {
@@ -89,7 +96,6 @@ func TestWriteAtRandom(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
-	objectName := "tmpFile"
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -106,7 +112,7 @@ func TestWriteAtRandom(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
+	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 }
 
 func TestCreateFile(t *testing.T) {
@@ -114,7 +120,6 @@ func TestCreateFile(t *testing.T) {
 	setup.CleanMntDir()
 
 	fileName := setup.CreateTempFile()
-	objectName := "tmpFile"
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
@@ -123,5 +128,63 @@ func TestCreateFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesWrittenSuccessfully(objectName, t)
+	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+}
+
+func TestFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
+	const contentType = "text/plain; charset=utf-8"
+	const componentCount = 0
+	const content = "Content"
+	const sizeBeforeAppend = 14
+	const sizeAfterAppend = sizeBeforeAppend + int64(len(content))
+	const storageClass = "STANDARD"
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
+	fileName := setup.CreateTempFile()
+	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	err := operations.WriteFileInAppendMode(fileName, content)
+	if err != nil {
+		t.Errorf("Could not append to file: %v", err)
+	}
+	attr2 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+
+	if attr1.ContentType != contentType || attr2.ContentType != contentType {
+		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
+	}
+	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
+		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)
+	}
+	if attr1.Name != attr2.Name {
+		t.Errorf("Object name mismatch: %s, %s", attr1.Name, attr2.Name)
+	}
+	if attr1.Bucket != attr2.Bucket {
+		t.Errorf("Bucket name mismatch: %s, %s", attr1.Bucket, attr2.Bucket)
+	}
+	if attr1.EventBasedHold != false || attr2.EventBasedHold != false {
+		t.Errorf("Expected EventBasedHold: false, Got: %v %v", attr1.EventBasedHold, attr2.EventBasedHold)
+	}
+	if attr1.Size != sizeBeforeAppend {
+		t.Errorf("Expected size: %d, Got: %d", attr1.Size, sizeBeforeAppend)
+	}
+	if attr2.Size != sizeAfterAppend {
+		t.Errorf("Expected size: %d, Got: %d", attr2.Size, sizeAfterAppend)
+	}
+	if reflect.DeepEqual(attr1.MD5, []byte{}) || reflect.DeepEqual(attr2.MD5, []byte{}) {
+		t.Error("Expected MD5 attributes to be non empty")
+	}
+	if attr1.CRC32C == 0 || attr2.CRC32C == 0 {
+		t.Error("Expected CRC32 attributes to be non 0")
+	}
+	if attr1.MediaLink == "" || attr2.MediaLink == "" {
+		t.Errorf("Expected media link to be non empty")
+	}
+	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
+		t.Errorf("Expected storage class ")
+	}
+	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcsx.MtimeMetadataKey])
+	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcsx.MtimeMetadataKey])
+	if attr2MTime.Before(attr1MTime) {
+		t.Errorf("Unexpected MTime received. After operation1: %v, After operation2: %v", attr1MTime, attr2MTime)
+	}
 }
