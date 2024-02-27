@@ -112,9 +112,8 @@ func NewFileInode(
 	localFile bool) (f *FileInode) {
 	// Set up the basic struct.
 	var minObj gcs.MinObject
-	minObjPtr := m
-	if minObjPtr != nil {
-		minObj = *minObjPtr
+	if m != nil {
+		minObj = *m
 	}
 	f = &FileInode{
 		bucket:         bucket,
