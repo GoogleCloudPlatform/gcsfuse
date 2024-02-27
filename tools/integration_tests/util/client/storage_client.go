@@ -18,9 +18,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"path"
 	"reflect"
 	"strings"
+	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
@@ -102,6 +105,25 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
+// CreateStorageClientWithTimeOut creates storage client with a configurable timeout and return a function to cancel the storage client
+func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storage.Client, time time.Duration, t *testing.T) func() {
+	var err error
+	var cancel context.CancelFunc
+	*ctx, cancel = context.WithTimeout(*ctx, time)
+	*storageClient, err = CreateStorageClient(*ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+	// Return func to close storage client and release resources.
+	return func() {
+		err := (*storageClient).Close()
+		if err != nil {
+			t.Log("Failed to close storage client")
+		}
+		defer cancel()
+	}
+}
+
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
 	var bucket string
 	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
@@ -162,4 +184,15 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		}
 	}
 	return nil
+}
+
+func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return attrs, nil
 }
