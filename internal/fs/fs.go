@@ -2006,9 +2006,9 @@ func (fs *fileSystem) Unlink(
 
 	// if inode is a local file, mark it unlinked.
 	fileName := inode.NewFileName(parent.Name(), op.Name)
+	fs.mu.Lock()
 	fileInode, ok := fs.localFileInodes[fileName]
 	if ok {
-		fs.mu.Lock()
 		file := fs.fileInodeOrDie(fileInode.ID())
 		fs.mu.Unlock()
 		file.Lock()
@@ -2016,6 +2016,7 @@ func (fs *fileSystem) Unlink(
 		file.Unlink()
 		return
 	}
+	fs.mu.Unlock()
 
 	// else delete the backing object present on GCS.
 	parent.Lock()
@@ -2070,11 +2071,8 @@ func (fs *fileSystem) ReadDir(
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
 	in := fs.dirInodeOrDie(op.Inode)
-	fs.mu.Unlock()
-
 	// Fetch local file entries beforehand and pass it to directory handle as
 	// we need fs lock to fetch local file entries.
-	fs.mu.Lock()
 	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
 
