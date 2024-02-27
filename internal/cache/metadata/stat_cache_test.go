@@ -158,6 +158,7 @@ func (t *StatCacheTest) FillUpToCapacity() {
 	m1 := &gcs.MinObject{Name: "taco"}
 	m2 := &gcs.MinObject{Name: "quesadilla"}
 
+	//TODO: to update the sizes in comments.
 	t.cache.Insert(m0, expiration)                    // size = 1886 bytes
 	t.cache.Insert(m1, expiration)                    // size = 1874 bytes (cumulative = 3760 bytes)
 	t.cache.AddNegativeEntry("enchilada", expiration) // size = 178 bytes (cumulative = 3938 bytes)

@@ -86,7 +86,7 @@ type entry struct {
 
 // Size returns the memory-size (resident set size) of the receiver entry.
 // The size calculated by the unsafe.Sizeof calls, and
-// NestedSizeOfGcsObject etc. does not account for
+// NestedSizeOfGcsMinObject etc. does not account for
 // hidden members in data structures like maps, slices, linked-lists etc.
 // To account for those, we are adding a fixed constant of 553 bytes (deduced from
 // benchmark runs) to heap-size per positive stat-cache entry

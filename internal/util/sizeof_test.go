@@ -271,7 +271,7 @@ func (t *SizeofTest) TestContentSizeOfServerResponse() {
 	}
 }
 
-func (t *SizeofTest) TestNestedSizeOfGcsObject() {
+func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	const name string = "my-object"
 	const contentEncoding string = "gzip/none"
 	var generation int64 = 858734898

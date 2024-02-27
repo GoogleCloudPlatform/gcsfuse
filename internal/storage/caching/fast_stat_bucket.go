@@ -84,12 +84,8 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) insert(m *gcs.MinObject) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	expiration := b.clock.Now().Add(b.ttl)
-	b.cache.Insert(m, expiration)
+func (b *fastStatBucket) insert(o *gcs.Object) {
+	b.insertMultiple([]*gcs.Object{o})
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -147,8 +143,7 @@ func (b *fastStatBucket) CreateObject(
 	}
 
 	// Record the new object.
-	m := storageutil.ConvertObjToMinObject(o)
-	b.insert(m)
+	b.insert(o)
 
 	return
 }
@@ -167,8 +162,7 @@ func (b *fastStatBucket) CopyObject(
 	}
 
 	// Record the new version.
-	m := storageutil.ConvertObjToMinObject(o)
-	b.insert(m)
+	b.insert(o)
 
 	return
 }
@@ -187,8 +181,7 @@ func (b *fastStatBucket) ComposeObjects(
 	}
 
 	// Record the new version.
-	m := storageutil.ConvertObjToMinObject(o)
-	b.insert(m)
+	b.insert(o)
 
 	return
 }
@@ -259,8 +252,7 @@ func (b *fastStatBucket) UpdateObject(
 	}
 
 	// Record the new version.
-	m := storageutil.ConvertObjToMinObject(o)
-	b.insert(m)
+	b.insert(o)
 
 	return
 }
@@ -287,7 +279,8 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	}
 
 	// Put the object in cache.
-	b.insert(m)
+	o := storageutil.ConvertMinObjectToObject(m)
+	b.insert(o)
 
 	return
 }

@@ -116,7 +116,7 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 		o0 = retVals[0].(bool)
 	}
 
-	// o1 *gcs.Object
+	// o1 *gcs.MinObject
 	if retVals[1] != nil {
 		o1 = retVals[1].(*gcs.MinObject)
 	}
