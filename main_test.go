@@ -144,7 +144,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 				Compress:        true,
 			},
 		},
-		ListConfig : config.ListConfig{
+		ListConfig: config.ListConfig{
 			EnableManagedFolderListing: false,
 		},
 	}
