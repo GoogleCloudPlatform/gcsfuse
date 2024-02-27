@@ -80,15 +80,6 @@ type ServerConfig struct {
 	// See docs/semantics.md for more info.
 	ImplicitDirectories bool
 
-	// This flag is specially added to handle the corner case in listing managed folders.
-	// There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
-	// This flag always works in conjunction with ImplicitDirectories flag.
-	//
-	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
-	// (b) If both ImplicitDirectories and EnableManagedFoldersListing are true, then all the managed folders are listed including the above mentioned corner case.
-	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFoldersListing flag.
-	EnableManagedFoldersListing bool
-
 	// By default, if a file/directory does not exist in GCS, this nonexistent state is
 	// not cached in type cache. So the inode lookup request will hit GCS every
 	// time.
@@ -193,7 +184,6 @@ func NewFileSystem(
 		localFileInodes:             make(map[inode.Name]inode.Inode),
 		handles:                     make(map[fuseops.HandleID]interface{}),
 		mountConfig:                 cfg.MountConfig,
-		enableManagedFoldersListing: cfg.EnableManagedFoldersListing,
 		fileCacheHandler:            fileCacheHandler,
 		cacheFileForRangeRead:       cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
 	}
@@ -273,7 +263,7 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.enableManagedFoldersListing,
+	  fs.mountConfig.ListConfig.EnableManagedFolderListing,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
@@ -346,7 +336,6 @@ type fileSystem struct {
 	contentCache                *contentcache.ContentCache
 	implicitDirs                bool
 	enableNonexistentTypeCache  bool
-	enableManagedFoldersListing bool
 	inodeAttributeCacheTTL      time.Duration
 	dirTypeCacheTTL             time.Duration
 	renameDirLimit              int64
@@ -698,7 +687,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.enableManagedFoldersListing,
+			fs.mountConfig.ListConfig.EnableManagedFolderListing,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
@@ -722,7 +711,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.enableManagedFoldersListing,
+			fs.mountConfig.ListConfig.EnableManagedFolderListing,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
