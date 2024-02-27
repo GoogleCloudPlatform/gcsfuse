@@ -35,7 +35,7 @@ type StatCache interface {
 	// replace negative entries.
 	//
 	// The entry will expire after the supplied time.
-	Insert(o *gcs.MinObject, expiration time.Time)
+	Insert(m *gcs.MinObject, expiration time.Time)
 
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -48,7 +48,7 @@ type StatCache interface {
 	// Return the current entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUp(name string, now time.Time) (hit bool, o *gcs.MinObject)
+	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -108,20 +108,20 @@ func (e entry) Size() (size uint64) {
 
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
-func shouldReplace(o *gcs.MinObject, existing entry) bool {
+func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	// Negative entries should always be replaced with positive entries.
 	if existing.m == nil {
 		return true
 	}
 
 	// Compare first on generation.
-	if o.Generation != existing.m.Generation {
-		return o.Generation > existing.m.Generation
+	if m.Generation != existing.m.Generation {
+		return m.Generation > existing.m.Generation
 	}
 
 	// Break ties on metadata generation.
-	if o.MetaGeneration != existing.m.MetaGeneration {
-		return o.MetaGeneration > existing.m.MetaGeneration
+	if m.MetaGeneration != existing.m.MetaGeneration {
+		return m.MetaGeneration > existing.m.MetaGeneration
 	}
 
 	// Break ties by preferring fresher entries.

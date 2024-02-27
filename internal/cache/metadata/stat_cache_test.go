@@ -53,8 +53,8 @@ func (c *testHelperCache) Erase(name string) {
 
 func (c *testHelperCache) LookUp(
 	name string,
-	now time.Time) (hit bool, o *gcs.MinObject) {
-	hit, o = c.wrapped.LookUp(name, now)
+	now time.Time) (hit bool, m *gcs.MinObject) {
+	hit, m = c.wrapped.LookUp(name, now)
 	return
 }
 
@@ -130,22 +130,22 @@ func (t *StatCacheTest) LookUpInEmptyCache() {
 }
 
 func (t *StatCacheTest) LookUpUnknownKey() {
-	o0 := &gcs.MinObject{Name: "burrito"}
-	o1 := &gcs.MinObject{Name: "taco"}
+	m0 := &gcs.MinObject{Name: "burrito"}
+	m1 := &gcs.MinObject{Name: "taco"}
 
-	t.cache.Insert(o0, someTime.Add(time.Second))
-	t.cache.Insert(o1, someTime.Add(time.Second))
+	t.cache.Insert(m0, someTime.Add(time.Second))
+	t.cache.Insert(m1, someTime.Add(time.Second))
 
 	ExpectFalse(t.cache.Hit("", someTime))
 	ExpectFalse(t.cache.Hit("enchilada", someTime))
 }
 
 func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
-	o0 := &gcs.MinObject{Name: "burrito"}
-	o1 := &gcs.MinObject{Name: "taco"}
+	m0 := &gcs.MinObject{Name: "burrito"}
+	m1 := &gcs.MinObject{Name: "taco"}
 
-	t.cache.Insert(o0, someTime.Add(-time.Second))
-	t.cache.Insert(o1, someTime.Add(-time.Second))
+	t.cache.Insert(m0, someTime.Add(-time.Second))
+	t.cache.Insert(m1, someTime.Add(-time.Second))
 
 	ExpectFalse(t.cache.Hit("burrito", someTime))
 	ExpectFalse(t.cache.Hit("taco", someTime))
@@ -154,29 +154,29 @@ func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
 func (t *StatCacheTest) FillUpToCapacity() {
 	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
 
-	o0 := &gcs.MinObject{Name: "burrito"}
-	o1 := &gcs.MinObject{Name: "taco"}
-	o2 := &gcs.MinObject{Name: "quesadilla"}
+	m0 := &gcs.MinObject{Name: "burrito"}
+	m1 := &gcs.MinObject{Name: "taco"}
+	m2 := &gcs.MinObject{Name: "quesadilla"}
 
-	t.cache.Insert(o0, expiration)                    // size = 1886 bytes
-	t.cache.Insert(o1, expiration)                    // size = 1874 bytes (cumulative = 3760 bytes)
+	t.cache.Insert(m0, expiration)                    // size = 1886 bytes
+	t.cache.Insert(m1, expiration)                    // size = 1874 bytes (cumulative = 3760 bytes)
 	t.cache.AddNegativeEntry("enchilada", expiration) // size = 178 bytes (cumulative = 3938 bytes)
-	t.cache.Insert(o2, expiration)                    // size = 1898 bytes (cumulative = 5836 bytes)
+	t.cache.Insert(m2, expiration)                    // size = 1898 bytes (cumulative = 5836 bytes)
 	t.cache.AddNegativeEntry("fajita", expiration)    // size = 172 bytes (cumulative = 6008 bytes)
 
 	// Before expiration
 	justBefore := expiration.Add(-time.Nanosecond)
-	ExpectEq(o0, t.cache.LookUpOrNil("burrito", justBefore))
-	ExpectEq(o1, t.cache.LookUpOrNil("taco", justBefore))
+	ExpectEq(m0, t.cache.LookUpOrNil("burrito", justBefore))
+	ExpectEq(m1, t.cache.LookUpOrNil("taco", justBefore))
 	ExpectTrue(t.cache.NegativeEntry("enchilada", justBefore))
-	ExpectEq(o2, t.cache.LookUpOrNil("quesadilla", justBefore))
+	ExpectEq(m2, t.cache.LookUpOrNil("quesadilla", justBefore))
 	ExpectTrue(t.cache.NegativeEntry("fajita", justBefore))
 
 	// At expiration
-	ExpectEq(o0, t.cache.LookUpOrNil("burrito", expiration))
-	ExpectEq(o1, t.cache.LookUpOrNil("taco", expiration))
+	ExpectEq(m0, t.cache.LookUpOrNil("burrito", expiration))
+	ExpectEq(m1, t.cache.LookUpOrNil("taco", expiration))
 	ExpectTrue(t.cache.NegativeEntry("enchilada", justBefore))
-	ExpectEq(o2, t.cache.LookUpOrNil("quesadilla", justBefore))
+	ExpectEq(m2, t.cache.LookUpOrNil("quesadilla", justBefore))
 	ExpectTrue(t.cache.NegativeEntry("fajita", justBefore))
 
 	// After expiration
@@ -188,6 +188,7 @@ func (t *StatCacheTest) FillUpToCapacity() {
 	ExpectFalse(t.cache.Hit("fajita", justAfter))
 }
 
+// TODO: Uncomment this test after finding average size of min object entry.
 //func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
 //	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
 //
@@ -215,13 +216,13 @@ func (t *StatCacheTest) FillUpToCapacity() {
 //}
 
 func (t *StatCacheTest) Overwrite_NewerGeneration() {
-	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.MinObject{Name: "taco", Generation: 19, MetaGeneration: 1}
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 19, MetaGeneration: 1}
 
-	t.cache.Insert(o0, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o1, t.cache.LookUpOrNil("taco", someTime))
+	ExpectEq(m1, t.cache.LookUpOrNil("taco", someTime))
 
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
@@ -235,13 +236,13 @@ func (t *StatCacheTest) Overwrite_NewerGeneration() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
-	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 7}
 
-	t.cache.Insert(o0, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o1, t.cache.LookUpOrNil("taco", someTime))
+	ExpectEq(m1, t.cache.LookUpOrNil("taco", someTime))
 
 	// The overwritten entry shouldn't count toward capacity.
 	AssertEq(3, capacity)
@@ -255,50 +256,50 @@ func (t *StatCacheTest) Overwrite_SameGeneration_NewerMetadataGen() {
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_SameMetadataGen() {
-	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
 
-	t.cache.Insert(o0, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o1, t.cache.LookUpOrNil("taco", someTime))
+	ExpectEq(m1, t.cache.LookUpOrNil("taco", someTime))
 }
 
 func (t *StatCacheTest) Overwrite_SameGeneration_OlderMetadataGen() {
-	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
 
-	t.cache.Insert(o0, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o0, t.cache.LookUpOrNil("taco", someTime))
+	ExpectEq(m0, t.cache.LookUpOrNil("taco", someTime))
 }
 
 func (t *StatCacheTest) Overwrite_OlderGeneration() {
-	o0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
-	o1 := &gcs.MinObject{Name: "taco", Generation: 13, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 13, MetaGeneration: 7}
 
-	t.cache.Insert(o0, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o0, t.cache.LookUpOrNil("taco", someTime))
+	ExpectEq(m0, t.cache.LookUpOrNil("taco", someTime))
 }
 
 func (t *StatCacheTest) Overwrite_NegativeWithPositive() {
 	const name = "taco"
-	o1 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
+	m1 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
 	t.cache.AddNegativeEntry(name, expiration)
-	t.cache.Insert(o1, expiration)
+	t.cache.Insert(m1, expiration)
 
-	ExpectEq(o1, t.cache.LookUpOrNil(name, someTime))
+	ExpectEq(m1, t.cache.LookUpOrNil(name, someTime))
 }
 
 func (t *StatCacheTest) Overwrite_PositiveWithNegative() {
 	const name = "taco"
-	o0 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
+	m0 := &gcs.MinObject{Name: name, Generation: 13, MetaGeneration: 7}
 
-	t.cache.Insert(o0, expiration)
+	t.cache.Insert(m0, expiration)
 	t.cache.AddNegativeEntry(name, expiration)
 
 	ExpectTrue(t.cache.NegativeEntry(name, someTime))
@@ -380,6 +381,7 @@ func (t *MultiBucketStatCacheTest) FillUpToCapacity() {
 	ExpectFalse(spices.Hit("pepper", justAfter))
 }
 
+// TODO: Uncomment this test after finding average size of min object entry.
 //func (t *MultiBucketStatCacheTest) ExpiresLeastRecentlyUsed() {
 //	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
 //
