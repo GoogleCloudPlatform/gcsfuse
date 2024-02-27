@@ -66,9 +66,9 @@ type ListConfig struct {
 	// This flag always works in conjunction with ImplicitDirectories flag.
 	//
 	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
-	// (b) If both ImplicitDirectories and EnableManagedFoldersListing are true, then all the managed folders are listed including the above mentioned corner case.
-	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFoldersListing flag.
-	EnableManagedFolderListing bool `yaml:"enable-managed-folder-listing"`
+	// (b) If both ImplicitDirectories and EnableManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
+	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFolders flag.
+	EnableManagedFolders bool `yaml:"enable-managed-folders"`
 }
 
 type CacheDir string
@@ -147,7 +147,7 @@ func NewMountConfig() *MountConfig {
 		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{
-		EnableManagedFolderListing: DefaultEnableManagedFolderListing,
+		EnableManagedFolders: DefaultEnableManagedFolderListing,
 	}
 	return mountConfig
 }

@@ -33,7 +33,7 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	ExpectEq(false, mountConfig.CreateEmptyFile)
-	ExpectEq(true, mountConfig.ListConfig.EnableManagedFolderListing)
+	ExpectEq(true, mountConfig.ListConfig.EnableManagedFolders)
 	ExpectEq("INFO", mountConfig.LogConfig.Severity)
 	ExpectEq("", mountConfig.LogConfig.Format)
 	ExpectEq("", mountConfig.LogConfig.FilePath)
@@ -116,7 +116,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq(3, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 
 	// list config
-	ExpectEq(true, mountConfig.ListConfig.EnableManagedFolderListing)
+	ExpectEq(true, mountConfig.ListConfig.EnableManagedFolders)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {

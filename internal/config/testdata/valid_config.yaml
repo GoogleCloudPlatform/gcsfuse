@@ -17,4 +17,4 @@ metadata-cache:
   type-cache-max-size-mb: 1
   stat-cache-max-size-mb: 3
 list:
-  enable-managed-folder-listing: true
+  enable-managed-folders: true
