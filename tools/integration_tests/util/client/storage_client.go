@@ -25,9 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"google.golang.org/api/iterator"
 )
@@ -212,4 +211,15 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		}
 	}
 	return nil
+}
+
+func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
+	var bucket string
+	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+
+	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return attrs, nil
 }
