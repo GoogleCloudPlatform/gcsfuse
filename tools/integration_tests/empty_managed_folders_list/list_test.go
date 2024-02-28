@@ -37,11 +37,7 @@ func deleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
 	}
 }
 
-func createManagedFoldersInTestDir(managedFolder string) {
-	bucket := setup.TestBucket()
-	testDir := testDirName
-	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
-
+func createManagedFoldersInTestDir(managedFolder string, bucket, testDir string) {
 	// Delete if already exist.
 	deleteManagedFoldersInTestDir(managedFolder, bucket, testDir)
 	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", bucket, testDir, managedFolder)
@@ -52,8 +48,12 @@ func createManagedFoldersInTestDir(managedFolder string) {
 }
 
 func createDirectoryStructureForTest(t *testing.T) {
-	createManagedFoldersInTestDir(EmptyManagedFolder1)
-	createManagedFoldersInTestDir(EmptyManagedFolder2)
+	bucket := setup.TestBucket()
+	testDir := testDirName
+	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
+
+	createManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir)
+	createManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
