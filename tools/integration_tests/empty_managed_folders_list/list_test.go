@@ -111,7 +111,7 @@ func TestListDirectoryForEmptyManagedFolders(t *testing.T) {
 			return nil
 		}
 
-		// Check if managedFolderTest directory has correct data.
+		// Check if subDirectory is empty.
 		if dir.IsDir() && (dir.Name() == EmptyManagedFolder1 || dir.Name() == EmptyManagedFolder2 || dir.Name() == SimulatedFolder) {
 			// numberOfObjects - 0
 			if len(objs) != 0 {
