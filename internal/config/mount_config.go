@@ -45,7 +45,8 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB int64 = -1
+	DefaultFileCacheMaxSizeMB         int64 = -1
+	DefaultEnableManagedFolderListing       = true
 )
 
 type WriteConfig struct {
@@ -57,6 +58,17 @@ type LogConfig struct {
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
+}
+
+type ListConfig struct {
+	// This flag is specially added to handle the corner case in listing managed folders.
+	// There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
+	// This flag always works in conjunction with ImplicitDirectories flag.
+	//
+	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
+	// (b) If both ImplicitDirectories and EnableManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
+	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFolders flag.
+	EnableManagedFolders bool `yaml:"enable-managed-folders"`
 }
 
 type CacheDir string
@@ -92,6 +104,7 @@ type MountConfig struct {
 	FileCacheConfig     `yaml:"file-cache"`
 	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
+	ListConfig          `yaml:"list"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -132,6 +145,9 @@ func NewMountConfig() *MountConfig {
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
 		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
 		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
+	}
+	mountConfig.ListConfig = ListConfig{
+		EnableManagedFolders: DefaultEnableManagedFolderListing,
 	}
 	return mountConfig
 }
