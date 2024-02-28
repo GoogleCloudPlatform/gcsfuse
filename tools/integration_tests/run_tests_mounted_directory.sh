@@ -350,7 +350,7 @@ test_cases=(
   "TestCacheFileForRangeReadFalseTest/TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment
@@ -359,7 +359,7 @@ done
 # cache-file-for-range-read:true read-cache test.
 read_cache_test_setup 50 true 3600
 test_case="TestCacheFileForRangeReadTrueTest/TestRangeReadsWithCacheHit"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
 sudo umount "$MOUNT_DIR"
 cleanup_test_environment
@@ -368,7 +368,7 @@ cleanup_test_environment
 # Disabled cache ttl read-cache test.
 read_cache_test_setup 9 false 0
 test_case="TestDisabledCacheTTLTest/TestReadAfterObjectUpdateIsCacheMiss"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
 sudo umount "$MOUNT_DIR"
 cleanup_test_environment
@@ -376,7 +376,7 @@ cleanup_test_environment
 # local modification test.
 read_cache_test_setup 9 false 3600
 test_case="TestLocalModificationTest/TestReadAfterLocalGCSFuseWriteIsCacheMiss"
-gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
 sudo umount "$MOUNT_DIR"
 cleanup_test_environment
@@ -389,7 +389,7 @@ test_cases=(
   "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment
@@ -405,20 +405,20 @@ test_cases=(
   "TestReadOnlyTest/TestReadMultipleFilesWithinCacheLimit"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --o=ro --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  gcsfuse --o=ro --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment
 done
 
 # Small cache ttl read-cache test.
-read_cache_test_setup 9 false 3600
+read_cache_test_setup 9 false 10
 test_cases=(
   "TestSmallCacheTTLTest/TestReadAfterUpdateAndCacheExpiryIsCacheMiss"
   "TestSmallCacheTTLTest/TestReadForLowMetaDataCacheTTLIsCacheHit"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment

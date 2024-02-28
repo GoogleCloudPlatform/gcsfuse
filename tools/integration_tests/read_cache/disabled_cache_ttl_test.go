@@ -79,6 +79,7 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 	ts := &disabledCacheTTLTest{ctx: context.Background()}
 	// Create storage client before running tests.
 	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -86,7 +87,6 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 		return
 	}
 
-	defer closeStorageClient()
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
