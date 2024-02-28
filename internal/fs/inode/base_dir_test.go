@@ -171,7 +171,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectTrue(result.FullName.IsBucketRoot())
 	ExpectEq("bucketA/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.Object)
+	ExpectEq(nil, result.MinObject)
 	ExpectEq(metadata.ImplicitDirType, result.Type())
 
 	result, err = t.in.LookUpChild(t.ctx, "bucketB")
@@ -183,7 +183,7 @@ func (t *BaseDirTest) LookUpChild_BucketFound() {
 	ExpectTrue(result.FullName.IsBucketRoot())
 	ExpectEq("bucketB/", result.FullName.LocalName())
 	ExpectEq("", result.FullName.GcsObjectName())
-	ExpectEq(nil, result.Object)
+	ExpectEq(nil, result.MinObject)
 	ExpectEq(metadata.ImplicitDirType, result.Type())
 }
 
