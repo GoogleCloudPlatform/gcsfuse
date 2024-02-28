@@ -88,7 +88,7 @@ type entry struct {
 // The size calculated by the unsafe.Sizeof calls, and
 // NestedSizeOfGcsMinObject etc. does not account for
 // hidden members in data structures like maps, slices, linked-lists etc.
-// To account for those, we are adding a fixed constant of 553 bytes (deduced from
+// To account for those, we are adding a fixed constant of 515 bytes (deduced from
 // benchmark runs) to heap-size per positive stat-cache entry
 // to calculate a size closer to the actual memory utilization.
 func (e entry) Size() (size uint64) {
@@ -97,7 +97,7 @@ func (e entry) Size() (size uint64) {
 	// struct stored in the cache map and in the cache linked-list.
 	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
-		size += 553
+		size += 515
 	}
 
 	// Convert heap-size to RSS (resident set size).
