@@ -367,11 +367,11 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		if err == nil {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
-			logger.Info("SuccessfulMountMessage")
+			logger.Info(SuccessfulMountMessage)
 
 			// Print the success message in stdout also, if logger outputs to something other than stdout.
 			if flags.Foreground && mountConfig.FilePath != "" {
-				fmt.Println("SuccessfulMountMessage")
+				fmt.Println(SuccessfulMountMessage)
 			}
 
 			daemonize.SignalOutcome(nil)
