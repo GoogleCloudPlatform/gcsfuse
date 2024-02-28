@@ -39,7 +39,7 @@ func deleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
 func createManagedFoldersInTestDir(managedFolder string) {
 	bucket := setup.TestBucket()
 	testDir := testDirName
-	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket,&testDir)
+	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
 
 	// Delete if already exist.
 	deleteManagedFoldersInTestDir(managedFolder, bucket, testDir)
