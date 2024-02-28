@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package empty_managed_folders_list
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"io/fs"
@@ -25,13 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
-
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
@@ -66,9 +60,8 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func createDirectoryStructureForTest(t *testing.T) {
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), bucket, t)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), bucket, t)
+	createManagedFoldersInTestDir(EmptyManagedFolder1)
+	createManagedFoldersInTestDir(EmptyManagedFolder2)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
@@ -125,15 +118,17 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 			if objs[3].Name() != File || objs[3].IsDir() != false {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
 			}
+
 			return nil
 		}
 		// Check if subDirectory is empty.
 		if dir.Name() == EmptyManagedFolder1 || dir.Name() == EmptyManagedFolder2 || dir.Name() == SimulatedFolder {
 			// numberOfObjects - 0
 			if len(objs) != 0 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
+				t.Errorf("Incorrect number of objects in the directory expectected %d: got %d: ", 0, len(objs))
 			}
 		}
+
 		return nil
 	})
 	if err != nil {
