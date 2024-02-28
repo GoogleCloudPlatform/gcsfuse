@@ -382,21 +382,25 @@ sudo umount "$MOUNT_DIR"
 cleanup_test_environment
 
 # Read-cache tests for range reads.
-read_cache_test_setup 500 false 3600
 test_cases=(
   "TestRangeReadTest/TestRangeReadsWithinReadChunkSize"
   "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded"
   "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded"
 )
-for test_case in "${test_cases[@]}"; do
+run_range_read_test_with_read_cache() {
+  read_cache_test_setup 500 $1 3600
   gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$2"
   sudo umount "$MOUNT_DIR"
-  cleanup_test_environment
+}
+for test_case in "${test_cases[@]}"; do
+    # Run range read test with cache-file-for-range-read: false.
+    run_range_read_test_with_read_cache false "$test_case"
+    # Run range read test with cache-file-for-range-read: true.
+    run_range_read_test_with_read_cache true "$test_case"
 done
 
 # Read cache tests on read only mount.
-read_cache_test_setup 9 false 3600
 test_cases=(
   "TestReadOnlyTest/TestSecondSequentialReadIsCacheHit"
   "TestReadOnlyTest/TestReadFileSequentiallyLargerThanCacheCapacity"
@@ -404,11 +408,19 @@ test_cases=(
   "TestReadOnlyTest/TestReadMultipleFilesMoreThanCacheLimit"
   "TestReadOnlyTest/TestReadMultipleFilesWithinCacheLimit"
 )
-for test_case in "${test_cases[@]}"; do
+
+run_read_only_test_with_read_cache() {
+  read_cache_test_setup 9 $1 3600
   gcsfuse --o=ro --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$2"
   sudo umount "$MOUNT_DIR"
-  cleanup_test_environment
+}
+
+for test_case in "${test_cases[@]}"; do
+  # Run read only test with cache-file-for-range-read: false.
+  run_read_only_test_with_read_cache false "$test_case"
+  # Run read only test with cache-file-for-range-read: true.
+  run_read_only_test_with_read_cache true "$test_case"
 done
 
 # Read cache tests with small cache ttl.
