@@ -319,7 +319,7 @@ function cleanup_test_environment() {
   # Clean up any pre-existing log files.
   rm -r /tmp/gcsfuse_read_cache_test_logs
   mkdir /tmp/gcsfuse_read_cache_test_logs
-   # Clean up cache directory.
+  # Clean up cache directory.
   rm -r /tmp/cache-dir
   mkdir /tmp/cache-dir
 }
