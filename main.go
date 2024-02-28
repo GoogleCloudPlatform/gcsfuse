@@ -44,6 +44,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	SuccessfulMountMessage = "File system has been successfully mounted."
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -239,6 +243,8 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
+	// Log mount-config and the CLI flags in the log-file.
+	// If there is no log-file, then log these to stdout.
 	if flags.Foreground || mountConfig.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
@@ -343,7 +349,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
 		} else {
-			logger.Infof("File system has been successfully mounted.")
+			logger.Infof(SuccessfulMountMessage)
 		}
 
 		return
@@ -360,10 +366,14 @@ func runCLIApp(c *cli.Context) (err error) {
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
 		if err == nil {
-			logger.Info("File system has been successfully mounted.")
+			// Print the success message in the log-file/stdout depending on what the logger is set to.
+			logger.Info("SuccessfulMountMessage")
+
+			// Print the success message in stdout also, if logger outputs to something other than stdout.
 			if flags.Foreground && mountConfig.FilePath != "" {
-				fmt.Println("File system has been successfully mounted.")
+				fmt.Println("SuccessfulMountMessage")
 			}
+
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
