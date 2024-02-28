@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<< HEAD
-// Provides integration tests for listing empty managed folders.
-=======
->>>>>>> 369d4c5f3 (adding test)
 package managed_folders
 
 import (
 	"fmt"
-<<<<<<< HEAD
-=======
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
->>>>>>> 369d4c5f3 (adding test)
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
@@ -104,6 +98,7 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		// Check if managedFolderTest directory has correct data.
 		if dir.Name() == testDirName {
 			// numberOfObjects - 4
