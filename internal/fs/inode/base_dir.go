@@ -140,9 +140,9 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	}
 
 	return &Core{
-		Bucket:   &bucket,
-		FullName: NewRootName(bucket.Name()),
-		Object:   nil,
+		Bucket:    &bucket,
+		FullName:  NewRootName(bucket.Name()),
+		MinObject: nil,
 	}, nil
 }
 
@@ -180,7 +180,7 @@ func (d *baseDirInode) CreateLocalChildFile(name string) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
-func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.Object) (*Core, error) {
+func (d *baseDirInode) CloneToChildFile(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
 	return nil, fuse.ENOSYS
 }
 
