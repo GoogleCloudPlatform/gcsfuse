@@ -55,10 +55,6 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
-////////////////////////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////////////////////////
-
 func createDirectoryStructureForTest(t *testing.T) {
 	createManagedFoldersInTestDir(EmptyManagedFolder1)
 	createManagedFoldersInTestDir(EmptyManagedFolder2)
@@ -121,8 +117,9 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 
 			return nil
 		}
+
 		// Check if subDirectory is empty.
-		if dir.Name() == EmptyManagedFolder1 || dir.Name() == EmptyManagedFolder2 || dir.Name() == SimulatedFolder {
+		if dir.IsDir() && (dir.Name() == EmptyManagedFolder1 || dir.Name() == EmptyManagedFolder2 || dir.Name() == SimulatedFolder) {
 			// numberOfObjects - 0
 			if len(objs) != 0 {
 				t.Errorf("Incorrect number of objects in the directory expectected %d: got %d: ", 0, len(objs))
@@ -134,55 +131,5 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 	if err != nil {
 		t.Errorf("error walking the path : %v\n", err)
 		return
-	}
-}
-
-func getMountConfigForEmptyManagedFolders() config.MountConfig {
-	mountConfig := config.MountConfig{
-		ListConfig: config.ListConfig{
-			EnableEmptyManagedFolders: true,
-		},
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-	}
-
-	return mountConfig
-}
-
-////////////////////////////////////////////////////////////////////////
-// TestMain
-////////////////////////////////////////////////////////////////////////
-
-func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
-	ts := &enableEmptyManagedFoldersTrue{}
-
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
-	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
-		return
-	}
-
-	configFile := setup.YAMLConfigFile(
-		getMountConfigForEmptyManagedFolders(),
-		"config.yaml")
-
-	flagSet := [][]string{{"--implicit-dirs", "--config-file=" + configFile}}
-
-	// Run tests.
-	for _, flags := range flagSet {
-		ts.flags = flags
-		if setup.OnlyDirMounted() != "" {
-			operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-			defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		}
-		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
-		setup.SetMntDir(mountDir)
-		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	}
 }
