@@ -670,11 +670,11 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Create the inode.
 	switch {
 	// Explicit directories
-	case ic.Object != nil && ic.FullName.IsDir():
+	case ic.MinObject != nil && ic.FullName.IsDir():
 		in = inode.NewExplicitDirInode(
 			id,
 			ic.FullName,
-			ic.Object,
+			ic.MinObject,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -716,11 +716,11 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			fs.cacheClock,
 			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 
-	case inode.IsSymlink(ic.Object):
+	case inode.IsSymlink(ic.MinObject):
 		in = inode.NewSymlinkInode(
 			id,
 			ic.FullName,
-			ic.Object,
+			ic.MinObject,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -731,7 +731,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 		in = inode.NewFileInode(
 			id,
 			ic.FullName,
-			ic.Object,
+			ic.MinObject,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -781,7 +781,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	// Handle implicit directories.
-	if ic.Object == nil {
+	if ic.MinObject == nil {
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
@@ -826,8 +826,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	oGen := inode.Generation{
-		Object:   ic.Object.Generation,
-		Metadata: ic.Object.MetaGeneration,
+		Object:   ic.MinObject.Generation,
+		Metadata: ic.MinObject.MetaGeneration,
 	}
 
 	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
@@ -1829,7 +1829,7 @@ func (fs *fileSystem) Rename(
 	if child.FullName.IsDir() {
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
-	return fs.renameFile(ctx, oldParent, op.OldName, child.Object, newParent, op.NewName)
+	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -1839,7 +1839,7 @@ func (fs *fileSystem) renameFile(
 	ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
-	oldObject *gcs.Object,
+	oldObject *gcs.MinObject,
 	newParent inode.DirInode,
 	newFileName string) error {
 	// Clone into the new location.
@@ -1963,7 +1963,7 @@ func (fs *fileSystem) renameDir(
 			return fmt.Errorf("unwanted descendant %q not from dir %q", descendant.FullName, oldDir.Name())
 		}
 
-		o := descendant.Object
+		o := descendant.MinObject
 		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
 			return fmt.Errorf("copy file %q: %w", o.Name, err)
 		}
