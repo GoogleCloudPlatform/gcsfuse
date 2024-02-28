@@ -16,9 +16,6 @@ package empty_managed_folders_list
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"io/fs"
 	"log"
 	"os"
@@ -26,6 +23,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
