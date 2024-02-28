@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Installs go1.22.0 on the container, builds gcsfuse using log_rotation file
+# Installs go1.22 on the container, builds gcsfuse using log_rotation file
 # and installs tf-models-official v2.13.2, makes update to include clear_kernel_cache
 # and epochs functionality, and runs the model
 
