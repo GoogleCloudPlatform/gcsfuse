@@ -29,31 +29,26 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-const (
-	testDirName                     = "EmptyManagedFoldersTest"
-	NumberOfObjectsInDirForListTest = 4
-	EmptyManagedFolder1             = "emptyManagedFolder1"
-	EmptyManagedFolder2             = "emptyManagedFolder2"
-	SimulatedFolder                 = "simulatedFolder"
-	File                            = "testFile"
-)
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type enableEmptyManagedFoldersTrue struct {
-	flags []string
+func deleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
+	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", bucket, testDir, managedFolder)
+	_, err := operations.ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
+	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
+		setup.LogAndExit(fmt.Sprintf("Error while deleting managed folder: %v", err))
+	}
 }
 
-func (s *enableEmptyManagedFoldersTrue) Setup(t *testing.T) {
-	setup.SetupTestDirectory(testDirName)
-}
+func createManagedFoldersInTestDir(managedFolder string) {
+	bucket := setup.TestBucket()
+	testDir := testDirName
+	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
 
-func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
-	// Clean up test directory.
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	// Delete if already exist.
+	deleteManagedFoldersInTestDir(managedFolder, bucket, testDir)
+	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", bucket, testDir, managedFolder)
+	_, err := operations.ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while creating managed folder: %v", err))
+	}
 }
 
 func createDirectoryStructureForTest(t *testing.T) {
@@ -64,11 +59,9 @@ func createDirectoryStructureForTest(t *testing.T) {
 	operations.CloseFile(f)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Test scenarios
-////////////////////////////////////////////////////////////////////////
+func TestListDirectoryForEmptyManagedFolders(t *testing.T) {
+	setup.SetupTestDirectory(testDirName)
 
-func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(t *testing.T) {
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
 
@@ -90,10 +83,10 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 		}
 
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirName {
+		if dir.IsDir() && dir.Name() == testDirName {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
+				t.Errorf("Incorrect number of objects in the directory expectected %d: got %d: ", NumberOfObjectsInDirForListTest, len(objs))
 			}
 
 			// testBucket/managedFolderTest/emptyManagedFolder1   -- ManagedFolder1
