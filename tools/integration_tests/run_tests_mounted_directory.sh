@@ -343,7 +343,7 @@ metadata-cache:
 cache-dir: /tmp/cache-dir" > /tmp/gcsfuse_config.yaml
 }
 
-# cache-file-for-range-read:false read-cache test.
+# Read-cache test with cache-file-for-range-read:false.
 read_cache_test_setup 50 false 3600
 test_cases=(
   "TestCacheFileForRangeReadFalseTest/TestRangeReadsWithCacheMiss"
@@ -356,7 +356,7 @@ for test_case in "${test_cases[@]}"; do
   cleanup_test_environment
 done
 
-# cache-file-for-range-read:true read-cache test.
+# Read-cache test with cache-file-for-range-read:true.
 read_cache_test_setup 50 true 3600
 test_case="TestCacheFileForRangeReadTrueTest/TestRangeReadsWithCacheHit"
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
@@ -365,7 +365,7 @@ sudo umount "$MOUNT_DIR"
 cleanup_test_environment
 
 
-# Disabled cache ttl read-cache test.
+# Read-cache test with disabled cache ttl.
 read_cache_test_setup 9 false 0
 test_case="TestDisabledCacheTTLTest/TestReadAfterObjectUpdateIsCacheMiss"
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
@@ -373,7 +373,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 
 sudo umount "$MOUNT_DIR"
 cleanup_test_environment
 
-# local modification test.
+# Read-cache test with local modification.
 read_cache_test_setup 9 false 3600
 test_case="TestLocalModificationTest/TestReadAfterLocalGCSFuseWriteIsCacheMiss"
 gcsfuse --config-file=/tmp/gcsfuse_config.yaml "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
@@ -381,7 +381,7 @@ GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 
 sudo umount "$MOUNT_DIR"
 cleanup_test_environment
 
-# range read read-cache test.
+# Read-cache tests for range reads.
 read_cache_test_setup 500 false 3600
 test_cases=(
   "TestRangeReadTest/TestRangeReadsWithinReadChunkSize"
@@ -395,7 +395,7 @@ for test_case in "${test_cases[@]}"; do
   cleanup_test_environment
 done
 
-# Read only mount read-cache test.
+# Read cache tests on read only mount.
 read_cache_test_setup 9 false 3600
 test_cases=(
   "TestReadOnlyTest/TestSecondSequentialReadIsCacheHit"
@@ -411,7 +411,7 @@ for test_case in "${test_cases[@]}"; do
   cleanup_test_environment
 done
 
-# Small cache ttl read-cache test.
+# Read cache tests with small cache ttl.
 read_cache_test_setup 9 false 10
 test_cases=(
   "TestSmallCacheTTLTest/TestReadAfterUpdateAndCacheExpiryIsCacheMiss"
