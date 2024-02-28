@@ -19,11 +19,10 @@ import (
 	"log"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
@@ -39,6 +38,7 @@ type readOnlyTest struct {
 }
 
 func (s *readOnlyTest) Setup(t *testing.T) {
+	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
@@ -146,6 +146,17 @@ func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func TestReadOnlyTest(t *testing.T) {
+	ts := &readOnlyTest{ctx: context.Background()}
+	// Create storage client before running tests.
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
@@ -155,11 +166,6 @@ func TestReadOnlyTest(t *testing.T) {
 		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1"),
 		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2"))
 	appendFlags(&flagSet, "--o=ro", "")
-
-	// Create storage client before running tests.
-	ts := &readOnlyTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
