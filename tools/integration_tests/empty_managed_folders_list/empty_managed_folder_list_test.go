@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for managed folders.
-package managed_folders
+package empty_managed_folders_list
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"

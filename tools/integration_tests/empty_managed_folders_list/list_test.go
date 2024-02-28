@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package managed_folders
+package empty_managed_folders_list
 
 import (
 	"fmt"
