@@ -17,6 +17,7 @@ package managed_folders
 
 import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
 	"os"
 	"path"
@@ -35,12 +36,6 @@ const (
 	File                            = "testFile"
 )
 
-//func getMountConfigForList(enableManagedFolders bool) config.MountConfig {
-//	mountConfig := config.MountConfig{},
-//}
-//return mountConfig
-//}
-
 ////////////////////////////////////////////////////////////////////////
 // TestMain
 ////////////////////////////////////////////////////////////////////////
@@ -57,13 +52,6 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// Set up config files.
-	//configFile1 := setup.YAMLConfigFile(
-	//	getMountConfigForList(true),
-	//	"config1.yaml")
-
-	// Set up flags to run tests on.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
 		{"--implicit-dirs"},
 	}
@@ -71,11 +59,15 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = only_dir_mounting.RunTests(flags, m)
 	}
 
 	if successCode == 0 {
 		successCode = dynamic_mounting.RunTests(flags, m)
+	}
+
+	if successCode == 0 {
+		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
 	// Clean up test directory created.
