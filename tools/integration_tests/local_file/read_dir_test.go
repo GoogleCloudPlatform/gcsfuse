@@ -20,7 +20,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +30,32 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
+
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+func creatingNLocalFilesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T) {
+	defer wg.Done()
+	operations.CreateDirectory(path.Join(testDirPath, ExplicitDirName), t)
+	for i := 0; i < n; i++ {
+		filePath := path.Join(testDirPath, ExplicitDirName, FileName1+strconv.FormatInt(int64(i), 10))
+		operations.CreateFile(filePath, FilePerms, t)
+	}
+}
+
+func readingDirNTimesShouldNotThrowError(n int, wg *sync.WaitGroup, t *testing.T) {
+	defer wg.Done()
+	for i := 0; i < n; i++ {
+		_, err := os.ReadDir(setup.MntDir())
+		if err != nil {
+			t.Errorf("Error while reading directory %dth time: %v", i, err)
+		}
+	}
+}
+
+// //////////////////////////////////////////////////////////////////////
+// Tests
+// //////////////////////////////////////////////////////////////////////
 
 func TestReadDir(t *testing.T) {
 	// Structure
@@ -146,4 +174,16 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 
 	// Close the local file.
 	operations.CloseFileShouldNotThrowError(fh1, t)
+}
+
+func TestConcurrentReadDirAndCreationOfLocalFiles_DoesNotThrowError(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Concurrently create 100 local files and read directory 200 times.
+	go creatingNLocalFilesShouldNotThrowError(100, &wg, t)
+	go readingDirNTimesShouldNotThrowError(200, &wg, t)
+
+	wg.Wait()
 }
