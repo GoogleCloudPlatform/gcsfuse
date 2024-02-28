@@ -37,11 +37,10 @@ type localModificationTest struct {
 }
 
 func (s *localModificationTest) Setup(t *testing.T) {
+	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
-	mountGCSFuse(s.flags)
-	setup.SetMntDir(mountDir)
-	testDirPath = setup.SetupTestDirectory(testDirName)
+	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
 }
 
 func (s *localModificationTest) Teardown(t *testing.T) {
@@ -81,17 +80,23 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss(t *tes
 ////////////////////////////////////////////////////////////////////////
 
 func TestLocalModificationTest(t *testing.T) {
+	ts := &localModificationTest{ctx: context.Background()}
+	// Create storage client before running tests.
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
-
-	// Create storage client before running tests.
-	ts := &localModificationTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {

@@ -39,6 +39,7 @@ type rangeReadTest struct {
 }
 
 func (s *rangeReadTest) Setup(t *testing.T) {
+	setupForMountedDirectoryTests()
 	// Clean up the cache directory path as gcsfuse don't clean up on mounting.
 	operations.RemoveDir(cacheDirPath)
 	mountGCSFuseAndSetupTestDir(s.flags, s.ctx, s.storageClient, testDirName)
@@ -92,6 +93,17 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded(
 ////////////////////////////////////////////////////////////////////////
 
 func TestRangeReadTest(t *testing.T) {
+	ts := &rangeReadTest{ctx: context.Background()}
+	// Create storage client before running tests.
+	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
+	defer closeStorageClient()
+
+	// Run tests for mounted directory if the flag is set.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		test_setup.RunTests(t, ts)
+		return
+	}
+
 	runTestsOnlyForStaticMount(t)
 	// Define flag set to run the tests.
 	flagSet := [][]string{
@@ -102,11 +114,6 @@ func TestRangeReadTest(t *testing.T) {
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, false, configFileName+"1"),
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, true, configFileName+"2"))
 	appendFlags(&flagSet, "--o=ro", "")
-
-	// Create storage client before running tests.
-	ts := &rangeReadTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
 
 	// Run tests.
 	for _, flags := range flagSet {
