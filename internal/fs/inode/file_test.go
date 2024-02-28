@@ -55,7 +55,7 @@ type FileTest struct {
 	clock  timeutil.SimulatedClock
 
 	initialContents string
-	backingObj      *gcs.Object
+	backingObj      *gcs.MinObject
 
 	in *FileInode
 }
@@ -76,11 +76,12 @@ func (t *FileTest) SetUp(ti *TestInfo) {
 	var err error
 
 	t.initialContents = "taco"
-	t.backingObj, err = storageutil.CreateObject(
+	object, err := storageutil.CreateObject(
 		t.ctx,
 		t.bucket,
 		fileName,
 		[]byte(t.initialContents))
+	t.backingObj = storageutil.ConvertObjToMinObject(object)
 
 	AssertEq(nil, err)
 

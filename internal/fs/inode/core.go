@@ -33,7 +33,7 @@ type Core struct {
 
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
-	Object *gcs.Object
+	MinObject *gcs.MinObject
 
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool
@@ -48,11 +48,11 @@ func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
 		return metadata.UnknownType
-	case c.Object == nil && !c.Local:
+	case c.MinObject == nil && !c.Local:
 		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
 		return metadata.ExplicitDirType
-	case IsSymlink(c.Object):
+	case IsSymlink(c.MinObject):
 		return metadata.SymlinkType
 	default:
 		return metadata.RegularFileType
@@ -62,11 +62,11 @@ func (c *Core) Type() metadata.Type {
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
 func (c Core) SanityCheck() error {
-	if c.Object != nil && c.FullName.objectName != c.Object.Name {
-		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Object.Name)
+	if c.MinObject != nil && c.FullName.objectName != c.MinObject.Name {
+		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
 	}
 
-	if c.Object == nil && !c.Local && !c.FullName.IsDir() {
+	if c.MinObject == nil && !c.Local && !c.FullName.IsDir() {
 		return fmt.Errorf("object missing for %q", c.FullName)
 	}
 
