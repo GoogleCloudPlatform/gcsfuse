@@ -16,6 +16,7 @@ package managed_folders
 
 import (
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"io/fs"
@@ -27,8 +28,8 @@ import (
 	"testing"
 )
 
-func deleteManagedFoldersInTestDir(managedFolder string) {
-	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", setup.TestBucket(), testDirName, managedFolder)
+func deleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
+	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", bucket, testDir, managedFolder)
 	_, err := operations.ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
 		setup.LogAndExit(fmt.Sprintf("Error while deleting managed folder: %v", err))
@@ -36,9 +37,13 @@ func deleteManagedFoldersInTestDir(managedFolder string) {
 }
 
 func createManagedFoldersInTestDir(managedFolder string) {
+	bucket := setup.TestBucket()
+	testDir := testDirName
+	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket,&testDir)
+
 	// Delete if already exist.
-	deleteManagedFoldersInTestDir(managedFolder)
-	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", setup.TestBucket(), testDirName, managedFolder)
+	deleteManagedFoldersInTestDir(managedFolder, bucket, testDir)
+	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", bucket, testDir, managedFolder)
 	_, err := operations.ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while creating managed folder: %v", err))
