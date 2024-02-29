@@ -370,7 +370,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			logger.Info(SuccessfulMountMessage)
 
 			// Print the success message in stdout also, if logger outputs to something other than stdout.
-			if flags.Foreground && mountConfig.FilePath != "" {
+			if mountConfig.FilePath != "" {
 				fmt.Println(SuccessfulMountMessage)
 			}
 
