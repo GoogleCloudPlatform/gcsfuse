@@ -46,7 +46,7 @@ const (
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
 	DefaultFileCacheMaxSizeMB              int64 = -1
-	DefaultEmptyEnableManagedFolderListing       = false
+	DefaultEnableEmptyManagedFolderListing       = false
 )
 
 type WriteConfig struct {
@@ -147,7 +147,7 @@ func NewMountConfig() *MountConfig {
 		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{
-		EnableEmptyManagedFolders: DefaultEmptyEnableManagedFolderListing,
+		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFolderListing,
 	}
 	return mountConfig
 }
