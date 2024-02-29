@@ -8,11 +8,11 @@ Files that have not been modified are read portion by portion on demand. Cloud S
 
 **Writes**
 
-For modifications to existing file objects, Cloud Storage FUSE downloads the entire
+For modifications to existing objects, Cloud Storage FUSE downloads the entire
 backing object's contents from Cloud Storage. The contents are stored in a local
-temporary file (temp-file for short) whose location is controlled by the flag ```--temp-dir```. Later,
+temporary file whose location is controlled by the flag ```--temp-dir```. Later,
 when the file is closed or fsync'd, Cloud Storage FUSE writes the contents of
-the local file back to Cloud Storage as a new object generation, and deletes temp-file. Modifying even
+the local file back to Cloud Storage as a new object generation. Modifying even
 a single bit of an object results in the full re-upload of the object. The
 exception is if an append is done to the end of a file, where the original file
 is at least 2MB, then only the appended content is uploaded.
@@ -25,21 +25,13 @@ until they are written out to Cloud Storage, you
 must ensure that there is enough free space available to handle staged content
 when writing large files.
 
-#### Notes
-
--   Prior to version 1.2.0, you will notice that an empty file is created in the
-    Cloud Storage bucket as a hold. Upon closing or fsyncing the file, the file
-    is written to your Cloud Storage bucket, with the existing empty file now
-    reflecting the accurate file size and content. Starting with version 1.2,
-    the default behavior is to not create this zero-byte file, which increases
-    write performance. If needed, it can be re-enabled by setting the
-    `create-empty-file: true` configuration in the config file.
--   If the application never sends fsync for a file, it will leave behind its
-    temp-file (in temp-dir), which will not be cleared until the user unmounts
-    the bucket. As an example, if you are writing a large file, and temp-dir
-    does not have enough free space available, then you will get 'out of space'
-    error. Then the temp-file will not be deleted until you do an fsync for that
-    file, or unmount the bucket.
+- **Note:** Prior to version 1.2.0, you will notice that an empty file is
+  created in the Cloud Storage bucket as a hold. Upon closing or fsyncing the
+  file, the file is written to your Cloud Storage bucket, with the existing
+  empty file now reflecting the accurate file size and content. Starting with
+  version 1.2, the default behavior is to not create this zero-byte file, which
+  increases write performance. If needed, it can be re-enabled by setting
+  the `create-empty-file: true` configuration in the config file.
 
 **Concurrency**
 
@@ -62,15 +54,22 @@ They are discussed in this section, along with their trade-offs and the situatio
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
 
-Important: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching.
+**Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
 
 **Stat caching**
 
 The cost of the consistency guarantees discussed in the rest of this document is that Cloud Storage FUSE must frequently send stat object requests to Cloud Storage in order to get the freshest possible answer for the kernel when it asks about a particular name or inode, which happens frequently. This can make what appear to the user to be simple operations, like ```ls -l```, take quite a long time.
 
-To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. This behavior is controlled by the ```--stat-cache-ttl``` flag, which can be set to a value like ```10s``` or ```1.5h```. The default is one minute. Positive and negative stat results will be cached for the specified amount of time.
+To alleviate this slowness, Cloud Storage FUSE supports using cached data where it would otherwise send a stat object request to Cloud Storage, saving some round trips. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
 
-```--stat-cache-ttl``` also controls the duration for which Cloud Storage FUSE allows the kernel to cache inode attributes. Caching these can help with file system performance, since otherwise the kernel must send a request for inode attributes to Cloud Storage FUSE for each call to ```write(2)```, ```stat(2)```, and others.
+The behavior of stat cache is controlled by the following flags/config parameters:
+
+1. **Stat-cache size**: It controls the maximum memory-size of the stat-cache entries. It can be configured in the following ways.
+   - `metadata-cache:stat-cache-max-size-mb`: This is an integer parameter set through the config-file. It sets the stat-cache size in MBs. This can be set to -1 for infinite stat-cache size, 0 for disabling stat-cache, and > 0 for setting a finite stat-cache size. Values below -1 will return error on mounting.
+   If this is missing, then `--stat-cache-capacity` is used.
+   - `--stat-cache-capacity`: This is an integer commandline flag. It sets the stat-cache size in count.
+   This has been deprecated (starting v2.0) and is ignored if the user sets `metadata-cache:stat-cache-max-size-mb` .
+   This can be set to 0 for disabling stat-cache and > 0 for setting a finite stat-cache size.
 
 The size of the stat cache can also be configured with ```--stat-cache-capacity```. By default the stat cache will hold up to 4096 items. If you have folders containing more than 4096 items (folders or files) you may want to increase this, otherwise the caching will not function properly when listing that folder's contents:
 - ListObjects will return information on the items within the folder. Each item's data is cached

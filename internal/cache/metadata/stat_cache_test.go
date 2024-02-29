@@ -108,14 +108,14 @@ func init() {
 }
 
 func (t *StatCacheTest) SetUp(ti *TestInfo) {
-	cache := lru.NewCache(uint64(mount.AverageSizeOfPositiveStatCacheEntry * capacity))
+	cache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	// that if you are using a cache for a single bucket, then
 	// its prepending bucketName can be left empty("") without any problem.
 }
 
 func (t *MultiBucketStatCacheTest) SetUp(ti *TestInfo) {
-	sharedCache := lru.NewCache(uint64(mount.AverageSizeOfPositiveStatCacheEntry * capacity))
+	sharedCache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
@@ -152,18 +152,18 @@ func (t *StatCacheTest) KeysPresentButEverythingIsExpired() {
 }
 
 func (t *StatCacheTest) FillUpToCapacity() {
-	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
+	AssertEq(3, capacity) // maxSize = 3 * 1640 = 4920 bytes
 
 	m0 := &gcs.MinObject{Name: "burrito"}
 	m1 := &gcs.MinObject{Name: "taco"}
 	m2 := &gcs.MinObject{Name: "quesadilla"}
 
-	//TODO: to update the sizes in comments.
-	t.cache.Insert(m0, expiration)                    // size = 1886 bytes
-	t.cache.Insert(m1, expiration)                    // size = 1874 bytes (cumulative = 3760 bytes)
-	t.cache.AddNegativeEntry("enchilada", expiration) // size = 178 bytes (cumulative = 3938 bytes)
-	t.cache.Insert(m2, expiration)                    // size = 1898 bytes (cumulative = 5836 bytes)
-	t.cache.AddNegativeEntry("fajita", expiration)    // size = 172 bytes (cumulative = 6008 bytes)
+	t.cache.Insert(m0, expiration)                    // size = 1394 bytes
+	t.cache.Insert(m1, expiration)                    // size = 1382 bytes (cumulative = 2776 bytes)
+	t.cache.AddNegativeEntry("enchilada", expiration) // size = 178 bytes (cumulative = 2954 bytes)
+	t.cache.Insert(m2, expiration)                    // size = 1406 bytes (cumulative = 4360 bytes)
+	t.cache.AddNegativeEntry("fajita", expiration)    // size = 172 bytes (cumulative = 4532 bytes)
+	t.cache.AddNegativeEntry("salsa", expiration)     // size = 170 bytes (cumulative = 4702 bytes)
 
 	// Before expiration
 	justBefore := expiration.Add(-time.Nanosecond)
@@ -172,13 +172,15 @@ func (t *StatCacheTest) FillUpToCapacity() {
 	ExpectTrue(t.cache.NegativeEntry("enchilada", justBefore))
 	ExpectEq(m2, t.cache.LookUpOrNil("quesadilla", justBefore))
 	ExpectTrue(t.cache.NegativeEntry("fajita", justBefore))
+	ExpectTrue(t.cache.NegativeEntry("salsa", justBefore))
 
 	// At expiration
 	ExpectEq(m0, t.cache.LookUpOrNil("burrito", expiration))
 	ExpectEq(m1, t.cache.LookUpOrNil("taco", expiration))
-	ExpectTrue(t.cache.NegativeEntry("enchilada", justBefore))
-	ExpectEq(m2, t.cache.LookUpOrNil("quesadilla", justBefore))
-	ExpectTrue(t.cache.NegativeEntry("fajita", justBefore))
+	ExpectTrue(t.cache.NegativeEntry("enchilada", expiration))
+	ExpectEq(m2, t.cache.LookUpOrNil("quesadilla", expiration))
+	ExpectTrue(t.cache.NegativeEntry("fajita", expiration))
+	ExpectTrue(t.cache.NegativeEntry("salsa", expiration))
 
 	// After expiration
 	justAfter := expiration.Add(time.Nanosecond)
@@ -187,34 +189,34 @@ func (t *StatCacheTest) FillUpToCapacity() {
 	ExpectFalse(t.cache.Hit("enchilada", justAfter))
 	ExpectFalse(t.cache.Hit("quesadilla", justAfter))
 	ExpectFalse(t.cache.Hit("fajita", justAfter))
+	ExpectFalse(t.cache.Hit("salsa", justAfter))
 }
 
-// TODO: Uncomment this test after finding average size of min object entry.
-//func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
-//	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
-//
-//	o0 := &gcs.MinObject{Name: "burrito"}
-//	o1 := &gcs.MinObject{Name: "taco"}
-//	o2 := &gcs.MinObject{Name: "quesadilla"}
-//
-//	t.cache.Insert(o0, expiration)                         // size = 1886 bytes
-//	t.cache.Insert(o1, expiration)                         // Least recent, size = 1874 bytes (cumulative = 3760 bytes)
-//	t.cache.AddNegativeEntry("enchilada", expiration)      // Third most recent, size = 178 bytes (cumulative = 3938 bytes)
-//	t.cache.Insert(o2, expiration)                         // Second most recent, size = 1898 bytes (cumulative = 5836 bytes)
-//	AssertEq(o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
-//
-//	// Insert another.
-//	o3 := &gcs.MinObject{Name: "queso"}
-//	t.cache.Insert(o3, expiration) // size = 1878 bytes (cumulative = 7714 bytes)
-//	// This would evict the least recent entry i.e o1/"taco".
-//
-//	// See what's left.
-//	ExpectFalse(t.cache.Hit("taco", someTime))
-//	ExpectEq(o0, t.cache.LookUpOrNil("burrito", someTime))
-//	ExpectTrue(t.cache.NegativeEntry("enchilada", someTime))
-//	ExpectEq(o2, t.cache.LookUpOrNil("quesadilla", someTime))
-//	ExpectEq(o3, t.cache.LookUpOrNil("queso", someTime))
-//}
+func (t *StatCacheTest) ExpiresLeastRecentlyUsed() {
+	AssertEq(3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+
+	o0 := &gcs.MinObject{Name: "burrito"}
+	o1 := &gcs.MinObject{Name: "taco"}
+	o2 := &gcs.MinObject{Name: "quesadilla"}
+
+	t.cache.Insert(o0, expiration)                         // size = 1394 bytes
+	t.cache.Insert(o1, expiration)                         // Least recent, size = 1382 bytes (cumulative = 2776 bytes)
+	t.cache.AddNegativeEntry("enchilada", expiration)      // Third most recent, size = 178 bytes (cumulative = 2954 bytes)
+	t.cache.Insert(o2, expiration)                         // Second most recent, size = 1406 bytes (cumulative = 4360 bytes)
+	AssertEq(o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
+
+	// Insert another.
+	o3 := &gcs.MinObject{Name: "queso"}
+	t.cache.Insert(o3, expiration) // size = 1386 bytes (cumulative = 5746 bytes)
+	// This would evict the least recent entry i.e o1/"taco".
+
+	// See what's left.
+	ExpectFalse(t.cache.Hit("taco", someTime))
+	ExpectEq(o0, t.cache.LookUpOrNil("burrito", someTime))
+	ExpectTrue(t.cache.NegativeEntry("enchilada", someTime))
+	ExpectEq(o2, t.cache.LookUpOrNil("quesadilla", someTime))
+	ExpectEq(o3, t.cache.LookUpOrNil("queso", someTime))
+}
 
 func (t *StatCacheTest) Overwrite_NewerGeneration() {
 	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
@@ -342,18 +344,18 @@ func (t *MultiBucketStatCacheTest) CreateEntriesWithSameNameInDifferentBuckets()
 }
 
 func (t *MultiBucketStatCacheTest) FillUpToCapacity() {
-	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
+	AssertEq(3, capacity) // maxSize = 3 * 1640 = 4920 bytes
 
 	cache := &t.multiBucketCache
 	fruits := &cache.fruits
 	spices := &cache.spices
 
-	fruits.Insert(apple, expiration)               // size = 1892 bytes
-	fruits.Insert(orange, expiration)              // size = 1896 bytes (cumulative = 3788 bytes)
-	spices.Insert(cardamom, expiration)            // size = 1904 bytes (cumulative = 5692 bytes)
-	fruits.AddNegativeEntry("papaya", expiration)  // size = 186 bytes (cumulative = 5878 bytes)
-	spices.AddNegativeEntry("saffron", expiration) // size = 188 bytes (cumulative = 6066 bytes)
-	spices.AddNegativeEntry("pepper", expiration)  // size = 186 bytes (cumulative = 6252 bytes)
+	fruits.Insert(apple, expiration)               // size = 1400 bytes
+	fruits.Insert(orange, expiration)              // size = 1404 bytes (cumulative = 2804 bytes)
+	spices.Insert(cardamom, expiration)            // size = 1412 bytes (cumulative = 4216 bytes)
+	fruits.AddNegativeEntry("papaya", expiration)  // size = 186 bytes (cumulative = 4402 bytes)
+	spices.AddNegativeEntry("saffron", expiration) // size = 188 bytes (cumulative = 4590 bytes)
+	spices.AddNegativeEntry("pepper", expiration)  // size = 186 bytes (cumulative = 4776 bytes)
 
 	// Before expiration
 	justBefore := expiration.Add(-time.Nanosecond)
@@ -367,10 +369,10 @@ func (t *MultiBucketStatCacheTest) FillUpToCapacity() {
 	// At expiration
 	ExpectEq(apple, fruits.LookUpOrNil("apple", expiration))
 	ExpectEq(orange, fruits.LookUpOrNil("orange", expiration))
-	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", justBefore))
-	ExpectTrue(fruits.NegativeEntry("papaya", justBefore))
-	ExpectTrue(spices.NegativeEntry("saffron", justBefore))
-	ExpectTrue(spices.NegativeEntry("pepper", justBefore))
+	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", expiration))
+	ExpectTrue(fruits.NegativeEntry("papaya", expiration))
+	ExpectTrue(spices.NegativeEntry("saffron", expiration))
+	ExpectTrue(spices.NegativeEntry("pepper", expiration))
 
 	// After expiration
 	justAfter := expiration.Add(time.Nanosecond)
@@ -382,27 +384,26 @@ func (t *MultiBucketStatCacheTest) FillUpToCapacity() {
 	ExpectFalse(spices.Hit("pepper", justAfter))
 }
 
-// TODO: Uncomment this test after finding average size of min object entry.
-//func (t *MultiBucketStatCacheTest) ExpiresLeastRecentlyUsed() {
-//	AssertEq(3, capacity) // maxSize = 3 * 2400 = 7200 bytes
-//
-//	cache := &t.multiBucketCache
-//	fruits := &cache.fruits
-//	spices := &cache.spices
-//
-//	fruits.Insert(apple, expiration)                       // size = 1892 bytes
-//	fruits.Insert(orange, expiration)                      // Least recent, size = 1896 bytes (cumulative = 3788 bytes)
-//	spices.Insert(cardamom, expiration)                    // Second most recent, size = 1904 bytes (cumulative = 5692 bytes)
-//	AssertEq(apple, fruits.LookUpOrNil("apple", someTime)) // Most recent
-//
-//	// Insert another.
-//	saffron := &gcs.MinObject{Name: "saffron"}
-//	spices.Insert(saffron, expiration) // size = 1900 bytes (cumulative = 7592 bytes)
-//	// This will evict the least recent entry, i.e. orange.
-//
-//	// See what's left.
-//	ExpectFalse(fruits.Hit("orange", someTime))
-//	ExpectEq(apple, fruits.LookUpOrNil("apple", someTime))
-//	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", someTime))
-//	ExpectEq(saffron, spices.LookUpOrNil("saffron", someTime))
-//}
+func (t *MultiBucketStatCacheTest) ExpiresLeastRecentlyUsed() {
+	AssertEq(3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+
+	cache := &t.multiBucketCache
+	fruits := &cache.fruits
+	spices := &cache.spices
+
+	fruits.Insert(apple, expiration)                       // size = 1400 bytes
+	fruits.Insert(orange, expiration)                      // Least recent, size = 1404 bytes (cumulative = 2804 bytes)
+	spices.Insert(cardamom, expiration)                    // Second most recent, size = 1412 bytes (cumulative = 4216 bytes)
+	AssertEq(apple, fruits.LookUpOrNil("apple", someTime)) // Most recent
+
+	// Insert another.
+	saffron := &gcs.MinObject{Name: "saffron"}
+	spices.Insert(saffron, expiration) // size = 1408 bytes (cumulative = 5624 bytes)
+	// This will evict the least recent entry, i.e. orange.
+
+	// See what's left.
+	ExpectFalse(fruits.Hit("orange", someTime))
+	ExpectEq(apple, fruits.LookUpOrNil("apple", someTime))
+	ExpectEq(cardamom, spices.LookUpOrNil("cardamom", someTime))
+	ExpectEq(saffron, spices.LookUpOrNil("saffron", someTime))
+}
