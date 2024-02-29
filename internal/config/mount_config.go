@@ -45,8 +45,8 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB         int64 = -1
-	DefaultEnableManagedFolderListing       = true
+	DefaultFileCacheMaxSizeMB              int64 = -1
+	DefaultEnableEmptyManagedFolderListing       = true
 )
 
 type WriteConfig struct {
@@ -66,9 +66,9 @@ type ListConfig struct {
 	// This flag always works in conjunction with ImplicitDirectories flag.
 	//
 	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
-	// (b) If both ImplicitDirectories and EnableManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
-	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableManagedFolders flag.
-	EnableManagedFolders bool `yaml:"enable-managed-folders"`
+	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
+	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
+	EnableEmptyManagedFolders bool `yaml:"enable-managed-folders"`
 }
 
 type CacheDir string
@@ -147,7 +147,7 @@ func NewMountConfig() *MountConfig {
 		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{
-		EnableManagedFolders: DefaultEnableManagedFolderListing,
+		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFolderListing,
 	}
 	return mountConfig
 }
