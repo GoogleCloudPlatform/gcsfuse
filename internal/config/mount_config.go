@@ -46,7 +46,7 @@ const (
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
 	DefaultFileCacheMaxSizeMB              int64 = -1
-	DefaultEnableEmptyManagedFolderListing       = true
+	DefaultEnableEmptyManagedFolderListing       = false
 )
 
 type WriteConfig struct {
