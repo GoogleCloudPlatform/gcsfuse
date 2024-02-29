@@ -239,18 +239,20 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
-	flagsStringified, err := util.Stringify(*flags)
-	if err != nil {
-		logger.Warnf("failed to stringify cli flags: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
-	}
+	if flags.Foreground || mountConfig.FilePath == "" {
+		flagsStringified, err := util.Stringify(*flags)
+		if err != nil {
+			logger.Warnf("failed to stringify cli flags: %v", err)
+		} else {
+			logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+		}
 
-	mountConfigStringified, err := util.Stringify(*mountConfig)
-	if err != nil {
-		logger.Warnf("failed to stringify config-file: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+		mountConfigStringified, err := util.Stringify(*mountConfig)
+		if err != nil {
+			logger.Warnf("failed to stringify config-file: %v", err)
+		} else {
+			logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+		}
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
@@ -340,6 +342,8 @@ func runCLIApp(c *cli.Context) (err error) {
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
+		} else {
+			logger.Infof("File system has been successfully mounted.")
 		}
 
 		return
@@ -357,6 +361,9 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		if err == nil {
 			logger.Info("File system has been successfully mounted.")
+			if flags.Foreground && mountConfig.FilePath != "" {
+				fmt.Println("File system has been successfully mounted.")
+			}
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
