@@ -245,6 +245,9 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.
+	// Do not log these in stdout in case of daemonized run
+	// if these are already being logged into a log-file, otherwise
+	// there will be duplicate logs for these in both places (stdout and log-file).
 	if flags.Foreground || mountConfig.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
@@ -369,7 +372,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 
-			// Print the success message in stdout also, if logger outputs to something other than stdout.
+			// Print the success message in stdout also, if logger outputs to a log-file.
 			if mountConfig.FilePath != "" {
 				fmt.Println(SuccessfulMountMessage)
 			}
