@@ -33,7 +33,7 @@ func init() { RegisterTestSuite(&YamlParserTest{}) }
 func validateDefaultConfig(mountConfig *MountConfig) {
 	AssertNe(nil, mountConfig)
 	ExpectEq(false, mountConfig.CreateEmptyFile)
-	ExpectEq(true, mountConfig.ListConfig.EnableEmptyManagedFolders)
+	ExpectEq(false, mountConfig.ListConfig.EnableEmptyManagedFolders)
 	ExpectEq("INFO", mountConfig.LogConfig.Severity)
 	ExpectEq("", mountConfig.LogConfig.Format)
 	ExpectEq("", mountConfig.LogConfig.FilePath)
