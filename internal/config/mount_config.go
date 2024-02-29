@@ -68,7 +68,7 @@ type ListConfig struct {
 	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
 	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
-	EnableEmptyManagedFolders bool `yaml:"enable-managed-folders"`
+	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
 }
 
 type CacheDir string
