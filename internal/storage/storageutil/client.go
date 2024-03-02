@@ -28,18 +28,33 @@ import (
 )
 
 type StorageClientConfig struct {
-	ClientProtocol             mountpkg.ClientProtocol
+	/** Common client parameters. */
+
+	// ClientProtocol decides the go-sdk client to create. Based on the value,
+	// either http client or grpc client is created.
+	ClientProtocol mountpkg.ClientProtocol
+
+	MaxRetrySleep   time.Duration
+	RetryMultiplier float64
+
+	/** HTTP client parameters. */
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
-	MaxRetrySleep              time.Duration
-	RetryMultiplier            float64
 	UserAgent                  string
 	CustomEndpoint             *url.URL
 	KeyFile                    string
 	TokenUrl                   string
 	ReuseTokenFromUrl          bool
 	ExperimentalEnableJsonRead bool
+
+	/** Grpc client parameters. */
+
+	// GrpcConnectionPoolSize defines the no. of grpc channel in the GRPC client.
+	// For direct-path traffic, it's hard to determine the relationship b/w grpc channel and
+	// no. of tcp connection.
+	// For cloud-path traffic, no. of tcp connection is same no. of grpc channel.
+	GrpcConnectionPoolSize int
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {

@@ -18,3 +18,5 @@ metadata-cache:
   stat-cache-max-size-mb: 3
 list:
   enable-empty-managed-folders: true
+grpc-client-config:
+  connection-pool-size: 1

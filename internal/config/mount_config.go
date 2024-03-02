@@ -47,6 +47,8 @@ const (
 
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
+	DefaultFileCacheMaxSizeMB               int64 = -1
+	DefaultGrpcConnectionPoolSize                 = 1
 )
 
 type WriteConfig struct {
@@ -69,6 +71,13 @@ type ListConfig struct {
 	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
+}
+
+type GrpcClientConfig struct {
+	// ConnectionPoolSize sets the number of gRPC channel.
+	// For, direct-path traffic, it's hard to determine number of tcp-connections in one gRPC channel.
+	// For cloud-path traffic, number of tcp connection is equal to no. of gRPC channel.
+	ConnectionPoolSize int `yaml:"connection-pool-size"`
 }
 
 type CacheDir string
@@ -105,6 +114,7 @@ type MountConfig struct {
 	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
+	GrpcClientConfig    `yaml:"grpc-client-config"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -148,6 +158,9 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.ListConfig = ListConfig{
 		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFoldersListing,
+	}
+	mountConfig.GrpcClientConfig = GrpcClientConfig{
+		ConnectionPoolSize: DefaultGrpcConnectionPoolSize,
 	}
 	return mountConfig
 }
