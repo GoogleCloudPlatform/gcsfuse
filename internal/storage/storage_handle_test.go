@@ -166,7 +166,7 @@ func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	handleCreated, err := createGRPCClientHandle(context.Background(), sc)
+	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
 
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -175,7 +175,7 @@ func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
 func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 
-	handleCreated, err := createHTTPClientHandle(context.Background(), sc)
+	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
 
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
@@ -185,7 +185,7 @@ func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() 
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP1
 
-	handleCreated, err := createGRPCClientHandle(context.Background(), sc)
+	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
 
 	AssertNe(nil, err)
 	AssertEq(nil, handleCreated)
@@ -196,7 +196,7 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() 
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	handleCreated, err := createHTTPClientHandle(context.Background(), sc)
+	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
 
 	AssertNe(nil, err)
 	AssertEq(nil, handleCreated)
