@@ -27,6 +27,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
+
+	// Side effect to run grpc client with direct-path on gcp machine.
+	_ "google.golang.org/grpc/balancer/rls"
+	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
 type StorageHandle interface {
