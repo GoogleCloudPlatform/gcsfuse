@@ -33,6 +33,8 @@ import (
 )
 
 const tempFileName = "tmpFile"
+const appendContent = "Content"
+const tempFileContent = "line 1\nline 2\n"
 
 // //////////////////////////////////////////////////////////////////////
 // Helpers
@@ -54,6 +56,53 @@ func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *
 		t.Errorf("Received nil/empty extended object attributes.")
 	}
 	return attrs
+}
+
+func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
+	const contentType = "text/plain; charset=utf-8"
+	const componentCount = 0
+	const sizeBeforeOperation = int64(len(tempFileContent))
+	const sizeAfterOperation = sizeBeforeOperation + int64(len(appendContent))
+	const storageClass = "STANDARD"
+
+	if attr1.ContentType != contentType || attr2.ContentType != contentType {
+		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
+	}
+	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
+		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)
+	}
+	if attr1.Name != attr2.Name {
+		t.Errorf("Object name mismatch: %s, %s", attr1.Name, attr2.Name)
+	}
+	if attr1.Bucket != attr2.Bucket {
+		t.Errorf("Bucket name mismatch: %s, %s", attr1.Bucket, attr2.Bucket)
+	}
+	if attr1.EventBasedHold != false || attr2.EventBasedHold != false {
+		t.Errorf("Expected EventBasedHold: false, Got: %v %v", attr1.EventBasedHold, attr2.EventBasedHold)
+	}
+	if attr1.Size != sizeBeforeOperation {
+		t.Errorf("Expected size before file operation: %d, Got: %d", sizeBeforeOperation, attr1.Size)
+	}
+	if attr2.Size != sizeAfterOperation {
+		t.Errorf("Expected size after file operation: %d, Got: %d", sizeAfterOperation, attr2.Size)
+	}
+	if reflect.DeepEqual(attr1.MD5, []byte{}) || reflect.DeepEqual(attr2.MD5, []byte{}) {
+		t.Error("Expected MD5 attributes to be non empty")
+	}
+	if attr1.CRC32C == 0 || attr2.CRC32C == 0 {
+		t.Error("Expected CRC32 attributes to be non 0")
+	}
+	if attr1.MediaLink == "" || attr2.MediaLink == "" {
+		t.Errorf("Expected media link to be non empty")
+	}
+	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
+		t.Errorf("Expected storage class ")
+	}
+	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcsx.MtimeMetadataKey])
+	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcsx.MtimeMetadataKey])
+	if attr2MTime.Before(attr1MTime) {
+		t.Errorf("Unexpected MTime received. After operation1: %v, After operation2: %v", attr1MTime, attr2MTime)
+	}
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -131,60 +180,40 @@ func TestCreateFile(t *testing.T) {
 	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 }
 
-func TestFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
-	const contentType = "text/plain; charset=utf-8"
-	const componentCount = 0
-	const content = "Content"
-	const sizeBeforeAppend = 14
-	const sizeAfterAppend = sizeBeforeAppend + int64(len(content))
-	const storageClass = "STANDARD"
+func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	// Clean the mountedDirectory before running test.
 	setup.CleanMntDir()
 
+	// Create file.
 	fileName := setup.CreateTempFile()
 	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
-	err := operations.WriteFileInAppendMode(fileName, content)
+	// Append to the file.
+	err := operations.WriteFileInAppendMode(fileName, appendContent)
 	if err != nil {
 		t.Errorf("Could not append to file: %v", err)
 	}
 	attr2 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 
-	if attr1.ContentType != contentType || attr2.ContentType != contentType {
-		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
+	// Validate object attributes are as expected.
+	validateObjectAttributes(attr1, attr2, t)
+}
+
+func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
+	// Clean the mountedDirectory before running test.
+	setup.CleanMntDir()
+
+	// Create file.
+	fileName := setup.CreateTempFile()
+	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	// Over-write the file.
+	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
+	if err != nil {
+		t.Errorf("Could not open file %s after creation.", fileName)
 	}
-	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
-		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)
-	}
-	if attr1.Name != attr2.Name {
-		t.Errorf("Object name mismatch: %s, %s", attr1.Name, attr2.Name)
-	}
-	if attr1.Bucket != attr2.Bucket {
-		t.Errorf("Bucket name mismatch: %s, %s", attr1.Bucket, attr2.Bucket)
-	}
-	if attr1.EventBasedHold != false || attr2.EventBasedHold != false {
-		t.Errorf("Expected EventBasedHold: false, Got: %v %v", attr1.EventBasedHold, attr2.EventBasedHold)
-	}
-	if attr1.Size != sizeBeforeAppend {
-		t.Errorf("Expected size: %d, Got: %d", attr1.Size, sizeBeforeAppend)
-	}
-	if attr2.Size != sizeAfterAppend {
-		t.Errorf("Expected size: %d, Got: %d", attr2.Size, sizeAfterAppend)
-	}
-	if reflect.DeepEqual(attr1.MD5, []byte{}) || reflect.DeepEqual(attr2.MD5, []byte{}) {
-		t.Error("Expected MD5 attributes to be non empty")
-	}
-	if attr1.CRC32C == 0 || attr2.CRC32C == 0 {
-		t.Error("Expected CRC32 attributes to be non 0")
-	}
-	if attr1.MediaLink == "" || attr2.MediaLink == "" {
-		t.Errorf("Expected media link to be non empty")
-	}
-	if attr1.StorageClass != storageClass || attr2.StorageClass != storageClass {
-		t.Errorf("Expected storage class ")
-	}
-	attr1MTime, _ := time.Parse(time.RFC3339Nano, attr1.Metadata[gcsx.MtimeMetadataKey])
-	attr2MTime, _ := time.Parse(time.RFC3339Nano, attr2.Metadata[gcsx.MtimeMetadataKey])
-	if attr2MTime.Before(attr1MTime) {
-		t.Errorf("Unexpected MTime received. After operation1: %v, After operation2: %v", attr1MTime, attr2MTime)
-	}
+	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
+	operations.CloseFile(fh)
+	attr2 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+
+	// Validate object attributes are as expected.
+	validateObjectAttributes(attr1, attr2, t)
 }
