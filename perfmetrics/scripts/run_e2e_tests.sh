@@ -55,7 +55,7 @@ sudo apt install -y python3-crcmod
 
 # Create bucket for integration tests.
 # The prefix for the random string
-bucketPrefix="gcsfuse-integration-test-"
+bucketPrefix="golang-grpc-test-gcsfuse-integration-test-"
 # The length of the random string
 length=5
 # Generate the random string
