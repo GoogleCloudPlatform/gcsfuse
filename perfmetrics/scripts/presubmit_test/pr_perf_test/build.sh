@@ -9,7 +9,7 @@ PATH="$PATH:google-cloud-sdk/bin"
 echo $PATH
 which gcloud
 gcloud components update
-gcloud components install alpha
+sudo google-cloud-sdk/bin/gcloud components install alpha
 gcloud version
-sudo google-cloud-sdk/bin/gcloud alpha storage managed-folders create gs://new-testing-tulsishah/m_test
+gcloud alpha storage managed-folders create gs://new-testing-tulsishah/m_test
 sleep 10000
