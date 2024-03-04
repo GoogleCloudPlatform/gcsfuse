@@ -45,7 +45,8 @@ import (
 )
 
 const (
-	SuccessfulMountMessage = "File system has been successfully mounted."
+	SuccessfulMountMessage         = "File system has been successfully mounted."
+	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -377,8 +378,8 @@ func runCLIApp(c *cli.Context) (err error) {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			logger.Errorf("Error while mounting gcsfuse: %v\n", err)
-			err = fmt.Errorf("mountWithArgs: %w", err)
+			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
+			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
 			daemonize.SignalOutcome(err)
 			return
 		}
