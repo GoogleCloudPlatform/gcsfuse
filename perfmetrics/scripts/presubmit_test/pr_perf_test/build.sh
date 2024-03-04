@@ -1,36 +1,15 @@
-#!/bin/bash
-# Copyright 2023 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http:#www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# This will stop execution when any command will have non-zero status.
-
-set -e
-sudo apt-get update
-
-# e.g. architecture=arm64 or amd64
-echo "Installing git"
-sudo apt-get install git
-cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
-
-echo "Install command-line JSON processing tool"
-sudo apt-get install jq -y
-echo "Branch name: " $BRANCH_NAME
-commitId=$(git log $BRANCH_NAME --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-#echo "Building and installing gcsfuse..."
-#chmod +x perfmetrics/scripts/build_and_install_package.sh
-#./perfmetrics/scripts/build_and_install_package.sh
-LOG_FILE=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
-echo "Running e2e tests...."
-chmod +x perfmetrics/scripts/run_e2e_tests.sh
-./perfmetrics/scripts/run_e2e_tests.sh false
+gcloud version
+which gcloud
+sudo rm -rf $(which gcloud)
+sudo rm /snap/bin/gcloud
+curl -o gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
+sudo tar xzf gcloud.tar.gz
+sudo ./google-cloud-sdk/install.sh
+PATH="$PATH:google-cloud-sdk/bin"
+echo $PATH
+which gcloud
+gcloud components update
+gcloud components install alpha
+gcloud version
+sudo google-cloud-sdk/bin/gcloud alpha storage managed-folders create gs://new-testing-tulsishah/m_test
+sleep 10000
