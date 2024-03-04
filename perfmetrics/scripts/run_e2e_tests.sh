@@ -30,12 +30,13 @@ run_e2e_tests_on_package=$1
 gcloud version
 sudo rm -rf $(which gcloud)
 curl -o gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
-sudo tar xzf gcloud.tar.gz
-sudo ./google-cloud-sdk/install.sh
-PATH="$PATH:google-cloud-sdk/bin"
-which gcloud
+sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
+sudo /usr/local/google-cloud-sdk/install.sh
+PATH="$PATH:/usr/local/google-cloud-sdk/bin"
+echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
+gcloud version && rm gcloud.tar.gz
 gcloud components update
-sudo google-cloud-sdk/bin/gcloud components install alpha
+sudo /usr/local/google-cloud-sdk/bin components install alpha
 
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
