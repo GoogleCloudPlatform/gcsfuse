@@ -32,20 +32,20 @@ type StorageClientConfig struct {
 
 	// ClientProtocol decides the go-sdk client to create. Based on the value,
 	// either http client or grpc client is created.
-	ClientProtocol mountpkg.ClientProtocol
-
-	MaxRetrySleep   time.Duration
-	RetryMultiplier float64
+	ClientProtocol    mountpkg.ClientProtocol
+	UserAgent         string
+	CustomEndpoint    *url.URL
+	KeyFile           string
+	TokenUrl          string
+	ReuseTokenFromUrl bool
+	MaxRetrySleep     time.Duration
+	RetryMultiplier   float64
 
 	/** HTTP client parameters. */
+
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
-	UserAgent                  string
-	CustomEndpoint             *url.URL
-	KeyFile                    string
-	TokenUrl                   string
-	ReuseTokenFromUrl          bool
 	ExperimentalEnableJsonRead bool
 
 	/** Grpc client parameters. */

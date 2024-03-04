@@ -77,7 +77,7 @@ type GrpcClientConfig struct {
 	// ConnectionPoolSize sets the number of gRPC channel.
 	// For, direct-path traffic, it's hard to determine number of tcp-connections in one gRPC channel.
 	// For cloud-path traffic, number of tcp connection is equal to no. of gRPC channel.
-	ConnectionPoolSize int `yaml:"connection-pool-size"`
+	ConnectionPoolSize int `yaml:"connection-pool-size,omitempty"`
 }
 
 type CacheDir string
