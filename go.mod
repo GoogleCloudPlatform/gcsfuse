@@ -9,7 +9,7 @@ require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.47.8
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.12.1
+	github.com/googleapis/gax-go/v2 v2.12.2
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20231003132804-d0f3daf365c3
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
