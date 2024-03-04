@@ -16,6 +16,7 @@
 package empty_managed_folders_list
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/internal/config"
 	"os"
 	"path"
 	"testing"
@@ -37,6 +38,15 @@ const (
 	File                            = "testFile"
 )
 
+func getMountConfigForEmptyManagedFolders() config.MountConfig {
+	mountConfig := config.MountConfig{
+		ListConfig: config.ListConfig{
+			EnableManagedFolders: true,
+		},
+	}
+	return mountConfig
+}
+
 ////////////////////////////////////////////////////////////////////////
 // TestMain
 ////////////////////////////////////////////////////////////////////////
@@ -56,8 +66,11 @@ func TestMain(m *testing.M) {
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
+	configFile := setup.YAMLConfigFile(
+		getMountConfigForEmptyManagedFolders(),
+		"config.yaml")
 	flags := [][]string{
-		{"--implicit-dirs"},
+		{"--implicit-dirs","--config-file=" + configFile},
 	}
 
 	successCode := static_mounting.RunTests(flags, m)
