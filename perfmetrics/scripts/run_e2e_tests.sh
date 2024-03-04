@@ -25,8 +25,8 @@ readonly BUCKET_LOCATION="us-west1"
 # true or false to run e2e tests on installedPackage
 run_e2e_tests_on_package=$1
 
-# Upgrade gcloud version
-# This is required as kokoro machine has older version of gcloud which is not supporting managed-folders
+# Upgrade gcloud version.
+# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
 gcloud version
 sudo rm -rf $(which gcloud)
 sudo rm /snap/bin/gcloud
