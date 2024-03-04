@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package empty_managed_folders_list
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -44,7 +45,13 @@ func getMountConfigForEmptyManagedFolders() config.MountConfig {
 		ListConfig: config.ListConfig{
 			EnableEmptyManagedFolders: true,
 		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
 	}
+
+	fmt.Println(mountConfig)
 	return mountConfig
 }
 
@@ -70,6 +77,7 @@ func TestMain(m *testing.M) {
 	configFile := setup.YAMLConfigFile(
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
+
 	flags := [][]string{
 		{"--implicit-dirs", "--config-file=" + configFile},
 	}
