@@ -160,7 +160,7 @@ func NewFileSystem(
 		var err error
 		fileCacheHandler, err = createFileCacheHandler(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("while creating NewFileSystem(): %v", err)
+			return nil, err
 		}
 	}
 
@@ -236,10 +236,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	filePerm := util.DefaultFilePerm
 	dirPerm := util.DefaultDirPerm
 
-	// Panic in case cacheDir does not have required permissions
 	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
 	if cacheDirErr != nil {
-		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %v", cacheDirErr)
+		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
