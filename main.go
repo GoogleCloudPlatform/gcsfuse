@@ -44,6 +44,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	SuccessfulMountMessage         = "File system has been successfully mounted."
+	UnsuccessfulMountMessagePrefix = "Error while mounting gcsfuse"
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -239,18 +244,25 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
-	flagsStringified, err := util.Stringify(*flags)
-	if err != nil {
-		logger.Warnf("failed to stringify cli flags: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
-	}
+	// Log mount-config and the CLI flags in the log-file.
+	// If there is no log-file, then log these to stdout.
+	// Do not log these in stdout in case of daemonized run
+	// if these are already being logged into a log-file, otherwise
+	// there will be duplicate logs for these in both places (stdout and log-file).
+	if flags.Foreground || mountConfig.LogConfig.FilePath == "" {
+		flagsStringified, err := util.Stringify(*flags)
+		if err != nil {
+			logger.Warnf("failed to stringify cli flags: %v", err)
+		} else {
+			logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+		}
 
-	mountConfigStringified, err := util.Stringify(*mountConfig)
-	if err != nil {
-		logger.Warnf("failed to stringify config-file: %v", err)
-	} else {
-		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+		mountConfigStringified, err := util.Stringify(*mountConfig)
+		if err != nil {
+			logger.Warnf("failed to stringify config-file: %v", err)
+		} else {
+			logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+		}
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
@@ -340,6 +352,8 @@ func runCLIApp(c *cli.Context) (err error) {
 		if err != nil {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
+		} else {
+			logger.Infof(SuccessfulMountMessage)
 		}
 
 		return
@@ -356,14 +370,16 @@ func runCLIApp(c *cli.Context) (err error) {
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
 		if err == nil {
-			logger.Info("File system has been successfully mounted.")
+			// Print the success message in the log-file/stdout depending on what the logger is set to.
+			logger.Info(SuccessfulMountMessage)
+
 			daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
-			logger.Errorf("Error while mounting gcsfuse: %v\n", err)
-			err = fmt.Errorf("mountWithArgs: %w", err)
+			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
+			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
 			daemonize.SignalOutcome(err)
 			return
 		}
