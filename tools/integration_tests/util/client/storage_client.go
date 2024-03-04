@@ -215,7 +215,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
 	var bucket string
-	setBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
 
 	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
 	if err != nil {
