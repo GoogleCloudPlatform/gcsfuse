@@ -157,7 +157,11 @@ func NewFileSystem(
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
 	if config.IsFileCacheEnabled(cfg.MountConfig) {
-		fileCacheHandler = createFileCacheHandler(cfg)
+		var err error
+		fileCacheHandler, err = createFileCacheHandler(cfg)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Set up the basic struct.
@@ -212,7 +216,7 @@ func NewFileSystem(
 	return fs, nil
 }
 
-func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler) {
+func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
@@ -232,10 +236,9 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	filePerm := util.DefaultFilePerm
 	dirPerm := util.DefaultDirPerm
 
-	// Panic in case cacheDir does not have required permissions
 	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
 	if cacheDirErr != nil {
-		panic(fmt.Sprintf("createFileCacheHandler: error while creating file cache directory: %v", cacheDirErr.Error()))
+		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
