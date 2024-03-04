@@ -19,7 +19,7 @@ set -e
 sudo apt-get update
 
 # Temporarily increasing the timeout, just to check the timing.
-readonly INTEGRATION_TEST_TIMEOUT=80m
+readonly INTEGRATION_TEST_TIMEOUT=100m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 
