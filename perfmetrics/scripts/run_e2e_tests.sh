@@ -25,6 +25,19 @@ readonly BUCKET_LOCATION="us-west1"
 # true or false to run e2e tests on installedPackage
 run_e2e_tests_on_package=$1
 
+# Upgrade gcloud version
+# This is required as kokoro machine has older version of gcloud which is not supporting managed-folders
+gcloud version
+sudo rm -rf $(which gcloud)
+sudo rm /snap/bin/gcloud
+curl -o gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
+sudo tar xzf gcloud.tar.gz
+sudo ./google-cloud-sdk/install.sh
+PATH="$PATH:google-cloud-sdk/bin"
+which gcloud
+gcloud components update
+sudo google-cloud-sdk/bin/gcloud components install alpha
+
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
 echo "Installing go-lang 1.21.6..."
