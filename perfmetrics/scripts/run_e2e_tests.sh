@@ -36,7 +36,7 @@ PATH="$PATH:/usr/local/google-cloud-sdk/bin"
 echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
 gcloud version && rm gcloud.tar.gz
 gcloud components update
-sudo /usr/local/google-cloud-sdk/bin components install alpha
+sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
