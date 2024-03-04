@@ -29,7 +29,6 @@ run_e2e_tests_on_package=$1
 # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
 gcloud version
 sudo rm -rf $(which gcloud)
-sudo rm /snap/bin/gcloud
 curl -o gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
 sudo tar xzf gcloud.tar.gz
 sudo ./google-cloud-sdk/install.sh
