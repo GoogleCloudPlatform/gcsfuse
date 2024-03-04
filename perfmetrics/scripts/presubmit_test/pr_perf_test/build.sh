@@ -11,5 +11,5 @@ which gcloud
 gcloud components update
 sudo google-cloud-sdk/bin/gcloud components install alpha
 gcloud version
-gcloud alpha storage managed-folders create gs://new-testing-tulsishah/m_test
+gcloud alpha storage managed-folders create gs://new-testing-tulsishah/x_test
 sleep 10000
