@@ -45,8 +45,8 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB              int64 = -1
-	DefaultEnableEmptyManagedFolderListing       = false
+	DefaultFileCacheMaxSizeMB               int64 = -1
+	DefaultEnableEmptyManagedFoldersListing       = false
 )
 
 type WriteConfig struct {
@@ -147,7 +147,7 @@ func NewMountConfig() *MountConfig {
 		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{
-		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFolderListing,
+		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFoldersListing,
 	}
 	return mountConfig
 }
