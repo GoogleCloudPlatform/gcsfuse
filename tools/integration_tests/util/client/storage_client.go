@@ -31,6 +31,31 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+func separateBucketAndObjectName(bucket, object *string) {
+	bucketAndObjectPath := strings.SplitN(*bucket, "/", 2)
+	*bucket = bucketAndObjectPath[0]
+	*object = path.Join(bucketAndObjectPath[1], *object)
+}
+
+func SetBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
+	*bucket = setup.TestBucket()
+	if strings.Contains(setup.TestBucket(), "/") {
+		// This case arises when we run tests on mounted directory and pass
+		// bucket/directory in testbucket flag.
+		separateBucketAndObjectName(bucket, object)
+	}
+	if setup.DynamicBucketMounted() != "" {
+		*bucket = setup.DynamicBucketMounted()
+	}
+	if setup.OnlyDirMounted() != "" {
+		var suffix string
+		if strings.HasSuffix(*object, "/") {
+			suffix = "/"
+		}
+		*object = path.Join(setup.OnlyDirMounted(), *object) + suffix
+	}
+}
+
 func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 	// Create new storage client.
 	client, err := storage.NewClient(ctx)
