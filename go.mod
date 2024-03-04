@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
-	cloud.google.com/go/storage v1.38.0
+	cloud.google.com/go/storage v1.39.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.47.8
@@ -34,9 +34,9 @@ require (
 
 require (
 	cloud.google.com/go v0.112.0 // indirect
-	cloud.google.com/go/compute v1.23.4 // indirect
+	cloud.google.com/go/compute v1.24.0 // indirect
 	cloud.google.com/go/iam v1.1.6 // indirect
-	cloud.google.com/go/monitoring v1.17.1 // indirect
+	cloud.google.com/go/monitoring v1.18.0 // indirect
 	cloud.google.com/go/pubsub v1.36.1 // indirect
 	cloud.google.com/go/trace v1.10.5 // indirect
 	github.com/aws/aws-sdk-go v1.44.217 // indirect
@@ -64,8 +64,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.23.0 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto v0.0.0-20240205150955-31a09d347014 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240205150955-31a09d347014 // indirect
+	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240221002015-b0ce06bbee7c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/grpc v1.61.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
