@@ -18,7 +18,8 @@
 set -e
 sudo apt-get update
 
-readonly INTEGRATION_TEST_TIMEOUT=40m
+# Temporarily increasing the timeout, just to check the timing.
+readonly INTEGRATION_TEST_TIMEOUT=80m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 
@@ -55,6 +56,8 @@ sudo apt install -y python3-crcmod
 
 # Create bucket for integration tests.
 # The prefix for the random string
+# Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
+# we can run grpc related e2e tests.
 bucketPrefix="golang-grpc-test-gcsfuse-integration-test-"
 # The length of the random string
 length=5

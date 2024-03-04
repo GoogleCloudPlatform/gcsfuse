@@ -74,10 +74,8 @@ type ListConfig struct {
 }
 
 type GrpcClientConfig struct {
-	// ConnectionPoolSize sets the number of gRPC channel.
-	// For, direct-path traffic, it's hard to determine number of tcp-connections in one gRPC channel.
-	// For cloud-path traffic, number of tcp connection is equal to no. of gRPC channel.
-	ConnectionPoolSize int `yaml:"connection-pool-size,omitempty"`
+	// ConnectionPoolSize configures the number of gRPC channel in grpc client.
+	ConnectionPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
 type CacheDir string
@@ -114,7 +112,7 @@ type MountConfig struct {
 	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
-	GrpcClientConfig    `yaml:"grpc-client-config"`
+	GrpcClientConfig    `yaml:"grpc-client"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three

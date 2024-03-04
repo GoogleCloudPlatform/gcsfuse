@@ -1,2 +1,0 @@
-grpc-client-config:
-  connection-pool-size: 0

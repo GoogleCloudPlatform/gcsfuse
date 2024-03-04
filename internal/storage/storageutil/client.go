@@ -42,18 +42,12 @@ type StorageClientConfig struct {
 	RetryMultiplier   float64
 
 	/** HTTP client parameters. */
-
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
 
 	/** Grpc client parameters. */
-
-	// GrpcConnectionPoolSize defines the no. of grpc channel in the GRPC client.
-	// For direct-path traffic, it's hard to determine the relationship b/w grpc channel and
-	// no. of tcp connection.
-	// For cloud-path traffic, no. of tcp connection is same no. of grpc channel.
 	GrpcConnectionPoolSize int
 }
 

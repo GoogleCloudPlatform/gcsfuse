@@ -211,14 +211,14 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeToo
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnectionPoolSize() {
-	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_connection_pool_size.yaml")
+	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_conn_pool_size.yaml")
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-client-config: the value of connection-pool-size can't be less than 1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnectionPoolSize() {
-	mountConfig, err := ParseConfigFile("testdata/grpc_client_config/unset_connection_pool_size.yaml")
+	mountConfig, err := ParseConfigFile("testdata/grpc_client_config/unset_conn_pool_size.yaml")
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)

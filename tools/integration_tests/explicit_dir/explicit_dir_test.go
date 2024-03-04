@@ -26,7 +26,9 @@ import (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs=false"}}
+	flags := [][]string{
+		{"--implicit-dirs=false"},
+		{"--client-protocol=grpc", "--implicit-dirs=false"}}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 

@@ -70,9 +70,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnectionPoolSize))
+	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 
 	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
 
+	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
 		log.Fatalf("error while unsetting direct path env var: %v", err)
 	}
