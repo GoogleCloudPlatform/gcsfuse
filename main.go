@@ -248,7 +248,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// Do not log these in stdout in case of daemonized run
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
-	if flags.Foreground || mountConfig.FilePath == "" {
+	if flags.Foreground || mountConfig.LogConfig.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
 			logger.Warnf("failed to stringify cli flags: %v", err)
@@ -373,7 +373,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			logger.Info(SuccessfulMountMessage)
 
 			// Print the success message in stdout also, if logger outputs to a log-file.
-			if mountConfig.FilePath != "" {
+			if mountConfig.LogConfig.FilePath != "" {
 				fmt.Println(SuccessfulMountMessage)
 			}
 
