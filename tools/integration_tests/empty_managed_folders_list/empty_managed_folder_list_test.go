@@ -41,7 +41,7 @@ const (
 func getMountConfigForEmptyManagedFolders() config.MountConfig {
 	mountConfig := config.MountConfig{
 		ListConfig: config.ListConfig{
-			EnableManagedFolders: true,
+			EnableEmptyManagedFolders: true,
 		},
 	}
 	return mountConfig
