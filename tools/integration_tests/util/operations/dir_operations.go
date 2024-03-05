@@ -187,3 +187,12 @@ func MoveFileInFolder(filePath, bucket, folderPath string, t *testing.T) {
 		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
 	}
 }
+
+func CopyFileInFolder(filePath, bucket, folderPath string, t *testing.T) {
+	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage cp %s create gs://%s/%s/%s/", filePath, bucket, folderPath)
+	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
+	if err != nil {
+		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+	}
+}
+
