@@ -53,13 +53,13 @@ func (s *enableEmptyManagedFoldersTrue) Setup(t *testing.T) {
 }
 
 func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
+	// Clean up test directory.
+	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
 func createDirectoryStructureForTest(t *testing.T) {
-	bucket := setup.TestBucket()
-	testDir := testDirName
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
-
+	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
 	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir, t)
 	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir, t)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
@@ -67,7 +67,7 @@ func createDirectoryStructureForTest(t *testing.T) {
 	operations.CloseFile(f)
 }
 
-func (s *enableEmptyManagedFoldersTrue) TTestListDirectoryForEmptyManagedFolders(t *testing.T) {
+func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(t *testing.T) {
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
 
@@ -89,7 +89,6 @@ func (s *enableEmptyManagedFoldersTrue) TTestListDirectoryForEmptyManagedFolders
 		}
 		// Check if managedFolderTest directory has correct data.
 		if dir.Name() == testDirName {
-			fmt.Println(dir.Name())
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
@@ -123,7 +122,6 @@ func (s *enableEmptyManagedFoldersTrue) TTestListDirectoryForEmptyManagedFolders
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
 			}
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -143,7 +141,6 @@ func getMountConfigForEmptyManagedFolders() config.MountConfig {
 		},
 	}
 
-	fmt.Println(mountConfig)
 	return mountConfig
 }
 
@@ -162,10 +159,6 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 		return
 	}
 
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
-
 	configFile := setup.YAMLConfigFile(
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
@@ -175,7 +168,10 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
+		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
+		setup.SetMntDir(mountDir)
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
+		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	}
 }

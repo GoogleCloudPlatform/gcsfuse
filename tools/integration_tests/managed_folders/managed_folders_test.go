@@ -16,13 +16,13 @@
 package managed_folders
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"log"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
@@ -75,11 +75,8 @@ func TestMain(m *testing.M) {
 		mountDir = rootDir
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
 	}
 
-	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }

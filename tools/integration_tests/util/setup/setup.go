@@ -419,3 +419,36 @@ func SetBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 		*object = path.Join(onlyDirMounted, *object) + suffix
 	}
 }
+
+func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) error) {
+	if *mountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags); err != nil {
+			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
+func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
+	SetMntDir(rootDir)
+	if *mountedDirectory == "" {
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := UnMount()
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+		// delete log file created
+		err = os.Remove(LogFile())
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
+	}
+}
+
+func GetBucketAndTestDir(testDirName string)(bucket, testDir string){
+	bucket = *testBucket
+	testDir = testDirName
+	SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
+
+	return
+}
