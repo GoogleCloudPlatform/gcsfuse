@@ -21,7 +21,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
@@ -29,31 +28,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
-func deleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
-	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", bucket, testDir, managedFolder)
-	_, err := operations.ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
-	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
-		setup.LogAndExit(fmt.Sprintf("Error while deleting managed folder: %v", err))
-	}
-}
-
-func createManagedFoldersInTestDir(managedFolder string, bucket, testDir string) {
-	// Delete if already exist.
-	deleteManagedFoldersInTestDir(managedFolder, bucket, testDir)
-	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", bucket, testDir, managedFolder)
-	_, err := operations.ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
-	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while creating managed folder: %v", err))
-	}
-}
-
 func createDirectoryStructureForTest(t *testing.T) {
 	bucket := setup.TestBucket()
 	testDir := testDirName
 	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
 
-	createManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir)
-	createManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir)
+	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir)
+	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
