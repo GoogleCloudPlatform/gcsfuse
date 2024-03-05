@@ -143,7 +143,7 @@ func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
 	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 
-	setup.MountGCSFuseWithGivenMountFunc(flags,mountFunc)
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 }
 func createStorageClient(t *testing.T, ctx *context.Context, storageClient **storage.Client) func() {
