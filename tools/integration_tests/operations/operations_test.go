@@ -125,13 +125,12 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	if setup.TestBucket() != "" && setup.MountedDirectory() != "" {
-		log.Print("Both --testbucket and --mountedDirectory can't be specified at the same time.")
-		os.Exit(1)
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as operations tests validates content from the bucket.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		log.Print("Please pass --onlyDirMounted <dirName> flag if you are running tests with only-dir mount.")
+		setup.RunTestsForMountedDirectoryFlag(m)
 	}
-
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Run tests for testBucket
 	// Set up test directory.
