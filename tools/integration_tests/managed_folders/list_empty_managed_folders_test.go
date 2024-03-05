@@ -17,14 +17,15 @@ package managed_folders
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 
 	"github.com/googlecloudplatform/gcsfuse/internal/config"
 
