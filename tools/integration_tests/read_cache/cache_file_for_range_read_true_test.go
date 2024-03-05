@@ -45,7 +45,7 @@ func (s *cacheFileForRangeReadTrueTest) Setup(t *testing.T) {
 }
 
 func (s *cacheFileForRangeReadTrueTest) Teardown(t *testing.T) {
-	unmountGCSFuseAndDeleteLogFile()
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////

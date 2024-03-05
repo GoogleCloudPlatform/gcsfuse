@@ -45,7 +45,7 @@ func (s *readOnlyTest) Setup(t *testing.T) {
 }
 
 func (s *readOnlyTest) Teardown(t *testing.T) {
-	unmountGCSFuseAndDeleteLogFile()
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
