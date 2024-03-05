@@ -17,6 +17,7 @@ package managed_folders
 import (
 	"fmt"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"log"
@@ -26,6 +27,9 @@ import (
 
 const (
 	ViewPermission = "objectViewer"
+	testDirName2 = "ManagedFolderTest2"
+	ManagedFolder1             = "managedFolder1"
+	ManagedFolder2             = "managedFolder2"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,7 +41,13 @@ type managedFoldersBucketViewPermissionFolderNil struct {
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
-	setup.SetupTestDirectory(testDirName)
+	setup.SetupTestDirectory(testDirName2)
+}
+
+func  (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
+	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
+	operations.CreateManagedFoldersInTestDir(ManagedFolder1, bucket, testDir, t)
+	operations.CreateManagedFoldersInTestDir(ManagedFolder2, bucket, testDir, t)
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
