@@ -394,3 +394,28 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	log.Print("Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set.")
 	return false
 }
+
+func separateBucketAndObjectName(bucket, object *string) {
+	bucketAndObjectPath := strings.SplitN(*bucket, "/", 2)
+	*bucket = bucketAndObjectPath[0]
+	*object = path.Join(bucketAndObjectPath[1], *object)
+}
+
+func SetBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
+	*bucket = TestBucket()
+	if strings.Contains(TestBucket(), "/") {
+		// This case arises when we run tests on mounted directory and pass
+		// bucket/directory in testbucket flag.
+		separateBucketAndObjectName(bucket, object)
+	}
+	if dynamicBucketMounted != "" {
+		*bucket = dynamicBucketMounted
+	}
+	if onlyDirMounted != "" {
+		var suffix string
+		if strings.HasSuffix(*object, "/") {
+			suffix = "/"
+		}
+		*object = path.Join(onlyDirMounted, *object) + suffix
+	}
+}

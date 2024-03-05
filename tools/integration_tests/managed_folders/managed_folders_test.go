@@ -13,47 +13,31 @@
 // limitations under the License.
 
 // Provides integration tests for managed folders.
-package empty_managed_folders_list
+package managed_folders
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/persistent_mounting"
-
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 const (
-	testDirName                     = "EmptyManagedFoldersTest"
-	NumberOfObjectsInDirForListTest = 4
-	EmptyManagedFolder1             = "emptyManagedFolder1"
-	EmptyManagedFolder2             = "emptyManagedFolder2"
-	SimulatedFolder                 = "simulatedFolder"
-	File                            = "testFile"
+	onlyDirMounted = "TestManagedFolderOnlyDir"
 )
 
-func getMountConfigForEmptyManagedFolders() config.MountConfig {
-	mountConfig := config.MountConfig{
-		ListConfig: config.ListConfig{
-			EnableEmptyManagedFolders: true,
-		},
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-	}
-
-	fmt.Println(mountConfig)
-	return mountConfig
-}
+var (
+	mountFunc func([]string) error
+	// mount directory is where our tests run.
+	mountDir string
+	// root directory is the directory to be unmounted.
+	rootDir string
+)
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
@@ -64,36 +48,34 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		setup.RunTestsForMountedDirectoryFlag(m)
-		return
-	}
+	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()
 
-	configFile := setup.YAMLConfigFile(
-		getMountConfigForEmptyManagedFolders(),
-		"config.yaml")
+	// Save mount and root directory variables.
+	mountDir, rootDir = setup.MntDir(), setup.MntDir()
 
-	flags := [][]string{
-		{"--implicit-dirs", "--config-file=" + configFile},
-	}
-
-	successCode := static_mounting.RunTests(flags, m)
+	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	successCode := m.Run()
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
+		log.Println("Running dynamic mounting tests...")
+		// Save mount directory variable to have path of bucket to run tests.
+		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
+		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		successCode = m.Run()
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		mountDir = rootDir
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		successCode = m.Run()
+		setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
 	}
 
 	// Clean up test directory created.
