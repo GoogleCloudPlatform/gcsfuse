@@ -445,7 +445,7 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	}
 }
 
-func GetBucketAndTestDir(testDirName string)(bucket, testDir string){
+func GetBucketAndTestDir(testDirName string) (bucket, testDir string) {
 	bucket = *testBucket
 	testDir = testDirName
 	SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
