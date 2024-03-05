@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	testDirName                     = "managedFolderTest"
+	testDirName                     = "EmptyManagedFoldersTest"
 	NumberOfObjectsInDirForListTest = 4
 	EmptyManagedFolder1             = "emptyManagedFolder1"
 	EmptyManagedFolder2             = "emptyManagedFolder2"
