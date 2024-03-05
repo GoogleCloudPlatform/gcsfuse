@@ -19,6 +19,11 @@
 
 FROM golang:1.22.0 as builder
 
+# Directory for creating a go module
+RUN mkdir package_gcsfuse
+WORKDIR $PWD/package_gcsfuse
+RUN go mod init package_gcsfuse
+
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
 
 ENV CGO_ENABLED=0
@@ -26,18 +31,13 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
-ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get -d ${GCSFUSE_REPO}
+ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse"
+ENV GCSFUSE_PATH "$GOPATH/pkg/mod/$GCSFUSE_REPO@v${GCSFUSE_VERSION}"
+RUN go get ${GCSFUSE_REPO}@v${GCSFUSE_VERSION}
 
 WORKDIR ${GCSFUSE_PATH}
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
-
-# Build Arg for building through a particular branch/commit. By default, it uses
-# the tag corresponding to passed GCSFUSE VERSION
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
@@ -50,13 +50,13 @@ fi
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GOPATH}
-RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
+RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse@v${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}
 RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
 # Creating structure for debian package as we are using 'dpkg-deb --build' to create debian package
-RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp $GOPATH/src/$GCSFUSE_REPO/DEBIAN/* ${GCSFUSE_BIN}/DEBIAN/
+RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp ${GCSFUSE_PATH}/DEBIAN/* ${GCSFUSE_BIN}/DEBIAN/
 RUN mkdir -p ${GCSFUSE_DOC}
 RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
     mv ${GCSFUSE_BIN}/DEBIAN/changelog ${GCSFUSE_DOC} && \
@@ -90,5 +90,5 @@ RUN fpm \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
-    --url "https://$GCSFUSE_REPO" \
+    --url "https://$GCSFUSE_REPO/" \
     --description "A user-space file system for Google Cloud Storage."
