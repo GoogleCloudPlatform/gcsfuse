@@ -59,6 +59,10 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
 func createDirectoryStructureForTest(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
 	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir, t)
@@ -67,6 +71,10 @@ func createDirectoryStructureForTest(t *testing.T) {
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
 }
+
+////////////////////////////////////////////////////////////////////////
+// Test scenarios
+////////////////////////////////////////////////////////////////////////
 
 func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(t *testing.T) {
 	// Create directory structure for testing.
