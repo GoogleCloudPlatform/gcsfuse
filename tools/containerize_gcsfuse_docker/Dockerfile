@@ -36,6 +36,11 @@ ARG OS_NAME
 # Image with gcsfuse installed and its package (.deb)
 FROM golang:1.22.0 as gcsfuse-package
 
+# Directory for creating a go module
+RUN mkdir containerized_gcsfuse
+WORKDIR $PWD/containerized_gcsfuse
+RUN go mod init containerized_gcsfuse
+
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm fuse && gem install --no-document bundler
 
 ENV CGO_ENABLED=0
@@ -43,21 +48,17 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
-ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get -d ${GCSFUSE_REPO}
-
-WORKDIR ${GCSFUSE_PATH}
-# Branch name for building through a particular branch.
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
+ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse"
+ENV GCSFUSE_PATH "$GOPATH/pkg/mod/$GCSFUSE_REPO@v${GCSFUSE_VERSION}"
+RUN go get ${GCSFUSE_REPO}@v${GCSFUSE_VERSION}
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
 ARG GCSFUSE_BIN="/gcsfuse"
 WORKDIR ${GOPATH}
-RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
+# The following can be optimizing by building from local code.
+RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse@v${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}
 RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
@@ -73,7 +74,7 @@ RUN fpm \
     -v ${GCSFUSE_VERSION} \
     -d fuse \
     --vendor "" \
-    --url "https://$GCSFUSE_REPO" \
+    --url "https://$GCSFUSE_REPO/" \
     --description "A user-space file system for Google Cloud Storage."
 
 # distroless image with gcsfuse installed.
