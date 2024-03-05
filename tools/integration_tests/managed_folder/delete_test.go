@@ -16,18 +16,36 @@
 package managed_folder
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"path"
 	"testing"
 )
+
+func createTestDirectoryStructure(t *testing.T) {
+	bucket := setup.TestBucket()
+	testDir := testDirName
+	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
+
+	operations.CreateManagedFoldersInTestDir(ManagedFolder, bucket, testDirName, t)
+	filePath := path.Join("/tmp", TestFileInManagedFolder)
+	f := operations.CreateFile(filePath, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
+	operations.MoveFileInFolder(filePath, bucket, path.Join(testDirName, ManagedFolder), t)
+}
 
 func TestDeleteManagedFolder_BucketAndFolderViewPermissions(t *testing.T) {
 	SkipTestIfNotViewerPermission(t)
 
 	setup.SetupTestDirectory(testDirName)
+	createTestDirectoryStructure(t)
+
 }
 
 func TestDeleteObjectInManagedFolder_BucketAndFolderViewPermissions(t *testing.T) {
 	SkipTestIfNotViewerPermission(t)
 
 	setup.SetupTestDirectory(testDirName)
+	createTestDirectoryStructure(t)
 }

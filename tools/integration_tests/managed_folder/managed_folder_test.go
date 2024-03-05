@@ -28,6 +28,8 @@ import (
 var IsPermissionObjectViewer bool = true
 const (
 	testDirName = "ManagedFolderTest"
+	ManagedFolder = "ManagedFolder"
+	TestFileInManagedFolder = "TestFileInManagedFolder"
 )
 
 func SkipTestIfNotViewerPermission(t *testing.T){
