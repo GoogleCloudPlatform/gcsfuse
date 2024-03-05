@@ -111,7 +111,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.7.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.22.0.linux-${architecture}.tar.gz
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file

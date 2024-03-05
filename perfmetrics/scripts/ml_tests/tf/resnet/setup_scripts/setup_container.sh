@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Installs go1.21 on the container, builds gcsfuse using log_rotation file
+# Installs go1.22 on the container, builds gcsfuse using log_rotation file
 # and installs tf-models-official v2.13.2, makes update to include clear_kernel_cache
 # and epochs functionality, and runs the model
 
 # Install go lang
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.7.linux-amd64.tar.gz -q
+wget -O go_tar.tar.gz https://go.dev/dl/go1.22.0.linux-amd64.tar.gz -q
 sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
 export PATH=$PATH:/usr/local/go/bin
 
