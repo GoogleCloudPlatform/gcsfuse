@@ -33,8 +33,8 @@ func createDirectoryStructureForTest(t *testing.T) {
 	testDir := testDirName
 	client.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
 
-	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir)
-	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir)
+	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir, t)
+	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir, t)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
