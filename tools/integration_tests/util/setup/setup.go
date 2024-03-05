@@ -411,12 +411,12 @@ func SetBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
 	if dynamicBucketMounted != "" {
 		*bucket = dynamicBucketMounted
 	}
-	if onlyDirMounted != "" {
+	if OnlyDirMounted() != "" {
 		var suffix string
 		if strings.HasSuffix(*object, "/") {
 			suffix = "/"
 		}
-		*object = path.Join(onlyDirMounted, *object) + suffix
+		*object = path.Join(OnlyDirMounted(), *object) + suffix
 	}
 }
 
