@@ -182,7 +182,7 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		"config.yaml")
 
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	// creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flagSet := [][]string{{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}}
 
@@ -196,7 +196,6 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
 		setup.SetMntDir(mountDir)
 		bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
-		setup.SetupTestDirectory(testDirNameForEmptyManagedFolder)
 		// Create directory structure for testing.
 		createDirectoryStructureForNonEmptyManagedFolders(t)
 		// Clean up....
