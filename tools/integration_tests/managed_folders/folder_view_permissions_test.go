@@ -107,6 +107,8 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
 			}
 
+			fmt.Println("OBjJ Name: ", objs[1].Name())
+
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2     -- ManagedFolder2
 			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
