@@ -30,9 +30,9 @@ import (
 
 const (
 	ViewPermission = "objectViewer"
-	testDirName2 = "ManagedFolderTest2"
-	ManagedFolder1             = "managedFolder1"
-	ManagedFolder2             = "managedFolder2"
+	testDirName2   = "ManagedFolderTest2"
+	ManagedFolder1 = "managedFolder1"
+	ManagedFolder2 = "managedFolder2"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -47,20 +47,20 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
 	setup.SetupTestDirectory(testDirName2)
 }
 
-func createDirectoryStructureForListNonEmptyManagedFolders(t *testing.T){
+func createDirectoryStructureForListNonEmptyManagedFolders(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
 	operations.CreateManagedFoldersInTestDir(ManagedFolder1, bucket, testDir, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
-	operations.CopyFileInFolder(path.Join("/tmp", File),bucket,path.Join(testDir,ManagedFolder1),t)
+	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder1), t)
 	operations.CreateManagedFoldersInTestDir(ManagedFolder2, bucket, testDir, t)
-	operations.CopyFileInFolder(path.Join("/tmp", File),bucket,path.Join(testDir,ManagedFolder2),t)
+	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder2), t)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName2, SimulatedFolder), t)
 	f = operations.CreateFile(path.Join(setup.MntDir(), testDirName2, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
 }
 
-func  (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
+func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
 	// Create directory structure for testing.
 	createDirectoryStructureForListNonEmptyManagedFolders(t)
 
@@ -143,8 +143,6 @@ func  (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFo
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
-
 
 }
 
