@@ -128,7 +128,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 		if dir.Name() == ManagedFolder1 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
@@ -139,7 +139,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 		if dir.Name() == ManagedFolder2 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
@@ -148,9 +148,14 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 		}
 		// Check if subDirectory is empty.
 		if dir.Name() == SimulatedFolder {
-			// numberOfObjects - 0
-			if len(objs) != 0 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
+			// numberOfObjects - 1
+			if len(objs) != 1 {
+				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
+			}
+
+			// testBucket/NonEmptyManagedFoldersTest/simulatedFolder/testFile  -- File
+			if objs[0].Name() != File || objs[0].IsDir() != false {
+				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
 			}
 		}
 		return nil
