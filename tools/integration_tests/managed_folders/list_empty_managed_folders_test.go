@@ -65,8 +65,8 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 
 func createDirectoryStructureForTest(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
-	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder1, bucket, testDir, t)
-	operations.CreateManagedFoldersInTestDir(EmptyManagedFolder2, bucket, testDir, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), bucket, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), bucket, t)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
 	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
@@ -177,6 +177,10 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
+		if setup.OnlyDirMounted() != "" {
+			operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+			defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		}
 		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
 		setup.SetMntDir(mountDir)
 		log.Printf("Running tests with flags: %s", ts.flags)
