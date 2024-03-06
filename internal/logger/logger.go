@@ -104,6 +104,12 @@ func init() {
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }
 
+// SetLogFormat updates the log format of default logger.
+func SetLogFormat(format string) {
+	defaultLoggerFactory.format = format
+	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
+}
+
 // Close closes the log file when necessary.
 func Close() {
 	if f := defaultLoggerFactory.file; f != nil {

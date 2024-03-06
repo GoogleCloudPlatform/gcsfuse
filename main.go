@@ -223,6 +223,8 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 
+	logger.SetLogFormat(mountConfig.LogConfig.Format)
+
 	err = resolveConfigFilePaths(mountConfig)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
