@@ -161,19 +161,19 @@ func DirSizeMiB(dirPath string) (dirSizeMB int64, err error) {
 	return dirSizeMB, err
 }
 
-func DeleteManagedFoldersInTestDir(managedFolder, bucket, testDir string, t *testing.T) {
-	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", bucket, testDir, managedFolder)
+func DeleteManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
+	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s", bucket, managedFolderPath)
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
 		t.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
 	}
 }
 
-func CreateManagedFoldersInTestDir(managedFolder string, bucket, testDir string, t *testing.T) {
+func CreateManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
 	// Delete if already exist.
-	DeleteManagedFoldersInTestDir(managedFolder, bucket, testDir, t)
+	DeleteManagedFoldersInBucket(managedFolderPath, bucket, t)
 
-	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s/%s", bucket, testDir, managedFolder)
+	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s", bucket, managedFolderPath)
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
 	if err != nil {
 		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
