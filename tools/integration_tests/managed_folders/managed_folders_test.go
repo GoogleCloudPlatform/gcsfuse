@@ -115,20 +115,20 @@ func TestMain(m *testing.M) {
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 	successCode := m.Run()
+  
+	if successCode == 0 {
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		successCode = m.Run()
+		setup.SetOnlyDirMounted("")
+	}
 
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
 		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
 		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-		successCode = m.Run()
-	}
-
-	if successCode == 0 {
-		log.Println("Running only dir mounting tests...")
-		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		mountDir = rootDir
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
 	}
 
