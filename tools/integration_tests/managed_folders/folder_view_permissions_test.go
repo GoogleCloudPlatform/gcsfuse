@@ -50,6 +50,10 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
 func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
 func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
@@ -182,12 +186,12 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
 
+	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flags := []string{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}
 
-	// Run tests.
 	if setup.OnlyDirMounted() != "" {
 		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
 		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
@@ -200,11 +204,14 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	// Clean up....
 	defer cleanup(bucket, testDir, serviceAccount, t)
+	// Revoke permission on bucket after unmounting and cleanup.
 	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
 
+	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
 	test_setup.RunTests(t, ts)
 
+	// Provide storage.objectViewer role to managed folders.
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
 
