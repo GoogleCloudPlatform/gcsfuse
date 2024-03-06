@@ -33,12 +33,12 @@ import (
 )
 
 const (
-	testDirName                     = "EmptyManagedFoldersTest"
-	NumberOfObjectsInDirForListTest = 4
-	EmptyManagedFolder1             = "emptyManagedFolder1"
-	EmptyManagedFolder2             = "emptyManagedFolder2"
-	SimulatedFolder                 = "simulatedFolder"
-	File                            = "testFile"
+	testDirNameEmptyManagedFoldersTest = "EmptyManagedFoldersTest"
+	NumberOfObjectsInDirForListTest    = 4
+	EmptyManagedFolder1                = "emptyManagedFolder1"
+	EmptyManagedFolder2                = "emptyManagedFolder2"
+	SimulatedFolder                    = "simulatedFolder"
+	File                               = "testFile"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,16 +46,15 @@ const (
 ////////////////////////////////////////////////////////////////////////
 
 type enableEmptyManagedFoldersTrue struct {
-	flags []string
 }
 
 func (s *enableEmptyManagedFoldersTrue) Setup(t *testing.T) {
-	setup.SetupTestDirectory(testDirName)
+	setup.SetupTestDirectory(testDirNameEmptyManagedFoldersTest)
 }
 
 func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 	// Clean up test directory.
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
+	bucket, testDir := setup.GetBucketAndTestDir(testDirNameEmptyManagedFoldersTest)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), setup.TestBucket(), t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), setup.TestBucket(), t)
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
@@ -65,12 +64,16 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 // Helper functions
 ////////////////////////////////////////////////////////////////////////
 
-func createDirectoryStructureForTest(t *testing.T) {
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName)
+func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
+	// testBucket/EmptyManagedFoldersTest/managedFolder1
+	// testBucket/EmptyManagedFoldersTest/managedFolder2
+	// testBucket/EmptyManagedFoldersTest/simulatedFolder
+	// testBucket/EmptyManagedFoldersTest/testFile
+	bucket, testDir := setup.GetBucketAndTestDir(testDirNameEmptyManagedFoldersTest)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), bucket, t)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), bucket, t)
-	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName, SimulatedFolder), t)
-	f := operations.CreateFile(path.Join(setup.MntDir(), testDirName, File), setup.FilePermission_0600, t)
+	operations.CreateDirectory(path.Join(setup.MntDir(), testDirNameEmptyManagedFoldersTest, SimulatedFolder), t)
+	f := operations.CreateFile(path.Join(setup.MntDir(), testDirNameEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
 }
 
@@ -80,10 +83,10 @@ func createDirectoryStructureForTest(t *testing.T) {
 
 func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(t *testing.T) {
 	// Create directory structure for testing.
-	createDirectoryStructureForTest(t)
+	createDirectoryStructureForEmptyManagedFoldersTest(t)
 
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirName), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameEmptyManagedFoldersTest), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -99,7 +102,7 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 			log.Fatal(err)
 		}
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirName {
+		if dir.Name() == testDirNameEmptyManagedFoldersTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
@@ -162,8 +165,6 @@ func getMountConfigForEmptyManagedFolders() config.MountConfig {
 func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	ts := &enableEmptyManagedFoldersTrue{}
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		test_setup.RunTests(t, ts)
@@ -174,19 +175,19 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
 
-	flagSet := [][]string{{"--implicit-dirs", "--config-file=" + configFile}}
+	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
+
+	if setup.OnlyDirMounted() != "" {
+		// Mount managed folder as only-dir mount
+		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		// Delete managed folder resource after testing.
+		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+	}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	setup.SetMntDir(mountDir)
 
 	// Run tests.
-	for _, flags := range flagSet {
-		ts.flags = flags
-		if setup.OnlyDirMounted() != "" {
-			operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-			defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		}
-		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
-		setup.SetMntDir(mountDir)
-		log.Printf("Running tests with flags: %s", ts.flags)
-		test_setup.RunTests(t, ts)
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
-	}
+	log.Printf("Running tests with flags: %s", flags)
+	test_setup.RunTests(t, ts)
 }
