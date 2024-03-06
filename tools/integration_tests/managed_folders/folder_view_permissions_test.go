@@ -87,6 +87,8 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
 			}
 
+			fmt.Println("Obj name: ", objs[0].Name())
+
 			// testBucket/managedFolderTest/emptyManagedFolder1   -- ManagedFolder1
 			if objs[0].Name() != ManagedFolder1 || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
@@ -114,6 +116,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
 			}
+			fmt.Println("Obj name: ", objs[0].Name())
 			// testBucket/managedFolderTest/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())

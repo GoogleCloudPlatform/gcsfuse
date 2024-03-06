@@ -195,4 +195,3 @@ func CopyFileInFolder(filePath, bucket, folderPath string, t *testing.T) {
 		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
 	}
 }
-
