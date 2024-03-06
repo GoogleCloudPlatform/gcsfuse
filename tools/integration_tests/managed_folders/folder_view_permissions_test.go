@@ -16,16 +16,17 @@ package managed_folders
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
 )
 
 const (
@@ -106,8 +107,6 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			if objs[0].Name() != ManagedFolder1 || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
 			}
-
-			fmt.Println("OBjJ Name: ", objs[1].Name())
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2     -- ManagedFolder2
 			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
@@ -202,7 +201,7 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		// Create directory structure for testing.
 		createDirectoryStructureForNonEmptyManagedFolders(t)
 		// Clean up....
-		defer cleanup(bucket,testDir,serviceAccount,t)
+		defer cleanup(bucket, testDir, serviceAccount, t)
 
 		log.Printf("Running tests with flags and managed folder have nil permissions: %s", ts.flags)
 		test_setup.RunTests(t, ts)
