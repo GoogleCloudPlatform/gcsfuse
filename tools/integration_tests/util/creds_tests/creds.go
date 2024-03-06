@@ -77,7 +77,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	return
 }
 
-func ApplyPermissionToServiceAccount(serviceAccount, permission string){
+func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 	// Provide permission to service account for testing.
 	_, err := operations.ExecuteGsutilCommandf(fmt.Sprintf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
 	if err != nil {
@@ -88,17 +88,17 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission string){
 	time.Sleep(120 * time.Second)
 }
 
-func RevokePermission(gcloudArg string){
+func RevokePermission(gcloudArg string) {
 	// Revoke the permission after testing.
-		_, err := operations.ExecuteGsutilCommandf(gcloudArg)
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
-		}
+	_, err := operations.ExecuteGsutilCommandf(gcloudArg)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
+	}
 }
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials()
-	ApplyPermissionToServiceAccount(serviceAccount,permission)
+	ApplyPermissionToServiceAccount(serviceAccount, permission)
 	defer RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS

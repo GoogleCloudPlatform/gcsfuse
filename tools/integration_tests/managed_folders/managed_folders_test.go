@@ -84,8 +84,6 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	if err != nil {
 		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
 	}
-
-	return
 }
 
 func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
