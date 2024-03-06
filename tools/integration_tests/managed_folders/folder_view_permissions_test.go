@@ -62,11 +62,11 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
-	operations.CopyFileInFolder(path.Join("/tmp", File), path.Join(testDir, ManagedFolder1), bucket, t)
+	operations.CopyFileInBucket(path.Join("/tmp", File), path.Join(testDir, ManagedFolder1), bucket, t)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), bucket, t)
-	operations.CopyFileInFolder(path.Join("/tmp", File), path.Join(testDir, ManagedFolder2), bucket, t)
-	operations.CopyFileInFolder(path.Join("/tmp", File), path.Join(testDir, SimulatedFolder), bucket, t)
-	operations.CopyFileInFolder(path.Join("/tmp", File), testDir, bucket, t)
+	operations.CopyFileInBucket(path.Join("/tmp", File), path.Join(testDir, ManagedFolder2), bucket, t)
+	operations.CopyFileInBucket(path.Join("/tmp", File), path.Join(testDir, SimulatedFolder), bucket, t)
+	operations.CopyFileInBucket(path.Join("/tmp", File), testDir, bucket, t)
 }
 
 func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
@@ -111,7 +111,6 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
 			}
-			fmt.Println("Obj Name: ",objs[1].Name())
 
 			// testBucket/NonEmptyManagedFoldersTest/simulatedFolder   -- SimulatedFolder
 			if objs[2].Name() != SimulatedFolder || objs[2].IsDir() != true {
@@ -187,7 +186,7 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		"config.yaml")
 
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	// creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flagSet := [][]string{{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}}
 

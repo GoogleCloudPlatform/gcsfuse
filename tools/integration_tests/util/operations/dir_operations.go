@@ -178,7 +178,7 @@ func CreateManagedFoldersInTestDir(managedFolder string, bucket, testDir string)
 	}
 }
 
-func CopyFileInFolder(srcfilePath, destFilePath , bucket string, t *testing.T) {
+func CopyFileInBucket(srcfilePath, destFilePath, bucket string, t *testing.T) {
 	gcloudCopyFileCmd := fmt.Sprintf("alpha storage cp %s gs://%s/%s/", srcfilePath, bucket, destFilePath)
 	_, err := ExecuteGcloudCommandf(gcloudCopyFileCmd)
 	if err != nil {
