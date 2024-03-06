@@ -17,7 +17,6 @@ package operations
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"log"
 	"os"
 	"os/exec"

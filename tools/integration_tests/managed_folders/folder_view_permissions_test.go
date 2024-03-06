@@ -49,11 +49,11 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
 
 func createDirectoryStructureForListNonEmptyManagedFolders(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
-	operations.CreateManagedFoldersInTestDir(ManagedFolder1, bucket, testDir, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
 	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder1), t)
-	operations.CreateManagedFoldersInTestDir(ManagedFolder2, bucket, testDir, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), bucket, t)
 	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder2), t)
 	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName2, SimulatedFolder), t)
 	f = operations.CreateFile(path.Join(setup.MntDir(), testDirName2, File), setup.FilePermission_0600, t)
