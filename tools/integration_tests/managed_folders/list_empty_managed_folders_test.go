@@ -34,11 +34,11 @@ import (
 
 const (
 	testDirForEmptyManagedFoldersTest = "EmptyManagedFoldersTest"
-	NumberOfObjectsInDirForListTest    = 4
-	EmptyManagedFolder1                = "emptyManagedFolder1"
-	EmptyManagedFolder2                = "emptyManagedFolder2"
-	SimulatedFolder                    = "simulatedFolder"
-	File                               = "testFile"
+	NumberOfObjectsInDirForListTest   = 4
+	EmptyManagedFolder1               = "emptyManagedFolder1"
+	EmptyManagedFolder2               = "emptyManagedFolder2"
+	SimulatedFolder                   = "simulatedFolder"
+	File                              = "testFile"
 )
 
 ////////////////////////////////////////////////////////////////////////
