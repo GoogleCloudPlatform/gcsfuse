@@ -29,10 +29,11 @@ import (
 )
 
 const (
-	ViewPermission = "objectViewer"
-	testDirName2   = "ManagedFolderTest2"
-	ManagedFolder1 = "managedFolder1"
-	ManagedFolder2 = "managedFolder2"
+	testDirNameForEmptyManagedFolder = "NonEmptyManagedFoldersTest"
+	ViewPermission                   = "objectViewer"
+	ManagedFolder1                   = "managedFolder1"
+	ManagedFolder2                   = "managedFolder2"
+	IAMRole                          = "roles/storage.objectViewer"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -44,36 +45,42 @@ type managedFoldersBucketViewPermissionFolderNil struct {
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
-	setup.SetupTestDirectory(testDirName2)
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
-	// Clean up test directory.
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
-	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), setup.TestBucket(), t)
-	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), setup.TestBucket(), t)
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
-func createDirectoryStructureForListNonEmptyManagedFolders(t *testing.T) {
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
+func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
+	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
+	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
+	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
+	// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile
+	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder
+	// testBucket/NonEmptyManagedFoldersTest/testFile
+	bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
 	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder1), t)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), bucket, t)
 	operations.CopyFileInFolder(path.Join("/tmp", File), bucket, path.Join(testDir, ManagedFolder2), t)
-	operations.CreateDirectory(path.Join(setup.MntDir(), testDirName2, SimulatedFolder), t)
-	f = operations.CreateFile(path.Join(setup.MntDir(), testDirName2, File), setup.FilePermission_0600, t)
+	operations.CreateDirectory(path.Join(setup.MntDir(), testDirNameForEmptyManagedFolder, SimulatedFolder), t)
+	f = operations.CreateFile(path.Join(setup.MntDir(), testDirNameForEmptyManagedFolder, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
 }
 
-func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
-	// Create directory structure for testing.
-	createDirectoryStructureForListNonEmptyManagedFolders(t)
+func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket(), t)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket(), t)
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+}
 
+func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirName2), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -89,28 +96,28 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			log.Fatal(err)
 		}
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirName2 {
+		if dir.Name() == testDirNameForEmptyManagedFolder {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
 			}
 
-			// testBucket/managedFolderTest/emptyManagedFolder1   -- ManagedFolder1
+			// testBucket/NonEmptyManagedFoldersTest/managedFolder1  -- ManagedFolder1
 			if objs[0].Name() != ManagedFolder1 || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
 			}
 
-			// testBucket/managedFolderTest/emptyManagedFolder2     -- ManagedFolder2
+			// testBucket/NonEmptyManagedFoldersTest/managedFolder2     -- ManagedFolder2
 			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
 			}
 
-			// testBucket/managedFolderTest/simulatedFolder   -- SimulatedFolder
+			// testBucket/NonEmptyManagedFoldersTest/simulatedFolder   -- SimulatedFolder
 			if objs[2].Name() != SimulatedFolder || objs[2].IsDir() != true {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", SimulatedFolder, objs[2].Name())
 			}
 
-			// testBucket/managedFolderTest/testFile  -- File
+			// testBucket/NonEmptyManagedFoldersTest/testFile  -- File
 			if objs[3].Name() != File || objs[3].IsDir() != false {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
 			}
@@ -122,7 +129,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
 			}
-			// testBucket/managedFolderTest/testFile  -- File
+			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
 			}
@@ -133,7 +140,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 			if len(objs) != 1 {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 0, len(objs))
 			}
-			// testBucket/managedFolderTest/testFile  -- File
+			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
 				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
 			}
@@ -182,10 +189,26 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	// Run tests.
 	for _, flags := range flagSet {
 		ts.flags = flags
+		if setup.OnlyDirMounted() != "" {
+			operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+			defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		}
 		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
 		setup.SetMntDir(mountDir)
-		log.Printf("Running tests with flags: %s", ts.flags)
+		bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
+		setup.SetupTestDirectory(testDirNameForEmptyManagedFolder)
+		// Create directory structure for testing.
+		createDirectoryStructureForNonEmptyManagedFolders(t)
+		// Clean up....
+		defer cleanup(bucket,testDir,serviceAccount,t)
+
+		log.Printf("Running tests with flags and managed folder have nil permissions: %s", ts.flags)
 		test_setup.RunTests(t, ts)
-		setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
+
+		log.Printf("Running tests with flags and managed folder have view permissions: %s", ts.flags)
+		test_setup.RunTests(t, ts)
 	}
 }
