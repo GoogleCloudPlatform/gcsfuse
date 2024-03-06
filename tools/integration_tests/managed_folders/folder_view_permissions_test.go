@@ -42,7 +42,6 @@ const (
 ////////////////////////////////////////////////////////////////////////
 
 type managedFoldersBucketViewPermissionFolderNil struct {
-	flags []string
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
@@ -57,6 +56,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile
 	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder
+	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
@@ -75,7 +75,6 @@ func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket(), t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket(), t)
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
-	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
@@ -173,8 +172,6 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	ts := &managedFoldersBucketViewPermissionFolderNil{}
 
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
-
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		test_setup.RunTests(t, ts)
@@ -188,31 +185,29 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
-	flagSet := [][]string{{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}}
+	flags := []string{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}
 
 	// Run tests.
-	for _, flags := range flagSet {
-		ts.flags = flags
-		if setup.OnlyDirMounted() != "" {
-			operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-			defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		}
-		setup.MountGCSFuseWithGivenMountFunc(ts.flags, mountFunc)
-		setup.SetMntDir(mountDir)
-		bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
-		// Create directory structure for testing.
-		createDirectoryStructureForNonEmptyManagedFolders(t)
-		// Clean up....
-		defer cleanup(bucket, testDir, serviceAccount, t)
-		defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
-
-		log.Printf("Running tests with flags and managed folder have nil permissions: %s", ts.flags)
-		test_setup.RunTests(t, ts)
-
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
-
-		log.Printf("Running tests with flags and managed folder have view permissions: %s", ts.flags)
-		test_setup.RunTests(t, ts)
+	if setup.OnlyDirMounted() != "" {
+		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
 	}
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
+	setup.SetMntDir(mountDir)
+	bucket, testDir := setup.GetBucketAndTestDir(testDirNameForEmptyManagedFolder)
+	// Create directory structure for testing.
+	createDirectoryStructureForNonEmptyManagedFolders(t)
+	// Clean up....
+	defer cleanup(bucket, testDir, serviceAccount, t)
+	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
+
+	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
+	test_setup.RunTests(t, ts)
+
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
+
+	log.Printf("Running tests with flags and managed folder have view permissions: %s", flags)
+	test_setup.RunTests(t, ts)
 }

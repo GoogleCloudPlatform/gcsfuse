@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -159,15 +160,15 @@ func DirSizeMiB(dirPath string) (dirSizeMB int64, err error) {
 	return dirSizeMB, err
 }
 
-func DeleteManagedFoldersInTestDir(managedFolder, bucket, testDir string) {
-	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s/%s", bucket, testDir, managedFolder)
+func DeleteManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
+	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s", bucket, managedFolderPath)
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
-		setup.LogAndExit(fmt.Sprintf("Error while deleting managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
 	}
 }
 
-func CreateManagedFoldersInTestDir(managedFolder string, bucket, testDir string) {
+func CreateManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
 	// Delete if already exist.
 	DeleteManagedFoldersInBucket(managedFolderPath, bucket, t)
 
