@@ -47,6 +47,14 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
 	setup.SetupTestDirectory(testDirName2)
 }
 
+func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
+	// Clean up test directory.
+	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), setup.TestBucket(), t)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), setup.TestBucket(), t)
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+}
+
 func createDirectoryStructureForListNonEmptyManagedFolders(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
@@ -147,12 +155,6 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 		return
 	}
 
-}
-
-func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
-	// Clean up test directory.
-	bucket, testDir := setup.GetBucketAndTestDir(testDirName2)
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
 ////////////////////////////////////////////////////////////////////////
