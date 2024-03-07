@@ -402,7 +402,7 @@ func separateBucketAndObjectName(bucket, object string) (string, string) {
 	return bucket, object
 }
 
-func SetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
 	bucket := TestBucket()
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
