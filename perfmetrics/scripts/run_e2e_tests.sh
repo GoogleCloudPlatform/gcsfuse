@@ -102,6 +102,7 @@ test_dir_parallel=(
   "local_file"
   "log_rotation"
   "read_cache"
+  "write_large_files"
 )
 
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
@@ -116,7 +117,6 @@ test_dir_non_parallel=(
   "read_large_files"
   "read_only"
   "rename_dir_limit"
-  "write_large_files"
 )
 
 # Run tests
@@ -134,7 +134,7 @@ set -e
 
 # Cleanup
 # Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLE/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
 if [ $test_fail != 0 ];
 then
