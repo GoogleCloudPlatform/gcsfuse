@@ -197,7 +197,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteObjectFromManage
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCreateObjectInManagedFolder(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), testDir, ManagedFolder2, "test.txt")
-	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
+	file, err := os.Create(filePath)
 
 	if err == nil {
 		t.Errorf("File is created in read-only file system.")
@@ -221,7 +221,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestCopyNonEmptyManagedFol
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCopyObjectInManagedFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDir, ManagedFolder1, File)
-	destFile := path.Join(setup.MntDir(), testDir, CopyFolder, CopyFile)
+	destFile := path.Join(setup.MntDir(), testDir, CopyFile)
 
 	err := operations.CopyDir(srcFile, destFile)
 	if err == nil {
