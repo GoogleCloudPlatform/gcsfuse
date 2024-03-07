@@ -53,7 +53,7 @@ sudo apt-get install -y gcc python3-dev python3-setuptools
 # it requires to install crcmod.
 sudo apt install -y python3-crcmod
 
-func create_bucket(){
+function create_bucket() {
   # The length of the random string
   length=5
   # Generate the random string
@@ -65,7 +65,7 @@ func create_bucket(){
   return
 }
 
-func run_parallel_tests() {
+function run_parallel_tests() {
   set +e
   for test_dir in "${test_dir_non_parallel[@]}"
   do
@@ -80,7 +80,7 @@ func run_parallel_tests() {
   set -e
 }
 
-func run_non_parallel_tests() {
+function run_non_parallel_tests() {
   set +e
   # Executing integration tests
   for test_dir in "${test_dir_parallel[@]}"
