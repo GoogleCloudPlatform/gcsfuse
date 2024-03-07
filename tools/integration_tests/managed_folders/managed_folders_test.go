@@ -16,9 +16,13 @@
 package managed_folders
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -41,6 +45,60 @@ var (
 	// Root directory is the directory to be unmounted.
 	rootDir string
 )
+
+type IAMPolicy struct {
+	Bindings []struct {
+		Role    string   `json:"role"`
+		Members []string `json:"members"`
+	} `json:"bindings"`
+}
+////////////////////////////////////////////////////////////////////////
+// Helper functions
+////////////////////////////////////////////////////////////////////////
+
+func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
+	policy := IAMPolicy{
+		Bindings: []struct {
+			Role    string   `json:"role"`
+			Members []string `json:"members"`
+		}{
+			{
+				Role: iamRole,
+				Members: []string{
+					"serviceAccount:" + serviceAccount,
+				},
+			},
+		},
+	}
+
+	// Marshal the data into JSON format
+	jsonData, err := json.MarshalIndent(policy, "", "  ") // Indent for readability
+	if err != nil {
+		panic(err)
+	}
+
+	localIAMPolicyFilePath := path.Join(os.Getenv("HOME"), "iam_policy.json")
+	// Write the JSON to a file
+	err = os.WriteFile(localIAMPolicyFilePath, jsonData, 0644) // 0644 provides typical read/write permissions
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in writing iam policy in json file: %v", err))
+	}
+
+	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, localIAMPolicyFilePath)
+	_, err = operations.ExecuteGcloudCommandf(gcloudProvidePermissionCmd)
+	if err != nil {
+		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+	}
+}
+
+func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
+	gcloudRevokePermissionCmd := fmt.Sprintf("alpha storage managed-folders remove-iam-policy-binding  gs://%s/%s --member=%s --role=%s", bucket, managedFolderPath, serviceAccount, iamRole)
+	_, err := operations.ExecuteGcloudCommandf(gcloudRevokePermissionCmd)
+	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") {
+		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
