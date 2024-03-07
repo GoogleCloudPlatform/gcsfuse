@@ -100,7 +100,7 @@ function run_non_parallel_tests() {
 # The prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
 create_bucket
-BUCKET_NAME_NON_PARALLEL=BUCKET_NAME
+BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
 test_dir_parallel=(
   "local_file"
   "gzip"
@@ -112,7 +112,7 @@ test_dir_parallel=(
 
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
 create_bucket
-BUCKET_NAME_PARALLEL=BUCKET_NAME
+BUCKET_NAME_PARALLEL=$BUCKET_NAME
 test_dir_non_parallel=(
   "explicit_dir"
   "implicit_dir"
@@ -124,8 +124,10 @@ test_dir_non_parallel=(
 
 test_fail=0
 set +e
+echo "Running non parallel tests..."
 # Run non parallel tests
 run_non_parallel_tests &
+echo "Running parallel tests..."
 # Run parallel tests
 run_parallel_tests &
 wait
