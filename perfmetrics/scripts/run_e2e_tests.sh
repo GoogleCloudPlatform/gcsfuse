@@ -106,7 +106,6 @@ test_dir_parallel=(
   "local_file"
   "log_rotation"
   "read_cache"
-  "read_large_files"
   "write_large_files"
 )
 
@@ -119,6 +118,7 @@ test_dir_non_parallel=(
   "gzip"
   "list_large_dir"
   "operations"
+  "read_large_files"
   "read_only"
   "rename_dir_limit"
 )
