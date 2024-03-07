@@ -66,22 +66,19 @@ function create_bucket() {
 }
 
 function run_non_parallel_tests() {
-  set +e
-  for test_dir in "${test_dir_non_parallel[@]}"
+  for test_dir_np in "${test_dir_non_parallel[@]}"
   do
-    test_path="./tools/integration_tests/$test_dir"
+    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail=$exit_code_non_parallel
     fi
   done
-  set -e
 }
 
 function run_parallel_tests() {
-  set +e
   for test_dir in "${test_dir_parallel[@]}"
   do
     test_path="./tools/integration_tests/$test_dir"
@@ -92,7 +89,6 @@ function run_parallel_tests() {
       test_fail=$exit_code_parallel
     fi
   done
-  set -e
 }
 
 # Test setup
@@ -106,7 +102,6 @@ test_dir_parallel=(
   "local_file"
   "log_rotation"
   "read_cache"
-  "write_large_files"
 )
 
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
@@ -121,6 +116,7 @@ test_dir_non_parallel=(
   "read_large_files"
   "read_only"
   "rename_dir_limit"
+  "write_large_files"
 )
 
 # Run tests
@@ -129,10 +125,10 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests
+run_parallel_tests &
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests
+run_non_parallel_tests &
 wait
 set -e
 
