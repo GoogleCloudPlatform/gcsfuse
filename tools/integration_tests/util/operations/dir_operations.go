@@ -16,6 +16,7 @@
 package operations
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -34,9 +35,11 @@ const DirPermission_0755 = 0755
 const MiB = 1024 * 1024
 
 func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Copying dir operation is failed: %v", err)
+		err = fmt.Errorf("Copying dir operation is failed: %v", cmd.Stderr)
 	}
 	return
 }
