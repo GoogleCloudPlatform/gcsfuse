@@ -66,22 +66,22 @@ function create_bucket() {
   return
 }
 
-function run_parallel_tests() {
+function run_non_parallel_tests() {
   set +e
   for test_dir in "${test_dir_non_parallel[@]}"
   do
     test_path="./tools/integration_tests/$test_dir"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
-    exit_code=$?
-    if [ $exit_code != 0 ]; then
-      test_fail=$exit_code
+    exit_code_non_parallel=$?
+    if [ $exit_code_non_parallel != 0 ]; then
+      test_fail=$exit_code_non_parallel
     fi
   done
   set -e
 }
 
-function run_non_parallel_tests() {
+function run_parallel_tests() {
   set +e
   # Executing integration tests
   for test_dir in "${test_dir_parallel[@]}"
@@ -89,9 +89,9 @@ function run_non_parallel_tests() {
     test_path="./tools/integration_tests/$test_dir"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
-    exit_code=$?
-    if [ $exit_code != 0 ]; then
-      test_fail=$exit_code
+    exit_code_parallel=$?
+    if [ $exit_code_parallel != 0 ]; then
+      test_fail=$exit_code_parallel
     fi
   done
   set -e
