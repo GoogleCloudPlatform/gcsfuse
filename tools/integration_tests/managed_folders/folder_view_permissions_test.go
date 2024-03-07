@@ -176,7 +176,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteNonEmptyManagedFolder(t *testing.T) {
-	err := os.RemoveAll(path.Join(testDir, ManagedFolder1))
+	err := os.RemoveAll(path.Join(setup.MntDir(), testDir, ManagedFolder1))
 
 	if err == nil {
 		t.Errorf("Managed folder deleted with view only permission.")
@@ -186,7 +186,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteNonEmptyManagedF
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteObjectFromManagedFolder(t *testing.T) {
-	err := os.Remove(path.Join(testDir, ManagedFolder1, File))
+	err := os.Remove(path.Join(setup.MntDir(), testDir, ManagedFolder1, File))
 
 	if err == nil {
 		t.Errorf("File from managed folder get deleted with view only permission.")
@@ -196,7 +196,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteObjectFromManage
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(testDir, ManagedFolder2, "test.txt")
+	filePath := path.Join(setup.MntDir(), testDir, ManagedFolder2, "test.txt")
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	if err == nil {
@@ -208,8 +208,8 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestCreateObjectInManagedF
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCopyNonEmptyManagedFolder(t *testing.T) {
-	srcDir := path.Join(testDir, ManagedFolder1)
-	destDir := path.Join(testDir, CopyFolder)
+	srcDir := path.Join(setup.MntDir(), testDir, ManagedFolder1)
+	destDir := path.Join(setup.MntDir(), testDir, CopyFolder)
 
 	err := operations.CopyDir(srcDir, destDir)
 	if err == nil {
@@ -220,8 +220,8 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestCopyNonEmptyManagedFol
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCopyObjectInManagedFolder(t *testing.T) {
-	srcFile := path.Join(testDir, ManagedFolder1, File)
-	destFile := path.Join(testDir, CopyFolder, CopyFile)
+	srcFile := path.Join(setup.MntDir(), testDir, ManagedFolder1, File)
+	destFile := path.Join(setup.MntDir(), testDir, CopyFolder, CopyFile)
 
 	err := operations.CopyDir(srcFile, destFile)
 	if err == nil {
