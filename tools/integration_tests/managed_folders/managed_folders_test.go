@@ -16,6 +16,8 @@
 package managed_folders
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"log"
 	"os"
 	"path"
@@ -58,16 +60,16 @@ func TestMain(m *testing.M) {
 	SuccessCode = 0
 
 	log.Println("Running static mounting tests...")
-	//mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	//SuccessCode = m.Run()
-	//
-	//if SuccessCode == 0 {
-	//	log.Println("Running only dir mounting tests...")
-	//	setup.SetOnlyDirMounted(onlyDirMounted + "/")
-	//	mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-	//	SuccessCode = m.Run()
-	//	setup.SetOnlyDirMounted("")
-	//}
+	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	SuccessCode = m.Run()
+
+	if SuccessCode == 0 {
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		SuccessCode = m.Run()
+		setup.SetOnlyDirMounted("")
+	}
 
 	if SuccessCode == 0 {
 		log.Println("Running dynamic mounting tests...")
