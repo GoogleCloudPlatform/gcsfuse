@@ -33,6 +33,8 @@ import (
 // gcsfuse.log in case of GCSFuse.
 const ProgrammeName string = "gcsfuse"
 const GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
+const jsonFormat = "json"
+const textFormat = "text"
 
 var (
 	defaultLoggerFactory *loggerFactory
@@ -98,6 +100,7 @@ func InitLogFile(logConfig config.LogConfig) error {
 func init() {
 	defaultLoggerFactory = &loggerFactory{
 		file:            nil,
+		format:          jsonFormat,
 		level:           config.INFO, // setting log level to INFO by default
 		logRotateConfig: config.DefaultLogRotateConfig(),
 	}
@@ -106,8 +109,11 @@ func init() {
 
 // SetLogFormat updates the log format of default logger.
 func SetLogFormat(format string) {
+	if format == defaultLoggerFactory.format {
+		return
+	}
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
+	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
 // Close closes the log file when necessary.
@@ -175,7 +181,7 @@ func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
 }
 
 func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog.LevelVar, prefix string) slog.Handler {
-	if f.format == "text" {
+	if f.format == textFormat {
 		return slog.NewTextHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
 	}
 	return slog.NewJSONHandler(writer, getHandlerOptions(levelVar, prefix, f.format))
