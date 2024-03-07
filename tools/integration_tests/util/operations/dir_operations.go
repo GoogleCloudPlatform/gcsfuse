@@ -160,7 +160,6 @@ func DirSizeMiB(dirPath string) (dirSizeMB int64, err error) {
 	return dirSizeMB, err
 }
 
-
 func DeleteManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
 	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s", bucket, managedFolderPath)
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
