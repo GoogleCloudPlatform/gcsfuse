@@ -45,12 +45,6 @@ const ContentInFileInSubDirectoryTestBucket = "This is from directory Test/b fil
 const RenameFile = "rename.txt"
 const RenameDir = "rename"
 
-func checkErrorForReadOnlyFileSystem(err error, t *testing.T) {
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Incorrect error for readonly filesystem: %v", err.Error())
-	}
-}
-
 func checkErrorForObjectNotExist(err error, t *testing.T) {
 	if !strings.Contains(err.Error(), "no such file or directory") {
 		t.Errorf("Incorrect error for object not exist: %v", err.Error())
