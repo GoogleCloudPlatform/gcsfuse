@@ -439,7 +439,8 @@ done
 echo "list:
   enable-empty-managed-folders: true" > /tmp/gcsfuse_config.yaml
 
-# package empty_managed_folder_listing
+# package managed_folders
+# Empty managed folders listing test.
 # Run test with static mounting (flags: --implicit-dirs)
 gcsfuse --implicit-dirs --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/managed_folders/... -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR  --testbucket=$TEST_BUCKET_NAME -run TestEnableEmptyManagedFoldersTrue

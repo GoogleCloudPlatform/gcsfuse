@@ -65,9 +65,9 @@ func TestMain(m *testing.M) {
 	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		defer setup.SetOnlyDirMounted("")
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
-		setup.SetOnlyDirMounted("")
 	}
 
 	if successCode == 0 {
