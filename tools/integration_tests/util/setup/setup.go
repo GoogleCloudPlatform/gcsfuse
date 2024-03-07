@@ -249,21 +249,22 @@ func UnMountBucket() {
 }
 
 func SaveLogFileInCaseOfFailure(successCode int) {
-	// Print flag on which test fails
-	// Logfile name will be failed-integration-test-log-xxxxx
-	failedlogsFileName := "failed-integration-test-logs-" + GenerateRandomString(5)
-	log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
-	logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
-	err := operations.CopyFile(logFile, logFileInKokoroArtifact)
-	if err != nil {
-		log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
+	if successCode != 0 {
+		// Logfile name will be failed-integration-test-log-xxxxx
+		failedlogsFileName := "failed-integration-test-logs-" + GenerateRandomString(5)
+		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
+		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
+		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
+		if err != nil {
+			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
+		}
 	}
-	return
 }
 
 func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 	UnMountBucket()
 	if successCode != 0 {
+		// Print flag on which test fails
 		f := strings.Join(flags, " ")
 		log.Print("Test Fails on " + f)
 		SaveLogFileInCaseOfFailure(successCode)
