@@ -196,7 +196,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteObjectFromManage
 }
 
 func (s *managedFoldersBucketViewPermissionFolderNil) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(testDir, "test.txt")
+	filePath := path.Join(testDir, ManagedFolder2, "test.txt")
 	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
 
 	if err == nil {
