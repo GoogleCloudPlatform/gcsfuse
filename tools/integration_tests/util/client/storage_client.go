@@ -40,8 +40,7 @@ func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
 func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string) (string, error) {
-	var bucket string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	bucket, object := setup.SetBucketAndObjectBasedOnTypeOfMount("", object)
 
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewReader(ctx)
@@ -61,8 +60,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 // ReadChunkFromGCS downloads the object chunk from GCS and returns the data.
 func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string,
 	offset, size int64) (string, error) {
-	var bucket string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	bucket, object := setup.SetBucketAndObjectBasedOnTypeOfMount("", object)
 
 	// Create storage reader to read from GCS.
 	rc, err := client.Bucket(bucket).Object(object).NewRangeReader(ctx, offset, size)
@@ -80,8 +78,7 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 }
 
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
-	var bucket string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	bucket, object := setup.SetBucketAndObjectBasedOnTypeOfMount("", object)
 
 	o := client.Bucket(bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
@@ -126,8 +123,7 @@ func CreateStorageClientWithTimeOut(ctx *context.Context, storageClient **storag
 
 // DownloadObjectFromGCS downloads an object to a local file.
 func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) error {
-	var bucket string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &gcsFile)
+	bucket, gcsFile := setup.SetBucketAndObjectBasedOnTypeOfMount("", gcsFile)
 
 	ctx := context.Background()
 	var storageClient *storage.Client
@@ -151,8 +147,7 @@ func DownloadObjectFromGCS(gcsFile string, destFileName string, t *testing.T) er
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
-	var bucket, obj string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &obj)
+	bucket, _ := setup.SetBucketAndObjectBasedOnTypeOfMount("", "")
 
 	// Get handle to the object
 	object := client.Bucket(bucket).Object(objectName)
@@ -166,8 +161,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 }
 
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
-	var bucket, object string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	bucket, _ := setup.SetBucketAndObjectBasedOnTypeOfMount("", "")
 
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
@@ -187,8 +181,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 }
 
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
-	var bucket string
-	setup.SetBucketAndObjectBasedOnTypeOfMount(&bucket, &object)
+	bucket, object := setup.SetBucketAndObjectBasedOnTypeOfMount("", object)
 
 	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
 	if err != nil {

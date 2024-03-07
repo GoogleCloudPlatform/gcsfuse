@@ -395,29 +395,31 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
-func separateBucketAndObjectName(bucket, object *string) {
-	bucketAndObjectPath := strings.SplitN(*bucket, "/", 2)
-	*bucket = bucketAndObjectPath[0]
-	*object = path.Join(bucketAndObjectPath[1], *object)
+func separateBucketAndObjectName(bucket, object string) (string, string){
+	bucketAndObjectPath := strings.SplitN(bucket, "/", 2)
+	bucket = bucketAndObjectPath[0]
+	object = path.Join(bucketAndObjectPath[1], object)
+	return bucket, object
 }
 
-func SetBucketAndObjectBasedOnTypeOfMount(bucket, object *string) {
-	*bucket = TestBucket()
+func SetBucketAndObjectBasedOnTypeOfMount(bucket, object string) (string, string) {
+	bucket = TestBucket()
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
 		// bucket/directory in testbucket flag.
 		separateBucketAndObjectName(bucket, object)
 	}
 	if dynamicBucketMounted != "" {
-		*bucket = dynamicBucketMounted
+		bucket = dynamicBucketMounted
 	}
 	if OnlyDirMounted() != "" {
 		var suffix string
-		if strings.HasSuffix(*object, "/") {
+		if strings.HasSuffix(object, "/") {
 			suffix = "/"
 		}
-		*object = path.Join(OnlyDirMounted(), *object) + suffix
+		object = path.Join(OnlyDirMounted(), object) + suffix
 	}
+	return bucket, object
 }
 
 func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) error) {
@@ -443,12 +445,4 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
 	}
-}
-
-func GetBucketAndTestDir(testDirName string) (bucket, testDir string) {
-	bucket = *testBucket
-	testDir = testDirName
-	SetBucketAndObjectBasedOnTypeOfMount(&bucket, &testDir)
-
-	return
 }
