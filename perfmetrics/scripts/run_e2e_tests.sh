@@ -52,29 +52,90 @@ sudo apt-get install -y gcc python3-dev python3-setuptools
 # it requires to install crcmod.
 sudo apt install -y python3-crcmod
 
+func create_bucket(){
+  # The length of the random string
+  length=5
+  # Generate the random string
+  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
+  BUCKET_NAME=$bucketPrefix$random_string
+  echo 'bucket name = '$BUCKET_NAME
+  # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
+  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+  return
+}
+
+func run_parallel_tests() {
+  set +e
+  for test_dir in "${test_dir_non_parallel[@]}"
+  do
+    test_path="./tools/integration_tests/$test_dir"
+    # Executing integration tests
+    GODEBUG=asyncpreemptoff=1 go test $test_path -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    exit_code=$?
+    if [ $exit_code != 0 ]; then
+      test_fail=$exit_code
+    fi
+  done
+  set -e
+}
+
+func run_non_parallel_tests() {
+  set +e
+  # Executing integration tests
+  for test_dir in "${test_dir_parallel[@]}"
+  do
+    test_path="./tools/integration_tests/$test_dir"
+    # Executing integration tests
+    GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    exit_code=$?
+    if [ $exit_code != 0 ]; then
+      test_fail=$exit_code
+    fi
+  done
+  set -e
+}
+
 # Create bucket for integration tests.
 # The prefix for the random string
-bucketPrefix="gcsfuse-integration-test-"
-# The length of the random string
-length=5
-# Generate the random string
-random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
-BUCKET_NAME=$bucketPrefix$random_string
-echo 'bucket name = '$BUCKET_NAME
-# We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
-gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
+create_bucket
+BUCKET_NAME_NON_PARALLEL=BUCKET_NAME
+test_dir_parallel=(
+  "local_file"
+  "gzip"
+  "log_rotation"
+  "read_cache"
+  "read_large_files"
+  "write_large_files"
+)
 
+bucketPrefix="gcsfuse-parallel-e2e-tests-"
+create_bucket
+BUCKET_NAME_PARALLEL=BUCKET_NAME
+test_dir_non_parallel=(
+  "explicit_dir"
+  "implicit_dir"
+  "list_large_dir"
+  "operations"
+  "read_only"
+  "rename_dir_limit"
+)
+
+test_fail=0
 set +e
-# Executing integration tests
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
-exit_code=$?
-
+# Run non parallel tests
+run_non_parallel_tests &
+# Run parallel tests
+run_parallel_tests &
+wait
 set -e
-# Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME/
 
-if [ $exit_code != 0 ];
+
+# Delete bucket after testing.
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLE/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
+if [ $test_fail != 0 ];
 then
   echo "The tests failed."
-  exit $exit_code
+  exit $test_fail
 fi
