@@ -250,7 +250,7 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	//creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flags := []string{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}
 
