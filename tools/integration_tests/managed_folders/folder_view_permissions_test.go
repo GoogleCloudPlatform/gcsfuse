@@ -53,6 +53,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
 }
 
 var (
+	bucket  string
 	testDir string
 )
 
@@ -68,7 +69,6 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder
 	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
