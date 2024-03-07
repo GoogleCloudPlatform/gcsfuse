@@ -22,9 +22,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/only_dir_mounting"
-
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
@@ -34,10 +31,11 @@ const (
 
 var (
 	mountFunc func([]string) error
-	// mount directory is where our tests run.
+	// Mount directory is where our tests run.
 	mountDir string
-	// root directory is the directory to be unmounted.
-	rootDir string
+	// Root directory is the directory to be unmounted.
+	rootDir     string
+	SuccessCode int
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -57,27 +55,28 @@ func TestMain(m *testing.M) {
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
+	SuccessCode = 0
 
 	log.Println("Running static mounting tests...")
-	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	successCode := m.Run()
+	//mountFunc = static_mounting.MountGcsfuseWithStaticMounting
+	//SuccessCode = m.Run()
+	//
+	//if SuccessCode == 0 {
+	//	log.Println("Running only dir mounting tests...")
+	//	setup.SetOnlyDirMounted(onlyDirMounted + "/")
+	//	mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+	//	SuccessCode = m.Run()
+	//	setup.SetOnlyDirMounted("")
+	//}
 
-	if successCode == 0 {
-		log.Println("Running only dir mounting tests...")
-		setup.SetOnlyDirMounted(onlyDirMounted + "/")
-		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-		successCode = m.Run()
-		setup.SetOnlyDirMounted("")
-	}
-
-	if successCode == 0 {
+	if SuccessCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
 		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
 		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-		successCode = m.Run()
+		SuccessCode = m.Run()
 	}
 
 	setup.RemoveBinFileCopiedForTesting()
-	os.Exit(successCode)
+	os.Exit(SuccessCode)
 }

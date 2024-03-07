@@ -439,7 +439,7 @@ done
 echo "list:
   enable-empty-managed-folders: true" > /tmp/gcsfuse_config.yaml
 
-# package managed_folders
+# Package managed_folders
 # Empty managed folders listing test.
 # Run test with static mounting (flags: --implicit-dirs)
 gcsfuse --implicit-dirs --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR

@@ -165,7 +165,7 @@ func DeleteManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T
 
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
-		t.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while deleting managed folder: %w", err))
 	}
 }
 
@@ -176,6 +176,6 @@ func CreateManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T
 
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %w", err))
 	}
 }
