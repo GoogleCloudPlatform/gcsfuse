@@ -50,20 +50,21 @@ func init() { RegisterTestSuite(&LoggerTest{}) }
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
+func createLoggerThatWritesToGivenBuffer(buf *bytes.Buffer, level config.LogSeverity) {
+	var programLevel = new(slog.LevelVar)
+	defaultLogger = slog.New(
+		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
+	)
+	setLoggingLevel(level, programLevel)
+}
+
 // fetchLogOutputForSpecifiedSeverityLevel takes configured severity and
 // functions that write logs as parameter and returns string array containing
 // output from each function call.
 func fetchLogOutputForSpecifiedSeverityLevel(level config.LogSeverity, functions []func()) []string {
 	// create a logger that writes to buffer at configured level.
 	var buf bytes.Buffer
-	var programLevel = new(slog.LevelVar)
-	logger := slog.New(
-		defaultLoggerFactory.createJsonOrTextHandler(&buf, programLevel, "TestLogs: "),
-	)
-	setLoggingLevel(level, programLevel)
-
-	// make the created logger default.
-	defaultLogger = logger
+	createLoggerThatWritesToGivenBuffer(&buf, level)
 
 	var output []string
 	// run the functions provided.
@@ -292,4 +293,46 @@ func (t *LoggerTest) TestInitLogFile() {
 	ExpectEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
 	ExpectEq(backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
 	ExpectEq(true, defaultLoggerFactory.logRotateConfig.Compress)
+}
+
+func (t *LoggerTest) TestSetLogFormatToText() {
+	defaultLoggerFactory = &loggerFactory{
+		file:            nil,
+		level:           config.INFO, // setting log level to INFO by default
+		logRotateConfig: config.DefaultLogRotateConfig(),
+	}
+
+	testData := []struct {
+		format         string
+		expectedOutput string
+	}{
+		{
+			"text",
+			textInfoString,
+		},
+		{
+			"json",
+			jsonInfoString,
+		},
+		{
+			"",
+			jsonInfoString,
+		},
+	}
+
+	for _, test := range testData {
+		SetLogFormat(test.format)
+
+		AssertNe(nil, defaultLoggerFactory)
+		AssertNe(nil, defaultLogger)
+		ExpectEq(defaultLoggerFactory.format, test.format)
+		// Create a logger using defaultLoggerFactory that writes to buffer.
+		var buf bytes.Buffer
+		createLoggerThatWritesToGivenBuffer(&buf, defaultLoggerFactory.level)
+		Infof("www.infoExample.com")
+		output := buf.String()
+		// Compare expected and actual log.
+		expectedRegexp := regexp.MustCompile(test.expectedOutput)
+		ExpectTrue(expectedRegexp.MatchString(output))
+	}
 }
