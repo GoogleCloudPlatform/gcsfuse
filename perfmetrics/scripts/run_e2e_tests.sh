@@ -84,7 +84,7 @@ function run_parallel_tests() {
   do
     test_path="./tools/integration_tests/$test_dir"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
       test_fail=$exit_code_parallel
