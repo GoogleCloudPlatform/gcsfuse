@@ -16,7 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -140,37 +139,12 @@ func validateFileIsNotCached(fileName string, t *testing.T) {
 	}
 }
 
-func unmountGCSFuseAndDeleteLogFile() {
-	setup.SetMntDir(rootDir)
-	if setup.MountedDirectory() == "" {
-		// Unmount GCSFuse only when tests are not running on mounted directory.
-		err := setup.UnMount()
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-		// delete log file created
-		err = os.Remove(setup.LogFile())
-		if err != nil {
-			setup.LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
-		}
-	}
-}
-
 func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(rootDir)
-	unmountGCSFuseAndDeleteLogFile()
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 
-	mountGCSFuse(flags)
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
-}
-
-func mountGCSFuse(flags []string) {
-	if setup.MountedDirectory() == "" {
-		// Mount GCSFuse only when tests are not running on mounted directory.
-		if err := mountFunc(flags); err != nil {
-			setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
-		}
-	}
 }
 
 func createStorageClient(t *testing.T, ctx *context.Context, storageClient **storage.Client) func() {

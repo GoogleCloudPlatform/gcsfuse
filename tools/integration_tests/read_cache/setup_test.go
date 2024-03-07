@@ -90,7 +90,7 @@ func setupForMountedDirectoryTests() {
 }
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client, testDirName string) {
-	mountGCSFuse(flags)
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }

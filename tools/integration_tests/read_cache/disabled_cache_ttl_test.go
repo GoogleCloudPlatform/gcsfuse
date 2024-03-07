@@ -45,7 +45,7 @@ func (s *disabledCacheTTLTest) Setup(t *testing.T) {
 }
 
 func (s *disabledCacheTTLTest) Teardown(t *testing.T) {
-	unmountGCSFuseAndDeleteLogFile()
+	setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 }
 
 ////////////////////////////////////////////////////////////////////////

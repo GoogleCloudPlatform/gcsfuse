@@ -394,3 +394,55 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	log.Print("Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set.")
 	return false
 }
+
+func separateBucketAndObjectName(bucket, object string) (string, string) {
+	bucketAndObjectPath := strings.SplitN(bucket, "/", 2)
+	bucket = bucketAndObjectPath[0]
+	object = path.Join(bucketAndObjectPath[1], object)
+	return bucket, object
+}
+
+func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+	bucket := TestBucket()
+	if strings.Contains(TestBucket(), "/") {
+		// This case arises when we run tests on mounted directory and pass
+		// bucket/directory in testbucket flag.
+		separateBucketAndObjectName(bucket, object)
+	}
+	if dynamicBucketMounted != "" {
+		bucket = dynamicBucketMounted
+	}
+	if OnlyDirMounted() != "" {
+		var suffix string
+		if strings.HasSuffix(object, "/") {
+			suffix = "/"
+		}
+		object = path.Join(OnlyDirMounted(), object) + suffix
+	}
+	return bucket, object
+}
+
+func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) error) {
+	if *mountedDirectory == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags); err != nil {
+			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
+func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
+	SetMntDir(rootDir)
+	if *mountedDirectory == "" {
+		// Unmount GCSFuse only when tests are not running on mounted directory.
+		err := UnMount()
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
+		}
+		// delete log file created
+		err = os.Remove(LogFile())
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
+	}
+}
