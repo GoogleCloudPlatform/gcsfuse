@@ -448,7 +448,7 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 }
 
 func CheckErrorForReadOnlyFileSystem(err error, t *testing.T) {
-	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") && && !strings.Contains(err.Error(), "Permission denied") {
+	if !strings.Contains(err.Error(), "read-only file system") && !strings.Contains(err.Error(), "permission denied") && !strings.Contains(err.Error(), "Permission denied") {
 		t.Errorf("Incorrect error for readonly filesystem: %v", err.Error())
 	}
 }
