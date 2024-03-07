@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	testDirForEmptyManagedFoldersTest = "EmptyManagedFoldersTest"
+	TestDirForEmptyManagedFoldersTest = "EmptyManagedFoldersTest"
 	NumberOfObjectsInDirForListTest   = 4
 	EmptyManagedFolder1               = "emptyManagedFolder1"
 	EmptyManagedFolder2               = "emptyManagedFolder2"
@@ -49,12 +49,12 @@ type enableEmptyManagedFoldersTrue struct {
 }
 
 func (s *enableEmptyManagedFoldersTrue) Setup(t *testing.T) {
-	setup.SetupTestDirectory(testDirForEmptyManagedFoldersTest)
+	setup.SetupTestDirectory(TestDirForEmptyManagedFoldersTest)
 }
 
 func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 	// Clean up test directory.
-	bucket, testDir := setup.SetBucketAndObjectBasedOnTypeOfMount(testDirForEmptyManagedFoldersTest)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), setup.TestBucket(), t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), setup.TestBucket(), t)
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
@@ -69,11 +69,11 @@ func createDirectoryStructureForEmptyManagedFoldersTest(t *testing.T) {
 	// testBucket/EmptyManagedFoldersTest/managedFolder2
 	// testBucket/EmptyManagedFoldersTest/simulatedFolder
 	// testBucket/EmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.SetBucketAndObjectBasedOnTypeOfMount(testDirForEmptyManagedFoldersTest)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), bucket, t)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), bucket, t)
-	operations.CreateDirectory(path.Join(setup.MntDir(), testDirForEmptyManagedFoldersTest, SimulatedFolder), t)
-	f := operations.CreateFile(path.Join(setup.MntDir(), testDirForEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
+	operations.CreateDirectory(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, SimulatedFolder), t)
+	f := operations.CreateFile(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest, File), setup.FilePermission_0600, t)
 	operations.CloseFile(f)
 }
 
@@ -86,7 +86,7 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 	createDirectoryStructureForEmptyManagedFoldersTest(t)
 
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirForEmptyManagedFoldersTest), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), TestDirForEmptyManagedFoldersTest), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -102,7 +102,7 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 			log.Fatal(err)
 		}
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirForEmptyManagedFoldersTest {
+		if dir.Name() == TestDirForEmptyManagedFoldersTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
@@ -171,18 +171,18 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 		return
 	}
 
-	configFile := setup.YAMLConfigFile(
-		getMountConfigForEmptyManagedFolders(),
-		"config.yaml")
-
-	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
-
 	if setup.OnlyDirMounted() != "" {
 		// Mount managed folder as only-dir mount
 		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
 		// Delete managed folder resource after testing.
 		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
 	}
+
+	configFile := setup.YAMLConfigFile(
+		getMountConfigForEmptyManagedFolders(),
+		"config.yaml")
+	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
+
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
