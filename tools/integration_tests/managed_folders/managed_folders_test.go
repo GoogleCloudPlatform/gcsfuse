@@ -36,8 +36,7 @@ var (
 	// Mount directory is where our tests run.
 	mountDir string
 	// Root directory is the directory to be unmounted.
-	rootDir     string
-	SuccessCode int
+	rootDir string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -57,28 +56,30 @@ func TestMain(m *testing.M) {
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = setup.MntDir(), setup.MntDir()
-	SuccessCode = 0
 
 	log.Println("Running static mounting tests...")
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
-	SuccessCode = m.Run()
+	successCode := m.Run()
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
-	if SuccessCode == 0 {
+	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-		SuccessCode = m.Run()
+		successCode = m.Run()
+		setup.SaveLogFileInCaseOfFailure(successCode)
 		setup.SetOnlyDirMounted("")
 	}
 
-	if SuccessCode == 0 {
+	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
 		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
 		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-		SuccessCode = m.Run()
+		successCode = m.Run()
+		setup.SaveLogFileInCaseOfFailure(successCode)
 	}
 
 	setup.RemoveBinFileCopiedForTesting()
-	os.Exit(SuccessCode)
+	os.Exit(successCode)
 }
