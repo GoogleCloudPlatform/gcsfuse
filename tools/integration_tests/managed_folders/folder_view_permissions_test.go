@@ -244,6 +244,8 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		return
 	}
 
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
+
 	configFile := setup.YAMLConfigFile(
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
@@ -261,7 +263,6 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	// Clean up....
