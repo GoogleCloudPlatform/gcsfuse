@@ -52,6 +52,7 @@ sudo apt-get install -y gcc python3-dev python3-setuptools
 # it requires to install crcmod.
 sudo apt install -y python3-crcmod
 
+# Create bucket for integration tests.
 function create_bucket() {
   # The length of the random string
   length=5
@@ -95,14 +96,15 @@ function run_non_parallel_tests() {
   set -e
 }
 
-# Create bucket for integration tests.
-# The prefix for the random string
+# Test setup
+# 1. Create Bucket
+# 2. Test directory array
+# The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
 create_bucket
 BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
 test_dir_parallel=(
   "local_file"
-  "gzip"
   "log_rotation"
   "read_cache"
   "read_large_files"
@@ -115,12 +117,14 @@ BUCKET_NAME_PARALLEL=$BUCKET_NAME
 test_dir_non_parallel=(
   "explicit_dir"
   "implicit_dir"
+  "gzip"
   "list_large_dir"
   "operations"
   "read_only"
   "rename_dir_limit"
 )
 
+# Run tests
 test_fail=0
 set +e
 echo "Running non parallel tests..."
@@ -132,7 +136,7 @@ run_parallel_tests &
 wait
 set -e
 
-
+# Cleanup
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLE/
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
