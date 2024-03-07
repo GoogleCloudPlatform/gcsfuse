@@ -32,7 +32,7 @@ func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 		t.Errorf("File opened for writing in read-only mount.")
 	}
 
-	checkErrorForReadOnlyFileSystem(err, t)
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
 // testBucket/Test1.txt
@@ -91,7 +91,7 @@ func checkIfFileFailedToOpenForAppend(filePath string, t *testing.T) {
 		t.Errorf("File opened for appending content in read-only mount.")
 	}
 
-	checkErrorForReadOnlyFileSystem(err, t)
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
 func TestOpenFileWithAppendAccess(t *testing.T) {

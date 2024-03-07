@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
@@ -49,6 +50,10 @@ func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
 
 func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
 }
+
+var (
+	testDir string
+)
 
 ////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -167,6 +172,40 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 		return
 	}
 
+}
+
+func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteNonEmptyManagedFolders(t *testing.T) {
+	err := os.RemoveAll(path.Join(testDir, ManagedFolder1))
+
+	if err == nil {
+		t.Errorf("Managed folder deleted with view only permission.")
+	}
+
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("Incorrect error for readonly filesystem: %v", err.Error())
+	}
+}
+
+func (s *managedFoldersBucketViewPermissionFolderNil) TestDeleteObjectFromManagedFolder(t *testing.T) {
+	err := os.Remove(path.Join(testDir, ManagedFolder1, File))
+
+	if err == nil {
+		t.Errorf("File from managed folder get deleted with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err,t)
+}
+
+func (s *managedFoldersBucketViewPermissionFolderNil) TestCreateObjectFromManagedFolder(t *testing.T) {
+	filePath := path.Join(testDir, "test.txt")
+	file, err := os.OpenFile(filePath, os.O_CREATE, setup.FilePermission_0600)
+
+	if err == nil {
+		t.Errorf("File is created in read-only file system.")
+		operations.CloseFile(file)
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err,t)
 }
 
 ////////////////////////////////////////////////////////////////////////
