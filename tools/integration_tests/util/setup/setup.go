@@ -395,15 +395,15 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
-func separateBucketAndObjectName(bucket, object string) (string, string){
+func separateBucketAndObjectName(bucket, object string) (string, string) {
 	bucketAndObjectPath := strings.SplitN(bucket, "/", 2)
 	bucket = bucketAndObjectPath[0]
 	object = path.Join(bucketAndObjectPath[1], object)
 	return bucket, object
 }
 
-func SetBucketAndObjectBasedOnTypeOfMount(bucket, object string) (string, string) {
-	bucket = TestBucket()
+func SetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+	bucket := TestBucket()
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
 		// bucket/directory in testbucket flag.
