@@ -129,10 +129,10 @@ test_fail=0
 set +e
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests &
+run_non_parallel_tests
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests &
+run_parallel_tests
 wait
 set -e
 
