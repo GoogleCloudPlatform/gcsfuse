@@ -72,7 +72,7 @@ function run_non_parallel_tests() {
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
-    if [ $exit_code_non_parallel != 0 && $test_fail != 0 ]; then
+    if [ $exit_code_non_parallel != 0 ]; then
       test_fail=$exit_code_non_parallel
     fi
   done
@@ -92,7 +92,7 @@ function run_parallel_tests() {
   for pid in "${pids[@]}"; do
     wait $pid
     exit_code_parallel=$?
-    if [ $exit_code_parallel != 0 && $test_fail != 0 ]; then
+    if [ $exit_code_parallel != 0 ]; then
       test_fail=$exit_code_parallel
     fi
   done
