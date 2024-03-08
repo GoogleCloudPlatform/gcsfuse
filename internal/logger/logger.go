@@ -33,8 +33,9 @@ import (
 // gcsfuse.log in case of GCSFuse.
 const ProgrammeName string = "gcsfuse"
 const GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-const jsonFormat = "json"
-const textFormat = "text"
+const jsonFormat string = "json"
+const textFormat string = "text"
+const defaultFormat string = jsonFormat
 
 var (
 	defaultLoggerFactory *loggerFactory
@@ -100,7 +101,7 @@ func InitLogFile(logConfig config.LogConfig) error {
 func init() {
 	defaultLoggerFactory = &loggerFactory{
 		file:            nil,
-		format:          jsonFormat,
+		format:          defaultFormat,
 		level:           config.INFO, // setting log level to INFO by default
 		logRotateConfig: config.DefaultLogRotateConfig(),
 	}

@@ -50,7 +50,7 @@ func init() { RegisterTestSuite(&LoggerTest{}) }
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-func createLoggerThatWritesToGivenBuffer(buf *bytes.Buffer, level config.LogSeverity) {
+func redirectLogsToGivenBuffer(buf *bytes.Buffer, level config.LogSeverity) {
 	var programLevel = new(slog.LevelVar)
 	defaultLogger = slog.New(
 		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
@@ -64,7 +64,7 @@ func createLoggerThatWritesToGivenBuffer(buf *bytes.Buffer, level config.LogSeve
 func fetchLogOutputForSpecifiedSeverityLevel(level config.LogSeverity, functions []func()) []string {
 	// create a logger that writes to buffer at configured level.
 	var buf bytes.Buffer
-	createLoggerThatWritesToGivenBuffer(&buf, level)
+	redirectLogsToGivenBuffer(&buf, level)
 
 	var output []string
 	// run the functions provided.
@@ -328,7 +328,7 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 		ExpectEq(defaultLoggerFactory.format, test.format)
 		// Create a logger using defaultLoggerFactory that writes to buffer.
 		var buf bytes.Buffer
-		createLoggerThatWritesToGivenBuffer(&buf, defaultLoggerFactory.level)
+		redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
 		Infof("www.infoExample.com")
 		output := buf.String()
 		// Compare expected and actual log.
