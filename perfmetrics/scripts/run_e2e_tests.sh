@@ -80,11 +80,11 @@ function run_non_parallel_tests() {
 }
 
 function run_parallel_tests() {
-  for test_dir in "${test_dir_parallel[@]}"
+  for test_dir_p in "${test_dir_parallel[@]}"
   do
-    test_path="./tools/integration_tests/$test_dir"
+    test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
