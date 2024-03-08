@@ -76,6 +76,7 @@ function run_non_parallel_tests() {
       test_fail=$exit_code_non_parallel
     fi
   done
+  echo $test_fail
 }
 
 function run_parallel_tests() {
@@ -83,7 +84,7 @@ function run_parallel_tests() {
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -96,6 +97,7 @@ function run_parallel_tests() {
       test_fail=$exit_code_parallel
     fi
   done
+  echo $test_fail
 }
 
 # Test setup
@@ -137,10 +139,10 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests &
+test_fail=$(run_parallel_tests &)
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests &
+test_fail=$(run_non_parallel_tests &)
 wait
 set -e
 
