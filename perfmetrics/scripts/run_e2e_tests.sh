@@ -76,7 +76,7 @@ function run_non_parallel_tests() {
       test_fail_np=$exit_code_non_parallel
     fi
   done
-  echo $test_fail_np
+  return $test_fail_np
 }
 
 function run_parallel_tests() {
@@ -97,7 +97,7 @@ function run_parallel_tests() {
       test_fail_p=$exit_code_parallel
     fi
   done
-  echo $test_fail_p
+  return $test_fail_p
 }
 
 # Test setup
