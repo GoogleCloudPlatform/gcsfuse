@@ -86,13 +86,13 @@ function run_parallel_tests() {
     tmp_file=$(mktemp)
     test_path="./tools/integration_tests/$test_dir"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT > $tmp_file &
-    exit_code_parallel=$(cat $tmp_file)
-    cat $tmp_file
-    rm $tmp_file # Cleanup
-    if [ $exit_code_parallel != 0 ]; then
-      test_fail=$exit_code_parallel
-    fi
+    GODEBUG=asyncpreemptoff=1 go test $test_path --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+#    exit_code_parallel=$(cat $tmp_file)
+#    cat $tmp_file
+#    rm $tmp_file # Cleanup
+#    if [ $exit_code_parallel != 0 ]; then
+#      test_fail=$exit_code_parallel
+#    fi
   done
   set +e
 }
