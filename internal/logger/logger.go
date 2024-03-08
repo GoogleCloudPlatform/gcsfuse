@@ -31,11 +31,13 @@ import (
 // ProgrammeName is prefixed to all the logs written to syslog. This constant is
 // used to filter the logs from syslog and write it to respective log files -
 // gcsfuse.log in case of GCSFuse.
-const ProgrammeName string = "gcsfuse"
-const GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-const jsonFormat string = "json"
-const textFormat string = "text"
-const defaultFormat string = jsonFormat
+const (
+	ProgrammeName           string = "gcsfuse"
+	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
+	jsonFormat              string = "json"
+	textFormat              string = "text"
+	defaultFormat           string = jsonFormat
+)
 
 var (
 	defaultLoggerFactory *loggerFactory
