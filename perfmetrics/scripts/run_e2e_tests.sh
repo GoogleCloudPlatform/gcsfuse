@@ -148,6 +148,12 @@ set -e
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
+
+# Removing bin file after testing.
+if [ $run_e2e_tests_on_package != true ];
+then
+  sudo rm /usr/local/bin/gcsfuse
+fi
 if [ $test_fail != 0 ];
 then
   echo "The tests failed."
