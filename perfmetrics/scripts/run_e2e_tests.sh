@@ -116,7 +116,7 @@ test_dir_non_parallel=(
   "list_large_dir"
   "operations"
   "read_large_files"
-  "read_only"
+  "readonly"
   "rename_dir_limit"
 )
 
