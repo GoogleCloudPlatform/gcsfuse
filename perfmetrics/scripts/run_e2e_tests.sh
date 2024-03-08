@@ -73,10 +73,10 @@ function run_non_parallel_tests() {
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
-      test_fail=$exit_code_non_parallel
+      test_fail_np=$exit_code_non_parallel
     fi
   done
-  echo $test_fail
+  echo $test_fail_np
 }
 
 function run_parallel_tests() {
@@ -94,10 +94,10 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      test_fail=$exit_code_parallel
+      test_fail_p=$exit_code_parallel
     fi
   done
-  echo $test_fail
+  echo $test_fail_p
 }
 
 # Test setup
@@ -134,15 +134,16 @@ test_dir_parallel=(
 
 
 # Run tests
-test_fail=0
+test_fail_p=0
+test_fail_np=0
 set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests &
+test_fail_p=(run_parallel_tests &)
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests &
+test_fail_np=(run_non_parallel_tests &)
 wait
 set -e
 
@@ -156,8 +157,8 @@ if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail != 0 ];
+if [ $test_fail_np != 0 && $test_fail_p != 0 ];
 then
   echo "The tests failed."
-  exit $test_fail
+  exit 1
 fi
