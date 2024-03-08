@@ -140,10 +140,10 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-test_fail_p=(run_parallel_tests &)
+test_fail_p=$(run_parallel_tests &)
 echo "Running non parallel tests..."
 # Run non parallel tests
-test_fail_np=(run_non_parallel_tests &)
+test_fail_np=$(run_non_parallel_tests &)
 wait
 set -e
 
