@@ -16,7 +16,6 @@
 package operations_test
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -128,7 +127,6 @@ func TestMain(m *testing.M) {
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		log.Print("Please pass --onlyDirMounted <dirName> flag if you are running tests with only-dir mount.")
 		setup.RunTestsForMountedDirectoryFlag(m)
 	}
 
