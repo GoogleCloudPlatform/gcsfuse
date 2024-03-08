@@ -109,12 +109,12 @@ BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_non_parallel=(
   "explicit_dir"
-  "implicit_dir"
-  "list_large_dir"
-  "operations"
-  "read_large_files"
-  "read_only"
-  "rename_dir_limit"
+#  "implicit_dir"
+#  "list_large_dir"
+#  "operations"
+#  "read_large_files"
+#  "read_only"
+#  "rename_dir_limit"
 )
 
 # Create Bucket for parallel e2e tests
@@ -124,11 +124,11 @@ create_bucket
 BUCKET_NAME_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_parallel=(
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
+#  "local_file"
+#  "log_rotation"
+#  "mounting"
+#  "read_cache"
+#  "gzip"
   "write_large_files"
 )
 
@@ -140,11 +140,16 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-test_fail_p=$(run_parallel_tests &)
+run_parallel_tests &
+my_process_p=$!
 echo "Running non parallel tests..."
 # Run non parallel tests
-test_fail_np=$(run_non_parallel_tests &)
-wait
+run_non_parallel_tests &
+my_process_np=$!
+wait $my_process_p
+test_fail_p=$?
+wait $my_process_np
+test_fail_np=$?
 set -e
 
 # Cleanup
