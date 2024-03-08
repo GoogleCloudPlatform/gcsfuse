@@ -52,6 +52,7 @@ type IAMPolicy struct {
 		Members []string `json:"members"`
 	} `json:"bindings"`
 }
+
 ////////////////////////////////////////////////////////////////////////
 // Helper functions
 ////////////////////////////////////////////////////////////////////////
@@ -98,7 +99,6 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
 	}
 }
-
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain
