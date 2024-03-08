@@ -163,7 +163,7 @@ if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np != 0 && $test_fail_p != 0 ];
+if [ $test_fail_np != 0 ] && [ $test_fail_p != 0 ];
 then
   echo "The tests failed."
   exit 1
