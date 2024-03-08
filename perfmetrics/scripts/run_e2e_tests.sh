@@ -125,6 +125,7 @@ BUCKET_NAME_PARALLEL=$BUCKET_NAME
 test_dir_parallel=(
   "local_file"
   "log_rotation"
+  "mounting"
   "read_cache"
   "gzip"
   "write_large_files"
