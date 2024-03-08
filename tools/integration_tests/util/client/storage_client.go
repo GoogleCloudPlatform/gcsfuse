@@ -181,10 +181,7 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 }
 
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
-	fmt.Println("before change: ", object)
-
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
-	fmt.Println(bucket, object)
 
 	attrs, err := client.Bucket(bucket).Object(object).Attrs(ctx)
 	if err != nil {
