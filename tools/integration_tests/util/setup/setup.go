@@ -241,17 +241,15 @@ func GenerateRandomString(length int) string {
 	return string(b)
 }
 
-func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
+func UnMountBucket() {
 	err := UnMount()
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
 	}
+}
 
-	// Print flag on which test fails
+func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		f := strings.Join(flags, " ")
-		log.Print("Test Fails on " + f)
-
 		// Logfile name will be failed-integration-test-log-xxxxx
 		failedlogsFileName := "failed-integration-test-logs-" + GenerateRandomString(5)
 		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
@@ -260,7 +258,16 @@ func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
 		if err != nil {
 			log.Fatalf("Error in coping logfile in kokoro artifact: %v", err)
 		}
-		return
+	}
+}
+
+func UnMountAndThrowErrorInFailure(flags []string, successCode int) {
+	UnMountBucket()
+	if successCode != 0 {
+		// Print flag on which test fails
+		f := strings.Join(flags, " ")
+		log.Print("Test Fails on " + f)
+		SaveLogFileInCaseOfFailure(successCode)
 	}
 }
 
