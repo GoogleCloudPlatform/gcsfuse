@@ -74,6 +74,7 @@ function run_non_parallel_tests() {
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail_np=$exit_code_non_parallel
+      echo "test fail in non parallel: " $test_fail_np
     fi
   done
   return $test_fail_np
@@ -95,6 +96,7 @@ function run_parallel_tests() {
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
       test_fail_p=$exit_code_parallel
+      echo "test fail in parallel: " $test_fail_p
     fi
   done
   return $test_fail_p
