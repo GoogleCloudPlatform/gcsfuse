@@ -110,12 +110,12 @@ BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_non_parallel=(
   "explicit_dir"
-#  "implicit_dir"
-#  "list_large_dir"
-#  "operations"
-#  "read_large_files"
-#  "read_only"
-#  "rename_dir_limit"
+  "implicit_dir"
+  "list_large_dir"
+  "operations"
+  "read_large_files"
+  "read_only"
+  "rename_dir_limit"
 )
 
 # Create Bucket for parallel e2e tests
@@ -125,11 +125,11 @@ create_bucket
 BUCKET_NAME_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_parallel=(
-#  "local_file"
-#  "log_rotation"
-#  "mounting"
-#  "read_cache"
-#  "gzip"
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  "gzip"
   "write_large_files"
 )
 
@@ -163,7 +163,7 @@ if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np != 0 ] && [ $test_fail_p != 0 ];
+if [ $test_fail_np != 0 ] || [ $test_fail_p != 0 ];
 then
   echo "The tests failed."
   exit 1
