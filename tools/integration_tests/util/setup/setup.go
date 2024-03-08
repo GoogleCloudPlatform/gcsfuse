@@ -36,7 +36,6 @@ var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
-var onlyDirMounted = flag.String("onlyDirMounted", "", "To be used in mounted directory tests, when only-dir flag is used.")
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -53,6 +52,7 @@ var (
 	testDir              string
 	mntDir               string
 	sbinFile             string
+	onlyDirMounted       string
 	dynamicBucketMounted string
 )
 
@@ -117,12 +117,12 @@ func MntDir() string {
 
 // OnlyDirMounted returns the name of the directory mounted in case of only dir mount.
 func OnlyDirMounted() string {
-	return *onlyDirMounted
+	return onlyDirMounted
 }
 
 // SetOnlyDirMounted sets the name of the directory mounted in case of only dir mount.
 func SetOnlyDirMounted(onlyDirValue string) {
-	*onlyDirMounted = onlyDirValue
+	onlyDirMounted = onlyDirValue
 }
 
 // DynamicBucketMounted returns the name of the bucket in case of dynamic mount.
@@ -407,7 +407,7 @@ func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
 		// bucket/directory in testbucket flag.
-		separateBucketAndObjectName(bucket, object)
+		bucket, object = separateBucketAndObjectName(bucket, object)
 	}
 	if dynamicBucketMounted != "" {
 		bucket = dynamicBucketMounted
