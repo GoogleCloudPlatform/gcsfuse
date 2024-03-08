@@ -107,6 +107,8 @@ test_dir_parallel=(
   "local_file"
   "log_rotation"
   "read_cache"
+  "gzip"
+  "write_large_files"
 )
 
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
@@ -120,8 +122,6 @@ test_dir_non_parallel=(
   "read_large_files"
   "read_only"
   "rename_dir_limit"
-  "gzip"
-  "write_large_files"
 )
 
 # Run tests
