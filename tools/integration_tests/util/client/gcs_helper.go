@@ -74,8 +74,7 @@ func ValidateObjectContentsFromGCS(ctx context.Context, storageClient *storage.C
 	}
 
 	if expectedContent != gotContent {
-		t.Fatalf(
-			"GCS file %s content mismatch. Got file size: %d, Expected file size: %d ", fileName, len(gotContent), len(expectedContent))
+		t.Fatalf("GCS file %s content mismatch. Got file size: %d, Expected file size: %d ", fileName, len(gotContent), len(expectedContent))
 	}
 }
 
