@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	setup.RemoveBinFileCopiedForTesting()
+	// setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
 }

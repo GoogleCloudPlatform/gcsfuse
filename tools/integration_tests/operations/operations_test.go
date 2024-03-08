@@ -161,7 +161,7 @@ func TestMain(m *testing.M) {
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
 	}
 
-	setup.RemoveBinFileCopiedForTesting()
+	// setup.RemoveBinFileCopiedForTesting()
 
 	os.Exit(successCode)
 }

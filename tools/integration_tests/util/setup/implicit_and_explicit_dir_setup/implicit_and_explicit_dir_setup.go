@@ -61,7 +61,7 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
-	setup.RemoveBinFileCopiedForTesting()
+	// setup.RemoveBinFileCopiedForTesting()
 	return successCode
 }
 
