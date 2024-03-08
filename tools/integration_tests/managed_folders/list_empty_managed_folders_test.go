@@ -183,9 +183,11 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-	defer setup.UnMountBucket()
+	defer func() {
+		setup.SetMntDir(rootDir)
+		setup.UnMountBucket()
+	}()
 	setup.SetMntDir(mountDir)
-	defer setup.SetMntDir(rootDir)
 
 	// Run tests.
 	log.Printf("Running tests with flags: %s", flags)
