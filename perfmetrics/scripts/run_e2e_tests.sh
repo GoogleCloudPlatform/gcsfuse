@@ -117,6 +117,7 @@ test_dir_non_parallel=(
   "read_large_files"
   "readonly"
   "rename_dir_limit"
+  "managed_folders"
 )
 
 # Create Bucket for parallel e2e tests
