@@ -100,23 +100,12 @@ function run_parallel_tests() {
 }
 
 # Test setup
-# 1. Create Bucket
-# 2. Test directory array
+# Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
 create_bucket
 BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
-test_dir_parallel=(
-  "local_file"
-  "log_rotation"
-  "read_cache"
-  "gzip"
-  "write_large_files"
-)
-
-bucketPrefix="gcsfuse-parallel-e2e-tests-"
-create_bucket
-BUCKET_NAME_PARALLEL=$BUCKET_NAME
+# Test directory array
 test_dir_non_parallel=(
   "explicit_dir"
   "implicit_dir"
@@ -126,6 +115,21 @@ test_dir_non_parallel=(
   "read_only"
   "rename_dir_limit"
 )
+
+# Create Bucket for parallel e2e tests
+# The bucket prefix for the random string
+bucketPrefix="gcsfuse-parallel-e2e-tests-"
+create_bucket
+BUCKET_NAME_PARALLEL=$BUCKET_NAME
+# Test directory array
+test_dir_parallel=(
+  "local_file"
+  "log_rotation"
+  "read_cache"
+  "gzip"
+  "write_large_files"
+)
+
 
 # Run tests
 test_fail=0
