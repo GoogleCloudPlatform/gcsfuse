@@ -34,7 +34,7 @@ const (
 	ViewPermission                   = "objectViewer"
 	ManagedFolder1                   = "managedFolder1"
 	ManagedFolder2                   = "managedFolder2"
-	IAMRole                          = "roles/storage.objectViewer"
+	IAMRoleForViewPermission         = "roles/storage.objectViewer"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -74,8 +74,8 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 }
 
 func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket(), t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket(), t)
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
@@ -170,7 +170,7 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 }
 
 ////////////////////////////////////////////////////////////////////////
-// TestMain
+// Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
 func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
@@ -202,18 +202,20 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	// Clean up....
-	defer cleanup(bucket, testDir, serviceAccount, t)
-	// Revoke permission on bucket after unmounting and cleanup.
-	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
+	defer func() {
+		// Revoke permission on bucket after unmounting and cleanup.
+		creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
+		// Clean up....
+		cleanup(bucket, testDir, serviceAccount, t)
+	}()
 
 	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
 	test_setup.RunTests(t, ts)
 
 	// Provide storage.objectViewer role to managed folders.
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRole, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRole, t)
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
 
 	log.Printf("Running tests with flags and managed folder have view permissions: %s", flags)
 	test_setup.RunTests(t, ts)
