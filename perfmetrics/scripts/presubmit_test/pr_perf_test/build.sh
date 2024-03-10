@@ -5,6 +5,8 @@ sudo rm -rf $(which gcloud) && sudo tar xzf gcloud.tar.gz && sudo mv google-clou
 sudo /usr/local/google-cloud-sdk/install.sh
 export PATH=$PATH:/usr/local/google-cloud-sdk/bin
 echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
-gcloud components update
 gcloud version && rm gcloud.tar.gz
 sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
+gcloud version
+touch a.txt
+gcloud storage cp a.txt gs://write-test-gcsfuse-tulsishah/
