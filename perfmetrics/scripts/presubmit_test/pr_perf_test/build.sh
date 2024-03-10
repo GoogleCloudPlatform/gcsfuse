@@ -1,3 +1,4 @@
+set -e
 gcloud version
 which gcloud
 sudo rm -rf $(which gcloud)
