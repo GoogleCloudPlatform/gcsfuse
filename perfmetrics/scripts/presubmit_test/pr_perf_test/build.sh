@@ -1,16 +1,9 @@
 set -e
 gcloud version
-which gcloud
-sudo rm -rf $(which gcloud)
-sudo rm /snap/bin/gcloud
-curl -o gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
-sudo tar xzf gcloud.tar.gz
-sudo ./google-cloud-sdk/install.sh
-PATH="$PATH:google-cloud-sdk/bin"
-echo $PATH
-which gcloud
-gcloud components update
-sudo google-cloud-sdk/bin/gcloud components install alpha
-gcloud version
-gcloud alpha storage managed-folders create gs://new-testing-tulsishah/x_test
-sleep 10000
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo rm -rf $(which gcloud) && sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=$PATH:/usr/local/google-cloud-sdk/bin
+echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
+gcloud version && rm gcloud.tar.gz && gcloud components update
+sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
