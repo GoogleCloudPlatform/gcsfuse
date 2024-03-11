@@ -41,13 +41,13 @@ const (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type managedFoldersBucketViewPermissionFolderNil struct {
+type managedFoldersViewPermission struct {
 }
 
-func (s *managedFoldersBucketViewPermissionFolderNil) Setup(t *testing.T) {
+func (s *managedFoldersViewPermission) Setup(t *testing.T) {
 }
 
-func (s *managedFoldersBucketViewPermissionFolderNil) Teardown(t *testing.T) {
+func (s *managedFoldersViewPermission) Teardown(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,7 +81,7 @@ func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
-func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFolders(t *testing.T) {
+func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing.T) {
 	// Recursively walk into directory and test.
 	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
@@ -173,8 +173,8 @@ func (s *managedFoldersBucketViewPermissionFolderNil) TestListNonEmptyManagedFol
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
-	ts := &managedFoldersBucketViewPermissionFolderNil{}
+func TestManagedFolders_FolderViewPermission(t *testing.T) {
+	ts := &managedFoldersViewPermission{}
 
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
