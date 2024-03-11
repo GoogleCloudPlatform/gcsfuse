@@ -61,7 +61,7 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 ////////////////////////////////////////////////////////////////////////
 
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
-	ts := &managedFoldersViewPermission{}
+	ts := &managedFoldersAdminPermission{}
 
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
