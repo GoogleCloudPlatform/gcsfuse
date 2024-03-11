@@ -182,10 +182,6 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 		return
 	}
 
-	configFile := setup.YAMLConfigFile(
-		getMountConfigForEmptyManagedFolders(),
-		"config.yaml")
-
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
