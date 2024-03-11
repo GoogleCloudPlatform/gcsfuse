@@ -30,11 +30,11 @@ import (
 )
 
 const (
-	testDirNameForEmptyManagedFolder = "NonEmptyManagedFoldersTest"
-	ViewPermission                   = "objectViewer"
-	ManagedFolder1                   = "managedFolder1"
-	ManagedFolder2                   = "managedFolder2"
-	IAMRoleForViewPermission         = "roles/storage.objectViewer"
+	testDirNameForNonEmptyManagedFolder = "NonEmptyManagedFoldersTest"
+	ViewPermission                      = "objectViewer"
+	ManagedFolder1                      = "managedFolder1"
+	ManagedFolder2                      = "managedFolder2"
+	IAMRoleForViewPermission            = "roles/storage.objectViewer"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder
 	// testBucket/NonEmptyManagedFoldersTest/simulatedFolder/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", File), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
@@ -83,7 +83,7 @@ func cleanup(bucket, testDir, serviceAccount string, t *testing.T) {
 
 func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing.T) {
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -99,7 +99,7 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 			log.Fatal(err)
 		}
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirNameForEmptyManagedFolder {
+		if dir.Name() == testDirNameForNonEmptyManagedFolder {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
@@ -195,7 +195,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForEmptyManagedFolder)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	defer func() {
