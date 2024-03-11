@@ -48,7 +48,7 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 }
 
-func (s *managedFoldersViewPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
+func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
 	listNonEmptyManagedFoldersTest(t)
