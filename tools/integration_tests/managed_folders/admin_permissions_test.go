@@ -71,7 +71,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	//creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
 	// Revoke permission on bucket after unmounting and cleanup.
 	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, AdminPermission, setup.TestBucket()))
 
