@@ -28,7 +28,7 @@ ENV GO111MODULE=auto
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git clone --branch ${BRANCH_NAME} ${GCSFUSE_REPO}
+RUN git clone --branch ${BRANCH_NAME} --depth 1 ${GCSFUSE_REPO}
 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
