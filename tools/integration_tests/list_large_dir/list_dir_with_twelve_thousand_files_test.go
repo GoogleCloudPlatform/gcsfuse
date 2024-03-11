@@ -38,8 +38,8 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 }
 
 func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	// Clean the test directory before running test.
+	setup.SetupTestDirectory(DirectoryWithTwelveThousandFiles)
 
 	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
 	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
