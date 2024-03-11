@@ -73,14 +73,15 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	}
 
 	// Marshal the data into JSON format
-	jsonData, err := json.MarshalIndent(policy, "", "  ") // Indent for readability
+	// Indent for readability
+	jsonData, err := json.MarshalIndent(policy, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 
 	localIAMPolicyFilePath := path.Join(os.Getenv("HOME"), "iam_policy.json")
 	// Write the JSON to a file
-	err = os.WriteFile(localIAMPolicyFilePath, jsonData, 0644) // 0644 provides typical read/write permissions
+	err = os.WriteFile(localIAMPolicyFilePath, jsonData, setup.FilePermission_0600)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in writing iam policy in json file: %v", err))
 	}
