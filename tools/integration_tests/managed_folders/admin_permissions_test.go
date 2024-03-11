@@ -84,7 +84,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 
 	// Run tests.
 	log.Printf("Running tests with flags, bucket have admin permission and managed folder have nil permissions: %s", flags)
