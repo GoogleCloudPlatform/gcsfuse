@@ -186,7 +186,7 @@ func TestManagedFolders_BucketViewPermissionFolderNil(t *testing.T) {
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
-	flags := []string{"--implicit-dirs", "--config-file=" + configFile, "--key-file=" + localKeyFilePath}
+	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath}
 
 	if setup.OnlyDirMounted() != "" {
 		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
