@@ -94,6 +94,7 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 
 func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
 	gcloudRevokePermissionCmd := fmt.Sprintf("alpha storage managed-folders remove-iam-policy-binding  gs://%s/%s --member=%s --role=%s", bucket, managedFolderPath, serviceAccount, iamRole)
+
 	_, err := operations.ExecuteGcloudCommandf(gcloudRevokePermissionCmd)
 	if err != nil && !strings.Contains(err.Error(), "Policy binding with the specified principal, role, and condition not found!") {
 		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
