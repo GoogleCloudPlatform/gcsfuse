@@ -38,6 +38,8 @@ const (
 	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
 	NumberOfObjectsInDirForNonEmptyManagedFoldersListTest = 4
+	AdminPermission                                       = "objectAdmin"
+	IAMRoleForAdminPermission                             = "roles/storage.objectAdmin"
 )
 
 type IAMPolicy struct {
