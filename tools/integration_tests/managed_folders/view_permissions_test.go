@@ -19,7 +19,6 @@
 package managed_folders
 
 import (
-	"fmt"
 	"log"
 	"path"
 	"testing"
@@ -28,14 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
-)
-
-const (
-	testDirNameForNonEmptyManagedFolder = "NonEmptyManagedFoldersTest"
-	ViewPermission                      = "objectViewer"
-	ManagedFolder1                      = "managedFolder1"
-	ManagedFolder2                      = "managedFolder2"
-	IAMRoleForViewPermission            = "roles/storage.objectViewer"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -85,7 +76,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	defer func() {
 		// Revoke permission on bucket after unmounting and cleanup.
-		creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
+		creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		// Clean up....
 		cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
 	}()

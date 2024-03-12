@@ -88,9 +88,10 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 	time.Sleep(120 * time.Second)
 }
 
-func RevokePermission(gcloudArg string) {
+func RevokePermission(serviceAccount, permission, bucket string) {
+	cmd := fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucket)
 	// Revoke the permission after testing.
-	_, err := operations.ExecuteGsutilCommandf(gcloudArg)
+	_, err := operations.ExecuteGsutilCommandf(cmd)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
 	}
@@ -99,7 +100,7 @@ func RevokePermission(gcloudArg string) {
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials()
 	ApplyPermissionToServiceAccount(serviceAccount, permission)
-	defer RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
+	defer RevokePermission(serviceAccount, permission, setup.TestBucket())
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
