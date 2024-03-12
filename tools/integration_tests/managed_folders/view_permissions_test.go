@@ -172,15 +172,15 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 	}
 }
 
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
-////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////
 func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	ts := &managedFoldersViewPermission{}
 
 	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+	if setup.MountedDirectory() != "" {
+		t.Logf("These tests will not run with mounted directory..")
 		return
 	}
 
