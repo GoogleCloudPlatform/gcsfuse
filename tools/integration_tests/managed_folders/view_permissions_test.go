@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test list, delete, move, copy, and create operations on managed folders with the following permissions:
+// In both the scenarios bucket have view permission.
+// 1. Folders with nil permission
+// 2. Folders with view only permission
 package managed_folders
 
 import (
@@ -102,27 +106,27 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 		if dir.Name() == testDirNameForNonEmptyManagedFolder {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForListTest {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForListTest, len(objs))
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1  -- ManagedFolder1
 			if objs[0].Name() != ManagedFolder1 || objs[0].IsDir() != true {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder1, objs[0].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2     -- ManagedFolder2
 			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", EmptyManagedFolder2, objs[1].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/simulatedFolder   -- SimulatedFolder
 			if objs[2].Name() != SimulatedFolder || objs[2].IsDir() != true {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", SimulatedFolder, objs[2].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", SimulatedFolder, objs[2].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/testFile  -- File
 			if objs[3].Name() != File || objs[3].IsDir() != false {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
 			}
 			return nil
 		}
@@ -130,34 +134,34 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 		if dir.Name() == ManagedFolder1 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
 			}
 		}
-		// Check if subDirectory is empty.
+		// Ensure subDirectory is not empty.
 		if dir.Name() == ManagedFolder2 {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
 			}
 		}
 		// Check if subDirectory is empty.
 		if dir.Name() == SimulatedFolder {
 			// numberOfObjects - 1
 			if len(objs) != 1 {
-				t.Errorf("Incorrect number of objects in the directory %s expectected %d: got %d: ", dir.Name(), 1, len(objs))
+				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/simulatedFolder/testFile  -- File
 			if objs[0].Name() != File || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object expectected %s: got %s: ", File, objs[3].Name())
+				t.Errorf("Listed incorrect object expected %s: got %s: ", File, objs[3].Name())
 			}
 		}
 		return nil
@@ -166,13 +170,11 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
-
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
-
 func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	ts := &managedFoldersViewPermission{}
 
