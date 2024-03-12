@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test list, delete, move, copy, and create operations on managed folders with the following permissions:
+// 1. Bucket with Admin permission and folders with nil permission
+// 2. Bucket with Admin permission and folders with admin permission
+// 3. Bucket with View permission and folders with admin permission
 package managed_folders
 
 import (
-	"fmt"
+	"log"
+	"path"
+	"testing"
+
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/test_setup"
-	"log"
-	"path"
-	"testing"
 )
 
 // //////////////////////////////////////////////////////////////////////
@@ -63,9 +67,8 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 
-	// Run tests for mountedDirectory only if --mountedDirectory  and --testBucket flag is set.
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
-		test_setup.RunTests(t, ts)
+	if setup.MountedDirectory() != "" {
+		t.Logf("These tests will not run with mounted directory..")
 		return
 	}
 
@@ -73,7 +76,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
 	// Revoke permission on bucket after unmounting and cleanup.
-	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, AdminPermission, setup.TestBucket()))
+	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath}
 
@@ -98,9 +101,9 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	test_setup.RunTests(t, ts)
 
 	// Revoke permission on bucket after unmounting and cleanup.
-	creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, AdminPermission, setup.TestBucket()))
+	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
-	defer creds_tests.RevokePermission(fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, ViewPermission, setup.TestBucket()))
+	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	// Run tests.
 	log.Printf("Running tests with flags, bucket have view permission and managed folder have admin permissions: %s", flags)
 	test_setup.RunTests(t, ts)
