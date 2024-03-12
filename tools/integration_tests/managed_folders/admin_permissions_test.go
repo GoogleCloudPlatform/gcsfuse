@@ -51,7 +51,7 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
-	listNonEmptyManagedFoldersTest(t)
+	listNonEmptyManagedFolders(t)
 
 	cleanup(bucket, testDir, serviceAccount, IAMRoleForAdminPermission, t)
 }
