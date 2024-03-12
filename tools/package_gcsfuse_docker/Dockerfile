@@ -17,7 +17,7 @@
 # Copy the gcsfuse packages to the host:
 #   > docker run -it -v /tmp:/output gcsfuse-release cp -r /packages /output
 
-FROM golang:1.21.7 as builder
+FROM golang:1.22.1 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential rpm && gem install --no-document bundler
 
@@ -26,18 +26,15 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="github.com/googlecloudplatform/gcsfuse/"
-ENV GCSFUSE_PATH "$GOPATH/src/$GCSFUSE_REPO"
-RUN go get -d ${GCSFUSE_REPO}
+ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+RUN git clone --branch ${BRANCH_NAME} --depth 1 ${GCSFUSE_REPO}
 
+ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
+
 ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
 ARG DEBFULLNAME="GCSFuse Team"
-
-# Build Arg for building through a particular branch/commit. By default, it uses
-# the tag corresponding to passed GCSFUSE VERSION
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
-RUN git checkout "${BRANCH_NAME}"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
@@ -49,14 +46,14 @@ RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; the
 fi
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
 ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
-WORKDIR ${GOPATH}
-RUN go install ${GCSFUSE_REPO}/tools/build_gcsfuse
+WORKDIR ${GCSFUSE_PATH}/tools/build_gcsfuse
+RUN go install
 RUN mkdir -p ${GCSFUSE_BIN}
 RUN build_gcsfuse ${GCSFUSE_PATH} ${GCSFUSE_BIN} ${GCSFUSE_VERSION}
 RUN mkdir -p ${GCSFUSE_BIN}/usr && mv ${GCSFUSE_BIN}/bin ${GCSFUSE_BIN}/usr/bin
 
 # Creating structure for debian package as we are using 'dpkg-deb --build' to create debian package
-RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp $GOPATH/src/$GCSFUSE_REPO/DEBIAN/* ${GCSFUSE_BIN}/DEBIAN/
+RUN mkdir -p ${GCSFUSE_BIN}/DEBIAN && cp ${GCSFUSE_PATH}/DEBIAN/* ${GCSFUSE_BIN}/DEBIAN/
 RUN mkdir -p ${GCSFUSE_DOC}
 RUN mv ${GCSFUSE_BIN}/DEBIAN/copyright ${GCSFUSE_DOC} &&  \
     mv ${GCSFUSE_BIN}/DEBIAN/changelog ${GCSFUSE_DOC} && \
