@@ -76,14 +76,14 @@ func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount,
 	// Indent for readability
 	jsonData, err := json.MarshalIndent(policy, "", "  ")
 	if err != nil {
-		panic(err)
+		t.Fatalf(fmt.Sprintf("Error in marshal the data into JSON format: %v", err))
 	}
 
 	localIAMPolicyFilePath := path.Join(os.Getenv("HOME"), "iam_policy.json")
 	// Write the JSON to a file
 	err = os.WriteFile(localIAMPolicyFilePath, jsonData, setup.FilePermission_0600)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error in writing iam policy in json file: %v", err))
+		t.Fatalf(fmt.Sprintf("Error in writing iam policy in json file: %v", err))
 	}
 
 	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders set-iam-policy gs://%s/%s %s", bucket, managedFolderPath, localIAMPolicyFilePath)
