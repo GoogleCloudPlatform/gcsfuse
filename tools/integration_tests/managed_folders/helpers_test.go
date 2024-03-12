@@ -16,14 +16,15 @@ package managed_folders
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 	"io/fs"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
 )
 
 func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
