@@ -8,5 +8,7 @@ sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 export PATH=$PATH:/usr/local/google-cloud-sdk/bin
 echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
 gcloud version && rm gcloud.tar.gz
+which gcloud
+sleep 100000
 touch a.txt
 gcloud alpha storage managed-folders create gs://write-test-gcsfuse-tulsishah/m1
