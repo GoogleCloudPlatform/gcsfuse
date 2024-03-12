@@ -35,7 +35,7 @@ const (
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
-	FileInNonEmptyManagedFoldersTest                      = "fileInNonEmptyManagedFoldersTest"
+	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
 	NumberOfObjectsInDirForNonEmptyManagedFoldersListTest = 4
 )
@@ -144,22 +144,22 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1  -- ManagedFolder1
-			if objs[0].Name() != ManagedFolder1 || objs[0].IsDir() != true {
+			if objs[0].Name() != ManagedFolder1 || !objs[0].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", ManagedFolder1, objs[0].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2     -- ManagedFolder2
-			if objs[1].Name() != ManagedFolder2 || objs[1].IsDir() != true {
+			if objs[1].Name() != ManagedFolder2 || !objs[1].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", ManagedFolder2, objs[1].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest   -- SimulatedFolderNonEmptyManagedFoldersTest
-			if objs[2].Name() != SimulatedFolderNonEmptyManagedFoldersTest || objs[2].IsDir() != true {
+			if objs[2].Name() != SimulatedFolderNonEmptyManagedFoldersTest || !objs[2].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", SimulatedFolderNonEmptyManagedFoldersTest, objs[2].Name())
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[3].Name() != FileInNonEmptyManagedFoldersTest || objs[3].IsDir() != false {
+			if objs[3].Name() != FileInNonEmptyManagedFoldersTest || objs[3].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 			return nil
@@ -171,7 +171,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() != false {
+			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
@@ -182,7 +182,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), 1, len(objs))
 			}
 			// testBucket/NonEmptyManagedFoldersTest/managedFolder2/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() != false {
+			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
@@ -194,7 +194,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			}
 
 			// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile  -- FileInNonEmptyManagedFoldersTest
-			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() != false {
+			if objs[0].Name() != FileInNonEmptyManagedFoldersTest || objs[0].IsDir() {
 				t.Errorf("Listed incorrect object expected %s: got %s: ", FileInNonEmptyManagedFoldersTest, objs[3].Name())
 			}
 		}
