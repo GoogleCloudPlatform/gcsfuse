@@ -20,6 +20,7 @@ package managed_folders
 
 import (
 	"log"
+	"os"
 	"path"
 	"testing"
 
@@ -27,6 +28,17 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+)
+
+const (
+	CopyFolder = "copyFolder"
+	CopyFile   = "copyFile"
+	TestFile   = "testFile"
+)
+
+var (
+	bucket  string
+	testDir string
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -44,6 +56,60 @@ func (s *managedFoldersViewPermission) Teardown(t *testing.T) {
 
 func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing.T) {
 	listNonEmptyManagedFolders(t)
+}
+
+func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testing.T) {
+	err := os.RemoveAll(path.Join(setup.MntDir(), testDir, ManagedFolder1))
+
+	if err == nil {
+		t.Errorf("Managed folder deleted with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *testing.T) {
+	err := os.Remove(path.Join(setup.MntDir(), testDir, ManagedFolder1, File))
+
+	if err == nil {
+		t.Errorf("File from managed folder get deleted with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
+	filePath := path.Join(setup.MntDir(), testDir, ManagedFolder2, TestFile)
+	file, err := os.Create(filePath)
+	err = file.Close()
+
+	if err == nil {
+		t.Errorf("File is created in read-only file system.")
+	}
+}
+
+func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.T) {
+	srcDir := path.Join(setup.MntDir(), testDir, ManagedFolder1)
+	destDir := path.Join(setup.MntDir(), testDir, CopyFolder)
+
+	err := operations.CopyDir(srcDir, destDir)
+	if err == nil {
+		t.Errorf("Managed folder get copied with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func (s *managedFoldersViewPermission) TestCopyObjectInManagedFolder(t *testing.T) {
+	srcFile := path.Join(setup.MntDir(), testDir, ManagedFolder1, File)
+	destFile := path.Join(setup.MntDir(), testDir, CopyFile)
+
+	err := operations.CopyDir(srcFile, destFile)
+	if err == nil {
+		t.Errorf("Managed folder get copied with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -70,7 +136,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	defer func() {
