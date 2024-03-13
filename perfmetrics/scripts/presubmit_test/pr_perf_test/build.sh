@@ -14,5 +14,5 @@ echo 'export PATH=$PATH:/usr/local/google-cloud-sdk/bin' >> ~/.bashrc
 gcloud version && rm gcloud.tar.gz
 which gcloud
 touch a.txt
-gcloud alpha storage managed-folders create gs://write-test-gcsfuse-tulsishah/m7
+gcloud alpha storage managed-folders create gs://write-test-gcsfuse-tulsishah/m8
 sleep 100000
