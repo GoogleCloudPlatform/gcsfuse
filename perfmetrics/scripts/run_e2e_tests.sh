@@ -68,7 +68,6 @@ function create_bucket() {
 function run_non_parallel_tests() {
   test_dir_non_parallel=$1
   BUCKET_NAME_NON_PARALLEL=$2
-  BUK
   for test_dir_np in "${test_dir_non_parallel[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
