@@ -62,7 +62,7 @@ They are discussed in this section, along with their trade-offs and the situatio
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
 
-**Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
+**Important**: The rest of this document assumes that caching is disabled (by setting ```--stat-cache-ttl 0``` and ```--type-cache-ttl 0``` or ```metadata-cache:ttl-secs: 0```). This is not the default. If you want the consistency guarantees discussed in this document, you must use these options to disable caching. 
 
 **Stat caching**
 
