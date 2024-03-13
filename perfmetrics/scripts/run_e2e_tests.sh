@@ -55,6 +55,7 @@ sudo apt install -y python3-crcmod
 
 # Create bucket for integration tests.
 function create_bucket() {
+  bucketPrefix=$1
   # The length of the random string
   length=5
   # Generate the random string
@@ -63,10 +64,13 @@ function create_bucket() {
   echo 'bucket name = '$BUCKET_NAME
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
-  return
+  return $BUCKET_NAME
 }
 
 function run_non_parallel_tests() {
+  test_dir_non_parallel=$1
+  BUCKET_NAME_NON_PARALLEL=$2
+  BUK
   for test_dir_np in "${test_dir_non_parallel[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
@@ -107,24 +111,37 @@ function run_parallel_tests() {
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
-create_bucket
+BUCKET_NAME=$(create_bucket $bucketPrefix)
 BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
 # Test directory array
+# These tests never become parallel as it is changing bucket permissions.
 test_dir_non_parallel=(
+  "readonly"
+  "managed_folders"
+)
+
+# Test setup
+# Create Bucket for non parallel e2e tests
+# The bucket prefix for the random string
+bucketPrefix="gcsfuse-non-parallel-e2e-tests-2-"
+BUCKET_NAME=$(create_bucket $bucketPrefix)
+BUCKET_NAME_NON_PARALLEL_2=$BUCKET_NAME
+# These test packages can be configured to run in parallel once they achieve
+# directory independence.
+# Test directory array
+test_dir_non_parallel_2=(
   "explicit_dir"
   "implicit_dir"
   "list_large_dir"
   "operations"
   "read_large_files"
-  "readonly"
   "rename_dir_limit"
-  "managed_folders"
 )
 
 # Create Bucket for parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
-create_bucket
+BUCKET_NAME=$(create_bucket $bucketPrefix)
 BUCKET_NAME_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_parallel=(
@@ -140,6 +157,7 @@ test_dir_parallel=(
 # Run tests
 test_fail_p=0
 test_fail_np=0
+test_fail_np_2=0
 set +e
 
 echo "Running parallel tests..."
@@ -148,25 +166,31 @@ run_parallel_tests &
 my_process_p=$!
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests &
+run_non_parallel_tests $test_dir_non_parallel $BUCKET_NAME_NON_PARALLEL &
 my_process_np=$!
+# Run non parallel tests
+run_non_parallel_tests $test_dir_non_parallel_2 $BUCKET_NAME_NON_PARALLEL_2 &
+my_process_np_2=$!
 wait $my_process_p
 test_fail_p=$?
 wait $my_process_np
 test_fail_np=$?
+wait $my_process_np_2
+test_fail_np_2=$?
 set -e
 
 # Cleanup
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_2/
 
 # Removing bin file after testing.
 if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np != 0 ] || [ $test_fail_p != 0 ];
+if [ $test_fail_np != 0 ] || [ $test_fail_np_2 != 0 ] || [ $test_fail_p != 0 ];
 then
   echo "The tests failed."
   exit 1
