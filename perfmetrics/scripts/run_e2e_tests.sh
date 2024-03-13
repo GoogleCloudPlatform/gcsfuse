@@ -27,10 +27,9 @@ function upgrade_gcloud_version() {
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
   sudo rm -rf $(which gcloud) && sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
   # The gcloud command exists in two locations on a Kokoro ARM64 machine:
-  # /usr/bin/gcloud and /usr/snap/gcloud. Deleting both of these paths.
+  # /usr/bin/gcloud and /usr/snap/gcloud. Deleting both the paths to install latest gcloud.
   if [ ! -d $(which gcloud) ]; then
      sudo rm -rf $(which gcloud)
-     echo "Hello"
   fi
   sudo /usr/local/google-cloud-sdk/install.sh
   export PATH=$PATH:/usr/local/google-cloud-sdk/bin
