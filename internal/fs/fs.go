@@ -1061,6 +1061,10 @@ func (fs *fileSystem) syncFile(
 	err = f.Sync(ctx)
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
+		// If the inode was local file inode, treat it as unlinked.
+		fs.mu.Lock()
+		delete(fs.localFileInodes, f.Name())
+		fs.mu.Unlock()
 		return
 	}
 
