@@ -185,7 +185,7 @@ set -e
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1_2/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_2/
 
 # Removing bin file after testing.
 if [ $run_e2e_tests_on_package != true ];
