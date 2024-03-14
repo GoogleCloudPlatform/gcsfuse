@@ -47,7 +47,6 @@ const (
 
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultGrpcConnectionPoolSize                 = 1
 )
 
