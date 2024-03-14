@@ -66,14 +66,15 @@ function create_bucket() {
   echo $BUCKET_NAME
 }
 
+# Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
   test_dir_non_parallel=$1
-  BUCKET_NAME_NON_PARALLEL=$2
+  BUCKET_NAME_NON_PARALLEL_GROUP_1=$2
   for test_dir_np in "${test_dir_non_parallel[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail_np=$exit_code_non_parallel
@@ -83,6 +84,8 @@ function run_non_parallel_tests() {
   return $test_fail_np
 }
 
+# Parallel execution of integration tests located within specified test directories.
+# It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
   for test_dir_p in "${test_dir_parallel[@]}"
   do
@@ -108,13 +111,13 @@ function run_parallel_tests() {
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-"
+bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
 BUCKET_NAME=$(create_bucket $bucketPrefix)
 echo "Bucket name for non parallel tests: "$BUCKET_NAME
-BUCKET_NAME_NON_PARALLEL=$BUCKET_NAME
+BUCKET_NAME_NON_PARALLEL_GROUP_1=$BUCKET_NAME
 # Test directory array
 # These tests never become parallel as it is changing bucket permissions.
-test_dir_non_parallel=(
+test_dir_non_parallel_group_1=(
   "readonly"
   "managed_folders"
 )
@@ -122,14 +125,14 @@ test_dir_non_parallel=(
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-2-"
+bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
 echo "Bucket name for non parallel tests - 2 : "$BUCKET_NAME
 BUCKET_NAME=$(create_bucket $bucketPrefix)
-BUCKET_NAME_NON_PARALLEL_2=$BUCKET_NAME
+BUCKET_NAME_NON_PARALLEL_GROUP_2=$BUCKET_NAME
 # These test packages can be configured to run in parallel once they achieve
 # directory independence.
 # Test directory array
-test_dir_non_parallel_2=(
+test_dir_non_parallel_group_2=(
   "explicit_dir"
   "implicit_dir"
   "list_large_dir"
@@ -157,7 +160,7 @@ test_dir_parallel=(
 # Run tests
 test_fail_p=0
 test_fail_np=0
-test_fail_np_2=0
+test_fail_np_group_2=0
 set +e
 
 echo "Running parallel tests..."
@@ -166,31 +169,31 @@ run_parallel_tests &
 my_process_p=$!
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests $test_dir_non_parallel $BUCKET_NAME_NON_PARALLEL &
-my_process_np=$!
+run_non_parallel_tests $test_dir_non_parallel $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+my_process_np_group_1=$!
 # Run non parallel tests
-run_non_parallel_tests $test_dir_non_parallel_2 $BUCKET_NAME_NON_PARALLEL_2 &
-my_process_np_2=$!
+run_non_parallel_tests $test_dir_non_parallel_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+my_process_np_group_2=$!
 wait $my_process_p
 test_fail_p=$?
-wait $my_process_np
-test_fail_np=$?
-wait $my_process_np_2
-test_fail_np_2=$?
+wait $my_process_np_group_1
+test_fail_np_group_1=$?
+wait $my_process_np_group_2
+test_fail_np_group_2=$?
 set -e
 
 # Cleanup
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_2/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1/
+gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1_2/
 
 # Removing bin file after testing.
 if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np != 0 ] || [ $test_fail_np_2 != 0 ] || [ $test_fail_p != 0 ];
+if [ $test_fail_np_group_1 != 0 ] || [ $test_fail_np_group_2 != 0 ] || [ $test_fail_p != 0 ];
 then
   echo "The tests failed."
   exit 1
