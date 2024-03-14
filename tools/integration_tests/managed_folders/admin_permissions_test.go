@@ -34,9 +34,8 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 var (
-	bucket         string
-	testDir        string
-	serviceAccount string
+	bucket  string
+	testDir string
 )
 
 type managedFoldersAdminPermission struct {
