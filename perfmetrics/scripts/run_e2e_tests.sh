@@ -76,13 +76,13 @@ function run_non_parallel_tests_group_1() {
     exit_code_non_parallel_group_1=$?
     if [ $exit_code_non_parallel_group_1 != 0 ]; then
       test_dir_np_group_1=$exit_code_non_parallel_group_1
-      echo "test fail in non parallel: " $test_fail_np_group_1
+      echo "test fail in non parallel in group 1: " $test_fail_np_group_1
     fi
   done
   return $test_fail_np_group_1
 }
 
-# Non parallel execution of integration tests located within specified test directories.
+# Non parallel execution of integration tests located within specified test directories for group 2.
 function run_non_parallel_tests_group_2() {
   for test_dir_np_group_2 in "${test_dir_non_parallel_group_2[@]}"
   do
@@ -92,7 +92,7 @@ function run_non_parallel_tests_group_2() {
     exit_code_non_parallel_group_2=$?
     if [ $exit_code_non_parallel_group_2 != 0 ]; then
       test_fail_np_group_2=$exit_code_non_parallel_group_2
-      echo "test fail in non parallel: " $test_fail_np_group_2
+      echo "test fail in non parallel in group 2: " $test_fail_np_group_2
     fi
   done
   return $test_fail_np_group_2
