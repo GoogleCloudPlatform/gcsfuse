@@ -159,6 +159,7 @@ test_dir_parallel=(
 # Run tests
 test_fail_p=0
 test_fail_np=0
+test_fail_np_group_1=0
 test_fail_np_group_2=0
 set +e
 
