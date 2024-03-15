@@ -107,10 +107,13 @@ func (s *managedFoldersViewPermission) TestMoveObjectFromManagedFolder(t *testin
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, TestFileViewPerm)
 	file, err := os.Create(filePath)
+	if err != nil {
+		t.Errorf("Error in creating file locally.")
+	}
 	err = file.Close()
 
 	if err == nil {
-		t.Errorf("File is created in read-only file system.")
+		t.Errorf("File is syncing in read-only file system.")
 	}
 }
 
