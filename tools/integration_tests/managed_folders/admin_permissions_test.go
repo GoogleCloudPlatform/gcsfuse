@@ -16,6 +16,7 @@
 // 1. Bucket with Admin permission and folders with nil permission
 // 2. Bucket with Admin permission and folders with admin permission
 // 3. Bucket with View permission and folders with admin permission
+// 4. Bucket with Admin permission and folders with view permission
 package managed_folders
 
 import (
