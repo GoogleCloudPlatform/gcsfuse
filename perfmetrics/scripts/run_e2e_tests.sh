@@ -66,41 +66,29 @@ function create_bucket() {
   echo $BUCKET_NAME
 }
 
-# Non parallel execution of integration tests located within specified test directories for group 1.
-function run_non_parallel_tests_group_1() {
-  for test_dir_np_group_1 in "${test_dir_non_parallel_group_1[@]}"
+# Non parallel execution of integration tests located within specified test directories.
+function run_non_parallel_tests() {
+  test_dir_non_parallel=("$@")
+  BUCKET_NAME_NON_PARALLEL=$2
+  for test_dir_np in "${test_dir_non_parallel[@]}"
   do
-    test_path_non_parallel_group_1="./tools/integration_tests/$test_dir_np_group_1"
+    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel_group_1 -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
-    exit_code_non_parallel_group_1=$?
-    if [ $exit_code_non_parallel_group_1 != 0 ]; then
-      test_fail_np_group_1=$exit_code_non_parallel_group_1
-      echo "test fail in non parallel in group 1: " $test_fail_np_group_1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    exit_code_non_parallel=$?
+    if [ $exit_code_non_parallel != 0 ]; then
+      test_fail_np=$exit_code_non_parallel
+      echo "test fail in non parallel: " $test_fail_np
     fi
   done
-  return $test_fail_np_group_1
-}
-
-# Non parallel execution of integration tests located within specified test directories for group 2.
-function run_non_parallel_tests_group_2() {
-  for test_dir_np_group_2 in "${test_dir_non_parallel_group_2[@]}"
-  do
-    test_path_non_parallel_group_2="./tools/integration_tests/$test_dir_np_group_2"
-    # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel_group_2 -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_2 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
-    exit_code_non_parallel_group_2=$?
-    if [ $exit_code_non_parallel_group_2 != 0 ]; then
-      test_fail_np_group_2=$exit_code_non_parallel_group_2
-      echo "test fail in non parallel in group 2: " $test_fail_np_group_2
-    fi
-  done
-  return $test_fail_np_group_2
+  return $test_fail_np
 }
 
 # Parallel execution of integration tests located within specified test directories.
 # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
+  test_dir_parallel=("$@")
+  BUCKET_NAME_PARALLEL=$2
   for test_dir_p in "${test_dir_parallel[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
@@ -173,21 +161,21 @@ test_dir_parallel=(
 
 # Run tests
 test_fail_p=0
+test_fail_np=0
 test_fail_np_group_1=0
 test_fail_np_group_2=0
 set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests &
+run_parallel_tests ${test_dir_parallel[@]} $$BUCKET_NAME_PARALLEL &
 my_process_p=$!
-echo "Running non
- tests..."
+echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests_group_1 $test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+run_non_parallel_tests ${test_dir_non_parallel_group_1[@]} $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
 my_process_np_group_1=$!
 # Run non parallel tests
-run_non_parallel_tests_group_2 $test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+run_non_parallel_tests ${test_dir_non_parallel_group_2[@]} $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
 my_process_np_group_2=$!
 wait $my_process_p
 test_fail_p=$?
