@@ -169,10 +169,10 @@ run_parallel_tests &
 my_process_p=$!
 echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests $test_dir_non_parallel $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+run_non_parallel_tests $test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
 my_process_np_group_1=$!
 # Run non parallel tests
-run_non_parallel_tests $test_dir_non_parallel_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+run_non_parallel_tests $test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
 my_process_np_group_2=$!
 wait $my_process_p
 test_fail_p=$?
