@@ -72,7 +72,7 @@ function run_non_parallel_tests_group_1() {
   do
     test_path_non_parallel_group_1="./tools/integration_tests/$test_dir_np_group_1"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel_group_1 -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel_group_1 -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel_group_1=$?
     if [ $exit_code_non_parallel_group_1 != 0 ]; then
       test_dir_np_group_1=$exit_code_non_parallel_group_1
