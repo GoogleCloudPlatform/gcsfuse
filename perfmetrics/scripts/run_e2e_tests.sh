@@ -167,7 +167,7 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests ${test_dir_parallel[@]} $$BUCKET_NAME_PARALLEL &
+run_parallel_tests ${test_dir_parallel[@]} $BUCKET_NAME_PARALLEL &
 my_process_p=$!
 echo "Running non parallel tests..."
 # Run non parallel tests
