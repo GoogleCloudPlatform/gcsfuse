@@ -35,15 +35,11 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 const (
-	CopyFolder                    = "copyFolderAdminPerm"
-	MoveFolder                    = "moveFolderAdminPerm"
-	CopyFile                      = "copyFileAdminPerm"
 	MoveFile                      = "moveFileAdminPerm"
 	MoveDestFile                  = "moveDestFileAdminPerm"
 	TestFile                      = "testFileAdminPerm"
 	ManagedFolderCreateDeleteTest = "managedFolderCreateDeleteTest"
 	ManagedFolderMoveTest         = "managedFolderMoveTest"
-	ManagedFolderCopyTest         = "managedFolderCopyTest"
 )
 
 var (
