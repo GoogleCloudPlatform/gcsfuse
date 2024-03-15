@@ -33,7 +33,7 @@ import (
 const (
 	CopyFolder = "copyFolder"
 	CopyFile   = "copyFile"
-	TestFile   = "testFile"
+	TestFile   = "testFile2"
 )
 
 var (
@@ -69,7 +69,7 @@ func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testin
 }
 
 func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *testing.T) {
-	err := os.Remove(path.Join(setup.MntDir(), testDir, ManagedFolder1, File))
+	err := os.Remove(path.Join(setup.MntDir(), testDir, ManagedFolder1, FileInNonEmptyManagedFoldersTest))
 
 	if err == nil {
 		t.Errorf("File from managed folder get deleted with view only permission.")
@@ -101,7 +101,7 @@ func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.
 }
 
 func (s *managedFoldersViewPermission) TestCopyObjectInManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDir, ManagedFolder1, File)
+	srcFile := path.Join(setup.MntDir(), testDir, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), testDir, CopyFile)
 
 	err := operations.CopyDir(srcFile, destFile)
