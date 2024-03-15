@@ -31,11 +31,11 @@ import (
 )
 
 const (
-	CopyFolder = "copyFolder"
-	MoveFolder = "moveFolder"
-	CopyFile   = "copyFile"
-	MoveFile   = "moveFile"
-	TestFile   = "testFile2"
+	CopyFolderViewPerm = "copyFolderViewPerm"
+	MoveFolderViewPerm = "moveFolderViewPerm"
+	CopyFileViewPerm   = "copyFileViewPerm"
+	MoveFileViewPerm   = "moveFileViewPerm"
+	TestFileViewPerm   = "testFileViewPerm"
 )
 
 var (
@@ -82,7 +82,7 @@ func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *test
 
 func (s *managedFoldersViewPermission) TestMoveNonEmptyManagedFolder(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFolder)
+	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFolderViewPerm)
 
 	err := operations.MoveDir(srcDir, destDir)
 	if err == nil {
@@ -94,7 +94,7 @@ func (s *managedFoldersViewPermission) TestMoveNonEmptyManagedFolder(t *testing.
 
 func (s *managedFoldersViewPermission) TestMoveObjectFromManagedFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFile)
+	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFileViewPerm)
 
 	err := operations.MoveFile(srcFile, destFile)
 	if err == nil {
@@ -105,7 +105,7 @@ func (s *managedFoldersViewPermission) TestMoveObjectFromManagedFolder(t *testin
 }
 
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, TestFile)
+	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, TestFileViewPerm)
 	file, err := os.Create(filePath)
 	err = file.Close()
 
@@ -116,7 +116,7 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 
 func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFolder)
+	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFolderViewPerm)
 
 	err := operations.CopyDir(srcDir, destDir)
 	if err == nil {
@@ -128,7 +128,7 @@ func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.
 
 func (s *managedFoldersViewPermission) TestCopyObjectInManagedFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFile)
+	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFileViewPerm)
 
 	err := operations.CopyDir(srcFile, destFile)
 	if err == nil {
