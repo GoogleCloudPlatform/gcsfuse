@@ -140,6 +140,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 		}
 		// Check if managedFolderTest directory has correct data.
 		if dir.Name() == testDirNameForNonEmptyManagedFolder {
+			fmt.Println("Test Dir: ", dir.Name())
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
