@@ -32,7 +32,9 @@ import (
 
 const (
 	CopyFolder = "copyFolder"
+	MoveFolder = "moveFolder"
 	CopyFile   = "copyFile"
+	MoveFile   = "moveFile"
 	TestFile   = "testFile2"
 )
 
@@ -78,6 +80,30 @@ func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *test
 	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
+func (s *managedFoldersViewPermission) TestMoveNonEmptyManagedFolder(t *testing.T) {
+	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
+	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFolder)
+
+	err := operations.MoveDir(srcDir, destDir)
+	if err == nil {
+		t.Errorf("Managed folder moved with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func (s *managedFoldersViewPermission) TestMoveObjectFromManagedFolder(t *testing.T) {
+	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
+	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFile)
+
+	err := operations.MoveFile(srcFile, destFile)
+	if err == nil {
+		t.Errorf("File from managed folder get moved with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, TestFile)
 	file, err := os.Create(filePath)
@@ -104,7 +130,7 @@ func (s *managedFoldersViewPermission) TestCopyObjectInManagedFolder(t *testing.
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFile)
 
-	err := operations.CopyDir(srcFile, destFile)
+	err := operations.CopyFile(srcFile, destFile)
 	if err == nil {
 		t.Errorf("Managed folder get copied with view only permission.")
 	}
