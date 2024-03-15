@@ -95,9 +95,9 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
 
 	// Provide storage.objectViewer role to managed folders.
+	log.Printf("Running tests with flags, bucket have admin permission and managed folder have admin permissions: %s", flags)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForAdminPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForAdminPermission, t)
-	log.Printf("Running tests with flags, bucket have admin permission and managed folder have admin permissions: %s", flags)
 	test_setup.RunTests(t, ts)
 
 	// Revoke admin permission on bucket.
