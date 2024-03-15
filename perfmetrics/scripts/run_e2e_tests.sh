@@ -68,8 +68,8 @@ function create_bucket() {
 
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
-  test_dir_non_parallel=$1
-  BUCKET_NAME_NON_PARALLEL=$2
+  local test_dir_non_parallel=$1
+  local BUCKET_NAME_NON_PARALLEL=$2
   for test_dir_np in "${test_dir_non_parallel[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
@@ -167,7 +167,8 @@ echo "Running parallel tests..."
 # Run parallel tests
 run_parallel_tests &
 my_process_p=$!
-echo "Running non parallel tests..."
+echo "Running non
+ tests..."
 # Run non parallel tests
 run_non_parallel_tests $test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
 my_process_np_group_1=$!
