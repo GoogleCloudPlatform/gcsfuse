@@ -113,46 +113,6 @@ func (s *managedFoldersAdminPermission) TestMoveFileAndMoveNonEmptyManagedFolder
 	}
 }
 
-func (s *managedFoldersAdminPermission) TestMoveObjectFromManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFile)
-
-	err := operations.MoveFile(srcFile, destFile)
-	if err == nil {
-		t.Errorf("File from managed folder get moved with view only permission.")
-	}
-}
-
-func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, TestFile)
-	file, err := os.Create(filePath)
-	err = file.Close()
-
-	if err == nil {
-		t.Errorf("File is created in read-only file system.")
-	}
-}
-
-func (s *managedFoldersAdminPermission) TestCopyNonEmptyManagedFolder(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFolder)
-
-	err := operations.CopyDir(srcDir, destDir)
-	if err == nil {
-		t.Errorf("Managed folder get copied with view only permission.")
-	}
-}
-
-func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFile)
-
-	err := operations.CopyFile(srcFile, destFile)
-	if err == nil {
-		t.Errorf("Managed folder get copied with view only permission.")
-	}
-}
-
 func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	listNonEmptyManagedFolders(t)
 }
