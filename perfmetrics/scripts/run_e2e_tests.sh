@@ -69,12 +69,12 @@ function create_bucket() {
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
   test_dir_non_parallel=$1
-  BUCKET_NAME_NON_PARALLEL_GROUP_1=$2
+  BUCKET_NAME_NON_PARALLEL=$2
   for test_dir_np in "${test_dir_non_parallel[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail_np=$exit_code_non_parallel
