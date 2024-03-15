@@ -38,7 +38,7 @@ run_e2e_tests_on_package=$1
 
 # Upgrade gcloud version.
 # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-upgrade_gcloud_version
+# upgrade_gcloud_version
 
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
@@ -67,9 +67,10 @@ function create_bucket() {
 
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
-  test_dir_non_parallel=("$@")
+  local -n testArray=$1
   BUCKET_NAME_NON_PARALLEL=$2
-  for test_dir_np in "${test_dir_non_parallel[@]}"
+
+  for test_dir_np in "${testArray[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
@@ -86,9 +87,10 @@ function run_non_parallel_tests() {
 # Parallel execution of integration tests located within specified test directories.
 # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
-  test_dir_parallel=("$@")
+  local -n testArray=$1
   BUCKET_NAME_PARALLEL=$2
-  for test_dir_p in "${test_dir_parallel[@]}"
+
+  for test_dir_p in "${testArray[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
@@ -114,7 +116,7 @@ function run_parallel_tests() {
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
 BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests: "$BUCKET_NAME
+echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME
 BUCKET_NAME_NON_PARALLEL_GROUP_1=$BUCKET_NAME
 # Test directory array
 # These tests never become parallel as it is changing bucket permissions.
@@ -127,7 +129,7 @@ test_dir_non_parallel_group_1=(
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-echo "Bucket name for non parallel tests - 2 : "$BUCKET_NAME
+echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME
 BUCKET_NAME=$(create_bucket $bucketPrefix)
 BUCKET_NAME_NON_PARALLEL_GROUP_2=$BUCKET_NAME
 # These test packages can be configured to run in parallel once they achieve
@@ -167,14 +169,14 @@ set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests ${test_dir_parallel[@]} $BUCKET_NAME_PARALLEL &
+run_parallel_tests test_dir_parallel $BUCKET_NAME_PARALLEL &
 my_process_p=$!
-echo "Running non parallel tests..."
 # Run non parallel tests
-run_non_parallel_tests ${test_dir_non_parallel_group_1[@]} $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+echo "Running non parallel tests group-1..."
+run_non_parallel_tests test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
 my_process_np_group_1=$!
-# Run non parallel tests
-run_non_parallel_tests ${test_dir_non_parallel_group_2[@]} $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+echo "Running non parallel tests group-2..."
+run_non_parallel_tests test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
 my_process_np_group_2=$!
 wait $my_process_p
 test_fail_p=$?
