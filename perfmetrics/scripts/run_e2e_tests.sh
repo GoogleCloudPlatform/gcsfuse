@@ -39,7 +39,7 @@ run_e2e_tests_on_package=$1
 
 # Upgrade gcloud version.
 # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-# upgrade_gcloud_version
+upgrade_gcloud_version
 
 # e.g. architecture=arm64 or amd64
 architecture=$(dpkg --print-architecture)
