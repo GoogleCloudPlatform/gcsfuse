@@ -75,7 +75,7 @@ function run_non_parallel_tests_group_1() {
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel_group_1 -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL_GROUP_1 --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel_group_1=$?
     if [ $exit_code_non_parallel_group_1 != 0 ]; then
-      test_dir_np_group_1=$exit_code_non_parallel_group_1
+      test_fail_np_group_1=$exit_code_non_parallel_group_1
       echo "test fail in non parallel in group 1: " $test_fail_np_group_1
     fi
   done
