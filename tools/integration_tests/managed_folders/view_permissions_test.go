@@ -130,7 +130,7 @@ func (s *managedFoldersViewPermission) TestCopyObjectInManagedFolder(t *testing.
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
 	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFile)
 
-	err := operations.CopyFile(srcFile, destFile)
+	err := operations.CopyDir(srcFile, destFile)
 	if err == nil {
 		t.Errorf("Managed folder get copied with view only permission.")
 	}
