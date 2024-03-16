@@ -15,9 +15,13 @@
 package storageutil
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -68,7 +72,7 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNil() {
 
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	ExpectEq(nil, tokenSrc)
+	ExpectTrue(strings.Contains(fmt.Sprint(tokenSrc), strconv.FormatInt(int64(time.Second*10), 10)))
 }
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
