@@ -20,6 +20,7 @@ sudo apt-get update
 
 readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
+readonly HNS_PROJECT_ID="gcs-fuse-test"
 readonly BUCKET_LOCATION="us-west1"
 
 function upgrade_gcloud_version() {
@@ -36,21 +37,27 @@ function upgrade_gcloud_version() {
 # true or false to run e2e tests on installedPackage
 run_e2e_tests_on_package=$1
 
-# Upgrade gcloud version.
-# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-upgrade_gcloud_version
+function install_packages() {
+  # Upgrade gcloud version.
+  # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
+  #commenting for local
+  #upgrade_gcloud_version
 
-# e.g. architecture=arm64 or amd64
-architecture=$(dpkg --print-architecture)
-echo "Installing go-lang 1.21.7..."
-wget -O go_tar.tar.gz https://go.dev/dl/go1.21.7.linux-${architecture}.tar.gz -q
-sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-export PATH=$PATH:/usr/local/go/bin
-# install python3-setuptools tools.
-sudo apt-get install -y gcc python3-dev python3-setuptools
-# Downloading composite object requires integrity checking with CRC32c in gsutil.
-# it requires to install crcmod.
-sudo apt install -y python3-crcmod
+  # e.g. architecture=arm64 or amd64
+  architecture=$(dpkg --print-architecture)
+  echo "Installing go-lang 1.21.7..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.21.7.linux-${architecture}.tar.gz -q
+  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+  export PATH=$PATH:/usr/local/go/bin
+  # install python3-setuptools tools.
+  sudo apt-get install -y gcc python3-dev python3-setuptools
+  # Downloading composite object requires integrity checking with CRC32c in gsutil.
+  # it requires to install crcmod.
+  sudo apt install -y python3-crcmod
+}
+
+install_packages
+
 
 # Create bucket for integration tests.
 function create_bucket() {
@@ -62,6 +69,18 @@ function create_bucket() {
   BUCKET_NAME=$bucketPrefix$random_string
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
   gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+  echo $BUCKET_NAME
+}
+
+function create_hns_bucket() {
+  bucketPrefix=$1
+  # The length of the random string
+  length=5
+  # Generate the random string
+  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
+  BUCKET_NAME=$bucketPrefix$random_string
+  # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
+  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$HNS_PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo $BUCKET_NAME
 }
 
@@ -113,27 +132,49 @@ function run_parallel_tests() {
   return $test_fail_p
 }
 
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME
-BUCKET_NAME_NON_PARALLEL_GROUP_1=$BUCKET_NAME
-# Test directory array
-# These tests never become parallel as it is changing bucket permissions.
+function create_flat_buckets() {
+  # Test setup
+  # Create Bucket for non parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME_NON_PARALLEL_GROUP_1
+
+  # Test setup
+  # Create Bucket for non parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME_NON_PARALLEL_GROUP_2
+
+  # Create Bucket for parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
+  echo "Bucket name for parallel tests: "$BUCKET_NAME_PARALLEL
+}
+
+function create_hns_buckets() {
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-hns-"
+  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
+  echo "Hns Bucket name for non parallel tests group - 1: "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1
+
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-hns-"
+  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
+  echo "Hns Bucket name for non parallel tests group - 2 : "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2
+
+  bucketPrefix="gcsfuse-parallel-e2e-tests-hns-"
+  HNS_BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
+  echo "Hns Bucket name for parallel tests: "$HNS_BUCKET_NAME_PARALLEL
+}
+
+create_flat_buckets
+create_hns_buckets
+
 test_dir_non_parallel_group_1=(
   "readonly"
   "managed_folders"
 )
-
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-BUCKET_NAME_NON_PARALLEL_GROUP_2=$BUCKET_NAME
 # These test packages can be configured to run in parallel once they achieve
 # directory independence.
 # Test directory array
@@ -145,13 +186,6 @@ test_dir_non_parallel_group_2=(
   "read_large_files"
   "rename_dir_limit"
 )
-
-# Create Bucket for parallel e2e tests
-# The bucket prefix for the random string
-bucketPrefix="gcsfuse-parallel-e2e-tests-"
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for parallel tests: "$BUCKET_NAME
-BUCKET_NAME_PARALLEL=$BUCKET_NAME
 # Test directory array
 test_dir_parallel=(
   "local_file"
@@ -170,15 +204,15 @@ test_fail_np_group_2=0
 set +e
 
 function run_e2e_tests_flat_bucket() {
-  echo "Running parallel tests..."
+  echo "Running parallel tests for flat bucket..."
   # Run parallel tests
   run_parallel_tests test_dir_parallel $BUCKET_NAME_PARALLEL &
   parallel_test_pid=$!
   # Run non parallel tests
-  echo "Running non parallel tests group-1..."
+  echo "Running non parallel tests group-1 for flat bucket..."
   run_non_parallel_tests test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
   np_group_1_pid=$!
-  echo "Running non parallel tests group-2..."
+  echo "Running non parallel tests group-2 for flat bucket..."
   run_non_parallel_tests test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
   np_group_2_pid=$!
   wait $parallel_test_pid
