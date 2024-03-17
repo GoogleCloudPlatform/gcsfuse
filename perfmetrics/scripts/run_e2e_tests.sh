@@ -75,6 +75,7 @@ function run_non_parallel_tests() {
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    echo "Running non parallel test for directory $test_dir_np"
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail_np=$exit_code_non_parallel
@@ -95,6 +96,7 @@ function run_parallel_tests() {
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    echo "Running parallel test for directory $test_dir_p"
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -167,25 +169,37 @@ test_fail_np_group_1=0
 test_fail_np_group_2=0
 set +e
 
-echo "Running parallel tests..."
-# Run parallel tests
-run_parallel_tests test_dir_parallel $BUCKET_NAME_PARALLEL &
-my_process_p=$!
-# Run non parallel tests
-echo "Running non parallel tests group-1..."
-run_non_parallel_tests test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
-my_process_np_group_1=$!
-echo "Running non parallel tests group-2..."
-run_non_parallel_tests test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
-my_process_np_group_2=$!
-wait $my_process_p
-test_fail_p=$?
-wait $my_process_np_group_1
-test_fail_np_group_1=$?
-wait $my_process_np_group_2
-test_fail_np_group_2=$?
-set -e
+function run_e2e_tests_flat_bucket() {
+  echo "Running parallel tests..."
+  # Run parallel tests
+  run_parallel_tests test_dir_parallel $BUCKET_NAME_PARALLEL &
+  parallel_test_pid=$!
+  # Run non parallel tests
+  echo "Running non parallel tests group-1..."
+  run_non_parallel_tests test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+  np_group_1_pid=$!
+  echo "Running non parallel tests group-2..."
+  run_non_parallel_tests test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+  np_group_2_pid=$!
+  wait $parallel_test_pid
+  test_fail_p=$?
+  wait $np_group_1_pid
+  test_fail_np_group_1=$?
+  wait $np_group_2_pid
+  test_fail_np_group_2=$?
 
+  if [ $test_fail_np_group_1 != 0 ] || [ $test_fail_np_group_2 != 0 ] || [ $test_fail_p != 0 ];
+  then
+    return 1
+  fi
+}
+
+run_e2e_tests_flat_bucket &
+e2e_tests_flat_bucket_pid=$!
+wait $e2e_tests_flat_bucket_pid
+e2e_tests_flat_bucket_status=$?
+
+set -e
 # Cleanup
 # Delete bucket after testing.
 gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
@@ -197,8 +211,8 @@ if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np_group_1 != 0 ] || [ $test_fail_np_group_2 != 0 ] || [ $test_fail_p != 0 ];
+if [ $e2e_tests_flat_bucket_status != 0 ];
 then
-  echo "The tests failed."
+  echo "The e2e tests for flat bucket failed.."
   exit 1
 fi
