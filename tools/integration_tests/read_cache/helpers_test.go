@@ -147,6 +147,15 @@ func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(mountDir)
 }
 
+func mountGCSFuse(flags []string) {
+	if setup.MountedDirectory() == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags); err != nil {
+			setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
+		}
+	}
+}
+
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
