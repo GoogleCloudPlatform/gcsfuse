@@ -155,15 +155,15 @@ function create_flat_buckets() {
 
 function create_hns_buckets() {
   bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-hns-"
-  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
+  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_hns_bucket $bucketPrefix)
   echo "Hns Bucket name for non parallel tests group - 1: "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1
 
   bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-hns-"
-  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
+  HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_hns_bucket $bucketPrefix)
   echo "Hns Bucket name for non parallel tests group - 2 : "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2
 
   bucketPrefix="gcsfuse-parallel-e2e-tests-hns-"
-  HNS_BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
+  HNS_BUCKET_NAME_PARALLEL=$(create_hns_bucket $bucketPrefix)
   echo "Hns Bucket name for parallel tests: "$HNS_BUCKET_NAME_PARALLEL
 }
 
