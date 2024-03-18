@@ -34,6 +34,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
+
 // Expected is a helper struct that stores list of attributes to be validated from logs.
 type Expected struct {
 	StartTimeStampSeconds int64
@@ -143,6 +145,11 @@ func getCRCOfFile(filePath string) (crc32Value uint32) {
 	return
 }
 
+func getCRCOfContent(content []byte) (crc32Value uint32) {
+	crc32Value = crc32.Checksum(content, crc32cTable)
+	return
+}
+
 func ValidateCRCWithGCS(gotCRC32Value uint32, fileName string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	attr, err := client.StatObject(ctx, storageClient, path.Join(testDirName, fileName))
 	if err != nil {
@@ -206,9 +213,9 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 		// Validate cache size within limit.
 		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	}
-	// Validate content read via gcsfuse with gcs.
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, filename,
-		expectedOutcome.content, t)
+	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
+	gotCRC32Value := getCRCOfContent([]byte(expectedOutcome.content))
+	ValidateCRCWithGCS(gotCRC32Value, filename, ctx, storageClient, t)
 
 	return expectedOutcome
 }
