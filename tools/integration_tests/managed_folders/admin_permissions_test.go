@@ -105,7 +105,7 @@ func (s *managedFoldersAdminPermission) TestMoveFileAndMoveNonEmptyManagedFolder
 
 	err := operations.MoveDir(srcFile, destFile)
 	if err != nil {
-		t.Errorf("Error in moving file managed folder from src: %s to dest %s", srcFile, destFile)
+		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcFile, destFile, err)
 	}
 }
 
