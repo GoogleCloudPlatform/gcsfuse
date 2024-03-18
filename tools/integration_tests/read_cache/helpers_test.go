@@ -16,6 +16,9 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
+	"hash/crc32"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -119,15 +122,42 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 	}
 }
 
+func getCRCOfFile(filePath string) (crc32Value uint32) {
+	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, operations.FilePermission_0777)
+	if err != nil {
+		err = fmt.Errorf("Error in the opening the file %v", err)
+		return
+	}
+
+	// Closing file at the end.
+	defer operations.CloseFile(file)
+
+	hasher := crc32.NewIEEE() // Use the standard CRC-32 IEEE polynomial
+	_, err = io.Copy(hasher, file)
+	if err != nil {
+		fmt.Println("Error calculating CRC-32:", err)
+		return 0
+	}
+	crc32Value = hasher.Sum32()
+	return
+}
+
+func ValidateCRCWithGCS(gotCRC32Value uint32, fileName string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
+	attr, err := client.StatObject(ctx, storageClient, path.Join(testDirName, fileName))
+	if err != nil {
+		t.Errorf("Failed to fetch object attributes: %v", err)
+	}
+	if attr.CRC32C != gotCRC32Value {
+		t.Errorf("CRC32 mismatch. Expected %d, Got %d", attr.CRC32C, gotCRC32Value)
+	}
+}
+
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
-	// Validate content of file in cache directory matches GCS.
-	expectedPathOfCachedFile := getCachedFilePath(fileName)
-	content, err := operations.ReadFile(expectedPathOfCachedFile)
-	if err != nil {
-		t.Errorf("Failed to read cached file %s: %v", expectedPathOfCachedFile, err)
-	}
-	client.ValidateObjectContentsFromGCS(ctx, storageClient, testDirName, fileName, string(content), t)
+	// Validate CRC of cached file matches GCS CRC.
+	cachedFilePath := getCachedFilePath(fileName)
+	crc32ValueOfCachedFile := getCRCOfFile(cachedFilePath)
+	ValidateCRCWithGCS(crc32ValueOfCachedFile, fileName, ctx, storageClient, t)
 }
 
 func validateFileIsNotCached(fileName string, t *testing.T) {

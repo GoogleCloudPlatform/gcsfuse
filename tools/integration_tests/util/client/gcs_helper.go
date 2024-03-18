@@ -91,6 +91,7 @@ func ValidateObjectChunkFromGCS(ctx context.Context, storageClient *storage.Clie
 		t.Fatalf("GCS file %s content mismatch. Got file size: %d, Expected "+
 			"file size: %d ", fileName, len(gotContent), len(expectedContent))
 	}
+
 }
 
 func CloseFileAndValidateContentFromGCS(ctx context.Context, storageClient *storage.Client,
