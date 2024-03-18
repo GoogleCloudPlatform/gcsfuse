@@ -1,4 +1,4 @@
-module github.com/googlecloudplatform/gcsfuse
+module github.com/googlecloudplatform/gcsfuse/v2
 
 go 1.22.1
 
