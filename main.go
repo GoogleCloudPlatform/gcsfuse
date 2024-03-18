@@ -99,7 +99,7 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
-func createStorageHandle(flags *flagStorage, userAgent string) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -113,6 +113,7 @@ func createStorageHandle(flags *flagStorage, userAgent string) (storageHandle st
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
+		GrpcConnectionPoolSize:     mountConfig.GrpcClientConfig.ConnectionPoolSize,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -145,7 +146,7 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(flags, userAgent)
+		storageHandle, err = createStorageHandle(flags, mountConfig, userAgent)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return

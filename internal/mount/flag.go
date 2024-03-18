@@ -29,6 +29,7 @@ type ClientProtocol string
 const (
 	HTTP1 ClientProtocol = "http1"
 	HTTP2 ClientProtocol = "http2"
+	GRPC  ClientProtocol = "grpc"
 	// DefaultStatOrTypeCacheTTL is the default value used for
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.
@@ -54,7 +55,7 @@ const (
 
 func (cp ClientProtocol) IsValid() bool {
 	switch cp {
-	case HTTP1, HTTP2:
+	case HTTP1, HTTP2, GRPC:
 		return true
 	}
 	return false

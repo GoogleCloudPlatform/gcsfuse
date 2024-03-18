@@ -1,0 +1,2 @@
+grpc-client:
+  conn-pool-size: 0

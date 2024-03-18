@@ -176,7 +176,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
-	flags := [][]string{commonFlags}
+	gRPCFlags := append(commonFlags, "--client-protocol=grpc")
+	flags := [][]string{commonFlags, gRPCFlags}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

@@ -49,7 +49,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{
+		{"--implicit-dirs"},
+		{"--client-protocol=grpc", "--implicit-dirs=true"}}
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 

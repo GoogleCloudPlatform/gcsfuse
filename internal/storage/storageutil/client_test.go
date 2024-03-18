@@ -53,7 +53,7 @@ func (t *clientTest) TestCreateTokenSrcWithCustomEndpoint() {
 	sc := GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 
-	tokenSrc, err := createTokenSource(&sc)
+	tokenSrc, err := CreateTokenSource(&sc)
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, &tokenSrc)
@@ -64,7 +64,7 @@ func (t *clientTest) TestCreateTokenSrcWhenCustomEndpointIsNil() {
 	sc.CustomEndpoint = nil
 
 	// It will try to create the actual auth token and fail since key-file doesn't exist.
-	tokenSrc, err := createTokenSource(&sc)
+	tokenSrc, err := CreateTokenSource(&sc)
 
 	ExpectNe(nil, err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))

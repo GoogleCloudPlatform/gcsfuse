@@ -35,7 +35,9 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs"}}
+	flags := [][]string{
+		{"--implicit-dirs"},
+		{"--client-protocol=grpc", "--implicit-dirs=true"}}
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
