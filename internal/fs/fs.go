@@ -27,18 +27,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/handle"
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -1691,7 +1691,7 @@ func (fs *fileSystem) RmDir(
 	//	 4. Rmdir on the directory.
 	//
 	// When type cache ttl is set, we construct an implicitDir even though one doesn't
-	// exist on GCS (https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/fs/inode/dir.go#L452),
+	// exist on GCS (https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/internal/fs/inode/dir.go#L452),
 	// and thus, we get rmDir call to GCSFuse.
 	// Whereas when ttl is zero, lookupInode call itself fails and RmDir is not called
 	// because object is not present in GCS.
@@ -1734,7 +1734,7 @@ func (fs *fileSystem) RmDir(
 	//
 	// Yes, this is not atomic with the delete below. See here for discussion:
 	//
-	//     https://github.com/GoogleCloudPlatform/gcsfuse/issues/9
+	//     https://github.com/googlecloudplatform/gcsfuse/v2/issues/9
 	//
 	//
 

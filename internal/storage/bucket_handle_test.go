@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -39,7 +39,7 @@ var ContentDisposition string = "ContentDisposition"
 
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
-// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
+// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
 
 func TestBucketHandle(t *testing.T) { RunTests(t) }
 
@@ -624,7 +624,7 @@ func (t *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
 // Hence, we are not writing tests for these parameters
-// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
+// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
 func (t *BucketHandleTest) TestUpdateObjectMethodWithValidObject() {
 	// Metadata value before updating object
 	minObj, _, err := t.bucketHandle.StatObject(context.Background(),

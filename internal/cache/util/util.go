@@ -23,7 +23,7 @@ import (
 
 	"github.com/jacobsa/fuse/fsutil"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 )
 
 const (

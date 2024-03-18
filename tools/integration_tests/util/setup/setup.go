@@ -28,8 +28,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 )
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
@@ -182,7 +182,7 @@ func SetUpTestDir() error {
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
 
 		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
-		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
+		// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/tools/mount_gcsfuse/find.go#L59
 		// Copying the executable to /usr/local/bin
 		err := operations.CopyDirWithRootPermission(binFile, "/usr/local/bin")
 		if err != nil {

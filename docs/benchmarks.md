@@ -84,7 +84,7 @@ as sequential writes.
 sudo apt-get update
 sudo apt-get install fio
 ```
-5. [Install GCSFuse](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md#linux).
+5. [Install GCSFuse](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/docs/installing.md#linux).
 6. Create a directory on the VM and then mount the gcs bucket to that directory.
 ```
   mkdir <path-to-mount-point> 

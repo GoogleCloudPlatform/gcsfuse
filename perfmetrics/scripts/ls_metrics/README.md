@@ -9,7 +9,7 @@ It takes input a JSON config file which contains the info regarding directory st
 ### GCSFuse
 ```
 GCSFUSE_VERSION=0.41.4
-curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v$GCSFUSE_VERSION/gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
+curl -L -O https://github.com/googlecloudplatform/gcsfuse/v2/releases/download/v$GCSFUSE_VERSION/gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 sudo dpkg --install gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 ```
 
@@ -42,7 +42,7 @@ gsutil cp gs://your-bucket-name/creds.json ../gsheet
 ```
 4. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/1IJIjWuEs7cL6eYqPmlVaEGdclr6MSiaKJdnFXXC5tg8/).
 5. Share the above copied Google Sheet with your service account(created in step 2)
-6. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
+6. Change the Google sheet id in this [line](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
 7. Configure the [JSON config file](config.json) as per needs.
 8. Run the custom python script. A sample command is shown below:
 ```

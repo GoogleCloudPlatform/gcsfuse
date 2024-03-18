@@ -10,7 +10,7 @@ sudo apt-get install fio -y
 ### GCSFuse
 ```bash
 GCSFUSE_VERSION=0.41.4
-curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/releases/download/v$GCSFUSE_VERSION/gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
+curl -L -O https://github.com/googlecloudplatform/gcsfuse/v2/releases/download/v$GCSFUSE_VERSION/gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 sudo dpkg --install gcsfuse_"$GCSFUSE_VERSION"_amd64.deb
 ```
 
@@ -51,7 +51,7 @@ gsutil cp gs://your-bucket-name/creds.json ./gsheet
 ```
 9. Create a Google Sheet with id `your-gsheet-id` by copying this [Google Sheet](https://docs.google.com/spreadsheets/d/1IJIjWuEs7cL6eYqPmlVaEGdclr6MSiaKJdnFXXC5tg8/).
 10. Share the above copied Google Sheet with your service account(created in step 8)
-11. Change the Google sheet id in this [line](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
+11. Change the Google sheet id in this [line](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/perfmetrics/scripts/gsheet/gsheet.py#L5) to `your-gsheet-id`.
 12. Finally, execute fetch_metrics.py to extract FIO and VM metrics and write to your Google Sheet by running
 ```bash
 python3 fetch_and_upload_metrics.py output.json
@@ -60,23 +60,23 @@ The FIO output JSON file is passed as an argument to the fetch_metrics module.
 
 ### Note
 
-The previous data in the google sheet will be deleted every time you enter new data. Therefore, at any point of time, the google sheet will store only the last tests’ data. If you want, you can change this in the [```gsheet/gsheet.py```](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/perfmetrics/scripts/gsheet/gsheet.py) file.
+The previous data in the google sheet will be deleted every time you enter new data. Therefore, at any point of time, the google sheet will store only the last tests’ data. If you want, you can change this in the [```gsheet/gsheet.py```](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/perfmetrics/scripts/gsheet/gsheet.py) file.
 
 ## Adding new metrics
 
 ### FIO Metric
 #### To add a new job parameter
-1. Add another object of [JobParam class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L23) to the REQ_JOB_PARAMS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L76). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
+1. Add another object of [JobParam class](https://github.com/googlecloudplatform/gcsfuse/v2/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L23) to the REQ_JOB_PARAMS list [here](https://github.com/googlecloudplatform/gcsfuse/v2/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L76). Make sure that json_name matches the key of the parameter in the FIO output JSON to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new parameter in the REQ_JOB_PARAMS list.
 #### To add a new job metric
-1. Add another object of [JobMetric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L48) to the REQ_JOB_METRICS list [here](https://github.com/GoogleCloudPlatform/gcsfuse/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L97). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
+1. Add another object of [JobMetric class](https://github.com/googlecloudplatform/gcsfuse/v2/blob/be488de374db77748813a5bc7d710cf9eed425d7/perfmetrics/scripts/fio/fio_metrics.py#L48) to the REQ_JOB_METRICS list [here](https://github.com/googlecloudplatform/gcsfuse/v2/blob/a454b452f5fd290f9ef3cc0da85b9d27d6beee4a/perfmetrics/scripts/fio/fio_metrics.py#L97). Make sure that the values in LEVELS are correct and match the FIO output JSON keys in order to avoid any errors.
 2. Add a column in the Google Sheet in the same position as the position of the new metric in the REQ_JOB_METRICS list
 
 ### VM Metric
 #### If your metric data does not depend on the read/write type of FIO load test
-1. In the vm_metrics file, create an object of the [Metric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) and append the object to the [`METRICS_LIST`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
-2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`METRICS_LIST`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
+1. In the vm_metrics file, create an object of the [Metric class](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) and append the object to the [`METRICS_LIST`](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
+2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`METRICS_LIST`](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L63) list.
 
 #### If your metric data depends on the read/write type of FIO load test
-1. In the vm_metrics file, create an object of the [Metric class](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) inside the [`_add_new_metric_using_test_type`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L224) method and append the object to the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
-2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`updated_metrics_list`](https://github.com/GoogleCloudPlatform/gcsfuse/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
+1. In the vm_metrics file, create an object of the [Metric class](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L44) inside the [`_add_new_metric_using_test_type`](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L224) method and append the object to the [`updated_metrics_list`](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.
+2. Add a column in the Google Sheet in the same position as the position of the new parameter in the [`updated_metrics_list`](https://github.com/googlecloudplatform/gcsfuse/v2/blob/fbe86d40bdefefc1595654fa468a81e4dfd815d5/perfmetrics/scripts/vm_metrics/vm_metrics.py#L245) list.

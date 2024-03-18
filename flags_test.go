@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/internal/mount"
-	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/urfave/cli"
