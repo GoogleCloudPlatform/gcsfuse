@@ -118,11 +118,11 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		outputPath string
 	}{
 		{
-			"github.com/googlecloudplatform/gcsfuse",
+			"github.com/googlecloudplatform/gcsfuse/v2",
 			"bin/gcsfuse",
 		},
 		{
-			"github.com/googlecloudplatform/gcsfuse/v2/tools/mount_gcsfuse",
+			"github.com/googlecloudplatform/gcsfuse/tools/mount_gcsfuse",
 			path.Join("sbin", mountHelperName),
 		},
 	}
