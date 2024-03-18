@@ -23,7 +23,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 

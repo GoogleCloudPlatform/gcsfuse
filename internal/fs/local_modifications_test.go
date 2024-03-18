@@ -33,8 +33,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -1266,7 +1266,7 @@ func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
 
 	// Re-create the directory with the same name. Nothing crazy should happen.
 	// In the past, this used to crash (cf.
-	// https://github.com/googlecloudplatform/gcsfuse/v2/issues/8).
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/issues/8).
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
 	AssertEq(nil, err)
 

@@ -22,8 +22,8 @@ import (
 	"math"
 	"syscall"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/canned"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/util"
 	. "github.com/jacobsa/ogletest"
 )
 

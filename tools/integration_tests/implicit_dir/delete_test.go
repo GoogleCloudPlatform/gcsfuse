@@ -19,9 +19,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 // Directory Structure

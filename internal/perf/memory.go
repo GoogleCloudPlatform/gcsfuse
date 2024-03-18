@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/logger"
 )
 
 const (

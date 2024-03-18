@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/contentcache"
 	"google.golang.org/api/iterator"
 )
 

@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/data"
+	testutil "github.com/GoogleCloudPlatform/gcsfuse/v2/internal/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
 

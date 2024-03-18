@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 

@@ -1,9 +1,9 @@
 # Current status
 
-Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that it is used within its documented supported applications, platforms, and limits. Support requests, feature requests, and general questions should be submitted as a support request via Google Cloud support channels or via GitHub [here](https://github.com/googlecloudplatform/gcsfuse/v2/issues).
+Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by Google, provided that it is used within its documented supported applications, platforms, and limits. Support requests, feature requests, and general questions should be submitted as a support request via Google Cloud support channels or via GitHub [here](https://github.com/GoogleCloudPlatform/gcsfuse/v2/issues).
 
 Cloud Storage FUSE is open source software, released under the 
-[Apache license](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/LICENSE).
+[Apache license](https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/LICENSE).
 
 # ABOUT
 ## What is Cloud Storage FUSE?
@@ -38,7 +38,7 @@ To find out which frameworks and operating systems are supported by Cloud Storag
 
 ## Getting support
 
-You can get support, submit general questions, and request new features by [filing issues in GitHub](https://github.com/googlecloudplatform/gcsfuse/v2/issues). You can also get support by using one of [Google Cloud's official support channels](https://cloud.google.com/support-hub).
+You can get support, submit general questions, and request new features by [filing issues in GitHub](https://github.com/GoogleCloudPlatform/gcsfuse/v2/issues). You can also get support by using one of [Google Cloud's official support channels](https://cloud.google.com/support-hub).
 
-See [Troubleshooting](https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/docs/troubleshooting.md) for common issue handling.
+See [Troubleshooting](https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/docs/troubleshooting.md) for common issue handling.
 

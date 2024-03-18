@@ -20,11 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/fake"
 	"golang.org/x/net/context"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"

@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"

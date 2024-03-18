@@ -19,8 +19,8 @@ import (
 	"net/url"
 	"testing"
 
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	mountpkg "github.com/GoogleCloudPlatform/gcsfuse/v2/internal/mount"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )

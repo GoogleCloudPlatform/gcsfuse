@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/file"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/fs/inode"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )

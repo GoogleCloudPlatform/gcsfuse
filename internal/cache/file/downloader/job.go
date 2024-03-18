@@ -23,14 +23,14 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/data"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/lru"
+	cacheutil "github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/locker"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/logger"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/monitor"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
 )
 

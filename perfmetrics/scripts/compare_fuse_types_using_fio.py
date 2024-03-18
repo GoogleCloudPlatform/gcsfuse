@@ -44,7 +44,7 @@ def _install_gcsfuse(version, gcs_bucket, gcsfuse_flags) -> None:
     gcs_bucket(str): GCS bucket to be mounted.
     gcsfuse_flags(str): Fuse flags for mounting the GCS bucket.
   """
-  os.system(f'''curl -L -O https://github.com/googlecloudplatform/gcsfuse/v2/releases/download/v{version}/gcsfuse_{version}_amd64.deb
+  os.system(f'''curl -L -O https://github.com/GoogleCloudPlatform/gcsfuse/v2/releases/download/v{version}/gcsfuse_{version}_amd64.deb
             sudo dpkg --install gcsfuse_{version}_amd64.deb
             mkdir gcs
             gcsfuse {gcsfuse_flags} {gcs_bucket} gcs

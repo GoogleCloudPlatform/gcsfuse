@@ -21,8 +21,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/locker"
 	. "github.com/jacobsa/ogletest"
 )
 

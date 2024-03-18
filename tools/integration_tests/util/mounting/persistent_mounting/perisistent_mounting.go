@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/mounting"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 // make e.g --debug_gcs in debug_gcs

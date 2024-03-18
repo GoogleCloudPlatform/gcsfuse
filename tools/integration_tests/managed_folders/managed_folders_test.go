@@ -21,11 +21,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 const (

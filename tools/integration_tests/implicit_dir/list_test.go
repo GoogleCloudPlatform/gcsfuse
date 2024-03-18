@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 func TestListImplicitObjectsFromBucket(t *testing.T) {

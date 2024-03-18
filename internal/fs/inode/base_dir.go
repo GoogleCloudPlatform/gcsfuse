@@ -18,10 +18,10 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"

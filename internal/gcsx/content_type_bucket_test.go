@@ -18,9 +18,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/gcsx"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )

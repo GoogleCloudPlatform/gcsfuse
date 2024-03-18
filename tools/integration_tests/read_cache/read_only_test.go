@@ -20,11 +20,11 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 )
 
 ////////////////////////////////////////////////////////////////////////

@@ -21,11 +21,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/data"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/file/downloader"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 type CacheHandle struct {

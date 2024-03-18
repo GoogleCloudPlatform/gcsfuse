@@ -27,13 +27,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/data"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/cache/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/storageutil"
+	testutil "github.com/GoogleCloudPlatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 

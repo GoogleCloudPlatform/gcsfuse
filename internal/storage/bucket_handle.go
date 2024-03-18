@@ -27,8 +27,8 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -50,7 +50,7 @@ func (bh *bucketHandle) NewReader(
 	start := int64(0)
 	length := int64(-1)
 	// Following the semantics of NewReader method. Passing start, length as 0,-1 reads the entire file.
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L75
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/34211af652dbaeb012b381a3daf3c94b95f65e00/vendor/cloud.google.com/go/storage/reader.go#L75
 	if req.Range != nil {
 		start = int64((*req.Range).Start)
 		end := int64((*req.Range).Limit)
@@ -87,7 +87,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 	err := obj.Delete(ctx)
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/http_client.go#L399
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/http_client.go#L399
 	if err != nil {
 		switch ee := err.(type) {
 		case *googleapi.Error:
@@ -275,8 +275,8 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		}
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
-		// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
-		// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
+		// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
+		// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
 			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
@@ -291,7 +291,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// page to be iterated by iterator (itr). The func returns (number of items in current page - 1)
 		// after first itr.Next() call and becomes 0 when iteration is done.
 		// If req.MaxResults is 0, then wait till iterator is done. This is similar
-		// to https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
+		// to https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/vendor/github.com/jacobsa/gcloud/gcs/bucket.go#L164
 		if req.MaxResults != 0 && (pi.Remaining() == 0) {
 			break
 		}
@@ -349,7 +349,7 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	}
 
 	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
 	switch ee := err.(type) {
 	case *googleapi.Error:
 		if ee.Code == http.StatusPreconditionFailed {
@@ -375,7 +375,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 	// DstGenerationPrecondition or DoesNotExist should be set in dstObj
 	// preconditions to make requests Idempotent.
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/copy.go#L230
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/copy.go#L230
 	if req.DstGenerationPrecondition != nil {
 		if *req.DstGenerationPrecondition == 0 {
 			dstObjConds.DoesNotExist = true
@@ -385,7 +385,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	}
 	// Only set conditions on dstObj if there is at least one condition in
 	// dstObjConds. Otherwise, storage client library gives empty conditions error.
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/storage.go#L1739
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/storage.go#L1739
 	if isStorageConditionsNotEmpty(dstObjConds) {
 		dstObj = dstObj.If(dstObjConds)
 	}

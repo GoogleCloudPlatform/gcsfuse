@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 const DirAttrTest = "dirAttrTest"
@@ -61,7 +61,7 @@ func TestFileAttributes(t *testing.T) {
 	postCreateTime := time.Now().Round(time.Second)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
-	// https://github.com/googlecloudplatform/gcsfuse/v2/blob/master/tools/integration_tests/util/setup/setup.go#L124
+	// https://github.com/GoogleCloudPlatform/gcsfuse/v2/blob/master/tools/integration_tests/util/setup/setup.go#L124
 	checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, t)
 }
 

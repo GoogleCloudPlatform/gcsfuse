@@ -79,7 +79,7 @@ export WORKING_DIR=$WD
 echo "export WORKING_DIR=$WD" >> ~/.bashrc
 
 # Install gcsfuse.
-CGO_ENABLED=0 go install github.com/googlecloudplatform/gcsfuse@read_cache_release
+CGO_ENABLED=0 go install github.com/GoogleCloudPlatform/gcsfuse@read_cache_release
 
 # Clone gcsfuse to get fio load test script.
 if [ ! -d "./gcsfuse" ]; then

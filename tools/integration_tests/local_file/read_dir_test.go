@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	. "github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/operations"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 // //////////////////////////////////////////////////////////////////////

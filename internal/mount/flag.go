@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/config"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/util"
 )
 
 type ClientProtocol string

@@ -15,7 +15,7 @@
 package storageutil
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
 

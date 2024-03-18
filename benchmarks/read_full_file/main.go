@@ -30,8 +30,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/format"
-	"github.com/googlecloudplatform/gcsfuse/v2/benchmarks/internal/percentile"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/benchmarks/internal/format"
+	"github.com/GoogleCloudPlatform/gcsfuse/v2/benchmarks/internal/percentile"
 )
 
 var fDir = flag.String("dir", "", "Directory within which to write the file.")
