@@ -18,7 +18,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

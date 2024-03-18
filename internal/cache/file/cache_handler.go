@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // CacheHandler is responsible for creating CacheHandle and invalidating file cache

@@ -70,6 +70,3 @@ require (
 	google.golang.org/grpc v1.61.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 )
-
-// Retracted un-release version
-retract v1.0.0

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"

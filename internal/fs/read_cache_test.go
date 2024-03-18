@@ -25,9 +25,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
-	testutil "github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
 

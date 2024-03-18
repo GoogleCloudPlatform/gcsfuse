@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	. "github.com/jacobsa/ogletest"
 )
 

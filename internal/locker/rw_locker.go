@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
 
 type RWLocker interface {

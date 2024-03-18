@@ -20,7 +20,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	. "github.com/jacobsa/ogletest"
 	"google.golang.org/api/googleapi"
 )
