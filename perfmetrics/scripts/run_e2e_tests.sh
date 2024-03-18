@@ -94,7 +94,6 @@ function run_non_parallel_tests() {
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
-    echo "Running non parallel test for directory $test_dir_np"
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       test_fail_np=$exit_code_non_parallel
@@ -109,13 +108,13 @@ function run_non_parallel_tests() {
 function run_parallel_tests() {
   local -n testArray=$1
   BUCKET_NAME_PARALLEL=$2
+  local pids=()
 
   for test_dir_p in "${testArray[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
-    echo "Running parallel test for directory $test_dir_p"
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -125,11 +124,11 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      test_fail_p=$exit_code_parallel
-      echo "test fail in parallel: " $test_fail_p
+      hns_test_fail_p=$exit_code_parallel
+      echo "test fail in parallel: " $hns_test_fail_p
     fi
   done
-  return $test_fail_p
+  return $hns_test_fail_p
 }
 
 function create_flat_buckets() {
@@ -228,17 +227,60 @@ function run_e2e_tests_flat_bucket() {
   fi
 }
 
+function run_e2e_tests_hns_bucket() {
+  echo "Running parallel tests for hns bucket..."
+  # Run parallel tests
+  run_parallel_tests test_dir_parallel $HNS_BUCKET_NAME_PARALLEL &
+  hns_parallel_test_pid=$!
+  # Run non parallel tests
+  echo "Running non parallel tests group-1 for hns bucket..."
+  run_non_parallel_tests test_dir_non_parallel_group_1 $HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+  hns_np_group_1_pid=$!
+  echo "Running non parallel tests group-2 for hns bucket..."
+  run_non_parallel_tests test_dir_non_parallel_group_2 $HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+  hns_np_group_2_pid=$!
+  wait $hns_parallel_test_pid
+  hns_test_fail_p=$?
+  wait $hns_np_group_1_pid
+  hns_test_fail_np_group_1=$?
+  wait $hns_np_group_2_pid
+  hns_test_fail_np_group_2=$?
+
+  if [ $hns_test_fail_np_group_1 != 0 ] || [ $hns_test_fail_np_group_2 != 0 ] || [ $hns_test_fail_p != 0 ];
+  then
+    return 1
+  fi
+}
+
 run_e2e_tests_flat_bucket &
 e2e_tests_flat_bucket_pid=$!
+
+run_e2e_tests_hns_bucket &
+e2e_tests_hns_bucket_pid=$!
+
 wait $e2e_tests_flat_bucket_pid
 e2e_tests_flat_bucket_status=$?
 
+wait $e2e_tests_hns_bucket_pid
+e2e_tests_hns_bucket_status=$?
+
+
 set -e
-# Cleanup
-# Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_2/
+
+function clean_up() {
+  # Cleanup
+  # Delete bucket after testing.
+  local -n buckets=$1
+  for bucket in "${buckets[@]}"
+    do
+      gcloud alpha storage rm --recursive gs://$bucket
+    done
+}
+flat_buckets=("$BUCKET_NAME_PARALLEL" "$BUCKET_NAME_NON_PARALLEL_GROUP_1" "$BUCKET_NAME_NON_PARALLEL_GROUP_2")
+hns_buckets=("$HNS_BUCKET_NAME_PARALLEL" "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_1" "$HNS_BUCKET_NAME_NON_PARALLEL_GROUP_2")
+clean_up flat_buckets
+clean_up hns_buckets
+
 
 # Removing bin file after testing.
 if [ $run_e2e_tests_on_package != true ];
@@ -248,5 +290,14 @@ fi
 if [ $e2e_tests_flat_bucket_status != 0 ];
 then
   echo "The e2e tests for flat bucket failed.."
+fi
+
+if [ $e2e_tests_hns_bucket_status != 0 ];
+then
+  echo "The e2e tests for hns bucket failed.."
+fi
+
+if [ $e2e_tests_flat_bucket_status != 0 ] || [ $e2e_tests_hns_bucket_status != 0 ]
+then
   exit 1
 fi
