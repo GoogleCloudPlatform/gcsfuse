@@ -103,7 +103,7 @@ func (s *managedFoldersAdminPermission) TestMoveFileAndMoveNonEmptyManagedFolder
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolderMoveTest, MoveFile)
 	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolderMoveTest, MoveDestFile)
 
-	err := operations.MoveFile(srcFile, destFile)
+	err := operations.MoveDir(srcFile, destFile)
 	if err != nil {
 		t.Errorf("Error in moving file managed folder from src: %s to dest %s", srcFile, destFile)
 	}
