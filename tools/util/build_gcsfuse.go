@@ -53,7 +53,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 	{
 		var pkg *build.Package
 		pkg, err = build.Import(
-			"github.com/googlecloudplatform/gcsfuse",
+			"github.com/googlecloudplatform/gcsfuse/v2",
 			"",
 			build.FindOnly)
 
