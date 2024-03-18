@@ -132,7 +132,8 @@ func getCRCOfFile(filePath string) (crc32Value uint32) {
 	// Closing file at the end.
 	defer operations.CloseFile(file)
 
-	hasher := crc32.NewIEEE() // Use the standard CRC-32 IEEE polynomial
+	var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
+	hasher := crc32.New(crc32cTable)
 	_, err = io.Copy(hasher, file)
 	if err != nil {
 		fmt.Println("Error calculating CRC-32:", err)
