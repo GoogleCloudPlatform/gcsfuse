@@ -140,8 +140,13 @@ func TestRemountTest(t *testing.T) {
 
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			t.Errorf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// Run tests.
 	for _, flags := range flagSet {

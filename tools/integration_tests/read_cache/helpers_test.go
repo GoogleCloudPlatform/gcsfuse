@@ -147,21 +147,12 @@ func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(mountDir)
 }
 
-func createStorageClient(t *testing.T, ctx *context.Context, storageClient **storage.Client) func() {
-	var err error
-	var cancel context.CancelFunc
-	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
-	*storageClient, err = client.CreateStorageClient(*ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// return func to close storage client and release resources.
-	return func() {
-		err := (*storageClient).Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
+func mountGCSFuse(flags []string) {
+	if setup.MountedDirectory() == "" {
+		// Mount GCSFuse only when tests are not running on mounted directory.
+		if err := mountFunc(flags); err != nil {
+			setup.LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
 		}
-		defer cancel()
 	}
 }
 
