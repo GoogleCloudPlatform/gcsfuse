@@ -16,14 +16,15 @@
 # This will stop execution when any command will have non-zero status.
 
 set -e
-sudo apt-get update
 
+# true or false to run e2e tests on installedPackage
+RUN_E2E_TESTS_ON_PACKAGE=$1
 readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 
 # Test directory arrays
-test_dir_parallel=(
+TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
   "mounting"
@@ -33,14 +34,14 @@ test_dir_parallel=(
 )
 
 # These tests never become parallel as it is changing bucket permissions.
-test_dir_non_parallel_group_1=(
+TEST_DIR_NON_PARALLEL_GROUP_1=(
   "readonly"
   "managed_folders"
 )
 
 # These test packages can be configured to run in parallel once they achieve
 # directory independence.
-test_dir_non_parallel_group_2=(
+TEST_DIR_NON_PARALLEL_GROUP_2=(
   "explicit_dir"
   "implicit_dir"
   "list_large_dir"
@@ -78,49 +79,49 @@ function install_packages() {
 
 # Create bucket for integration tests.
 function create_bucket() {
-  bucketPrefix=$1
+  bucket_prefix=$1
   # The length of the random string
   length=5
   # Generate the random string
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
-  BUCKET_NAME=$bucketPrefix$random_string
+  bucket_name=$bucket_prefix$random_string
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
-  gcloud alpha storage buckets create gs://$BUCKET_NAME --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
-  echo $BUCKET_NAME
+  gcloud alpha storage buckets create gs://$bucket_name --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+  echo $bucket_name
 }
 
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
-  local test_dir_np=0
+  local non_parallel_tests_exit_code=0
   local -n testArray=$1
-  BUCKET_NAME_NON_PARALLEL=$2
+  local bucket_name_non_parallel=$2
 
   for test_dir_np in "${testArray[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_NON_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
-      test_fail_np=$exit_code_non_parallel
+      non_parallel_tests_exit_code=$exit_code_non_parallel
       echo "test fail in non parallel on package: " $test_dir_np
     fi
   done
-  return $test_fail_np
+  return $non_parallel_tests_exit_code
 }
 
 # Parallel execution of integration tests located within specified test directories.
 # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
-  local test_dir_p=0
-  local -n testArray=$1
-  BUCKET_NAME_PARALLEL=$2
+  local parallel_tests_exit_code=0
+  local -n test_array=$1
+  local bucket_name_parallel=$2
 
-  for test_dir_p in "${testArray[@]}"
+  for test_dir_p in "${test_array[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$BUCKET_NAME_PARALLEL --testInstalledPackage=$run_e2e_tests_on_package -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -130,15 +131,14 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      test_fail_p=$exit_code_parallel
+      parallel_tests_exit_code=$exit_code_parallel
       echo "test fail in parallel on package: " $test_dir_p
     fi
   done
-  return $test_fail_p
+  return $parallel_tests_exit_code
 }
 
-# true or false to run e2e tests on installedPackage
-run_e2e_tests_on_package=$1
+sudo apt-get update
 # Upgrade gcloud version.
 # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
 upgrade_gcloud_version
@@ -147,57 +147,57 @@ install_packages
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME_NON_PARALLEL_GROUP_1
+bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+bucket_name_non_paraller_group_1=$(create_bucket $bucket_prefix)
+echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_paraller_group_1
 
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
-bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME_NON_PARALLEL_GROUP_2
+bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+bucket_name_non_paraller_group_2=$(create_bucket $bucket_prefix)
+echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_paraller_group_2
 
 # Create Bucket for parallel e2e tests
 # The bucket prefix for the random string
-bucketPrefix="gcsfuse-parallel-e2e-tests-"
-BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
-echo "Bucket name for parallel tests: "$BUCKET_NAME_PARALLEL
+bucket_prefix="gcsfuse-parallel-e2e-tests-"
+bucket_name_paraller=$(create_bucket $bucket_prefix)
+echo "Bucket name for parallel tests: "$bucket_name_paraller
 
 # Run tests
 set +e
 
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests test_dir_parallel $BUCKET_NAME_PARALLEL &
-my_process_p=$!
+run_parallel_tests TEST_DIR_PARALLEL $bucket_name_paraller &
+parallel_tests_pid=$!
 # Run non parallel tests
 echo "Running non parallel tests group-1..."
-run_non_parallel_tests test_dir_non_parallel_group_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
-my_process_np_group_1=$!
+run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_paraller_group_1 &
+non_parallel_tests_pid_group_1=$!
 echo "Running non parallel tests group-2..."
-run_non_parallel_tests test_dir_non_parallel_group_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
-my_process_np_group_2=$!
-wait $my_process_p
-test_fail_p=$?
-wait $my_process_np_group_1
-test_fail_np_group_1=$?
-wait $my_process_np_group_2
-test_fail_np_group_2=$?
+run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_paraller_group_2 &
+non_parallel_tests_pid_group_2=$!
+wait $parallel_tests_pid
+parallel_tests_exit_code=$?
+wait $non_parallel_tests_pid_group_1
+non_parallel_tests_exit_code_group_1=$?
+wait $non_parallel_tests_pid_group_2
+non_parallel_tests_exit_code_group_2=$?
 set -e
 
 # Cleanup
 # Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_PARALLEL/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_1/
-gcloud alpha storage rm --recursive gs://$BUCKET_NAME_NON_PARALLEL_GROUP_2/
+gcloud alpha storage rm --recursive gs://$bucket_name_paraller/
+gcloud alpha storage rm --recursive gs://$bucket_name_non_paraller_group_1/
+gcloud alpha storage rm --recursive gs://$bucket_name_non_paraller_group_2/
 
 # Removing bin file after testing.
-if [ $run_e2e_tests_on_package != true ];
+if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $test_fail_np_group_1 != 0 ] || [ $test_fail_np_group_2 != 0 ] || [ $test_fail_p != 0 ];
+if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
 then
   echo "The tests failed."
   exit 1
