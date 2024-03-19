@@ -60,8 +60,8 @@ func createHundredExplicitDir(dirPath string, t *testing.T) {
 // Test with a bucket with twelve thousand files.
 func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests1)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests1)
 
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
@@ -93,8 +93,8 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests2)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests2)
 
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
@@ -140,8 +140,8 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
 func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests3)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests3)
 
 	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
