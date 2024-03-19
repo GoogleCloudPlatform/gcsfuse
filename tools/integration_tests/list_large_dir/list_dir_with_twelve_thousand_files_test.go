@@ -40,10 +40,11 @@ func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *te
 func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
 	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
 	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
-	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
+	dirPath := path.Join(testDirPathOnBucket, DirectoryWithTwelveThousandFiles)
 	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
 }
 
