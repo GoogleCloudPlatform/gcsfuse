@@ -148,35 +148,38 @@ install_packages
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-bucket_name_non_paraller_group_1=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_paraller_group_1
+bucket_name_non_parallel_group_1=$(create_bucket $bucket_prefix)
+echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
 
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-bucket_name_non_paraller_group_2=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_paraller_group_2
+bucket_name_non_parallel_group_2=$(create_bucket $bucket_prefix)
+echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
 
 # Create Bucket for parallel e2e tests
 # The bucket prefix for the random string
 bucket_prefix="gcsfuse-parallel-e2e-tests-"
-bucket_name_paraller=$(create_bucket $bucket_prefix)
-echo "Bucket name for parallel tests: "$bucket_name_paraller
+bucket_name_parallel=$(create_bucket $bucket_prefix)
+echo "Bucket name for parallel tests: "$bucket_name_parallel
 
 # Run tests
 set +e
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests TEST_DIR_PARALLEL $bucket_name_paraller &
+run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
 parallel_tests_pid=$!
+
 # Run non parallel tests
 echo "Running non parallel tests group-1..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_paraller_group_1 &
+run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
 non_parallel_tests_pid_group_1=$!
 echo "Running non parallel tests group-2..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_paraller_group_2 &
+run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
 non_parallel_tests_pid_group_2=$!
+
+# Wait for all tests to complete.
 wait $parallel_tests_pid
 parallel_tests_exit_code=$?
 wait $non_parallel_tests_pid_group_1
@@ -187,9 +190,9 @@ set -e
 
 # Cleanup
 # Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$bucket_name_paraller/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_paraller_group_1/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_paraller_group_2/
+gcloud alpha storage rm --recursive gs://$bucket_name_parallel/
+gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_1/
+gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_2/
 
 # Removing bin file after testing.
 if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
