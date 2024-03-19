@@ -81,6 +81,5 @@ func TestMain(m *testing.M) {
 		setup.SaveLogFileInCaseOfFailure(successCode)
 	}
 
-	setup.RemoveBinFileCopiedForTesting()
 	os.Exit(successCode)
 }
