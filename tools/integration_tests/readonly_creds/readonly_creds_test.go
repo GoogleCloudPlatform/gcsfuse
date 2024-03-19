@@ -44,11 +44,6 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
 
-	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
-	setup.RunTestsForMountedDirectoryFlag(m)
-
-	// Run tests for testBucket
-	setup.SetUpTestDirForTestBucketFlag()
 	// Create test directory.
 	ctx := context.Background()
 	var storageClient *storage.Client
@@ -61,10 +56,18 @@ func TestMain(m *testing.M) {
 	}()
 	client.SetupTestDirectory(ctx, storageClient, testDirName)
 
+	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	// flags to be set, as local_file tests validates content from the bucket.
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		setup.RunTestsForMountedDirectoryFlag(m)
+	}
+
+	// Run tests for testBucket
+	setup.SetUpTestDirForTestBucketFlag()
+
 	// Test for viewer permission on test bucket.
 	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 
-	setup.RemoveBinFileCopiedForTesting()
 	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
