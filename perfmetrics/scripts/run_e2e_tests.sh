@@ -103,7 +103,7 @@ function run_non_parallel_tests() {
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
-      non_parallel_tests_exit_code=$exit_code_non_parallel
+      exit_code=$exit_code_non_parallel
       echo "test fail in non parallel on package: " $test_dir_np
     fi
   done
