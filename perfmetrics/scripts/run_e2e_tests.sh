@@ -21,6 +21,7 @@ set -e
 RUN_E2E_TESTS_ON_PACKAGE=$1
 readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
+readonly HNS_PROJECT_ID="gcs-fuse-test"
 readonly BUCKET_LOCATION="us-west1"
 
 # Test directory arrays
@@ -93,6 +94,17 @@ function create_bucket() {
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
   gcloud alpha storage buckets create gs://$bucket_name --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
   echo $bucket_name
+}
+
+function create_hns_bucket() {
+  length=5
+  # Generate the random string
+  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
+  bucket_name="gcsfuse-e2e-tests-hns-"$random_string
+  # Using gcloud alpha as hns is currently only available on alpha as of now
+  gcloud alpha storage buckets create gs://$bucket_name --project=$HNS_PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
+  echo "Hns Bucket Created: $bucket_name"
+  echo "$bucket_name"
 }
 
 # Non parallel execution of integration tests located within specified test directories.
@@ -171,15 +183,8 @@ function create_flat_buckets() {
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 }
 
-function create_hns_buckets() {
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-hns-"
-  hns_bucket_name=$(create_hns_bucket $bucketPrefix)
-  echo "Hns Bucket name for non parallel tests group - 1: "$hns_bucket_name
-}
-
 create_flat_buckets
-create_hns_buckets
-
+hns_bucket_name=$(create_hns_bucket)
 
 # Run tests
 set +e
