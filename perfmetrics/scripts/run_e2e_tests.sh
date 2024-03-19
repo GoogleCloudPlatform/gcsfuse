@@ -92,7 +92,7 @@ function create_bucket() {
 
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
-  local non_parallel_tests_exit_code=0
+  local exit_code=0
   local -n testArray=$1
   local bucket_name_non_parallel=$2
 
@@ -107,13 +107,13 @@ function run_non_parallel_tests() {
       echo "test fail in non parallel on package: " $test_dir_np
     fi
   done
-  return $non_parallel_tests_exit_code
+  return $exit_code
 }
 
 # Parallel execution of integration tests located within specified test directories.
 # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
-  local parallel_tests_exit_code=0
+  local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
 
@@ -131,11 +131,11 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      parallel_tests_exit_code=$exit_code_parallel
+      exit_code=$exit_code_parallel
       echo "test fail in parallel on package: " $test_dir_p
     fi
   done
-  return $parallel_tests_exit_code
+  return $exit_code
 }
 
 sudo apt-get update
@@ -166,7 +166,6 @@ echo "Bucket name for parallel tests: "$bucket_name_paraller
 
 # Run tests
 set +e
-
 echo "Running parallel tests..."
 # Run parallel tests
 run_parallel_tests TEST_DIR_PARALLEL $bucket_name_paraller &
