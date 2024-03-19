@@ -59,9 +59,10 @@ func createHundredExplicitDir(dirPath string, t *testing.T) {
 // Test with a bucket with twelve thousand files.
 func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 
-	dirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
 	objs, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -91,9 +92,10 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 // Test with a bucket with twelve thousand files and hundred explicit directories.
 func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
 	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
 	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
 
-	dirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
 
 	// Create hundred explicit directories.
 	createHundredExplicitDir(dirPath, t)
