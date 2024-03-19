@@ -111,7 +111,7 @@ type MountConfig struct {
 	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
-	GrpcClientConfig    `yaml:"grpc-client"`
+	GrpcClientConfig    `yaml:"grpc"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three

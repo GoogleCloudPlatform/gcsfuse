@@ -153,7 +153,7 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	}
 
 	if err = mountConfig.GrpcClientConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing grpc-client-config: %w", err)
+		return mountConfig, fmt.Errorf("error parsing grpc-config: %w", err)
 	}
 	return
 }

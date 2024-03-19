@@ -214,7 +214,7 @@ func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnPoolSize
 	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_conn_pool_size.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-client-config: the value of conn-pool-size can't be less than 1"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-config: the value of conn-pool-size can't be less than 1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize() {
