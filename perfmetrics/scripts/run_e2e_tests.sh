@@ -50,6 +50,11 @@ TEST_DIR_NON_PARALLEL_GROUP_2=(
   "rename_dir_limit"
 )
 
+TEST_DIR_HNS_GROUP=(
+  "implicit_dir"
+  "operations"
+)
+
 function upgrade_gcloud_version() {
   gcloud version
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
@@ -190,6 +195,9 @@ non_parallel_tests_pid_group_1=$!
 echo "Running non parallel tests group-2..."
 run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
 non_parallel_tests_pid_group_2=$!
+echo "Running tests for HNS bucket"
+run_non_parallel_tests TEST_DIR_HNS_GROUP $hns_bucket_name &
+non_parallel_tests_pid_hns_group=$!
 
 # Wait for all tests to complete.
 wait $parallel_tests_pid
@@ -198,6 +206,8 @@ wait $non_parallel_tests_pid_group_1
 non_parallel_tests_exit_code_group_1=$?
 wait $non_parallel_tests_pid_group_2
 non_parallel_tests_exit_code_group_2=$?
+wait $non_parallel_tests_pid_hns_group
+non_parallel_tests_hns_group_exit_code=$?
 set -e
 
 # Cleanup
@@ -223,7 +233,7 @@ if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+if [ $non_parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
 then
   echo "The tests failed."
   exit 1
