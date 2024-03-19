@@ -144,25 +144,37 @@ sudo apt-get update
 upgrade_gcloud_version
 install_packages
 
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-bucket_name_non_parallel_group_1=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
+function create_flat_buckets() {
+  # Test setup
+  # Create Bucket for non parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
 
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-bucket_name_non_parallel_group_2=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
+  # Test setup
+  # Create Bucket for non parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
 
-# Create Bucket for parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-parallel-e2e-tests-"
-bucket_name_parallel=$(create_bucket $bucket_prefix)
-echo "Bucket name for parallel tests: "$bucket_name_parallel
+  # Create Bucket for parallel e2e tests
+  # The bucket prefix for the random string
+  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  bucket_name_parallel=$(create_bucket $bucketPrefix)
+  echo "Bucket name for parallel tests: "$bucket_name_parallel
+}
+
+function create_hns_buckets() {
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-hns-"
+  hns_bucket_name=$(create_hns_bucket $bucketPrefix)
+  echo "Hns Bucket name for non parallel tests group - 1: "$hns_bucket_name
+}
+
+create_flat_buckets
+create_hns_buckets
+
 
 # Run tests
 set +e
@@ -190,9 +202,21 @@ set -e
 
 # Cleanup
 # Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$bucket_name_parallel/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_1/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_2/
+function clean_up() {
+  # Cleanup
+  # Delete bucket after testing.
+  local -n buckets=$1
+  for bucket in "${buckets[@]}"
+    do
+      gcloud alpha storage rm --recursive gs://$bucket
+    done
+}
+
+flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+hns_buckets=("$hns_bucket_name")
+
+clean_up flat_buckets
+clean_up hns_buckets
 
 # Removing bin file after testing.
 if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
