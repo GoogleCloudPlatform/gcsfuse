@@ -93,10 +93,10 @@ function create_bucket() {
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
   local exit_code=0
-  local -n testArray=$1
+  local -n test_array=$1
   local bucket_name_non_parallel=$2
 
-  for test_dir_np in "${testArray[@]}"
+  for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
