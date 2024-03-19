@@ -18,3 +18,5 @@ metadata-cache:
   stat-cache-max-size-mb: 3
 list:
   enable-empty-managed-folders: true
+grpc:
+  conn-pool-size: 4
