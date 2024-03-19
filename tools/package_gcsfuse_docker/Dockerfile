@@ -26,7 +26,7 @@ ENV GOOS=linux
 ENV GO111MODULE=auto
 
 ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/v2/"
+ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git clone ${GCSFUSE_REPO} 
 ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
