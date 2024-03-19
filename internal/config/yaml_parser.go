@@ -101,8 +101,8 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 }
 
 func (grpcClientConfig *GrpcClientConfig) validate() error {
-	if grpcClientConfig.ConnectionPoolSize < 1 {
-		return fmt.Errorf("the value of connection-pool-size can't be less than 1")
+	if grpcClientConfig.ConnPoolSize < 1 {
+		return fmt.Errorf("the value of conn-pool-size can't be less than 1")
 	}
 	return nil
 }

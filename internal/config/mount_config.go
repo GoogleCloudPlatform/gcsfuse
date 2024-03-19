@@ -47,7 +47,7 @@ const (
 
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnectionPoolSize                 = 1
+	DefaultGrpcConnPoolSize                       = 1
 )
 
 type WriteConfig struct {
@@ -73,8 +73,8 @@ type ListConfig struct {
 }
 
 type GrpcClientConfig struct {
-	// ConnectionPoolSize configures the number of gRPC channel in grpc client.
-	ConnectionPoolSize int `yaml:"conn-pool-size,omitempty"`
+	// ConnPoolSize configures the number of gRPC channel in grpc client.
+	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
 type CacheDir string
@@ -157,7 +157,7 @@ func NewMountConfig() *MountConfig {
 		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFoldersListing,
 	}
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
-		ConnectionPoolSize: DefaultGrpcConnectionPoolSize,
+		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
 	return mountConfig
 }

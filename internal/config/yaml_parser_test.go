@@ -43,7 +43,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq("", mountConfig.CacheDir)
 	ExpectEq(-1, mountConfig.FileCacheConfig.MaxSizeMB)
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
-	ExpectEq(1, mountConfig.GrpcClientConfig.ConnectionPoolSize)
+	ExpectEq(1, mountConfig.GrpcClientConfig.ConnPoolSize)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -210,17 +210,17 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeToo
 	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeMBTooHighError)))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnectionPoolSize() {
+func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnPoolSize() {
 	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_conn_pool_size.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-client-config: the value of connection-pool-size can't be less than 1"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-client-config: the value of conn-pool-size can't be less than 1"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnectionPoolSize() {
+func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize() {
 	mountConfig, err := ParseConfigFile("testdata/grpc_client_config/unset_conn_pool_size.yaml")
 
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
-	AssertEq(DefaultGrpcConnectionPoolSize, mountConfig.GrpcClientConfig.ConnectionPoolSize)
+	AssertEq(DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
 }
