@@ -22,6 +22,33 @@ readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
 
+# Test directory arrays
+test_dir_parallel=(
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  "gzip"
+  "write_large_files"
+)
+
+# These tests never become parallel as it is changing bucket permissions.
+test_dir_non_parallel_group_1=(
+  "readonly"
+  "managed_folders"
+)
+
+# These test packages can be configured to run in parallel once they achieve
+# directory independence.
+test_dir_non_parallel_group_2=(
+  "explicit_dir"
+  "implicit_dir"
+  "list_large_dir"
+  "operations"
+  "read_large_files"
+  "rename_dir_limit"
+)
+
 function upgrade_gcloud_version() {
   gcloud version
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
@@ -34,24 +61,20 @@ function upgrade_gcloud_version() {
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
-# true or false to run e2e tests on installedPackage
-run_e2e_tests_on_package=$1
-
-# Upgrade gcloud version.
-# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-upgrade_gcloud_version
-
-# e.g. architecture=arm64 or amd64
-architecture=$(dpkg --print-architecture)
-echo "Installing go-lang 1.22.1..."
-wget -O go_tar.tar.gz https://go.dev/dl/go1.22.1.linux-${architecture}.tar.gz -q
-sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
-export PATH=$PATH:/usr/local/go/bin
-# install python3-setuptools tools.
-sudo apt-get install -y gcc python3-dev python3-setuptools
-# Downloading composite object requires integrity checking with CRC32c in gsutil.
-# it requires to install crcmod.
-sudo apt install -y python3-crcmod
+# Install packages
+function install_packages() {
+  # e.g. architecture=arm64 or amd64
+  architecture=$(dpkg --print-architecture)
+  echo "Installing go-lang 1.22.1..."
+  wget -O go_tar.tar.gz https://go.dev/dl/go1.22.1.linux-${architecture}.tar.gz -q
+  sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz && sudo mv go /usr/local
+  export PATH=$PATH:/usr/local/go/bin
+  # install python3-setuptools tools.
+  sudo apt-get install -y gcc python3-dev python3-setuptools
+  # Downloading composite object requires integrity checking with CRC32c in gsutil.
+  # it requires to install crcmod.
+  sudo apt install -y python3-crcmod
+}
 
 # Create bucket for integration tests.
 function create_bucket() {
@@ -68,6 +91,7 @@ function create_bucket() {
 
 # Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
+  local test_dir_np=0
   local -n testArray=$1
   BUCKET_NAME_NON_PARALLEL=$2
 
@@ -88,6 +112,7 @@ function run_non_parallel_tests() {
 # Parallel execution of integration tests located within specified test directories.
 # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
+  local test_dir_p=0
   local -n testArray=$1
   BUCKET_NAME_PARALLEL=$2
 
@@ -106,66 +131,40 @@ function run_parallel_tests() {
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
       test_fail_p=$exit_code_parallel
-      echo "test fail in parallel on package: " $test_dir_np
+      echo "test fail in parallel on package: " $test_dir_p
     fi
   done
   return $test_fail_p
 }
 
+# true or false to run e2e tests on installedPackage
+run_e2e_tests_on_package=$1
+# Upgrade gcloud version.
+# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
+upgrade_gcloud_version
+install_packages
+
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME
-BUCKET_NAME_NON_PARALLEL_GROUP_1=$BUCKET_NAME
-# Test directory array
-# These tests never become parallel as it is changing bucket permissions.
-test_dir_non_parallel_group_1=(
-  "readonly"
-  "managed_folders"
-)
+BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
+echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME_NON_PARALLEL_GROUP_1
 
 # Test setup
 # Create Bucket for non parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME
-BUCKET_NAME_NON_PARALLEL_GROUP_2=$BUCKET_NAME
-# These test packages can be configured to run in parallel once they achieve
-# directory independence.
-# Test directory array
-test_dir_non_parallel_group_2=(
-  "explicit_dir"
-  "implicit_dir"
-  "list_large_dir"
-  "operations"
-  "read_large_files"
-  "rename_dir_limit"
-)
+BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
+echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME_NON_PARALLEL_GROUP_2
 
 # Create Bucket for parallel e2e tests
 # The bucket prefix for the random string
 bucketPrefix="gcsfuse-parallel-e2e-tests-"
-BUCKET_NAME=$(create_bucket $bucketPrefix)
-echo "Bucket name for parallel tests: "$BUCKET_NAME
-BUCKET_NAME_PARALLEL=$BUCKET_NAME
-# Test directory array
-test_dir_parallel=(
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
-  "write_large_files"
-)
+BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
+echo "Bucket name for parallel tests: "$BUCKET_NAME_PARALLEL
 
 # Run tests
-test_fail_p=0
-test_fail_np=0
-test_fail_np_group_1=0
-test_fail_np_group_2=0
 set +e
 
 echo "Running parallel tests..."
