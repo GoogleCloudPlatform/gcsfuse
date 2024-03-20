@@ -57,6 +57,9 @@ TEST_DIR_HNS_GROUP=(
 )
 
 function upgrade_gcloud_version() {
+  sudo apt-get update
+  # Upgrade gcloud version.
+  # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
   gcloud version
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
   sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
@@ -155,9 +158,6 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-sudo apt-get update
-# Upgrade gcloud version.
-# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
 upgrade_gcloud_version
 install_packages
 
@@ -238,8 +238,14 @@ if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
-if [ $non_parallel_tests_hns_group_exit_code != 0 ] || [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
 then
-  echo "The tests failed."
+  echo "Tests failed for flat bucket"
+  exit 1
+fi
+
+if [ $non_parallel_tests_hns_group_exit_code != 0 ];
+then
+  echo "Tests failed for HNS bucket"
   exit 1
 fi
