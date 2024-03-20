@@ -18,14 +18,13 @@
 set -e
 
 # true or false to run e2e tests on installedPackage
-RUN_E2E_TESTS_ON_PACKAGE=$1
-readonly INTEGRATION_TEST_TIMEOUT=40m
-readonly PROJECT_ID="gcs-fuse-test-ml"
-readonly HNS_PROJECT_ID="gcs-fuse-test"
-readonly BUCKET_LOCATION="us-west1"
+run_e2e_tests_on_package=$1
+readonly integration_test_timeout=40m
+readonly project_id="gcs-fuse-test-ml"
+readonly bucket_location="us-west1"
 
 # Test directory arrays
-TEST_DIR_PARALLEL=(
+test_dir_parallel=(
   "local_file"
   "log_rotation"
   "mounting"
@@ -35,14 +34,14 @@ TEST_DIR_PARALLEL=(
 )
 
 # These tests never become parallel as it is changing bucket permissions.
-TEST_DIR_NON_PARALLEL_GROUP_1=(
+test_dir_non_parallel_group_1=(
   "readonly"
   "managed_folders"
 )
 
 # These test packages can be configured to run in parallel once they achieve
 # directory independence.
-TEST_DIR_NON_PARALLEL_GROUP_2=(
+test_dir_non_parallel_group_2=(
   "explicit_dir"
   "implicit_dir"
   "list_large_dir"
@@ -95,7 +94,7 @@ function create_bucket() {
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   bucket_name=$bucket_prefix$random_string
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
-  gcloud alpha storage buckets create gs://$bucket_name --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access
   echo $bucket_name
 }
 
@@ -105,7 +104,9 @@ function create_hns_bucket() {
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   bucket_name="gcsfuse-e2e-tests-hns-"$random_string
   # Using gcloud alpha as hns is currently only available on alpha as of now
-  gcloud alpha storage buckets create gs://$bucket_name --project=$HNS_PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
+  # gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access --enable-hierarchical-namespace
+  # Will be uncommented once test project is allow list
+  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access
   echo "Hns Bucket Created: $bucket_name"
   echo "$bucket_name"
 }
@@ -120,7 +121,7 @@ function run_non_parallel_tests() {
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$run_e2e_tests_on_package -timeout $integration_test_timeout
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -141,7 +142,7 @@ function run_parallel_tests() {
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$run_e2e_tests_on_package -timeout $integration_test_timeout &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -190,15 +191,15 @@ hns_bucket_name=$(create_hns_bucket)
 set +e
 echo "Running parallel tests..."
 # Run parallel tests
-run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
+run_parallel_tests test_dir_parallel $bucket_name_parallel &
 parallel_tests_pid=$!
 
 # Run non parallel tests
 echo "Running non parallel tests group-1..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
+run_non_parallel_tests test_dir_non_parallel_group_1 $bucket_name_non_parallel_group_1 &
 non_parallel_tests_pid_group_1=$!
 echo "Running non parallel tests group-2..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
+run_non_parallel_tests test_dir_non_parallel_group_2 $bucket_name_non_parallel_group_2 &
 non_parallel_tests_pid_group_2=$!
 echo "Running tests for HNS bucket"
 run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name" &
@@ -213,7 +214,8 @@ wait $non_parallel_tests_pid_group_2
 non_parallel_tests_exit_code_group_2=$?
 wait $non_parallel_tests_pid_hns_group
 non_parallel_tests_hns_group_exit_code=$?
-set -e
+commenting it so cleanup and failure check happens for both
+#set -e
 
 # Cleanup
 # Delete bucket after testing.
@@ -234,7 +236,7 @@ clean_up flat_buckets
 clean_up hns_buckets
 
 # Removing bin file after testing.
-if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
+if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
 fi
