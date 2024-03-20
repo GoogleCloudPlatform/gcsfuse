@@ -194,27 +194,50 @@ echo "Running parallel tests..."
 run_parallel_tests test_dir_parallel $bucket_name_parallel &
 parallel_tests_pid=$!
 
-# Run non parallel tests
-echo "Running non parallel tests group-1..."
-run_non_parallel_tests test_dir_non_parallel_group_1 $bucket_name_non_parallel_group_1 &
-non_parallel_tests_pid_group_1=$!
-echo "Running non parallel tests group-2..."
-run_non_parallel_tests test_dir_non_parallel_group_2 $bucket_name_non_parallel_group_2 &
-non_parallel_tests_pid_group_2=$!
-echo "Running tests for HNS bucket"
-run_non_parallel_tests test_dir_hns_group "$hns_bucket_name" &
-non_parallel_tests_pid_hns_group=$!
+function run_e2e_tests_for_flat_bucket() {
+ # Run non parallel tests
+ echo "Running non parallel tests group-1..."
+ run_non_parallel_tests test_dir_non_parallel_group_1 $bucket_name_non_parallel_group_1 &
+ non_parallel_tests_pid_group_1=$!
+ echo "Running non parallel tests group-2..."
+ run_non_parallel_tests test_dir_non_parallel_group_2 $bucket_name_non_parallel_group_2 &
+ non_parallel_tests_pid_group_2=$!
 
-# Wait for all tests to complete.
-wait $parallel_tests_pid
-parallel_tests_exit_code=$?
-wait $non_parallel_tests_pid_group_1
-non_parallel_tests_exit_code_group_1=$?
-wait $non_parallel_tests_pid_group_2
-non_parallel_tests_exit_code_group_2=$?
-wait $non_parallel_tests_pid_hns_group
-non_parallel_tests_hns_group_exit_code=$?
-commenting it so cleanup and failure check happens for both
+ # Wait for all tests to complete.
+ wait $parallel_tests_pid
+ parallel_tests_exit_code=$?
+ wait $non_parallel_tests_pid_group_1
+ non_parallel_tests_exit_code_group_1=$?
+ wait $non_parallel_tests_pid_group_2
+ non_parallel_tests_exit_code_group_2=$?
+
+
+ if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+ then
+   echo "Tests failed for flat bucket"
+   exit 1
+ fi
+}
+
+function run_e2e_tests_for_hns_bucket(){
+   echo "Running tests for HNS bucket"
+   run_non_parallel_tests test_dir_hns_group "$hns_bucket_name" &
+   non_parallel_tests_pid_hns_group=$!
+
+   wait $non_parallel_tests_pid_hns_group
+   non_parallel_tests_hns_group_exit_code=$?
+
+   if [ $non_parallel_tests_hns_group_exit_code != 0 ];
+   then
+     echo "Tests failed for HNS bucket"
+     exit 1
+   fi
+}
+
+run_e2e_tests_for_flat_bucket
+run_e2e_tests_for_hns_bucket
+
+#commenting it so cleanup and failure check happens for both
 #set -e
 
 # Cleanup
@@ -229,25 +252,18 @@ function clean_up() {
     done
 }
 
-flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
-hns_buckets=("$hns_bucket_name")
+function clean_up_buckets(){
+  flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+  hns_buckets=("$hns_bucket_name")
 
-clean_up flat_buckets
-clean_up hns_buckets
+  clean_up flat_buckets
+  clean_up hns_buckets
+}
+
+clean_up_buckets
 
 # Removing bin file after testing.
 if [ $run_e2e_tests_on_package != true ];
 then
   sudo rm /usr/local/bin/gcsfuse
-fi
-if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
-then
-  echo "Tests failed for flat bucket"
-  exit 1
-fi
-
-if [ $non_parallel_tests_hns_group_exit_code != 0 ];
-then
-  echo "Tests failed for HNS bucket"
-  exit 1
 fi
