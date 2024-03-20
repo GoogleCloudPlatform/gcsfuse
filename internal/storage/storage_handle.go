@@ -16,9 +16,10 @@ package storage
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"net/http"
 	"os"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
