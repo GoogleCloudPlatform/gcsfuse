@@ -266,6 +266,6 @@ function main(){
 }
 
 #Main method to run script
-main
+main "$1"
 
 
