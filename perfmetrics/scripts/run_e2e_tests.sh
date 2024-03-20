@@ -159,14 +159,13 @@ function run_e2e_tests_for_flat_bucket() {
 
  if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
  then
-   echo "Tests failed for flat bucket"
    exit 1
  fi
 }
 
 function run_e2e_tests_for_hns_bucket(){
    echo "Running tests for HNS bucket"
-   run_non_parallel_tests test_dir_hns_group "$hns_bucket_name" &
+   run_non_parallel_tests test_dir_hns_group "$hns_bucket_name"
    non_parallel_tests_pid_hns_group=$!
 
    wait $non_parallel_tests_pid_hns_group
@@ -174,7 +173,6 @@ function run_e2e_tests_for_hns_bucket(){
 
    if [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
-     echo "Tests failed for HNS bucket"
      exit 1
    fi
 }
@@ -198,6 +196,30 @@ function clean_up_buckets(){
 
   clean_up flat_buckets
   clean_up hns_buckets
+}
+
+function run_tests() {
+  run_e2e_tests_for_flat_bucket &
+  e2e_tests_flat_bucket_pid=$!
+
+  run_e2e_tests_for_hns_bucket &
+  e2e_tests_hns_bucket_pid=$!
+
+  wait $e2e_tests_flat_bucket_pid
+  e2e_tests_flat_bucket_status=$?
+
+  wait $e2e_tests_hns_bucket_pid
+  e2e_tests_hns_bucket_status=$?
+
+  if [ $e2e_tests_flat_bucket_status != 0 ];
+  then
+    echo "The e2e tests for flat bucket failed.."
+  fi
+
+  if [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for hns bucket failed.."
+  fi
 }
 
 function main(){
@@ -251,8 +273,8 @@ function main(){
 
   set +e
 
-  run_e2e_tests_for_flat_bucket
-  run_e2e_tests_for_hns_bucket
+  #run integration tests
+  run_tests
 
   # Cleanup
   # Delete bucket after testing.
