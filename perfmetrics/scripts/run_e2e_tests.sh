@@ -50,7 +50,7 @@ test_dir_non_parallel_group_2=(
   "rename_dir_limit"
 )
 
-TEST_DIR_HNS_GROUP=(
+test_dir_hns_group=(
   "implicit_dir"
   "operations"
 )
@@ -202,7 +202,7 @@ echo "Running non parallel tests group-2..."
 run_non_parallel_tests test_dir_non_parallel_group_2 $bucket_name_non_parallel_group_2 &
 non_parallel_tests_pid_group_2=$!
 echo "Running tests for HNS bucket"
-run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name" &
+run_non_parallel_tests test_dir_hns_group "$hns_bucket_name" &
 non_parallel_tests_pid_hns_group=$!
 
 # Wait for all tests to complete.
