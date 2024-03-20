@@ -638,3 +638,15 @@ func CalculateCRC32(src io.Reader) (uint32, error) {
 
 	return hasher.Sum32(), nil // Return checksum and nil error on success
 }
+
+// CalculateFileCRC32 calculates and returns the CRC-32 checksum of a file.
+func CalculateFileCRC32(filePath string) (uint32, error) {
+	// Open file with simplified flags and permissions
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("error opening file: %w", err)
+	}
+	defer file.Close() // Ensure file closure
+
+	return CalculateCRC32(file)
+}

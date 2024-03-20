@@ -119,22 +119,6 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 	}
 }
 
-func getCRCOfFile(filePath string, t *testing.T) (crc32Value uint32) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, operations.FilePermission_0777)
-	if err != nil {
-		t.Errorf("Error in the opening the file %v", err)
-		return
-	}
-	// Closing file at the end.
-	defer operations.CloseFile(file)
-	// Calculate CRC32.
-	crc32Value, err = operations.CalculateCRC32(file)
-	if err != nil {
-		t.Errorf("CalculateCRC32 Failed: %v", err)
-	}
-	return
-}
-
 func ValidateCRCWithGCS(gotCRC32Value uint32, objectName string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	attr, err := client.StatObject(ctx, storageClient, path.Join(testDirName, objectName))
 	if err != nil {
@@ -149,7 +133,10 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
 	// Validate CRC of cached file matches GCS CRC.
 	cachedFilePath := getCachedFilePath(fileName)
-	crc32ValueOfCachedFile := getCRCOfFile(cachedFilePath, t)
+	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
+	if err != nil {
+		t.Errorf("CalculateFileCRC32 Failed: %v", err)
+	}
 	ValidateCRCWithGCS(crc32ValueOfCachedFile, fileName, ctx, storageClient, t)
 }
 
