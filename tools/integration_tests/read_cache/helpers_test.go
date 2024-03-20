@@ -16,9 +16,6 @@ package read_cache
 
 import (
 	"context"
-	"fmt"
-	"hash/crc32"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -33,8 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
-
-var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
 type Expected struct {
@@ -130,23 +125,18 @@ func getCRCOfFile(filePath string, t *testing.T) (crc32Value uint32) {
 		t.Errorf("Error in the opening the file %v", err)
 		return
 	}
-
 	// Closing file at the end.
 	defer operations.CloseFile(file)
-
-	var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
-	hasher := crc32.New(crc32cTable)
-	_, err = io.Copy(hasher, file)
+	// Calculate CRC32.
+	crc32Value, err = operations.CalculateCRC32(file)
 	if err != nil {
-		fmt.Println("Error calculating CRC-32:", err)
-		return 0
+		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}
-	crc32Value = hasher.Sum32()
 	return
 }
 
-func ValidateCRCWithGCS(gotCRC32Value uint32, fileName string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
-	attr, err := client.StatObject(ctx, storageClient, path.Join(testDirName, fileName))
+func ValidateCRCWithGCS(gotCRC32Value uint32, objectName string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
+	attr, err := client.StatObject(ctx, storageClient, path.Join(testDirName, objectName))
 	if err != nil {
 		t.Errorf("Failed to fetch object attributes: %v", err)
 	}
@@ -209,7 +199,10 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	}
 	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
-	gotCRC32Value := crc32.Checksum([]byte(expectedOutcome.content), crc32cTable)
+	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
+	if err != nil {
+		t.Errorf("CalculateCRC32 Failed: %v", err)
+	}
 	ValidateCRCWithGCS(gotCRC32Value, filename, ctx, storageClient, t)
 
 	return expectedOutcome

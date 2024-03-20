@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/fs"
 	"log"
@@ -624,4 +625,16 @@ func CreateFileOfSize(fileSize int64, filePath string, t *testing.T) {
 		t.Errorf("operations.GenerateRandomData: %v", err)
 	}
 	CreateFileWithContent(filePath, FilePermission_0600, string(randomData), t)
+}
+
+// CalculateCRC32 calculates and returns the CRC-32 checksum of the data from the provided Reader.
+func CalculateCRC32(src io.Reader) (uint32, error) {
+	crc32Table := crc32.MakeTable(crc32.Castagnoli) // Pre-calculate the table
+	hasher := crc32.New(crc32Table)
+
+	if _, err := io.Copy(hasher, src); err != nil {
+		return 0, fmt.Errorf("error calculating CRC-32: %w", err) // Wrap error
+	}
+
+	return hasher.Sum32(), nil // Return checksum and nil error on success
 }
