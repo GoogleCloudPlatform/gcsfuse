@@ -107,7 +107,6 @@ function create_hns_bucket() {
   # gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access --enable-hierarchical-namespace
   # Will be uncommented once test project is allow list
   gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access
-  echo "Hns Bucket Created: $bucket_name"
   echo "$bucket_name"
 }
 
@@ -186,6 +185,7 @@ function create_flat_buckets() {
 
 create_flat_buckets
 hns_bucket_name=$(create_hns_bucket)
+echo "Hns Bucket Created: "$hns_bucket_name
 
 # Run tests
 set +e
