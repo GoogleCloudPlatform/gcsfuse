@@ -15,47 +15,6 @@
 
 # This will stop execution when any command will have non-zero status.
 
-set -e
-
-# true or false to run e2e tests on installedPackage
-run_e2e_tests_on_package=$1
-readonly integration_test_timeout=40m
-readonly project_id="gcs-fuse-test-ml"
-readonly hns_project_id="gcs-fuse-test"
-readonly bucket_location="us-west1"
-
-# Test directory arrays
-test_dir_parallel=(
-  "local_file"
-  "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
-  "write_large_files"
-)
-
-# These tests never become parallel as it is changing bucket permissions.
-test_dir_non_parallel_group_1=(
-  "readonly"
-  "managed_folders"
-)
-
-# These test packages can be configured to run in parallel once they achieve
-# directory independence.
-test_dir_non_parallel_group_2=(
-  "explicit_dir"
-  "implicit_dir"
-  "list_large_dir"
-  "operations"
-  "read_large_files"
-  "rename_dir_limit"
-)
-
-test_dir_hns_group=(
-  "implicit_dir"
-  "operations"
-)
-
 function upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
@@ -71,7 +30,6 @@ function upgrade_gcloud_version() {
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
-# Install packages
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
@@ -86,7 +44,6 @@ function install_packages() {
   sudo apt install -y python3-crcmod
 }
 
-# Create bucket for integration tests.
 function create_bucket() {
   bucket_prefix=$1
   # The length of the random string
@@ -108,7 +65,6 @@ function create_hns_bucket() {
   echo "$bucket_name"
 }
 
-# Non parallel execution of integration tests located within specified test directories.
 function run_non_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
@@ -128,8 +84,6 @@ function run_non_parallel_tests() {
   return $exit_code
 }
 
-# Parallel execution of integration tests located within specified test directories.
-# It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
@@ -156,9 +110,6 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-upgrade_gcloud_version
-install_packages
-
 function create_flat_buckets() {
   # Test setup
   # Create Bucket for non parallel e2e tests
@@ -181,19 +132,15 @@ function create_flat_buckets() {
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 }
 
-create_flat_buckets
-hns_bucket_name=$(create_hns_bucket)
-echo "Hns Bucket Created: "$hns_bucket_name
-
-# Run tests
-set +e
-echo "Running parallel tests..."
-# Run parallel tests
-run_parallel_tests test_dir_parallel $bucket_name_parallel &
-parallel_tests_pid=$!
-
 function run_e2e_tests_for_flat_bucket() {
- # Run non parallel tests
+ # Parallel execution of integration tests located within specified test directories.
+ # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
+  echo "Running parallel tests..."
+  # Run parallel tests
+  run_parallel_tests test_dir_parallel $bucket_name_parallel &
+  parallel_tests_pid=$!
+
+ # Non parallel execution of integration tests located within specified test directories.
  echo "Running non parallel tests group-1..."
  run_non_parallel_tests test_dir_non_parallel_group_1 $bucket_name_non_parallel_group_1 &
  non_parallel_tests_pid_group_1=$!
@@ -232,14 +179,9 @@ function run_e2e_tests_for_hns_bucket(){
    fi
 }
 
-run_e2e_tests_for_flat_bucket
-run_e2e_tests_for_hns_bucket
-
 #commenting it so cleanup and failure check happens for both
 #set -e
 
-# Cleanup
-# Delete bucket after testing.
 function clean_up() {
   # Cleanup
   # Delete bucket after testing.
@@ -258,10 +200,72 @@ function clean_up_buckets(){
   clean_up hns_buckets
 }
 
-clean_up_buckets
+function main(){
+  set -e
+  # true or false to run e2e tests on installedPackage
+  run_e2e_tests_on_package=$1
+  readonly integration_test_timeout=40m
+  readonly project_id="gcs-fuse-test-ml"
+  readonly hns_project_id="gcs-fuse-test"
+  readonly bucket_location="us-west1"
 
-# Removing bin file after testing.
-if [ $run_e2e_tests_on_package != true ];
-then
-  sudo rm /usr/local/bin/gcsfuse
-fi
+  # Test directory arrays
+  test_dir_parallel=(
+    "local_file"
+    "log_rotation"
+    "mounting"
+    "read_cache"
+    "gzip"
+    "write_large_files"
+  )
+
+  # These tests never become parallel as it is changing bucket permissions.
+  test_dir_non_parallel_group_1=(
+    "readonly"
+    "managed_folders"
+  )
+
+  # These test packages can be configured to run in parallel once they achieve
+  # directory independence.
+  test_dir_non_parallel_group_2=(
+    "explicit_dir"
+    "implicit_dir"
+    "list_large_dir"
+    "operations"
+    "read_large_files"
+    "rename_dir_limit"
+  )
+
+  test_dir_hns_group=(
+    "implicit_dir"
+    "operations"
+  )
+
+  upgrade_gcloud_version
+
+  install_packages
+
+  create_flat_buckets
+  hns_bucket_name=$(create_hns_bucket)
+  echo "Hns Bucket Created: "$hns_bucket_name
+
+  set +e
+
+  run_e2e_tests_for_flat_bucket
+  run_e2e_tests_for_hns_bucket
+
+  # Cleanup
+  # Delete bucket after testing.
+  clean_up_buckets
+
+  # Removing bin file after testing.
+  if [ $run_e2e_tests_on_package != true ];
+  then
+    sudo rm /usr/local/bin/gcsfuse
+  fi
+}
+
+#Main method to run script
+main
+
+
