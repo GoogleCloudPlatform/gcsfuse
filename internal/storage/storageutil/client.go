@@ -30,8 +30,7 @@ import (
 type StorageClientConfig struct {
 	/** Common client parameters. */
 
-	// ClientProtocol decides the go-sdk client to create. Based on the value,
-	// either http client or grpc client is created.
+	// ClientProtocol decides the go-sdk client to create.
 	ClientProtocol    mountpkg.ClientProtocol
 	UserAgent         string
 	CustomEndpoint    *url.URL

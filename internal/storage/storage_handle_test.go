@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"net/url"
-	"strings"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/internal/mount"
@@ -179,28 +178,6 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
-}
-
-func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.HTTP1
-
-	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
-
-	AssertNe(nil, err)
-	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), "wrong client-protocol requested"))
-}
-
-func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.GRPC
-
-	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
-
-	AssertNe(nil, err)
-	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), "wrong client-protocol requested"))
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {

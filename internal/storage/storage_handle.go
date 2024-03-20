@@ -15,9 +15,8 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
-	"log"
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 	"net/http"
 	"os"
 
@@ -48,12 +47,8 @@ type storageClient struct {
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
-	if clientConfig.ClientProtocol != mountpkg.GRPC {
-		return nil, errors.New("wrong client-protocol requested")
-	}
-
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		log.Fatalf("error setting direct path env var: %v", err)
+		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
 	var clientOpts []option.ClientOption
@@ -76,7 +71,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
-		log.Fatalf("error while unsetting direct path env var: %v", err)
+		logger.Fatal("error while unsetting direct path env var: %v", err)
 	}
 
 	return
@@ -95,8 +90,6 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		}
 
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
-	} else {
-		return nil, errors.New("wrong client-protocol requested")
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
