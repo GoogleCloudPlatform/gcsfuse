@@ -207,3 +207,21 @@ func listNonEmptyManagedFolders(t *testing.T) {
 		return
 	}
 }
+
+func copyAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.CopyDir(src, dest)
+	if err == nil {
+		t.Errorf("Managed folder get copied with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func moveAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.MoveDir(src, dest)
+	if err == nil {
+		t.Errorf("Managed folder get copied with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
