@@ -88,6 +88,7 @@ function run_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
+  local pids=()
 
   for test_dir_p in "${test_array[@]}"
   do
