@@ -28,6 +28,7 @@ TEST_DIR_PARALLEL=(
   "read_cache"
   "gzip"
   "write_large_files"
+  "readonly_creds"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
