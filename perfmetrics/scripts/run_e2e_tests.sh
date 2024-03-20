@@ -21,6 +21,7 @@ set -e
 run_e2e_tests_on_package=$1
 readonly integration_test_timeout=40m
 readonly project_id="gcs-fuse-test-ml"
+readonly hns_project_id="gcs-fuse-test"
 readonly bucket_location="us-west1"
 
 # Test directory arrays
@@ -103,10 +104,7 @@ function create_hns_bucket() {
   # Generate the random string
   random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
   bucket_name="gcsfuse-e2e-tests-hns-"$random_string
-  # Using gcloud alpha as hns is currently only available on alpha as of now
-  # gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access --enable-hierarchical-namespace
-  # Will be uncommented once test project is allow list
-  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$bucket_location --uniform-bucket-level-access
+  gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$bucket_location --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
 }
 
