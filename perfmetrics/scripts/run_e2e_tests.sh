@@ -250,11 +250,11 @@ function main(){
   set +e
 
   #run integration tests
-  run_e2e_tests_for_flat_bucket &
-  e2e_tests_flat_bucket_pid=$!
-
   run_e2e_tests_for_hns_bucket
   e2e_tests_hns_bucket_pid=$!
+  
+  run_e2e_tests_for_flat_bucket &
+  e2e_tests_flat_bucket_pid=$!
 
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
