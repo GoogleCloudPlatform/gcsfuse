@@ -236,30 +236,6 @@ function clean_up_buckets(){
   clean_up hns_buckets
 }
 
-function run_tests() {
-  run_e2e_tests_for_flat_bucket &
-  e2e_tests_flat_bucket_pid=$!
-
-  run_e2e_tests_for_hns_bucket &
-  e2e_tests_hns_bucket_pid=$!
-
-  wait $e2e_tests_flat_bucket_pid
-  e2e_tests_flat_bucket_status=$?
-
-  wait $e2e_tests_hns_bucket_pid
-  e2e_tests_hns_bucket_status=$?
-
-  if [ $e2e_tests_flat_bucket_status != 0 ];
-  then
-    echo "The e2e tests for flat bucket failed.."
-  fi
-
-  if [ $e2e_tests_hns_bucket_status != 0 ];
-  then
-    echo "The e2e tests for hns bucket failed.."
-  fi
-}
-
 function main(){
   set -e
 
@@ -274,11 +250,35 @@ function main(){
   set +e
 
   #run integration tests
-  run_tests
+  run_e2e_tests_for_flat_bucket &
+  e2e_tests_flat_bucket_pid=$!
 
-  # Cleanup
-  # Delete bucket after testing.
+  run_e2e_tests_for_hns_bucket &
+  e2e_tests_hns_bucket_pid=$!
+
+  wait $e2e_tests_flat_bucket_pid
+  e2e_tests_flat_bucket_status=$?
+
+  wait $e2e_tests_hns_bucket_pid
+  e2e_tests_hns_bucket_status=$?
+
+    # Cleanup
+    # Delete bucket after testing.
   clean_up_buckets
+
+  set -e
+
+  if [ $e2e_tests_flat_bucket_status != 0 ];
+  then
+    echo "The e2e tests for flat bucket failed.."
+    exit 1
+  fi
+
+  if [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for hns bucket failed.."
+    exit 1
+  fi
 
   # Removing bin file after testing.
   if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
