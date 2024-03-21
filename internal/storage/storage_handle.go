@@ -48,6 +48,10 @@ type storageClient struct {
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+	if clientConfig.ClientProtocol != mountpkg.GRPC {
+		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
+	}
+
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
@@ -91,6 +95,8 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		}
 
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	} else {
+		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
@@ -114,8 +120,10 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var sc *storage.Client
 	if clientConfig.ClientProtocol == mountpkg.GRPC {
 		sc, err = createGRPCClientHandle(ctx, &clientConfig)
-	} else {
+	} else if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
 		sc, err = createHTTPClientHandle(ctx, &clientConfig)
+	} else {
+		err = fmt.Errorf("invalid client-protocol requested: %s", clientConfig.ClientProtocol)
 	}
 
 	if err != nil {
