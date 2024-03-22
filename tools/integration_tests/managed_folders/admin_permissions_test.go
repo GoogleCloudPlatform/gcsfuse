@@ -186,5 +186,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 	test_setup.RunTests(t, ts)
 	cleanup(bucket, testDir, serviceAccount, IAMRoleForAdminPermission, t)
-	cleanup(bucket, testDir2, serviceAccount, IAMRoleForAdminPermission, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForAdminPermission, t)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), setup.TestBucket(), t)
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
 }
