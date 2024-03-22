@@ -22,34 +22,34 @@ readonly BUCKET_LOCATION="us-west1"
 RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
-    "local_file"
-    "log_rotation"
-    "mounting"
-    "read_cache"
-    "gzip"
-    "write_large_files"
-  )
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  "gzip"
+  "write_large_files"
+)
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
-    "readonly"
-    "managed_folders"
-  )
+  "readonly"
+  "managed_folders"
+)
 
 # These test packages can be configured to run in parallel once they achieve
 # directory independence.
 TEST_DIR_NON_PARALLEL_GROUP_2=(
-    "explicit_dir"
-    "implicit_dir"
-    "list_large_dir"
-    "operations"
-    "read_large_files"
-    "rename_dir_limit"
-  )
+  "explicit_dir"
+  "implicit_dir"
+  "list_large_dir"
+  "operations"
+  "read_large_files"
+  "rename_dir_limit"
+)
 
 TEST_DIR_HNS_GROUP=(
-    "implicit_dir"
-    "operations"
-  )
+  "implicit_dir"
+  "operations"
+)
 
 function upgrade_gcloud_version() {
   sudo apt-get update
