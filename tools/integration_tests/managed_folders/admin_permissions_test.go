@@ -164,6 +164,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForViewPermission, t)
+	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 	test_setup.RunTests(t, ts)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
@@ -174,6 +175,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForAdminPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForAdminPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForAdminPermission, t)
+	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 	test_setup.RunTests(t, ts)
 
 	// Revoke admin permission on bucket.
@@ -181,6 +183,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 	test_setup.RunTests(t, ts)
 	cleanup(bucket, testDir, serviceAccount, IAMRoleForAdminPermission, t)
 	cleanup(bucket, testDir2, serviceAccount, IAMRoleForAdminPermission, t)
