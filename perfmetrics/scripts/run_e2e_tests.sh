@@ -19,7 +19,7 @@
 RUN_E2E_TESTS_ON_PACKAGE=$1
 readonly INTEGRATION_TEST_TIMEOUT=40m
 readonly BUCKET_LOCATION="us-west1"
-RANDOM_STRING_LENGTH=5
+readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
   "local_file"
@@ -82,7 +82,7 @@ function install_packages() {
 
 function create_bucket() {
   bucket_prefix=$1
-  readonly project_id="gcs-fuse-test-ml"
+  local -r project_id="gcs-fuse-test-ml"
   # Generate bucket name with random string
   bucket_name=$bucket_prefix$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
@@ -91,7 +91,7 @@ function create_bucket() {
 }
 
 function create_hns_bucket() {
-  readonly hns_project_id="gcs-fuse-test"
+  local -r hns_project_id="gcs-fuse-test"
   # Generate bucket name with random string
   bucket_name="gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
