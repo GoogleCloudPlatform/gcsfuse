@@ -20,6 +20,7 @@
 package managed_folders
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -61,6 +62,7 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolder(t *testing.T) {
 	// Create Object test
 	srcMoveFile := path.Join(path.Join(setup.MntDir(), testDir2), ManagedFolder3, MoveFile)
+	fmt.Println("srcMoveFile: ", srcMoveFile)
 	// Creating object in managed folder.
 	file, err := os.Create(srcMoveFile)
 	err = file.Close()
@@ -70,6 +72,7 @@ func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolde
 	srcCopyFile := path.Join(path.Join(setup.MntDir(), testDir2), ManagedFolder3, CopyFile)
 	// Creating object in managed folder.
 	file, err = os.Create(srcCopyFile)
+	fmt.Println("srcCopyFile: ", srcCopyFile)
 	err = file.Close()
 	if err != nil {
 		t.Errorf("Error in creating file in managed folder: %v", err)
@@ -186,5 +189,4 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	cleanup(bucket, testDir, serviceAccount, IAMRoleForAdminPermission, t)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForAdminPermission, t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), setup.TestBucket(), t)
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
 }
