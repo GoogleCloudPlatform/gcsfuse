@@ -148,42 +148,28 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-function create_flat_buckets() {
-  # Test setup
-  # Create Bucket for non parallel e2e tests
-  # The bucket prefix for the random string
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-  BUCKET_NAME_NON_PARALLEL_GROUP_1=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests group - 1: "$BUCKET_NAME_NON_PARALLEL_GROUP_1
-
-  # Test setup
-  # Create Bucket for non parallel e2e tests
-  # The bucket prefix for the random string
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-  BUCKET_NAME_NON_PARALLEL_GROUP_2=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests group - 2 : "$BUCKET_NAME_NON_PARALLEL_GROUP_2
-
-  # Create Bucket for parallel e2e tests
-  # The bucket prefix for the random string
-  bucketPrefix="gcsfuse-parallel-e2e-tests-"
-  BUCKET_NAME_PARALLEL=$(create_bucket $bucketPrefix)
-  echo "Bucket name for parallel tests: "$BUCKET_NAME_PARALLEL
-}
-
 function run_e2e_tests_for_flat_bucket() {
- # Parallel execution of integration tests located within specified test directories.
- # It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
+
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
+
+  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  bucket_name_parallel=$(create_bucket $bucketPrefix)
+  echo "Bucket name for parallel tests: "$bucket_name_parallel
+
   echo "Running parallel tests..."
-  # Run parallel tests
-  run_parallel_tests TEST_DIR_PARALLEL $BUCKET_NAME_PARALLEL &
+  run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
   parallel_tests_pid=$!
 
- # Non parallel execution of integration tests located within specified test directories.
  echo "Running non parallel tests group-1..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $BUCKET_NAME_NON_PARALLEL_GROUP_1 &
+ run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
  non_parallel_tests_pid_group_1=$!
  echo "Running non parallel tests group-2..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $BUCKET_NAME_NON_PARALLEL_GROUP_2 &
+ run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
  non_parallel_tests_pid_group_2=$!
 
  # Wait for all tests to complete.
@@ -194,6 +180,8 @@ function run_e2e_tests_for_flat_bucket() {
  wait $non_parallel_tests_pid_group_2
  non_parallel_tests_exit_code_group_2=$?
 
+ flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+ clean_up flat_buckets
 
  if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
  then
@@ -202,12 +190,19 @@ function run_e2e_tests_for_flat_bucket() {
 }
 
 function run_e2e_tests_for_hns_bucket(){
+   hns_bucket_name=$(create_hns_bucket)
+   echo "Hns Bucket Created: "$hns_bucket_name
+
    echo "Running tests for HNS bucket"
-   run_non_parallel_tests TEST_DIR_HNS_GROUP "$HNS_BUCKET_NAME"
+   run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
    non_parallel_tests_pid_hns_group=$!
 
    wait $non_parallel_tests_pid_hns_group
    non_parallel_tests_hns_group_exit_code=$?
+
+   hns_buckets=("$hns_bucket_name")
+
+   clean_up hns_buckets
 
    if [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
@@ -228,24 +223,12 @@ function clean_up() {
     done
 }
 
-function clean_up_buckets(){
-  flat_buckets=("$BUCKET_NAME_PARALLEL" "$BUCKET_NAME_NON_PARALLEL_GROUP_1" "$BUCKET_NAME_NON_PARALLEL_GROUP_2")
-  hns_buckets=("$HNS_BUCKET_NAME")
-
-  clean_up flat_buckets
-  clean_up hns_buckets
-}
-
 function main(){
   set -e
 
   upgrade_gcloud_version
 
   install_packages
-
-  create_flat_buckets
-  HNS_BUCKET_NAME=$(create_hns_bucket)
-  echo "Hns Bucket Created: "$HNS_BUCKET_NAME
 
   set +e
 
@@ -256,17 +239,13 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
+  set -e
+
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
-
-    # Cleanup
-    # Delete bucket after testing.
-  clean_up_buckets
-
-  set -e
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
