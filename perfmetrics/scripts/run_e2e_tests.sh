@@ -201,7 +201,6 @@ function run_e2e_tests_for_hns_bucket(){
    non_parallel_tests_hns_group_exit_code=$?
 
    hns_buckets=("$hns_bucket_name")
-
    clean_up hns_buckets
 
    if [ $non_parallel_tests_hns_group_exit_code != 0 ];
