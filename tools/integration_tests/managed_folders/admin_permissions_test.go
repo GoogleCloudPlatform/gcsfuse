@@ -144,12 +144,10 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
-	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
 	// For create, delete, move, copy tests.
 	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder2)
-	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
 	operations.CreateManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
