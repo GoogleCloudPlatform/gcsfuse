@@ -71,6 +71,9 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	setup.SetupTestDirectory(testDirNameForNonEmptyManagedFolder)
+	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	defer func() {
