@@ -152,7 +152,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	setup.SetupTestDirectory(testDirNameForNonEmptyManagedFolder2)
 	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder3), bucket, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
