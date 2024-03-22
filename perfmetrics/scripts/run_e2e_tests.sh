@@ -15,14 +15,11 @@
 
 # This will stop execution when any command will have non-zero status.
 
-set -e
-
 # true or false to run e2e tests on installedPackage
 RUN_E2E_TESTS_ON_PACKAGE=$1
 readonly INTEGRATION_TEST_TIMEOUT=40m
-readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION="us-west1"
-
+readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
   "local_file"
@@ -32,7 +29,6 @@ TEST_DIR_PARALLEL=(
   "gzip"
   "write_large_files"
 )
-
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
   "readonly"
@@ -50,7 +46,15 @@ TEST_DIR_NON_PARALLEL_GROUP_2=(
   "rename_dir_limit"
 )
 
+TEST_DIR_HNS_GROUP=(
+  "implicit_dir"
+  "operations"
+)
+
 function upgrade_gcloud_version() {
+  sudo apt-get update
+  # Upgrade gcloud version.
+  # Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
   gcloud version
   wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
   sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
@@ -62,7 +66,6 @@ function upgrade_gcloud_version() {
   sudo /usr/local/google-cloud-sdk/bin/gcloud components install alpha
 }
 
-# Install packages
 function install_packages() {
   # e.g. architecture=arm64 or amd64
   architecture=$(dpkg --print-architecture)
@@ -77,20 +80,24 @@ function install_packages() {
   sudo apt install -y python3-crcmod
 }
 
-# Create bucket for integration tests.
 function create_bucket() {
   bucket_prefix=$1
-  # The length of the random string
-  length=5
-  # Generate the random string
-  random_string=$(tr -dc 'a-z0-9' < /dev/urandom | head -c $length)
-  bucket_name=$bucket_prefix$random_string
+  local -r project_id="gcs-fuse-test-ml"
+  # Generate bucket name with random string
+  bucket_name=$bucket_prefix$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   # We are using gcloud alpha because gcloud storage is giving issues running on Kokoro
-  gcloud alpha storage buckets create gs://$bucket_name --project=$PROJECT_ID --location=$BUCKET_LOCATION --uniform-bucket-level-access
+  gcloud alpha storage buckets create gs://$bucket_name --project=$project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access
   echo $bucket_name
 }
 
-# Non parallel execution of integration tests located within specified test directories.
+function create_hns_bucket() {
+  local -r hns_project_id="gcs-fuse-test"
+  # Generate bucket name with random string
+  bucket_name="gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
+  echo "$bucket_name"
+}
+
 function run_non_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
@@ -110,12 +117,11 @@ function run_non_parallel_tests() {
   return $exit_code
 }
 
-# Parallel execution of integration tests located within specified test directories.
-# It aims to improve testing speed by running tests concurrently, while providing basic error reporting.
 function run_parallel_tests() {
   local exit_code=0
   local -n test_array=$1
   local bucket_name_parallel=$2
+  local pids=()
 
   for test_dir_p in "${test_array[@]}"
   do
@@ -138,69 +144,122 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-sudo apt-get update
-# Upgrade gcloud version.
-# Kokoro machine's outdated gcloud version prevents the use of the "managed-folders" feature.
-upgrade_gcloud_version
-install_packages
+function run_e2e_tests_for_flat_bucket() {
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
 
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-1-"
-bucket_name_non_parallel_group_1=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
+  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
 
-# Test setup
-# Create Bucket for non parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-non-parallel-e2e-tests-group-2-"
-bucket_name_non_parallel_group_2=$(create_bucket $bucket_prefix)
-echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
+  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  bucket_name_parallel=$(create_bucket $bucketPrefix)
+  echo "Bucket name for parallel tests: "$bucket_name_parallel
 
-# Create Bucket for parallel e2e tests
-# The bucket prefix for the random string
-bucket_prefix="gcsfuse-parallel-e2e-tests-"
-bucket_name_parallel=$(create_bucket $bucket_prefix)
-echo "Bucket name for parallel tests: "$bucket_name_parallel
+  echo "Running parallel tests..."
+  run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
+  parallel_tests_pid=$!
 
-# Run tests
-set +e
-echo "Running parallel tests..."
-# Run parallel tests
-run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
-parallel_tests_pid=$!
+ echo "Running non parallel tests group-1..."
+ run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
+ non_parallel_tests_pid_group_1=$!
+ echo "Running non parallel tests group-2..."
+ run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
+ non_parallel_tests_pid_group_2=$!
 
-# Run non parallel tests
-echo "Running non parallel tests group-1..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
-non_parallel_tests_pid_group_1=$!
-echo "Running non parallel tests group-2..."
-run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
-non_parallel_tests_pid_group_2=$!
+ # Wait for all tests to complete.
+ wait $parallel_tests_pid
+ parallel_tests_exit_code=$?
+ wait $non_parallel_tests_pid_group_1
+ non_parallel_tests_exit_code_group_1=$?
+ wait $non_parallel_tests_pid_group_2
+ non_parallel_tests_exit_code_group_2=$?
 
-# Wait for all tests to complete.
-wait $parallel_tests_pid
-parallel_tests_exit_code=$?
-wait $non_parallel_tests_pid_group_1
-non_parallel_tests_exit_code_group_1=$?
-wait $non_parallel_tests_pid_group_2
-non_parallel_tests_exit_code_group_2=$?
-set -e
+ flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+ clean_up flat_buckets
 
-# Cleanup
-# Delete bucket after testing.
-gcloud alpha storage rm --recursive gs://$bucket_name_parallel/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_1/
-gcloud alpha storage rm --recursive gs://$bucket_name_non_parallel_group_2/
+ if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+ then
+   exit 1
+ fi
+}
 
-# Removing bin file after testing.
-if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
-then
-  sudo rm /usr/local/bin/gcsfuse
-fi
-if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
-then
-  echo "The tests failed."
-  exit 1
-fi
+function run_e2e_tests_for_hns_bucket(){
+   hns_bucket_name=$(create_hns_bucket)
+   echo "Hns Bucket Created: "$hns_bucket_name
+
+   echo "Running tests for HNS bucket"
+   run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
+   non_parallel_tests_pid_hns_group=$!
+
+   wait $non_parallel_tests_pid_hns_group
+   non_parallel_tests_hns_group_exit_code=$?
+
+   hns_buckets=("$hns_bucket_name")
+   clean_up hns_buckets
+
+   if [ $non_parallel_tests_hns_group_exit_code != 0 ];
+   then
+     exit 1
+   fi
+}
+
+#commenting it so cleanup and failure check happens for both
+#set -e
+
+function clean_up() {
+  # Cleanup
+  # Delete bucket after testing.
+  local -n buckets=$1
+  for bucket in "${buckets[@]}"
+    do
+      gcloud alpha storage rm --recursive gs://$bucket
+    done
+}
+
+function main(){
+  set -e
+
+  upgrade_gcloud_version
+
+  install_packages
+
+  set +e
+
+  #run integration tests
+  run_e2e_tests_for_hns_bucket &
+  e2e_tests_hns_bucket_pid=$!
+
+  run_e2e_tests_for_flat_bucket &
+  e2e_tests_flat_bucket_pid=$!
+
+  set -e
+
+  wait $e2e_tests_flat_bucket_pid
+  e2e_tests_flat_bucket_status=$?
+
+  wait $e2e_tests_hns_bucket_pid
+  e2e_tests_hns_bucket_status=$?
+
+  if [ $e2e_tests_flat_bucket_status != 0 ];
+  then
+    echo "The e2e tests for flat bucket failed.."
+    exit 1
+  fi
+
+  if [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for hns bucket failed.."
+    exit 1
+  fi
+
+  # Removing bin file after testing.
+  if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
+  then
+    sudo rm /usr/local/bin/gcsfuse
+  fi
+}
+
+#Main method to run script
+main
