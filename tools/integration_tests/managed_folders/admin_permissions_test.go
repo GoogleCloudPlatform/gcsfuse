@@ -149,7 +149,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
 	// For create, delete, move, copy tests.
-	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder2)
 	setup.SetupTestDirectory(testDirNameForNonEmptyManagedFolder2)
 	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
 	operations.CreateManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), bucket, t)
