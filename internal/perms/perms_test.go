@@ -18,7 +18,7 @@ package perms_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/perms"
 	. "github.com/jacobsa/ogletest"
 )
 

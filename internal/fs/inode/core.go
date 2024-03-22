@@ -17,9 +17,9 @@ package inode
 import (
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
 // Core contains critical information about an inode before its creation.

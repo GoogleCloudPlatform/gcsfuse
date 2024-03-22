@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"gopkg.in/yaml.v3"
 )
 

@@ -17,7 +17,7 @@ package fs
 import (
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/fs/wrappers"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
