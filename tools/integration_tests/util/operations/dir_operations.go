@@ -186,6 +186,6 @@ func CopyFileInBucket(srcfilePath, destFilePath, bucket string, t *testing.T) {
 
 	_, err := ExecuteGcloudCommandf(gcloudCopyFileCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while copying file in bucket: %v", err))
 	}
 }
