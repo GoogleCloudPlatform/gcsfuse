@@ -65,14 +65,14 @@ func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolde
 	file, err := os.Create(srcMoveFile)
 	err = file.Close()
 	if err != nil {
-		t.Errorf("Error in creating file in managed folder.")
+		t.Errorf("Error in creating file in managed folder: %v", err)
 	}
 	srcCopyFile := path.Join(testDir2, ManagedFolder3, CopyFile)
 	// Creating object in managed folder.
 	file, err = os.Create(srcCopyFile)
 	err = file.Close()
 	if err != nil {
-		t.Errorf("Error in creating file in managed folder.")
+		t.Errorf("Error in creating file in managed folder: %v", err)
 	}
 
 	// Move Object test
@@ -87,7 +87,7 @@ func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolde
 	}
 	_, err = operations.StatFile(destMoveFile)
 	if err != nil {
-		t.Errorf("Dest file does not get created.")
+		t.Errorf("Dest file does not get created: %v", err)
 	}
 
 	// Copy Object test
@@ -98,17 +98,17 @@ func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolde
 	}
 	_, err = operations.StatFile(srcCopyFile)
 	if err != nil {
-		t.Errorf("Src file gets deleted.")
+		t.Errorf("Src file gets deleted: %v", err)
 	}
 	_, err = operations.StatFile(destCopyFile)
 	if err != nil {
-		t.Errorf("Dest file does not gets created.")
+		t.Errorf("Dest file does not gets created: %v", err)
 	}
 
 	// Delete tests.
 	err = os.RemoveAll(path.Join(testDir2, ManagedFolder3))
 	if err != nil {
-		t.Errorf("Error in deleting file in managed folder.")
+		t.Errorf("Error in deleting file in managed folder: %v", err)
 	}
 }
 
@@ -144,13 +144,11 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
-	setup.SetupTestDirectory(testDirNameForNonEmptyManagedFolder)
 	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
 	// For create, delete, move, copy tests.
 	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder2)
-	setup.SetupTestDirectory(testDirNameForNonEmptyManagedFolder2)
 	defer setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir2))
 	operations.CreateManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), bucket, t)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
