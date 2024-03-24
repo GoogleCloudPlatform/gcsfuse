@@ -17,6 +17,9 @@ package storage
 import (
 	"fmt"
 	"net/http"
+	"os"
+
+	"github.com/googlecloudplatform/gcsfuse/internal/logger"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
@@ -24,6 +27,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
+
+	// Side effect to run grpc client with direct-path on gcp machine.
+	_ "google.golang.org/grpc/balancer/rls"
+	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
 type StorageHandle interface {
@@ -39,22 +46,57 @@ type storageClient struct {
 	client *storage.Client
 }
 
-// NewStorageHandle returns the handle of Go storage client containing
-// customized http client. We can configure the http client using the
-// storageClientConfig parameter.
-func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
+// Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+	if clientConfig.ClientProtocol != mountpkg.GRPC {
+		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
+	}
+
+	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+		logger.Fatal("error setting direct path env var: %v", err)
+	}
 
 	var clientOpts []option.ClientOption
+	tokenSrc, err := storageutil.CreateTokenSource(clientConfig)
+	if err != nil {
+		err = fmt.Errorf("while fetching tokenSource: %w", err)
+		return
+	}
+	clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+
+	// Add Custom endpoint option.
+	if clientConfig.CustomEndpoint != nil {
+		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+	}
+
+	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
+	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+
+	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
+
+	// Unset the environment variable, since it's used only while creation of grpc client.
+	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+		logger.Fatal("error while unsetting direct path env var: %v", err)
+	}
+
+	return
+}
+
+func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+	var clientOpts []option.ClientOption
+
 	// Add WithHttpClient option.
 	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
 		var httpClient *http.Client
-		httpClient, err = storageutil.CreateHttpClient(&clientConfig)
+		httpClient, err = storageutil.CreateHttpClient(clientConfig)
 		if err != nil {
 			err = fmt.Errorf("while creating http endpoint: %w", err)
 			return
 		}
 
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	} else {
+		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
@@ -67,8 +109,23 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
 	}
 
+	return storage.NewClient(ctx, clientOpts...)
+}
+
+// NewStorageHandle returns the handle of http or grpc Go storage client based on the
+// provided StorageClientConfig.ClientProtocol.
+// Please check out the StorageClientConfig to know about the parameters used in
+// http and gRPC client.
+func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
-	sc, err = storage.NewClient(ctx, clientOpts...)
+	if clientConfig.ClientProtocol == mountpkg.GRPC {
+		sc, err = createGRPCClientHandle(ctx, &clientConfig)
+	} else if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
+		sc, err = createHTTPClientHandle(ctx, &clientConfig)
+	} else {
+		err = fmt.Errorf("invalid client-protocol requested: %s", clientConfig.ClientProtocol)
+	}
+
 	if err != nil {
 		err = fmt.Errorf("go storage client creation failed: %w", err)
 		return

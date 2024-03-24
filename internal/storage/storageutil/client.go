@@ -28,18 +28,26 @@ import (
 )
 
 type StorageClientConfig struct {
-	ClientProtocol             mountpkg.ClientProtocol
+	/** Common client parameters. */
+
+	// ClientProtocol decides the go-sdk client to create.
+	ClientProtocol    mountpkg.ClientProtocol
+	UserAgent         string
+	CustomEndpoint    *url.URL
+	KeyFile           string
+	TokenUrl          string
+	ReuseTokenFromUrl bool
+	MaxRetrySleep     time.Duration
+	RetryMultiplier   float64
+
+	/** HTTP client parameters. */
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
-	MaxRetrySleep              time.Duration
-	RetryMultiplier            float64
-	UserAgent                  string
-	CustomEndpoint             *url.URL
-	KeyFile                    string
-	TokenUrl                   string
-	ReuseTokenFromUrl          bool
 	ExperimentalEnableJsonRead bool
+
+	/** Grpc client parameters. */
+	GrpcConnPoolSize int
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
@@ -65,7 +73,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	}
 
-	tokenSrc, err := createTokenSource(storageClientConfig)
+	tokenSrc, err := CreateTokenSource(storageClientConfig)
 	if err != nil {
 		err = fmt.Errorf("while fetching tokenSource: %w", err)
 		return
@@ -92,7 +100,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // It creates dummy token-source in case of non-nil custom url. If the custom-endpoint
 // is nil, it creates the token-source from the provided key-file or using ADC search
 // order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
-func createTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
+func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	if storageClientConfig.CustomEndpoint == nil {
 		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 	} else {

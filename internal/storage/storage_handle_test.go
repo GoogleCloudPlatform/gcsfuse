@@ -16,7 +16,9 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -159,4 +161,64 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc.ExperimentalEnableJsonRead = true
 
 	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ExperimentalEnableJsonRead = true
+	sc.ClientProtocol = "test-protocol"
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	AssertEq(nil, handleCreated)
+	AssertTrue(strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
+}
+
+func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.HTTP1
+
+	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
+
+	AssertNe(nil, err)
+	AssertEq(nil, handleCreated)
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("wrong client-protocol requested: %s", mountpkg.HTTP1)))
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
+
+	AssertNe(nil, err)
+	AssertEq(nil, handleCreated)
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("wrong client-protocol requested: %s", mountpkg.GRPC)))
 }
