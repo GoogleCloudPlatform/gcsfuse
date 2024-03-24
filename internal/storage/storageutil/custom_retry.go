@@ -17,12 +17,20 @@ package storageutil
 import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
 		return
+	}
+
+	// Actual fix (merged): https://github.com/googleapis/google-cloud-go/pull/8202
+	// TODO: Please remove this condition in the next go-client-library upgrade.
+	if st, ok := status.FromError(err); ok && st.Code() == codes.ResourceExhausted {
+		return true
 	}
 
 	// HTTP 401 errors - Invalid Credentials
@@ -38,5 +46,6 @@ func ShouldRetry(err error) (b bool) {
 			return
 		}
 	}
+
 	return
 }

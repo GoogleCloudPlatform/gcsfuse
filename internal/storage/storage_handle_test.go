@@ -55,6 +55,24 @@ func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageC
 	AssertNe(nil, handleCreated)
 }
 
+func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
+	sc := getDefaultStorageClientConfig()
+
+	handleCreated, err := createGRPCClientHandle(context.Background(), sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
+	sc := getDefaultStorageClientConfig()
+
+	handleCreated, err := createHTTPClientHandle(context.Background(), sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := t.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
@@ -94,6 +112,13 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
+	sc := getDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
 
 	t.invokeAndVerifyStorageHandle(sc)
 }

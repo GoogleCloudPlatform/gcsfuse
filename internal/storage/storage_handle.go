@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"cloud.google.com/go/storage"
@@ -67,6 +68,13 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
 	}
 
+	return storage.NewClient(ctx, option.WithHTTPClient(httpClient))
+}
+
+// NewStorageHandle returns the handle of Go storage client. It can be gRPC  or
+// HTTP client. We can customized the client by changing the storageClientConfig
+// parameter.
+func NewStorageHandle(ctx context.Context, clientConfig StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
 	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
