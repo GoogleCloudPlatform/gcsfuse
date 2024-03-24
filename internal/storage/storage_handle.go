@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
@@ -49,7 +49,7 @@ type storageClient struct {
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	if clientConfig.ClientProtocol != mountpkg.GRPC {
-		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
+		return nil, fmt.Errorf("client-protocol requested is not GRPC: %s", clientConfig.ClientProtocol)
 	}
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
@@ -96,7 +96,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	} else {
-		return nil, fmt.Errorf("wrong client-protocol requested: %s", clientConfig.ClientProtocol)
+		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.

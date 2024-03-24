@@ -209,7 +209,7 @@ func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() 
 
 	AssertNe(nil, err)
 	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("wrong client-protocol requested: %s", mountpkg.HTTP1)))
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1)))
 }
 
 func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
@@ -220,5 +220,5 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() 
 
 	AssertNe(nil, err)
 	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("wrong client-protocol requested: %s", mountpkg.GRPC)))
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
 }
