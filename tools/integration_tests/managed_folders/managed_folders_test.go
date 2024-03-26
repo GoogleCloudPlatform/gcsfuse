@@ -16,13 +16,9 @@
 package managed_folders
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/operations"
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"

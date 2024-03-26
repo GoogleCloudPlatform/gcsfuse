@@ -208,7 +208,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 	}
 }
 
-func copyAndCheckErr(src, dest string, t *testing.T) {
+func copyDirAndCheckErr(src, dest string, t *testing.T) {
 	err := operations.CopyDir(src, dest)
 	if err == nil {
 		t.Errorf("Managed folder get copied with view only permission.")
@@ -217,10 +217,19 @@ func copyAndCheckErr(src, dest string, t *testing.T) {
 	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
-func moveAndCheckErr(src, dest string, t *testing.T) {
-	err := operations.MoveDir(src, dest)
+func copyObjectAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.CopyObject(src, dest)
 	if err == nil {
-		t.Errorf("Managed folder get copied with view only permission.")
+		t.Errorf("Objects in managed folder get copied with view only permission.")
+	}
+
+	setup.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func moveAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.Move(src, dest)
+	if err == nil {
+		t.Errorf("Object moved in view permission of managed folder.")
 	}
 
 	setup.CheckErrorForReadOnlyFileSystem(err, t)

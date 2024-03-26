@@ -139,7 +139,7 @@ func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 
 	destDir := path.Join(setup.MntDir(), DestMoveDirectoryNotExist)
 
-	err := operations.MoveDir(srcDir, destDir)
+	err := operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 		t.Errorf("Error in creating directory: %v", err)
 	}
 
-	err = operations.MoveDir(srcDir, destDir)
+	err = operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
 	destDir := path.Join(setup.MntDir(), DestNonEmptyMoveDirectory)
 	createDestNonEmptyDirectoryForMoveTest(t)
 
-	err := operations.MoveDir(srcDir, destDir)
+	err := operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	destDir := path.Join(setup.MntDir(), DestNonEmptyMoveDirectory)
 	createDestNonEmptyDirectoryForMoveTest(t)
 
-	err := operations.MoveDir(srcDir, destDir)
+	err := operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestMoveEmptyDirectoryInEmptyDirectory(t *testing.T) {
 	destDir := path.Join(setup.MntDir(), DestEmptyMoveDirectory)
 	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
 
-	err := operations.MoveDir(srcDir, destDir)
+	err := operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestMoveEmptyDirectoryInNonExistingDirectory(t *testing.T) {
 		t.Errorf("destMoveDirectoryNotExist directory exist.")
 	}
 
-	err = operations.MoveDir(srcDir, destDir)
+	err = operations.Move(srcDir, destDir)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
 	}

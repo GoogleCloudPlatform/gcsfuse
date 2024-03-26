@@ -161,11 +161,9 @@ func WriteFile(fileName string, content string) (err error) {
 func MoveFile(srcFilePath string, destDirPath string) (err error) {
 	cmd := exec.Command("mv", srcFilePath, destDirPath)
 
-	err = cmd.Run()
-	if err != nil {
-		err = fmt.Errorf("Moving file operation is failed: %v", err)
-	}
-	return err
+	err = executeCommandForOperation(cmd)
+
+	return
 }
 
 func CloseFile(file *os.File) {
@@ -612,7 +610,7 @@ func SyncFile(fh *os.File, t *testing.T) {
 }
 
 func CreateFileWithContent(filePath string, filePerms os.FileMode,
-	content string, t *testing.T) {
+		content string, t *testing.T) {
 	fh := CreateFile(filePath, filePerms, t)
 	WriteAt(content, 0, fh, t)
 	CloseFile(fh)

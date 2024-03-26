@@ -52,6 +52,14 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	return
 }
 
+func CopyObject(srcPath string, destPath string) (err error) {
+	cmd := exec.Command("cp", srcPath, destPath)
+
+	err = executeCommandForOperation(cmd)
+
+	return
+}
+
 func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
 
@@ -60,8 +68,8 @@ func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error
 	return
 }
 
-func MoveDir(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("mv", srcDirPath, destDirPath)
+func Move(srcPath string, destPath string) (err error) {
+	cmd := exec.Command("mv", srcPath, destPath)
 
 	err = executeCommandForOperation(cmd)
 
