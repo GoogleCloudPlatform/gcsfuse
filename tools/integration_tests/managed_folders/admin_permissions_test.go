@@ -20,7 +20,6 @@
 package managed_folders
 
 import (
-	"fmt"
 	"log"
 	"path"
 	"testing"
@@ -58,7 +57,6 @@ type managedFoldersAdminPermission struct {
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	fmt.Println(testDir, " ", bucket, " ", s.iamPermission, " ", serviceAccount)
 	if s.iamPermission != "" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
