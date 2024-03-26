@@ -59,8 +59,10 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	fmt.Println(testDir, " ", bucket, " ", s.iamPermission, " ", serviceAccount)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
+	if s.iamPermission != "" {
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
+	}
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
@@ -69,7 +71,7 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 	cleanup(bucket, testDir, serviceAccount, s.iamPermission, t)
 }
 
-func TestCreateObjectInManagedFolder(t *testing.T) {
+func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 	file := path.Join(testDirPath, CreateTestFile)
 
