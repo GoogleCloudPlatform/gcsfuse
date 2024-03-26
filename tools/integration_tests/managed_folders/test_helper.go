@@ -34,6 +34,8 @@ const (
 	ViewPermission                                        = "objectViewer"
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
+	CopyManagedFolder                                     = "copyManagedFolder"
+	MoveManagedFolder                                     = "moveManagedFolder"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
 	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
@@ -121,7 +123,7 @@ func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
-func createFileForTest(filePath string, t *testing.T){
+func createFileForTest(filePath string, t *testing.T) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Error in creating local file, %v", err)

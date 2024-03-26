@@ -113,6 +113,16 @@ func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing
 	}
 }
 
+func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
+	srcDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
+	destDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyManagedFolder)
+
+	err := operations.CopyDir(srcDirPath, destDirPath)
+	if err != nil {
+		t.Errorf("Error in copying directory: %v", err)
+	}
+}
+
 func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 	srcMoveFile := path.Join(testDirPath, MoveFile)
@@ -121,50 +131,21 @@ func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing
 
 	destMoveFile := path.Join(testDirPath, MoveDestFile)
 
-	err := operations.CopyFile(srcMoveFile, destMoveFile)
+	err := operations.MoveFile(srcMoveFile, destMoveFile)
 	if err != nil {
 		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
 	}
 }
 
-//func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolder(t *testing.T) {
-//	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-//	// Create Object test
-//	srcMoveFile := path.Join(testDirPath, MoveFile)
-//	createFileForTest(srcMoveFile, t)
-//
-//	srcCopyFile := path.Join(testDirPath, CopyFile)
-//	// Creating object in managed folder.
-//	createFileForTest(srcCopyFile, t)
-//
-//	// Move/Rename Object test
-//	destMoveFile := path.Join(testDirPath, MoveDestFile)
-//	err := operations.RenameFile(srcMoveFile, destMoveFile)
-//	if err != nil {
-//		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
-//	}
-//	_, err = operations.StatFile(srcMoveFile)
-//	if err == nil {
-//		t.Errorf("Src file does not get deleted.")
-//	}
-//	_, err = operations.StatFile(destMoveFile)
-//	if err != nil {
-//		t.Errorf("Dest file does not get created: %v", err)
-//	}
-//
-//	// Copy Object test
-//	destCopyFile := path.Join(testDirPath, CopyDestFile)
-//	err = operations.CopyFile(srcCopyFile, destCopyFile)
-//	if err != nil {
-//		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcCopyFile, destCopyFile, err)
-//	}
-//
-//	// Delete tests.
-//	err = os.RemoveAll(testDirPath)
-//	if err != nil {
-//		t.Errorf("Error in deleting file in managed folder: %v", err)
-//	}
-//}
+func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
+	srcDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
+	destDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveManagedFolder)
+
+	err := operations.MoveDir(srcDirPath, destDirPath)
+	if err != nil {
+		t.Errorf("Error in moving directory: %v", err)
+	}
+}
 
 func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	listNonEmptyManagedFolders(t)
