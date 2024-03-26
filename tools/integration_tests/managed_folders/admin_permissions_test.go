@@ -89,7 +89,7 @@ func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder(t *testi
 	}
 }
 
-// Managed folder will not get deleted but it will become empty and default empty managed folder will get hide.
+// Managed folders will not be deleted, but they will become empty. Default empty managed folders will be hidden.
 func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 	dirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 
@@ -193,9 +193,9 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
-	//creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
-	//// Revoke permission on bucket.
-	//defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
+	// Revoke permission on bucket.
+	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5"}
 
@@ -224,8 +224,8 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Revoke admin permission on bucket.
 	log.Printf("Running tests with flags, bucket have view permission and managed folder have admin permissions: %s", flags)
-	//creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
-	//creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
-	//defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	test_setup.RunTests(t, ts)
 }
