@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -44,6 +45,7 @@ const FileName2 = "foo2"
 const implicitLocalFileName = "implicitLocalFile"
 const explicitLocalFileName = "explicitLocalFile"
 const FileContents = "teststring"
+const FileContentsSize = 10
 const Delta = 30 * time.Minute
 
 type LocalFileTest struct {
@@ -145,6 +147,14 @@ func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 
 	// Close the file and validate if the file is created on GCS.
 	t.closeFileAndValidateObjectContents(&t.f1, fileName, FileContents)
+
+	// Validate object attributes non-nil and non-empty.
+	minObject, extendedAttr, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
+	AssertNe(nil, extendedAttr)
+	AssertNe(nil, minObject)
+	AssertFalse(reflect.DeepEqual(*extendedAttr, gcs.ExtendedObjectAttributes{}))
+	AssertFalse(reflect.DeepEqual(*minObject, gcs.ExtendedObjectAttributes{}))
 }
 
 func (t *LocalFileTest) validateNoFileOrDirError(filename string) {
