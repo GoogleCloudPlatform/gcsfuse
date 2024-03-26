@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 const (
