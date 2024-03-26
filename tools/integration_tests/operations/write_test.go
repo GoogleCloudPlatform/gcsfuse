@@ -42,8 +42,13 @@ const tempFileContent = "line 1\nline 2\n"
 func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *storage.ObjectAttrs {
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*2, t)
-	defer closeStorageClient()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*2)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			t.Errorf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	attrs, err := client.StatObject(ctx, storageClient, objectName)
 	if err != nil {

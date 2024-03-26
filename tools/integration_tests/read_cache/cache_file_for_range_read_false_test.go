@@ -19,8 +19,10 @@ import (
 	"log"
 	"sync"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -119,8 +121,13 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	ts := &cacheFileForRangeReadFalseTest{ctx: context.Background()}
 	// Create storage client before running tests.
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			t.Errorf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {

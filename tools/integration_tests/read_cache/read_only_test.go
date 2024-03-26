@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
@@ -148,8 +149,13 @@ func (s *readOnlyTest) TestReadMultipleFilesWithinCacheLimit(t *testing.T) {
 func TestReadOnlyTest(t *testing.T) {
 	ts := &readOnlyTest{ctx: context.Background()}
 	// Create storage client before running tests.
-	closeStorageClient := createStorageClient(t, &ts.ctx, &ts.storageClient)
-	defer closeStorageClient()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			t.Errorf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	// Run tests for mounted directory if the flag is set.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {

@@ -147,24 +147,6 @@ func remountGCSFuse(flags []string, t *testing.T) {
 	setup.SetMntDir(mountDir)
 }
 
-func createStorageClient(t *testing.T, ctx *context.Context, storageClient **storage.Client) func() {
-	var err error
-	var cancel context.CancelFunc
-	*ctx, cancel = context.WithTimeout(*ctx, time.Minute*15)
-	*storageClient, err = client.CreateStorageClient(*ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-	// return func to close storage client and release resources.
-	return func() {
-		err := (*storageClient).Close()
-		if err != nil {
-			t.Log("Failed to close storage client")
-		}
-		defer cancel()
-	}
-}
-
 func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage.Client,
 	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.

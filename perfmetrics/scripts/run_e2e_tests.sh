@@ -33,6 +33,7 @@ TEST_DIR_PARALLEL=(
 TEST_DIR_NON_PARALLEL_GROUP_1=(
   "readonly"
   "managed_folders"
+  "readonly_creds"
 )
 
 # These test packages can be configured to run in parallel once they achieve
