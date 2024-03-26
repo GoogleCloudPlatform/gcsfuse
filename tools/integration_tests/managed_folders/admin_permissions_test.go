@@ -54,6 +54,7 @@ var (
 
 type managedFoldersAdminPermission struct {
 	iamPermission string
+	bucketPermission string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
@@ -119,6 +120,11 @@ func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
+	if s.bucketPermission == ViewPermission{
+		t.Logf("This test will run only for bucket with admin permission.")
+		t.SkipNow()
+	}
+
 	srcDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyManagedFolder)
 
@@ -157,6 +163,11 @@ func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing
 }
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
+	if s.bucketPermission == ViewPermission{
+		t.Logf("This test will run only for bucket with admin permission.")
+		t.SkipNow()
+	}
+
 	srcDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveManagedFolder)
 
@@ -196,6 +207,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
 	// Revoke permission on bucket.
 	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
+	ts.bucketPermission = AdminPermission
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5"}
 
@@ -226,6 +238,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	log.Printf("Running tests with flags, bucket have view permission and managed folder have admin permissions: %s", flags)
 	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	ts.bucketPermission = ViewPermission
 	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	test_setup.RunTests(t, ts)
 }
