@@ -44,18 +44,26 @@ const (
 )
 
 var (
-	bucket   string
-	testDir  string
-	testDir2 string
+	bucket         string
+	testDir        string
+	serviceAccount string
 )
 
 type managedFoldersAdminPermission struct {
+	iamPermission string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	createDirectoryStructureForNonEmptyManagedFolders(t)
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
+	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
+	cleanup(bucket, testDir, serviceAccount, s.iamPermission, t)
 }
 
 func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolder(t *testing.T) {
@@ -128,15 +136,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
-	createDirectoryStructureForNonEmptyManagedFolders(t)
-
-	// For create, delete, move, copy tests.
-	bucket, testDir2 = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder2)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), bucket, t)
-	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
-	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 
 	// Run tests.
 	log.Printf("Running tests with flags, bucket have admin permission and managed folder have nil permissions: %s", flags)
@@ -144,21 +143,13 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Provide storage.objectViewer role to managed folders.
 	log.Printf("Running tests with flags, bucket have admin permission and managed folder have view permissions: %s", flags)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForViewPermission, t)
-	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
+	ts.iamPermission = IAMRoleForViewPermission
+
 	test_setup.RunTests(t, ts)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForViewPermission, t)
 
 	// Provide storage.objectViewer role to managed folders.
 	log.Printf("Running tests with flags, bucket have admin permission and managed folder have admin permissions: %s", flags)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForAdminPermission, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForAdminPermission, t)
-	providePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForAdminPermission, t)
-	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
+	ts.iamPermission = IAMRoleForAdminPermission
 	test_setup.RunTests(t, ts)
 
 	// Revoke admin permission on bucket.
@@ -166,9 +157,5 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
-	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir2, ManagedFolder3), bucket, t)
 	test_setup.RunTests(t, ts)
-	cleanup(bucket, testDir, serviceAccount, IAMRoleForAdminPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir2, ManagedFolder3), serviceAccount, IAMRoleForAdminPermission, t)
-	operations.DeleteManagedFoldersInBucket(path.Join(testDir2, ManagedFolder3), setup.TestBucket(), t)
 }
