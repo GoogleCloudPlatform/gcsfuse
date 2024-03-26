@@ -20,7 +20,6 @@
 package managed_folders
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -41,7 +40,6 @@ const (
 	MoveDestFile   = "moveDestFileAdminPerm"
 	CopyFile       = "copyFileAdminPerm"
 	CopyDestFile   = "copyDestFileAdminPerm"
-	TestFile       = "testFileAdminPerm"
 	CreateTestFile = "createTestFile"
 )
 
@@ -53,12 +51,11 @@ var (
 )
 
 type managedFoldersAdminPermission struct {
-	iamPermission string
+	iamPermission    string
 	bucketPermission string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
-	fmt.Println("In setup")
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	if s.iamPermission != "" {
@@ -68,7 +65,6 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	fmt.Println("In teardown")
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
 	cleanup(bucket, testDir, serviceAccount, s.iamPermission, t)
@@ -120,7 +116,7 @@ func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
-	if s.bucketPermission == ViewPermission{
+	if s.bucketPermission == ViewPermission {
 		t.Logf("This test will run only for bucket with admin permission.")
 		t.SkipNow()
 	}
@@ -163,8 +159,8 @@ func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing
 }
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
-	if s.bucketPermission == ViewPermission{
-		t.Logf("This test will run only for bucket with admin permission.")
+	if s.bucketPermission == ViewPermission {
+		log.Printf("This test will run only for bucket with admin permission.")
 		t.SkipNow()
 	}
 
