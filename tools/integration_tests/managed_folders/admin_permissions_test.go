@@ -75,7 +75,7 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	file := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
+	file := path.Join(testDirPath, CreateTestFile)
 
 	createFileForTest(file, t)
 }
