@@ -31,11 +31,9 @@ import (
 
 const (
 	testDirNameForNonEmptyManagedFolder                   = "NonEmptyManagedFoldersTest"
-	testDirNameForNonEmptyManagedFolder2                  = "NonEmptyManagedFoldersTest2"
 	ViewPermission                                        = "objectViewer"
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
-	ManagedFolder3                                        = "managedFolder3"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
 	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"

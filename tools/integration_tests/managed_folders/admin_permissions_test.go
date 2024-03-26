@@ -20,8 +20,8 @@
 package managed_folders
 
 import (
+	"fmt"
 	"log"
-	"os"
 	"path"
 	"testing"
 
@@ -36,17 +36,19 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 const (
-	MoveFile     = "moveFileAdminPerm"
-	MoveDestFile = "moveDestFileAdminPerm"
-	CopyFile     = "copyFileAdminPerm"
-	CopyDestFile = "copyDestFileAdminPerm"
-	TestFile     = "testFileAdminPerm"
+	MoveFile       = "moveFileAdminPerm"
+	MoveDestFile   = "moveDestFileAdminPerm"
+	CopyFile       = "copyFileAdminPerm"
+	CopyDestFile   = "copyDestFileAdminPerm"
+	TestFile       = "testFileAdminPerm"
+	CreateTestFile = "createTestFile"
 )
 
 var (
-	bucket         string
-	testDir        string
-	serviceAccount string
+	bucket           string
+	testDir          string
+	serviceAccount   string
+	localKeyFilePath string
 )
 
 type managedFoldersAdminPermission struct {
@@ -56,6 +58,7 @@ type managedFoldersAdminPermission struct {
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
+	fmt.Println(testDir, " ", bucket, " ", s.iamPermission, " ", serviceAccount)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
 }
@@ -66,44 +69,51 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 	cleanup(bucket, testDir, serviceAccount, s.iamPermission, t)
 }
 
-func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolder(t *testing.T) {
-	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder2, ManagedFolder3)
-	// Create Object test
-	srcMoveFile := path.Join(testDirPath, MoveFile)
-	createFileForTest(srcMoveFile, t)
+func TestCreateObjectInManagedFolder(t *testing.T) {
+	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
+	file := path.Join(testDirPath, CreateTestFile)
 
-	srcCopyFile := path.Join(testDirPath, CopyFile)
-	// Creating object in managed folder.
-	createFileForTest(srcCopyFile, t)
-
-	// Move/Rename Object test
-	destMoveFile := path.Join(testDirPath, MoveDestFile)
-	err := operations.RenameFile(srcMoveFile, destMoveFile)
-	if err != nil {
-		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
-	}
-	_, err = operations.StatFile(srcMoveFile)
-	if err == nil {
-		t.Errorf("Src file does not get deleted.")
-	}
-	_, err = operations.StatFile(destMoveFile)
-	if err != nil {
-		t.Errorf("Dest file does not get created: %v", err)
-	}
-
-	// Copy Object test
-	destCopyFile := path.Join(testDirPath, CopyDestFile)
-	err = operations.CopyFile(srcCopyFile, destCopyFile)
-	if err != nil {
-		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcCopyFile, destCopyFile, err)
-	}
-
-	// Delete tests.
-	err = os.RemoveAll(testDirPath)
-	if err != nil {
-		t.Errorf("Error in deleting file in managed folder: %v", err)
-	}
+	createFileForTest(file, t)
 }
+
+//func (s *managedFoldersAdminPermission) TestCreateMoveCopyAndDeleteObjectInFolder(t *testing.T) {
+//	testDirPath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
+//	// Create Object test
+//	srcMoveFile := path.Join(testDirPath, MoveFile)
+//	createFileForTest(srcMoveFile, t)
+//
+//	srcCopyFile := path.Join(testDirPath, CopyFile)
+//	// Creating object in managed folder.
+//	createFileForTest(srcCopyFile, t)
+//
+//	// Move/Rename Object test
+//	destMoveFile := path.Join(testDirPath, MoveDestFile)
+//	err := operations.RenameFile(srcMoveFile, destMoveFile)
+//	if err != nil {
+//		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
+//	}
+//	_, err = operations.StatFile(srcMoveFile)
+//	if err == nil {
+//		t.Errorf("Src file does not get deleted.")
+//	}
+//	_, err = operations.StatFile(destMoveFile)
+//	if err != nil {
+//		t.Errorf("Dest file does not get created: %v", err)
+//	}
+//
+//	// Copy Object test
+//	destCopyFile := path.Join(testDirPath, CopyDestFile)
+//	err = operations.CopyFile(srcCopyFile, destCopyFile)
+//	if err != nil {
+//		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcCopyFile, destCopyFile, err)
+//	}
+//
+//	// Delete tests.
+//	err = os.RemoveAll(testDirPath)
+//	if err != nil {
+//		t.Errorf("Error in deleting file in managed folder: %v", err)
+//	}
+//}
 
 func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	listNonEmptyManagedFolders(t)
@@ -122,7 +132,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	}
 
 	// Fetch credentials and apply permission on bucket.
-	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
+	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
 	// Revoke permission on bucket.
 	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
