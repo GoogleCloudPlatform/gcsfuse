@@ -75,19 +75,19 @@ func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *test
 	setup.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
-func (s *managedFoldersViewPermission) TestMoveNonEmptyManagedFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestMoveManagedFolder(t *testing.T) {
 	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
 	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFolderViewPerm)
 
 	moveAndCheckErr(srcDir, destDir, t)
 }
 
-func (s *managedFoldersViewPermission) TestMoveObjectWithInManagedFolderAndOutOfFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestMoveObjectWithInAndOutOfManagedFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, MoveFileViewPerm)
+	destFileWithInManagedFolder := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, MoveFileViewPerm)
 	destFileOutOfManagedFolder := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFileViewPerm)
 
-	moveAndCheckErr(srcFile, destFile, t)
+	moveAndCheckErr(srcFile, destFileWithInManagedFolder, t)
 	moveAndCheckErr(srcFile, destFileOutOfManagedFolder, t)
 }
 
@@ -111,12 +111,12 @@ func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.
 	copyAndCheckErr(srcDir, destDir, t)
 }
 
-func (s *managedFoldersViewPermission) TestCopyObjectWithInFolderAndOutOfFolder(t *testing.T) {
+func (s *managedFoldersViewPermission) TestCopyObjectWithAndOutOfManagedFolderFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, CopyFileViewPerm)
+	destFileWithInManagedFolder := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, CopyFileViewPerm)
 	destFileOutOfManagedFolder := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, CopyFileViewPerm)
 
-	copyAndCheckErr(srcFile, destFile, t)
+	copyAndCheckErr(srcFile, destFileWithInManagedFolder, t)
 	copyAndCheckErr(srcFile, destFileOutOfManagedFolder, t)
 }
 
