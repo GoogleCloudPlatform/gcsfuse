@@ -111,6 +111,11 @@ func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing
 	if err != nil {
 		t.Errorf("Error in copying file managed folder from src: %s to dest %s: %v", srcCopyFile, destCopyFile, err)
 	}
+
+	_, err = operations.StatFile(destCopyFile)
+	if err != nil {
+		t.Errorf("Error in stating destination copy file: %v", err)
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
@@ -120,6 +125,11 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	err := operations.CopyDir(srcDirPath, destDirPath)
 	if err != nil {
 		t.Errorf("Error in copying directory: %v", err)
+	}
+
+	_, err = os.Stat(destDirPath)
+	if err != nil {
+		t.Errorf("Error in stating destination copy dir: %v", err)
 	}
 }
 
@@ -135,6 +145,15 @@ func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing
 	if err != nil {
 		t.Errorf("Error in moving file managed folder from src: %s to dest %s: %v", srcMoveFile, destMoveFile, err)
 	}
+
+	_, err = operations.StatFile(destMoveFile)
+	if err != nil {
+		t.Errorf("Error in stating destination move file: %v", err)
+	}
+	_, err = operations.StatFile(srcMoveFile)
+	if err == nil {
+		t.Errorf("SrcFile is not removed after move.")
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
@@ -144,6 +163,15 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	err := operations.MoveDir(srcDirPath, destDirPath)
 	if err != nil {
 		t.Errorf("Error in moving directory: %v", err)
+	}
+
+	_, err = os.Stat(destDirPath)
+	if err != nil {
+		t.Errorf("Error in stating destination copy dir: %v", err)
+	}
+	_, err = os.Stat(srcDirPath)
+	if err == nil {
+		t.Errorf("SrcDir is not removed after move.")
 	}
 }
 
