@@ -123,6 +123,17 @@ func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
+func createFileForTest(fileName string, t *testing.T){
+	file, err := os.Create(fileName)
+	if err != nil {
+		t.Errorf("Error in creating file, %v", err)
+	}
+	err = file.Close()
+	if err != nil {
+		t.Errorf("Error in creating file in managed folder: %v", err)
+	}
+}
+
 func listNonEmptyManagedFolders(t *testing.T) {
 	// Recursively walk into directory and test.
 	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
