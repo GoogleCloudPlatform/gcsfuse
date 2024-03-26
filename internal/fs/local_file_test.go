@@ -153,8 +153,8 @@ func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 	AssertEq(nil, err)
 	AssertNe(nil, extendedAttr)
 	AssertNe(nil, minObject)
-	AssertFalse(reflect.DeepEqual(*extendedAttr, gcs.ExtendedObjectAttributes{}))
-	AssertFalse(reflect.DeepEqual(*minObject, gcs.ExtendedObjectAttributes{}))
+	ExpectFalse(reflect.DeepEqual(*extendedAttr, gcs.ExtendedObjectAttributes{}))
+	ExpectFalse(reflect.DeepEqual(*minObject, gcs.ExtendedObjectAttributes{}))
 }
 
 func (t *LocalFileTest) validateNoFileOrDirError(filename string) {

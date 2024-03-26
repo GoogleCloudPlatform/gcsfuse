@@ -1605,6 +1605,7 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	err = fh.Close()
 	AssertEq(nil, err)
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
