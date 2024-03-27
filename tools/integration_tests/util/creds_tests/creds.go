@@ -43,7 +43,6 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 
 	// Fetching project-id to get service account id.
 	id, err := metadata.ProjectID()
-	id = "gcs-fuse-test"
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in fetching project id: %v", err))
 	}
