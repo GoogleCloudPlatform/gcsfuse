@@ -39,7 +39,7 @@ func executeCommandForOperation(cmd *exec.Cmd) (err error) {
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Command execution failed: %v", cmd.Stderr)
+		err = fmt.Errorf("Command execution %s failed: %v", cmd, cmd.Stderr)
 	}
 	return
 }
