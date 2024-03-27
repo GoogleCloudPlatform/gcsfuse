@@ -137,10 +137,6 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
 
-	if setup.OnlyDirMounted() != "" {
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)

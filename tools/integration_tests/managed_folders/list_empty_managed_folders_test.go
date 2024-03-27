@@ -170,13 +170,6 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 		return
 	}
 
-	if setup.OnlyDirMounted() != "" {
-		// Mount managed folder as only-dir mount
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-		// Delete managed folder resource after testing.
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-	}
-
 	configFile := setup.YAMLConfigFile(
 		getMountConfigForEmptyManagedFolders(),
 		"config.yaml")
