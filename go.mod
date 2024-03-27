@@ -10,6 +10,7 @@ require (
 	github.com/fsouza/fake-gcs-server v1.47.8
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.1
+	github.com/googlecloudplatform/gcsfuse v1.4.2
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
 	github.com/jacobsa/fuse v0.0.0-20231003132804-d0f3daf365c3
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
@@ -73,5 +74,5 @@ require (
 	google.golang.org/genproto v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240213162025-012b6fc9bca9 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 )
