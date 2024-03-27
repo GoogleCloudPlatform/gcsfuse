@@ -16,6 +16,7 @@
 package readonly_test
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"os"
 	"path"
 	"testing"
@@ -30,7 +31,7 @@ func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 		t.Errorf("Objects are deleted in read-only file system.")
 	}
 
-	setup.CheckErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
 func TestDeleteDir(t *testing.T) {

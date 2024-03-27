@@ -24,7 +24,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -154,14 +153,6 @@ func WriteFile(fileName string, content string) (err error) {
 	defer CloseFile(f)
 
 	_, err = f.WriteAt([]byte(content), 0)
-
-	return
-}
-
-func MoveFile(srcFilePath string, destDirPath string) (err error) {
-	cmd := exec.Command("mv", srcFilePath, destDirPath)
-
-	err = executeCommandForOperation(cmd)
 
 	return
 }
