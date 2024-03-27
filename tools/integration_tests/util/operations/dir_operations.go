@@ -16,6 +16,7 @@
 package operations
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -33,10 +34,12 @@ const FilePermission_0777 = 0777
 const DirPermission_0755 = 0755
 const MiB = 1024 * 1024
 
-func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
+func executeCommandForOperation(cmd *exec.Cmd) (err error) {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Copying dir operation is failed: %v", err)
+		err = fmt.Errorf("Operation is failed: %v", cmd.Stderr)
 	}
 	return
 }
@@ -44,7 +47,7 @@ func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
 
-	err = executeCommandForCopyOperation(cmd)
+	err = executeCommandForOperation(cmd)
 
 	return
 }
@@ -52,7 +55,7 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
 
-	err = executeCommandForCopyOperation(cmd)
+	err = executeCommandForOperation(cmd)
 
 	return
 }
@@ -60,10 +63,8 @@ func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error
 func MoveDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("mv", srcDirPath, destDirPath)
 
-	err = cmd.Run()
-	if err != nil {
-		err = fmt.Errorf("Moving dir operation is failed: %v", err)
-	}
+	err = executeCommandForOperation(cmd)
+
 	return
 }
 
@@ -185,6 +186,6 @@ func CopyFileInBucket(srcfilePath, destFilePath, bucket string, t *testing.T) {
 
 	_, err := ExecuteGcloudCommandf(gcloudCopyFileCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while copying file in bucket: %v", err))
 	}
 }

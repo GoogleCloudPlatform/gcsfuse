@@ -230,10 +230,3 @@ func runTestsOnlyForDynamicMount(t *testing.T) {
 		t.SkipNow()
 	}
 }
-
-func runTestsOnlyForStaticMount(t *testing.T) {
-	if strings.Contains(mountDir, setup.TestBucket()) || setup.OnlyDirMounted() != "" {
-		log.Println("This test will run only for static mounting...")
-		t.SkipNow()
-	}
-}

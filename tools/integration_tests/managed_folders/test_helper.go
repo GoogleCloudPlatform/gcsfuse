@@ -34,6 +34,8 @@ const (
 	ViewPermission                                        = "objectViewer"
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
+	CopyManagedFolder                                     = "copyManagedFolder"
+	MoveManagedFolder                                     = "moveManagedFolder"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
 	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
@@ -119,6 +121,17 @@ func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket(), t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket(), t)
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+}
+
+func createFileForTest(filePath string, t *testing.T) {
+	file, err := os.Create(filePath)
+	if err != nil {
+		t.Errorf("Error in creating local file, %v", err)
+	}
+	err = file.Close()
+	if err != nil {
+		t.Errorf("Error in creating file in managed folder: %v", err)
+	}
 }
 
 func listNonEmptyManagedFolders(t *testing.T) {

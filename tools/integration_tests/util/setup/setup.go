@@ -453,3 +453,10 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 		}
 	}
 }
+
+func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
+	if strings.Contains(mountDir, *testBucket) || OnlyDirMounted() != "" {
+		log.Println("This test will run only for static mounting...")
+		t.SkipNow()
+	}
+}
