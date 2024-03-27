@@ -132,20 +132,14 @@ func (s *managedFoldersViewPermission) TestCopyObjectOutOfManagedFolder(t *testi
 func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	ts := &managedFoldersViewPermission{}
 
-	if setup.MountedDirectory() != "" {
-		t.Logf("These tests will not run with mounted directory..")
-		return
-	}
-
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
 
 	if setup.OnlyDirMounted() != "" {
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
+		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
 	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
@@ -153,12 +147,11 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	defer func() {
-		// Revoke permission on bucket after unmounting and cleanup.
-		creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
-		// Clean up....
-		cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
-	}()
+	// Clean up....
+	defer cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+	// Revoke permission on bucket after unmounting and cleanup.
+	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 
 	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)

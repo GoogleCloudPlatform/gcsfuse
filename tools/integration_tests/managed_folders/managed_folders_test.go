@@ -16,6 +16,7 @@
 package managed_folders
 
 import (
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"log"
 	"os"
 	"path"
@@ -49,7 +50,10 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	setup.RunTestsForMountedDirectoryFlag(m)
+	if setup.MountedDirectory() != "" {
+		log.Printf("These tests will not run with mounted directory..")
+		return
+	}
 
 	// Else run tests for testBucket.
 	// Set up test directory.
@@ -66,6 +70,8 @@ func TestMain(m *testing.M) {
 	if successCode == 0 {
 		log.Println("Running only dir mounting tests...")
 		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
+		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
 		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
 		successCode = m.Run()
 		setup.SaveLogFileInCaseOfFailure(successCode)

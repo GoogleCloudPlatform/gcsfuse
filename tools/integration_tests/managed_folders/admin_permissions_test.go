@@ -59,11 +59,6 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 
-	if setup.MountedDirectory() != "" {
-		t.Logf("These tests will not run with mounted directory..")
-		return
-	}
-
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
@@ -73,8 +68,8 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath}
 
 	if setup.OnlyDirMounted() != "" {
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
+		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
+		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
 	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
