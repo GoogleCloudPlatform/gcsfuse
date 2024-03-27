@@ -198,6 +198,8 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		return
 	}
 
+	setup.RunTestsOnlyForStaticMount(mountDir, t)
+
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
