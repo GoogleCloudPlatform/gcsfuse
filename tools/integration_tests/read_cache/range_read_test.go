@@ -110,7 +110,7 @@ func TestRangeReadTest(t *testing.T) {
 		return
 	}
 
-	runTestsOnlyForStaticMount(t)
+	setup.RunTestsOnlyForStaticMount(mountDir, t)
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
