@@ -104,7 +104,7 @@ func (s *managedFoldersViewPermission) TestMoveObjectWithInManagedFolder(t *test
 
 func (s *managedFoldersViewPermission) TestMoveObjectOutOfManagedFolder(t *testing.T) {
 	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder)
+	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, MoveFileViewPerm)
 
 	moveAndCheckErr(srcFile, destFile, t)
 }
