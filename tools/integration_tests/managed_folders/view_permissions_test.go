@@ -134,6 +134,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
 
@@ -143,11 +144,12 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	// Clean up....
-	defer cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
-	// Revoke permission on bucket after unmounting and cleanup.
-	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	defer func() {
+		// Revoke permission on bucket after unmounting and cleanup.
+		creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+		// Clean up....
+		cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
+	}()
 
 	// Run tests.
 	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
