@@ -16,11 +16,12 @@
 package managed_folders
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"log"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
