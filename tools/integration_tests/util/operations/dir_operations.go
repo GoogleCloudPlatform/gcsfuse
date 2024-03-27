@@ -18,7 +18,6 @@ package operations
 import (
 	"bytes"
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"log"
 	"os"
 	"os/exec"
@@ -175,7 +174,7 @@ func DeleteManagedFoldersInBucket(managedFolderPath, bucket string) {
 
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
-		setup.LogAndExit(fmt.Sprintf("Error while deleting managed folder: %v", err))
+		log.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
 	}
 }
 
@@ -186,7 +185,7 @@ func CreateManagedFoldersInBucket(managedFolderPath, bucket string) {
 
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
 	if err != nil {
-		setup.LogAndExit(fmt.Sprintf("Error while creating managed folder: %v", err))
+		log.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
 	}
 }
 
