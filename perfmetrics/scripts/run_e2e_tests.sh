@@ -49,7 +49,7 @@ TEST_DIR_NON_PARALLEL_GROUP_2=(
 
 TEST_DIR_HNS_GROUP=(
   "implicit_dir"
-#  "operations"
+  "operations"
 )
 
 TEST_LOGS_FILE=$(mktemp)  # Create a temporary file to store the logs
@@ -243,7 +243,7 @@ function clean_up() {
 function main(){
   set -e
 
-#  upgrade_gcloud_version
+  upgrade_gcloud_version
 
   install_packages
 
