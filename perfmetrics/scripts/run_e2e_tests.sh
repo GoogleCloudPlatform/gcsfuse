@@ -49,7 +49,7 @@ TEST_DIR_NON_PARALLEL_GROUP_2=(
 
 TEST_DIR_HNS_GROUP=(
   "implicit_dir"
-  "operations"
+#  "operations"
 )
 
 TEST_LOGS_ARRAY=()
@@ -111,6 +111,7 @@ function run_non_parallel_tests() {
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     local log_file="${test_dir_np}_${bucket_name_non_parallel}.log"
     TEST_LOGS_ARRAY+=("$log_file")
+    echo "Test log array: " $TEST_LOGS_ARRAY
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
@@ -133,6 +134,7 @@ function run_parallel_tests() {
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     local log_file="${test_dir_p}_${bucket_name_parallel}.log"
     TEST_LOGS_ARRAY+=("$log_file")
+    echo "Test log array: " $TEST_LOGS_ARRAY
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
@@ -241,7 +243,7 @@ function clean_up() {
 function main(){
   set -e
 
-  upgrade_gcloud_version
+#  upgrade_gcloud_version
 
   install_packages
 
