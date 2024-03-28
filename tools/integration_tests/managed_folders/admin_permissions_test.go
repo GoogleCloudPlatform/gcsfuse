@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 )
@@ -59,11 +58,6 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 
-	if setup.MountedDirectory() != "" {
-		t.Logf("These tests will not run with mounted directory..")
-		return
-	}
-
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
@@ -72,14 +66,10 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath}
 
-	if setup.OnlyDirMounted() != "" {
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket(), t)
-	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
-	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 
 	// Run tests.
