@@ -24,15 +24,15 @@ readonly RANDOM_STRING_LENGTH=5
 TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
-#  "mounting"
-#  "read_cache"
-#  "gzip"
-#  "write_large_files"
+  "mounting"
+  "read_cache"
+  "gzip"
+  "write_large_files"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
   "readonly"
-#  "managed_folders"
+  "managed_folders"
   "readonly_creds"
 )
 
@@ -41,10 +41,10 @@ TEST_DIR_NON_PARALLEL_GROUP_1=(
 TEST_DIR_NON_PARALLEL_GROUP_2=(
   "explicit_dir"
   "implicit_dir"
-#  "list_large_dir"
-#  "operations"
-#  "read_large_files"
-#  "rename_dir_limit"
+  "list_large_dir"
+  "operations"
+  "read_large_files"
+  "rename_dir_limit"
 )
 
 TEST_DIR_HNS_GROUP=(
@@ -153,13 +153,12 @@ function run_parallel_tests() {
 
 function print_test_logs() {
   readarray -t TEST_LOGS_ARRAY < "$TEST_LOGS_FILE"
-  echo "IN print logs" "${TEST_LOGS_ARRAY[@]}"
   rm "$TEST_LOGS_FILE"
   for test_log_file in "${TEST_LOGS_ARRAY[@]}"
   do
     log_file=${test_log_file}
     if [ -f "$log_file" ]; then
-      echo "=== Log for $test_dir ==="
+      echo "=== Log for ${test_log_file} ==="
       cat "$log_file"
       echo "========================================="
       rm "$log_file"  # Remove the log file
