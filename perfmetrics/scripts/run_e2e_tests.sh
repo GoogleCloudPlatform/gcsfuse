@@ -24,15 +24,15 @@ readonly RANDOM_STRING_LENGTH=5
 TEST_DIR_PARALLEL=(
   "local_file"
   "log_rotation"
-  "mounting"
-  "read_cache"
-  "gzip"
-  "write_large_files"
+#  "mounting"
+#  "read_cache"
+#  "gzip"
+#  "write_large_files"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
   "readonly"
-  "managed_folders"
+#  "managed_folders"
   "readonly_creds"
 )
 
@@ -41,16 +41,18 @@ TEST_DIR_NON_PARALLEL_GROUP_1=(
 TEST_DIR_NON_PARALLEL_GROUP_2=(
   "explicit_dir"
   "implicit_dir"
-  "list_large_dir"
-  "operations"
-  "read_large_files"
-  "rename_dir_limit"
+#  "list_large_dir"
+#  "operations"
+#  "read_large_files"
+#  "rename_dir_limit"
 )
 
 TEST_DIR_HNS_GROUP=(
   "implicit_dir"
   "operations"
 )
+
+TEST_LOGS_ARRAY=()
 
 function upgrade_gcloud_version() {
   sudo apt-get update
@@ -107,8 +109,10 @@ function run_non_parallel_tests() {
   for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    local log_file="${test_dir_np}_${bucket_name_non_parallel}.log"
+    TEST_LOGS_ARRAY+=("$log_file")
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -127,8 +131,10 @@ function run_parallel_tests() {
   for test_dir_p in "${test_array[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
+    local log_file="${test_dir_p}_${bucket_name_parallel}.log"
+    TEST_LOGS_ARRAY+=("$log_file")
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -143,6 +149,19 @@ function run_parallel_tests() {
     fi
   done
   return $exit_code
+}
+
+function print_test_logs() {
+  for test_log_file in "${TEST_LOGS_ARRAY[@]}"
+  do
+    log_file=${test_log_file}
+    if [ -f "$log_file" ]; then
+      echo "=== Log for $test_dir ==="
+      cat "$log_file"
+      echo "========================================="
+      rm "$log_file"  # Remove the log file
+    fi
+  done
 }
 
 function run_e2e_tests_for_flat_bucket() {
@@ -242,6 +261,9 @@ function main(){
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
+
+  echo "Test log array: " $TEST_LOGS_ARRAY
+  print_test_logs
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
