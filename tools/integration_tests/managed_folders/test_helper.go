@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	testDirNameForNonEmptyManagedFolder                   = "NonEmptyManagedFoldersTest"
+	TestDirForManagedFolderTest                           = "TestDirForManagedFolderTest"
 	ViewPermission                                        = "objectViewer"
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
@@ -102,7 +102,7 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
-	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
@@ -123,7 +123,7 @@ func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 
 func listNonEmptyManagedFolders(t *testing.T) {
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -139,7 +139,7 @@ func listNonEmptyManagedFolders(t *testing.T) {
 			log.Fatal(err)
 		}
 		// Check if managedFolderTest directory has correct data.
-		if dir.Name() == testDirNameForNonEmptyManagedFolder {
+		if dir.Name() == TestDirForManagedFolderTest {
 			// numberOfObjects - 4
 			if len(objs) != NumberOfObjectsInDirForNonEmptyManagedFoldersListTest {
 				t.Errorf("Incorrect number of objects in the directory %s expected %d: got %d: ", dir.Name(), NumberOfObjectsInDirForNonEmptyManagedFoldersListTest, len(objs))
@@ -208,28 +208,28 @@ func listNonEmptyManagedFolders(t *testing.T) {
 	}
 }
 
-func copyDirAndCheckErr(src, dest string, t *testing.T) {
+func copyDirAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 	err := operations.CopyDir(src, dest)
 	if err == nil {
-		t.Errorf("Managed folder get copied with view only permission.")
+		t.Errorf(" Managed folder unexpectedly got copied with view only permission.")
 	}
 
 	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
-func copyObjectAndCheckErr(src, dest string, t *testing.T) {
+func copyObjectAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 	err := operations.CopyObject(src, dest)
 	if err == nil {
-		t.Errorf("Objects in managed folder get copied with view only permission.")
+		t.Errorf("Objects in managed folder unexpectedly got copied with view only permission.")
 	}
 
 	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
-func moveAndCheckErr(src, dest string, t *testing.T) {
+func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 	err := operations.Move(src, dest)
 	if err == nil {
-		t.Errorf("Object moved in view permission of managed folder.")
+		t.Errorf("Objects in managed folder unexpectedly got moved with view only permission.")
 	}
 
 	operations.CheckErrorForReadOnlyFileSystem(err, t)

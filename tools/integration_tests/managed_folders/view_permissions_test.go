@@ -53,7 +53,7 @@ func (s *managedFoldersViewPermission) TestListNonEmptyManagedFolders(t *testing
 }
 
 func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder2, DestFile)
+	filePath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2, DestFile)
 	file, err := os.Create(filePath)
 	if err != nil {
 		t.Errorf("Error in creating file locally.")
@@ -65,7 +65,7 @@ func (s *managedFoldersViewPermission) TestCreateObjectInManagedFolder(t *testin
 }
 
 func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *testing.T) {
-	err := os.Remove(path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest))
+	err := os.Remove(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest))
 
 	if err == nil {
 		t.Errorf("File from managed folder gets deleted with view only permission.")
@@ -75,7 +75,7 @@ func (s *managedFoldersViewPermission) TestDeleteObjectFromManagedFolder(t *test
 }
 
 func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testing.T) {
-	err := os.RemoveAll(path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1))
+	err := os.RemoveAll(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
 
 	if err == nil {
 		t.Errorf("Managed folder deleted with view only permission.")
@@ -85,45 +85,45 @@ func (s *managedFoldersViewPermission) TestDeleteNonEmptyManagedFolder(t *testin
 }
 
 func (s *managedFoldersViewPermission) TestMoveManagedFolder(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, DestFolder)
+	srcDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
+	destDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	moveAndCheckErr(srcDir, destDir, t)
+	moveAndCheckErrForViewPermission(srcDir, destDir, t)
 }
 
 func (s *managedFoldersViewPermission) TestMoveObjectWithInManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, DestFile)
+	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
+	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, DestFile)
 
-	moveAndCheckErr(srcFile, destFile, t)
+	moveAndCheckErrForViewPermission(srcFile, destFile, t)
 }
 
 func (s *managedFoldersViewPermission) TestMoveObjectOutOfManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, DestFile)
+	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
+	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFile)
 
-	moveAndCheckErr(srcFile, destFile, t)
+	moveAndCheckErrForViewPermission(srcFile, destFile, t)
 }
 
 func (s *managedFoldersViewPermission) TestCopyNonEmptyManagedFolder(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1)
-	destDir := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, DestFolder)
+	srcDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
+	destDir := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	copyDirAndCheckErr(srcDir, destDir, t)
+	copyDirAndCheckErrForViewPermission(srcDir, destDir, t)
 }
 
 func (s *managedFoldersViewPermission) TestCopyObjectWithInManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, DestFile)
+	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
+	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, DestFile)
 
-	copyObjectAndCheckErr(srcFile, destFile, t)
+	copyObjectAndCheckErrForViewPermission(srcFile, destFile, t)
 }
 
 func (s *managedFoldersViewPermission) TestCopyObjectOutOfManagedFolder(t *testing.T) {
-	srcFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
-	destFile := path.Join(setup.MntDir(), testDirNameForNonEmptyManagedFolder, DestFile)
+	srcFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1, FileInNonEmptyManagedFoldersTest)
+	destFile := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFile)
 
-	copyObjectAndCheckErr(srcFile, destFile, t)
+	copyObjectAndCheckErrForViewPermission(srcFile, destFile, t)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -142,7 +142,7 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 
-	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
+	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	// Create directory structure for testing.
 	createDirectoryStructureForNonEmptyManagedFolders(t)
 	defer cleanup(bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
