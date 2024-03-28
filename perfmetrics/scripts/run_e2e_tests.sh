@@ -52,7 +52,7 @@ TEST_DIR_HNS_GROUP=(
 #  "operations"
 )
 
-TEST_LOGS_ARRAY=()
+TEST_LOGS_FILE=$(mktemp)  # Create a temporary file to store the logs
 
 function upgrade_gcloud_version() {
   sudo apt-get update
@@ -110,8 +110,7 @@ function run_non_parallel_tests() {
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
     local log_file="${test_dir_np}_${bucket_name_non_parallel}.log"
-    TEST_LOGS_ARRAY+=("$log_file")
-    echo "Test log array: " $TEST_LOGS_ARRAY
+    echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
@@ -133,8 +132,7 @@ function run_parallel_tests() {
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
     local log_file="${test_dir_p}_${bucket_name_parallel}.log"
-    TEST_LOGS_ARRAY+=("$log_file")
-    echo "Test log array: " $TEST_LOGS_ARRAY
+    echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
     GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
@@ -154,7 +152,9 @@ function run_parallel_tests() {
 }
 
 function print_test_logs() {
-  echo "${TEST_LOGS_ARRAY[@]}"
+  readarray -t TEST_LOGS_ARRAY < "$TEST_LOGS_FILE"
+  echo "IN print logs" "${TEST_LOGS_ARRAY[@]}"
+  rm "$TEST_LOGS_FILE"
   for test_log_file in "${TEST_LOGS_ARRAY[@]}"
   do
     log_file=${test_log_file}
@@ -265,7 +265,6 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
-  echo "Test log array: " "${TEST_LOGS_ARRAY[@]}"
   print_test_logs
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
