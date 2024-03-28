@@ -55,7 +55,7 @@ const (
 
 func (cp ClientProtocol) IsValid() bool {
 	switch cp {
-	case HTTP1, HTTP2:
+	case HTTP1, HTTP2, GRPC:
 		return true
 	}
 	return false

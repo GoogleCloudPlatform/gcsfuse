@@ -35,9 +35,32 @@ func (t *MainTest) TestCreateStorageHandle() {
 		AppName:             "app",
 		KeyFile:             "testdata/test_creds.json",
 	}
+	mountConfig := &config.MountConfig{}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(flags, userAgent)
+	storageHandle, err := createStorageHandle(flags, mountConfig, userAgent)
+
+	AssertEq(nil, err)
+	AssertNe(nil, storageHandle)
+}
+
+func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
+	flags := &flagStorage{
+		ClientProtocol:      mountpkg.GRPC,
+		MaxConnsPerHost:     5,
+		MaxIdleConnsPerHost: 100,
+		HttpClientTimeout:   5,
+		MaxRetrySleep:       7,
+		RetryMultiplier:     2,
+		AppName:             "app",
+		KeyFile:             "testdata/test_creds.json",
+	}
+	mountConfig := &config.MountConfig{
+		GrpcClientConfig: config.GrpcClientConfig{ConnPoolSize: 1},
+	}
+
+	userAgent := "AppName"
+	storageHandle, err := createStorageHandle(flags, mountConfig, userAgent)
 
 	AssertEq(nil, err)
 	AssertNe(nil, storageHandle)

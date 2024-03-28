@@ -251,7 +251,7 @@ func newApp() (app *cli.App) {
 				Name:  "client-protocol",
 				Value: string(mountpkg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
-					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2).",
+					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.",
 			},
 
 			cli.IntFlag{
@@ -400,8 +400,8 @@ type flagStorage struct {
 	OtelCollectorAddress       string
 	LogFile                    string
 	LogFormat                  string
-	ExperimentalEnableJsonRead  bool
-	DebugFuseErrors             bool
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
