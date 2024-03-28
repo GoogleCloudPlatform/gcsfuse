@@ -53,7 +53,7 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 
 func checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string, t *testing.T) {
 	// Move file from Test/move.txt to destination.
-	err := operations.MoveFile(srcFilePath, destDirPath)
+	err := operations.Move(srcFilePath, destDirPath)
 	if err != nil {
 		t.Errorf("Error in moving file: %v", err)
 	}

@@ -103,11 +103,11 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/SimulatedFolderNonEmptyManagedFoldersTest/testFile
 	// testBucket/NonEmptyManagedFoldersTest/testFile
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(testDirNameForNonEmptyManagedFolder)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), bucket)
 	f := operations.CreateFile(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f)
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder1), bucket, t)
-	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), bucket, t)
+	operations.CreateManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), bucket)
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, ManagedFolder2), bucket, t)
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), path.Join(testDir, SimulatedFolderNonEmptyManagedFoldersTest), bucket, t)
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), testDir, bucket, t)
@@ -116,8 +116,8 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, iam_role, t)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, iam_role, t)
-	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket(), t)
-	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket(), t)
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
+	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
@@ -206,4 +206,31 @@ func listNonEmptyManagedFolders(t *testing.T) {
 		t.Errorf("error walking the path : %v\n", err)
 		return
 	}
+}
+
+func copyDirAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.CopyDir(src, dest)
+	if err == nil {
+		t.Errorf("Managed folder get copied with view only permission.")
+	}
+
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func copyObjectAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.CopyObject(src, dest)
+	if err == nil {
+		t.Errorf("Objects in managed folder get copied with view only permission.")
+	}
+
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
+}
+
+func moveAndCheckErr(src, dest string, t *testing.T) {
+	err := operations.Move(src, dest)
+	if err == nil {
+		t.Errorf("Object moved in view permission of managed folder.")
+	}
+
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
