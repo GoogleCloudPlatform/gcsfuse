@@ -154,6 +154,7 @@ function run_parallel_tests() {
 }
 
 function print_test_logs() {
+  echo "${TEST_LOGS_ARRAY[@]}"
   for test_log_file in "${TEST_LOGS_ARRAY[@]}"
   do
     log_file=${test_log_file}
@@ -264,7 +265,7 @@ function main(){
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
-  echo "Test log array: " $TEST_LOGS_ARRAY
+  echo "Test log array: " "${TEST_LOGS_ARRAY[@]}"
   print_test_logs
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
