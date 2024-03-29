@@ -57,8 +57,8 @@ Examples:
 
 # Caching
 
-By default, Cloud Storage FUSE has two forms of optional caching, which are enabled by default: stat and type. However, using Cloud Storage FUSE with either cache forms reduces consistency guarantees.
-They are discussed in this section, along with their trade-offs and the situations in which they are and are not safe to use.
+Cloud Storage FUSE has three forms of optional caching: stat, type, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
+The different forms of caching are discussed in this section, along with their trade-offs and the situations in which they are and are not safe to use.
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
 
@@ -126,6 +126,42 @@ The behavior of type cache is controlled by the following flags/config parameter
 **Warning**: Using type caching breaks the consistency guarantees discussed in this document. It is safe only in the following situations:
 - The mounted bucket is never modified.
 - The type (file or directory) for any given path never changes.
+
+**File caching**
+
+The Cloud Storage FUSE file cache feature is a client-based read cache that lets repeat file reads to be served from a faster local cache storage media of your choice.
+
+The behavior of file cache is controlled by the following config-file parameters:
+
+1. **cache-dir**: Specifies the directory to use for the file cache. Passing a path to a directory enables the file cache feature.
+
+2. **file-cache: max-file-size-mb**: is the maximum size in MiB that the file cache can use. This is useful if you want to limit the total capacity the Cloud Storage FUSE cache can use within its mounted directory.
+   - Use the default value of -1 to use the cache's entire available capacity in the directory you specify for cache-dir.
+   - Use a value of 0 to disable the file cache.
+   - The eviction of cached metadata and data is based on a least recently used (LRU) algorithm that begins once the space threshold configured per max-size-mb limit is reached.     
+
+3. **file-cache: cache-file-for-range-read**: is a boolean that determines whether the full object should be downloaded asynchronously and stored in the Cloud Storage FUSE cache directory when the first read is done from a non-zero offset. This should be set to 'true' if you plan on performing several random reads or partial reads. The default value is 'false'
+   - If doing a partial read starting at offset 0, Cloud Storage FUSE always asynchronously downloads and caches the full object.
+
+4. **metadata-cache: ttl-secs**: As mentioned above, defines the time to live (TTL), in seconds, of metadata entries used for the stat, type, and the file cache.  Apart from specifying a value that represents the number of seconds, the ttl-secs flag also supports the values of 0 and -1: 
+   - Use a value of -1 to bypass a TTL expiration and serve the file from the cache whenever it's available. Serving files without checking for consistency can serve inconsistent data, and should only be used temporarily for workloads that run in jobs with non-changing data. For example, using a value of -1 is useful for machine learning training, where the same data is read across multiple epochs without changes.
+   - Use a value of 0 to ensure that the most up to date file is read. Using a value of 0 issues a Get metadata call to make sure that the object generation for the file in the cache matches what's stored in Cloud Storage. 
+
+Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-cache):
+1. **Persistence**: Cloud Storage FUSE caches aren't persisted on unmounts and restart when all metadata entries are evicted. However, data in the file cache isn't evicted and should be deleted by the user, or can be reused in subsequent mount operations once the metadata has been populated again.
+
+2. **Security**: When you enable caching, Cloud Storage FUSE uses the specified 'cache-dir' you set as the underlying directory for the cache to persist files from your Cloud Storage bucket in an unencrypted format. Any user or process that has access to this cache directory can access these files. We recommend that you restrict access to this directory.
+
+3. **Direct or multiple access to the file cache**: Using a process other than Cloud Storage FUSE to access or modify a file in the cache directory can lead to data corruption. Cloud Storage FUSE caches are specific to each Cloud Storage FUSE running process with no awareness across different Cloud Storage FUSE processes running on the same or different machines. Subsequently, the same cache directory shouldn't be used by different Cloud Storage FUSE processes.
+
+4. **Eviction**: The eviction of cached metadata and data is based on a least recently used (LRU) algorithm that begins once the space threshold configured per max-size-mb limit is reached.
+
+5. **Invalidation**: File cache data is invalidated per the set 'metadata-cache: ttl-secs' value:
+   - If a file cache entry hasn't yet expired based on its TTL and the file is in the cache, the entire operation is served from the local client cache without any request being issued to Cloud Storage.
+
+   - If a file cache entry has expired based on its TTL, a Get metadata call is first made to Cloud Storage, and if the file isn't in the cache, the file is retrieved from Cloud Storage. Both operations are subject to network latencies. If the metadata entry has been invalidated, but the file is in the cache, and its object generation has not changed, the file is served from the cache only after the Get metadata call is made to check if the data is valid.
+
+   - If a Cloud Storage FUSE client modifies a cached file or its metadata, then the file is immediately invalidated and consistency is ensured in the following read by the same client. However, if different clients access the same file or its metadata, and its entries are cached, then the cached version of the file or metadata is read and not the updated version until the file is invalidated by that specific client's TTL setting.     
 
 **Note**: 
 
