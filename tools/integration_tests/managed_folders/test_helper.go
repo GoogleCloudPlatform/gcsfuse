@@ -34,8 +34,6 @@ const (
 	ViewPermission                                        = "objectViewer"
 	ManagedFolder1                                        = "managedFolder1"
 	ManagedFolder2                                        = "managedFolder2"
-	CopyManagedFolder                                     = "copyManagedFolder"
-	MoveManagedFolder                                     = "moveManagedFolder"
 	SimulatedFolderNonEmptyManagedFoldersTest             = "simulatedFolderNonEmptyManagedFoldersTes"
 	FileInNonEmptyManagedFoldersTest                      = "testFileInNonEmptyManagedFoldersTest"
 	IAMRoleForViewPermission                              = "roles/storage.objectViewer"
