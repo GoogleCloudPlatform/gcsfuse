@@ -64,9 +64,13 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	file := path.Join(testDirPath, DestFile)
+	filePath := path.Join(testDirPath, DestFile)
 
-	createFileForTest(file, t)
+	file, err := os.Create(filePath)
+	defer operations.CloseFile(file)
+	if err != nil {
+		t.Errorf("Error in creating local file, %v", err)
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder(t *testing.T) {
@@ -91,8 +95,6 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
-	// Creating object in managed folder.
-	createFileForTest(srcCopyFile, t)
 
 	destCopyFile := path.Join(testDirPath, DestFile)
 
@@ -130,8 +132,6 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	srcMoveFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
-	// Creating object in managed folder.
-	createFileForTest(srcMoveFile, t)
 
 	destMoveFile := path.Join(testDirPath, DestFile)
 
