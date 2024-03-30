@@ -90,7 +90,7 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	srcCopyFile := path.Join(testDirPath, DestFile)
+	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
 	// Creating object in managed folder.
 	createFileForTest(srcCopyFile, t)
 
