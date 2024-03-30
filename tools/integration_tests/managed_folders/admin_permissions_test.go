@@ -63,14 +63,10 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
-	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	filePath := path.Join(testDirPath, DestFile)
+	filePath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2, DestFile)
 
-	file, err := os.Create(filePath)
+	file := operations.CreateFile(filePath, setup.FilePermission_0600, t)
 	defer operations.CloseFile(file)
-	if err != nil {
-		t.Errorf("Error in creating local file, %v", err)
-	}
 }
 
 func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder(t *testing.T) {
@@ -247,6 +243,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 	ts.bucketPermission = ViewPermission
-	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	//	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	test_setup.RunTests(t, ts)
 }
