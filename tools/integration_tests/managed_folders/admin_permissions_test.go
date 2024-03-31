@@ -209,11 +209,6 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 
-	if setup.MountedDirectory() != "" {
-		t.Logf("These tests will not run with mounted directory..")
-		return
-	}
-
 	setup.RunTestsOnlyForStaticMount(mountDir, t)
 
 	// Fetch credentials and apply permission on bucket.
