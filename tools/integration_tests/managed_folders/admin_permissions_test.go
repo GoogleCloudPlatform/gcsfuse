@@ -35,6 +35,14 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
+const (
+	MoveFile       = "moveFileAdminPerm"
+	MoveDestFile   = "moveDestFileAdminPerm"
+	CopyFile       = "copyFileAdminPerm"
+	CopyDestFile   = "copyDestFileAdminPerm"
+	CreateTestFile = "createTestFile"
+)
+
 var (
 	bucket           string
 	testDir          string
@@ -63,10 +71,10 @@ func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2, DestFile)
+	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
+	file := path.Join(testDirPath, CreateTestFile)
 
-	file := operations.CreateFile(filePath, setup.FilePermission_0600, t)
-	defer operations.CloseFile(file)
+	createFileForTest(file, t)
 }
 
 func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder(t *testing.T) {
@@ -90,9 +98,11 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
+	srcCopyFile := path.Join(testDirPath, CopyFile)
+	// Creating object in managed folder.
+	createFileForTest(srcCopyFile, t)
 
-	destCopyFile := path.Join(testDirPath, DestFile)
+	destCopyFile := path.Join(testDirPath, DestFolder)
 
 	err := operations.CopyFile(srcCopyFile, destCopyFile)
 	if err != nil {
@@ -127,7 +137,9 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	srcMoveFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
+	srcMoveFile := path.Join(testDirPath, MoveFile)
+	// Creating object in managed folder.
+	createFileForTest(srcMoveFile, t)
 
 	destMoveFile := path.Join(testDirPath, DestFile)
 
@@ -243,6 +255,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 	ts.bucketPermission = ViewPermission
-	//	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	test_setup.RunTests(t, ts)
 }
