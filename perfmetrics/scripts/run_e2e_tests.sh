@@ -52,7 +52,8 @@ TEST_DIR_HNS_GROUP=(
   "operations"
 )
 
-TEST_LOGS_FILE=$(mktemp)  # Create a temporary file to store the logs
+# Create a temporary file to store the log file name.
+TEST_LOGS_FILE=$(mktemp)
 
 function upgrade_gcloud_version() {
   sudo apt-get update
@@ -109,6 +110,8 @@ function run_non_parallel_tests() {
   for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="${test_dir_np}_${bucket_name_non_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
@@ -131,6 +134,8 @@ function run_parallel_tests() {
   for test_dir_p in "${test_array[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
@@ -161,7 +166,8 @@ function print_test_logs() {
       echo "=== Log for ${test_log_file} ==="
       cat "$log_file"
       echo "========================================="
-      rm "$log_file"  # Remove the log file
+      # Remove the log file
+      rm "$log_file"
     fi
   done
 }
