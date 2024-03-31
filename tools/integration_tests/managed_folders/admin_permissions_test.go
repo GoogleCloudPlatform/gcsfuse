@@ -117,8 +117,7 @@ func (s *managedFoldersAdminPermission) TestCopyObjectInManagedFolder(t *testing
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	if s.bucketPermission == ViewPermission {
-		t.Logf("This test will run only for bucket with admin permission.")
-		t.SkipNow()
+		return
 	}
 
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
@@ -160,8 +159,7 @@ func (s *managedFoldersAdminPermission) TestMoveObjectInManagedFolder(t *testing
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	if s.bucketPermission == ViewPermission {
-		log.Printf("This test will run only for bucket with admin permission.")
-		t.SkipNow()
+		return
 	}
 
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
