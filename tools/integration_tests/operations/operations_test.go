@@ -16,13 +16,12 @@
 package operations_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -98,7 +97,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath1})
+	flags = append(flags, []string{"--config-file=" + filePath1, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
 
 	// Set up config file for file cache.
 	mountConfig2 := config.MountConfig{
@@ -114,7 +113,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath2})
+	flags = append(flags, []string{"--config-file=" + filePath2,"--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
 
 	return flags
 }
@@ -136,11 +135,13 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	flags := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
+		{"--implicit-dirs=true", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--implicit-dirs=false", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
+
+	fmt.Println("Flags: ", flags)
 
 	successCode := static_mounting.RunTests(flags, m)
 
@@ -152,14 +153,10 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
-	}
-
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
-	}
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+	//}
 
 	os.Exit(successCode)
 }

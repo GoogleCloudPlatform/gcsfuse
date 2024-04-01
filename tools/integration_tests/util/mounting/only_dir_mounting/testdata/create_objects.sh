@@ -13,4 +13,4 @@
 # limitations under the License.
 
 touch a.txt
-gsutil mv a.txt gs://$1/
+gcloud storage mv a.txt gs://$1/
