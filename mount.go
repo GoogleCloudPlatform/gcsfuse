@@ -145,6 +145,15 @@ be interacting with the file system.`)
 		Subtype:    "gcsfuse",
 		VolumeName: "gcsfuse",
 		Options:    flags.MountOptions,
+		// Allows parallel LookUpInode & ReadDir calls from Kernel's FUSE driver.
+		// GCSFuse takes exclusive lock on directory inodes during ReadDir call,
+		// hence there is no effect of parallelization of incoming ReadDir calls
+		// from FUSE driver for user of GCSFuse. However, in case of LookUpInode
+		// calls, GCSFuse takes read only lock during LookUpInode call which helps
+		// users experience the performance gains. E.g. if a user workload tries to
+		// access two files under same directory parallely, then the lookups also
+		// happen parallely.
+		EnableParallelDirOps: !(mountConfig.FileSystemConfig.DisableParallelDirops),
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
