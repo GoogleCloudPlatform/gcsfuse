@@ -58,7 +58,7 @@ type managedFoldersAdminPermission struct {
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	if s.iamPermission != "" {
+	if s.iamPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
 	}
@@ -237,7 +237,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
-		ts.iamPermission = permissions[i][2]
+		ts.iamPermission = permissions[i][1]
 		test_setup.RunTests(t, ts)
 	}
 
