@@ -43,7 +43,7 @@ func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
 
 	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
-	dirPath := path.Join(setup.TestBucket(), DirectoryWithTwelveThousandFiles)
+	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
 	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
 }
 
