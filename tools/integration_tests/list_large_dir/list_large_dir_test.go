@@ -24,9 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const DirectoryForListLargeFileTests1 = "directoryForListLargeFileTests1"
-const DirectoryForListLargeFileTests2 = "directoryForListLargeFileTests2"
-const DirectoryForListLargeFileTests3 = "directoryForListLargeFileTests3"
+const DirectoryForListLargeFileTests = "directoryForListLargeFileTests"
 const DirectoryWithTwelveThousandFiles = "directoryWithTwelveThousandFiles"
 const PrefixFileInDirectoryWithTwelveThousandFiles = "fileInDirectoryWithTwelveThousandFiles"
 const PrefixExplicitDirInLargeDirListTest = "explicitDirInLargeDirListTest"
