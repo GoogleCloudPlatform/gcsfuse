@@ -216,7 +216,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
 	// Revoke permission on bucket.
 	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
-	ts.bucketPermission = AdminPermission
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5"}
 
@@ -228,26 +227,19 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 
-	// Run tests.
-	log.Printf("Running tests with flags, bucket have admin permission and managed folder have nil permissions: %s", flags)
-	test_setup.RunTests(t, ts)
+	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
 
-	// Provide storage.objectViewer role to managed folders.
-	log.Printf("Running tests with flags, bucket have admin permission and managed folder have view permissions: %s", flags)
-	ts.iamPermission = IAMRoleForViewPermission
+	for i := 0; i < len(permissions); i++ {
+		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
+		ts.bucketPermission = permissions[i][0]
+		if ts.bucketPermission == ViewPermission {
+			creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
+			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
+		}
+		ts.iamPermission = permissions[i][2]
+		test_setup.RunTests(t, ts)
+	}
 
-	test_setup.RunTests(t, ts)
-
-	// Provide storage.objectViewer role to managed folders.
-	log.Printf("Running tests with flags, bucket have admin permission and managed folder have admin permissions: %s", flags)
-	ts.iamPermission = IAMRoleForAdminPermission
-	test_setup.RunTests(t, ts)
-
-	// Revoke admin permission on bucket.
-	log.Printf("Running tests with flags, bucket have view permission and managed folder have admin permissions: %s", flags)
-	creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
-	ts.bucketPermission = ViewPermission
-	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 	test_setup.RunTests(t, ts)
 }
