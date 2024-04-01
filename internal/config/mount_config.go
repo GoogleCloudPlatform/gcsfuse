@@ -48,6 +48,7 @@ const (
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
 	DefaultGrpcConnPoolSize                       = 1
+	DefaultDisableAuth                            = false
 )
 
 type WriteConfig struct {
@@ -75,6 +76,12 @@ type ListConfig struct {
 type GrpcClientConfig struct {
 	// ConnPoolSize configures the number of gRPC channel in grpc client.
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
+}
+
+type Auth struct {
+	// Authentication is enabled by default. The disable-auth flag disables authentication. For users of the --custom-endpoint flag,
+	// please pass disable-auth flag explicitly if you do not want authentication enabled for your workflow.
+	DisableAuth bool `yaml:"disable-auth"`
 }
 
 type CacheDir string
@@ -112,6 +119,7 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
+	Auth                `yaml:"auth"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -158,6 +166,9 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
+	}
+	mountConfig.Auth = Auth{
+		DisableAuth: DefaultDisableAuth,
 	}
 	return mountConfig
 }
