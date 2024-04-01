@@ -57,12 +57,12 @@ func newTokenSourceFromPath(
 
 	// By default, a standard OAuth 2.0 token source is created
 	// Create a config struct based on its contents.
-	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
+	ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
 	}
 	// Create the token source.
-	ts = jwtConfig.TokenSource(ctx)
+//	ts = jwtConfig.TokenSource(ctx)
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {

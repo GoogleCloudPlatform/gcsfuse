@@ -105,6 +105,10 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
 	}
 
+	if clientConfig.DisableAuth {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	}
+
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
 		clientOpts = append(clientOpts, storage.WithJSONReads())
