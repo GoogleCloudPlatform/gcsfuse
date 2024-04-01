@@ -17,7 +17,7 @@
 
 # true or false to run e2e tests on installedPackage
 RUN_E2E_TESTS_ON_PACKAGE=$1
-readonly INTEGRATION_TEST_TIMEOUT=40m
+readonly INTEGRATION_TEST_TIMEOUT=80m
 readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
@@ -171,15 +171,17 @@ function print_test_logs() {
 }
 
 function run_e2e_tests_for_flat_bucket() {
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
+  # we can run grpc related e2e tests.
+  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-1-"
   bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
 
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-2-"
   bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
 
-  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-parallel-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 
