@@ -5,6 +5,9 @@ Starting with V1.0, Cloud Storage FUSE is Generally Available and supported by G
 Cloud Storage FUSE is open source software, released under the 
 [Apache license](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/LICENSE).
 
+## _New_ Cloud Storage FUSE V2
+Cloud Storage FUSE V2 provides important stability, functionality, and performance enhancements, including the introduction of a file cache that allows repeat file reads to be served from a local, faster cache storage of choice, such as a Local SSD, Persistent Disk, or even in-memory /tmpfs. The Cloud Storage FUSE file cache makes AI/ML training faster and more cost-effective by reducing the time spent waiting for data, with up to _**2.3x faster training time and 3.4x higher throughput**_ observed in training runs. This is especially valuable for multi epoch training and can serve small and random I/O operations significantly faster. The file cache feature is disabled by default and is enabled by passing a directory to 'cache-dir'. See [overview of caching](https://cloud.google.com/storage/docs/gcsfuse-cache) for more details. 
+
 # ABOUT
 ## What is Cloud Storage FUSE?
 
@@ -32,9 +35,9 @@ providing a turn-key experience.
 
 # Support
 
-## Supported frameworks and operating systems
+## Supported operating system and validated ML frameworks 
 
-To find out which frameworks and operating systems are supported by Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse#supported-frameworks-os.
+To see supported operating system and ML frameworks that have been validated with Cloud Storage FUSE, see [here](https://cloud.google.com/storage/docs/gcs-fuse#supported-frameworks-os).
 
 ## Getting support
 
