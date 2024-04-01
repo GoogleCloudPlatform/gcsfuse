@@ -16,6 +16,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"os/exec"
 	"runtime"
 )
@@ -57,14 +58,15 @@ func findGcsfuse() (p string, err error) {
 	// version in case we are being called in a context with $PATH set, such as
 	// a test.
 	candidates := []string{
-		"gcsfuse",
-		"/usr/bin/gcsfuse",
 		"/usr/local/bin/gcsfuse",
-		"/run/current-system/sw/bin/gcsfuse",
+		//"/usr/bin/gcsfuse",
+		//"gcsfuse",
+		//"/run/current-system/sw/bin/gcsfuse",
 	}
 
 	for _, c := range candidates {
 		_, err = exec.LookPath(c)
+		log.Printf("Error: ", err)
 		if err == nil {
 			p = c
 			return

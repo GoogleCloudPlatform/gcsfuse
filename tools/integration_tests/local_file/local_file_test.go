@@ -99,8 +99,8 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
-		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
+		{"--implicit-dirs=true", "--rename-dir-limit=3", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--implicit-dirs=false", "--rename-dir-limit=3", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
 
 	successCode := static_mounting.RunTests(flags, m)
 

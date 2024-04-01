@@ -34,6 +34,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 		s = strings.Replace(s, "-", "_", -1)
 		// e.g. Convert __debug_gcs to debug_gcs
 		s = strings.Replace(s, "__", "", -1)
+		s = strings.Replace(s, "storage.apis_tpclp.goog:443", "storage.apis-tpclp.goog:443", -1)
 		args = append(args, s)
 	}
 	return

@@ -51,7 +51,7 @@ func verifyFileSizeAndFullFileRead(t *testing.T, filename string) {
 
 	localCopy, err := helpers.DownloadGzipGcsObjectAsCompressed(setup.TestBucket(), path.Join(TestBucketPrefixPath, filename))
 	if err != nil {
-		t.Fatalf("failed to download gcs object (gs:/%s) to local-disk: %v", gcsObjectPath, err)
+		t.Fatalf("failed to download gcs object (gs://%s) to local-disk: %v", gcsObjectPath, err)
 	}
 
 	defer operations.RemoveFile(localCopy)

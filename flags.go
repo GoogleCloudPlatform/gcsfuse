@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -479,6 +480,8 @@ func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
 func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	customEndpointStr := c.String("custom-endpoint")
 	var customEndpoint *url.URL
+
+	log.Println("customEndpointStr: ", customEndpointStr)
 
 	if customEndpointStr == "" {
 		customEndpoint = nil

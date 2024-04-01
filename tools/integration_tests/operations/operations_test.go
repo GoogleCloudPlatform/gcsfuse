@@ -16,7 +16,6 @@
 package operations_test
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -140,8 +139,6 @@ func TestMain(m *testing.M) {
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
-
-	fmt.Println("Flags: ", flags)
 
 	successCode := static_mounting.RunTests(flags, m)
 

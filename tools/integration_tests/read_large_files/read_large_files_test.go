@@ -54,7 +54,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1})
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
 
 	// Set up config file for file cache with unlimited capacity
 	mountConfig2 := config.MountConfig{
