@@ -57,16 +57,17 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	var clientOpts []option.ClientOption
-	tokenSrc, err := storageutil.CreateTokenSource(clientConfig)
-	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
-		return
-	}
-	clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+	} else {
+		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+		if tokenCreationErr != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
