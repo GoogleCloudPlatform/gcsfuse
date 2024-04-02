@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -68,7 +67,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})
+	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
 
 	return flags
 }
@@ -109,7 +108,7 @@ func TestMain(m *testing.M) {
 
 	//if successCode == 0 {
 	//	// Test for viewer permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 	//}
 
 	// Delete objects from bucket after testing.

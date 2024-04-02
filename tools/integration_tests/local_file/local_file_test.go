@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*60)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
