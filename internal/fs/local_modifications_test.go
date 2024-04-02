@@ -1541,7 +1541,6 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcsx.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
-	fmt.Println(attr1MTime, "...", attr2MTime)
 	ExpectEq(minObject1.ContentEncoding, minObject2.ContentEncoding)
 
 	// Validate Extended Object Attributes.
