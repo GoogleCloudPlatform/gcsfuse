@@ -61,6 +61,9 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+		// Explicitly disable no-auth in case of custom-endpoint, aligned with the http-client.
+		// TODO: to revisit here when supporting TPC for grpc client.
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else {
 		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
 		if tokenCreationErr != nil {
