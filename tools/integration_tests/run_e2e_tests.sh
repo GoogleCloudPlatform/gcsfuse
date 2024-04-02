@@ -96,8 +96,10 @@ function create_bucket() {
 
 function create_hns_bucket() {
   local -r hns_project_id="gcs-fuse-test"
-  # Generate bucket name with random string
-  bucket_name="gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  # Generate bucket name with random string.
+  # Adding prefix `golang-grpc-test` to white list the bucket for grpc
+  # so that we can run grpc related e2e tests.
+  bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
 }
