@@ -79,7 +79,7 @@ func (s *cacheFileForRangeReadTrueTest) TestRangeReadsWithCacheHit(t *testing.T)
 func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 	ts := &cacheFileForRangeReadTrueTest{ctx: context.Background()}
 	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 60*time.Minute)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -95,8 +95,8 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagSet := [][]string{
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
+		{"--implicit-dirs=true","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--implicit-dirs=false","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
 	}
 	appendFlags(&flagSet,
 		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName))

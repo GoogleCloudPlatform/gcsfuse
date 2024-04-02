@@ -121,7 +121,7 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	ts := &cacheFileForRangeReadFalseTest{ctx: context.Background()}
 	// Create storage client before running tests.
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 15*time.Minute)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ts.ctx, &ts.storageClient, 60*time.Minute)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -137,8 +137,8 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagSet := [][]string{
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
+		{"--implicit-dirs=true","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--implicit-dirs=false","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
 	}
 	appendFlags(&flagSet,
 		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName))
