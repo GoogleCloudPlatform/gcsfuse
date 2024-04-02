@@ -36,10 +36,8 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 const (
-	MoveFile       = "moveFileAdminPerm"
-	MoveDestFile   = "moveDestFileAdminPerm"
-	CopyFile       = "copyFileAdminPerm"
-	CopyDestFile   = "copyDestFileAdminPerm"
+	MoveFile       = "moveFile"
+	CopyFile       = "copyFile"
 	CreateTestFile = "createTestFile"
 )
 
@@ -102,7 +100,7 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder(t *tes
 	// Creating object in managed folder.
 	createFileForTest(srcCopyFile, t)
 
-	destCopyFile := path.Join(testDirPath, DestFolder)
+	destCopyFile := path.Join(testDirPath, DestFile)
 
 	err := operations.CopyFile(srcCopyFile, destCopyFile)
 	if err != nil {
