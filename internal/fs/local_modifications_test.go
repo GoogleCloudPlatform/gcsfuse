@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -33,8 +34,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -1521,6 +1524,90 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	offset, err := getFileOffset(t.f1)
 	AssertEq(nil, err)
 	ExpectEq(4, offset)
+}
+
+func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
+	minObject1, minObject2 *gcs.MinObject) {
+	AssertNe(nil, extendedAttr1)
+	AssertNe(nil, extendedAttr2)
+	AssertNe(nil, minObject1)
+	AssertNe(nil, minObject2)
+	// Validate Min Object.
+	ExpectEq(minObject1.Name, minObject2.Name)
+	ExpectEq(0, minObject1.Size)
+	ExpectEq(FileContentsSize, minObject2.Size)
+	ExpectNe(minObject1.Generation, minObject2.Generation)
+	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
+	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcsx.MtimeMetadataKey])
+	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
+	ExpectTrue(attr1MTime.Before(attr2MTime))
+	ExpectEq(minObject1.ContentEncoding, minObject2.ContentEncoding)
+
+	// Validate Extended Object Attributes.
+	ExpectEq(extendedAttr1.ContentType, extendedAttr2.ContentType)
+	ExpectEq(extendedAttr1.ContentLanguage, extendedAttr2.ContentLanguage)
+	ExpectEq(extendedAttr1.CacheControl, extendedAttr2.CacheControl)
+	ExpectEq(extendedAttr1.Owner, extendedAttr2.Owner)
+	ExpectNe(nil, extendedAttr1.CRC32C)
+	ExpectNe(nil, extendedAttr2.CRC32C)
+	ExpectEq(extendedAttr1.MediaLink, extendedAttr2.MediaLink)
+	ExpectEq(extendedAttr1.StorageClass, extendedAttr2.StorageClass)
+	ExpectTrue(reflect.DeepEqual(extendedAttr1.Deleted, time.Time{}))
+	ExpectTrue(reflect.DeepEqual(extendedAttr2.Deleted, time.Time{}))
+	ExpectEq(extendedAttr1.ComponentCount+1, extendedAttr2.ComponentCount)
+	ExpectEq(extendedAttr1.EventBasedHold, extendedAttr2.EventBasedHold)
+	ExpectEq(extendedAttr1.Acl, extendedAttr2.Acl)
+	ExpectEq(nil, extendedAttr1.Acl)
+}
+
+func createFile(filePath string) {
+	f, err := os.Create(filePath)
+	AssertEq(nil, err)
+	err = f.Close()
+	AssertEq(nil, err)
+}
+
+func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
+	// Create file.
+	fileName := "foo"
+	createFile(path.Join(mntDir, fileName))
+	// Fetch object attributes before file append.
+	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
+	time.Sleep(timeSlop + timeSlop/2)
+
+	// Append to the file.
+	err = operations.WriteFileInAppendMode(path.Join(mntDir, fileName), FileContents)
+	AssertEq(nil, err)
+
+	// Fetch object attributes after file append.
+	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
+	// Validate object attributes are as expected.
+	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
+}
+
+func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
+	// Create file.
+	fileName := "foo"
+	createFile(path.Join(mntDir, fileName))
+	// Fetch object attributes before file append.
+	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
+	time.Sleep(timeSlop + timeSlop/2)
+
+	// Over-write the file.
+	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR, operations.FilePermission_0600)
+	AssertEq(nil, err)
+	_, err = fh.WriteAt([]byte(FileContents), 0)
+	AssertEq(nil, err)
+	err = fh.Close()
+	AssertEq(nil, err)
+	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
+	AssertEq(nil, err)
+
+	// Validate object attributes are as expected.
+	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
 func (t *FileTest) ReadsPastEndOfFile() {
