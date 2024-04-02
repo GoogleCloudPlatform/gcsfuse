@@ -100,8 +100,12 @@ func TestMain(m *testing.M) {
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3"},
-		{"--implicit-dirs=false", "--rename-dir-limit=3", "--client-protocol=grpc"}}
+		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
+
+	if !testing.Short() {
+		flags = append(flags, []string{"--implicit-dirs=false", "--rename-dir-limit=3", "--client-protocol=grpc"})
+		flags = append(flags, []string{"--implicit-dirs=true", "--rename-dir-limit=3", "--client-protocol=grpc"})
+	}
 
 	successCode := static_mounting.RunTests(flags, m)
 

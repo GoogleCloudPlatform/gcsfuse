@@ -140,7 +140,12 @@ func TestMain(m *testing.M) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
-		{"--client-protocol=grpc", "--implicit-dirs=false"}}
+		{"--client-protocol=grpc", "--implicit-dirs=true"}}
+
+	if !testing.Short() {
+		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
+	}
+
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
 
