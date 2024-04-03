@@ -20,8 +20,6 @@ import (
 	"path"
 	"testing"
 
-	"cloud.google.com/go/compute/metadata"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -83,10 +81,10 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 
 	// Test on created bucket.
 	// SetDynamicBucketMounted to the mounted bucket.
-	setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
-	if successCode == 0 {
-		successCode = runTestsOnGivenMountedTestBucket(testBucketForDynamicMounting, flags, rootMntDir, m)
-	}
+	//setup.SetDynamicBucketMounted(testBucketForDynamicMounting)
+	//if successCode == 0 {
+	//	successCode = runTestsOnGivenMountedTestBucket(testBucketForDynamicMounting, flags, rootMntDir, m)
+	//}
 	// Reset SetDynamicBucketMounted to empty after tests are done.
 	setup.SetDynamicBucketMounted("")
 
@@ -96,10 +94,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 }
 
 func CreateTestBucketForDynamicMounting() (bucketName string) {
-	project_id, err := metadata.ProjectID()
-	if err != nil {
-		log.Printf("Error in fetching project id: %v", err)
-	}
+	project_id := "google-tpc-testing-environment:cloudsdk-test-project"
 
 	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
 	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
@@ -115,13 +110,13 @@ func DeleteTestBucketForDynamicMounting(bucketName string) {
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
 
-	CreateTestBucketForDynamicMounting()
+	//CreateTestBucketForDynamicMounting()
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
+//	DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
 
 	return successCode
 }

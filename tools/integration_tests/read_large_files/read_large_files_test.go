@@ -69,7 +69,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
 
 	return flags
 }
