@@ -219,7 +219,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	// Revoke permission on bucket.
 	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 
-	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5"}
+	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
 	if setup.OnlyDirMounted() != "" {
 		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
