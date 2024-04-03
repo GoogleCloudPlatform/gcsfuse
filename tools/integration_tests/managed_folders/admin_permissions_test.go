@@ -36,8 +36,6 @@ import (
 // //////////////////////////////////////////////////////////////////////
 
 const (
-	MoveFile       = "moveFile"
-	CopyFile       = "copyFile"
 	CreateTestFile = "createTestFile"
 )
 
@@ -96,9 +94,7 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	srcCopyFile := path.Join(testDirPath, CopyFile)
-	// Creating object in managed folder.
-	createFileForTest(srcCopyFile, t)
+	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
 
 	destCopyFile := path.Join(testDirPath, DestFile)
 
@@ -135,9 +131,7 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 
 func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-	srcMoveFile := path.Join(testDirPath, MoveFile)
-	// Creating object in managed folder.
-	createFileForTest(srcMoveFile, t)
+	srcMoveFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
 
 	destMoveFile := path.Join(testDirPath, DestFile)
 
