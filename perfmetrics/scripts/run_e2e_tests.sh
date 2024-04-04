@@ -28,7 +28,6 @@ TEST_DIR_PARALLEL=(
   "read_cache"
   "gzip"
   "write_large_files"
-  "list_large_dir"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL_GROUP_1=(
@@ -42,6 +41,7 @@ TEST_DIR_NON_PARALLEL_GROUP_1=(
 TEST_DIR_NON_PARALLEL_GROUP_2=(
   "explicit_dir"
   "implicit_dir"
+  "list_large_dir"
   "operations"
   "read_large_files"
   "rename_dir_limit"
@@ -187,28 +187,30 @@ function run_e2e_tests_for_flat_bucket() {
   run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
   parallel_tests_pid=$!
 
- echo "Running non parallel tests group-1..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
- non_parallel_tests_pid_group_1=$!
- echo "Running non parallel tests group-2..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
- non_parallel_tests_pid_group_2=$!
+  echo "Running non parallel tests group-1..."
+  run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
+  non_parallel_tests_pid_group_1=$!
+  echo "Running non parallel tests group-2..."
+  run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
+  non_parallel_tests_pid_group_2=$!
 
- # Wait for all tests to complete.
- wait $parallel_tests_pid
- parallel_tests_exit_code=$?
- wait $non_parallel_tests_pid_group_1
- non_parallel_tests_exit_code_group_1=$?
- wait $non_parallel_tests_pid_group_2
- non_parallel_tests_exit_code_group_2=$?
+  # Wait for all tests to complete.
+  wait $parallel_tests_pid
+  parallel_tests_exit_code=$?
+  wait $non_parallel_tests_pid_group_1
+  non_parallel_tests_exit_code_group_1=$?
+  wait $non_parallel_tests_pid_group_2
+  non_parallel_tests_exit_code_group_2=$?
 
- flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
- clean_up flat_buckets
+  flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+  clean_up flat_buckets
 
- if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
- then
-   exit 1
- fi
+  if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+  then
+    return 1
+  fi
+
+  return 0
 }
 
 function run_e2e_tests_for_hns_bucket(){
@@ -225,10 +227,13 @@ function run_e2e_tests_for_hns_bucket(){
    hns_buckets=("$hns_bucket_name")
    clean_up hns_buckets
 
+   echo "non_parallel_tests_hns_group_exit_code" non_parallel_tests_hns_group_exit_code
    if [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
-     exit 1
+     return 1
    fi
+
+   return 0
 }
 
 #commenting it so cleanup and failure check happens for both
@@ -260,13 +265,13 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  set -e
-
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
+
+  set -e
 
   print_test_logs
 
