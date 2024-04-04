@@ -52,6 +52,9 @@ TEST_DIR_HNS_GROUP=(
   "operations"
 )
 
+# Create a temporary file to store the log file name.
+TEST_LOGS_FILE=$(mktemp)
+
 function upgrade_gcloud_version() {
   sudo apt-get update
   # Upgrade gcloud version.
@@ -107,8 +110,12 @@ function run_non_parallel_tests() {
   for test_dir_np in "${test_array[@]}"
   do
     test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
+    echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -127,8 +134,12 @@ function run_parallel_tests() {
   for test_dir_p in "${test_array[@]}"
   do
     test_path_parallel="./tools/integration_tests/$test_dir_p"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
+    echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -143,6 +154,20 @@ function run_parallel_tests() {
     fi
   done
   return $exit_code
+}
+
+function print_test_logs() {
+  readarray -t test_logs_array < "$TEST_LOGS_FILE"
+  rm "$TEST_LOGS_FILE"
+  for test_log_file in "${test_logs_array[@]}"
+  do
+    log_file=${test_log_file}
+    if [ -f "$log_file" ]; then
+      echo "=== Log for ${test_log_file} ==="
+      cat "$log_file"
+      echo "========================================="
+    fi
+  done
 }
 
 function run_e2e_tests_for_flat_bucket() {
@@ -242,6 +267,8 @@ function main(){
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
+
+  print_test_logs
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
