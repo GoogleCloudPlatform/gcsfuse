@@ -166,8 +166,6 @@ function print_test_logs() {
       echo "=== Log for ${test_log_file} ==="
       cat "$log_file"
       echo "========================================="
-      # Remove the log file
-      rm "$log_file"
     fi
   done
 }
