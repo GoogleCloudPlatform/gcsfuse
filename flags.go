@@ -484,7 +484,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		customEndpoint = nil
 	} else {
 		customEndpoint, err = url.Parse(customEndpointStr)
-		if err != nil {
+		if customEndpoint.String() == "" || err != nil {
 			err = fmt.Errorf("could not parse custom-endpoint: %w", err)
 			return
 		}

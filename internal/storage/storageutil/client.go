@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
@@ -106,4 +107,12 @@ func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
+}
+
+// StripScheme strips the scheme from a host if it contains.
+func StripScheme(url string) string {
+	if strings.Contains(url, "://") {
+		url = strings.SplitN(url, "://", 2)[1]
+	}
+	return url
 }

@@ -19,14 +19,15 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -60,10 +61,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
-		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
 		// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
 		// TODO: to revisit here when supporting TPC for grpc client.
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 	} else {
 		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
 		if tokenCreationErr != nil {
