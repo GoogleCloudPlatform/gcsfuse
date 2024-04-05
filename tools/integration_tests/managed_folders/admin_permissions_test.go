@@ -125,7 +125,19 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	validateCopyManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, s.bucketPermission, t)
+	err := operations.CopyDir(srcDirPath, destDirPath)
+	if err != nil {
+		t.Errorf("Error in copying directory: %v", err)
+	}
+
+	if s.bucketPermission == ViewPermission{
+		operations.CheckErrorForReadOnlyFileSystem(err, t)
+	} else{
+		_, err = os.Stat(destDirPath)
+		if err != nil {
+			t.Errorf("Error in stating destination copy dir: %v", err)
+		}
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder(t *testing.T) {
@@ -152,7 +164,23 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	validateMoveManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, s.bucketPermission, t)
+	err := operations.Move(srcDirPath, destDirPath)
+	if err != nil {
+		t.Errorf("Error in moving directory: %v", err)
+	}
+
+	if s.bucketPermission == ViewPermission {
+		operations.CheckErrorForReadOnlyFileSystem(err, t)
+	} else {
+		_, err = os.Stat(destDirPath)
+		if err != nil {
+			t.Errorf("Error in stating destination copy dir: %v", err)
+		}
+		_, err = os.Stat(srcDirPath)
+		if err == nil {
+			t.Errorf("SrcDir is not removed after move.")
+		}
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolderWithViewBucketPermission(t *testing.T) {
