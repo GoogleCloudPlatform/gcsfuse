@@ -130,9 +130,9 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 		t.Errorf("Error in copying directory: %v", err)
 	}
 
-	if s.bucketPermission == ViewPermission{
+	if s.bucketPermission == ViewPermission {
 		operations.CheckErrorForReadOnlyFileSystem(err, t)
-	} else{
+	} else {
 		_, err = os.Stat(destDirPath)
 		if err != nil {
 			t.Errorf("Error in stating destination copy dir: %v", err)
