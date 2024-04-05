@@ -34,8 +34,5 @@ func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logForma
 }
 
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
-	if mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != "" {
-		return true
-	}
-	return false
+	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
 }

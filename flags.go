@@ -400,8 +400,8 @@ type flagStorage struct {
 	OtelCollectorAddress       string
 	LogFile                    string
 	LogFormat                  string
-	ExperimentalEnableJsonRead  bool
-	DebugFuseErrors             bool
+	ExperimentalEnableJsonRead bool
+	DebugFuseErrors            bool
 
 	// Debugging
 	DebugFuse       bool
