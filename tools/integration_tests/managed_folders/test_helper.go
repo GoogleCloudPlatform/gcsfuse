@@ -242,4 +242,3 @@ func createFileForTest(filePath string, t *testing.T) {
 		t.Errorf("Error in creating local file, %v", err)
 	}
 }
-
