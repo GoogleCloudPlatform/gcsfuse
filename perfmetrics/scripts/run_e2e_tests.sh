@@ -207,8 +207,9 @@ function run_e2e_tests_for_flat_bucket() {
 
  if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
  then
-   exit 1
+   return 1
  fi
+ return 0
 }
 
 function run_e2e_tests_for_hns_bucket(){
@@ -227,8 +228,9 @@ function run_e2e_tests_for_hns_bucket(){
 
    if [ $non_parallel_tests_hns_group_exit_code != 0 ];
    then
-     exit 1
+     return 1
    fi
+   return 0
 }
 
 #commenting it so cleanup and failure check happens for both
@@ -260,15 +262,21 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
-  set -e
-
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
 
+  set -e
+
   print_test_logs
+
+  if [ $e2e_tests_flat_bucket_status != 0 ] && [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for both flat and hns bucket failed.."
+    exit 1
+  fi
 
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
