@@ -126,9 +126,6 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
 	err := operations.CopyDir(srcDirPath, destDirPath)
-	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
-	}
 
 	if s.bucketPermission == ViewPermission {
 		operations.CheckErrorForReadOnlyFileSystem(err, t)
@@ -165,9 +162,6 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
 	err := operations.Move(srcDirPath, destDirPath)
-	if err != nil {
-		t.Errorf("Error in moving directory: %v", err)
-	}
 
 	if s.bucketPermission == ViewPermission {
 		operations.CheckErrorForReadOnlyFileSystem(err, t)
