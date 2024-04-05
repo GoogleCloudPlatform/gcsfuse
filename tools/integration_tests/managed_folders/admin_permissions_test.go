@@ -117,7 +117,7 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder(t *tes
 
 	_, err = operations.StatFile(destCopyFile)
 	if err != nil {
-		t.Errorf("Error in stating destination copy file: %v", err)
+		t.Errorf("Error in stating destination file: %v", err)
 	}
 }
 
@@ -132,7 +132,7 @@ func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
 	} else {
 		_, err = os.Stat(destDirPath)
 		if err != nil {
-			t.Errorf("Error in stating destination copy dir: %v", err)
+			t.Errorf("Error in stating destination dir: %v", err)
 		}
 	}
 }
@@ -149,7 +149,7 @@ func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder(t *tes
 
 	_, err = operations.StatFile(destMoveFile)
 	if err != nil {
-		t.Errorf("Error in stating destination move file: %v", err)
+		t.Errorf("Error in stating destination file: %v", err)
 	}
 	_, err = operations.StatFile(srcMoveFile)
 	if err == nil {
@@ -168,7 +168,7 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	} else {
 		_, err = os.Stat(destDirPath)
 		if err != nil {
-			t.Errorf("Error in stating destination copy dir: %v", err)
+			t.Errorf("Error in stating destination dir: %v", err)
 		}
 		_, err = os.Stat(srcDirPath)
 		if err == nil {
