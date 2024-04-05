@@ -272,6 +272,12 @@ function main(){
 
   print_test_logs
 
+  if [ $e2e_tests_flat_bucket_status != 0 ] && [ $e2e_tests_hns_bucket_status != 0 ];
+  then
+    echo "The e2e tests for both flat and hns bucket failed.."
+    exit 1
+  fi
+
   if [ $e2e_tests_flat_bucket_status != 0 ];
   then
     echo "The e2e tests for flat bucket failed.."
