@@ -242,3 +242,37 @@ func createFileForTest(filePath string, t *testing.T) {
 		t.Errorf("Error in creating local file, %v", err)
 	}
 }
+
+func validateMoveManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, bucketPermission string, t *testing.T) {
+	if bucketPermission == ViewPermission {
+		moveAndCheckErrForViewPermission(srcDirPath, destDirPath, t)
+	} else {
+		err := operations.Move(srcDirPath, destDirPath)
+		if err != nil {
+			t.Errorf("Error in moving directory: %v", err)
+		}
+		_, err = os.Stat(destDirPath)
+		if err != nil {
+			t.Errorf("Error in stating destination copy dir: %v", err)
+		}
+		_, err = os.Stat(srcDirPath)
+		if err == nil {
+			t.Errorf("SrcDir is not removed after move.")
+		}
+	}
+}
+
+func validateCopyManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, bucketPermission string, t *testing.T) {
+	if bucketPermission == ViewPermission {
+		copyDirAndCheckErrForViewPermission(srcDirPath, destDirPath, t)
+	} else {
+		err := operations.CopyDir(srcDirPath, destDirPath)
+		if err != nil {
+			t.Errorf("Error in copying directory: %v", err)
+		}
+		_, err = os.Stat(destDirPath)
+		if err != nil {
+			t.Errorf("Error in stating destination copy dir: %v", err)
+		}
+	}
+}

@@ -46,24 +46,27 @@ var (
 	localKeyFilePath string
 )
 
+// The permission granted by roles at project, bucket, and managed folder
+// levels apply additively (union) throughout the resource hierarchy.
+// Hence here managed folder will have admin permission throughout all the tests.
 type managedFoldersAdminPermission struct {
-	iamPermission    string
-	bucketPermission string
+	managedFolderPermission string
+	bucketPermission        string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	if s.iamPermission != "nil" {
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
+	if s.managedFolderPermission != "nil" {
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
+		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
 	}
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.iamPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.iamPermission, t)
-	cleanup(bucket, testDir, serviceAccount, s.iamPermission, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
+	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
+	cleanup(bucket, testDir, serviceAccount, s.managedFolderPermission, t)
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
@@ -80,6 +83,11 @@ func (s *managedFoldersAdminPermission) TestDeleteObjectInManagedFolder(t *testi
 	if err != nil {
 		t.Errorf("Error in removing file from managed folder: %v", err)
 	}
+
+	_, err = operations.StatFile(filePath)
+	if err == nil {
+		t.Errorf("file is not removed.")
+	}
 }
 
 // Managed folders will not be deleted, but they will become empty. Default empty managed folders will be hidden.
@@ -90,12 +98,16 @@ func (s *managedFoldersAdminPermission) TestDeleteManagedFolder(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error in removing managed folder: %v", err)
 	}
+
+	_, err = os.Stat(dirPath)
+	if err == nil {
+		t.Errorf("Directory is not removed.")
+	}
 }
 
 func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	srcCopyFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
-
 	destCopyFile := path.Join(testDirPath, DestFile)
 
 	err := operations.CopyFile(srcCopyFile, destCopyFile)
@@ -110,29 +122,15 @@ func (s *managedFoldersAdminPermission) TestCopyObjectWithInManagedFolder(t *tes
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolder(t *testing.T) {
-	if s.bucketPermission == ViewPermission {
-		// Copying the managed folder will fail because the bucket has view-only permissions.
-		return
-	}
-
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	err := operations.CopyDir(srcDirPath, destDirPath)
-	if err != nil {
-		t.Errorf("Error in copying directory: %v", err)
-	}
-
-	_, err = os.Stat(destDirPath)
-	if err != nil {
-		t.Errorf("Error in stating destination copy dir: %v", err)
-	}
+	validateCopyManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, s.bucketPermission, t)
 }
 
 func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder(t *testing.T) {
 	testDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	srcMoveFile := path.Join(testDirPath, FileInNonEmptyManagedFoldersTest)
-
 	destMoveFile := path.Join(testDirPath, DestFile)
 
 	err := operations.Move(srcMoveFile, destMoveFile)
@@ -151,37 +149,10 @@ func (s *managedFoldersAdminPermission) TestMoveObjectWithInManagedFolder(t *tes
 }
 
 func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
-	if s.bucketPermission == ViewPermission {
-		// Moving the managed folder will fail because the bucket has view-only permissions.
-		return
-	}
-
 	srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
 	destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
 
-	err := operations.Move(srcDirPath, destDirPath)
-	if err != nil {
-		t.Errorf("Error in moving directory: %v", err)
-	}
-
-	_, err = os.Stat(destDirPath)
-	if err != nil {
-		t.Errorf("Error in stating destination copy dir: %v", err)
-	}
-	_, err = os.Stat(srcDirPath)
-	if err == nil {
-		t.Errorf("SrcDir is not removed after move.")
-	}
-}
-
-func (s *managedFoldersAdminPermission) TestMoveManagedFolderWithViewBucketPermission(t *testing.T) {
-	// Moving the managed folder should fail because the bucket has view-only permissions.
-	if s.bucketPermission == ViewPermission {
-		srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-		destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
-
-		moveAndCheckErrForViewPermission(srcDirPath, destDirPath, t)
-	}
+	validateMoveManagedFolderAccordingToBucketPermission(srcDirPath, destDirPath, s.bucketPermission, t)
 }
 
 func (s *managedFoldersAdminPermission) TestCopyManagedFolderWithViewBucketPermission(t *testing.T) {
@@ -215,10 +186,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
-	if setup.OnlyDirMounted() != "" {
-		operations.CreateManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-		defer operations.DeleteManagedFoldersInBucket(onlyDirMounted, setup.TestBucket())
-	}
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
@@ -234,7 +201,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
-		ts.iamPermission = permissions[i][1]
+		ts.managedFolderPermission = permissions[i][1]
 		test_setup.RunTests(t, ts)
 	}
 }
