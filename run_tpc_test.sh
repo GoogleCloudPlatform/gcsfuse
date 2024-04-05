@@ -1,5 +1,6 @@
 TEST_DIR_PARALLEL=(
   "mounting"
+  "list_large_dir"
   "explicit_dir"
   "log_rotation"
   "gzip"

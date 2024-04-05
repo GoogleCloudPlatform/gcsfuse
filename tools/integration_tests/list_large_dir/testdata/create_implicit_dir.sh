@@ -23,9 +23,9 @@ NUMBER_OF_FILES=$3
 a=1
 #Iterate the loop until a greater than 100
 touch testFile.txt
-while [ $a -le 12000 ]
+while [ $a -le $NUMBER_OF_FILES ]
 do
-   dir="x"$a
+   dir=$IMPLICIT_DIR$a
    a=`expr $a + 1`
-   gcloud storage cp testFile.txt gs://tulsishah-test-tpc/$dir/
+   gcloud storage cp testFile.txt gs://$TEST_BUCKET/$dir/
 done
