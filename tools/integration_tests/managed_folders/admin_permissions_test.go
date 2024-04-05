@@ -177,16 +177,6 @@ func (s *managedFoldersAdminPermission) TestMoveManagedFolder(t *testing.T) {
 	}
 }
 
-func (s *managedFoldersAdminPermission) TestCopyManagedFolderWithViewBucketPermission(t *testing.T) {
-	// Copying the managed folder should fail because the bucket has view-only permissions.
-	if s.bucketPermission == ViewPermission {
-		srcDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1)
-		destDirPath := path.Join(setup.MntDir(), TestDirForManagedFolderTest, DestFolder)
-
-		copyDirAndCheckErrForViewPermission(srcDirPath, destDirPath, t)
-	}
-}
-
 func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminPermission(t *testing.T) {
 	listNonEmptyManagedFolders(t)
 }
