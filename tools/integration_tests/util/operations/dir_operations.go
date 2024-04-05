@@ -16,6 +16,7 @@
 package operations
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -33,10 +34,12 @@ const FilePermission_0777 = 0777
 const DirPermission_0755 = 0755
 const MiB = 1024 * 1024
 
-func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
+func executeCommandForOperation(cmd *exec.Cmd) (err error) {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("Copying dir operation is failed: %v", err)
+		err = fmt.Errorf("Command execution %s failed: %v", cmd, cmd.Stderr)
 	}
 	return
 }
@@ -44,7 +47,15 @@ func executeCommandForCopyOperation(cmd *exec.Cmd) (err error) {
 func CopyDir(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("cp", "--recursive", srcDirPath, destDirPath)
 
-	err = executeCommandForCopyOperation(cmd)
+	err = executeCommandForOperation(cmd)
+
+	return
+}
+
+func CopyObject(srcPath string, destPath string) (err error) {
+	cmd := exec.Command("cp", srcPath, destPath)
+
+	err = executeCommandForOperation(cmd)
 
 	return
 }
@@ -52,18 +63,16 @@ func CopyDir(srcDirPath string, destDirPath string) (err error) {
 func CopyDirWithRootPermission(srcDirPath string, destDirPath string) (err error) {
 	cmd := exec.Command("sudo", "cp", "--recursive", srcDirPath, destDirPath)
 
-	err = executeCommandForCopyOperation(cmd)
+	err = executeCommandForOperation(cmd)
 
 	return
 }
 
-func MoveDir(srcDirPath string, destDirPath string) (err error) {
-	cmd := exec.Command("mv", srcDirPath, destDirPath)
+func Move(srcPath string, destPath string) (err error) {
+	cmd := exec.Command("mv", srcPath, destPath)
 
-	err = cmd.Run()
-	if err != nil {
-		err = fmt.Errorf("Moving dir operation is failed: %v", err)
-	}
+	err = executeCommandForOperation(cmd)
+
 	return
 }
 
@@ -160,23 +169,23 @@ func DirSizeMiB(dirPath string) (dirSizeMB int64, err error) {
 	return dirSizeMB, err
 }
 
-func DeleteManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
+func DeleteManagedFoldersInBucket(managedFolderPath, bucket string) {
 	gcloudDeleteManagedFolderCmd := fmt.Sprintf("alpha storage rm -r gs://%s/%s", bucket, managedFolderPath)
 
 	_, err := ExecuteGcloudCommandf(gcloudDeleteManagedFolderCmd)
 	if err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
-		t.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
+		log.Fatalf(fmt.Sprintf("Error while deleting managed folder: %v", err))
 	}
 }
 
-func CreateManagedFoldersInBucket(managedFolderPath, bucket string, t *testing.T) {
+func CreateManagedFoldersInBucket(managedFolderPath, bucket string) {
 	// Delete if already exist.
-	DeleteManagedFoldersInBucket(managedFolderPath, bucket, t)
+	DeleteManagedFoldersInBucket(managedFolderPath, bucket)
 	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s", bucket, managedFolderPath)
 
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+		log.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
 	}
 }
 
@@ -185,6 +194,6 @@ func CopyFileInBucket(srcfilePath, destFilePath, bucket string, t *testing.T) {
 
 	_, err := ExecuteGcloudCommandf(gcloudCopyFileCmd)
 	if err != nil {
-		t.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
+		t.Fatalf(fmt.Sprintf("Error while copying file in bucket: %v", err))
 	}
 }

@@ -33,10 +33,10 @@
       "end_date": "2024-03-31 05:30:00+00:00"
     },
     {
-      "config_name": "master_benchmark_with_gRPC_changes",
-      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
-      "branch": "gRPC_support1",
-      "end_date": "2024-03-31 05:30:00+00:00"
+      "config_name": "master_benchmark_with_gRPC_changes_enabled",
+      "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --client-protocol grpc --debug_fuse --debug_gcs",
+      "branch": "master",
+      "end_date": "2024-09-30 05:30:00+00:00"
     }
   ]
 }

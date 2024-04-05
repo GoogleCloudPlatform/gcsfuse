@@ -21,6 +21,8 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -31,7 +33,7 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 		t.Errorf("File is created in read-only file system.")
 	}
 
-	checkErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
 
 	defer file.Close()
 }
@@ -55,7 +57,7 @@ func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 		t.Errorf("Directory is created in read-only file system.")
 	}
 
-	checkErrorForReadOnlyFileSystem(err, t)
+	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
 func TestCreateDir(t *testing.T) {
