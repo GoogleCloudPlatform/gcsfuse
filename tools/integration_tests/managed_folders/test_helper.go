@@ -234,3 +234,11 @@ func moveAndCheckErrForViewPermission(src, dest string, t *testing.T) {
 
 	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
+
+func createFileForTest(filePath string, t *testing.T) {
+	file, err := os.Create(filePath)
+	defer operations.CloseFile(file)
+	if err != nil {
+		t.Errorf("Error in creating local file, %v", err)
+	}
+}

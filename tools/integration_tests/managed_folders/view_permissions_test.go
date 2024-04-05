@@ -39,6 +39,9 @@ const (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+// The permission granted by roles at project, bucket, and managed folder
+// levels apply additively (union) throughout the resource hierarchy.
+// Hence here managed folder will have view permission throughout all the tests.
 type managedFoldersViewPermission struct {
 }
 
