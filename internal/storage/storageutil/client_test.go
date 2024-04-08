@@ -115,7 +115,7 @@ func (t *clientTest) TestStripScheme() {
 			expectedOutput: "localhost:8888",
 		},
 		{
-			input:          "cp://localhost:8888",
+			input:          "bad://localhost:8888",
 			expectedOutput: "localhost:8888",
 		},
 	} {
