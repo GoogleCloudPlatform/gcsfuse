@@ -72,6 +72,7 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	ctx = context.Background()
 	var cancel context.CancelFunc

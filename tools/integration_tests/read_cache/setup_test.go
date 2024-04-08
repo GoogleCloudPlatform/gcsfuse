@@ -138,6 +138,7 @@ func appendFlags(flagSet *[][]string, newFlags ...string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

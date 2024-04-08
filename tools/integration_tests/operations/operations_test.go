@@ -123,6 +123,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	os.Exit(1)
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.

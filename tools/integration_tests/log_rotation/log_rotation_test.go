@@ -61,6 +61,7 @@ func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress b
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

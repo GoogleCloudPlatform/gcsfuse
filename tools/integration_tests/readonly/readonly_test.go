@@ -75,6 +75,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true"}}
 

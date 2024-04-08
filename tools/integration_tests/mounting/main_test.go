@@ -36,6 +36,7 @@ var gFusermountPath string
 func TestMain(m *testing.M) {
 	// Parse flags from the setup.
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	var err error
 

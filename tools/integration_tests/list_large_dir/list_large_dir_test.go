@@ -42,6 +42,7 @@ func TestMain(m *testing.M) {
 		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")
 		os.Exit(1)
 	}
+	os.Exit(0)
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)

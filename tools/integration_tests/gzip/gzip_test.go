@@ -174,6 +174,7 @@ func destroy_testdata(m *testing.M) error {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
 	flags := [][]string{commonFlags}

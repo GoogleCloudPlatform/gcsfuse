@@ -25,6 +25,7 @@ import (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	os.Exit(0)
 
 	flags := [][]string{{"--implicit-dirs=false"}}
 

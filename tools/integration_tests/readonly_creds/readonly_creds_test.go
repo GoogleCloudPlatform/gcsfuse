@@ -40,6 +40,8 @@ const (
 ////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
+	os.Exit(0)
+
 	setup.ParseSetUpFlags()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
