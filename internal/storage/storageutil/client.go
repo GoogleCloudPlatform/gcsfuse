@@ -28,7 +28,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const urlSchemaSeparator = "://"
+const urlSchemeSeparator = "://"
 
 type StorageClientConfig struct {
 	/** Common client parameters. */
@@ -111,10 +111,10 @@ func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 	}
 }
 
-// StripScheme strips the scheme from a host if it contains.
+// StripScheme strips the scheme part of given url.
 func StripScheme(url string) string {
-	if strings.Contains(url, urlSchemaSeparator) {
-		url = strings.SplitN(url, urlSchemaSeparator, 2)[1]
+	if strings.Contains(url, urlSchemeSeparator) {
+		url = strings.SplitN(url, urlSchemeSeparator, 2)[1]
 	}
 	return url
 }
