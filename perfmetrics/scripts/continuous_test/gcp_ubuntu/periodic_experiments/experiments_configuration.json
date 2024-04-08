@@ -1,13 +1,13 @@
 {
   "experiment_configuration": [
     {
-      "config_name": "master",
+      "config_name": "master_20240408",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "branch": "master",
-      "end_date": "2024-03-31 05:30:00+00:00"
+      "end_date": "9999-12-31 05:30:00+00:00"
     },
     {
-      "config_name": "read_cache_cache_file_for_range_read_true_20240220",
+      "config_name": "read_cache_cache_file_for_range_read_true_20240408",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "config_file_flags_as_json": {
         "file-cache": {
@@ -16,11 +16,11 @@
         },
         "cache-dir": "/tmp/cache"
       },
-      "branch": "read_cache_release",
-      "end_date": "2024-03-31 05:30:00+00:00"
+      "branch": "master",
+      "end_date": "9999-12-31 05:30:00+00:00"
     },
     {
-      "config_name": "read_cache_cache_file_for_range_read_false_20240220",
+      "config_name": "read_cache_cache_file_for_range_read_false_20240408",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100  --debug_fuse --debug_gcs",
       "config_file_flags_as_json": {
         "file-cache": {
@@ -29,14 +29,14 @@
         },
         "cache-dir": "/tmp/cache"
       },
-      "branch": "read_cache_release",
-      "end_date": "2024-03-31 05:30:00+00:00"
+      "branch": "master",
+      "end_date": "9999-12-31 05:30:00+00:00"
     },
     {
-      "config_name": "master_benchmark_with_gRPC_changes_enabled",
+      "config_name": "master_benchmark_with_gRPC_changes_enabled_20240408",
       "gcsfuse_flags": "--implicit-dirs --max-conns-per-host 100 --client-protocol grpc --debug_fuse --debug_gcs",
       "branch": "master",
-      "end_date": "2024-09-30 05:30:00+00:00"
+      "end_date": "9999-12-31 05:30:00+00:00"
     }
   ]
 }
