@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
@@ -26,6 +27,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
+
+const urlSchemeSeparator = "://"
 
 type StorageClientConfig struct {
 	/** Common client parameters. */
@@ -106,4 +109,12 @@ func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth
 	} else {
 		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
+}
+
+// StripScheme strips the scheme part of given url.
+func StripScheme(url string) string {
+	if strings.Contains(url, urlSchemeSeparator) {
+		url = strings.SplitN(url, urlSchemeSeparator, 2)[1]
+	}
+	return url
 }

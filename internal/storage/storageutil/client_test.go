@@ -96,3 +96,35 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	t.validateProxyInTransport(httpClient)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
+
+func (t *clientTest) TestStripScheme() {
+	for _, tc := range []struct {
+		input          string
+		expectedOutput string
+	}{
+		{
+			input:          "",
+			expectedOutput: "",
+		},
+		{
+			input:          "localhost:8080",
+			expectedOutput: "localhost:8080",
+		},
+		{
+			input:          "http://localhost:8888",
+			expectedOutput: "localhost:8888",
+		},
+		{
+			input:          "cp://localhost:8888",
+			expectedOutput: "localhost:8888",
+		},
+		{
+			input:          "bad://http://localhost:888://",
+			expectedOutput: "http://localhost:888://",
+		},
+	} {
+		output := StripScheme(tc.input)
+
+		AssertEq(tc.expectedOutput, output)
+	}
+}
