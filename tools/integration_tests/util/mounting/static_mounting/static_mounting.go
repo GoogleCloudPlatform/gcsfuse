@@ -29,6 +29,7 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
 		"--log-format=text",
+		"--client-protocol grpc",
 		setup.TestBucket(),
 		setup.MntDir()}
 
