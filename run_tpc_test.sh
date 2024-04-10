@@ -1,6 +1,6 @@
 TEST_DIR_PARALLEL=(
   "mounting"
-  "readonly_creds",
+  "readonly_creds"
   "readonly"
   "operations"
   "list_large_dir"
