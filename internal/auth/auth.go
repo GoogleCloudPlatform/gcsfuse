@@ -24,11 +24,52 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+const universeDomainDefault = "googleapis.com"
+
+func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
+	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
+	if err != nil {
+		err = fmt.Errorf("Error in getting credentials.")
+		return "", err
+	}
+	domain, err := creds.GetUniverseDomain()
+	if err != nil {
+		err = fmt.Errorf("Error in getting universe domain.")
+		return "", err
+	}
+
+	return domain, nil
+}
+
+func getAccessToken(ctx context.Context, domain, scope string, contents []byte) (ts oauth2.TokenSource, err error) {
+	if domain == universeDomainDefault {
+		// By default, a standard OAuth 2.0 token source is created
+		// Create a config struct based on its contents.
+		jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
+		if err != nil {
+			err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+		}
+		// Create the token source.
+		ts = jwtConfig.TokenSource(ctx)
+	} else {
+		// For non-GDU universe domains, token exchange is impossible and services
+		// must support self-signed JWTs with scopes.
+
+		// Create a config struct based on its contents.
+		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
+		if err != nil {
+			err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+			return
+		}
+	}
+	return
+}
+
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(
-	ctx context.Context,
-	path string,
-	scope string,
+		ctx context.Context,
+		path string,
+		scope string,
 ) (ts oauth2.TokenSource, err error) {
 	// Read the file.
 	contents, err := os.ReadFile(path)
@@ -37,15 +78,15 @@ func newTokenSourceFromPath(
 		return
 	}
 
-	// Create a config struct based on its contents.
-	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
+	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
-		return
+		return nil, err
 	}
 
-	// Create the token source.
-	ts = jwtConfig.TokenSource(ctx)
+	ts, err = getAccessToken(ctx, domain, scope, contents)
+	if err != nil {
+		err = fmt.Errorf("Error in getting access token:%v", err)
+	}
 
 	return
 }
@@ -53,10 +94,10 @@ func newTokenSourceFromPath(
 // GetTokenSource returns a TokenSource for GCS API given a key file, or
 // with the default credentials.
 func GetTokenSource(
-	ctx context.Context,
-	keyFile string,
-	tokenUrl string,
-	reuseTokenFromUrl bool,
+		ctx context.Context,
+		keyFile string,
+		tokenUrl string,
+		reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
 	const scope = storagev1.DevstorageFullControlScope
