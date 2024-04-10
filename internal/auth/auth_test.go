@@ -51,7 +51,6 @@ func (t *AuthTest) TestGetUniverseDomainForGoogle() {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return
 	}
 	ctx := context.Background()
 
@@ -66,7 +65,6 @@ func (t *AuthTest) TestGetUniverseDomainForTPC() {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return
 	}
 	ctx := context.Background()
 
@@ -81,7 +79,6 @@ func (t *AuthTest) TestGetUniverseDomainForEmptyCreds() {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return
 	}
 	ctx := context.Background()
 
