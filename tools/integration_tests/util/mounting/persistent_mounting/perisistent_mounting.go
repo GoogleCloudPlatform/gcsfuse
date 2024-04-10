@@ -53,8 +53,6 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"log_file=" + setup.LogFile(),
 		"-o",
 		"log_format=text",
-		"-o",
-		"client_protocol=grpc",
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)

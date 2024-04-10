@@ -48,7 +48,7 @@ type StorageClientConfig struct {
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
-	DisableAuth bool
+	DisableAuth                bool
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int

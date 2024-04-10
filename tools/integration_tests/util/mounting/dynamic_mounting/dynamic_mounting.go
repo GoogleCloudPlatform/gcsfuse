@@ -34,7 +34,6 @@ func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
 		"--log-format=text",
-		"--client-protocol grpc",
 		setup.MntDir()}
 
 	for i := 0; i < len(defaultArg); i++ {

@@ -1,17 +1,18 @@
 TEST_DIR_PARALLEL=(
   "mounting"
+  "readonly_creds",
+  "readonly"
+  "operations"
   "list_large_dir"
   "explicit_dir"
   "log_rotation"
   "gzip"
   "write_large_files"
-  "readonly"
   "implicit_dir"
   "local_file"
   "read_large_files"
   "rename_dir_limit"
   "read_cache"
-  "operations"
 )
 for test_dir_np in "${TEST_DIR_PARALLEL[@]}"
 do
