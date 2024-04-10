@@ -16,7 +16,6 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -49,9 +48,7 @@ func (t *AuthTest) SetUp(ti *TestInfo) {
 func (t *AuthTest) TestGetUniverseDomainForGoogle() {
 	path := "testdata/google_creds.json"
 	contents, err := os.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-	}
+	AssertEq(nil,err)
 	ctx := context.Background()
 
 	domain, err := getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
@@ -63,9 +60,7 @@ func (t *AuthTest) TestGetUniverseDomainForGoogle() {
 func (t *AuthTest) TestGetUniverseDomainForTPC() {
 	path := "testdata/tpc_creds.json"
 	contents, err := os.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-	}
+	AssertEq(nil,err)
 	ctx := context.Background()
 
 	domain, err := getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
@@ -77,9 +72,7 @@ func (t *AuthTest) TestGetUniverseDomainForTPC() {
 func (t *AuthTest) TestGetUniverseDomainForEmptyCreds() {
 	path := "testdata/empty_creds.json"
 	contents, err := os.ReadFile(path)
-	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-	}
+	AssertEq(nil,err)
 	ctx := context.Background()
 
 	_, err = getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
