@@ -52,6 +52,8 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"log_file=" + setup.LogFile(),
 		"-o",
 		"log_format=text",
+		"key_file=/usr/local/google/home/tulsishah/key_tpc.json",
+		"custom_endpoint=storage.apis-tpclp.goog:443",
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)
