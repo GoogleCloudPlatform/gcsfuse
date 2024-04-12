@@ -90,8 +90,8 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
 	flags := [][]string{
-		{"--config-file=" + configFile1,  "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
-		{"--config-file=" + configFile2,  "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--config-file=" + configFile1},
+		{"--config-file=" + configFile2},
 	}
 
 	successCode := static_mounting.RunTests(flags, m)
