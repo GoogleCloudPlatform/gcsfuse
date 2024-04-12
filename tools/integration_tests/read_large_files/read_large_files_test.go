@@ -54,7 +54,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1,"--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1})
 
 	// Set up config file for file cache with unlimited capacity
 	mountConfig2 := config.MountConfig{
@@ -69,7 +69,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
+	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})
 
 	return flags
 }
@@ -77,7 +77,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
+	flags := [][]string{{"--implicit-dirs"}}
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flags = append(flags, mountConfigFlags...)
 

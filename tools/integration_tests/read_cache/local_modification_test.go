@@ -100,8 +100,8 @@ func TestLocalModificationTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagSet := [][]string{
-		{"--implicit-dirs=true","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
-		{"--implicit-dirs=false","--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
 	appendFlags(&flagSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
 

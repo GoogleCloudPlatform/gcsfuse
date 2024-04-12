@@ -68,7 +68,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
-	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath, "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"})
+	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})
 
 	return flags
 }
@@ -76,7 +76,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--o=ro", "--implicit-dirs=true", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true",  "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
+	flags := [][]string{{"--o=ro", "--implicit-dirs=true"}, {"--file-mode=544", "--dir-mode=544", "--implicit-dirs=true",  "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

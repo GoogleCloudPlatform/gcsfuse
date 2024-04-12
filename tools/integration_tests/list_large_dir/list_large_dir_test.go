@@ -36,7 +36,7 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs", "--key-file=/usr/local/google/home/tulsishah/key_tpc.json", "--custom-endpoint=storage.apis-tpclp.goog:443"}}
+	flags := [][]string{{"--implicit-dirs"}}
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
 		log.Print("Please pass the name of bucket mounted at mountedDirectory to --testBucket flag.")

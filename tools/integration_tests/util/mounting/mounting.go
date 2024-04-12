@@ -25,6 +25,8 @@ import (
 )
 
 func MountGcsfuse(binaryFile string, flags []string) error {
+	flags = append(flags,		"--key-file=/usr/local/google/home/tulsishah/key_tpc.json",
+		"--custom-endpoint=storage.apis-tpclp.goog:443")
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,
