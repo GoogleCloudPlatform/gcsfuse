@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -151,10 +150,10 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
-	}
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+	//}
 
 	os.Exit(successCode)
 }

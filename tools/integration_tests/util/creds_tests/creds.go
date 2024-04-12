@@ -18,6 +18,7 @@ package creds_tests
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -54,22 +55,22 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	localKeyFilePath = path.Join(os.Getenv("HOME") , "key_tpc.json")
 
 	// Download credentials
-	//gcloudSecretAccessCmd := fmt.Sprintf("secrets versions access latest --secret %s", CredentialsSecretName)
-	//creds, err := operations.ExecuteGcloudCommandf(gcloudSecretAccessCmd)
-	//if err != nil {
-	//	setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
-	//}
-	//
-	//// Create and write creds to local file.
-	//file, err := os.Create(localKeyFilePath)
-	//if err != nil {
-	//	setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
-	//}
-	//_, err = io.WriteString(file, string(creds))
-	//if err != nil {
-	//	setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
-	//}
-	//operations.CloseFile(file)
+	gcloudSecretAccessCmd := fmt.Sprintf("secrets versions access latest --secret %s", CredentialsSecretName)
+	creds, err := operations.ExecuteGcloudCommandf(gcloudSecretAccessCmd)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while fetching key file %v", err))
+	}
+
+	// Create and write creds to local file.
+	file, err := os.Create(localKeyFilePath)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while creating credentials file %v", err))
+	}
+	_, err = io.WriteString(file, string(creds))
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error while writing credentials to local file %v", err))
+	}
+	operations.CloseFile(file)
 
 	return
 }
@@ -104,16 +105,16 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	// https://github.com/golang/oauth2/blob/master/google/default.go#L160
 
 	// Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
-	//err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
-	//if err != nil {
-	//	setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
-	//}
-	//
-	//successCode = static_mounting.RunTests(testFlagSet, m)
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
+	}
 
-	//if successCode != 0 {
-	//	return
-	//}
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
 
 	// Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
 	keyFileFlag := "--key-file=" + localKeyFilePath
@@ -121,17 +122,17 @@ func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]
 	for i := 0; i < len(testFlagSet); i++ {
 		testFlagSet[i] = append(testFlagSet[i], keyFileFlag)
 	}
-	//
-	//successCode = static_mounting.RunTests(testFlagSet, m)
-	//
-	//if successCode != 0 {
-	//	return
-	//}
-	//
-	//err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
-	//if err != nil {
-	//	setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
-	//}
+
+	successCode = static_mounting.RunTests(testFlagSet, m)
+
+	if successCode != 0 {
+		return
+	}
+
+	err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
+	}
 
 	// Testing with --key-file flag only
 	successCode = static_mounting.RunTests(testFlagSet, m)
