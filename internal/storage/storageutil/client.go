@@ -105,10 +105,15 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 // order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
 	if storageClientConfig.CustomEndpoint == nil {
-		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+		tokenSrc, err = auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+		// Expire the token 10 seconds early to fix the corner case where GCSFuse
+		// checks the token as valid but GCS says invalid. This might be due to
+		// propagation delay.
+		tokenSrc = oauth2.ReuseTokenSourceWithExpiry(nil, tokenSrc, time.Second*10)
 	} else {
-		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
+		tokenSrc, err = oauth2.StaticTokenSource(&oauth2.Token{}), nil
 	}
+	return
 }
 
 // StripScheme strips the scheme part of given url.
