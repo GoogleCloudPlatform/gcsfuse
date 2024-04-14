@@ -3,12 +3,12 @@ package prefetch
 import "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 
 type Configuration struct {
-	FirstBufferSize              uint32
-	MaxBufferSize                uint32
-	SequentialPrefetchMultiplier uint32
+	FirstBufferSize              uint64
+	MaxBufferSize                uint64
+	SequentialPrefetchMultiplier uint64
 
-	MaxForwardSeekWaitDistance  uint32
-	MaxBackwardSeekWaitDistance uint32
+	MaxForwardSeekWaitDistance  uint64
+	MaxBackwardSeekWaitDistance uint64
 }
 
 func GetDefaultPrefetchConfiguration() *Configuration {

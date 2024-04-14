@@ -17,6 +17,7 @@ type Prefetcher struct {
 	downloader          *Downloader
 	currentPart         *Part
 	minObject           *gcs.MinObject
+	errChan             chan error
 }
 
 func NewPrefetcher(prefetchConf *Configuration, bucket gcs.Bucket, minObject *gcs.MinObject) *Prefetcher {
@@ -49,25 +50,25 @@ func (p *Prefetcher) downloadAsync(offset uint64, bufferSize uint64, done chan e
 // Blocks if not enough downloaded content to server the current read request.
 func (p *Prefetcher) scheduleNewIfRequired(offset int64, len int) error {
 	if p.bufferQueue.IsEmpty() {
-		errorCh := make(chan error)
 		if p.currentPart.buff.Len() < 4*util.MiB {
 			// Schedule a job if not any.
 			if !p.downloader.downloadInProgress {
 				currentBufferSize := p.currentPart.endOffset - p.currentPart.startOffset
-				nextBufferSize := p.bufferSizePredictor.GetCorrectBufferSize(uint32(currentBufferSize))
+				nextBufferSize := p.bufferSizePredictor.GetCorrectBufferSize(currentBufferSize)
 				nextPartStartOffset := p.currentPart.endOffset
 				if nextPartStartOffset < p.minObject.Size {
-					if uint32(nextPartStartOffset)+nextBufferSize > uint32(p.minObject.Size) {
-						nextBufferSize = uint32(p.minObject.Size) - uint32(nextPartStartOffset)
+					if nextPartStartOffset+nextBufferSize > p.minObject.Size {
+						nextBufferSize = p.minObject.Size - nextPartStartOffset
 					}
 					logger.Tracef("buffer size to download: %d", nextBufferSize)
-					go p.downloadAsync(nextPartStartOffset, uint64(nextBufferSize), errorCh)
+					p.errChan = make(chan error)
+					go p.downloadAsync(nextPartStartOffset, nextBufferSize, p.errChan)
 				}
 			}
 		}
 
 		if p.currentPart.buff.Len() < len {
-			err := <-errorCh // Blocks until we have enough data to server.
+			err := <-p.errChan // Blocks until we have enough data to server.
 			if err != nil {
 				return fmt.Errorf("error in download job: %w", err)
 			}
@@ -79,6 +80,7 @@ func (p *Prefetcher) scheduleNewIfRequired(offset int64, len int) error {
 
 func (p *Prefetcher) refreshCurrentBufferIfNeeded() error {
 	if p.currentPart.buff == nil || p.currentPart.buff.Len() == 0 {
+		p.currentPart.buff = nil
 		if p.bufferQueue.IsEmpty() {
 			return fmt.Errorf("buffer-queue shouldn't be empty")
 		}

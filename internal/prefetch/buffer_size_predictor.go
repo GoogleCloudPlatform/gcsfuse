@@ -20,7 +20,7 @@ func (bsp *BufferSizePredictor) ReadRequeustRange(start uint32, end uint32) {
 	// TODO: to implement.
 }
 
-func (bsp *BufferSizePredictor) GetCorrectBufferSize(currentBufferSize uint32) (predictedBufferSize uint32) {
+func (bsp *BufferSizePredictor) GetCorrectBufferSize(currentBufferSize uint64) (predictedBufferSize uint64) {
 	if currentBufferSize == 0 {
 		predictedBufferSize = bsp.prefetchConfig.FirstBufferSize
 	} else {
