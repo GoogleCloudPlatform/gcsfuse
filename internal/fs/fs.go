@@ -2155,7 +2155,7 @@ func (fs *fileSystem) ReadFile(
 	defer fh.Unlock()
 
 	// Serve the read.
-	op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
+	op.BytesRead, err = fh.ReadViaPrefetcher(ctx, op.Dst, op.Offset)
 
 	// As required by fuse, we don't treat EOF as an error.
 	if err == io.EOF {
