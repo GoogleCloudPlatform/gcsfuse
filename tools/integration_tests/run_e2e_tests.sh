@@ -18,9 +18,11 @@
 # true or false to run e2e tests on installedPackage
 RUN_E2E_TESTS_ON_PACKAGE=$1
 
-# By default, this shell script runs all the integration tests, but few tests
-# can be skipped by passing the 2nd argument as `true`.
-if [ "$2" == true ]; then
+# Pass "true" to skip few non-essential tests.
+# By default, this script runs all the integration tests.
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
+
+if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
   echo "Setting the flag to skip few un-important integration tests..."
 fi
