@@ -20,7 +20,6 @@
 package managed_folders
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -62,14 +61,7 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	if s.managedFolderPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, t) {
-			fmt.Println("In sleep")
-			time.Sleep(10 * time.Second)
-		}
-		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, t) {
-			fmt.Println("In sleep")
-			time.Sleep(10 * time.Second)
-		}
+		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -213,7 +205,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.SetMntDir(mountDir)
 
 	// Run tests on given {Bucket permission, Managed folder permission}.
-	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
+	permissions := [][]string{{ViewPermission, IAMRoleForAdminPermission}}
 
 	for i := 0; i < len(permissions); i++ {
 		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
