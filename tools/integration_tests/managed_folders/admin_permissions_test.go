@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -60,6 +61,12 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	if s.managedFolderPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
+		if !checkPermissionToManagedFolder(bucket, ManagedFolder1, serviceAccount, t) {
+			time.Sleep(10 * time.Second)
+		}
+		if !checkPermissionToManagedFolder(bucket, ManagedFolder2, serviceAccount, t) {
+			time.Sleep(10 * time.Second)
+		}
 	}
 }
 

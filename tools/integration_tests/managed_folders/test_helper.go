@@ -49,6 +49,22 @@ type IAMPolicy struct {
 	} `json:"bindings"`
 }
 
+func checkPermissionToManagedFolder(bucket, managedFolderPath, serviceAccount string, t *testing.T) bool{
+	gcloudProvidePermissionCmd := fmt.Sprintf("alpha storage managed-folders get-iam-policy gs://%s/%s", bucket, managedFolderPath)
+	out, err := operations.ExecuteGcloudCommandf(gcloudProvidePermissionCmd)
+
+	if err != nil {
+		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
+	}
+
+	log.Println("out: ", string(out))
+	if !strings.Contains(string(out), serviceAccount) {
+     return false
+	}
+
+	return true
+}
+
 func providePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
 	policy := IAMPolicy{
 		Bindings: []struct {
