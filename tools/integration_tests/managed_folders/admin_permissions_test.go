@@ -20,6 +20,7 @@
 package managed_folders
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -62,9 +63,11 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
 		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, t) {
+			fmt.Println("In sleep")
 			time.Sleep(10 * time.Second)
 		}
 		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, t) {
+			fmt.Println("In sleep")
 			time.Sleep(10 * time.Second)
 		}
 	}

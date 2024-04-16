@@ -57,7 +57,6 @@ func checkPermissionToManagedFolder(bucket, managedFolderPath, serviceAccount st
 		t.Fatalf(fmt.Sprintf("Error in providing permission to managed folder: %v", err))
 	}
 
-	log.Println("out: ", string(out))
 	if !strings.Contains(string(out), serviceAccount) {
      return false
 	}
