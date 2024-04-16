@@ -61,10 +61,10 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	if s.managedFolderPermission != "nil" {
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
 		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-		if !checkPermissionToManagedFolder(bucket, ManagedFolder1, serviceAccount, t) {
+		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, t) {
 			time.Sleep(10 * time.Second)
 		}
-		if !checkPermissionToManagedFolder(bucket, ManagedFolder2, serviceAccount, t) {
+		for !checkPermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, t) {
 			time.Sleep(10 * time.Second)
 		}
 	}
