@@ -60,7 +60,7 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-  // The 'gsutil rm -rf' command doesn't work on managed folders.
+	// The 'gsutil rm -rf' command doesn't work on managed folders.
 	// We'll clean up the test directory but leave managed folders.
 	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
@@ -199,7 +199,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	setup.SetMntDir(mountDir)
 
 	// Run tests on given {Bucket permission, Managed folder permission}.
-	permissions := [][]string{{ViewPermission, IAMRoleForAdminPermission}}
+	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
 
 	for i := 0; i < len(permissions); i++ {
 		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
