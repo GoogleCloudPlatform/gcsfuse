@@ -94,6 +94,11 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
+func revokePermissionAndDeleteManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T){
+	revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole, t)
+	operations.DeleteManagedFoldersInBucket(managedFolderPath, setup.TestBucket())
+}
+
 func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1
 	// testBucket/NonEmptyManagedFoldersTest/managedFolder1/testFile
