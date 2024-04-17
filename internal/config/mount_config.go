@@ -35,7 +35,7 @@ const (
 	// The maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
-	// DefaultTypeCacheMaxSizeMB is the default vlaue of type-cache max-size for every directory in MiBs.
+	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
 	// The value is set at the size needed for about 21k type-cache entries,
 	// each of which is about 200 bytes in size.
 	DefaultTypeCacheMaxSizeMB int = 4
@@ -66,8 +66,8 @@ type ListConfig struct {
 	// There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
 	// This flag always works in conjunction with ImplicitDirectories flag.
 	//
-	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned case.
-	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above mentioned corner case.
+	// (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases.
+	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
 }

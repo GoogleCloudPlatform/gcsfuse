@@ -220,16 +220,16 @@ func NewDirInode(
 	}
 
 	typed := &dirInode{
-		bucket:                     bucket,
-		mtimeClock:                 mtimeClock,
-		cacheClock:                 cacheClock,
-		id:                         id,
-		implicitDirs:               implicitDirs,
+		bucket:                      bucket,
+		mtimeClock:                  mtimeClock,
+		cacheClock:                  cacheClock,
+		id:                          id,
+		implicitDirs:                implicitDirs,
 		enableManagedFoldersListing: enableManagedFoldersListing,
-		enableNonexistentTypeCache: enableNonexistentTypeCache,
-		name:                       name,
-		attrs:                      attrs,
-		cache:                      metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		enableNonexistentTypeCache:  enableNonexistentTypeCache,
+		name:                        name,
+		attrs:                       attrs,
+		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
 	}
 
 	typed.lc.Init(id)

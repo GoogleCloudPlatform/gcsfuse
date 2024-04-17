@@ -16,12 +16,11 @@
 //
 // Usage:
 //
-//     prefetch_cache_gcsfuse cache_dir bucket_name [prefix]
+//	prefetch_cache_gcsfuse cache_dir bucket_name [prefix]
 //
 // This will prefetch the cache files from the specified bucket
 // with an optional file prefix to filter the GCS objects
 // and download them into the specified cache directory
-//
 package main
 
 import (
