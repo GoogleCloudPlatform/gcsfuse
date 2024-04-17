@@ -35,7 +35,7 @@ func getUniverseDomain(ctx context.Context, contents []byte, scope string) (stri
 
 	domain, err := creds.GetUniverseDomain()
 	if err != nil {
-		err = fmt.Errorf("Error in getting universe domain: %v", err)
+		err = fmt.Errorf("Error in getting universe domain: %w", err)
 		return "", err
 	}
 
