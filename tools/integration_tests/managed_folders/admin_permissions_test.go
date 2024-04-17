@@ -51,7 +51,6 @@ var (
 // levels apply additively (union) throughout the resource hierarchy.
 // Hence here managed folder will have admin permission throughout all the tests.
 type managedFoldersAdminPermission struct {
-	managedFolderPermission string
 	bucketPermission        string
 }
 
@@ -210,17 +209,17 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
-		ts.managedFolderPermission = permissions[i][1]
-		if ts.managedFolderPermission != "nil" {
-			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFolderPermission, t)
-			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFolderPermission, t)
+		managedFolderPermission := permissions[i][1]
+		if managedFolderPermission != "nil" {
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
 			// Waiting for 2 minutes as it usually takes within 10 seconds for policy changes to propagate.
 			time.Sleep(10 * time.Second)
 		}
 
 		test_setup.RunTests(t, ts)
-		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFolderPermission, t)
-		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFolderPermission, t)
+		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
+		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
 	}
 	t.Cleanup(func() {
 		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
