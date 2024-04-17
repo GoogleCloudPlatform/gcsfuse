@@ -27,19 +27,16 @@ import (
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to the limit, the operation should get successful.
 func TestRenameDirectoryWithThreeFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Create directory structure
 	// testBucket/directoryWithThreeFiles               -- Dir
 	// testBucket/directoryWithThreeFiles/temp1.txt     -- File
 	// testBucket/directoryWithThreeFiles/temp2.txt     -- File
 	// testBucket/directoryWithThreeFiles/temp3.txt     -- File
-	dirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
+	dirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithThreeFiles)
 	operations.CreateDirectoryWithNFiles(3, dirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(setup.MntDir(), DirectoryWithThreeFiles)
-	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
+	oldDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithThreeFiles)
+	newDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)
@@ -54,19 +51,16 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is less than the limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Create directory structure
 	// testBucket/directoryWithTwoFiles              -- Dir
 	// testBucket/directoryWithTwoFiles/temp1.txt    -- File
 	// testBucket/directoryWithTwoFiles/temp2.txt    -- File
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
+	dirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithTwoFiles)
 
 	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFiles)
-	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
+	oldDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithTwoFiles)
+	newDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)
@@ -81,9 +75,6 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Creating directory structure
 	// testBucket/directoryWithFourFiles              -- Dir
 	// testBucket/directoryWithFourFiles/temp1.txt    -- File
@@ -94,8 +85,8 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 
 	operations.CreateDirectoryWithNFiles(4, dirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(setup.MntDir(), DirectoryWithFourFiles)
-	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
+	oldDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithFourFiles)
+	newDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)
@@ -110,22 +101,19 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory/a.txt                 -- File
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory/b.txt                 -- File
 	// testBucket/directoryWithTwoFilesOneEmptyDirectory/emptySubDirectory     -- Dir
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
-	subDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory, EmptySubDirectory)
+	dirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithTwoFilesOneEmptyDirectory)
+	subDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithTwoFilesOneEmptyDirectory, EmptySubDirectory)
 
 	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
 	operations.CreateDirectoryWithNFiles(0, subDirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneEmptyDirectory)
-	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
+	oldDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests,  DirectoryWithTwoFilesOneEmptyDirectory)
+	newDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)
@@ -140,9 +128,6 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is Four,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Creating directory structure
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory                                      -- Dir
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/temp1.txt                            -- File
@@ -150,14 +135,14 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory                 -- Dir
 	// testBucket/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
 
-	dirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
+	dirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests,DirectoryWithTwoFilesOneNonEmptyDirectory)
 	subDirPath := path.Join(dirPath, NonEmptySubDirectory)
 
 	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
 	operations.CreateDirectoryWithNFiles(1, subDirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(setup.MntDir(), DirectoryWithTwoFilesOneNonEmptyDirectory)
-	newDirPath := path.Join(setup.MntDir(), RenamedDirectory)
+	oldDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DirectoryWithTwoFilesOneNonEmptyDirectory)
+	newDirPath := path.Join(setup.MntDir(), DirForRenameDirLimitTests, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)

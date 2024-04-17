@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const DirForRenameDirLimitTests = "dirForRenameDirLimitTests"
 const DirectoryWithThreeFiles = "directoryWithThreeFiles"
 const DirectoryWithTwoFiles = "directoryWithTwoFiles"
 const DirectoryWithFourFiles = "directoryWithFourFiles"
