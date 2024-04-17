@@ -179,8 +179,6 @@ func DeleteManagedFoldersInBucket(managedFolderPath, bucket string) {
 }
 
 func CreateManagedFoldersInBucket(managedFolderPath, bucket string) {
-	// Delete if already exist.
-	DeleteManagedFoldersInBucket(managedFolderPath, bucket)
 	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s", bucket, managedFolderPath)
 
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)

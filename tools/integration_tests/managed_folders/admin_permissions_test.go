@@ -216,8 +216,11 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		}
 
 		test_setup.RunTests(t, ts)
+		defer operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1),setup.TestBucket())
+		defer operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2),setup.TestBucket())
 
 		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFolderPermission, t)
 		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFolderPermission, t)
 	}
+
 }
