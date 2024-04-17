@@ -94,7 +94,7 @@ func revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, 
 	}
 }
 
-func revokePermissionAndDeleteManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T){
+func revokePermissionAndDeleteManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole string, t *testing.T) {
 	revokePermissionToManagedFolder(bucket, managedFolderPath, serviceAccount, iamRole, t)
 	operations.DeleteManagedFoldersInBucket(managedFolderPath, setup.TestBucket())
 }
