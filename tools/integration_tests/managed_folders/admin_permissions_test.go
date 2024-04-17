@@ -58,17 +58,10 @@ type managedFoldersAdminPermission struct {
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	if s.managedFolderPermission != "nil" {
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-		time.Sleep(10 * time.Second)
-	}
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-	cleanup(bucket, testDir, serviceAccount, s.managedFolderPermission, t)
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
@@ -216,6 +209,15 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
 		ts.managedFolderPermission = permissions[i][1]
+		if ts.managedFolderPermission != "nil" {
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFolderPermission, t)
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFolderPermission, t)
+			time.Sleep(10 * time.Second)
+		}
+
 		test_setup.RunTests(t, ts)
+
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, ts.managedFolderPermission, t)
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, ts.managedFolderPermission, t)
 	}
 }

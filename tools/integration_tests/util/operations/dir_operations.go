@@ -184,7 +184,7 @@ func CreateManagedFoldersInBucket(managedFolderPath, bucket string) {
 	gcloudCreateManagedFolderCmd := fmt.Sprintf("alpha storage managed-folders create gs://%s/%s", bucket, managedFolderPath)
 
 	_, err := ExecuteGcloudCommandf(gcloudCreateManagedFolderCmd)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "The specified managed folder already exists") {
 		log.Fatalf(fmt.Sprintf("Error while creating managed folder: %v", err))
 	}
 }
