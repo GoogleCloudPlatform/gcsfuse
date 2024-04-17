@@ -29,7 +29,7 @@ const universeDomainDefault = "googleapis.com"
 func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
 	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
 	if err != nil {
-		err = fmt.Errorf("Error in getting credentials: %v", err)
+		err = fmt.Errorf("CredentialsFromJSON(): %w", err)
 		return "", err
 	}
 
@@ -76,15 +76,15 @@ func newTokenSourceFromPath(
 		// Create self signed JWT access token.
 		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
 		if err != nil {
-			err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
 			return
 		}
 	}
 	return
 }
 
-// GetTokenSource returns a TokenSource for GCS API given a key file, or
-// with the default credentials.
+// The GetTokenSource function generates a TokenSource for the GCS API, using either
+// a key file or default credentials. It also supports creating token sources for custom endpoints with key files.
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,

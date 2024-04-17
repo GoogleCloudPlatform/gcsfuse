@@ -46,36 +46,31 @@ func (t *AuthTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AuthTest) TestGetUniverseDomainForGoogle() {
-	path := "testdata/google_creds.json"
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile("testdata/google_creds.json")
 	AssertEq(nil, err)
-	ctx := context.Background()
 
-	domain, err := getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
+	domain, err := getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
 	ExpectEq(nil, err)
 	ExpectEq(universeDomainDefault, domain)
 }
 
 func (t *AuthTest) TestGetUniverseDomainForTPC() {
-	path := "testdata/tpc_creds.json"
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile("testdata/tpc_creds.json")
 	AssertEq(nil, err)
-	ctx := context.Background()
 
-	domain, err := getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
+	domain, err := getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
 	ExpectEq(nil, err)
 	ExpectEq(tpcUniverseDomain, domain)
 }
 
 func (t *AuthTest) TestGetUniverseDomainForEmptyCreds() {
-	path := "testdata/empty_creds.json"
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile("testdata/empty_creds.json")
 	AssertEq(nil, err)
-	ctx := context.Background()
 
-	_, err = getUniverseDomain(ctx, contents, storagev1.DevstorageFullControlScope)
+	_, err = getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
 	ExpectNe(nil, err)
+	ExpectEq("CredentialsFromJSON(): unexpected end of JSON input", err.Error())
 }
