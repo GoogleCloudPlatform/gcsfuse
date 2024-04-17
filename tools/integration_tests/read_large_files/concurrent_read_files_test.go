@@ -62,7 +62,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
 		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
 
-		file := path.Join(setup.MntDir(), filesInLocalDisk[i])
+		file := path.Join(setup.MntDir(), DirForReadLargeFilesTests, filesInLocalDisk[i])
 		filesPathInMntDir = append(filesPathInMntDir, file)
 
 		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
