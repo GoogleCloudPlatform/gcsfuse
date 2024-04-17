@@ -26,9 +26,6 @@ import (
 )
 
 func TestReadLargeFileRandomly(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
 	file := path.Join(setup.MntDir(), DirForReadLargeFilesTests, FiveHundredMBFile)
 	// Create and copy the local file in mountedDirectory.

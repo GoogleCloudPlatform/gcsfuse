@@ -51,9 +51,6 @@ func readFile(fileInLocalDisk string, fileInMntDir string) error {
 }
 
 func TestReadFilesConcurrently(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
 	var filesPathInLocalDisk []string
 	var filesPathInMntDir []string
