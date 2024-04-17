@@ -224,6 +224,6 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
-		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
+		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
 	})
 }
