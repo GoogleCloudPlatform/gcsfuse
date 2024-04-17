@@ -34,6 +34,7 @@ const PrefixFileInExplicitDirInImplicitDir = "fileInExplicitDirInImplicitDir"
 const PrefixFileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubDir"
 const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
+const DirForImplicitDirTests = "dirForImplicitDirTests"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()

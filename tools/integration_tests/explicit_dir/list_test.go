@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -27,9 +28,6 @@ import (
 )
 
 func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -40,10 +38,10 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
-	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForExplicitDirTests, t)
 
-	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path.Join(setup.MntDir(), DirForExplicitDirTests), func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
