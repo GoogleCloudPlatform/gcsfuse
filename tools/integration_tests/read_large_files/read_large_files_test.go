@@ -37,6 +37,10 @@ const MinReadableByteFromFile = 0
 const MaxReadableByteFromFile = 500 * OneMB
 const DirForReadLargeFilesTests = "dirForReadLargeFilesTests"
 
+var (
+	testDir string
+)
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
 

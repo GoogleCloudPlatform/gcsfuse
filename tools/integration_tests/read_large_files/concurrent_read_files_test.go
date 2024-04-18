@@ -51,7 +51,7 @@ func readFile(fileInLocalDisk string, fileInMntDir string) error {
 }
 
 func TestReadFilesConcurrently(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
+	testDir = setup.SetupTestDirectory(DirForReadLargeFilesTests)
 
 	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
 	var filesPathInLocalDisk []string
