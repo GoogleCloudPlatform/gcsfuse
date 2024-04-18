@@ -130,11 +130,12 @@ func checkIfMovedDirectoryHasCorrectData(destDir string, t *testing.T) {
 // destMoveDir/srcMoveFile      -- File
 // destMoveDir/subSrcMoveDir    -- Dir
 func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, SrcMoveDirectory)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, SrcMoveDirectory)
 
 	createSrcDirectoryWithObjectsForMoveDirTest(srcDir, t)
 
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestMoveDirectoryNotExist)
+	destDir := path.Join(testDir, DestMoveDirectoryNotExist)
 
 	err := operations.Move(srcDir, destDir)
 	if err != nil {
@@ -155,13 +156,14 @@ func TestMoveDirectoryInNonExistingDirectory(t *testing.T) {
 // destMoveDir/srcMoveDir/srcMoveFile      -- File
 // destMoveDir/srcMoveDir/subSrcMoveDir    -- Dir
 func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, SrcMoveDirectory)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, SrcMoveDirectory)
 
 	createSrcDirectoryWithObjectsForMoveDirTest(srcDir, t)
 
 	// Create below directory
 	// destMoveDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestMoveDirectory)
+	destDir := path.Join(testDir, DestMoveDirectory)
 	err := os.Mkdir(destDir, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
@@ -199,13 +201,14 @@ func createDestNonEmptyDirectoryForMoveTest(t *testing.T) {
 }
 
 func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, SrcMoveDirectory)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, SrcMoveDirectory)
 
 	createSrcDirectoryWithObjectsForMoveDirTest(srcDir, t)
 
 	// Create below directory
 	// destMoveDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestNonEmptyMoveDirectory)
+	destDir := path.Join(testDir, DestNonEmptyMoveDirectory)
 	createDestNonEmptyDirectoryForMoveTest(t)
 
 	err := operations.Move(srcDir, destDir)
@@ -266,13 +269,14 @@ func checkIfMovedEmptyDirectoryHasNoData(destSrc string, t *testing.T) {
 // destNonEmptyMoveDirectory/subDirInNonEmptyDestMoveDirectory
 // destNonEmptyMoveDirectory/emptySrcDirectoryMoveTest
 func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, EmptySrcDirectoryMoveTest)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, EmptySrcDirectoryMoveTest)
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// Create below directory
 	// destNonEmptyMoveDirectory                                                -- Dir
 	// destNonEmptyMoveDirectory/subDirInNonEmptyDestMoveDirectory              -- Dir
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestNonEmptyMoveDirectory)
+	destDir := path.Join(testDir, DestNonEmptyMoveDirectory)
 	createDestNonEmptyDirectoryForMoveTest(t)
 
 	err := operations.Move(srcDir, destDir)
@@ -319,15 +323,13 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 // Output
 // destEmptyMoveDirectory/emptySrcDirectoryMoveTest
 func TestMoveEmptyDirectoryInEmptyDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, EmptySrcDirectoryMoveTest)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, EmptySrcDirectoryMoveTest)
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// Create below directory
 	// destMoveDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestEmptyMoveDirectory)
+	destDir := path.Join(testDir, DestEmptyMoveDirectory)
 	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
 
 	err := operations.Move(srcDir, destDir)
@@ -365,14 +367,12 @@ func TestMoveEmptyDirectoryInEmptyDirectory(t *testing.T) {
 // Output
 // destMoveDirectoryNotExist
 func TestMoveEmptyDirectoryInNonExistingDirectory(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	srcDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, EmptySrcDirectoryMoveTest)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	srcDir := path.Join(testDir, EmptySrcDirectoryMoveTest)
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// destMoveDirectoryNotExist             -- Dir
-	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestMoveDirectoryNotExist)
+	destDir := path.Join(testDir, DestMoveDirectoryNotExist)
 
 	_, err := os.Stat(destDir)
 	if err == nil {
