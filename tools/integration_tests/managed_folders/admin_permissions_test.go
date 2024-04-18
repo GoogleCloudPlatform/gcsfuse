@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -50,23 +51,17 @@ var (
 // levels apply additively (union) throughout the resource hierarchy.
 // Hence here managed folder will have admin permission throughout all the tests.
 type managedFoldersAdminPermission struct {
-	managedFolderPermission string
 	bucketPermission        string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
-	bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	createDirectoryStructureForNonEmptyManagedFolders(t)
-	if s.managedFolderPermission != "nil" {
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
-		providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-	}
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, s.managedFolderPermission, t)
-	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, s.managedFolderPermission, t)
-	cleanup(bucket, testDir, serviceAccount, s.managedFolderPermission, t)
+	// The 'gsutil rm -rf' command doesn't work on managed folders.
+	// We'll clean up the test directory but leave managed folders.
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
@@ -207,13 +202,27 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	for i := 0; i < len(permissions); i++ {
 		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
+		bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 		ts.bucketPermission = permissions[i][0]
 		if ts.bucketPermission == ViewPermission {
 			creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
 			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
-		ts.managedFolderPermission = permissions[i][1]
+		managedFolderPermission := permissions[i][1]
+		if managedFolderPermission != "nil" {
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
+			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
+			// Waiting for 10 seconds as it usually takes 10 seconds for policy changes to propagate.
+			time.Sleep(10 * time.Second)
+		}
+
 		test_setup.RunTests(t, ts)
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
 	}
+	t.Cleanup(func() {
+		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
+		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
+	})
 }
