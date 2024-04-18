@@ -35,7 +35,7 @@ func getUniverseDomain(ctx context.Context, contents []byte, scope string) (stri
 
 	domain, err := creds.GetUniverseDomain()
 	if err != nil {
-		err = fmt.Errorf("Error in getting universe domain: %w", err)
+		err = fmt.Errorf("GetUniverseDomain(): %w", err)
 		return "", err
 	}
 
@@ -66,7 +66,7 @@ func newTokenSourceFromPath(
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
-		return ts, err
+		return
 	}
 
 	// For non-GDU universe domains, token exchange is impossible and services
