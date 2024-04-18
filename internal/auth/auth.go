@@ -85,7 +85,6 @@ func newTokenSourceFromPath(
 
 // GetTokenSource generates the token-source for GCS endpoint by following oauth2.0 authentication
 // for key-file and default-credential flow.
-//
 // It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
 // used by custom-endpoint(e.g. TPC).
 func GetTokenSource(
