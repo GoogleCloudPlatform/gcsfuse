@@ -193,7 +193,7 @@ func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 }
 
 func createDestNonEmptyDirectoryForMoveTest(t *testing.T) {
-	destDir := path.Join(setup.MntDir(), DestNonEmptyMoveDirectory)
+	destDir := path.Join(setup.MntDir(), DirForRenameDirLimitTests, DestNonEmptyMoveDirectory)
 	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
 
 	destSubDir := path.Join(destDir, SubDirInNonEmptyDestMoveDirectory)
