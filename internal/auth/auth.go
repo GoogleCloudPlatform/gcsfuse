@@ -24,6 +24,24 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
+const universeDomainDefault = "googleapis.com"
+
+func getUniverseDomain(ctx context.Context, contents []byte, scope string) (string, error) {
+	creds, err := google.CredentialsFromJSON(ctx, contents, scope)
+	if err != nil {
+		err = fmt.Errorf("CredentialsFromJSON(): %w", err)
+		return "", err
+	}
+
+	domain, err := creds.GetUniverseDomain()
+	if err != nil {
+		err = fmt.Errorf("GetUniverseDomain(): %w", err)
+		return "", err
+	}
+
+	return domain, nil
+}
+
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(
 	ctx context.Context,
@@ -37,21 +55,38 @@ func newTokenSourceFromPath(
 		return
 	}
 
+	// By default, a standard OAuth 2.0 token source is created
 	// Create a config struct based on its contents.
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
-		return
 	}
-
 	// Create the token source.
 	ts = jwtConfig.TokenSource(ctx)
 
+	domain, err := getUniverseDomain(ctx, contents, scope)
+	if err != nil {
+		return
+	}
+
+	// For non-GDU universe domains, token exchange is impossible and services
+	// must support self-signed JWTs with scopes.
+	// Override the token source to use self-signed JWT.
+	if domain != universeDomainDefault {
+		// Create self signed JWT access token.
+		ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
+		if err != nil {
+			err = fmt.Errorf("JWTAccessTokenSourceWithScope: %w", err)
+			return
+		}
+	}
 	return
 }
 
-// GetTokenSource returns a TokenSource for GCS API given a key file, or
-// with the default credentials.
+// GetTokenSource generates the token-source for GCS endpoint by following oauth2.0 authentication
+// for key-file and default-credential flow.
+// It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
+// used by custom-endpoint(e.g. TPC).
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
