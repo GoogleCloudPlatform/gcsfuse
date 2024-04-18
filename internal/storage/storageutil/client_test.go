@@ -46,9 +46,8 @@ func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 
 // Tests
 
-func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthTrue() {
+func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
-	sc.DisableAuth = true
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
@@ -58,9 +57,8 @@ func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthTrue() {
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
-func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthTrue() {
+func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
-	sc.DisableAuth = true
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
@@ -72,6 +70,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthTrue() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthFalse() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
+  sc.DisableAuth = false
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
@@ -83,7 +82,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthFalse() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthFalse() {
 	sc := GetDefaultStorageClientConfig()
-
+  sc.DisableAuth = false
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 

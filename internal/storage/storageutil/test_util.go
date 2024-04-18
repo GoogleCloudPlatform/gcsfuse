@@ -25,8 +25,7 @@ const CustomEndpoint = "https://localhost:9000"
 const DummyKeyFile = "test/test_creds.json"
 const CustomTokenUrl = "http://custom-token-url"
 
-// GetDefaultStorageClientConfig is only for test, so that we can make disable
-// auth flag true and ignore authentication.
+// GetDefaultStorageClientConfig is only for test.
 func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
 		ClientProtocol:             mountpkg.HTTP1,

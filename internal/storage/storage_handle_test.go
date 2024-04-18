@@ -120,12 +120,11 @@ func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAuthTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-	sc.DisableAuth = true
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
@@ -145,7 +144,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAu
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilWithDisabledAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.DisableAuth = false
@@ -199,14 +198,12 @@ func (t *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
 
 func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.DisableAuth = true
 
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestCreateHTTPClientHandleWithDisableAuthTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.DisableAuth = true
 
 	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
 
