@@ -84,4 +84,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
+
+	// Cleanup
+	setup.CleanUpDir(testDir)
 }
