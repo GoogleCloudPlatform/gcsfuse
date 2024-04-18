@@ -84,16 +84,12 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 	// testBucket/dirForRenameDirLimitTests/directoryWithFourFiles/temp2.txt    -- File
 	// testBucket/dirForRenameDirLimitTests/directoryWithFourFiles/temp3.txt    -- File
 	// testBucket/dirForRenameDirLimitTests/directoryWithFourFiles/temp4.txt    -- File
-	dirPath := path.Join(testDir)
-
-	operations.CreateDirectoryWithNFiles(4, dirPath, PrefixTempFile, t)
-
 	oldDirPath := path.Join(testDir, DirectoryWithFourFiles)
+	operations.CreateDirectoryWithNFiles(4, oldDirPath, PrefixTempFile, t)
 	newDirPath := path.Join(testDir, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
 	operations.RemoveDir(newDirPath)
-
 	err := os.Rename(oldDirPath, newDirPath)
 
 	if err == nil {
