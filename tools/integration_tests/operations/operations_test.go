@@ -135,7 +135,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
-	flags := [][]string{
+	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
@@ -143,29 +143,29 @@ func TestMain(m *testing.M) {
 		{"--client-protocol=grpc", "--implicit-dirs=true"}}
 
 	if !testing.Short() {
-		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
 	}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flags = append(flags, mountConfigFlags...)
+	flagsSet = append(flagsSet, mountConfigFlags...)
 
-	successCode := static_mounting.RunTests(flags, m)
+	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
+		successCode = only_dir_mounting.RunTests(flagsSet, m)
 	}
 
 	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
+		successCode = persistent_mounting.RunTests(flagsSet, m)
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
+		successCode = dynamic_mounting.RunTests(flagsSet, m)
 	}
 
 	if successCode == 0 {
 		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectAdmin", m)
+		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
 	}
 
 	os.Exit(successCode)

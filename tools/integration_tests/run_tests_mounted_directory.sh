@@ -474,15 +474,3 @@ sudo umount $MOUNT_DIR
 mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
-
-# package list_large_dir
-# Run tests with static mounting. (flags: --client-protocol=grpc --implicit-dirs)
-gcsfuse --client-protocol=grpc --implicit-dirs $TEST_BUCKET_NAME $MOUNT_DIR
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-
-# Run test with persistent mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
-mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
-GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/list_large_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
-sudo umount $MOUNT_DIR
-

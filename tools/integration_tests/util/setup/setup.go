@@ -460,3 +460,21 @@ func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
 		t.SkipNow()
 	}
 }
+
+// AppendFlagsToAllFlagsInTheFlagsSet appends the newFlags in all the command in the
+// flagsSet.
+// Here, flags represent to one mounting command.
+// flagsSet represent to set of mounting commands.
+func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string) {
+	var resultFlagsSet [][]string
+	for _, flags := range *flagsSet {
+		for _, newFlag := range newFlags {
+			f := flags
+			if strings.Compare(newFlag, "") != 0 {
+				f = append(flags, newFlag)
+			}
+			resultFlagsSet = append(resultFlagsSet, f)
+		}
+	}
+	*flagsSet = resultFlagsSet
+}
