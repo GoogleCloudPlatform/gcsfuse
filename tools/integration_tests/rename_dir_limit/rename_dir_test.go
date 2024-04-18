@@ -116,7 +116,7 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
 	operations.CreateDirectoryWithNFiles(0, subDirPath, PrefixTempFile, t)
 
-	oldDirPath := path.Join(testDir,  DirectoryWithTwoFilesOneEmptyDirectory)
+	oldDirPath := path.Join(testDir, DirectoryWithTwoFilesOneEmptyDirectory)
 	newDirPath := path.Join(testDir, RenamedDirectory)
 
 	//  Cleaning the directory before renaming.
@@ -140,7 +140,7 @@ func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory                 -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneNonEmptyDirectory/NonEmptySubDirectory/temp3.txt   		 -- File
 
-	dirPath := path.Join(testDir,DirectoryWithTwoFilesOneNonEmptyDirectory)
+	dirPath := path.Join(testDir, DirectoryWithTwoFilesOneNonEmptyDirectory)
 	subDirPath := path.Join(dirPath, NonEmptySubDirectory)
 
 	operations.CreateDirectoryWithNFiles(2, dirPath, PrefixTempFile, t)
