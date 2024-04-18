@@ -51,6 +51,8 @@ func readFile(fileInLocalDisk string, fileInMntDir string) error {
 }
 
 func TestReadFilesConcurrently(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
+
 	filesInLocalDisk := [NumberOfFilesInLocalDiskForConcurrentRead]string{FileOne, FileTwo, FileThree}
 	var filesPathInLocalDisk []string
 	var filesPathInMntDir []string
@@ -59,7 +61,7 @@ func TestReadFilesConcurrently(t *testing.T) {
 		fileInLocalDisk := path.Join(os.Getenv("HOME"), filesInLocalDisk[i])
 		filesPathInLocalDisk = append(filesPathInLocalDisk, fileInLocalDisk)
 
-		file := path.Join(setup.MntDir(), DirForReadLargeFilesTests, filesInLocalDisk[i])
+		file := path.Join(testDir, filesInLocalDisk[i])
 		filesPathInMntDir = append(filesPathInMntDir, file)
 
 		createFileOnDiskAndCopyToMntDir(fileInLocalDisk, file, FiveHundredMB, t)
