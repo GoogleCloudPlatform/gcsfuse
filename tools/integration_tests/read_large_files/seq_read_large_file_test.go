@@ -50,6 +50,4 @@ func TestReadLargeFileSequentially(t *testing.T) {
 
 	// Removing file after testing.
 	operations.RemoveFile(fileInLocalDisk)
-	// Cleanup
-	setup.CleanUpDir(testDir)
 }

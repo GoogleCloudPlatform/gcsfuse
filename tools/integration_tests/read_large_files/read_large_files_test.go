@@ -98,6 +98,8 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	successCode := static_mounting.RunTests(flags, m)
+	// Cleanup
+	setup.CleanUpDir(testDir)
 	os.Exit(successCode)
 }
 
