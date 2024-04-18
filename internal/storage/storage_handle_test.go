@@ -51,19 +51,11 @@ func (t *StorageHandleTest) TearDown() {
 	t.fakeStorage.ShutDown()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc storageutil.StorageClientConfig) {
-	sc.DisableAuth = true
+func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
-}
-
-func (t *StorageHandleTest) invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc storageutil.StorageClientConfig) {
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
@@ -96,146 +88,147 @@ func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBi
 	AssertEq(nil, bucketHandle.Bucket)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2DisabledWhenDisableAuthIsTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2DisabledWhenDisableAuthIsFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledWhenDisableAuthIsTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
+	sc.DisableAuth = false
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledWhenDisableAuthIsFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.HTTP2
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHostWhenDisableAuthIsTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHostWhenDisableAuthIsFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.MaxConnsPerHost = 0
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSetWhenDisableAuthIsTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSetWhenDisableAuthIsFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWhenDisableAuthIsTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAuthTrue() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
+	sc.DisableAuth = true
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsTrue() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndDisableAuthIsFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNotNilAndDisableAuthIsFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAuthFalse() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
+	sc.DisableAuth = false
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmptyAndDisableAuthTrue() {
+// This will fail while fetching the token-source, since key-file doesn't exist.
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.DisableAuth = false
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.KeyFile = ""
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalseAndDisableAuthTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ReuseTokenFromUrl = false
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalseAndDisableAuthFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ReuseTokenFromUrl = false
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSetAndDisableAuthTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.TokenUrl = storageutil.CustomTokenUrl
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSetAndDisableAuthFalse() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.TokenUrl = storageutil.CustomTokenUrl
-
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabledAndDisableAuthTrue() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsTrue(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabledAndDisableAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
+	sc.ClientProtocol = "test-protocol"
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	AssertEq(nil, handleCreated)
+	AssertTrue(strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.DisableAuth = true
+
+	t.invokeAndVerifyStorageHandle(sc)
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandleWithDisableAuthTrue() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.DisableAuth = true
+
+	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	t.invokeAndVerifyStorageHandleWhenDisableAuthIsFalse(sc)
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
