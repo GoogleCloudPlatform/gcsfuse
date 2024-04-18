@@ -116,10 +116,10 @@ func TestRangeReadTest(t *testing.T) {
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
 	}
-	appendFlags(&flagSet,
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagSet,
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, false, configFileName+"1"),
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, true, configFileName+"2"))
-	appendFlags(&flagSet, "--o=ro", "")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagSet, "--o=ro", "")
 
 	// Run tests.
 	for _, flags := range flagSet {
