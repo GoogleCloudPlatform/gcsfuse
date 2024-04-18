@@ -37,9 +37,7 @@ const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
 
-var (
-	testDir string
-)
+var testDir string
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -69,5 +67,7 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
+	// Cleanup
+	setup.CleanUpDir(testDir)
 	os.Exit(successCode)
 }
