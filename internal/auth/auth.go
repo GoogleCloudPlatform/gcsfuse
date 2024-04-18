@@ -44,9 +44,9 @@ func getUniverseDomain(ctx context.Context, contents []byte, scope string) (stri
 
 // Create token source from the JSON file at the supplide path.
 func newTokenSourceFromPath(
-	ctx context.Context,
-	path string,
-	scope string,
+		ctx context.Context,
+		path string,
+		scope string,
 ) (ts oauth2.TokenSource, err error) {
 	// Read the file.
 	contents, err := os.ReadFile(path)
@@ -57,12 +57,12 @@ func newTokenSourceFromPath(
 
 	// By default, a standard OAuth 2.0 token source is created
 	// Create a config struct based on its contents.
-	ts, err = google.JWTAccessTokenSourceWithScope(contents, scope)
+	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
 	}
 	// Create the token source.
-//	ts = jwtConfig.TokenSource(ctx)
+	ts = jwtConfig.TokenSource(ctx)
 
 	domain, err := getUniverseDomain(ctx, contents, scope)
 	if err != nil {
@@ -88,10 +88,10 @@ func newTokenSourceFromPath(
 // It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
 // used by custom-endpoint(e.g. TPC).
 func GetTokenSource(
-	ctx context.Context,
-	keyFile string,
-	tokenUrl string,
-	reuseTokenFromUrl bool,
+		ctx context.Context,
+		keyFile string,
+		tokenUrl string,
+		reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	// Create the oauth2 token source.
 	const scope = storagev1.DevstorageFullControlScope
