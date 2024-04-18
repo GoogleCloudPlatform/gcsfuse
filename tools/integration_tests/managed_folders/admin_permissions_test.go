@@ -213,13 +213,13 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		if managedFolderPermission != "nil" {
 			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
 			providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
-			// Waiting for 2 minutes as it usually takes within 10 seconds for policy changes to propagate.
+			// Waiting for 10 seconds as it usually takes 10 seconds for policy changes to propagate.
 			time.Sleep(10 * time.Second)
 		}
 
 		test_setup.RunTests(t, ts)
-		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
-		defer revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, managedFolderPermission, t)
+		revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, managedFolderPermission, t)
 	}
 	t.Cleanup(func() {
 		operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
