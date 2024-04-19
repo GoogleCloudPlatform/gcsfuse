@@ -79,7 +79,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 
 func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 	// Provide permission to service account for testing.
-	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/%s", setup.TestBucket(), serviceAccount, permission))
+	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", setup.TestBucket(), serviceAccount, permission))
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
 	}
@@ -90,7 +90,7 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 
 func RevokePermission(serviceAccount, permission, bucket string) {
 	// gcloud storage buckets remove-iam-policy-binding  gs://BUCKET_NAME --member=PRINCIPAL_IDENTIFIER --role=IAM_ROLE
-	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/%s", bucket, serviceAccount, permission)
+	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
 	// Revoke the permission after testing.
 	_, err := operations.ExecuteGcloudCommandf(cmd)
 	if err != nil {
