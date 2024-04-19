@@ -27,7 +27,7 @@ import (
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to the limit, the operation should get successful.
 func TestRenameDirectoryWithThreeFiles(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Create directory structure
 	// testBucket/dirForRenameDirLimitTests/directoryWithThreeFiles               -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithThreeFiles/temp1.txt     -- File
@@ -52,7 +52,7 @@ func TestRenameDirectoryWithThreeFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is less than the limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFiles(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Create directory structure
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFiles              -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFiles/temp1.txt    -- File
@@ -77,7 +77,7 @@ func TestRenameDirectoryWithTwoFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is two,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithFourFiles(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Creating directory structure
 	// testBucket/dirForRenameDirLimitTests/directoryWithFourFiles              -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithFourFiles/temp1.txt    -- File
@@ -100,7 +100,7 @@ func TestRenameDirectoryWithFourFiles(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is three,
 // which is equal to limit, the operation should get successful.
 func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Creating directory structure
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneEmptyDirectory                       -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneEmptyDirectory/a.txt                 -- File
@@ -128,7 +128,7 @@ func TestRenameDirectoryWithTwoFilesAndOneEmptyDirectory(t *testing.T) {
 // As --rename-directory-limit = 3, and the number of objects in the directory is Four,
 // which is greater than the limit, the operation should get fail.
 func TestRenameDirectoryWithTwoFilesAndOneNonEmptyDirectory(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
 	// Creating directory structure
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneNonEmptyDirectory                                      -- Dir
 	// testBucket/dirForRenameDirLimitTests/directoryWithTwoFilesOneNonEmptyDirectory/temp1.txt                            -- File

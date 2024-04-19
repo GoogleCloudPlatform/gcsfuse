@@ -37,8 +37,6 @@ const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
 
-var testDir string
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
