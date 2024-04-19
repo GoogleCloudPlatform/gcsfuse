@@ -59,9 +59,7 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	// The 'gsutil rm -rf' command doesn't work on managed folders.
-	// We'll clean up the test directory but leave managed folders.
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	setup.CleanUpDir(path.Join(bucket, testDir))
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
