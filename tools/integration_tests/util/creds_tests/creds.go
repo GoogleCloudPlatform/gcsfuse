@@ -89,9 +89,10 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 }
 
 func RevokePermission(serviceAccount, permission, bucket string) {
-	cmd := fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucket)
+	// gcloud storage buckets remove-iam-policy-binding  gs://BUCKET_NAME --member=PRINCIPAL_IDENTIFIER --role=IAM_ROLE
+	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member:serviceAccount:%s --role=roles/%s", bucket, serviceAccount, permission)
 	// Revoke the permission after testing.
-	_, err := operations.ExecuteGsutilCommandf(cmd)
+	_, err := operations.ExecuteGcloudCommandf(cmd)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
 	}
