@@ -29,6 +29,7 @@ TEST_DIR_PARALLEL=(
   "gzip"
   "write_large_files"
   "list_large_dir"
+  "rename_dir_limit"
   "read_large_files"
 )
 # These tests never become parallel as it is changing bucket permissions.
@@ -44,7 +45,6 @@ TEST_DIR_NON_PARALLEL_GROUP_2=(
   "explicit_dir"
   "implicit_dir"
   "operations"
-  "rename_dir_limit"
 )
 
 TEST_DIR_HNS_GROUP=(
