@@ -79,7 +79,7 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 
 func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 	// Provide permission to service account for testing.
-	_, err := operations.ExecuteGsutilCommandf(fmt.Sprintf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
+	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member:serviceAccount:%s --role=roles/%s", setup.TestBucket(), serviceAccount, permission))
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
 	}
