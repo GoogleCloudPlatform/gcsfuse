@@ -25,7 +25,7 @@ import (
 )
 
 func TestReadLargeFileSequentially(t *testing.T) {
-	testDir = setup.SetupTestDirectory(DirForReadLargeFilesTests)
+	testDir := setup.SetupTestDirectory(DirForReadLargeFilesTests)
 	// Create file of 500 MB with random data in local disk and copy it in mntDir.
 	fileInLocalDisk := path.Join(os.Getenv("HOME"), FiveHundredMBFile)
 	file := path.Join(testDir, FiveHundredMBFile)
