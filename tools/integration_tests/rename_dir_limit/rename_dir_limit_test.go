@@ -67,7 +67,5 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
-	// Cleanup
-	setup.CleanUpDir(testDir)
 	os.Exit(successCode)
 }
