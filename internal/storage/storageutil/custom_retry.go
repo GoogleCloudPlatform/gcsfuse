@@ -16,12 +16,14 @@ package storageutil
 
 import (
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"google.golang.org/api/googleapi"
 )
 
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
+		logger.Infof("Retrying for the error: %v", err)
 		return
 	}
 
@@ -35,6 +37,7 @@ func ShouldRetry(err error) (b bool) {
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
 			b = true
+			logger.Infof("Retrying for error-code 401: %v", err)
 			return
 		}
 	}
