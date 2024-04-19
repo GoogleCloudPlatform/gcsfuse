@@ -30,4 +30,4 @@ git checkout $commitId
 
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
-./tool/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
+./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
