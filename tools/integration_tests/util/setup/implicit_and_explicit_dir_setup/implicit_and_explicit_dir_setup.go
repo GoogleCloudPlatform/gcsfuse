@@ -88,10 +88,10 @@ func CreateImplicitDirectoryStructure(testDir string) {
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 	// Explicit Directory structure
-	// testBucket/testDir/testDir/explicitDirectory                            -- Dir
-	// testBucket/testDir/testDir/explictFile                                  -- File
-	// testBucket/testDir/testDir/explicitDirectory/fileInExplicitDir1         -- File
-	// testBucket/testDir/testDir/explicitDirectory/fileInExplicitDir2         -- File
+	// testBucket/testDir/explicitDirectory                            -- Dir
+	// testBucket/testDir/explictFile                                  -- File
+	// testBucket/testDir/explicitDirectory/fileInExplicitDir1         -- File
+	// testBucket/testDir/explicitDirectory/fileInExplicitDir2         -- File
 
 	dirPath := path.Join(setup.MntDir(), testDir, ExplicitDirectory)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirectory, dirPath, PrefixFileInExplicitDirectory, t)
