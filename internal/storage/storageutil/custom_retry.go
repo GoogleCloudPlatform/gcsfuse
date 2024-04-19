@@ -23,7 +23,7 @@ import (
 func ShouldRetry(err error) (b bool) {
 	b = storage.ShouldRetry(err)
 	if b {
-		logger.Info("Retrying for the error: %w", err)
+		logger.Infof("Retrying for the error: %w", err)
 		return
 	}
 
@@ -37,7 +37,7 @@ func ShouldRetry(err error) (b bool) {
 	if typed, ok := err.(*googleapi.Error); ok {
 		if typed.Code == 401 {
 			b = true
-			logger.Info("Retrying for error-code 401: %w", err)
+			logger.Infof("Retrying for error-code 401: %w", err)
 			return
 		}
 	}
