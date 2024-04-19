@@ -19,7 +19,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -28,6 +27,7 @@ import (
 )
 
 func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForExplicitDirTests)
 	// Directory Structure
 	// testBucket/implicitDirectory                                                  -- Dir
 	// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
@@ -41,7 +41,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForExplicitDirTests, t)
 
-	err := filepath.WalkDir(path.Join(setup.MntDir(), DirForExplicitDirTests), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -58,7 +58,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 		}
 
 		// Check if mntDir has correct objects.
-		if path == setup.MntDir() {
+		if path == testDir {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfExplicitObjects {
 				t.Errorf("Incorrect number of objects in the bucket.")
