@@ -193,10 +193,9 @@ func TestMoveDirectoryInEmptyDirectory(t *testing.T) {
 }
 
 func createDestNonEmptyDirectoryForMoveTest(dirPath string, t *testing.T) {
-	destDir := path.Join(dirPath, DestNonEmptyMoveDirectory)
-	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
 
-	destSubDir := path.Join(destDir, SubDirInNonEmptyDestMoveDirectory)
+	destSubDir := path.Join(dirPath, SubDirInNonEmptyDestMoveDirectory)
 	operations.CreateDirectoryWithNFiles(0, destSubDir, "", t)
 }
 
@@ -209,7 +208,7 @@ func TestMoveDirectoryInNonEmptyDirectory(t *testing.T) {
 	// Create below directory
 	// destMoveDir               -- Dir
 	destDir := path.Join(testDir, DestNonEmptyMoveDirectory)
-	createDestNonEmptyDirectoryForMoveTest(testDir, t)
+	createDestNonEmptyDirectoryForMoveTest(destDir, t)
 
 	err := operations.Move(srcDir, destDir)
 	if err != nil {
@@ -277,7 +276,7 @@ func TestMoveEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// destNonEmptyMoveDirectory                                                -- Dir
 	// destNonEmptyMoveDirectory/subDirInNonEmptyDestMoveDirectory              -- Dir
 	destDir := path.Join(testDir, DestNonEmptyMoveDirectory)
-	createDestNonEmptyDirectoryForMoveTest(testDir, t)
+	createDestNonEmptyDirectoryForMoveTest(destDir, t)
 
 	err := operations.Move(srcDir, destDir)
 	if err != nil {
