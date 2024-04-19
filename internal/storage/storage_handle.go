@@ -61,6 +61,9 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
+		if !clientConfig.DisableAuth {
+			logger.Fatal("GRPC path is not supported with authentication on custom endpoint.")
+		}
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
 		// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
 		// TODO: to revisit here when supporting TPC for grpc client.
