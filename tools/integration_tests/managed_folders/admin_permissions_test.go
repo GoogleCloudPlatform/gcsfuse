@@ -59,7 +59,7 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	setup.CleanUpDir(path.Join(bucket, testDir))
+	setup.CleanUpDir(testDir)
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
