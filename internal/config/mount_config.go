@@ -48,6 +48,7 @@ const (
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
 	DefaultGrpcConnPoolSize                       = 1
+	DefaultEnableHNS                              = false
 )
 
 type WriteConfig struct {
@@ -84,6 +85,10 @@ type FileCacheConfig struct {
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 }
 
+type HNS struct {
+	EnableHNS bool `yaml:"enable-hns"`
+}
+
 type MetadataCacheConfig struct {
 	// TtlInSeconds is the ttl
 	// value in seconds, to be used for stat-cache and type-cache.
@@ -112,6 +117,7 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
+	HNS                 `yaml:"hns"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -158,6 +164,9 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
+	}
+	mountConfig.HNS = HNS{
+		EnableHNS: DefaultEnableHNS,
 	}
 	return mountConfig
 }
