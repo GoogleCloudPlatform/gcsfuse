@@ -79,6 +79,7 @@ type GrpcClientConfig struct {
 }
 
 type BucketFlow struct {
+	// Enable the storage control client flow on HNS buckets to utilize new APIs.
 	EnableHNS bool `yaml:"enable-hns"`
 }
 
