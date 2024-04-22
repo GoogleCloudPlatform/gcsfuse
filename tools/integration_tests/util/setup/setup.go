@@ -362,7 +362,7 @@ func CleanUpDir(directoryPath string) {
 
 	for _, d := range dir {
 		err := os.RemoveAll(path.Join([]string{directoryPath, d.Name()}...))
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
 			log.Printf("Error in removing directory: %v", err)
 		}
 	}
