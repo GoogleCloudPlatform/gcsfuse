@@ -78,8 +78,11 @@ type GrpcClientConfig struct {
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
+type BucketFlow struct {
+	EnableHNS bool `yaml:"enable-hns"`
+}
+
 type CacheDir string
-type EnableHNS bool
 
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
@@ -114,7 +117,7 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
-	EnableHNS           `yaml:"enable-hns"`
+	BucketFlow          `yaml:"bucket-flow"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -162,6 +165,8 @@ func NewMountConfig() *MountConfig {
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
-	mountConfig.EnableHNS = DefaultEnableHNS
+	mountConfig.BucketFlow = BucketFlow{
+		EnableHNS: DefaultEnableHNS,
+	}
 	return mountConfig
 }

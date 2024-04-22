@@ -20,4 +20,5 @@ list:
   enable-empty-managed-folders: true
 grpc:
   conn-pool-size: 4
-enable-hns: true
+bucket-flow:
+  enable-hns: true
