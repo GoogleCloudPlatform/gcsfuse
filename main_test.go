@@ -170,7 +170,9 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		ListConfig: config.ListConfig{
 			EnableEmptyManagedFolders: false,
 		},
-		EnableHNS: true,
+		BucketFlow: config.BucketFlow{
+			EnableHNS: true,
+		},
 	}
 
 	actual, err := util.Stringify(mountConfig)
