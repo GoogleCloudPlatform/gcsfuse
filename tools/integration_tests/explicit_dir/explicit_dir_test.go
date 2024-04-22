@@ -23,6 +23,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
+const DirForExplicitDirTests = "dirForExplicitDirTests"
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 

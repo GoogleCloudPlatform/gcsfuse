@@ -25,116 +25,104 @@ import (
 )
 
 // Directory Structure
-// testBucket/implicitDirectory                                                  -- Dir
-// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
-// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
-// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory                                                  -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/fileInImplicitDir1                               -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory                             -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 func TestDeleteNonEmptyImplicitDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
-
-	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 }
 
 // Directory Structure
-// testBucket/implicitDirectory                                                  -- Dir
-// testBucket/implicitDirectory/fileInImplicitDir1                               -- File
-// testBucket/implicitDirectory/implicitSubDirectory                             -- Dir
-// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory                                                  -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/fileInImplicitDir1                               -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory                             -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
-
-	subDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
+	subDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, t)
 }
 
 // Directory Structure
-// testBucket/implicitDirectory                                                                    -- Dir
-// testBucket/implicitDirectory/explicitDirInImplicitDir                                           -- Dir
-// testBucket/implicitDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
-// testBucket/implicitDirectory/fileInImplicitDir1                                                 -- File
-// testBucket/implicitDirectory/implicitSubDirectory                                               -- Dir
-// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory                                                                    -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/explicitDirInImplicitDir                                           -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/fileInImplicitDir1                                                 -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory                                               -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
 func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
-
-	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
+	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
 
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitDir, explicitDirPath, PrefixFileInExplicitDirInImplicitDir, t)
 
-	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 }
 
 // Directory Structure
-// testBucket/implicitDirectory                                                                                         -- Dir
-// testBucket/implicitDirectory/fileInImplicitDir1                                                                      -- File
-// testBucket/implicitDirectory/implicitSubDirectory                                                                    -- Dir
-// testBucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                                                 -- File
-// testBucket/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir                                           -- Dir
-// testBucket/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory                                                                                         -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/fileInImplicitDir1                                                                      -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory                                                                    -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                                                 -- File
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir                                           -- Dir
+// testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
 func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure()
-	explicitDirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
+	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitSubDir, explicitDirPath, PrefixFileInExplicitDirInImplicitSubDir, t)
 
-	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 }
 
 // Directory Structure
-// testBucket/explicitDirectory                                                                   -- Dir
-// testBucket/explictFile                                                                         -- File
-// testBucket/explicitDirectory/fileInExplicitDir1                                                -- File
-// testBucket/explicitDirectory/fileInExplicitDir2                                                -- File
-// testBucket/explicitDirectory/implicitDirectory                                                 -- Dir
-// testBucket/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
-// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
-// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory                                                                   -- Dir
+// testBucket/dirForImplicitDirTests/explictFile                                                                         -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir1                                                -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir2                                                -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory                                                 -- Dir
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(DirForImplicitDirTests, t)
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(t)
-
-	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
 }
 
 // Directory Structure
-// testBucket/explicitDirectory                                                                   -- Dir
-// testBucket/explictFile                                                                         -- File
-// testBucket/explicitDirectory/fileInExplicitDir1                                                -- File
-// testBucket/explicitDirectory/fileInExplicitDir2                                                -- File
-// testBucket/explicitDirectory/implicitDirectory                                                 -- Dir
-// testBucket/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
-// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
-// testBucket/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory                                                                   -- Dir
+// testBucket/dirForImplicitDirTests/explictFile                                                                         -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir1                                                -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir2                                                -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory                                                 -- Dir
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
+// testBucket/dirForImplicitDirTests/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 func TestDeleteExplicitDirContainingImplicitSubDir(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(DirForImplicitDirTests, t)
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructure(t)
-
-	dirPath := path.Join(setup.MntDir(), implicit_and_explicit_dir_setup.ExplicitDirectory)
+	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ExplicitDirectory)
 
 	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, t)
 }
