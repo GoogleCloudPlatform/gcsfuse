@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -44,13 +45,48 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
-	client *storage.Client
+	client               *storage.Client
+	storageControlClient *control.StorageControlClient
+}
+
+// The default protocol for the Go Storage control client's folders API is gRPC.
+// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
+func createGRPCStorageControlClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *control.StorageControlClient, err error) {
+	var clientOpts []option.ClientOption
+
+	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+		logger.Fatal("error setting direct path env var: %v", err)
+	}
+
+	// Add Custom endpoint option.
+	if clientConfig.CustomEndpoint != nil {
+		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
+	} else {
+		tokenSrc, err := storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", err)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+	}
+
+	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
+	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+
+	// Unset the environment variable, since it's used only while creation of grpc client.
+	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
+		logger.Fatal("error while unsetting direct path env var: %v", err)
+	}
+
+	return
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, controlClient *control.StorageControlClient, err error) {
 	if clientConfig.ClientProtocol != mountpkg.GRPC {
-		return nil, fmt.Errorf("client-protocol requested is not GRPC: %s", clientConfig.ClientProtocol)
+		return nil, nil, fmt.Errorf("client-protocol requested is not GRPC: %s", clientConfig.ClientProtocol)
 	}
 
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
@@ -88,6 +124,16 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 
 	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
+	if err != nil {
+		err = fmt.Errorf("NewGRPCClient: %w", err)
+	}
+
+	if true {
+		controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
+		if err != nil {
+			err = fmt.Errorf("NewStorageControlClient: %w", err)
+		}
+	}
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
@@ -137,8 +183,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 // http and gRPC client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
+	var controlClient *control.StorageControlClient
 	if clientConfig.ClientProtocol == mountpkg.GRPC {
-		sc, err = createGRPCClientHandle(ctx, &clientConfig)
+		sc, controlClient, err = createGRPCClientHandle(ctx, &clientConfig)
 	} else if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
 		sc, err = createHTTPClientHandle(ctx, &clientConfig)
 	} else {
@@ -165,7 +212,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithErrorFunc(storageutil.ShouldRetry))
 
-	sh = &storageClient{client: sc}
+	sh = &storageClient{client: sc, storageControlClient: controlClient}
 	return
 }
 
