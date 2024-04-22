@@ -20,5 +20,4 @@ list:
   enable-empty-managed-folders: true
 grpc:
   conn-pool-size: 4
-hns:
-  enable-hns: true
+enable-hns: true
