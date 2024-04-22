@@ -52,6 +52,9 @@ type StorageClientConfig struct {
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int
+
+	// Enabling new API flow for HNS bucket.
+	EnableHNS bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {

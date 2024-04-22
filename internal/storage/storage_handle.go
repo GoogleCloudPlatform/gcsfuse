@@ -49,40 +49,6 @@ type storageClient struct {
 	storageControlClient *control.StorageControlClient
 }
 
-// The default protocol for the Go Storage control client's folders API is gRPC.
-// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
-func createGRPCStorageControlClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *control.StorageControlClient, err error) {
-	var clientOpts []option.ClientOption
-
-	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		logger.Fatal("error setting direct path env var: %v", err)
-	}
-
-	// Add Custom endpoint option.
-	if clientConfig.CustomEndpoint != nil {
-		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
-	} else {
-		tokenSrc, err := storageutil.CreateTokenSource(clientConfig)
-		if err != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", err)
-			return
-		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
-	}
-
-	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
-	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
-
-	// Unset the environment variable, since it's used only while creation of grpc client.
-	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
-		logger.Fatal("error while unsetting direct path env var: %v", err)
-	}
-
-	return
-}
-
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, controlClient *control.StorageControlClient, err error) {
 	if clientConfig.ClientProtocol != mountpkg.GRPC {
@@ -128,7 +94,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		err = fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
-	if true {
+	if clientConfig.EnableHNS {
 		controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
 		if err != nil {
 			err = fmt.Errorf("NewStorageControlClient: %w", err)
@@ -143,7 +109,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
-func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, controlClient *control.StorageControlClient, err error) {
 	var clientOpts []option.ClientOption
 
 	// Add WithHttpClient option.
@@ -157,7 +123,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	} else {
-		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
+		return nil, nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
 	}
 
 	if clientConfig.AnonymousAccess {
@@ -174,7 +140,13 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
 	}
 
-	return storage.NewClient(ctx, clientOpts...)
+	sc, err = storage.NewClient(ctx, clientOpts...)
+
+	if clientConfig.EnableHNS {
+	   logger.Info("GCSFuse does not support storage control client flow for HTTP client.")
+	}
+
+	return sc, nil, err
 }
 
 // NewStorageHandle returns the handle of http or grpc Go storage client based on the
@@ -183,11 +155,13 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 // http and gRPC client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig) (sh StorageHandle, err error) {
 	var sc *storage.Client
+	// The default protocol for the Go Storage control client's folders API is gRPC.
+	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient *control.StorageControlClient
 	if clientConfig.ClientProtocol == mountpkg.GRPC {
 		sc, controlClient, err = createGRPCClientHandle(ctx, &clientConfig)
 	} else if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
-		sc, err = createHTTPClientHandle(ctx, &clientConfig)
+		sc, controlClient, err = createHTTPClientHandle(ctx, &clientConfig)
 	} else {
 		err = fmt.Errorf("invalid client-protocol requested: %s", clientConfig.ClientProtocol)
 	}
