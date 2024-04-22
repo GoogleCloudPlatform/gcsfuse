@@ -170,7 +170,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		ListConfig: config.ListConfig{
 			EnableEmptyManagedFolders: false,
 		},
-		BucketFlow: config.BucketFlow{
+		BucketLevelFeatureToggle: config.BucketLevelFeatureToggle{
 			EnableHNS: true,
 		},
 	}
@@ -179,6 +179,20 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 	AssertEq(nil, err)
 
 	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"ConnPoolSize\":0,\"EnableHNS\":true}"
+	AssertEq(expected, actual)
+}
+
+func (t *MainTest) TestEnableHNSFlagFalse() {
+	mountConfig := &config.MountConfig{
+		BucketLevelFeatureToggle: config.BucketLevelFeatureToggle{
+			EnableHNS: false,
+		},
+	}
+
+	actual, err := util.Stringify(mountConfig)
+	AssertEq(nil, err)
+
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"ConnPoolSize\":0,\"EnableHNS\":false}"
 	AssertEq(expected, actual)
 }
 
