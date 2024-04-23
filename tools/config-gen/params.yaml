@@ -316,6 +316,12 @@
     indicates no exporting.
   default: "0s"
 
+- flag-name: "prometheus-port"
+  config-path: "metrics.prometheus-port"
+  type: "int"
+  usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
+  default: "0"
+
 - flag-name: "experimental-opentelemetry-collector-address"
   config-path: "monitoring.experimental-opentelemetry-collector-address"
   type: "string"

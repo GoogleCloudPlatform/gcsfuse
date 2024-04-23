@@ -100,6 +100,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				EnableNonexistentTypeCache:          false,
 				StackdriverExportInterval:           40,
 				OtelCollectorAddress:                "address",
+				PrometheusPort:                      8080,
 				LogFile:                             "/tmp/log-file.json",
 				LogFormat:                           "json",
 				ExperimentalEnableJsonRead:          true,
@@ -175,6 +176,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				Metrics: cfg.MetricsConfig{
 					StackdriverExportInterval: 40,
+					PrometheusPort:            8080,
 				},
 				Monitoring: cfg.MonitoringConfig{
 					ExperimentalOpentelemetryCollectorAddress: "address",

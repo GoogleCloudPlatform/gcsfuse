@@ -146,6 +146,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// gcs-retries
 	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)
+
+	// metrics config
+	assert.Equal(t.T(), 8080, mountConfig.MetricsConfig.PrometheusPort)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -332,4 +335,12 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCach
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.Equal(t.T(), int64(10), mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetricsConfig_UnsetPrometheusPort() {
+	mountConfig, err := ParseConfigFile("testdata/metrics_config/unset_prometheus_port.yaml")
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), 0, mountConfig.MetricsConfig.PrometheusPort)
 }

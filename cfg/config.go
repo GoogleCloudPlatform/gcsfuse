@@ -194,6 +194,8 @@ type MetadataCacheConfig struct {
 }
 
 type MetricsConfig struct {
+	PrometheusPort int64 `yaml:"prometheus-port"`
+
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
 }
 
@@ -622,6 +624,13 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
 	err = v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	err = v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port"))
 	if err != nil {
 		return err
 	}

@@ -33,3 +33,5 @@ file-system:
   disable-parallel-dirops: true
 gcs-retries:
   max-retry-attempts: 6
+metrics:
+  prometheus-port: 8080

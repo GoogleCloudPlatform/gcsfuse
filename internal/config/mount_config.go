@@ -47,6 +47,7 @@ const (
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 	DefaultIgnoreInterrupts                       = true
+	DefaultPrometheusPort                         = 0
 
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
@@ -75,6 +76,11 @@ type LogConfig struct {
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
+}
+
+type MetricsConfig struct {
+	// Expose Prometheus metrics endpoint on this port and a path of /metrics.
+	PrometheusPort int `yaml:"prometheus-port"`
 }
 
 type ListConfig struct {
@@ -152,6 +158,7 @@ type MountConfig struct {
 	EnableHNS           bool `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
 	GCSRetries          `yaml:"gcs-retries"`
+	MetricsConfig       `yaml:"metrics"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -217,6 +224,10 @@ func NewMountConfig() *MountConfig {
 
 	mountConfig.GCSRetries = GCSRetries{
 		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
+
+	mountConfig.MetricsConfig = MetricsConfig{
+		PrometheusPort: DefaultPrometheusPort,
 	}
 
 	return mountConfig
