@@ -78,6 +78,7 @@ type GrpcClientConfig struct {
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
+// Enable the storage control client flow on HNS buckets to utilize new APIs.
 type EnableHNS bool
 type CacheDir string
 
