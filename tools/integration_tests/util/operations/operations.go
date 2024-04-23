@@ -35,7 +35,7 @@ func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
 }
 
 // Executes any given tool (e.g. gsutil/gcloud) with given args.
-func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
+func ExecuteToolCommandf(tool string, format string, args ...any) ([]byte, error) {
 	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
 	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
 
@@ -55,5 +55,5 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 
 // Executes any given gcloud command with given args.
 func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
-	return executeToolCommandf("gcloud", format, args...)
+	return ExecuteToolCommandf("gcloud", format, args...)
 }
