@@ -183,7 +183,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 
 	// Create below directory
 	// destCopyDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DestNonEmptyCopyDirectory)
+	destDir := path.Join(testDir, DestNonEmptyCopyDirectory)
 	createDestNonEmptyDirectory(t)
 
 	err := operations.CopyDir(srcDir, destDir)
@@ -251,7 +251,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// Create below directory
 	// destNonEmptyCopyDirectory                                                -- Dir
 	// destNonEmptyCopyDirectory/subDirInNonEmptyDestCopyDirectory              -- Dir
-	destDir := path.Join(setup.MntDir(), DestNonEmptyCopyDirectory)
+	destDir := path.Join(testDir, DestNonEmptyCopyDirectory)
 	createDestNonEmptyDirectory(t)
 
 	err := operations.CopyDir(srcDir, destDir)
@@ -304,7 +304,7 @@ func TestCopyEmptyDirectoryInEmptyDirectory(t *testing.T) {
 
 	// Create below directory
 	// destCopyDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DestEmptyCopyDirectory)
+	destDir := path.Join(testDir, DestEmptyCopyDirectory)
 	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
 
 	err := operations.CopyDir(srcDir, destDir)
@@ -347,7 +347,7 @@ func TestCopyEmptyDirectoryInNonExistingDirectory(t *testing.T) {
 	operations.CreateDirectoryWithNFiles(0, srcDir, "", t)
 
 	// destCopyDirectoryNotExist             -- Dir
-	destDir := path.Join(setup.MntDir(), DestCopyDirectoryNotExist)
+	destDir := path.Join(testDir, DestCopyDirectoryNotExist)
 
 	_, err := os.Stat(destDir)
 	if err == nil {
