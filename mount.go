@@ -120,6 +120,7 @@ be interacting with the file system.`)
 		FilePerms:                  os.FileMode(flags.FileMode),
 		DirPerms:                   os.FileMode(flags.DirMode),
 		RenameDirLimit:             flags.RenameDirLimit,
+		IgnoreInterrupts:           flags.IgnoreInterrupts,
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
