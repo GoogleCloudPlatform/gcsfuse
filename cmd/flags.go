@@ -315,6 +315,12 @@ func newApp() (app *cli.App) {
 				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
 			},
 
+			cli.IntFlag{
+				Name:  config.PrometheusPortFlagName,
+				Value: 0,
+				Usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics.",
+			},
+
 			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
@@ -463,6 +469,7 @@ type flagStorage struct {
 	// Monitoring & Logging
 	// Deprecated: Use the param from cfg/config.go
 	StackdriverExportInterval time.Duration
+	PrometheusPort            int
 
 	// Deprecated: Use the param from cfg/config.go
 	OtelCollectorAddress string
@@ -605,6 +612,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		PrometheusPort:             c.Int("prometheus-port"),
 		LogFile:                    c.String("log-file"),
 		LogFormat:                  c.String("log-format"),
 		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),

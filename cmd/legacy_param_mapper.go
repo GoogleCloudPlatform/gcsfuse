@@ -92,6 +92,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"experimental-metadata-prefetch-on-mount": flags.ExperimentalMetadataPrefetchOnMount,
 		},
 		"metrics": map[string]interface{}{
+			"prometheus-port":             flags.PrometheusPort,
 			"stackdriver-export-interval": flags.StackdriverExportInterval,
 		},
 		"monitoring": map[string]interface{}{
@@ -127,6 +128,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		ignoreInterrupts       = resolvedConfig.FileSystem.IgnoreInterrupts
 		anonymousAccess        = resolvedConfig.GcsAuth.AnonymousAccess
 		kernelListCacheTTLSecs = resolvedConfig.FileSystem.KernelListCacheTtlSecs
+		prometheusPort         = resolvedConfig.Metrics.PrometheusPort
 	)
 
 	// Decoding config to the same config structure (resolvedConfig).
@@ -140,6 +142,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "ignore-interrupts", &resolvedConfig.FileSystem.IgnoreInterrupts, ignoreInterrupts)
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
 	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
+	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
 	return resolvedConfig, nil
 }

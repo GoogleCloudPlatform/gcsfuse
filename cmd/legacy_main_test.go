@@ -189,6 +189,9 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 			EnableEmptyManagedFolders: false,
 		},
 		EnableHNS: true,
+		MetricsConfig: config.MetricsConfig{
+			PrometheusPort: 8080,
+		},
 	}
 
 	actual, err := util.Stringify(mountConfig)
@@ -219,7 +222,8 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		`"EnableHNS":true`,
 		`"IgnoreInterrupts":false`,
 		`"DisableParallelDirops":false`,
-		`"KernelListCacheTtlSeconds":0}`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"PrometheusPort":8080}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -257,7 +261,8 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 		`"EnableHNS":false`,
 		`"IgnoreInterrupts":false`,
 		`"DisableParallelDirops":false`,
-		`"KernelListCacheTtlSeconds":0}`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"PrometheusPort":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -317,6 +322,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		`"MaxIdleConnsPerHost":0`,
 		`"EnableNonexistentTypeCache":false`,
 		`"StackdriverExportInterval":0`,
+		`"PrometheusPort":0`,
 		`"OtelCollectorAddress":""`,
 		`"LogFile":""`,
 		`"LogFormat":""`,

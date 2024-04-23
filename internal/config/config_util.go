@@ -25,6 +25,7 @@ const (
 	IgnoreInterruptsFlagName   = "ignore-interrupts"
 	AnonymousAccess            = "anonymous-access"
 	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+	PrometheusPortFlagName     = "prometheus-port"
 	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
 	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
 
@@ -62,6 +63,14 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
 	if c.IsSet(KernelListCacheTtlFlagName) {
 		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
+	}
+}
+
+// OverrideWithPrometheusPortFlag overwrites the monitoring:prometheus-port config
+// with the prometheus-port cli-flag value if the cli-flag is set by user.
+func OverrideWithPrometheusPortFlag(c cliContext, mountConfig *MountConfig, port int) {
+	if c.IsSet(PrometheusPortFlagName) {
+		mountConfig.MetricsConfig.PrometheusPort = port
 	}
 }
 
