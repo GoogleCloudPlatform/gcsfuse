@@ -1421,7 +1421,6 @@ func (fs *fileSystem) SetInodeAttributes(
 func (fs *fileSystem) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2193,7 +2192,6 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)
