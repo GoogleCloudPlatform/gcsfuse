@@ -121,7 +121,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	ExpectEq(true, mountConfig.ListConfig.EnableEmptyManagedFolders)
 
 	// bucket-level-feature-toggle config
-	ExpectEq(true, mountConfig.BucketLevelFeatureToggle.EnableHNS)
+	ExpectEq(true, mountConfig.EnableHNS)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {

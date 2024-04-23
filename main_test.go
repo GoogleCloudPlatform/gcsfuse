@@ -170,9 +170,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		ListConfig: config.ListConfig{
 			EnableEmptyManagedFolders: false,
 		},
-		BucketLevelFeatureToggle: config.BucketLevelFeatureToggle{
-			EnableHNS: true,
-		},
+		EnableHNS: true,
 	}
 
 	actual, err := util.Stringify(mountConfig)
@@ -184,9 +182,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 
 func (t *MainTest) TestEnableHNSFlagFalse() {
 	mountConfig := &config.MountConfig{
-		BucketLevelFeatureToggle: config.BucketLevelFeatureToggle{
-			EnableHNS: false,
-		},
+		EnableHNS: false,
 	}
 
 	actual, err := util.Stringify(mountConfig)
