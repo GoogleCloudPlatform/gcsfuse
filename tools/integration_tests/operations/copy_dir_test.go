@@ -166,12 +166,11 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 	checkIfCopiedDirectoryHasCorrectData(destSrc, t)
 }
 
-func createDestNonEmptyDirectory(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	destDir := path.Join(testDir, DestNonEmptyCopyDirectory)
+func createDestNonEmptyDirectory(dirPath string, t *testing.T) {
+	destDir := path.Join(dirPath, DestNonEmptyCopyDirectory)
 	operations.CreateDirectoryWithNFiles(0, destDir, "", t)
 
-	destSubDir := path.Join(testDir, SubDirInNonEmptyDestCopyDirectory)
+	destSubDir := path.Join(dirPath, SubDirInNonEmptyDestCopyDirectory)
 	operations.CreateDirectoryWithNFiles(0, destSubDir, "", t)
 }
 
@@ -184,7 +183,7 @@ func TestCopyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// Create below directory
 	// destCopyDir               -- Dir
 	destDir := path.Join(testDir, DestNonEmptyCopyDirectory)
-	createDestNonEmptyDirectory(t)
+	createDestNonEmptyDirectory(testDir, t)
 
 	err := operations.CopyDir(srcDir, destDir)
 	if err != nil {
@@ -252,7 +251,7 @@ func TestCopyEmptyDirectoryInNonEmptyDirectory(t *testing.T) {
 	// destNonEmptyCopyDirectory                                                -- Dir
 	// destNonEmptyCopyDirectory/subDirInNonEmptyDestCopyDirectory              -- Dir
 	destDir := path.Join(testDir, DestNonEmptyCopyDirectory)
-	createDestNonEmptyDirectory(t)
+	createDestNonEmptyDirectory(testDir, t)
 
 	err := operations.CopyDir(srcDir, destDir)
 	if err != nil {

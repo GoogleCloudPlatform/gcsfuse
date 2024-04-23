@@ -186,7 +186,7 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 
 	// Create file.
 	fileName := setup.CreateTempFile(testDir)
-	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
 	if err != nil {
@@ -203,7 +203,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 
 	// Create file.
 	fileName := setup.CreateTempFile(testDir)
-	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	if err != nil {
