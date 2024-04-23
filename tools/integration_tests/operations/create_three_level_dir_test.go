@@ -30,15 +30,14 @@ import (
 
 func TestCreateThreeLevelDirectories(t *testing.T) {
 	// Directory structure
-	// testBucket/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
-	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
-	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
-	// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
+	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
+	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
+	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest     -- Dir
+	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	dirPath := path.Join(setup.MntDir(), DirOneInCreateThreeLevelDirTest)
+	dirPath := path.Join(testDir, DirOneInCreateThreeLevelDirTest)
 
 	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
 
@@ -56,7 +55,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 	}
 
 	// Recursively walk into directory and test.
-	err = filepath.WalkDir(setup.MntDir(), func(dirPath string, dir fs.DirEntry, err error) error {
+	err = filepath.WalkDir(testDir, func(dirPath string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dirPath, err)
 			return err
@@ -73,13 +72,13 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		}
 
 		// Check if mntDir has correct objects.
-		if dirPath == setup.MntDir() {
+		if dirPath == testDir {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInBucketDirectoryCreateTest {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
-			// testBucket/dirOneInCreateThreeLevelDirTest   -- Dir
+			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest   -- Dir
 			if objs[0].Name() != DirOneInCreateThreeLevelDirTest || objs[0].IsDir() != true {
 				t.Errorf("Directory is not created.")
 			}
@@ -92,7 +91,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
 			}
 
-			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
+			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
 			if objs[0].Name() != DirTwoInCreateThreeLevelDirTest || objs[0].IsDir() != true {
 				t.Errorf("Directory is not created.")
 			}
@@ -106,7 +105,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
 			}
 
-			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
+			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
 			if objs[0].Name() != DirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != true {
 				t.Errorf("Directory is not created.")
 			}
@@ -120,7 +119,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
 			}
 
-			// testBucket/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
+			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
 				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
 			}

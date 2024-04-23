@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Provides integration tests for rename file.
-package operations
+package operations_test
 
 import (
 	"testing"
@@ -23,10 +23,9 @@ import (
 )
 
 func TestRenameFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {

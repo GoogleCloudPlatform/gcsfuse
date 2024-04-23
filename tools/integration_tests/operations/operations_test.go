@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const DirForOperationTests = "dirForOperationsTest"
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
 const SrcCopyDirectory = "srcCopyDir"

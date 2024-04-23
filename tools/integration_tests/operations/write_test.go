@@ -114,10 +114,8 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 // Tests
 // //////////////////////////////////////////////////////////////////////
 func TestWriteAtEndOfFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
-
-	fileName := setup.CreateTempFile()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	fileName := setup.CreateTempFile(testDir)
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
@@ -130,10 +128,9 @@ func TestWriteAtEndOfFile(t *testing.T) {
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
@@ -146,10 +143,9 @@ func TestWriteAtStartOfFile(t *testing.T) {
 }
 
 func TestWriteAtRandom(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -170,10 +166,9 @@ func TestWriteAtRandom(t *testing.T) {
 }
 
 func TestCreateFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
@@ -186,11 +181,10 @@ func TestCreateFile(t *testing.T) {
 }
 
 func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create file.
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
@@ -204,11 +198,10 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 }
 
 func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create file.
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 	attr1 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)

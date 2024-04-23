@@ -146,11 +146,11 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	}
 }
 
-func CreateTempFile() string {
+func CreateTempFile(dirPath string) string {
 	// A temporary file is created and some lines are added
 	// to it for testing purposes.
 
-	fileName := path.Join(mntDir, "tmpFile")
+	fileName := path.Join(dirPath, "tmpFile")
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))

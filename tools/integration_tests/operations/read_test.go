@@ -24,12 +24,11 @@ import (
 )
 
 func TestReadAfterWrite(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	tmpDir, err := os.MkdirTemp(setup.MntDir(), "tmpDir")
+	tmpDir, err := os.MkdirTemp(testDir, "tmpDir")
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", setup.MntDir(), err)
+		t.Errorf("Mkdir at %q: %v", testDir, err)
 		return
 	}
 	for i := 0; i < 10; i++ {

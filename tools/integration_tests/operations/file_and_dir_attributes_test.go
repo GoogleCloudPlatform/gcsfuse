@@ -51,13 +51,12 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 }
 
 func TestFileAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// kernel time can be slightly out of sync of time.Now(), so rounding off
 	// times to seconds. Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Round(time.Second)
-	fileName := setup.CreateTempFile()
+	fileName := setup.CreateTempFile(testDir)
 	postCreateTime := time.Now().Round(time.Second)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
@@ -66,27 +65,25 @@ func TestFileAttributes(t *testing.T) {
 }
 
 func TestEmptyDirAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// kernel time can be slightly out of sync of time.Now(), so rounding off
 	// times to seconds. Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Round(time.Second)
-	dirName := path.Join(setup.MntDir(), DirAttrTest)
+	dirName := path.Join(testDir, DirAttrTest)
 	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
 	postCreateTime := time.Now().Round(time.Second)
 
-	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+	checkIfObjectAttrIsCorrect(path.Join(testDir, DirAttrTest), preCreateTime, postCreateTime, 0, t)
 }
 
 func TestNonEmptyDirAttributes(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// kernel time can be slightly out of sync of time.Now(), so rounding off
 	// times to seconds. Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Round(time.Second)
-	dirName := path.Join(setup.MntDir(), DirAttrTest)
+	dirName := path.Join(testDir, DirAttrTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
 	postCreateTime := time.Now().Round(time.Second)
 
