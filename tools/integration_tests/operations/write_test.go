@@ -18,6 +18,7 @@ package operations_test
 import (
 	"context"
 	"os"
+	"path"
 	"reflect"
 	"syscall"
 	"testing"
@@ -124,7 +125,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 }
 
 func TestWriteAtStartOfFile(t *testing.T) {
@@ -139,7 +140,7 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 4\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 }
 
 func TestWriteAtRandom(t *testing.T) {
@@ -162,7 +163,7 @@ func TestWriteAtRandom(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 }
 
 func TestCreateFile(t *testing.T) {
@@ -177,7 +178,7 @@ func TestCreateFile(t *testing.T) {
 
 	setup.CompareFileContents(t, fileName, "line 1\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 }
 
 func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
@@ -191,7 +192,7 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not append to file: %v", err)
 	}
-	attr2 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(attr1, attr2, t)
@@ -210,7 +211,7 @@ func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	}
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, t)
 	operations.CloseFile(fh)
-	attr2 := validateExtendedObjectAttributesNonEmpty(tempFileName, t)
+	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(attr1, attr2, t)

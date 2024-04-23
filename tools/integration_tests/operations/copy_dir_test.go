@@ -111,7 +111,7 @@ func TestCopyDirectoryInNonExistingDirectory(t *testing.T) {
 
 	createSrcDirectoryWithObjects(srcDir, t)
 
-	destDir := path.Join(setup.MntDir(), DestCopyDirectoryNotExist)
+	destDir := path.Join(testDir, DestCopyDirectoryNotExist)
 
 	err := operations.CopyDir(srcDir, destDir)
 	if err != nil {
@@ -138,7 +138,7 @@ func TestCopyDirectoryInEmptyDirectory(t *testing.T) {
 
 	// Create below directory
 	// destCopyDir               -- Dir
-	destDir := path.Join(setup.MntDir(), DestCopyDirectory)
+	destDir := path.Join(testDir, DestCopyDirectory)
 	err := os.Mkdir(destDir, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Error in creating directory: %v", err)
