@@ -15,6 +15,7 @@
 package fs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -43,7 +44,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 type ServerConfig struct {
@@ -124,6 +124,9 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
+	// Allows ignoring interrupts.
+	IgnoreInterrupts bool
+
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
 }
@@ -176,6 +179,7 @@ func NewFileSystem(
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
 		renameDirLimit:             cfg.RenameDirLimit,
+		ignoreInterrupts:           cfg.IgnoreInterrupts,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
 		gid:                        cfg.Gid,
@@ -342,6 +346,7 @@ type fileSystem struct {
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
 	renameDirLimit             int64
+	ignoreInterrupts           bool
 	sequentialReadSizeMb       int32
 
 	// The user and group owning everything in the file system.
@@ -1313,6 +1318,10 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on LookUpInode.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1342,6 +1351,10 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on GetInodeAttributes.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1363,6 +1376,10 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on SetInodeAttributes.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1406,6 +1423,10 @@ func (fs *fileSystem) SetInodeAttributes(
 func (fs *fileSystem) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on ForgetInode.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1422,6 +1443,10 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on MkDir.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1474,6 +1499,10 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on MkNode.
+		ctx = context.WithoutCancel(ctx)
+	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -1597,6 +1626,10 @@ func (fs *fileSystem) createLocalFile(
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on CreateFile.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Create the child.
 	var child inode.Inode
 	if fs.mountConfig.CreateEmptyFile {
@@ -1639,6 +1672,10 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on CreateSymlink.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1702,6 +1739,10 @@ func (fs *fileSystem) RmDir(
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on RmDir.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1797,6 +1838,10 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on Rename.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2009,6 +2054,10 @@ func (fs *fileSystem) renameDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on Unlink.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2077,6 +2126,10 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on ReadDir.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -2142,6 +2195,10 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on ReadFile.
+		ctx = context.WithoutCancel(ctx)
+	}
 
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
@@ -2169,6 +2226,10 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on ReadSymlink.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)
@@ -2187,6 +2248,10 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on WriteFile.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2207,6 +2272,10 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on SyncFile.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2233,6 +2302,10 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
+	if fs.ignoreInterrupts {
+		// Ignore interrupts (context cancellation) on FlushFile.
+		ctx = context.WithoutCancel(ctx)
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
