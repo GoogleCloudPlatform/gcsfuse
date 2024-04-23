@@ -22,12 +22,15 @@ RUN_E2E_TESTS_ON_PACKAGE=$1
 # By default, this script runs all the integration tests.
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
 
+INTEGRATION_TEST_TIMEOUT=60m
+
 if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
-  echo "Setting the flag to skip few un-important integration tests..."
+  echo "Setting the flag to skip few un-important integration tests."
+  INTEGRATION_TEST_TIMEOUT=40m
+  echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
-readonly INTEGRATION_TEST_TIMEOUT=60m
 readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
