@@ -461,11 +461,11 @@ func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
 	}
 }
 
-// AppendFlagsToAllFlagsInTheFlagsSet appends the newFlags in every flags present in the
+// AppendFlagsToAllFlagsInTheFlagsSet appends each flag in newFlags to every flags present in the
 // flagsSet.
 // Input flagsSet: [][]string{{"--x", "--y"}, {"--x", "--z"}}
-// Input newFlags: "--a", "--b"
-// Output modified flagsSet: [][]string{{"--x", "--y", "--a", "--b"}, {"--x", "--z", "--a", "--b"}}
+// Input newFlags: {"--a", "--b", ""}
+// Output modified flagsSet: [][]string{{"--x", "--y", "--a"}, {"--x", "--z", "--a"},{"--x", "--y", "--b"},{"--x", "--z", "--b"},{"--x", "--y"}, {"--x", "--z"}}
 func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string) {
 	var resultFlagsSet [][]string
 	for _, flags := range *flagsSet {
