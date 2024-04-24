@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-	flags := [][]string{
+	flags := [][]string{{"--implicit-dirs=true", "--ignore-interrupts"},
 		{"--config-file=" + setup.YAMLConfigFile(mountConfig, "config.yaml")}}
 
 	successCode := static_mounting.RunTests(flags, m)
