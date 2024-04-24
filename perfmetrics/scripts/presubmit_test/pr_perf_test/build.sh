@@ -104,7 +104,15 @@ then
   echo checkout PR branch
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
+  echo "Building and installing gcsfuse..."
+  # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+  ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+
+  # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
+  git checkout $commitId
+
   echo "Running e2e tests...."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE
+  ./tools/integration_tests/run_e2e_tests.sh true $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE
 fi
