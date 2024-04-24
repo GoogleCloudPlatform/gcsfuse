@@ -19,6 +19,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
@@ -48,8 +49,15 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Set up flags to run tests on.
-	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flags := [][]string{{"--implicit-dirs=true", "--ignore-interrupts"}}
+	mountConfig := config.MountConfig{
+		FileSystemConfig: config.FileSystemConfig{IgnoreInterrupts: true},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	flags := [][]string{
+		{"--config-file=" + setup.YAMLConfigFile(mountConfig, "config.yaml")}}
 
 	successCode := static_mounting.RunTests(flags, m)
 
