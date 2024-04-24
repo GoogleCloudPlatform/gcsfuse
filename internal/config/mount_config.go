@@ -81,7 +81,7 @@ type GrpcClientConfig struct {
 }
 
 type Auth struct {
-	// Authentication is enabled by default. The disable-auth flag disables authentication. For users of the --custom-endpoint flag,
+	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
 	// please pass skip auth flag explicitly if you do not want authentication enabled for your workflow.
 	Skip bool `yaml:"skip"`
 }
