@@ -15,6 +15,7 @@
 package config
 
 import (
+	"log"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -27,11 +28,12 @@ func TestConfig(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type flags struct {
-	LogFile    string
-	LogFormat  string
-	DebugFuse  bool
-	DebugGCS   bool
-	DebugMutex bool
+	LogFile          string
+	LogFormat        string
+	DebugFuse        bool
+	DebugGCS         bool
+	DebugMutex       bool
+	IgnoreInterrupts bool
 }
 type ConfigTest struct {
 }
@@ -116,4 +118,31 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 		},
 	}
 	AssertEq(IsFileCacheEnabled(mountConfig3), false)
+}
+
+func (t *ConfigTest) TestOverrideWithIgnoreInterruptsFlag() {
+	var overrideWithIgnoreInterruptsFlagTests = []struct {
+		testName                       string
+		fileSystemConfig               FileSystemConfig
+		testFlags                      flags
+		expectedIgnoreInterruptsConfig bool
+	}{
+		{"file system config empty and flag empty", FileSystemConfig{}, flags{}, false},
+		{"file system config empty and ignore-interrupts flag false", FileSystemConfig{}, flags{IgnoreInterrupts: false}, false},
+		{"file system config empty and ignore-interrupts flag false", FileSystemConfig{}, flags{IgnoreInterrupts: true}, true},
+		{"ignore-interrupts config true and flag empty", FileSystemConfig{IgnoreInterrupts: true}, flags{}, true},
+		{"ignore-interrupts config false and flag empty", FileSystemConfig{IgnoreInterrupts: false}, flags{}, false},
+		{"ignore-interrupts config false and ignore-interrupts flag false", FileSystemConfig{IgnoreInterrupts: false}, flags{IgnoreInterrupts: false}, false},
+		{"ignore-interrupts config false and ignore-interrupts flag true", FileSystemConfig{IgnoreInterrupts: false}, flags{IgnoreInterrupts: true}, true},
+		{"ignore-interrupts config true and ignore-interrupts flag false", FileSystemConfig{IgnoreInterrupts: true}, flags{IgnoreInterrupts: false}, true},
+		{"ignore-interrupts config true and ignore-interrupts flag true", FileSystemConfig{IgnoreInterrupts: true}, flags{IgnoreInterrupts: true}, true},
+	}
+
+	for _, tt := range overrideWithIgnoreInterruptsFlagTests {
+		log.Print("Running:" + tt.testName)
+		mountConfig := &MountConfig{}
+		mountConfig.FileSystemConfig = tt.fileSystemConfig
+		OverrideWithIgnoreInterruptsFlag(mountConfig, tt.testFlags.IgnoreInterrupts)
+		AssertEq(mountConfig.FileSystemConfig.IgnoreInterrupts, tt.expectedIgnoreInterruptsConfig)
+	}
 }

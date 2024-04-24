@@ -82,6 +82,10 @@ type GrpcClientConfig struct {
 type EnableHNS bool
 type CacheDir string
 
+type FileSystemConfig struct {
+	IgnoreInterrupts bool `yaml:"ignore-interrupts,omitempty"`
+}
+
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
@@ -116,6 +120,7 @@ type MountConfig struct {
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
 	EnableHNS           `yaml:"enable-hns"`
+	FileSystemConfig    `yaml:"file-system"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three

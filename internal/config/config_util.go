@@ -33,6 +33,15 @@ func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logForma
 	}
 }
 
+// OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
+// the ignore-interrupts flag value if the flag is set.
+func OverrideWithIgnoreInterruptsFlag(mountConfig *MountConfig, ignoreInterruptsFlag bool) {
+	// If the ignoreInterruptsFlag is set, give it priority over the value in config file.
+	if ignoreInterruptsFlag {
+		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
+	}
+}
+
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
 	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
 }
