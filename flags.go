@@ -141,7 +141,7 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.BoolFlag{
-				Name: "ignore-interrupts",
+				Name: config.IgnoreInterruptsFlagName,
 				Usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). " +
 					"This prevents those signals from immediately terminating gcsfuse operations in progress.",
 			},
@@ -513,7 +513,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		ImplicitDirs:     c.Bool("implicit-dirs"),
 		OnlyDir:          c.String("only-dir"),
 		RenameDirLimit:   int64(c.Int("rename-dir-limit")),
-		IgnoreInterrupts: c.Bool("ignore-interrupts"),
+		IgnoreInterrupts: c.Bool(config.IgnoreInterruptsFlagName),
 
 		// GCS,
 		CustomEndpoint:                     customEndpoint,

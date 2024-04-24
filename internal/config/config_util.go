@@ -14,6 +14,8 @@
 
 package config
 
+const IgnoreInterruptsFlagName = "ignore-interrupts"
+
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
 func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
@@ -33,11 +35,15 @@ func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logForma
 	}
 }
 
+type cliContext interface {
+	IsSet(string) bool
+}
+
 // OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
 // the ignore-interrupts flag value if the flag is set.
-func OverrideWithIgnoreInterruptsFlag(mountConfig *MountConfig, ignoreInterruptsFlag bool) {
-	// If the ignoreInterruptsFlag is set, give it priority over the value in config file.
-	if ignoreInterruptsFlag {
+func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ignoreInterruptsFlag bool) {
+	// If the ignore-interrupts Flag is set, give it priority over the value in config file.
+	if c.IsSet(IgnoreInterruptsFlagName) {
 		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
 	}
 }
