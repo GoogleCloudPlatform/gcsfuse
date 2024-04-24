@@ -124,9 +124,6 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
-	// Allows ignoring interrupts.
-	IgnoreInterrupts bool
-
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
 }
@@ -179,7 +176,6 @@ func NewFileSystem(
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
 		renameDirLimit:             cfg.RenameDirLimit,
-		ignoreInterrupts:           cfg.IgnoreInterrupts,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
 		gid:                        cfg.Gid,
@@ -346,7 +342,6 @@ type fileSystem struct {
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
 	renameDirLimit             int64
-	ignoreInterrupts           bool
 	sequentialReadSizeMb       int32
 
 	// The user and group owning everything in the file system.
@@ -1315,7 +1310,7 @@ func (fs *fileSystem) StatFS(
 }
 
 func (fs *fileSystem) ignoreInterruptsIfFlagIsSet(ctx context.Context) context.Context {
-	if fs.ignoreInterrupts {
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
 		return context.WithoutCancel(ctx)
 	}
 	return ctx

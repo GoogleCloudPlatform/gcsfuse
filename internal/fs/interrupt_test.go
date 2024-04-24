@@ -22,6 +22,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/jacobsa/ogletest"
 )
 
@@ -37,7 +38,7 @@ var ignoreInterruptsTest = []struct {
 func TestIgnoreInterruptsIfFlagIsSet(t *testing.T) {
 	for _, tt := range ignoreInterruptsTest {
 		t.Run(tt.testName, func(t *testing.T) {
-			fs := &fileSystem{ignoreInterrupts: tt.ignoreInterrupts}
+			fs := &fileSystem{mountConfig: &config.MountConfig{FileSystemConfig: config.FileSystemConfig{IgnoreInterrupts: tt.ignoreInterrupts}}}
 			ctx, cancel := context.WithCancel(context.Background())
 
 			// Call the method and cancel the context
