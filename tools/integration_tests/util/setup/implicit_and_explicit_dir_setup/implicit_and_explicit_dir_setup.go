@@ -79,9 +79,6 @@ func CreateImplicitDirectoryStructure(testDir string) {
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
-	// Clean the bucket.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/delete_objects.sh", path.Join(setup.TestBucket(), testDir))
-
 	// Create implicit directory in bucket for testing.
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
 }
