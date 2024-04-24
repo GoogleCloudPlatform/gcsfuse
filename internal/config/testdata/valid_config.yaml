@@ -19,7 +19,7 @@ metadata-cache:
 list:
   enable-empty-managed-folders: true
 auth:
-  disable-auth: true
+  skip: true
 grpc:
   conn-pool-size: 4
 enable-hns: true

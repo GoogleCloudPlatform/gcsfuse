@@ -40,6 +40,6 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		TokenUrl:                   "",
 		ReuseTokenFromUrl:          true,
 		ExperimentalEnableJsonRead: false,
-		DisableAuth:                true,
+		SkipAuth:                   true,
 	}
 }

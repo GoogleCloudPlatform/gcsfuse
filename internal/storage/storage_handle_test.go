@@ -97,7 +97,7 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
-	sc.DisableAuth = false
+	sc.SkipAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -134,7 +134,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAu
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-	sc.DisableAuth = false
+	sc.SkipAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -147,7 +147,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAu
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilWithDisabledAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
-	sc.DisableAuth = false
+	sc.SkipAuth = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 

@@ -61,7 +61,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
-		if !clientConfig.DisableAuth {
+		if !clientConfig.SkipAuth {
 			logger.Fatal("GRPC path is not supported with authentication on custom endpoint.")
 		}
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
@@ -108,7 +108,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
 	}
 
-	if clientConfig.DisableAuth {
+	if clientConfig.SkipAuth {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	}
 

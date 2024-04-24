@@ -48,7 +48,7 @@ type StorageClientConfig struct {
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
-	DisableAuth                bool
+	SkipAuth                   bool
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int
@@ -77,7 +77,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	}
 
-	if storageClientConfig.DisableAuth {
+	if storageClientConfig.SkipAuth {
 		httpClient = &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
