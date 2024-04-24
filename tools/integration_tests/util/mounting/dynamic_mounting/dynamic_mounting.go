@@ -26,7 +26,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const PrefixBucketForDynamicMountingTest = "gcsfuse-dynamic-mounting-test-"
+// Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
+// we can run the grpc related e2e test.
+const PrefixBucketForDynamicMountingTest = "golang-grpc-test-gcsfuse-dynamic-mounting-test-"
 
 var testBucketForDynamicMounting = PrefixBucketForDynamicMountingTest + setup.GenerateRandomString(5)
 

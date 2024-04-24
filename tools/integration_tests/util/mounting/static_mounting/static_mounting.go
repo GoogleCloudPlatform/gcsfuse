@@ -41,22 +41,22 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 	return err
 }
 
-func executeTestsForStaticMounting(flags [][]string, m *testing.M) (successCode int) {
+func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCode int) {
 	var err error
 
-	for i := 0; i < len(flags); i++ {
-		if err = MountGcsfuseWithStaticMounting(flags[i]); err != nil {
+	for i := 0; i < len(flagsSet); i++ {
+		if err = MountGcsfuseWithStaticMounting(flagsSet[i]); err != nil {
 			setup.LogAndExit(fmt.Sprintf("mountGcsfuse: %v\n", err))
 		}
-		successCode = setup.ExecuteTestForFlagsSet(flags[i], m)
+		successCode = setup.ExecuteTestForFlagsSet(flagsSet[i], m)
 	}
 	return
 }
 
-func RunTests(flags [][]string, m *testing.M) (successCode int) {
+func RunTests(flagsSet [][]string, m *testing.M) (successCode int) {
 	log.Println("Running static mounting tests...")
 
-	successCode = executeTestsForStaticMounting(flags, m)
+	successCode = executeTestsForStaticMounting(flagsSet, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 

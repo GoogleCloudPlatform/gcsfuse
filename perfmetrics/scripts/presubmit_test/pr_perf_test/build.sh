@@ -17,6 +17,8 @@
 readonly EXECUTE_PERF_TEST_LABEL="execute-perf-test"
 readonly EXECUTE_INTEGRATION_TEST_LABEL="execute-integration-tests"
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=false
+readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
+
 
 curl https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/$KOKORO_GITHUB_PULL_REQUEST_NUMBER >> pr.json
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json)
@@ -53,7 +55,7 @@ function execute_perf_test() {
   # The VM will itself exit if the gcsfuse mount fails.
   go run . $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
   # Running FIO test
-  ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
+  time ./perfmetrics/scripts/presubmit/run_load_test_on_presubmit.sh
   sudo umount gcs
 }
 
@@ -104,5 +106,5 @@ then
 
   echo "Running e2e tests...."
   # $1 argument is refering to value of testInstalledPackage.
-  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE
+  ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE
 fi

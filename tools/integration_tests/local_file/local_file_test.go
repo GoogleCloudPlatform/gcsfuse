@@ -98,18 +98,22 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on.
 	// Not setting config file explicitly with 'create-empty-file: false' as it is default.
-	flags := [][]string{
+	flagsSet := [][]string{
 		{"--implicit-dirs=true", "--rename-dir-limit=3"},
 		{"--implicit-dirs=false", "--rename-dir-limit=3"}}
 
-	successCode := static_mounting.RunTests(flags, m)
+	if !testing.Short() {
+		setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--client-protocol=grpc")
+	}
+
+	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
+		successCode = only_dir_mounting.RunTests(flagsSet, m)
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
+		successCode = dynamic_mounting.RunTests(flagsSet, m)
 	}
 
 	// Close storage client and release resources.

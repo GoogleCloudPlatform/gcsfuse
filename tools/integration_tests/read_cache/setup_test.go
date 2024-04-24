@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -116,20 +115,6 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, fileName)
 	return filePath
-}
-
-func appendFlags(flagSet *[][]string, newFlags ...string) {
-	var resultFlagSet [][]string
-	for _, flag := range *flagSet {
-		for _, newFlag := range newFlags {
-			f := flag
-			if strings.Compare(newFlag, "") != 0 {
-				f = append(flag, newFlag)
-			}
-			resultFlagSet = append(resultFlagSet, f)
-		}
-	}
-	*flagSet = resultFlagSet
 }
 
 ////////////////////////////////////////////////////////////////////////
