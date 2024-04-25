@@ -49,7 +49,6 @@ func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 
-	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
 	ExpectEq(nil, err)
@@ -60,7 +59,6 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig()
 
-	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 
 	ExpectEq(nil, err)

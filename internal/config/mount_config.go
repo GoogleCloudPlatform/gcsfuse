@@ -49,7 +49,6 @@ const (
 	DefaultEnableEmptyManagedFoldersListing       = false
 	DefaultGrpcConnPoolSize                       = 1
 	DefaultSkipAuth                               = false
-	DefaultDisableAuth                            = false
 	DefaultEnableHNS                              = false
 )
 
