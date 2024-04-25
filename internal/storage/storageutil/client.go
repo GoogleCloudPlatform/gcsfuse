@@ -83,7 +83,14 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible with the "WithHTTPClient" option, preventing the direct injection of a user agent
 		// when authentication is skipped.
 		httpClient = &http.Client{
+			Transport: &oauth2.Transport{
+				Base: transport,
+			},
 			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
 		}
 	} else {
 		var tokenSrc oauth2.TokenSource
