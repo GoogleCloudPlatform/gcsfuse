@@ -477,7 +477,7 @@ func UploadGcsObject(localPath, gcsObjPath string, uploadGzipEncoded bool) error
 // Uses 'gsutil rm gs://gcsObjPath'
 // Alternative 'gcloud storage rm gs://gcsObjPath' but it doesn't work on kokoro VM.
 func DeleteGcsObject(gcsObjPath string) error {
-	_, err := ExecuteGcloudCommandf("rm -r gs://%s", gcsObjPath)
+	_, err := ExecuteGcloudCommandf("rm gs://%s", gcsObjPath)
 	return err
 }
 
