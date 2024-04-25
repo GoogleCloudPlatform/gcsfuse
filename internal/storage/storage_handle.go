@@ -59,24 +59,28 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	var clientOpts []option.ClientOption
 
-
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
-		if !clientConfig.SkipAuth {
+		if clientConfig.SkipAuth {
+			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
+			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
+			// TODO: to revisit here when supporting TPC for grpc client.
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
+		} else {
 			logger.Fatal("GRPC path is not supported with authentication on custom endpoint.")
 		}
-		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
-		// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
-		// TODO: to revisit here when supporting TPC for grpc client.
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
-			return
+		if clientConfig.SkipAuth {
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+		} else {
+			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+			if tokenCreationErr != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+				return
+			}
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
