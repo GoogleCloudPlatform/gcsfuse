@@ -107,7 +107,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		UserAgent: storageClientConfig.UserAgent,
 	}
 
-
 	return httpClient, err
 }
 
