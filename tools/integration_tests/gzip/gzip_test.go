@@ -61,7 +61,7 @@ func setup_testdata(m *testing.M) error {
 		filesize                    int
 		keepCacheControlNoTransform bool // if true, no-transform is reset as ''
 		enableGzipEncodedContent    bool // if true, original file content is gzip-encoded
-		enableGzipContentEncoding   bool // if true, the content is uploaded as gsutil cp -Z i.e. with content-encoding: gzip header in GCS
+		enableGzipContentEncoding   bool // if true, the content is uploaded as gcloud storage cp -Z i.e. with content-encoding: gzip header in GCS
 	}{
 		{
 			filename:                    TextContentWithContentEncodingWithNoTransformFilename,
