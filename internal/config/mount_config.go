@@ -79,7 +79,7 @@ type GrpcClientConfig struct {
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
-type Auth struct {
+type AuthConfig struct {
 	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
 	// please pass skip auth flag explicitly if you do not want authentication enabled for your workflow.
 	Skip bool `yaml:"skip"`
@@ -126,7 +126,7 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
-	Auth                `yaml:"auth"`
+	AuthConfig          `yaml:"auth-config"`
 	EnableHNS           `yaml:"enable-hns"`
 }
 
@@ -175,7 +175,7 @@ func NewMountConfig() *MountConfig {
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
-	mountConfig.Auth = Auth{
+	mountConfig.AuthConfig = AuthConfig{
 		Skip: DefaultSkipAuth,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
