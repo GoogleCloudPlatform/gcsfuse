@@ -59,6 +59,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	var clientOpts []option.ClientOption
 
+
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
 		if !clientConfig.SkipAuth {
