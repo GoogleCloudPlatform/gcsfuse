@@ -53,6 +53,8 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
+	ExpectNe(nil, httpClient.Transport)
+	t.validateProxyInTransport(httpClient)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
@@ -63,6 +65,8 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 
 	ExpectEq(nil, err)
 	ExpectNe(nil, httpClient)
+	ExpectNe(nil, httpClient.Transport)
+	t.validateProxyInTransport(httpClient)
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 

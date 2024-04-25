@@ -246,3 +246,16 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() 
 	AssertEq(nil, handleCreated)
 	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
 }
+
+func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndSkipAuthFalse() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.SkipAuth = false
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
