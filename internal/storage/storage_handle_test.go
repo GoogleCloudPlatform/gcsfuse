@@ -129,7 +129,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithSkipAuthFalse() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
@@ -144,7 +144,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointWithDisabledAu
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilWithDisabledAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilWithSkipAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.SkipAuth = false
@@ -196,21 +196,6 @@ func (t *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
 	AssertTrue(strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
 }
 
-func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
-
-func (t *StorageHandleTest) TestCreateHTTPClientHandleWithDisableAuthTrue() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-
-	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
-
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
-}
-
 func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
@@ -219,6 +204,12 @@ func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
 
 	AssertEq(nil, err)
 	AssertNe(nil, handleCreated)
+}
+
+func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+	t.invokeAndVerifyStorageHandle(sc)
 }
 
 func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {

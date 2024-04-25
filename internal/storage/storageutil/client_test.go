@@ -68,7 +68,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	ExpectEq(sc.HttpClientTimeout, httpClient.Timeout)
 }
 
-func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthFalse() {
+func (t *clientTest) TestCreateHttpClientWithHttp1WhenSkipAuthFalse() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
 	sc.SkipAuth = false
 
@@ -80,7 +80,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1WhenDisableAuthFalse() {
 	AssertEq(nil, httpClient)
 }
 
-func (t *clientTest) TestCreateHttpClientWithHttp2WhenDisableAuthFalse() {
+func (t *clientTest) TestCreateHttpClientWithHttp2WhenSkipAuthFalse() {
 	sc := GetDefaultStorageClientConfig()
 	sc.SkipAuth = false
 	// Act: this method add tokenSource and clientOptions.
