@@ -191,7 +191,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
@@ -208,7 +208,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		ts.bucketPermission = permissions[i][0]
 		if ts.bucketPermission == ViewPermission {
 			creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
-			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission, setup.TestBucket())
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
 		managedFolderPermission := permissions[i][1]
