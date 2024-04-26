@@ -12,21 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Provides integration tests for symlink operation on local files.
+// Provides integration tests for running git operations with ignore interrupts
+// flag/config set.
 
 package interrupt
 
 import (
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 )
 
+const (
+	repoURL      = "https://github.com/gcsfuse-github-machine-user-bot/test-repository.git"
+	repoName     = "test-repository"
+	branchName   = "test-branch"
+	testFileName = "testFile"
+	tool         = "git"
+)
+
 var (
 	testDirPath string
 )
+
+////////////////////////////////////////////////////////////////////////
+// Boilerplate
+////////////////////////////////////////////////////////////////////////
 
 type ignoreInterruptsTest struct{}
 
@@ -36,11 +51,88 @@ func (s *ignoreInterruptsTest) Setup(t *testing.T) {
 	testDirPath = setup.SetupTestDirectory(testDirName)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func cloneRepository() ([]byte, error) {
+	return operations.ExecuteToolCommandfInDIrectory(testDirPath, tool, "clone %s", repoURL)
+}
+
+func checkoutBranch(branchName string) ([]byte, error) {
+	repositoryPath := path.Join(testDirPath, repoName)
+	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "checkout %s", branchName)
+}
+
+func emptyCommit() ([]byte, error) {
+	repositoryPath := path.Join(testDirPath, repoName)
+	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "commit --allow-empty -m \" empty commit\"")
+}
+
+func gitAdd(filePath string) ([]byte, error) {
+	repositoryPath := path.Join(testDirPath, repoName)
+	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "add %s", filePath)
+}
+
+func nonEmptyCommit() ([]byte, error) {
+	repositoryPath := path.Join(testDirPath, repoName)
+	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "commit -m \"test\"")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test scenarios
+////////////////////////////////////////////////////////////////////////
+
 func (s *ignoreInterruptsTest) TestGitClone(t *testing.T) {
-	output, err := operations.ExecuteToolCommandf("git", "clone %s %s", "https://github.com/gcsfuse-github-machine-user-bot/test-repository.git", testDirPath)
+	output, err := cloneRepository()
 
 	if err != nil {
-		t.Errorf("Git clone failed: %s: %v", string(output), err)
+		t.Errorf("cloneRepository() failed: %s: %v", string(output), err)
+	}
+}
+
+func (s *ignoreInterruptsTest) TestGitCheckout(t *testing.T) {
+	_, err := cloneRepository()
+	if err != nil {
+		t.Errorf("cloneRepository() failed: %v", err)
+	}
+
+	output, err := checkoutBranch(branchName)
+
+	if err != nil {
+		t.Errorf("Git checkout failed: %s: %v", string(output), err)
+	}
+}
+
+func (s *ignoreInterruptsTest) TestGitEmptyCommit(t *testing.T) {
+	_, err := cloneRepository()
+	if err != nil {
+		t.Errorf("cloneRepository() failed: %v", err)
+	}
+
+	output, err := emptyCommit()
+
+	if err != nil {
+		t.Errorf("Git empty commit failed: %s: %v", string(output), err)
+	}
+}
+
+func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
+	_, err := cloneRepository()
+	if err != nil {
+		t.Errorf("cloneRepository() failed: %v", err)
+	}
+
+	filePath := path.Join(testDirPath, repoName, testFileName)
+	operations.CreateFileOfSize(util.MiB, filePath, t)
+	output, err := gitAdd(filePath)
+	if err != nil {
+		t.Errorf("Git add failed: %s: %v", string(output), err)
+	}
+	output, err = nonEmptyCommit()
+
+	if err != nil {
+		t.Errorf("Git empty commit failed: %s: %v", string(output), err)
 	}
 }
 

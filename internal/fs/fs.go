@@ -1309,18 +1309,24 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
-func (fs *fileSystem) ignoreInterruptsIfFlagIsSet(ctx context.Context) context.Context {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		return context.WithoutCancel(ctx)
-	}
-	return ctx
+// isolateContextFromParentContext creates a copy of the parent context which is
+// not cancelled when parent context is cancelled.
+func isolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	ctx = context.WithoutCancel(ctx)
+	return context.WithCancel(ctx)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1350,7 +1356,13 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1372,7 +1384,13 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1432,7 +1450,13 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1485,7 +1509,13 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -1609,7 +1639,13 @@ func (fs *fileSystem) createLocalFile(
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Create the child.
 	var child inode.Inode
 	if fs.mountConfig.CreateEmptyFile {
@@ -1652,7 +1688,13 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1716,7 +1758,13 @@ func (fs *fileSystem) RmDir(
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1812,7 +1860,13 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2025,7 +2079,13 @@ func (fs *fileSystem) renameDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2094,7 +2154,13 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -2160,7 +2226,13 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
 
@@ -2205,7 +2277,13 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
@@ -2226,7 +2304,13 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2253,7 +2337,13 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
-	ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+		// When ignore interrupts flag is set, we are creating a new context not
+		// cancellable by parent context.
+		var cancel context.CancelFunc
+		ctx, cancel = isolateContextFromParentContext(ctx)
+		defer cancel()
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)

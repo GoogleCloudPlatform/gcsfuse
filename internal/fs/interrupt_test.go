@@ -22,30 +22,19 @@ import (
 	"context"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/jacobsa/ogletest"
 )
 
-var ignoreInterruptsTest = []struct {
-	testName         string
-	ignoreInterrupts bool
-	err              error
-}{
-	{"Ignore Interrupts", true, nil},
-	{"Respect Interrupts", false, context.Canceled},
-}
+func TestIsolateContextFromParentContext(t *testing.T) {
+	parentCtx, parentCtxCancel := context.WithCancel(context.Background())
 
-func TestIgnoreInterruptsIfFlagIsSet(t *testing.T) {
-	for _, tt := range ignoreInterruptsTest {
-		t.Run(tt.testName, func(t *testing.T) {
-			fs := &fileSystem{mountConfig: &config.MountConfig{FileSystemConfig: config.FileSystemConfig{IgnoreInterrupts: tt.ignoreInterrupts}}}
-			ctx, cancel := context.WithCancel(context.Background())
+	// Call the method and cancel the parent context
+	newCtx, newCtxCancel := isolateContextFromParentContext(parentCtx)
+	parentCtxCancel()
 
-			// Call the method and cancel the context
-			ctx = fs.ignoreInterruptsIfFlagIsSet(ctx)
-			cancel()
-
-			ogletest.AssertEq(tt.err, ctx.Err())
-		})
-	}
+	// validate new context is not cancelled after parent's cancellation.
+	ogletest.AssertEq(nil, newCtx.Err())
+	// cancel the new context and validate.
+	newCtxCancel()
+	ogletest.AssertEq(context.Canceled, newCtx.Err())
 }

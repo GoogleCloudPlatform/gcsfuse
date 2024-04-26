@@ -35,10 +35,23 @@ func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
 }
 
 // Executes any given tool (e.g. gsutil/gcloud) with given args.
-func ExecuteToolCommandf(tool string, format string, args ...any) ([]byte, error) {
+func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
 	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
 	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
 
+	return runCommand(cmd)
+}
+
+// Executes any given tool (e.g. gsutil/gcloud) with given args in specified directory.
+func ExecuteToolCommandfInDIrectory(dirPath, tool, format string, args ...any) ([]byte, error) {
+	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
+	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
+	cmd.Dir = dirPath
+
+	return runCommand(cmd)
+}
+
+func runCommand(cmd *exec.Cmd) ([]byte, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
@@ -47,13 +60,18 @@ func ExecuteToolCommandf(tool string, format string, args ...any) ([]byte, error
 
 	err := cmd.Run()
 	if err != nil {
-		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmdArgs, err, stderr.String())
+		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmd.String(), err, stderr.String())
 	}
 
 	return stdout.Bytes(), nil
 }
 
+// Executes any given gsutil command with given args.
+func ExecuteGsutilCommandf(format string, args ...any) ([]byte, error) {
+	return executeToolCommandf("gsutil", format, args...)
+}
+
 // Executes any given gcloud command with given args.
 func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
-	return ExecuteToolCommandf("gcloud", format, args...)
+	return executeToolCommandf("gcloud", format, args...)
 }
