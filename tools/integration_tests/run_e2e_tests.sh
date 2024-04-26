@@ -46,19 +46,15 @@ TEST_DIR_PARALLEL=(
   "read_large_files"
   "explicit_dir"
   "implicit_dir"
+  "operations"
 )
 # These tests never become parallel as it is changing bucket permissions.
-TEST_DIR_NON_PARALLEL_GROUP_1=(
+TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
 )
 
-# These test packages can be configured to run in parallel once they achieve
-# directory independence.
-TEST_DIR_NON_PARALLEL_GROUP_2=(
-  "operations"
-)
 
 TEST_DIR_HNS_GROUP=(
   "implicit_dir"
@@ -189,13 +185,9 @@ function print_test_logs() {
 function run_e2e_tests_for_flat_bucket() {
   # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
   # we can run grpc related e2e tests.
-  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-1-"
-  bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
-
-  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-2-"
-  bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
-  echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
+  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-"
+  bucket_name_non_parallel=$(create_bucket $bucketPrefix)
+  echo "Bucket name for non parallel tests: "$bucket_name_non_parallel
 
   bucketPrefix="golang-grpc-test-gcsfuse-parallel-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
@@ -205,25 +197,20 @@ function run_e2e_tests_for_flat_bucket() {
   run_parallel_tests TEST_DIR_PARALLEL $bucket_name_parallel &
   parallel_tests_pid=$!
 
- echo "Running non parallel tests group-1..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_1 $bucket_name_non_parallel_group_1 &
- non_parallel_tests_pid_group_1=$!
- echo "Running non parallel tests group-2..."
- run_non_parallel_tests TEST_DIR_NON_PARALLEL_GROUP_2 $bucket_name_non_parallel_group_2 &
- non_parallel_tests_pid_group_2=$!
+ echo "Running non parallel tests ..."
+ run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name_non_parallel &
+ non_parallel_tests_pid=$!
 
  # Wait for all tests to complete.
  wait $parallel_tests_pid
  parallel_tests_exit_code=$?
- wait $non_parallel_tests_pid_group_1
- non_parallel_tests_exit_code_group_1=$?
- wait $non_parallel_tests_pid_group_2
- non_parallel_tests_exit_code_group_2=$?
+ wait $non_parallel_tests_pid
+ non_parallel_tests_exit_code=$?
 
- flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel_group_1" "$bucket_name_non_parallel_group_2")
+ flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
  clean_up flat_buckets
 
- if [ $non_parallel_tests_exit_code_group_1 != 0 ] || [ $non_parallel_tests_exit_code_group_2 != 0 ] || [ $parallel_tests_exit_code != 0 ];
+ if [ $non_parallel_tests_exit_code!= 0 ] || [ $parallel_tests_exit_code != 0 ];
  then
    return 1
  fi
@@ -260,7 +247,11 @@ function clean_up() {
   local -n buckets=$1
   for bucket in "${buckets[@]}"
     do
-      gcloud alpha storage rm --recursive gs://$bucket
+      # Empty bucket name may cause deletions of all the buckets.
+      if [ "$bucket" != "" ];
+      then
+        gcloud alpha storage rm --recursive gs://$bucket
+      fi
     done
 }
 
