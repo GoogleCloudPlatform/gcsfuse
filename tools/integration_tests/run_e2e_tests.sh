@@ -210,7 +210,7 @@ function run_e2e_tests_for_flat_bucket() {
  flat_buckets=("$bucket_name_parallel" "$bucket_name_non_parallel")
  clean_up flat_buckets
 
- if [ $non_parallel_tests_exit_code!= 0 ] || [ $parallel_tests_exit_code != 0 ];
+ if [ $non_parallel_tests_exit_code != 0 ] || [ $parallel_tests_exit_code != 0 ];
  then
    return 1
  fi
