@@ -79,9 +79,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 
 	if storageClientConfig.SkipAuth {
 		httpClient = &http.Client{
-			Transport: &oauth2.Transport{
-				Base: transport,
-			},
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
 	} else {
@@ -100,13 +97,12 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 			},
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
 	}
-	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = &userAgentRoundTripper{
-		wrapped:   httpClient.Transport,
-		UserAgent: storageClientConfig.UserAgent,
-	}
-
 	return httpClient, err
 }
 
