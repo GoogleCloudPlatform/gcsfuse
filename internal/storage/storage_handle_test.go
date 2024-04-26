@@ -55,7 +55,7 @@ func (suite *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.Stor
 	suite.NotNil(handleCreated)
 }
 
-func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject()  {
+func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
 
@@ -129,7 +129,7 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	suite.NotNil(err)
-	suite.Contains(err.Error(), fmt.Sprintf("no such file or directory"))
+	suite.Contains(err.Error(), "no such file or directory")
 	suite.Nil(handleCreated)
 }
 
