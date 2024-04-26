@@ -15,7 +15,7 @@
 # Here $1 refers to the testBucket argument
 echo "This is from directory fileInImplicitDir1 file implicitDirectory" > fileInImplicitDir1
 # bucket/implicitDirectory/fileInImplicitDir1
-gsutil cp fileInImplicitDir1 gs://$1/implicitDirectory/
+gcloud storage cp fileInImplicitDir1 gs://$1/implicitDirectory/
 echo "This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2" > fileInImplicitDir2
 # bucket/implicitDirectory/implicitSubDirectory/fileInImplicitDir2
-gsutil cp fileInImplicitDir2 gs://$1/implicitDirectory/implicitSubDirectory/
+gcloud storage cp fileInImplicitDir2 gs://$1/implicitDirectory/implicitSubDirectory/

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Here $1 refers to the testBucket argument
-gsutil rm -a gs://$1/**
+gcloud storage rm -r gs://$1/**
 
 # If bucket is empty it will throw an CommandException.
 if [ $? -eq 1 ]; then

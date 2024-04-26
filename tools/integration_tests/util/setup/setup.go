@@ -362,7 +362,7 @@ func CleanUpDir(directoryPath string) {
 
 	for _, d := range dir {
 		err := os.RemoveAll(path.Join([]string{directoryPath, d.Name()}...))
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
 			log.Printf("Error in removing directory: %v", err)
 		}
 	}
@@ -387,7 +387,7 @@ func SetupTestDirectory(testDirName string) string {
 
 // CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
 func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
-	_, err := operations.ExecuteGsutilCommandf("rm -rf gs://%s", directoryPathOnGCS)
+	_, err := operations.ExecuteGcloudCommandf("storage rm -r gs://%s", directoryPathOnGCS)
 	if err != nil {
 		log.Printf("Error while cleaning up directory %s from GCS: %v",
 			directoryPathOnGCS, err)

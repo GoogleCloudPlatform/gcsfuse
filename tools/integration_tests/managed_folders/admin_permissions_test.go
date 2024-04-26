@@ -51,7 +51,7 @@ var (
 // levels apply additively (union) throughout the resource hierarchy.
 // Hence here managed folder will have admin permission throughout all the tests.
 type managedFoldersAdminPermission struct {
-	bucketPermission        string
+	bucketPermission string
 }
 
 func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
@@ -59,9 +59,13 @@ func (s *managedFoldersAdminPermission) Setup(t *testing.T) {
 }
 
 func (s *managedFoldersAdminPermission) Teardown(t *testing.T) {
-	// The 'gsutil rm -rf' command doesn't work on managed folders.
-	// We'll clean up the test directory but leave managed folders.
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	// Due to bucket view permissions, it prevents cleaning resources outside of managed folders. So we are cleaning managed folders resources only.
+	if s.bucketPermission == ViewPermission {
+		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder1))
+		setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest, ManagedFolder2))
+		return
+	}
+	setup.CleanUpDir(path.Join(setup.MntDir(), TestDirForManagedFolderTest))
 }
 
 func (s *managedFoldersAdminPermission) TestCreateObjectInManagedFolder(t *testing.T) {
@@ -187,9 +191,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 
 	// Fetch credentials and apply permission on bucket.
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
-	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission)
-	// Revoke permission on bucket.
-	defer creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
+	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission, setup.TestBucket())
 
 	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
@@ -206,7 +208,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 		ts.bucketPermission = permissions[i][0]
 		if ts.bucketPermission == ViewPermission {
 			creds_tests.RevokePermission(serviceAccount, AdminPermission, setup.TestBucket())
-			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission)
+			creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission, setup.TestBucket())
 			defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 		}
 		managedFolderPermission := permissions[i][1]

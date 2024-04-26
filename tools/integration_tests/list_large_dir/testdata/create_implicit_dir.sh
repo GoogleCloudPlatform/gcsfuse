@@ -27,5 +27,5 @@ while [ $a -le $NUMBER_OF_FILES ]
 do
    dir=$IMPLICIT_DIR$a
    a=`expr $a + 1`
-   gsutil cp testFile.txt gs://$TEST_BUCKET/$dir/
+   gcloud storage cp testFile.txt gs://$TEST_BUCKET/$dir/
 done

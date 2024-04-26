@@ -77,9 +77,9 @@ func CreateCredentials() (serviceAccount, localKeyFilePath string) {
 	return
 }
 
-func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
+func ApplyPermissionToServiceAccount(serviceAccount, permission, bucket string) {
 	// Provide permission to service account for testing.
-	_, err := operations.ExecuteGsutilCommandf(fmt.Sprintf("iam ch serviceAccount:%s:%s gs://%s", serviceAccount, permission, setup.TestBucket()))
+	_, err := operations.ExecuteGcloudCommandf(fmt.Sprintf("storage buckets add-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission))
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error while setting permissions to SA: %v", err))
 	}
@@ -89,9 +89,9 @@ func ApplyPermissionToServiceAccount(serviceAccount, permission string) {
 }
 
 func RevokePermission(serviceAccount, permission, bucket string) {
-	cmd := fmt.Sprintf("iam ch -d serviceAccount:%s:%s gs://%s", serviceAccount, permission, bucket)
-	// Revoke the permission after testing.
-	_, err := operations.ExecuteGsutilCommandf(cmd)
+	// Revoke the permission to service account after testing.
+	cmd := fmt.Sprintf("storage buckets remove-iam-policy-binding gs://%s --member=serviceAccount:%s --role=roles/storage.%s", bucket, serviceAccount, permission)
+	_, err := operations.ExecuteGcloudCommandf(cmd)
 	if err != nil {
 		setup.LogAndExit(fmt.Sprintf("Error in unsetting permissions to SA: %v", err))
 	}
@@ -99,7 +99,7 @@ func RevokePermission(serviceAccount, permission, bucket string) {
 
 func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
 	serviceAccount, localKeyFilePath := CreateCredentials()
-	ApplyPermissionToServiceAccount(serviceAccount, permission)
+	ApplyPermissionToServiceAccount(serviceAccount, permission, setup.TestBucket())
 	defer RevokePermission(serviceAccount, permission, setup.TestBucket())
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
