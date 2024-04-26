@@ -18,10 +18,13 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/mitchellh/mapstructure"
 
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -134,6 +137,11 @@ type GCSConnectionConfig struct {
 }
 
 type OctalInt int
+
+func (oi OctalInt) String() string {
+	return fmt.Sprintf("%o", oi)
+}
+
 type FileSystemConfig struct {
 	TempDir        string `mapstructure:"temp-dir"`
 	RenameDirLimit int    `mapstructure:"rename-dir-limit"`
@@ -171,6 +179,35 @@ type Config struct {
 	FileSystem    FileSystemConfig `mapstructure:"file-system"`
 	Debug         DebugConfig
 	Monitoring    MonitoringConfig
+}
+
+// DotSeparatedStringList is a string list with a mapstructure decode hook
+// that decodes a dot separated string list.
+type DotSeparatedStringList []string
+
+// DotSeparatedStringListHookFunc returns a DecodeHookFunc that converts
+// strings to string slices, when the target type is DotSeparatedStringList.
+func octalIntHookFunc() mapstructure.DecodeHookFuncType {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{},
+	) (interface{}, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
+
+		if t != reflect.TypeOf(OctalInt(0)) {
+			return data, nil
+		}
+
+		val, err := strconv.ParseInt(data.(string), 8, 32)
+		if err != nil {
+			err = fmt.Errorf("parsing as octal: %w", err)
+			return 0, err
+		}
+		return val, nil
+	}
 }
 
 var Cfg Config
@@ -242,7 +279,12 @@ func ParseConfig() (Config, error) {
 	}
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	err = v.Unmarshal(&cfg)
+	err = v.Unmarshal(&cfg, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+		mapstructure.TextUnmarshallerHookFunc(),
+		octalIntHookFunc(),
+		mapstructure.StringToTimeDurationHookFunc(), // default hook
+		mapstructure.StringToSliceHookFunc(","),     // default hook
+	)))
 	if err != nil {
 		return cfg, err
 	}
@@ -316,8 +358,8 @@ func addFlags(flagSet *flag.FlagSet) {
 	addIntParam(flagSet, "file-system.rename-dir-limit", 0, "Allow rename a directory containing fewer descendants than this limit.")
 	addIntParam(flagSet, "file-system.gid", -1, "GID owner of all inodes.")
 	addIntParam(flagSet, "file-system.uid", -1, "UID owner of all inodes.")
-	addIntParam(flagSet, "file-system.file-mode", 0644, "Permission bits for files, in octal.")
-	addIntParam(flagSet, "file-system.dir-mode", 0755, "Permissions bits for directories, in octal.")
+	addStringParam(flagSet, "file-system.file-mode", "0644", "Permission bits for files, in octal.")
+	addStringParam(flagSet, "file-system.dir-mode", "0755", "Permissions bits for directories, in octal.")
 	addStringSliceParamP(flagSet, "file-system.mount-options", "o", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use -o ro")
 
 	// Write

@@ -52,8 +52,8 @@ file-system:
   rename-dir-limit: 123
   gid: 24
   uid: 52
-  file-mode: 0614 # Octal
-  dir-mode: 0725 # Octal
+  file-mode: "614" # Octal
+  dir-mode: "725" # Octal
   mount-options:
   - a
   - b=c

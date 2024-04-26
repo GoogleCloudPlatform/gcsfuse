@@ -381,8 +381,24 @@ func TestFlags(t *testing.T) {
 			},
 		},
 		{
+			name:   "Set file-mode without 0 prefix",
+			osArgs: []string{"/m", "--file-system.file-mode=721"},
+			updateFunc: func(config Config) Config {
+				config.FileSystem.FileMode = 0721
+				return config
+			},
+		},
+		{
 			name:   "Set dir-mode",
 			osArgs: []string{"/m", "--file-system.dir-mode=0751"},
+			updateFunc: func(config Config) Config {
+				config.FileSystem.DirMode = 0751
+				return config
+			},
+		},
+		{
+			name:   "Set dir-mode without 0 prefix",
+			osArgs: []string{"/m", "--file-system.dir-mode=751"},
 			updateFunc: func(config Config) Config {
 				config.FileSystem.DirMode = 0751
 				return config
