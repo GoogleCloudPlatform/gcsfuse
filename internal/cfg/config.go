@@ -181,12 +181,7 @@ type Config struct {
 	Monitoring    MonitoringConfig
 }
 
-// DotSeparatedStringList is a string list with a mapstructure decode hook
-// that decodes a dot separated string list.
-type DotSeparatedStringList []string
-
-// DotSeparatedStringListHookFunc returns a DecodeHookFunc that converts
-// strings to string slices, when the target type is DotSeparatedStringList.
+// octalIntHookFunc converts string flag to octal while flag parsing.
 func octalIntHookFunc() mapstructure.DecodeHookFuncType {
 	return func(
 		f reflect.Type,
