@@ -1321,7 +1321,7 @@ func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1357,7 +1357,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1385,7 +1385,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1451,7 +1451,7 @@ func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1510,7 +1510,7 @@ func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1640,7 +1640,7 @@ func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1689,7 +1689,7 @@ func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1759,7 +1759,7 @@ func (fs *fileSystem) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -1861,7 +1861,7 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2080,7 +2080,7 @@ func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2155,7 +2155,7 @@ func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2227,7 +2227,7 @@ func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2278,7 +2278,7 @@ func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2305,7 +2305,7 @@ func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
@@ -2338,7 +2338,7 @@ func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
-		// When ignore interrupts flag is set, we are creating a new context not
+		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
 		ctx, cancel = isolateContextFromParentContext(ctx)
