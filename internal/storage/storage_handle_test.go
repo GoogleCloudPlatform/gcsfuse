@@ -35,6 +35,10 @@ type StorageHandleTest struct {
 	fakeStorage FakeStorage
 }
 
+func TestStorageHandleSuite(t *testing.T) {
+	suite.Run(t, new(StorageHandleTest))
+}
+
 func (suite *StorageHandleTest) SetupSuite() {
 	var err error
 	suite.fakeStorage = NewFakeStorage()
@@ -215,8 +219,4 @@ func (suite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtoco
 	suite.NotNil(err)
 	suite.Nil(storageClient)
 	suite.Contains(fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC), err.Error())
-}
-
-func TestStorageHandleSuite(t *testing.T) {
-	suite.Run(t, new(StorageHandleTest))
 }
