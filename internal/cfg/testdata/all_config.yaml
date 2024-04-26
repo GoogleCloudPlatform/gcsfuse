@@ -1,0 +1,73 @@
+app-name: "A GCSFuse app"
+foreground: true
+only-dir: "some-dir"
+enable-hns: true
+
+file-cache:
+  max-size-mb: 20
+  cache-file-for-range-read: True
+
+metadata-cache:
+  stat-cache-max-size-mb: 22
+  ttl-secs: 4
+  type-cache-max-size-mb: 11
+  enable-nonexistent-type-cache:  true
+
+gcs-connection:
+  billing-project: "bp"
+  max-bytes-per-sec: 4.5
+  max-ops-per-sec: 3.4
+  sequential-read-size-mb: 50
+  experimental-enable-json-read: true
+  custom-endpoint: "ce"
+  protocol: "http2"
+  timeout: "10s"
+  max-connections: 23
+  max-idle-connections: 2
+  retries:
+    multiplier: 5
+    max-retry-sleep: "10s"
+  auth:
+    key-file: "/key.json"
+    token-url: "http://some-token-url/"
+    reuse-token-from-url: false
+grpc:
+  conn-pool-size: 12
+#monitoring:
+#  metrics-export-interval: 0
+#  open-telemetry:
+#    endpoint: ""
+#
+logging:
+  file-path: ""
+  format: "xml"
+  severity: "ERROR"
+  log-rotate:
+    max-file-size-mb: 100
+    backup-file-count: 9
+    compress: false
+
+file-system:
+  temp-dir: "/tmp/abc"
+  rename-dir-limit: 123
+  gid: 24
+  uid: 52
+  file-mode: 0614 # Octal
+  dir-mode: 0725 # Octal
+  mount-options:
+  - a
+  - b=c
+  - d=e=f
+
+write:
+  create-empty-file: true
+list:
+  enable-empty-managed-folders: true
+
+debug:
+  exit-on-invariant-violation: true
+  log-mutex: true
+
+monitoring:
+  metrics-export-interval: "1h"
+  experimental-opentelemetry-collector-address: "http://opentelemetry.com"

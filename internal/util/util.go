@@ -49,7 +49,7 @@ func GetResolvedPath(filePath string) (resolvedPath string, err error) {
 		return
 	}
 
-	// Relative path starting with tilda (~)
+	// Relative path starting with tilde (~)
 	if strings.HasPrefix(filePath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
