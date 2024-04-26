@@ -17,7 +17,20 @@
 
 # true or false to run e2e tests on installedPackage
 RUN_E2E_TESTS_ON_PACKAGE=$1
-readonly INTEGRATION_TEST_TIMEOUT=40m
+
+# Pass "true" to skip few non-essential tests.
+# By default, this script runs all the integration tests.
+SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
+
+INTEGRATION_TEST_TIMEOUT=60m
+
+if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
+  GO_TEST_SHORT_FLAG="-short"
+  echo "Setting the flag to skip few un-important integration tests."
+  INTEGRATION_TEST_TIMEOUT=40m
+  echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
+fi
+
 readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
@@ -96,8 +109,10 @@ function create_bucket() {
 
 function create_hns_bucket() {
   local -r hns_project_id="gcs-fuse-test"
-  # Generate bucket name with random string
-  bucket_name="gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
+  # Generate bucket name with random string.
+  # Adding prefix `golang-grpc-test` to white list the bucket for grpc
+  # so that we can run grpc related e2e tests.
+  bucket_name="golang-grpc-test-gcsfuse-e2e-tests-hns-"$(tr -dc 'a-z0-9' < /dev/urandom | head -c $RANDOM_STRING_LENGTH)
   gcloud alpha storage buckets create gs://$bucket_name --project=$hns_project_id --location=$BUCKET_LOCATION --uniform-bucket-level-access --enable-hierarchical-namespace
   echo "$bucket_name"
 }
@@ -114,8 +129,9 @@ function run_non_parallel_tests() {
     # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
     local log_file="/tmp/${test_dir_np}_${bucket_name_non_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
+
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -139,7 +155,7 @@ function run_parallel_tests() {
     local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -171,15 +187,17 @@ function print_test_logs() {
 }
 
 function run_e2e_tests_for_flat_bucket() {
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-1-"
+  # Adding prefix `golang-grpc-test` to white list the bucket for grpc so that
+  # we can run grpc related e2e tests.
+  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-1-"
   bucket_name_non_parallel_group_1=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests group - 1: "$bucket_name_non_parallel_group_1
 
-  bucketPrefix="gcsfuse-non-parallel-e2e-tests-group-2-"
+  bucketPrefix="golang-grpc-test-gcsfuse-non-parallel-e2e-tests-group-2-"
   bucket_name_non_parallel_group_2=$(create_bucket $bucketPrefix)
   echo "Bucket name for non parallel tests group - 2 : "$bucket_name_non_parallel_group_2
 
-  bucketPrefix="gcsfuse-parallel-e2e-tests-"
+  bucketPrefix="golang-grpc-test-gcsfuse-parallel-e2e-tests-"
   bucket_name_parallel=$(create_bucket $bucketPrefix)
   echo "Bucket name for parallel tests: "$bucket_name_parallel
 

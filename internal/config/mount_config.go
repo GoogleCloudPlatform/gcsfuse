@@ -48,6 +48,7 @@ const (
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
 	DefaultGrpcConnPoolSize                       = 1
+	DefaultEnableHNS                              = false
 )
 
 type WriteConfig struct {
@@ -77,7 +78,13 @@ type GrpcClientConfig struct {
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
 }
 
+// Enable the storage control client flow on HNS buckets to utilize new APIs.
+type EnableHNS bool
 type CacheDir string
+
+type FileSystemConfig struct {
+	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
+}
 
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
@@ -112,6 +119,8 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
+	EnableHNS           `yaml:"enable-hns"`
+	FileSystemConfig    `yaml:"file-system"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -159,5 +168,7 @@ func NewMountConfig() *MountConfig {
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
+	mountConfig.EnableHNS = DefaultEnableHNS
+
 	return mountConfig
 }

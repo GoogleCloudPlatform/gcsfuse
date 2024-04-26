@@ -27,11 +27,12 @@ func TestConfig(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type flags struct {
-	LogFile    string
-	LogFormat  string
-	DebugFuse  bool
-	DebugGCS   bool
-	DebugMutex bool
+	LogFile          string
+	LogFormat        string
+	DebugFuse        bool
+	DebugGCS         bool
+	DebugMutex       bool
+	IgnoreInterrupts bool
 }
 type ConfigTest struct {
 }
@@ -116,4 +117,40 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 		},
 	}
 	AssertEq(IsFileCacheEnabled(mountConfig3), false)
+}
+
+type TestCliContext struct {
+	isSet bool
+}
+
+func (s *TestCliContext) IsSet(flag string) bool {
+	return s.isSet
+}
+
+func TestOverrideWithIgnoreInterruptsFlag(t *testing.T) {
+	var overrideWithIgnoreInterruptsFlagTests = []struct {
+		testName                   string
+		ignoreInterruptConfigValue bool
+		isFlagSet                  bool
+		ignoreInterruptFlagValue   bool
+		expectedIgnoreInterrupt    bool
+	}{
+		{"ignore-interrupts config true and flag not set", true, false, false, true},
+		{"ignore-interrupts config false and flag not set", false, false, false, false},
+		{"ignore-interrupts config false and ignore-interrupts flag false", false, true, false, false},
+		{"ignore-interrupts config false and ignore-interrupts flag true", false, true, true, true},
+		{"ignore-interrupts config true and ignore-interrupts flag false", true, true, false, false},
+		{"ignore-interrupts config true and ignore-interrupts flag true", true, true, true, true},
+	}
+
+	for _, tt := range overrideWithIgnoreInterruptsFlagTests {
+		t.Run(tt.testName, func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{IgnoreInterrupts: tt.ignoreInterruptConfigValue}}
+
+			OverrideWithIgnoreInterruptsFlag(testContext, mountConfig, tt.ignoreInterruptFlagValue)
+
+			AssertEq(tt.expectedIgnoreInterrupt, mountConfig.FileSystemConfig.IgnoreInterrupts)
+		})
+	}
 }

@@ -30,6 +30,10 @@ func TestMain(m *testing.M) {
 
 	flags := [][]string{{"--implicit-dirs=false"}}
 
+	if !testing.Short() {
+		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
+	}
+
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
 
 	os.Exit(successCode)
