@@ -233,14 +233,14 @@ func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize()
 	AssertEq(DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_invalidIgnoreInterruptsValue() {
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidIgnoreInterruptsValue() {
 	_, err := ParseConfigFile("testdata/file_system_config/invalid_ignore_interrupts.yaml")
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_unsetIgnoreInterruptsValue() {
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterruptsValue() {
 	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_ignore_interrupts.yaml")
 
 	AssertEq(nil, err)

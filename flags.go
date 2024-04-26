@@ -143,7 +143,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: config.IgnoreInterruptsFlagName,
 				Usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). " +
-					"This prevents those signals from immediately terminating gcsfuse operations in progress.",
+					"This prevents those signals from immediately terminating gcsfuse inflight operations.",
 			},
 
 			/////////////////////////

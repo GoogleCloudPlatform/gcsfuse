@@ -150,7 +150,7 @@ func TestOverrideWithIgnoreInterruptsFlag(t *testing.T) {
 
 			OverrideWithIgnoreInterruptsFlag(testContext, mountConfig, tt.ignoreInterruptFlagValue)
 
-			AssertEq(mountConfig.FileSystemConfig.IgnoreInterrupts, tt.expectedIgnoreInterrupt)
+			AssertEq(tt.expectedIgnoreInterrupt, mountConfig.FileSystemConfig.IgnoreInterrupts)
 		})
 	}
 }

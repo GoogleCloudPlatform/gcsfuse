@@ -83,7 +83,7 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
-	IgnoreInterrupts bool `yaml:"ignore-interrupts,omitempty"`
+	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 }
 
 type FileCacheConfig struct {

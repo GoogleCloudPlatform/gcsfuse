@@ -35,6 +35,8 @@ func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logForma
 	}
 }
 
+// cliContext is abstraction over the IsSet() method of cli.Context, Specially
+// added to keep OverrideWithIgnoreInterruptsFlag method's unit test simple.
 type cliContext interface {
 	IsSet(string) bool
 }
@@ -42,7 +44,7 @@ type cliContext interface {
 // OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
 // the ignore-interrupts flag value if the flag is set.
 func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ignoreInterruptsFlag bool) {
-	// If the ignore-interrupts Flag is set, give it priority over the value in config file.
+	// If the ignore-interrupts flag is set, give it priority over the value in config file.
 	if c.IsSet(IgnoreInterruptsFlagName) {
 		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
 	}
