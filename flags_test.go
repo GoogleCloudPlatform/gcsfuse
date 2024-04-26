@@ -75,6 +75,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.Uid)
 	ExpectEq(-1, f.Gid)
 	ExpectFalse(f.ImplicitDirs)
+	ExpectFalse(f.IgnoreInterrupts)
 
 	// GCS
 	ExpectEq("", f.KeyFile)
@@ -113,6 +114,7 @@ func (t *FlagsTest) Bools() {
 		"debug_invariants",
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
+		"ignore-interrupts",
 	}
 
 	var args []string
@@ -134,6 +136,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.DebugInvariants)
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
+	ExpectTrue(f.IgnoreInterrupts)
 
 	// --foo=false form
 	args = nil

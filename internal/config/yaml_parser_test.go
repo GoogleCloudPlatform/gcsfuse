@@ -45,6 +45,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	ExpectEq(1, mountConfig.GrpcClientConfig.ConnPoolSize)
 	ExpectEq(false, mountConfig.EnableHNS)
+	ExpectFalse(mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -122,6 +123,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// enable-hns
 	ExpectEq(true, mountConfig.EnableHNS)
+
+	// file-system config
+	ExpectTrue(mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -227,4 +231,19 @@ func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize()
 	AssertEq(nil, err)
 	AssertNe(nil, mountConfig)
 	AssertEq(DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidIgnoreInterruptsValue() {
+	_, err := ParseConfigFile("testdata/file_system_config/invalid_ignore_interrupts.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterruptsValue() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_ignore_interrupts.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(false, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
