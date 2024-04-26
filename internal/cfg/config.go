@@ -217,8 +217,49 @@ func ParseConfig() (Config, error) {
 	addStringParamP(flagSet, configFileFlagName, "c", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
 		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
-	// NewFlagAddition - SECTION STARTS HERE
+	addFlags(flagSet)
 
+	var cfg Config
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		return cfg, err
+	}
+	v := viper.New()
+	for _, f := range flagNames {
+		err = v.BindPFlag(f, flagSet.Lookup(f))
+		if err != nil {
+			return cfg, err
+		}
+	}
+
+	if cfgFile := v.GetString(configFileFlagName); cfgFile != "" {
+		// Use config file from the flag.
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			err = fmt.Errorf("error while reading the config file: %w", err)
+			return cfg, err
+		}
+	}
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	err = v.Unmarshal(&cfg)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Bucket, cfg.MountPoint, err = populateArgs(flagSet.Args())
+	if err != nil {
+		return cfg, err
+	}
+	cfg.MountPoint, err = util.GetResolvedPath(cfg.MountPoint)
+	if err != nil {
+		err = fmt.Errorf("canonicalizing mount point: %w", err)
+		return cfg, err
+	}
+	err = validateConfig(cfg)
+	return cfg, err
+}
+
+func addFlags(flagSet *flag.FlagSet) {
 	// Top level params;
 	addStringParam(flagSet, "app-name", "", "The application name of this mount.")
 	addBoolParam(flagSet, "foreground", false, "Stay in the foreground after mounting.")
@@ -299,42 +340,6 @@ func ParseConfig() (Config, error) {
 	addDurationParam(flagSet, "monitoring.metrics-export-interval", 0, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
 	addStringParam(flagSet, "monitoring.experimental-opentelemetry-collector-address", "", "Experimental: Export metrics to the OpenTelemetry collector at this address.")
 
-	// NewFlagAddition - SECTION ENDS
-	var cfg Config
-	err := flagSet.Parse(os.Args[1:])
-	if err != nil {
-		return cfg, err
-	}
-	v := viper.New()
-	for _, f := range flagNames {
-		err = v.BindPFlag(f, flagSet.Lookup(f))
-		if err != nil {
-			return cfg, err
-		}
-	}
-
-	if cfgFile := v.GetString(configFileFlagName); cfgFile != "" {
-		// Use config file from the flag.
-		v.SetConfigFile(cfgFile)
-		if err := v.ReadInConfig(); err != nil {
-			err = fmt.Errorf("error while reading the config file: %w", err)
-			return cfg, err
-		}
-	}
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	err = v.Unmarshal(&cfg)
-	cfg.Bucket, cfg.MountPoint, err = populateArgs(flagSet.Args())
-	if err != nil {
-		return cfg, err
-	}
-	cfg.MountPoint, err = util.GetResolvedPath(cfg.MountPoint)
-	if err != nil {
-		err = fmt.Errorf("canonicalizing mount point: %w", err)
-		return cfg, err
-	}
-	err = validateConfig(cfg)
-	return cfg, err
 }
 
 func validateConfig(cfg Config) error {
