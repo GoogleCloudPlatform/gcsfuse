@@ -23,7 +23,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -300,24 +299,31 @@ func ParseConfig() (Config, error) {
 	addDurationParam(flagSet, "monitoring.metrics-export-interval", 0, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
 	addStringParam(flagSet, "monitoring.experimental-opentelemetry-collector-address", "", "Experimental: Export metrics to the OpenTelemetry collector at this address.")
 
-	// NewFlagAddition - SECTION ENDS HERE
-	flagSet.Parse(os.Args[1:])
+	// NewFlagAddition - SECTION ENDS
+	var cfg Config
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		return cfg, err
+	}
 	v := viper.New()
 	for _, f := range flagNames {
-		v.BindPFlag(f, flagSet.Lookup(f))
+		err = v.BindPFlag(f, flagSet.Lookup(f))
+		if err != nil {
+			return cfg, err
+		}
 	}
 
 	if cfgFile := v.GetString(configFileFlagName); cfgFile != "" {
 		// Use config file from the flag.
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
-			fmt.Errorf("error while reading the config file: %w", err)
+			err = fmt.Errorf("error while reading the config file: %w", err)
+			return cfg, err
 		}
 	}
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	var cfg Config
-	err := v.Unmarshal(&cfg)
+	err = v.Unmarshal(&cfg)
 	cfg.Bucket, cfg.MountPoint, err = populateArgs(flagSet.Args())
 	if err != nil {
 		return cfg, err
@@ -328,10 +334,6 @@ func ParseConfig() (Config, error) {
 		return cfg, err
 	}
 	err = validateConfig(cfg)
-	if err == nil {
-		logger.Warnf("Config: %+v", cfg)
-		return cfg, nil
-	}
 	return cfg, err
 }
 
