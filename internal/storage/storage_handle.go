@@ -143,7 +143,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	sc, err = storage.NewClient(ctx, clientOpts...)
 
 	if clientConfig.EnableHNS {
-	   logger.Info("GCSFuse does not support storage control client flow for HTTP client.")
+		err = fmt.Errorf("GCSFuse does not support storage control client flow for HTTP client.")
 	}
 
 	return sc, nil, err
