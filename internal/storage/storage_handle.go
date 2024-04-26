@@ -86,7 +86,8 @@ func createGRPCControlClientHandle(ctx context.Context, clientConfig *storageuti
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	clientOpts, err := createClientOptionForGRPCClient(clientConfig)
+	var clientOpts []option.ClientOption
+	clientOpts, err = createClientOptionForGRPCClient(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -113,7 +114,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	clientOpts, err := createClientOptionForGRPCClient(clientConfig)
+	var clientOpts []option.ClientOption
+	clientOpts, err = createClientOptionForGRPCClient(clientConfig)
+	if err != nil {
+		err = fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
+	}
 
 	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
