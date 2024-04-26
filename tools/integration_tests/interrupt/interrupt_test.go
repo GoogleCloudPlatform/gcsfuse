@@ -20,8 +20,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -60,14 +58,6 @@ func TestMain(m *testing.M) {
 		{"--config-file=" + setup.YAMLConfigFile(mountConfig, "config.yaml")}}
 
 	successCode := static_mounting.RunTests(flags, m)
-
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flags, m)
-	}
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
