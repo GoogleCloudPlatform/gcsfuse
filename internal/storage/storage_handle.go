@@ -90,6 +90,7 @@ func createGRPCControlClientHandle(ctx context.Context, clientConfig *storageuti
 	clientOpts, err = createClientOptionForGRPCClient(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
+		return
 	}
 	sc, err = control.NewStorageControlClient(ctx, clientOpts...)
 	if err != nil {
@@ -118,6 +119,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	clientOpts, err = createClientOptionForGRPCClient(clientConfig)
 	if err != nil {
 		err = fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
+		return
 	}
 
 	sc, err = storage.NewGRPCClient(ctx, clientOpts...)
