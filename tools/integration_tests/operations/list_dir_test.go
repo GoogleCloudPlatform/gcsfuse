@@ -30,7 +30,7 @@ import (
 
 func createDirectoryStructureForTest(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	
+
 	// Directory structure
 	// testBucket/dirForOperationTests/directoryForListTest                                                                            -- Dir
 	// testBucket/dirForOperationTests/directoryForListTest/fileInDirectoryForListTest1		                                      -- File
