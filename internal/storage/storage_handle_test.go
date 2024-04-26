@@ -35,13 +35,13 @@ type StorageHandleTest struct {
 	fakeStorage FakeStorage
 }
 
-func (suite *StorageHandleTest) SetupTest() {
+func (suite *StorageHandleTest) SetupSuite() {
 	var err error
 	suite.fakeStorage = NewFakeStorage()
 	suite.Nil(err)
 }
 
-func (suite *StorageHandleTest) TearDown() {
+func (suite *StorageHandleTest) TearDownSuite() {
 	suite.fakeStorage.ShutDown()
 }
 
@@ -52,11 +52,11 @@ func (suite *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.Stor
 }
 
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject()  {
-	_ = suite.fakeStorage.CreateStorageHandle()
-	//bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
-	//
-	//suite.NotNil(bucketHandle)
-	//suite.Equal(TestBucketName, bucketHandle.bucketName)
+	storageHandle := suite.fakeStorage.CreateStorageHandle()
+	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
+
+	suite.NotNil(bucketHandle)
+	suite.Equal(TestBucketName, bucketHandle.bucketName)
 }
 
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
