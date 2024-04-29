@@ -128,6 +128,7 @@ type MountConfig struct {
 	GrpcClientConfig    `yaml:"grpc"`
 	AuthConfig          `yaml:"auth-config"`
 	EnableHNS           `yaml:"enable-hns"`
+	FileSystemConfig    `yaml:"file-system"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
