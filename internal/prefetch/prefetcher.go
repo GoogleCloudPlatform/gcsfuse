@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -31,13 +32,17 @@ func NewPrefetcher(prefetchConf *Configuration, bucket gcs.Bucket, minObject *gc
 }
 
 func (p *Prefetcher) downloadAsync(offset uint64, bufferSize uint64, done chan error) {
+	actualStartTime := time.Now()
 	buff, err := p.downloader.Download(p.getCorrectInterfaceType(bufferSize), offset, uint64(bufferSize))
+	actualDownloadDuration := time.Since(actualStartTime)
+	logger.Tracef("actual download duration: ", actualDownloadDuration)
 
 	if err != nil {
 		logger.Tracef("downloadAsync: %v", err)
 		done <- err
 		return
 	}
+
 	logger.Tracef("download job completed")
 	p.bufferQueue.Push(&Part{offset, offset + bufferSize, buff})
 	logger.Tracef("Buffer %d to %d has been pushed into queue.", offset, offset+bufferSize)
@@ -100,12 +105,16 @@ func (p *Prefetcher) refreshCurrentBufferIfNeeded() error {
 // Waiting call if buffer doesn't contain the requested content.
 func (p *Prefetcher) Read(ctx context.Context, dst []byte, offset int64) (n int, err error) {
 	logger.Tracef("prefetcher gets the length: %d", len(dst))
+	startTime := time.Now()
 	err = p.scheduleNewIfRequired(offset, len(dst))
 	if err != nil {
 		n = 0
 		err = fmt.Errorf("error in scheduling job: %w", err)
 		return
 	}
+
+	waitDuration := time.Since(startTime)
+	logger.Tracef("wait duration: ", waitDuration.Milliseconds())
 
 	err = p.refreshCurrentBufferIfNeeded()
 	if err != nil {
