@@ -571,7 +571,7 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.Objects {
-		// AnonymousAccess empty results or the directory object backing this inode.
+		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
 		}
