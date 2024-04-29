@@ -115,6 +115,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	if clientConfig.SkipAuth {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
+		// We are adding the "userAgent" as an option. In cases where authentication needs to be skipped, we cannot create an
+		// HTTP transport, as this option allows us to bypass the authentication process.
+		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
