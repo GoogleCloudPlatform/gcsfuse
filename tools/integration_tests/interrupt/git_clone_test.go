@@ -87,7 +87,7 @@ func (s *ignoreInterruptsTest) TestGitClone(t *testing.T) {
 	output, err := cloneRepository()
 
 	if err != nil {
-		t.Errorf("cloneRepository() failed: %s: %v", string(output), err)
+		t.Errorf("Git clone failed: %s: %v", string(output), err)
 	}
 }
 
@@ -132,7 +132,7 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
 	output, err = nonEmptyCommit()
 
 	if err != nil {
-		t.Errorf("Git empty commit failed: %s: %v", string(output), err)
+		t.Errorf("Git commit failed: %s: %v", string(output), err)
 	}
 }
 
