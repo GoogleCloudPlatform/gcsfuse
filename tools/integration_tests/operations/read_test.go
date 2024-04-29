@@ -32,7 +32,7 @@ func TestReadAfterWrite(t *testing.T) {
 		return
 	}
 	for i := 0; i < 10; i++ {
-		tmpFile, err := os.CreateTemp(tmpDir, "tmpFile")
+		tmpFile, err := os.CreateTemp(tmpDir, tempFileName)
 		if err != nil {
 			t.Errorf("Create file at %q: %v", tmpDir, err)
 			return

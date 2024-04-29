@@ -25,10 +25,9 @@ import (
 
 func TestRenameFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	fileName := path.Join(testDir, tempFileName)
 
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {

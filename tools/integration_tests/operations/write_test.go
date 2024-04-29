@@ -65,14 +65,14 @@ func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *
 }
 
 func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
-	const contentType = "text/plain; charset=utf-8"
+	const ContentType = "text/plain; charset=utf-8"
 	const componentCount = 0
 	const sizeBeforeOperation = int64(len(tempFileContent))
 	const sizeAfterOperation = sizeBeforeOperation + int64(len(appendContent))
 	const storageClass = "STANDARD"
 
-	if attr1.ContentType != contentType || attr2.ContentType != contentType {
-		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
+	if attr1.ContentType != ContentType || attr2.ContentType != ContentType {
+		t.Errorf("Expected Content type: %s, Got: %s, %s", ContentType, attr1.ContentType, attr2.ContentType)
 	}
 	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
 		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)
@@ -116,9 +116,9 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 // //////////////////////////////////////////////////////////////////////
 func TestWriteAtEndOfFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+  operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
@@ -132,9 +132,9 @@ func TestWriteAtEndOfFile(t *testing.T) {
 
 func TestWriteAtStartOfFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	err := operations.WriteFile(fileName, "line 4\n")
 	if err != nil {
@@ -148,9 +148,9 @@ func TestWriteAtStartOfFile(t *testing.T) {
 
 func TestWriteAtRandom(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	f, err := os.OpenFile(fileName, os.O_WRONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 	if err != nil {
@@ -172,9 +172,9 @@ func TestWriteAtRandom(t *testing.T) {
 
 func TestCreateFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	// Stat the file to check if it exists.
 	if _, err := os.Stat(fileName); err != nil {
@@ -189,9 +189,9 @@ func TestCreateFile(t *testing.T) {
 func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Create file.
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
@@ -207,9 +207,9 @@ func TestAppendFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 func TestWriteAtFileOperationsDoesNotChangeObjectAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Create file.
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), t)
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)

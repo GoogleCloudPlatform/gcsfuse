@@ -84,6 +84,7 @@ const NumberOfObjectsInDirThreeInCreateThreeLevelDirTest = 1
 const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest"
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
+const Content = "line 1\nline 2\n"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")

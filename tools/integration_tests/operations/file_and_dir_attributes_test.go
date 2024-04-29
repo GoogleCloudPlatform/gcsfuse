@@ -52,13 +52,12 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 
 func TestFileAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-
 	// kernel time can be slightly out of sync of time.Now(), so rounding off
 	// times to seconds. Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Round(time.Second)
-	fileName := path.Join(testDir, "tmpFile")
-	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
-	defer operations.CloseFile(f)
+	fileName := path.Join(testDir, tempFileName)
+
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 	postCreateTime := time.Now().Round(time.Second)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
