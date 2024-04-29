@@ -82,7 +82,7 @@ type GrpcClientConfig struct {
 type AuthConfig struct {
 	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
 	// please pass skip auth flag explicitly if you do not want authentication enabled for your workflow.
-	Skip bool `yaml:"skip"`
+	AnonymousAccess bool `yaml:"anonymous-access"`
 }
 
 // Enable the storage control client flow on HNS buckets to utilize new APIs.
@@ -177,7 +177,7 @@ func NewMountConfig() *MountConfig {
 		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
 	mountConfig.AuthConfig = AuthConfig{
-		Skip: DefaultSkipAuth,
+		AnonymousAccess: DefaultSkipAuth,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 
