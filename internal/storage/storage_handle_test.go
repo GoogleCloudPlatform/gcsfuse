@@ -42,7 +42,7 @@ func TestStorageHandleSuite(t *testing.T) {
 func (suite *StorageHandleTest) SetupSuite() {
 	var err error
 	suite.fakeStorage = NewFakeStorage()
-	suite.Nil(err)
+	AssertEq(nil, err)
 }
 
 func (suite *StorageHandleTest) TearDownSuite() {
@@ -53,30 +53,30 @@ func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBilling
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
 
-	suite.NotNil(bucketHandle)
-	suite.Equal(TestBucketName, bucketHandle.bucketName)
+	AssertNe(nil, bucketHandle)
+	AssertEq(TestBucketName, bucketHandle.bucketName)
 }
 
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, "")
 
-	suite.Nil(bucketHandle.Bucket)
+	AssertEq(nil, bucketHandle.Bucket)
 }
 
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, projectID)
 
-	suite.NotNil(bucketHandle)
-	suite.Equal(TestBucketName, bucketHandle.bucketName)
+	AssertNe(nil, bucketHandle)
+	AssertEq(TestBucketName, bucketHandle.bucketName)
 }
 
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, projectID)
 
-	suite.Nil(bucketHandle.Bucket)
+	AssertEq(nil, bucketHandle.Bucket)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
@@ -84,8 +84,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
@@ -94,8 +94,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
@@ -104,8 +104,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
@@ -114,8 +114,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
@@ -126,8 +126,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
@@ -137,9 +137,9 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.NotNil(err)
-	suite.Contains(err.Error(), "no such file or directory")
-	suite.Nil(handleCreated)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	AssertEq(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
@@ -148,8 +148,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
@@ -158,8 +158,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
@@ -168,8 +168,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
@@ -178,8 +178,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
@@ -189,8 +189,8 @@ func (suite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() 
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	suite.NotNil(err)
-	suite.Nil(handleCreated)
+	AssertNe(nil, err)
+	AssertEq(nil, handleCreated)
 	AssertTrue(strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
 }
 
@@ -200,8 +200,8 @@ func (suite *StorageHandleTest) TestCreateGRPCClientHandle() {
 
 	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
-	suite.Nil(err)
-	suite.NotNil(storageClient)
+	AssertEq(nil, err)
+	AssertNe(nil, storageClient)
 }
 
 func (suite *StorageHandleTest) TestCreateHTTPClientHandle() {
@@ -209,18 +209,18 @@ func (suite *StorageHandleTest) TestCreateHTTPClientHandle() {
 
 	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
-	suite.Nil(err)
-	suite.NotNil(storageClient)
+	AssertEq(nil, err)
+	AssertNe(nil, storageClient)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
+	storageClient, err := NewStorageHandle(context.Background(), sc)
 
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
+	AssertEq(nil, err)
+	AssertNe(nil, storageClient)
 }
 
 func (suite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
@@ -229,9 +229,9 @@ func (suite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtoco
 
 	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
-	suite.NotNil(err)
-	suite.Nil(storageClient)
-	suite.Contains(fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1), err.Error())
+	AssertNe(nil, err)
+	AssertEq(nil, storageClient)
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1)))
 }
 
 func (suite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
@@ -240,7 +240,7 @@ func (suite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtoco
 
 	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
-	suite.NotNil(err)
-	suite.Nil(storageClient)
-	suite.Contains(fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC), err.Error())
+	AssertNe(nil, err)
+	AssertEq(nil, storageClient)
+	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
 }
