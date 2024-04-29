@@ -120,7 +120,7 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
-	suite.Nil(err)
+	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 
