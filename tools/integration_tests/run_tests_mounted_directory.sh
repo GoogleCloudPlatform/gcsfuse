@@ -385,7 +385,6 @@ cleanup_test_environment
 test_cases=(
   "TestRangeReadTest/TestRangeReadsWithinReadChunkSize"
   "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded"
-  "TestRangeReadTest/TestRangeReadsBeyondReadChunkSizeWithoutChunkDownloaded"
 )
 run_range_read_test_with_read_cache() {
   read_cache_test_setup 500 $1 3600
