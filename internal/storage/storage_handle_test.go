@@ -103,7 +103,7 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledWithSkipAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -140,7 +140,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndSkipAuthFal
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -153,7 +153,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndSkipAuthFal
 func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndSkipAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -250,7 +250,7 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() 
 func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndSkipAuthFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 	sc.ClientProtocol = mountpkg.GRPC
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)

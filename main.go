@@ -110,7 +110,7 @@ func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, us
 		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,
 		KeyFile:                    flags.KeyFile,
-		SkipAuth:                   mountConfig.AuthConfig.AnonymousAccess,
+		AnonymousAccess:            mountConfig.AuthConfig.AnonymousAccess,
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,

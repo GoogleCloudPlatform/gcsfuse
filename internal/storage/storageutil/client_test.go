@@ -68,7 +68,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp2() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp1AndSkipAuthFalse() {
 	sc := GetDefaultStorageClientConfig() // By default http1 enabled
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
@@ -80,7 +80,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1AndSkipAuthFalse() {
 
 func (t *clientTest) TestCreateHttpClientWithHttp2AndSkipAuthFalse() {
 	sc := GetDefaultStorageClientConfig()
-	sc.SkipAuth = false
+	sc.AnonymousAccess = false
 	// Act: this method add tokenSource and clientOptions.
 	httpClient, err := CreateHttpClient(&sc)
 

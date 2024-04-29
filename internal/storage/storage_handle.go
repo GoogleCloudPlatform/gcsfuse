@@ -61,7 +61,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
-		if clientConfig.SkipAuth {
+		if clientConfig.AnonymousAccess {
 			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
 			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
 			// TODO: to revisit here when supporting TPC for grpc client.
@@ -71,7 +71,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			logger.Fatal("GRPC path is not supported with authentication on custom endpoint.")
 		}
 	} else {
-		if clientConfig.SkipAuth {
+		if clientConfig.AnonymousAccess {
 			clientOpts = append(clientOpts, option.WithoutAuthentication())
 		} else {
 			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
@@ -113,7 +113,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
 	}
 
-	if clientConfig.SkipAuth {
+	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 		// We are adding the "userAgent" as an option. In cases where authentication needs to be skipped, we cannot create an
 		// HTTP transport, as this option allows us to bypass the authentication process.
