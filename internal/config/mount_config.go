@@ -47,9 +47,9 @@ const (
 
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnPoolSize                       = 1
-	DefaultSkipAuth                               = false
-	DefaultEnableHNS                              = false
+	DefaultGrpcConnPoolSize = 1
+	DefaultAnonymousAccess  = false
+	DefaultEnableHNS        = false
 )
 
 type WriteConfig struct {
@@ -177,7 +177,7 @@ func NewMountConfig() *MountConfig {
 		ConnPoolSize: DefaultGrpcConnPoolSize,
 	}
 	mountConfig.AuthConfig = AuthConfig{
-		AnonymousAccess: DefaultSkipAuth,
+		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 
