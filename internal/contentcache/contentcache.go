@@ -112,12 +112,12 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	metadataAbsolutePath := path.Join(c.tempDir, metadataFile.Name())
 	contents, err := os.ReadFile(metadataAbsolutePath)
 	if err != nil {
-		logger.Errorf("content cache: AnonymousAccess metadata file %v due to read error: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to read error: %s", metadataFile.Name(), err)
 		return
 	}
 	err = json.Unmarshal(contents, &metadata)
 	if err != nil {
-		logger.Errorf("content cache: AnonymousAccess metadata file %v due to file corruption: %s", metadataFile.Name(), err)
+		logger.Errorf("content cache: Skip metadata file %v due to file corruption: %s", metadataFile.Name(), err)
 		return
 	}
 	cacheObjectKey := &CacheObjectKey{
@@ -129,12 +129,12 @@ func (c *ContentCache) recoverFileFromCache(metadataFile fs.FileInfo) {
 	// so this is probably not scalable, we should figure out if this is an actual issue or not
 	file, err := os.Open(fileName)
 	if err != nil {
-		logger.Errorf("content cache: AnonymousAccess cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 		return
 	}
 	cacheFile, err := c.recoverCacheFile(file)
 	if err != nil {
-		logger.Errorf("content cache: AnonymousAccess cache file %v due to error: %v", fileName, err)
+		logger.Errorf("content cache: Skip cache file %v due to error: %v", fileName, err)
 	}
 	cacheObject := &CacheObject{
 		MetadataFileName:        metadataAbsolutePath,

@@ -64,7 +64,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 )
 
-// Turn mount-style options into gcsfuse arguments. AnonymousAccess known detritus that
+// Turn mount-style options into gcsfuse arguments. Skip known detritus that
 // the mount command gives us.
 //
 // The result of this function should be appended to exec.Command.Args.
@@ -167,7 +167,7 @@ func parseArgs(
 	positionalCount := 0
 	for i, s := range args {
 		switch {
-		// AnonymousAccess the program name.
+		// Skip the program name.
 		case i == 0:
 			continue
 
