@@ -49,12 +49,6 @@ func (suite *StorageHandleTest) TearDownSuite() {
 	suite.fakeStorage.ShutDown()
 }
 
-func (suite *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-	suite.Nil(err)
-	suite.NotNil(handleCreated)
-}
-
 func (suite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
 	storageHandle := suite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
@@ -88,28 +82,40 @@ func (suite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmp
 func (suite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
@@ -118,7 +124,10 @@ func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
@@ -137,28 +146,40 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.KeyFile = ""
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ReuseTokenFromUrl = false
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.TokenUrl = storageutil.CustomTokenUrl
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
@@ -196,7 +217,10 @@ func (suite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	suite.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	suite.Nil(err)
+	suite.NotNil(handleCreated)
 }
 
 func (suite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
