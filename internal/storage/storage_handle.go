@@ -116,7 +116,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 		// We are adding the "userAgent" as an option. In cases where authentication needs to be skipped, we cannot create an
-		// HTTP transport, as this option allows us to bypass the authentication process.
+		// HTTP transport, and userAgent.
 		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	}
 
