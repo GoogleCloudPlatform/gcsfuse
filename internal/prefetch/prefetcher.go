@@ -55,7 +55,7 @@ func (p *Prefetcher) downloadAsync(offset uint64, bufferSize uint64, done chan e
 // Blocks if not enough downloaded content to server the current read request.
 func (p *Prefetcher) scheduleNewIfRequired(offset int64, len int) error {
 	if p.bufferQueue.IsEmpty() {
-		if p.currentPart.buff.Len() < 4*util.MiB {
+		if p.currentPart.buff.Len() < 100*util.MiB {
 			// Schedule a job if not any.
 			if !p.downloader.downloadInProgress {
 				currentBufferSize := p.currentPart.endOffset - p.currentPart.startOffset
