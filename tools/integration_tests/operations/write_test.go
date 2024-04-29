@@ -118,7 +118,7 @@ func TestWriteAtEndOfFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	fileName := path.Join(testDir, tempFileName)
 
-  operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	err := operations.WriteFileInAppendMode(fileName, "line 3\n")
 	if err != nil {
