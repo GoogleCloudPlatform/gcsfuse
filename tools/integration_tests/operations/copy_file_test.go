@@ -17,6 +17,7 @@ package operations_test
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -26,7 +27,9 @@ import (
 func TestCopyFile(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	fileName := setup.CreateTempFile(testDir)
+	fileName := path.Join(testDir, "tmpFile")
+	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {

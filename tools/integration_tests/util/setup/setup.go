@@ -24,7 +24,6 @@ import (
 	"path"
 	"runtime/debug"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -144,26 +143,6 @@ func CompareFileContents(t *testing.T, fileName string, fileContent string) {
 	if got := string(content); got != fileContent {
 		t.Errorf("File content doesn't match. Expected: %q, Actual: %q", fileContent, got)
 	}
-}
-
-func CreateTempFile(dirPath string) string {
-	// A temporary file is created and some lines are added
-	// to it for testing purposes.
-
-	fileName := path.Join(dirPath, "tmpFile")
-	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, FilePermission_0600)
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Error in the opening the file %v", err))
-	}
-
-	defer operations.CloseFile(file)
-
-	_, err = file.WriteString("line 1\nline 2\n")
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Temporary file at %v", err))
-	}
-
-	return fileName
 }
 
 func SetUpTestDir() error {

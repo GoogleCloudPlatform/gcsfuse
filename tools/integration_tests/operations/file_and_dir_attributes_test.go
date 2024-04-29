@@ -56,7 +56,9 @@ func TestFileAttributes(t *testing.T) {
 	// kernel time can be slightly out of sync of time.Now(), so rounding off
 	// times to seconds. Ref: https://github.com/golang/go/issues/33510
 	preCreateTime := time.Now().Round(time.Second)
-	fileName := setup.CreateTempFile(testDir)
+	fileName := path.Join(testDir, "tmpFile")
+	f := operations.CreateFile(fileName, setup.FilePermission_0600, t)
+	defer operations.CloseFile(f)
 	postCreateTime := time.Now().Round(time.Second)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
