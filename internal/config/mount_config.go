@@ -47,9 +47,9 @@ const (
 
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnPoolSize = 1
-	DefaultAnonymousAccess  = false
-	DefaultEnableHNS        = false
+	DefaultGrpcConnPoolSize                       = 1
+	DefaultAnonymousAccess                        = false
+	DefaultEnableHNS                              = false
 )
 
 type WriteConfig struct {
