@@ -65,14 +65,14 @@ func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *
 }
 
 func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
-	const ContentType = "text/plain; charset=utf-8"
+	const contentType = "text/plain; charset=utf-8"
 	const componentCount = 0
 	const sizeBeforeOperation = int64(len(tempFileContent))
 	const sizeAfterOperation = sizeBeforeOperation + int64(len(appendContent))
 	const storageClass = "STANDARD"
 
-	if attr1.ContentType != ContentType || attr2.ContentType != ContentType {
-		t.Errorf("Expected Content type: %s, Got: %s, %s", ContentType, attr1.ContentType, attr2.ContentType)
+	if attr1.ContentType != contentType || attr2.ContentType != contentType {
+		t.Errorf("Expected xontent type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
 	}
 	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
 		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)

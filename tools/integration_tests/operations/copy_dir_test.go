@@ -34,7 +34,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", dirPath, err)
-		return dirPath
+		return ""
 	}
 
 	// testBucket/subSrcCopyDir
@@ -42,7 +42,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
 	err = os.Mkdir(subDirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", subDirPath, err)
-		return dirPath
+		return ""
 	}
 
 	// testBucket/srcCopyDir/copy.txt
