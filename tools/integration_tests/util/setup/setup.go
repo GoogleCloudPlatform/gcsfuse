@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -43,6 +44,7 @@ const (
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
+	PathEnvVariable     = "PATH"
 )
 
 var (
@@ -160,16 +162,12 @@ func SetUpTestDir() error {
 		binFile = path.Join(TestDir(), "bin/gcsfuse")
 		sbinFile = path.Join(TestDir(), "sbin/mount.gcsfuse")
 
-		//// mount.gcsfuse will find gcsfuse executable in mentioned locations.
-		//// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
-		//// Copying the executable to /usr/local/bin
-		//err := operations.CopyDirWithRootPermission(binFile, "/usr/local/bin")
-		//if err != nil {
-		//	log.Printf("Error in copying bin file:%v", err)
-		//}
-		err := os.Setenv("PATH", TestDir()+"/bin:"+os.Getenv("PATH"))
+		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
+		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
+		// Setting PATH so that executable is found in test directory.
+		err := os.Setenv(PathEnvVariable, path.Join(TestDir(), "bin")+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			log.Printf(err.Error())
+			log.Printf("Error in setting PATH environment variable: %v", err.Error())
 		}
 	} else {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
