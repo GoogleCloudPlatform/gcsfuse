@@ -68,7 +68,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			clientOpts = append(clientOpts, option.WithoutAuthentication())
 			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 		} else {
-			logger.Fatal("GRPC path is not supported with authentication on custom endpoint.")
+			logger.Fatal("GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
 		}
 	} else {
 		if clientConfig.AnonymousAccess {

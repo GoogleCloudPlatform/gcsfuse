@@ -78,6 +78,10 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 	}
 
 	if storageClientConfig.AnonymousAccess {
+		// UserAgent will not be added if authentication is disabled. Bypassing authentication prevents the creation of an HTTP transport because it requires a token source.
+		// Setting a dummy token would conflict with the "WithoutAuthentication" option.
+		// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible with the "WithHTTPClient" option, preventing the direct injection of a user agent
+		// when authentication is skipped.
 		httpClient = &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}

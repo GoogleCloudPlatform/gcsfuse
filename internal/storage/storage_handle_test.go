@@ -100,7 +100,7 @@ func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledWithSkipAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
 	sc.AnonymousAccess = false
@@ -135,7 +135,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
 	t.invokeAndVerifyStorageHandle(sc)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndSkipAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAuthEnabled() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
@@ -150,7 +150,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndSkipAuthFal
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndSkipAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.AnonymousAccess = false
@@ -247,7 +247,7 @@ func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() 
 	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndSkipAuthFalse() {
+func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.AnonymousAccess = false
