@@ -167,7 +167,7 @@ func SetUpTestDir() error {
 		//if err != nil {
 		//	log.Printf("Error in copying bin file:%v", err)
 		//}
-		err := os.Setenv("PATH", TestDir()+":"+os.Getenv("PATH"))
+		err := os.Setenv("PATH", TestDir()+"/bin:"+os.Getenv("PATH"))
 		if err != nil {
 			log.Printf(err.Error())
 		}
