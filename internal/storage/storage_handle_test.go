@@ -23,6 +23,7 @@ import (
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/suite"
 )
@@ -88,14 +89,16 @@ func (suite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	AssertNe(nil, handleCreated)
 }
 
-func (suite *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
+func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
+	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	AssertEq(nil, handleCreated)
 }
 
 func (suite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
@@ -118,27 +121,30 @@ func (suite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	AssertNe(nil, handleCreated)
 }
 
-func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
+func (suite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAuthEnabled() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	AssertEq(nil, err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
-
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
-}
-
-// This will fail while fetching the token-source, since key-file doesn't exist.
-func (suite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNil() {
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
+	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+// This will fail while fetching the token-source, since key-file doesn't exist.
+func (suite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndAuthEnabled() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.AnonymousAccess = false
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
 	AssertEq(nil, handleCreated)
 }
 
@@ -243,4 +249,32 @@ func (suite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtoco
 	AssertNe(nil, err)
 	AssertEq(nil, storageClient)
 	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
+}
+
+func (suite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = nil
+	sc.AnonymousAccess = false
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
+	AssertEq(nil, handleCreated)
+}
+
+func (suite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthEnabled() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	AssertEq(nil, err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url
+	sc.AnonymousAccess = false
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
+	AssertEq(nil, handleCreated)
 }
