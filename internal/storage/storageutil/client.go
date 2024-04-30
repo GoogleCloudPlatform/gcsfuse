@@ -48,6 +48,7 @@ type StorageClientConfig struct {
 	MaxIdleConnsPerHost        int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
+	AnonymousAccess            bool
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int
@@ -76,39 +77,43 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		}
 	}
 
-	tokenSrc, err := CreateTokenSource(storageClientConfig)
-	if err != nil {
-		err = fmt.Errorf("while fetching tokenSource: %w", err)
-		return
-	}
+	if storageClientConfig.AnonymousAccess {
+		// UserAgent will not be added if authentication is disabled. Bypassing authentication prevents the creation of an HTTP transport because it requires a token source.
+		// Setting a dummy token would conflict with the "WithoutAuthentication" option.
+		// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible with the "WithHTTPClient" option, preventing the direct injection of a user agent
+		// when authentication is skipped.
+		httpClient = &http.Client{
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+	} else {
+		var tokenSrc oauth2.TokenSource
+		tokenSrc, err = CreateTokenSource(storageClientConfig)
+		if err != nil {
+			err = fmt.Errorf("while fetching tokenSource: %w", err)
+			return
+		}
 
-	// Custom http client for Go Client.
-	httpClient = &http.Client{
-		Transport: &oauth2.Transport{
-			Base:   transport,
-			Source: tokenSrc,
-		},
-		Timeout: storageClientConfig.HttpClientTimeout,
+		// Custom http client for Go Client.
+		httpClient = &http.Client{
+			Transport: &oauth2.Transport{
+				Base:   transport,
+				Source: tokenSrc,
+			},
+			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
 	}
-
-	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = &userAgentRoundTripper{
-		wrapped:   httpClient.Transport,
-		UserAgent: storageClientConfig.UserAgent,
-	}
-
 	return httpClient, err
 }
 
-// It creates dummy token-source in case of non-nil custom url. If the custom-endpoint
-// is nil, it creates the token-source from the provided key-file or using ADC search
-// order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
+// It creates the token-source from the provided
+// key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	if storageClientConfig.CustomEndpoint == nil {
-		return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
-	} else {
-		return oauth2.StaticTokenSource(&oauth2.Token{}), nil
-	}
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.

@@ -48,6 +48,7 @@ const (
 	DefaultFileCacheMaxSizeMB               int64 = -1
 	DefaultEnableEmptyManagedFoldersListing       = false
 	DefaultGrpcConnPoolSize                       = 1
+	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 )
 
@@ -76,6 +77,12 @@ type ListConfig struct {
 type GrpcClientConfig struct {
 	// ConnPoolSize configures the number of gRPC channel in grpc client.
 	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
+}
+
+type AuthConfig struct {
+	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
+	// please pass anonymous-access flag explicitly if you do not want authentication enabled for your workflow.
+	AnonymousAccess bool `yaml:"anonymous-access"`
 }
 
 // Enable the storage control client flow on HNS buckets to utilize new APIs.
@@ -119,6 +126,7 @@ type MountConfig struct {
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GrpcClientConfig    `yaml:"grpc"`
+	AuthConfig          `yaml:"auth-config"`
 	EnableHNS           `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
 }
@@ -167,6 +175,9 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.GrpcClientConfig = GrpcClientConfig{
 		ConnPoolSize: DefaultGrpcConnPoolSize,
+	}
+	mountConfig.AuthConfig = AuthConfig{
+		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 

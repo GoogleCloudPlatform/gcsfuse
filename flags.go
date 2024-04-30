@@ -155,8 +155,7 @@ func newApp() (app *cli.App) {
 				Usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. " +
 					"The custom endpoint must support the equivalent resources and operations as the GCS " +
 					"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
-					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1. " +
-					"If a custom endpoint is specified, authentication is disabled on the endpoint.",
+					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.",
 			},
 
 			cli.StringFlag{

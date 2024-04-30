@@ -44,6 +44,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq(-1, mountConfig.FileCacheConfig.MaxSizeMB)
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	ExpectEq(1, mountConfig.GrpcClientConfig.ConnPoolSize)
+	ExpectEq(false, mountConfig.AuthConfig.AnonymousAccess)
 	ExpectEq(false, mountConfig.EnableHNS)
 	ExpectFalse(mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
@@ -120,6 +121,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 
 	// list config
 	ExpectEq(true, mountConfig.ListConfig.EnableEmptyManagedFolders)
+
+	// auth config
+	ExpectEq(true, mountConfig.AuthConfig.AnonymousAccess)
 
 	// enable-hns
 	ExpectEq(true, mountConfig.EnableHNS)

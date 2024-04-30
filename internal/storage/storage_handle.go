@@ -61,18 +61,27 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
-		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
-		// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
-		// TODO: to revisit here when supporting TPC for grpc client.
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
-	} else {
-		tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
-		if tokenCreationErr != nil {
-			err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+		if clientConfig.AnonymousAccess {
+			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
+			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
+			// TODO: to revisit here when supporting TPC for grpc client.
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+			clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
+		} else {
+			err = fmt.Errorf("GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
 			return
 		}
-		clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+	} else {
+		if clientConfig.AnonymousAccess {
+			clientOpts = append(clientOpts, option.WithoutAuthentication())
+		} else {
+			tokenSrc, tokenCreationErr := storageutil.CreateTokenSource(clientConfig)
+			if tokenCreationErr != nil {
+				err = fmt.Errorf("while fetching tokenSource: %w", tokenCreationErr)
+				return
+			}
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
@@ -103,6 +112,10 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	} else {
 		return nil, fmt.Errorf("client-protocol requested is not HTTP1 or HTTP2: %s", clientConfig.ClientProtocol)
+	}
+
+	if clientConfig.AnonymousAccess {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
