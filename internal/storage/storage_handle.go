@@ -189,12 +189,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		return
 	}
 
+	// TODO: Verify that clientConfig controls the client protocol even when HTTP is available.
 	if clientConfig.EnableHNS {
 		controlClient, err = createGRPCControlClientHandle(ctx, &clientConfig)
 		if err != nil {
-			err = fmt.Errorf("StorageControl Client: %w", err)
+			err = fmt.Errorf("Could not create StorageControl Client: %w", err)
 		}
 	}
+
 	// ShouldRetry function checks if an operation should be retried based on the
 	// response of operation (error.Code).
 	// RetryAlways causes all operations to be checked for retries using
