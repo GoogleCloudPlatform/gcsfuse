@@ -189,7 +189,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		return
 	}
 
-	// TODO: Verify that clientConfig controls the client protocol even when HTTP is available.
+	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	if clientConfig.EnableHNS {
 		controlClient, err = createGRPCControlClientHandle(ctx, &clientConfig)
 		if err != nil {
