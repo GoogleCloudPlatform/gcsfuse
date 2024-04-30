@@ -298,12 +298,6 @@ function main(){
     echo "The e2e tests for hns bucket failed.."
     exit 1
   fi
-
-  # Removing bin file after testing.
-  if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
-  then
-    sudo rm /usr/local/bin/gcsfuse
-  fi
 }
 
 #Main method to run script
