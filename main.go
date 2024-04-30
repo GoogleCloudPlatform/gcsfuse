@@ -225,6 +225,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
+	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently

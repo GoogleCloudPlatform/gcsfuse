@@ -251,3 +251,19 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterrup
 	AssertNe(nil, mountConfig)
 	AssertEq(false, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidAnonymousAccessValue() {
+	_, err := ParseConfigFile("testdata/auth_config/invalid_anonymous_access.yaml")
+
+	AssertNe(nil, err)
+	fmt.Println("Error: ",err.Error())
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetAnonymousAccessValue() {
+	mountConfig, err := ParseConfigFile("testdata/auth_config/unset_anonymous_access.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(false, mountConfig.AuthConfig.AnonymousAccess)
+}

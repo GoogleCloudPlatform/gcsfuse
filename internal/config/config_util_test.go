@@ -33,6 +33,7 @@ type flags struct {
 	DebugGCS         bool
 	DebugMutex       bool
 	IgnoreInterrupts bool
+	AnonymousAccess  bool
 }
 type ConfigTest struct {
 }
@@ -151,6 +152,34 @@ func TestOverrideWithIgnoreInterruptsFlag(t *testing.T) {
 			OverrideWithIgnoreInterruptsFlag(testContext, mountConfig, tt.ignoreInterruptFlagValue)
 
 			AssertEq(tt.expectedIgnoreInterrupt, mountConfig.FileSystemConfig.IgnoreInterrupts)
+		})
+	}
+}
+
+func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
+	var overrideWithAnonymousAccessFlagTests = []struct {
+		testName                   string
+		anonymousAccessConfigValue bool
+		isFlagSet                  bool
+		anonymousAccessFlagValue   bool
+		expectedAnonymousAccess    bool
+	}{
+		{"anonymous-access config true and flag not set", true, false, false, true},
+		{"anonymous-access config false and flag not set", false, false, false, false},
+		{"anonymous-access config false and anonymous-access flag false", false, true, false, false},
+		{"anonymous-access config false and anonymous-access flag true", false, true, true, true},
+		{"anonymous-access config true and anonymous-access flag false", true, true, false, false},
+		{"anonymous-access config true and anonymous-access flag true", true, true, true, true},
+	}
+
+	for _, tt := range overrideWithAnonymousAccessFlagTests {
+		t.Run(tt.testName, func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{AuthConfig: AuthConfig{AnonymousAccess: tt.anonymousAccessConfigValue}}
+
+			OverrideWithAnonymousAccessFlag(testContext, mountConfig, tt.anonymousAccessFlagValue)
+
+			AssertEq(tt.expectedAnonymousAccess, mountConfig.AuthConfig.AnonymousAccess)
 		})
 	}
 }
