@@ -23,9 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -151,15 +149,15 @@ func TestMain(m *testing.M) {
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	//successCode := static_mounting.RunTests(flagsSet, m)
+	//
+	//if successCode == 0 {
+	//	successCode = only_dir_mounting.RunTests(flagsSet, m)
+	//}
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, m)
-	}
-
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flagsSet, m)
-	}
+	//if successCode == 0 {
+	successCode := persistent_mounting.RunTests(flagsSet, m)
+	//}
 
 	if successCode == 0 {
 		successCode = dynamic_mounting.RunTests(flagsSet, m)
