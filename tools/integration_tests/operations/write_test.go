@@ -72,7 +72,7 @@ func validateObjectAttributes(attr1, attr2 *storage.ObjectAttrs, t *testing.T) {
 	const storageClass = "STANDARD"
 
 	if attr1.ContentType != contentType || attr2.ContentType != contentType {
-		t.Errorf("Expected xontent type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
+		t.Errorf("Expected content type: %s, Got: %s, %s", contentType, attr1.ContentType, attr2.ContentType)
 	}
 	if attr1.ComponentCount != componentCount || attr2.ComponentCount != componentCount {
 		t.Errorf("Expected component count: %d, Got: %d, %d", componentCount, attr1.ComponentCount, attr2.ComponentCount)
