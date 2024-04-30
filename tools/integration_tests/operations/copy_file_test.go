@@ -13,10 +13,11 @@
 // limitations under the License.
 
 // Provides integration tests for copy file.
-package operations
+package operations_test
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -24,10 +25,10 @@ import (
 )
 
 func TestCopyFile(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	fileName := path.Join(testDir, tempFileName)
 
-	fileName := setup.CreateTempFile()
+	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
 
 	content, err := operations.ReadFile(fileName)
 	if err != nil {

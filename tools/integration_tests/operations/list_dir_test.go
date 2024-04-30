@@ -29,46 +29,47 @@ import (
 )
 
 func createDirectoryStructureForTest(t *testing.T) {
-	// Directory structure
-	// testBucket/directoryForListTest                                                                            -- Dir
-	// testBucket/directoryForListTest/fileInDirectoryForListTest1		                                      -- File
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest                                               -- Dir
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1           -- File
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest                                              -- Dir
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1         -- File
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2         -- File
-	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest                                          -- Dir
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// testBucket/directoryForListTest
-	// testBucket/directoryForListTest/fileInFirstSubDirectoryForListTest1
-	dirPath := path.Join(setup.MntDir(), DirectoryForListTest)
+	// Directory structure
+	// testBucket/dirForOperationTests/directoryForListTest                                                                            -- Dir
+	// testBucket/dirForOperationTests/directoryForListTest/fileInDirectoryForListTest1		                                      -- File
+	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest                                               -- Dir
+	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1           -- File
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest                                              -- Dir
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1         -- File
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2         -- File
+	// testBucket/dirForOperationTests/directoryForListTest/emptySubDirInDirectoryForListTest                                          -- Dir
+
+	// testBucket/dirForOperationTests/directoryForListTest
+	// testBucket/dirForOperationTests/directoryForListTest/fileInFirstSubDirectoryForListTest1
+	dirPath := path.Join(testDir, DirectoryForListTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryForListTest, dirPath, PrefixFileInDirectoryForListTest, t)
 
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest
-	// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1
+	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest
+	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1
 	subDirPath := path.Join(dirPath, FirstSubDirectoryForListTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInFirstSubDirectoryForListTest, subDirPath, PrefixFileInFirstSubDirectoryForListTest, t)
 
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1
-	// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1
+	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2
 	subDirPath = path.Join(dirPath, SecondSubDirectoryForListTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInSecondSubDirectoryForListTest, subDirPath, PrefixFileInSecondSubDirectoryForListTest, t)
 
-	// testBucket/directoryForListTest/emptySubDirInDirectoryForListTest
+	// testBucket/dirForOperationTests/directoryForListTest/emptySubDirInDirectoryForListTest
 	subDirPath = path.Join(dirPath, EmptySubDirInDirectoryForListTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInEmptySubDirInDirectoryForListTest, subDirPath, "", t)
 }
 
 func TestListDirectoryRecursively(t *testing.T) {
-	// Clean the mountedDirectory before running test.
-	setup.CleanMntDir()
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create directory structure for testing.
 	createDirectoryStructureForTest(t)
 
 	// Recursively walk into directory and test.
-	err := filepath.WalkDir(setup.MntDir(), func(path string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", path, err)
 			return err
@@ -85,13 +86,13 @@ func TestListDirectoryRecursively(t *testing.T) {
 		}
 
 		// Check if mntDir has correct objects.
-		if path == setup.MntDir() {
+		if path == testDir {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInBucketDirectoryListTest {
 				t.Errorf("Incorrect number of objects in the bucket.")
 			}
 
-			// testBucket/directoryForListTest   -- Dir
+			// testBucket/dirForOperationTests/directoryForListTest   -- Dir
 			if objs[0].Name() != DirectoryForListTest || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
@@ -104,22 +105,22 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the directoryForListTest.")
 			}
 
-			// testBucket/directoryForListTest/emptySubDirectoryForListTest   -- Dir
+			// testBucket/dirForOperationTests/directoryForListTest/emptySubDirectoryForListTest   -- Dir
 			if objs[0].Name() != EmptySubDirInDirectoryForListTest || objs[0].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/fileInDirectoryForListTest1     -- File
+			// testBucket/dirForOperationTests/directoryForListTest/fileInDirectoryForListTest1     -- File
 			if objs[1].Name() != FileInDirectoryForListTest || objs[1].IsDir() != false {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest   -- Dir
+			// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest   -- Dir
 			if objs[2].Name() != FirstSubDirectoryForListTest || objs[2].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest  -- Dir
+			// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest  -- Dir
 			if objs[3].Name() != SecondSubDirectoryForListTest || objs[3].IsDir() != true {
 				t.Errorf("Listed incorrect object")
 			}
@@ -134,7 +135,7 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the firstSubDirectoryForListTest.")
 			}
 
-			// testBucket/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1     -- File
+			// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1     -- File
 			if objs[0].Name() != FileInFirstSubDirectoryForListTest || objs[0].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
@@ -149,12 +150,12 @@ func TestListDirectoryRecursively(t *testing.T) {
 				t.Errorf("Incorrect number of objects in the secondSubDirectoryForListTest.")
 			}
 
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1    -- File
+			// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1    -- File
 			if objs[0].Name() != FirstFileInSecondSubDirectoryForListTest || objs[0].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
 
-			// testBucket/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2   -- File
+			// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2   -- File
 			if objs[1].Name() != SecondFileInSecondSubDirectoryForListTest || objs[1].IsDir() == true {
 				t.Errorf("Listed incorrect object")
 			}
