@@ -271,6 +271,6 @@ func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpoint
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(),"GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
+	AssertTrue(strings.Contains(err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
 	AssertEq(nil, handleCreated)
 }
