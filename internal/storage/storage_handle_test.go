@@ -259,3 +259,18 @@ func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpoint
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
 	AssertEq(nil, handleCreated)
 }
+
+func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthEnabled() {
+	url, err := url.Parse(storageutil.CustomEndpoint)
+	AssertEq(nil, err)
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.CustomEndpoint = url
+	sc.AnonymousAccess = false
+	sc.ClientProtocol = mountpkg.GRPC
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(),"GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
+	AssertEq(nil, handleCreated)
+}
