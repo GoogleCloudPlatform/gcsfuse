@@ -276,3 +276,23 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	assert.Contains(testSuite.T(), err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
 	assert.Nil(testSuite.T(), handleCreated)
 }
+
+func TestCreateGRPCControlClientHandle(t *testing.T) {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.ClientProtocol = mountpkg.GRPC
+
+	controlClient, err := createGRPCControlClientHandle(context.Background(), &sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, controlClient)
+}
+
+func TestCreateStorageHandleWithEnableHNSTrue(t *testing.T) {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.EnableHNS = true
+
+	sh, err := NewStorageHandle(context.Background(), sc)
+
+	AssertEq(nil, err)
+	AssertNe(nil, sh)
+}
