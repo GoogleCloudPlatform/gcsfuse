@@ -85,10 +85,6 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *htt
 		httpClient = &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
 		}
-		httpClient.Transport = &userAgentRoundTripper{
-			wrapped:   httpClient.Transport,
-			UserAgent: storageClientConfig.UserAgent,
-		}
 	} else {
 		var tokenSrc oauth2.TokenSource
 		tokenSrc, err = CreateTokenSource(storageClientConfig)
