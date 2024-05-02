@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -43,6 +44,7 @@ const (
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
+	PathEnvVariable     = "PATH"
 )
 
 var (
@@ -162,10 +164,10 @@ func SetUpTestDir() error {
 
 		// mount.gcsfuse will find gcsfuse executable in mentioned locations.
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/mount_gcsfuse/find.go#L59
-		// Copying the executable to /usr/local/bin
-		err := operations.CopyDirWithRootPermission(binFile, "/usr/local/bin")
+		// Setting PATH so that executable is found in test directory.
+		err := os.Setenv(PathEnvVariable, path.Join(TestDir(), "bin")+string(filepath.ListSeparator)+os.Getenv(PathEnvVariable))
 		if err != nil {
-			log.Printf("Error in copying bin file:%v", err)
+			log.Printf("Error in setting PATH environment variable: %v", err.Error())
 		}
 	} else {
 		// when testInstalledPackage flag is set, gcsfuse is preinstalled on the
@@ -181,17 +183,6 @@ func SetUpTestDir() error {
 		return fmt.Errorf("Mkdir(%q): %v\n", MntDir(), err)
 	}
 	return nil
-}
-
-// Removing bin file after testing.
-func RemoveBinFileCopiedForTesting() {
-	if !TestInstalledPackage() {
-		cmd := exec.Command("sudo", "rm", "/usr/local/bin/gcsfuse")
-		err := cmd.Run()
-		if err != nil {
-			log.Printf("Error in removing file:%v", err)
-		}
-	}
 }
 
 func UnMount() error {
