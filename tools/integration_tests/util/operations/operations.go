@@ -66,11 +66,6 @@ func runCommand(cmd *exec.Cmd) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// Executes any given gsutil command with given args.
-func ExecuteGsutilCommandf(format string, args ...any) ([]byte, error) {
-	return executeToolCommandf("gsutil", format, args...)
-}
-
 // Executes any given gcloud command with given args.
 func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
 	return executeToolCommandf("gcloud", format, args...)
