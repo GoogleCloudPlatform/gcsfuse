@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -96,7 +95,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabl
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -130,7 +129,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -143,7 +142,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilA
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -196,7 +195,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), handleCreated)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
+	assert.Contains(testSuite.T(), err.Error(),"invalid client-protocol requested: test-protocol")
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
@@ -236,7 +235,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientPro
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), storageClient)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1)))
+	assert.Contains(testSuite.T(), err.Error(),fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1))
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
@@ -247,7 +246,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientPro
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), storageClient)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
+	assert.Contains(testSuite.T(), err.Error(),fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC))
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
@@ -259,7 +258,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
@@ -274,6 +273,6 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
 	assert.NotNil(testSuite.T(), err)
-	assert.True(testSuite.T(), strings.Contains(err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
+	assert.Contains(testSuite.T(), err.Error(),"GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
 	assert.Nil(testSuite.T(), handleCreated)
 }
