@@ -40,6 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	. "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -1309,13 +1310,6 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
-// isolateContextFromParentContext creates a copy of the parent context which is
-// not cancelled when parent context is cancelled.
-func isolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	ctx = context.WithoutCancel(ctx)
-	return context.WithCancel(ctx)
-}
-
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
@@ -1324,7 +1318,7 @@ func (fs *fileSystem) LookUpInode(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent directory in question.
@@ -1360,7 +1354,7 @@ func (fs *fileSystem) GetInodeAttributes(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -1388,7 +1382,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -1454,7 +1448,7 @@ func (fs *fileSystem) MkDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1513,7 +1507,7 @@ func (fs *fileSystem) MkNode(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
@@ -1643,7 +1637,7 @@ func (fs *fileSystem) CreateFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Create the child.
@@ -1692,7 +1686,7 @@ func (fs *fileSystem) CreateSymlink(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1762,7 +1756,7 @@ func (fs *fileSystem) RmDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1864,7 +1858,7 @@ func (fs *fileSystem) Rename(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the old and new parents.
@@ -2083,7 +2077,7 @@ func (fs *fileSystem) Unlink(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -2158,7 +2152,7 @@ func (fs *fileSystem) ReadDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the handle.
@@ -2230,7 +2224,7 @@ func (fs *fileSystem) ReadFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Save readOp in context for access in logs.
@@ -2281,7 +2275,7 @@ func (fs *fileSystem) WriteFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -2308,7 +2302,7 @@ func (fs *fileSystem) SyncFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -2341,7 +2335,7 @@ func (fs *fileSystem) FlushFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = isolateContextFromParentContext(ctx)
+		ctx, cancel = IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.

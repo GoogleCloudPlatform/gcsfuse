@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -101,4 +102,11 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 	}
 	const bytesInOneMiB uint64 = 1 << 20
 	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))
+}
+
+// IsolateContextFromParentContext creates a copy of the parent context which is
+// not cancelled when parent context is cancelled.
+func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	ctx = context.WithoutCancel(ctx)
+	return context.WithCancel(ctx)
 }
