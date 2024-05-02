@@ -141,10 +141,11 @@ be interacting with the file system.`)
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
 	mountCfg := &fuse.MountConfig{
-		FSName:     fsName,
-		Subtype:    "gcsfuse",
-		VolumeName: "gcsfuse",
-		Options:    flags.MountOptions,
+		FSName:          fsName,
+		Subtype:         "gcsfuse",
+		VolumeName:      "gcsfuse",
+		Options:         flags.MountOptions,
+		UseVectoredRead: true,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")

@@ -128,6 +128,13 @@ type ServerConfig struct {
 	MountConfig *config.MountConfig
 }
 
+var prefetchedBuffer []byte
+
+func init() {
+	prefetchedBuffer = []byte("Here is a string....") //make([]byte, 100000)
+	//_, _ = rand.Read(prefetchedBuffer)
+}
+
 // Create a fuse file system server according to the supplied configuration.
 func NewFileSystem(
 	ctx context.Context,
@@ -2145,6 +2152,14 @@ func (fs *fileSystem) ReadFile(
 
 	// Save readOp in context for access in logs.
 	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
+
+	var returnDummyData bool
+	returnDummyData = true
+	if returnDummyData {
+		op.Data = append(op.Data, prefetchedBuffer)
+		op.BytesRead = len(prefetchedBuffer)
+		return
+	}
 
 	// Find the handle and lock it.
 	fs.mu.Lock()
