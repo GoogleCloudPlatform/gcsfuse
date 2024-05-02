@@ -31,7 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/handle"
@@ -40,7 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	. "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -224,7 +224,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * util.MiB
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * cacheutil.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
@@ -232,12 +232,12 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
 	// the future.
-	cacheDir = path.Join(cacheDir, util.FileCache)
+	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
 
-	filePerm := util.DefaultFilePerm
-	dirPerm := util.DefaultDirPerm
+	filePerm := cacheutil.DefaultFilePerm
+	dirPerm := cacheutil.DefaultDirPerm
 
-	cacheDirErr := util.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
+	cacheDirErr := cacheutil.CreateCacheDirectoryIfNotPresentAt(cacheDir, dirPerm)
 	if cacheDirErr != nil {
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
@@ -1318,7 +1318,7 @@ func (fs *fileSystem) LookUpInode(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent directory in question.
@@ -1354,7 +1354,7 @@ func (fs *fileSystem) GetInodeAttributes(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -1382,7 +1382,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -1448,7 +1448,7 @@ func (fs *fileSystem) MkDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1507,7 +1507,7 @@ func (fs *fileSystem) MkNode(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
@@ -1637,7 +1637,7 @@ func (fs *fileSystem) CreateFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Create the child.
@@ -1686,7 +1686,7 @@ func (fs *fileSystem) CreateSymlink(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1756,7 +1756,7 @@ func (fs *fileSystem) RmDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -1858,7 +1858,7 @@ func (fs *fileSystem) Rename(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the old and new parents.
@@ -2077,7 +2077,7 @@ func (fs *fileSystem) Unlink(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the parent.
@@ -2152,7 +2152,7 @@ func (fs *fileSystem) ReadDir(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the handle.
@@ -2224,7 +2224,7 @@ func (fs *fileSystem) ReadFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Save readOp in context for access in logs.
@@ -2275,7 +2275,7 @@ func (fs *fileSystem) WriteFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -2302,7 +2302,7 @@ func (fs *fileSystem) SyncFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.
@@ -2335,7 +2335,7 @@ func (fs *fileSystem) FlushFile(
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
-		ctx, cancel = IsolateContextFromParentContext(ctx)
+		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
 	// Find the inode.

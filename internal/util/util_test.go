@@ -44,111 +44,111 @@ func TestUtilSuite(t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (suite *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda() {
+func (ts *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithTilda() {
 	resolvedPath, err := GetResolvedPath("~/test.txt")
 
-	assert.Equal(suite.T(), nil, err)
+	assert.Equal(ts.T(), nil, err)
 	homeDir, err := os.UserHomeDir()
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(homeDir, "test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(homeDir, "test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() {
+func (ts *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDot() {
 	resolvedPath, err := GetResolvedPath("./test.txt")
 
-	assert.Equal(suite.T(), nil, err)
+	assert.Equal(ts.T(), nil, err)
 	currentWorkingDir, err := os.Getwd()
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(currentWorkingDir, "./test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(currentWorkingDir, "./test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDoubleDot() {
+func (ts *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndFilePathStartsWithDoubleDot() {
 	resolvedPath, err := GetResolvedPath("../test.txt")
 
-	assert.Equal(suite.T(), nil, err)
+	assert.Equal(ts.T(), nil, err)
 	currentWorkingDir, err := os.Getwd()
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(currentWorkingDir, "../test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(currentWorkingDir, "../test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndRelativePath() {
+func (ts *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndRelativePath() {
 	resolvedPath, err := GetResolvedPath("test.txt")
 
-	assert.Equal(suite.T(), nil, err)
+	assert.Equal(ts.T(), nil, err)
 	currentWorkingDir, err := os.Getwd()
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(currentWorkingDir, "test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(currentWorkingDir, "test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndAbsoluteFilePath() {
+func (ts *UtilTest) TestResolveWhenParentProcDirEnvNotSetAndAbsoluteFilePath() {
 	resolvedPath, err := GetResolvedPath("/var/dir/test.txt")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), "/var/dir/test.txt", resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), "/var/dir/test.txt", resolvedPath)
 }
 
-func (suite *UtilTest) ResolveEmptyFilePath() {
+func (ts *UtilTest) ResolveEmptyFilePath() {
 	resolvedPath, err := GetResolvedPath("")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), "", resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), "", resolvedPath)
 }
 
 // Below all tests when GCSFUSE_PARENT_PROCESS_DIR env variable is set.
 // By setting this environment variable, resolve will work for child process.
-func (suite *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
+func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithTilda() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := GetResolvedPath("~/test.txt")
 
-	assert.Equal(suite.T(), nil, err)
+	assert.Equal(ts.T(), nil, err)
 	homeDir, err := os.UserHomeDir()
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(homeDir, "test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(homeDir, "test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
+func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDot() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := GetResolvedPath("./test.txt")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(gcsFuseParentProcessDir, "./test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(gcsFuseParentProcessDir, "./test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot() {
+func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndFilePathStartsWithDoubleDot() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := GetResolvedPath("../test.txt")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(gcsFuseParentProcessDir, "../test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(gcsFuseParentProcessDir, "../test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
+func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndRelativePath() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := GetResolvedPath("test.txt")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), filepath.Join(gcsFuseParentProcessDir, "test.txt"), resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), filepath.Join(gcsFuseParentProcessDir, "test.txt"), resolvedPath)
 }
 
-func (suite *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
+func (ts *UtilTest) ResolveWhenParentProcDirEnvSetAndAbsoluteFilePath() {
 	os.Setenv(GCSFUSE_PARENT_PROCESS_DIR, gcsFuseParentProcessDir)
 	defer os.Unsetenv(GCSFUSE_PARENT_PROCESS_DIR)
 
 	resolvedPath, err := GetResolvedPath("/var/dir/test.txt")
 
-	assert.Equal(suite.T(), nil, err)
-	assert.Equal(suite.T(), "/var/dir/test.txt", resolvedPath)
+	assert.Equal(ts.T(), nil, err)
+	assert.Equal(ts.T(), "/var/dir/test.txt", resolvedPath)
 }
 
-func (suite *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
+func (ts *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMarshalledString() {
 	sampleMap := map[string]int{
 		"1": 1,
 		"2": 2,
@@ -166,10 +166,10 @@ func (suite *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsM
 	actual, _ := Stringify(customObject)
 
 	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
-	assert.Equal(suite.T(), expected, actual)
+	assert.Equal(ts.T(), expected, actual)
 }
 
-func (suite *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
+func (ts *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 	customInstance := customTypeForError{
 		value: "example",
 	}
@@ -177,7 +177,7 @@ func (suite *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut(
 	actual, _ := Stringify(customInstance)
 
 	expected := ""
-	assert.Equal(suite.T(), expected, actual)
+	assert.Equal(ts.T(), expected, actual)
 }
 
 type customTypeForSuccess struct {
@@ -197,7 +197,7 @@ func (c customTypeForError) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("intentional error during JSON marshaling")
 }
 
-func (suite *UtilTest) TestMiBsToBytes() {
+func (ts *UtilTest) TestMiBsToBytes() {
 	cases := []struct {
 		mib   uint64
 		bytes uint64
@@ -225,11 +225,11 @@ func (suite *UtilTest) TestMiBsToBytes() {
 	}
 
 	for _, tc := range cases {
-		assert.Equal(suite.T(), tc.bytes, MiBsToBytes(tc.mib))
+		assert.Equal(ts.T(), tc.bytes, MiBsToBytes(tc.mib))
 	}
 }
 
-func (suite *UtilTest) TestBytesToHigherMiBs() {
+func (ts *UtilTest) TestBytesToHigherMiBs() {
 	cases := []struct {
 		bytes uint64
 		mib   uint64
@@ -261,11 +261,11 @@ func (suite *UtilTest) TestBytesToHigherMiBs() {
 	}
 
 	for _, tc := range cases {
-		assert.Equal(suite.T(), tc.mib, BytesToHigherMiBs(tc.bytes))
+		assert.Equal(ts.T(), tc.mib, BytesToHigherMiBs(tc.bytes))
 	}
 }
 
-func (suite *UtilTest) TestIsolateContextFromParentContext() {
+func (ts *UtilTest) TestIsolateContextFromParentContext() {
 	parentCtx, parentCtxCancel := context.WithCancel(context.Background())
 
 	// Call the method and cancel the parent context.
@@ -273,8 +273,8 @@ func (suite *UtilTest) TestIsolateContextFromParentContext() {
 	parentCtxCancel()
 
 	// Validate new context is not cancelled after parent's cancellation.
-	assert.NoError(suite.T(), newCtx.Err())
+	assert.NoError(ts.T(), newCtx.Err())
 	// Cancel the new context and validate.
 	newCtxCancel()
-	assert.ErrorIs(suite.T(), newCtx.Err(), context.Canceled)
+	assert.ErrorIs(ts.T(), newCtx.Err(), context.Canceled)
 }
