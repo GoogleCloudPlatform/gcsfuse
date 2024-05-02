@@ -54,7 +54,7 @@ func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ig
 // OverrideWithAnonymousAccessFlag overwrites the anonymous-access config with
 // the anonymous-access flag value if the flag is set.
 func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, anonymousAccess bool) {
-	// If the ignore-interrupts flag is set, give it priority over the value in config file.
+	// If the  anonymous-access flag is set, give it priority over the value in config file.
 	if c.IsSet(AnonymousAccess) {
 		mountConfig.AuthConfig.AnonymousAccess = anonymousAccess
 	}
