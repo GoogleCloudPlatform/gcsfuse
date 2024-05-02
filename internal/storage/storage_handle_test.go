@@ -42,7 +42,7 @@ func TestStorageHandleTestSuite(t *testing.T) {
 func (testSuite *StorageHandleTest) SetupTest() {
 	var err error
 	testSuite.fakeStorage = NewFakeStorage()
-	assert.Equal(testSuite.T(), nil, err)
+	assert.Nil(testSuite.T(), err)
 }
 
 func (testSuite *StorageHandleTest) TearDownTest() {
@@ -61,7 +61,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEm
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, "")
 
-	assert.Equal(testSuite.T(), nil, bucketHandle.Bucket)
+	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
@@ -76,7 +76,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, projectID)
 
-	assert.Equal(testSuite.T(), nil, bucketHandle.Bucket)
+	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
@@ -97,7 +97,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabl
 
 	assert.NotNil(testSuite.T(), err)
 	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
-	assert.Equal(testSuite.T(), nil, handleCreated)
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
@@ -122,7 +122,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAuthEnabled() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
-	assert.Equal(testSuite.T(), nil, err)
+	assert.Nil(testSuite.T(), err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 	sc.AnonymousAccess = false
@@ -144,7 +144,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilA
 
 	assert.NotNil(testSuite.T(), err)
 	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
-	assert.Equal(testSuite.T(), nil, handleCreated)
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
