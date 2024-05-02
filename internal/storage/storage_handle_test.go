@@ -131,7 +131,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 
 	assert.NotNil(testSuite.T(), err)
 	assert.True(testSuite.T(), strings.Contains(err.Error(), "no such file or directory"))
-	assert.Nil(testSuite.T(),handleCreated)
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
