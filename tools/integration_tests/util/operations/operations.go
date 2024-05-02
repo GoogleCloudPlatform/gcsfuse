@@ -43,7 +43,7 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 }
 
 // Executes any given tool (e.g. gsutil/gcloud) with given args in specified directory.
-func ExecuteToolCommandfInDIrectory(dirPath, tool, format string, args ...any) ([]byte, error) {
+func ExecuteToolCommandfInDirectory(dirPath, tool, format string, args ...any) ([]byte, error) {
 	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
 	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
 	cmd.Dir = dirPath

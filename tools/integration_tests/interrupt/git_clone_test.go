@@ -56,27 +56,27 @@ func (s *ignoreInterruptsTest) Setup(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func cloneRepository() ([]byte, error) {
-	return operations.ExecuteToolCommandfInDIrectory(testDirPath, tool, "clone %s", repoURL)
+	return operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "clone %s", repoURL)
 }
 
 func checkoutBranch(branchName string) ([]byte, error) {
 	repositoryPath := path.Join(testDirPath, repoName)
-	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "checkout %s", branchName)
+	return operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "checkout %s", branchName)
 }
 
 func emptyCommit() ([]byte, error) {
 	repositoryPath := path.Join(testDirPath, repoName)
-	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "commit --allow-empty -m \" empty commit\"")
+	return operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "commit --allow-empty -m \" empty commit\"")
 }
 
 func gitAdd(filePath string) ([]byte, error) {
 	repositoryPath := path.Join(testDirPath, repoName)
-	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "add %s", filePath)
+	return operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "add %s", filePath)
 }
 
 func nonEmptyCommit() ([]byte, error) {
 	repositoryPath := path.Join(testDirPath, repoName)
-	return operations.ExecuteToolCommandfInDIrectory(repositoryPath, tool, "commit -m \"test\"")
+	return operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "commit -m \"test\"")
 }
 
 ////////////////////////////////////////////////////////////////////////
