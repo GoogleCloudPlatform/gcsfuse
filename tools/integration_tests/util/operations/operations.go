@@ -39,6 +39,19 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
 	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
 
+	return runCommand(cmd)
+}
+
+// Executes any given tool (e.g. gsutil/gcloud) with given args in specified directory.
+func ExecuteToolCommandfInDirectory(dirPath, tool, format string, args ...any) ([]byte, error) {
+	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
+	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
+	cmd.Dir = dirPath
+
+	return runCommand(cmd)
+}
+
+func runCommand(cmd *exec.Cmd) ([]byte, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
@@ -47,7 +60,7 @@ func executeToolCommandf(tool string, format string, args ...any) ([]byte, error
 
 	err := cmd.Run()
 	if err != nil {
-		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmdArgs, err, stderr.String())
+		return stdout.Bytes(), fmt.Errorf("failed command '%s': %v, %s", cmd.String(), err, stderr.String())
 	}
 
 	return stdout.Bytes(), nil

@@ -46,6 +46,7 @@ TEST_DIR_PARALLEL=(
   "read_large_files"
   "explicit_dir"
   "implicit_dir"
+  "interrupt"
   "operations"
 )
 # These tests never become parallel as it is changing bucket permissions.
@@ -297,12 +298,6 @@ function main(){
   then
     echo "The e2e tests for hns bucket failed.."
     exit 1
-  fi
-
-  # Removing bin file after testing.
-  if [ $RUN_E2E_TESTS_ON_PACKAGE != true ];
-  then
-    sudo rm /usr/local/bin/gcsfuse
   fi
 }
 

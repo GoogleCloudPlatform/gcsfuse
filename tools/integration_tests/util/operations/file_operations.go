@@ -29,6 +29,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 const (
@@ -36,6 +37,11 @@ const (
 	OneMiB = OneKiB * OneKiB
 	// ChunkSizeForContentComparison is currently set to 1 MiB.
 	ChunkSizeForContentComparison int = OneMiB
+
+	// TimeSlop The radius we use for "expect mtime is within"-style assertions as kernel
+	// time can be slightly out of sync of time.Now().
+	// Ref: https://github.com/golang/go/issues/33510
+	TimeSlop = 25 * time.Millisecond
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {

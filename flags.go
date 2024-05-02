@@ -158,6 +158,11 @@ func newApp() (app *cli.App) {
 					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.",
 			},
 
+			cli.BoolFlag{
+				Name:  config.AnonymousAccess,
+				Usage: "Authentication is enabled by default. This flag will disable authentication",
+			},
+
 			cli.StringFlag{
 				Name:  "billing-project",
 				Value: "",
@@ -385,6 +390,7 @@ type flagStorage struct {
 	EgressBandwidthLimitBytesPerSecond float64
 	OpRateLimitHz                      float64
 	SequentialReadSizeMb               int32
+	AnonymousAccess                    bool
 
 	// Tuning
 	MaxRetrySleep              time.Duration
@@ -516,6 +522,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 		// GCS,
 		CustomEndpoint:                     customEndpoint,
+		AnonymousAccess:                    c.Bool("anonymous-access"),
 		BillingProject:                     c.String("billing-project"),
 		KeyFile:                            c.String("key-file"),
 		TokenUrl:                           c.String("token-url"),

@@ -40,7 +40,8 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if objName != statObjName {
 		t.Errorf("File name not matched in os.Stat, found: %s, expected: %s", statObjName, objName)
 	}
-	statModTime := oStat.ModTime().Round(time.Second)
+
+	statModTime := oStat.ModTime()
 	if (preCreateTime.After(statModTime)) || (postCreateTime.Before(statModTime)) {
 		t.Errorf("File modification time not in the expected time-range")
 	}
@@ -53,12 +54,13 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 func TestFileAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so rounding off
-	// times to seconds. Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Round(time.Second)
+	// kernel time can be slightly out of sync of time.Now(), so using
+	// operations.TimeSlop to adjust pre and post create time.
+	// Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Add(-operations.TimeSlop)
 	fileName := path.Join(testDir, tempFileName)
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
-	postCreateTime := time.Now().Round(time.Second)
+	postCreateTime := time.Now().Add(+operations.TimeSlop)
 
 	// The file size in createTempFile() is BytesWrittenInFile bytes
 	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
@@ -68,12 +70,13 @@ func TestFileAttributes(t *testing.T) {
 func TestEmptyDirAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so rounding off
-	// times to seconds. Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Round(time.Second)
+	// kernel time can be slightly out of sync of time.Now(), so using
+	// operations.TimeSlop to adjust pre and post create time.
+	// Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Add(-operations.TimeSlop)
 	dirName := path.Join(testDir, DirAttrTest)
 	operations.CreateDirectoryWithNFiles(0, dirName, "", t)
-	postCreateTime := time.Now().Round(time.Second)
+	postCreateTime := time.Now().Add(operations.TimeSlop)
 
 	checkIfObjectAttrIsCorrect(path.Join(testDir, DirAttrTest), preCreateTime, postCreateTime, 0, t)
 }
@@ -81,12 +84,13 @@ func TestEmptyDirAttributes(t *testing.T) {
 func TestNonEmptyDirAttributes(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	// kernel time can be slightly out of sync of time.Now(), so rounding off
-	// times to seconds. Ref: https://github.com/golang/go/issues/33510
-	preCreateTime := time.Now().Round(time.Second)
+	// kernel time can be slightly out of sync of time.Now(), so using
+	// operations.TimeSlop to adjust pre and post create time.
+	// Ref: https://github.com/golang/go/issues/33510
+	preCreateTime := time.Now().Add(-operations.TimeSlop)
 	dirName := path.Join(testDir, DirAttrTest)
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
-	postCreateTime := time.Now().Round(time.Second)
+	postCreateTime := time.Now().Add(operations.TimeSlop)
 
 	checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
 }
