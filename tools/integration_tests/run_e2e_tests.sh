@@ -46,6 +46,7 @@ TEST_DIR_PARALLEL=(
   "read_large_files"
   "explicit_dir"
   "implicit_dir"
+  "interrupt"
   "operations"
 )
 # These tests never become parallel as it is changing bucket permissions.
