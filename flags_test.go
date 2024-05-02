@@ -83,6 +83,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq(-1, f.OpRateLimitHz)
 	ExpectTrue(f.ReuseTokenFromUrl)
 	ExpectEq(nil, f.CustomEndpoint)
+	ExpectFalse(f.AnonymousAccess)
 
 	// Tuning
 	ExpectEq(mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
@@ -115,6 +116,7 @@ func (t *FlagsTest) Bools() {
 		"enable-nonexistent-type-cache",
 		"experimental-enable-json-read",
 		"ignore-interrupts",
+		"anonymous-access",
 	}
 
 	var args []string
@@ -137,6 +139,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.EnableNonexistentTypeCache)
 	ExpectTrue(f.ExperimentalEnableJsonRead)
 	ExpectTrue(f.IgnoreInterrupts)
+	ExpectTrue(f.AnonymousAccess)
 
 	// --foo=false form
 	args = nil
