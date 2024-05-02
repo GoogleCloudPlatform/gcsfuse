@@ -16,6 +16,7 @@ package config
 
 const IgnoreInterruptsFlagName = "ignore-interrupts"
 const AnonymousAccess = "anonymous-access"
+
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
 func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
@@ -54,7 +55,7 @@ func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ig
 // the anonymous-access flag value if the flag is set.
 func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, anonymousAccess bool) {
 	// If the ignore-interrupts flag is set, give it priority over the value in config file.
-	if c.IsSet(AnonymousAccess){
+	if c.IsSet(AnonymousAccess) {
 		mountConfig.AuthConfig.AnonymousAccess = anonymousAccess
 	}
 }
