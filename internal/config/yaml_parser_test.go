@@ -256,7 +256,6 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidAnonymousAcc
 	_, err := ParseConfigFile("testdata/auth_config/invalid_anonymous_access.yaml")
 
 	AssertNe(nil, err)
-	fmt.Println("Error: ",err.Error())
 	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
 }
 
