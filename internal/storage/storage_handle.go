@@ -174,7 +174,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		}
 		controlClient, err = storageutil.CreateGRPCControlClientHandle(ctx, clientOpts, &clientConfig)
 		if err != nil {
-			err = fmt.Errorf("Could not create StorageControl Client: %w", err)
+			return nil, fmt.Errorf("Could not create StorageControl Client: %w", err)
 		}
 	}
 
