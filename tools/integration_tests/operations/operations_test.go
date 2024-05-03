@@ -85,7 +85,7 @@ const PrefixFileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThr
 const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLevelDirTest1"
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
-const OnlyDirMounted = "OnlyDirMountOperations"
+const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
@@ -155,7 +155,7 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, OnlyDirMounted, m)
+		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {

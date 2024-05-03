@@ -36,7 +36,7 @@ const EmptySubDirectory = "emptySubDirectory"
 const NonEmptySubDirectory = "nonEmptySubDirectory"
 const RenamedDirectory = "renamedDirectory"
 const PrefixTempFile = "temp"
-const OnlyDirMounted = "OnlyDirMountRenameDirLimit"
+const onlyDirMounted = "OnlyDirMountRenameDirLimit"
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flags, OnlyDirMounted, m)
+		successCode = only_dir_mounting.RunTests(flags, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
