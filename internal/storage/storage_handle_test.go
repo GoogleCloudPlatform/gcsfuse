@@ -296,3 +296,23 @@ func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(),sh)
 }
+
+func (testSuite *StorageHandleTest) TestStorageControlClientRetryOptions() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+	gaxOpts := storageControlClientRetryOptions(&sc)
+
+	assert.NotNil(testSuite.T(), gaxOpts)
+}
+
+func (testSuite *StorageHandleTest) TestStorageControlClientRetries() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+  storageControlOpts := storageControlClientRetries(&sc)
+
+	assert.NotNil(testSuite.T(), storageControlOpts.CreateFolder)
+	assert.NotNil(testSuite.T(), storageControlOpts.DeleteFolder)
+	assert.NotNil(testSuite.T(), storageControlOpts.RenameFolder)
+	assert.NotNil(testSuite.T(), storageControlOpts.GetFolder)
+	assert.NotNil(testSuite.T(), storageControlOpts.GetStorageLayout)
+}
