@@ -33,7 +33,7 @@ import (
 
 const (
 	testDirName                         = "ReadCacheTest"
-	onlyDirMounted                      = "Test"
+	onlyDirMounted                      = "OnlyDirMountReadCache"
 	cacheSubDirectoryName               = "gcsfuse-file-cache"
 	smallContentSize                    = 128 * util.KiB
 	chunkSizeToRead                     = 128 * util.KiB

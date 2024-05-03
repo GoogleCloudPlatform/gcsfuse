@@ -34,7 +34,8 @@ import (
 )
 
 const (
-	testDirName = "LocalFileTest"
+	testDirName    = "LocalFileTest"
+	onlyDirMounted = "OnlyDirMountLocalFiles"
 )
 
 var (
@@ -109,7 +110,7 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, m)
+		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
 	}
 
 	if successCode == 0 {
