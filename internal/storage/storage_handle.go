@@ -81,52 +81,6 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	return
 }
 
-func storageControlClientRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
-	return []gax.CallOption{ gax.WithRetry(func() gax.Retryer {
-		return gax.OnErrorFunc(gax.Backoff{
-			Max:        clientConfig.MaxRetrySleep,
-			Multiplier: clientConfig.RetryMultiplier,
-		}, storageutil.ShouldRetry)
-	})}
-}
-
-func storageControlClientRetries(clientConfig *storageutil.StorageClientConfig) *control.StorageControlCallOptions {
-	return &control.StorageControlCallOptions{
-		CreateFolder:     storageControlClientRetryOptions(clientConfig),
-		DeleteFolder:     storageControlClientRetryOptions(clientConfig),
-		GetFolder:        storageControlClientRetryOptions(clientConfig),
-		RenameFolder:     storageControlClientRetryOptions(clientConfig),
-		GetStorageLayout: storageControlClientRetryOptions(clientConfig),
-	}
-}
-
-func createGRPCControlClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *control.StorageControlClient, err error) {
-	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		logger.Fatal("error setting direct path env var: %v", err)
-	}
-
-	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(clientConfig)
-	if err != nil {
-		return nil, fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
-	}
-
-	sc, err = control.NewStorageControlClient(ctx, clientOpts...)
-	if err != nil {
-		err = fmt.Errorf("NewStorageControlClient: %w", err)
-	}
-
-	// Set retries for control client.
-	sc = &control.StorageControlClient{CallOptions: storageControlClientRetries(clientConfig)}
-
-	// Unset the environment variable, since it's used only while creation of grpc client.
-	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
-		logger.Fatal("error while unsetting direct path env var: %v", err)
-	}
-
-	return sc, err
-}
-
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
 	if clientConfig.ClientProtocol != mountpkg.GRPC {
@@ -214,11 +168,15 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 
 	// TODO: We will implement an additional check for the HTTP control client protocol once the Go SDK supports HTTP.
 	if clientConfig.EnableHNS {
-		controlClient, err = createGRPCControlClientHandle(ctx, &clientConfig)
+		clientOpts, err := createClientOptionForGRPCClient(&clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
+		}
+
+		controlClient, err = storageutil.CreateGRPCControlClientHandle(ctx, clientOpts, &clientConfig)
 		if err != nil {
 			err = fmt.Errorf("Could not create StorageControl Client: %w", err)
 		}
-
 	}
 
 	// ShouldRetry function checks if an operation should be retried based on the
