@@ -42,23 +42,23 @@ func storageControlClientRetries(sc *control.StorageControlClient, clientConfig 
 	sc.CallOptions.GetStorageLayout = storageControlClientRetryOptions(clientConfig)
 }
 
-func CreateGRPCControlClientHandle(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (sc *control.StorageControlClient, err error) {
+func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOption, clientConfig *StorageClientConfig) (controlClient *control.StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
 	}
 
-	sc, err = control.NewStorageControlClient(ctx, clientOpts...)
+	controlClient, err = control.NewStorageControlClient(ctx, clientOpts...)
 	if err != nil {
-		err = fmt.Errorf("NewStorageControlClient: %w", err)
+		return nil, fmt.Errorf("NewStorageControlClient: %w", err)
 	}
 
 	// Set retries for control client.
-	storageControlClientRetries(sc, clientConfig)
+	storageControlClientRetries(controlClient, clientConfig)
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
 		logger.Fatal("error while unsetting direct path env var: %v", err)
 	}
 
-	return sc, err
+	return controlClient, err
 }

@@ -47,7 +47,7 @@ func (testSuite *ControlClientTest) TestStorageControlClientRetryOptions() {
 func (testSuite *ControlClientTest) TestStorageControlClient() {
 	clientConfig := GetDefaultStorageClientConfig()
 
-	controlClient, err := CreateGRPCControlClientHandle(context.Background(), nil, &clientConfig)
+	controlClient, err := CreateGRPCControlClient(context.Background(), nil, &clientConfig)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
