@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/option"
 )
 
 type ControlClientTest struct {
@@ -45,9 +46,11 @@ func (testSuite *ControlClientTest) TestStorageControlClientRetryOptions() {
 }
 
 func (testSuite *ControlClientTest) TestStorageControlClient() {
+	var clientOpts []option.ClientOption
+	clientOpts = append(clientOpts, option.WithoutAuthentication())
 	clientConfig := GetDefaultStorageClientConfig()
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), nil, &clientConfig)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, &clientConfig)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
