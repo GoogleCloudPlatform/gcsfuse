@@ -277,22 +277,22 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	assert.Nil(testSuite.T(), handleCreated)
 }
 
-func TestCreateGRPCControlClientHandle(t *testing.T) {
+func (testSuite *StorageHandleTest) TestCreateGRPCControlClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
 	controlClient, err := createGRPCControlClientHandle(context.Background(), &sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, controlClient)
+	assert.Nil(testSuite.T(),err)
+	assert.NotNil(testSuite.T(),controlClient)
 }
 
-func TestCreateStorageHandleWithEnableHNSTrue(t *testing.T) {
+func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.EnableHNS = true
 
 	sh, err := NewStorageHandle(context.Background(), sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, sh)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(),sh)
 }

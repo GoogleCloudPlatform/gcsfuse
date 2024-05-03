@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -28,6 +29,7 @@ import (
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
@@ -81,6 +83,41 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 	return
 }
 
+func StorageControlClientRetriesForCreateAndDeleteFolder(clientConfig *storageutil.StorageClientConfig) *control.StorageControlCallOptions {
+	return &control.StorageControlCallOptions{
+		CreateFolder: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.Retryer(
+					storage.WithBackoff(
+						gax.Backoff{
+							Max:        clientConfig.MaxRetrySleep,
+							Multiplier: clientConfig.RetryMultiplier,
+						}),
+					storage.WithErrorFunc(storageutil.ShouldRetry),
+					storage.WithPolicy(storage.RetryAlways)),
+			}
+		},
+		DeleteFolder: []gax.CallOption{
+			gax.WithTimeout(60000 * time.Millisecond),
+		},
+		GetFolder: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnCodes([]codes.Code{
+					codes.ResourceExhausted,
+					codes.Unavailable,
+					codes.DeadlineExceeded,
+					codes.Internal,
+					codes.Unknown,
+				}, gax.Backoff{
+					Initial:    1000 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 2.00,
+				})
+			}),
+		},
+	}
+}
+
 func createGRPCControlClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *control.StorageControlClient, err error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		logger.Fatal("error setting direct path env var: %v", err)
@@ -91,10 +128,22 @@ func createGRPCControlClientHandle(ctx context.Context, clientConfig *storageuti
 	if err != nil {
 		return nil, fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
 	}
+
+	retryer := gax.OnCodes([]codes.Code{
+		codes.Unavailable,      // Retry on server unavailable errors
+		codes.DeadlineExceeded, // Retry on deadline exceeded errors
+	}, gax.Backoff{
+		Initial:    100 * time.Millisecond,
+		Max:        1000 * time.Millisecond,
+		Multiplier: 1.3,
+	})
+
 	sc, err = control.NewStorageControlClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("NewStorageControlClient: %w", err)
 	}
+
+	sc = control.StorageControlClient{CallOptions: control.StorageControlCallOptions{CreateFolder:}}
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
@@ -195,6 +244,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			err = fmt.Errorf("Could not create StorageControl Client: %w", err)
 		}
+
 	}
 
 	// ShouldRetry function checks if an operation should be retried based on the
