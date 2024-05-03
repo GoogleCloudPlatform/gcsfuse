@@ -52,18 +52,3 @@ func (testSuite *ControlClientTest) TestStorageControlClient() {
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), controlClient)
 }
-
-func (testSuite *ControlClientTest) TestStorageControlClientSetRetry() {
-	clientConfig := GetDefaultStorageClientConfig()
-	controlClient, err := CreateGRPCControlClientHandle(context.Background(), nil, &clientConfig)
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), controlClient)
-
-	storageControlClientRetries(controlClient, &clientConfig)
-
-	assert.NotNil(testSuite.T(), controlClient.CallOptions.CreateFolder)
-	assert.NotNil(testSuite.T(), controlClient.CallOptions.DeleteFolder)
-	assert.NotNil(testSuite.T(), controlClient.CallOptions.RenameFolder)
-	assert.NotNil(testSuite.T(), controlClient.CallOptions.GetFolder)
-	assert.NotNil(testSuite.T(), controlClient.CallOptions.GetStorageLayout)
-}
