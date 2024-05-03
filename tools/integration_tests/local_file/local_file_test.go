@@ -35,7 +35,7 @@ import (
 
 const (
 	testDirName                 = "LocalFileTest"
-	testDirOnlyDirForLocalFiles = "testDirOnlyDirForLocalFiles"
+	OnlyDirMounted = "OnlyDirMountLocalFiles"
 )
 
 var (
