@@ -284,7 +284,7 @@ func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	sh, err := NewStorageHandle(context.Background(), sc)
 
 	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(),sh)
+	assert.NotNil(testSuite.T(), sh)
 }
 
 func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
@@ -293,5 +293,5 @@ func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	clientOption, err := createClientOptionForGRPCClient(&sc)
 
 	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(),clientOption)
+	assert.NotNil(testSuite.T(), clientOption)
 }
