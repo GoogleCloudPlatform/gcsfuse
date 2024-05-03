@@ -286,3 +286,12 @@ func (testSuite *StorageHandleTest) TestCreateStorageHandleWithEnableHNSTrue() {
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(),sh)
 }
+
+func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+
+	clientOption, err := createClientOptionForGRPCClient(&sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(),clientOption)
+}
