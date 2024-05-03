@@ -20,7 +20,7 @@ require (
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli v1.22.14
+	github.com/urfave/cli v1.22.15
 	go.opencensus.io v0.24.0
 	golang.org/x/net v0.24.0
 	golang.org/x/oauth2 v0.19.0
@@ -46,7 +46,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20231128003011-0fa0005c9caa // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.12.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.4 // indirect
