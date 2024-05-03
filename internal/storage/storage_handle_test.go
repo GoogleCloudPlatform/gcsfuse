@@ -18,236 +18,238 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
 const projectID string = "valid-project-id"
 
-func TestStorageHandle(t *testing.T) { RunTests(t) }
-
 type StorageHandleTest struct {
+	suite.Suite
 	fakeStorage FakeStorage
 }
 
-var _ SetUpInterface = &StorageHandleTest{}
-var _ TearDownInterface = &StorageHandleTest{}
+func TestStorageHandleTestSuite(t *testing.T) {
+	suite.Run(t, new(StorageHandleTest))
+}
 
-func init() { RegisterTestSuite(&StorageHandleTest{}) }
-
-func (t *StorageHandleTest) SetUp(_ *TestInfo) {
+func (testSuite *StorageHandleTest) SetupTest() {
 	var err error
-	t.fakeStorage = NewFakeStorage()
-	AssertEq(nil, err)
+	testSuite.fakeStorage = NewFakeStorage()
+	assert.Nil(testSuite.T(), err)
 }
 
-func (t *StorageHandleTest) TearDown() {
-	t.fakeStorage.ShutDown()
+func (testSuite *StorageHandleTest) TearDownTest() {
+	testSuite.fakeStorage.ShutDown()
 }
 
-func (t *StorageHandleTest) invokeAndVerifyStorageHandle(sc storageutil.StorageClientConfig) {
-	handleCreated, err := NewStorageHandle(context.Background(), sc)
-
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
-}
-
-func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
-	storageHandle := t.fakeStorage.CreateStorageHandle()
+func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, "")
 
-	AssertNe(nil, bucketHandle)
-	AssertEq(TestBucketName, bucketHandle.bucketName)
+	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
-	storageHandle := t.fakeStorage.CreateStorageHandle()
+func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, "")
 
-	AssertEq(nil, bucketHandle.Bucket)
+	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
-	storageHandle := t.fakeStorage.CreateStorageHandle()
+func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmptyBillingProject() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(TestBucketName, projectID)
 
-	AssertNe(nil, bucketHandle)
-	AssertEq(TestBucketName, bucketHandle.bucketName)
+	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
 }
 
-func (t *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
-	storageHandle := t.fakeStorage.CreateStorageHandle()
+func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	bucketHandle := storageHandle.BucketHandle(invalidBucketName, projectID)
 
-	AssertEq(nil, bucketHandle.Bucket)
+	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleHttp2Enabled() {
-	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP2
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithZeroMaxConnsPerHost() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.MaxConnsPerHost = 0
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenUserAgentIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.UserAgent = "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) appName (GPN:Gcsfuse-DLC)"
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpoint() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAuthEnabled() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
-	AssertEq(nil, err)
-	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = url
-
-	t.invokeAndVerifyStorageHandle(sc)
-}
-
-func (t *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAuthEnabled() {
-	url, err := url.Parse(storageutil.CustomEndpoint)
-	AssertEq(nil, err)
+	assert.Nil(testSuite.T(), err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
 // This will fail while fetching the token-source, since key-file doesn't exist.
-func (t *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndAuthEnabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenKeyFileIsEmpty() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.KeyFile = ""
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenReuseTokenUrlFalse() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ReuseTokenFromUrl = false
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenTokenUrlIsSet() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.TokenUrl = storageutil.CustomTokenUrl
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWhenJsonReadEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 
-	t.invokeAndVerifyStorageHandle(sc)
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ExperimentalEnableJsonRead = true
 	sc.ClientProtocol = "test-protocol"
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), "invalid client-protocol requested: test-protocol"))
+	assert.NotNil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), handleCreated)
+	assert.Contains(testSuite.T(), err.Error(), "invalid client-protocol requested: test-protocol")
 }
 
-func (t *StorageHandleTest) TestCreateGRPCClientHandle() {
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
+	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
-	AssertEq(nil, err)
-	AssertNe(nil, handleCreated)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (t *StorageHandleTest) TestCreateHTTPClientHandle() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 
-	t.invokeAndVerifyStorageHandle(sc)
+	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	t.invokeAndVerifyStorageHandle(sc)
+	storageClient, err := NewStorageHandle(context.Background(), sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (t *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.HTTP1
 
-	handleCreated, err := createGRPCClientHandle(context.Background(), &sc)
+	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
-	AssertNe(nil, err)
-	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1)))
+	assert.NotNil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), storageClient)
+	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1))
 }
 
-func (t *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.ClientProtocol = mountpkg.GRPC
 
-	handleCreated, err := createHTTPClientHandle(context.Background(), &sc)
+	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
-	AssertNe(nil, err)
-	AssertEq(nil, handleCreated)
-	AssertTrue(strings.Contains(err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC)))
+	assert.NotNil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), storageClient)
+	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC))
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.AnonymousAccess = false
@@ -255,14 +257,14 @@ func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpoint
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
-	AssertEq(nil, handleCreated)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "no such file or directory")
+	assert.Nil(testSuite.T(), handleCreated)
 }
 
-func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthEnabled() {
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointAndAuthEnabled() {
 	url, err := url.Parse(storageutil.CustomEndpoint)
-	AssertEq(nil, err)
+	assert.Nil(testSuite.T(), err)
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 	sc.AnonymousAccess = false
@@ -270,7 +272,7 @@ func (t *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpoint
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file."))
-	AssertEq(nil, handleCreated)
+	assert.NotNil(testSuite.T(), err)
+	assert.Contains(testSuite.T(), err.Error(), "GRPC client doesn't support auth for custom-endpoint. Please set anonymous-access: true via config-file.")
+	assert.Nil(testSuite.T(), handleCreated)
 }
