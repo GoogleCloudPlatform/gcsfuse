@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -320,8 +321,28 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
-			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+			if util.IsUnsupportedDirectoryName(attrs.Prefix) {
+				// Do not list unsupported directories such as '.', '..', 
+				// '/', and '\0' as prefixes, which become implicit directories,
+				// unless there are explicit GCS objects corresponding to them.
+				// Unix environments see these directories 
+				// as having special meanings e.g. a/b/../ is treated as a/, similarly, 
+				// a/./ as a/, a//b/ as a/b/. 'a/\00/b' is not a valid substring file/directory
+				// in any unix file/directory name. GCSFuse simulates the same behvaiour
+				// by ignoring the GCS objects which have these specially reserved/unsupported unix names/substrings.
+				logger.Warnf("Ignoring unsupported object-prefix (implicit-directory): \"%s\"", attrs.Prefix)
+			} else {
+				list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
+			}
 		} else {
+			if util.IsUnsupportedObjectName(attrs.Name) {
+				// For GCS objects, which have the unsupported substrings i.e. //, /./, /../, \0'
+				// in their names, should be warned against as they can not be properly 
+				// mapped by GCSFuse, as these are either specially reserved/unsupported 
+				// names in unix environments.
+				logger.Warnf("Encoutered unsupported object-name: \"%s\"", attrs.Name)
+			}
+
 			// Converting attrs to *Object type.
 			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 			list.Objects = append(list.Objects, currObject)

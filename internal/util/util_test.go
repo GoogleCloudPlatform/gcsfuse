@@ -278,3 +278,75 @@ func (ts *UtilTest) TestIsolateContextFromParentContext() {
 	newCtxCancel()
 	assert.ErrorIs(ts.T(), newCtx.Err(), context.Canceled)
 }
+
+func (ts *UtilTest) TestIsUnsupportedObjectName() {
+	cases := []struct {
+		name          string
+		isUnsupported bool
+	}{
+		{
+			name:          "abc",
+			isUnsupported: false,
+		},
+		{
+			name:          "abc.txt",
+			isUnsupported: false,
+		},
+		{
+			name:          "abc\000",
+			isUnsupported: true,
+		},
+		{
+			name:          "abc\000/",
+			isUnsupported: true,
+		},
+	}
+
+	for _, tc := range cases {
+		assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
+	}
+}
+
+func (ts *UtilTest) TestIsUnsupportedDirectoryName() {
+	cases := []struct {
+		name          string
+		isUnsupported bool
+	}{
+		{
+			name:          "abc/",
+			isUnsupported: false,
+		},
+		{
+			name:          "abc//",
+			isUnsupported: true,
+		},
+		{
+			name:          "abc/./",
+			isUnsupported: true,
+		},
+		{
+			name:          "abc/../",
+			isUnsupported: true,
+		},
+		{
+			name:          "abc\000/",
+			isUnsupported: true,
+		},
+		{
+			name:          "./",
+			isUnsupported: true,
+		},
+		{
+			name:          "/",
+			isUnsupported: true,
+		},
+		{
+			name:          "../",
+			isUnsupported: true,
+		},
+	}
+
+	for _, tc := range cases {
+		assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedDirectoryName(tc.name))
+	}
+}
