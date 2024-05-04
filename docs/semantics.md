@@ -377,3 +377,25 @@ Not all of the usual file system features are supported. Most prominently:
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
+
+**Unsupported object names**
+
+Cloud Storage objects having following constraints in their name
+are not accessible through Cloud Storage Fuse.
+
+1. `''` (empty-name), Or
+1. Names beginning with `/`, Or
+1. Names containing `//`.
+
+The above objects cannot be accessed
+through Cloud Storage Fuse, as these names have
+special meanings in linux-based filesystems.
+For example, a file/directory with path `a//b`
+is treated the same as `a/b` by linux filesystem. However, these two
+are both valid object names in Cloud Storage buckets and
+can co-exist as two separate objects in the same bucket.
+As Cloud Storage Fuse mounts on a linux filesystem, it
+cannot show file/directories corresponding to both these objects, so it simply
+ignores `a//b` while listing objects inside prefix `a`.
+Thus `a//b` and any other objects following the above-defined patterns are
+invisible in Cloud Storage Fuse mounts.

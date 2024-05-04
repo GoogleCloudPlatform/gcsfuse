@@ -929,6 +929,62 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
+func (t *DirTest) ReadEntries_IncludingUnsupportedObjects() {
+	var err error
+	var entry fuseutil.Dirent
+
+	// Enable implicit dirs.
+	t.resetInode(true, false, true)
+
+	// Set up contents.
+	objs := []string{
+		dirInodeName + "supported_dir_explicit/",
+		dirInodeName + "supported_dir_implicit1/supported_file",
+		dirInodeName + "supported_dir_implicit2//unsupported_file",
+		dirInodeName + "/unsupported_dir_explicit/",
+		dirInodeName + "/unsupported_dir_implicit1/supported_file",
+		dirInodeName + "top_level_supported_file",
+		dirInodeName + "/top_level_unsupported_file",
+	}
+
+	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
+
+	// Read entries.
+	entries, err := t.readAllEntries()
+
+	AssertEq(nil, err)
+	AssertEq(4, len(entries))
+
+	entry = entries[0]
+	ExpectEq("supported_dir_explicit", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("supported_dir_explicit"))
+
+	entry = entries[1]
+	ExpectEq("supported_dir_implicit1", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("supported_dir_implicit1"))
+
+	entry = entries[2]
+	ExpectEq("supported_dir_implicit2", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("supported_dir_implicit2"))
+
+	entry = entries[3]
+	ExpectEq("top_level_supported_file", entry.Name)
+	ExpectEq(fuseutil.DT_File, entry.Type)
+	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("top_level_supported_file"))
+
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
+}
+
 func (t *DirTest) CreateChildFile_DoesntExist() {
 	const name = "qux"
 	objName := path.Join(dirInodeName, name)

@@ -20,6 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -294,9 +295,11 @@ func (dh *DirHandle) ReadDir(
 		return
 	}
 
+	logger.Debugf("dirEntries for %q: ", dh.in.Name())
 	// We copy out entries until we run out of entries or space.
 	for i := index; i < len(dh.entries); i++ {
 		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], dh.entries[i])
+		logger.Debugf("dirEntry[%d]= %q", i, dh.entries[i].Name)
 		if n == 0 {
 			break
 		}
