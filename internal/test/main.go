@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"time"
@@ -17,6 +19,7 @@ import (
 type Downloader struct {
 	bucket gcs.Bucket
 	minObj *gcs.MinObject
+	attrs  *gcs.ExtendedObjectAttributes
 	eG     errgroup.Group
 }
 
@@ -50,11 +53,12 @@ func NewDownloader(bucketName string, objectName string) *Downloader {
 	}
 
 	bucketHandle := storageHandle.BucketHandle(bucketName, "")
-	minObject, _, err := bucketHandle.StatObject(context.Background(), &gcs.StatObjectRequest{Name: objectName})
+	minObject, extendedAttrs, err := bucketHandle.StatObject(context.Background(), &gcs.StatObjectRequest{Name: objectName, ReturnExtendedObjectAttributes: true})
 
 	return &Downloader{
 		bucket: bucketHandle,
 		minObj: minObject,
+		attrs:  extendedAttrs,
 	}
 }
 
@@ -68,7 +72,7 @@ func (d *Downloader) MultiThreadFullFileDownload(fileName string) (err error) {
 
 func (d *Downloader) IncrementalMultiThreadFullFileDownload(fileName string) (err error) {
 	start := uint64(0)
-	multiplier := uint64(4)
+	multiplier := uint64(8)
 	downloadSize := uint64(8 * util.MiB)
 	end := d.minObj.Size
 
@@ -90,9 +94,9 @@ func (d *Downloader) IncrementalMultiThreadFullFileDownload(fileName string) (er
 
 func (d *Downloader) multiThreadRangeDownload(fileName string, offset uint64, len uint64) (err error) {
 	end := offset + len
-	for s := offset; s < end; s += 16 * util.MiB {
+	for s := offset; s < end; s += 32 * util.MiB {
 		ss := s
-		ee := min(end, s+16*util.MiB)
+		ee := min(end, s+32*util.MiB)
 		d.eG.Go(func() error {
 			errS := d.rangeDownload(fileName, ss, ee-ss)
 			if errS != nil {
@@ -145,6 +149,39 @@ func (d *Downloader) rangeDownload(fileName string, offset uint64, len uint64) (
 	return nil
 }
 
+const bufferSize = 65536
+
+// CRCReader returns CRC-32-Castagnoli checksum of content in reader
+func CRCReader(reader io.Reader) (uint32, error) {
+	table := crc32.MakeTable(crc32.Castagnoli)
+	checksum := crc32.Checksum([]byte(""), table)
+	buf := make([]byte, bufferSize)
+	for {
+		switch n, err := reader.Read(buf); err {
+		case nil:
+			checksum = crc32.Update(checksum, table, buf[:n])
+		case io.EOF:
+			return checksum, nil
+		default:
+			return 0, err
+		}
+	}
+}
+
+func CRC32(filename string) (uint32, error) {
+	if info, err := os.Stat(filename); err != nil || info.IsDir() {
+		return 0, err
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = file.Close() }()
+
+	return CRCReader(bufio.NewReader(file))
+}
+
 func main() {
 	startTime := time.Now()
 	//err := globalDownloader.SingleThreadFullFileDownload("single_download.txt")
@@ -157,4 +194,12 @@ func main() {
 	totalTime := time.Since(startTime)
 
 	fmt.Println("Total time to download file: ", totalTime)
+	startTime = time.Now()
+
+	crc32, err := CRC32("incremental_download.txt")
+	fmt.Println("Downloaded crc32: ", crc32)
+	fmt.Println("Actual crc32: ", *(globalDownloader.attrs.CRC32C))
+	totalCrcCalculationTime := time.Since(startTime)
+	fmt.Println("CRC-32 calculation time: ", totalCrcCalculationTime)
+
 }
