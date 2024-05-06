@@ -60,7 +60,7 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 
 		setup.SetMntDir(mntDirOfTestBucket)
 
-		log.Printf("Running tests with flags: %s", flags[i])
+		log.Printf("Running dynamic mounting tests with flags: %s", flags[i])
 		// Running tests on flags.
 		successCode = setup.ExecuteTest(m)
 
