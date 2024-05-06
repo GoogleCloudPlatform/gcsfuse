@@ -220,8 +220,8 @@ func UnMountBucket() {
 
 func SaveLogFileInCaseOfFailure(successCode int) {
 	if successCode != 0 {
-		// Logfile name will be failed-integration-test-log-xxxxx
-		failedlogsFileName := "failed-integration-test-logs-" + GenerateRandomString(5)
+		// Logfile name will be gcsfuse-failed-integration-test-log-xxxxx
+		failedlogsFileName := "gcsfuse-failed-integration-test-logs-" + GenerateRandomString(5)
 		log.Printf("log file is available on kokoro artifacts with file name: %s", failedlogsFileName)
 		logFileInKokoroArtifact := path.Join(os.Getenv("KOKORO_ARTIFACTS_DIR"), failedlogsFileName)
 		err := operations.CopyFile(logFile, logFileInKokoroArtifact)
