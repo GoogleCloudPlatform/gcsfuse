@@ -49,6 +49,7 @@ type storageClient struct {
 	storageControlClient *control.StorageControlClient
 }
 
+// Return clientOpts for both gRPC client and control client.
 func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig) (clientOpts []option.ClientOption, err error) {
 	// Add Custom endpoint option.
 	if clientConfig.CustomEndpoint != nil {
