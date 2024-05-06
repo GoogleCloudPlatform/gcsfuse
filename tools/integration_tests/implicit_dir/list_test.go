@@ -37,9 +37,16 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/explicitFile                                                       -- File
 	// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir2                               -- File
+	// testBucket/dirForImplicitDirTests/..                                                                 -- Dir
+	// testBucket/dirForImplicitDirTests/../fileInUnsupportedImplicitDir1                                   -- File
+	// testBucket/dirForImplicitDirTests/.                                                                  -- Dir
+	// testBucket/dirForImplicitDirTests/./fileInUnsupportedImplicitDir2                                    -- File
+	// testBucket/dirForImplicitDirTests//                                                                  -- Dir
+	// testBucket/dirForImplicitDirTests//fileInUnsupportedImplicitDir3                                     -- File 
 
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForImplicitDirTests, t)
+	implicit_and_explicit_dir_setup.CreateUnsupportedImplicitDirectoryStructure(DirForImplicitDirTests)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
