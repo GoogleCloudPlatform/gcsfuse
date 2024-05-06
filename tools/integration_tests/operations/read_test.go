@@ -55,7 +55,5 @@ func TestReadAfterWrite(t *testing.T) {
 		if got, want := string(content), "line 1\n"; got != want {
 			t.Errorf("File content %q not match %q", got, want)
 		}
-
-		t.Fatalf("Test failure.")
 	}
 }
