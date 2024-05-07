@@ -34,7 +34,7 @@ func storageControlClientRetryOptions(clientConfig *StorageClientConfig) []gax.C
 	})}
 }
 
-func storageControlClientRetries(sc *control.StorageControlClient, clientConfig *StorageClientConfig) {
+func setRetryConfigForFolderAPIs(sc *control.StorageControlClient, clientConfig *StorageClientConfig) {
 	sc.CallOptions.CreateFolder = storageControlClientRetryOptions(clientConfig)
 	sc.CallOptions.DeleteFolder = storageControlClientRetryOptions(clientConfig)
 	sc.CallOptions.RenameFolder = storageControlClientRetryOptions(clientConfig)
@@ -53,7 +53,7 @@ func CreateGRPCControlClient(ctx context.Context, clientOpts []option.ClientOpti
 	}
 
 	// Set retries for control client.
-	storageControlClientRetries(controlClient, clientConfig)
+	setRetryConfigForFolderAPIs(controlClient, clientConfig)
 
 	// Unset the environment variable, since it's used only while creation of grpc client.
 	if err := os.Unsetenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"); err != nil {
