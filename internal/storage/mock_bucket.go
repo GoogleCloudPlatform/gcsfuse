@@ -208,6 +208,30 @@ func (m *mockBucket) Name() (o0 string) {
 	return
 }
 
+func (m *mockBucket) Type() (o0 string) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"Type",
+		file,
+		line,
+		[]interface{}{})
+
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockBucket.Name: invalid return values: %v", retVals))
+	}
+
+	// o0 string
+	if retVals[0] != nil {
+		o0 = retVals[0].(string)
+	}
+
+	return
+}
+
 func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 io.ReadCloser, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)

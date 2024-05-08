@@ -125,6 +125,10 @@ func (b *debugBucket) Name() string {
 	return b.wrapped.Name()
 }
 
+func (b *debugBucket) Type() string {
+	return b.wrapped.Type()
+}
+
 func (b *debugBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
