@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -52,6 +53,9 @@ type StorageClientConfig struct {
 
 	/** Grpc client parameters. */
 	GrpcConnPoolSize int
+
+	// Enabling new API flow for HNS bucket.
+	EnableHNS config.EnableHNS
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
