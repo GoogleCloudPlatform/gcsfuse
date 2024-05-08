@@ -3,16 +3,267 @@
   type: "string"
   usage: "The application name of this mount."
 
+- flag-name: "foreground"
+  config-path: "foreground"
+  type: "bool"
+  usage: "Stay in the foreground after mounting."
+
+- flag-name: "o"
+  shorthand: "o"
+  type: "[]string"
+  config-path: "mount-options"
+  usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use -o ro"
+  hide-shorthand: true
+
+- flag-name: "dir-mode"
+  config-path: "file-system.dir-mode"
+  type: "octal"
+  usage: "Permissions bits for directories, in octal."
+  defaultValue: "0755"
+
 - flag-name: "file-mode"
   config-path: "file-system.file-mode"
   type: "octal"
   usage: "Permissions bits for files, in octal."
+  defaultValue: "0644"
 
 - flag-name: "uid"
   config-path: "file-system.uid"
   type: "int"
   default: -1
   usage: "UID owner of all inodes."
+
+- flag-name: "gid"
+  config-path: "file-system.gid"
+  type: int
+  default: -1
+  usage: "GID owner of all inodes."
+
+- flag-name: "implicit-dirs"
+  config-path: "implicit-dirs"
+  type: "bool"
+  usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
+
+- flag-name: "only-dir"
+  config-path: "only-dir"
+  type: "string"
+  usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
+
+- flag-name: "rename-dir-limit"
+  config-path: "file-system.rename-dir-limit"
+  type: "int"
+  usage: "Allow rename a directory containing fewer descendants than this limit."
+
+- flag-name: "custom-endpoint"
+  config-path: "gcs-connection.custom-endpoint"
+  type: "int"
+  usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. 
+                 The custom endpoint must support the equivalent resources and operations as the GCS 
+                 JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, 
+                 GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1."
+
+- flag-name: "billing-project"
+  config-path: "gcs-connection.billing-project"
+  type: "string"
+  usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)"
+
+- flag-name: "key-file"
+  config-path: "gcs-connection.auth.key-file"
+  type: "string"
+  usage: "Absolute path to JSON key file for use with GCS. (default: none, Google application default credentials used)"
+
+- flag-name: "token-url"
+  config-path: "gcs-connection.auth.token-url"
+  type: "string"
+  usage: "A url for getting an access token when the key-file is absent."
+
+- flag-name: "reuse-token-from-url"
+  config-path: "gcs-connection.auth.reuse-token-from-url"
+  type: "bool"
+  default: true
+  usage: "If false, the token acquired from token-url is not reused."
+
+- flag-name: "limit-bytes-per-sec"
+  config-path: "gcs-connection.max-bytes-per-sec"
+  type: "float64"
+  usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)"
+  default: "-1"
+
+
+- flag-name: "limit-ops-per-sec"
+  config-path: "gcs-connection.max-ops-per-sec"
+  type: "float64"
+  usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
+  default: "-1"
+
+- flag-name: "sequential-read-size-mb"
+  config-path: "gcs-connection.sequential-read-size-mb"
+  type: "int"
+  default: "200"
+  usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
+
+- flag-name: "max-retry-sleep"
+  config-path: "gcs-connection.retries.max-retry-sleep"
+  type: "duration"
+  default: "30s"
+  usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. 
+          Once the backoff duration exceeds this limit, the retry continues with this specified maximum value."
+
+- flag-name: "stat-cache-capacity"
+  config-path: "metadata-cache.stat-cache-max-size-mb"
+  type: "int"
+  default: "20460"
+  usage: "How many entries can the stat-cache hold (impacts memory consumption).
+  This flag has been deprecated (starting v2.0) and in its place only
+  metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported.
+  For now, the value of stat-cache-capacity will be translated to the next
+  higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming
+  stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240
+  for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb
+  is not set."
+
+- flag-name: "type-cache-capacity"
+  config-path: "metadata-cache.type-cache-max-size-mb"
+  type: "int"
+  default: "4"
+  usage: "Max size of type-cache maps which are maintained at a per-directory level."
+
+- flag-name: "metadata-cache-ttl-secs"
+  config-path: "metadata-cache.ttl-secs"
+  type: "int"
+  default: "math.MinInt64"
+  usage: "TTL for metadata-cache"
+
+- flag-name: "stat-cache-ttl"
+  config-path: "metadata-cache.deprecated-stat-cache-ttl"
+  type: "duration"
+  default: "60s"
+  usage: "The minimum of stat-cache-ttl and type-cache-ttl values, rounded up
+  to the next higher multiple of a second, is used as ttl for both stat-cache
+  and type-cache, when metadata-cache:ttl-secs is not set."
+  deprecated: true
+  deprecation-warning: "Please use --metadata-cache-ttl-secs instead"
+
+- flag-name: "type-cache-ttl"
+  config-path: "metadata-cache.deprecated-type-cache-ttl"
+  type: "duration"
+  default: "60s"
+  usage: "How long to cache name -> file/dir mappings in directory inodes. The
+  minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the
+  next higher multiple of a second, is used as ttl for both stat-cache and
+  type-cache, when metadata-cache:ttl-secs is not set."
+  deprecated: true
+  deprecation-warning: "Please use --metadata-cache-ttl-secs instead"
+
+- flag-name: "http-client-timeout"
+  config-path: "gcs-connection.timeout"
+  type: "duration"
+  usage: "The time duration that http client will wait to get response from the
+  server. The default value 0 indicates no timeout."
+
+- flag-name: "max-retry-duration"
+  type: "duration"
+  default: "-1s"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
+- flag-name: "retry-multiplier"
+  config-path: "gcs-connection.retries.multiplier"
+  type: "float64"
+  default: "2"
+  usage: "Param for exponential backoff algorithm, which is used to increase
+  waiting time b/w two consecutive retries."
+
+- flag-name: "temp-dir"
+  config-path: "file-system.temp-dir"
+  type: "string"
+  usage: "Path to the temporary directory where writes are staged prior to
+  upload to Cloud Storage. (default: system default, likely /tmp)"
+
+- flag-name: "client-protocol"
+  config-path: "gcs-connection.protocol"
+  type: "string"
+  default: "http1"
+  usage: "The protocol used for communicating with the GCS backend.
+    Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc."
+
+- flag-name: "max-conns-per-host"
+  config-path: "gcs-connection.max-conns-per-host"
+  type: "int"
+  default: "100"
+  usage: "The max number of TCP connections allowed per server. This is
+  relevant only if 'http1' protocol is being used."
+
+- flag-name: "max-idle-conns-per-host"
+  config-path: "gcs-connection.max-idle-conns-per-host"
+  type: "int"
+  default: "100"
+  usage: "The number of maximum idle connections allowed per server."
+
+- flag-name: "enable-nonexistent-type-cache"
+  config-path: "metadata-cache.enable-nonexistent-type-cache"
+  type: "bool"
+  usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType
+           will be created. This also means new file/dir created might not be seen. For example, if this
+           flag is set, and metadata-cache:ttl-secs (in config-file) or flag type-cache-ttl are set, then if we create the same file/node
+           in the meantime using the same mount, since we are not refreshing the cache, it will still return nil."
+
+- flag-name: "stackdriver-export-interval"
+  config-path: "metrics.stackdriver-export-interval"
+  type: "duration"
+  usage: "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting."
+
+- flag-name: "experimental-opentelemetry-collector-address"
+  config-path: "metrics.experimental-opentelemetry-collector-address"
+  type: "string"
+  usage: "Experimental: Export metrics to the OpenTelemetry collector at this address."
+  deprecated: true
+  deprecation-warning: "Experimental flag."
+
+- flag-name: "log-file"
+  config-path: "logging.file-path"
+  type: "string"
+  usage: "The file for storing logs that can be parsed by fluentd. When not
+  provided, plain text logs are printed to stdout."
+
+- flag-name: "log-severity"
+  config-path: "logging.severity"
+  type: "string"
+  usage: "The severity threshold beyond which to log."
+
+- flag-name: "max-log-file-size"
+  config-path: "logging.log-rotate.max-file-size-mb"
+  type: "int"
+  default: "512"
+  usage: "the maximum size in megabytes that a log file can reach before it is
+  rotated."
+
+- flag-name: "num-log-files-backups"
+  config-path: "logging.log-rotate.backup-file-count"
+  type: "int"
+  default: "10"
+  usage: "The maximum number of backup log files to retain after they have been
+  rotated. The default value is 10. When value is set to 0, all backup files are
+  retained."
+
+- flag-name: "compress-logs"
+  config-path: "logging.log-rotate.compress"
+  type: "bool"
+  default: "true"
+  usage: "Whether the rotated log files should be gzipped."
+
+- flag-name: "log-format"
+  config-path: "logging.format"
+  type: "string"
+  default: "json"
+  usage: "The format of the log file: 'text' or 'json'."
+
+- flag-name: "experimental-enable-json-read"
+  config-path: "gcs-connection.experimental-enable-json-read"
+  type: "bool"
+  usage: "By default, GCSFuse uses the GCS XML API to get and read objects. When
+  this flag is specified, GCSFuse uses the GCS JSON API instead."
 
 - flag-name: "debug_fuse_errors"
   type: "bool"
@@ -28,6 +279,28 @@
   deprecated: true
   deprecation-warning: "This flag is currently unused."
 
+- flag-name: "debug_fs"
+  type: "bool"
+  default: "true"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
+
+- flag-name: "debug_gcs"
+  type: "bool"
+  default: "true"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
+- flag-name: "debug_http"
+  type: "bool"
+  default: "true"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
 - flag-name: "debug_invariants"
   config-path: "debug.exit-on-invariant-violation"
   type: "bool"
@@ -37,3 +310,59 @@
   config-path: "debug.log-mutex"
   type: "bool"
   usage: "Print debug messages when a mutex is held too long."
+
+- flag-name: "create-empty-file"
+  config-path: "write.create-empty-file"
+  type: "bool"
+  usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
+  hold."
+  deprecated: true
+  deprecation-warning: "This flag will be deleted soon."
+
+- flag-name: "file-cache-max-size-mb"
+  config-path: "file-cache.max-size-mb"
+  type: "int"
+  usage: "Maximum size of the file-cache in MBs"
+  default: "-1"
+
+- flag-name: "cache-file-for-range-read"
+  config-path: "file-cache.cache-file-for-range-read"
+  type: "bool"
+  usage: "Whether to cache file for range reads."
+
+- flag-name: "cache-dir"
+  config-path: "cache-dir"
+  type: "string"
+  usage: "Enables file-caching. Specifies the directory to use for file-cache."
+
+- flag-name: "enable-empty-managed-folders"
+  config-path: "list.enable-empty-managed-folders"
+  type: "bool"
+  usage: |
+    This handles the corner case in listing managed folders.
+    There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object.
+    This flag always works in conjunction with --implicit-dirs flag.
+    (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases.
+    (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
+    (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
+
+- flag-name: "grpc-conn-pool-size"
+  config-path: "grpc.conn-pool-size"
+  type: "int"
+  usage: "The number of gRPC channel in grpc client."
+
+- flag-name: "enable-hns"
+  config-path: "enable-hns"
+  type: "bool"
+  usage: "Enables support for HNS buckets"
+
+- flag-name: "anonymous-access"
+  config-path: "gcs-connection.auth.anonymous-access"
+  type: "bool"
+  usage: "Authentication is enabled by default. This param disables authentication"
+
+- flag-name: "ignore-interrupts"
+  config-path: "file-system.ignore-interrupts"
+  type: "bool"
+  usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C).
+         This prevents those signals from immediately terminating gcsfuse inflight operations."
