@@ -171,7 +171,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if clientConfig.EnableHNS {
 		clientOpts, err := createClientOptionForGRPCClient(&clientConfig)
 		if err != nil {
-			return nil, fmt.Errorf("Error in getting clientOpts for gRPC client: %w", err)
+			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
 		controlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, &clientConfig)
 		if err != nil {
