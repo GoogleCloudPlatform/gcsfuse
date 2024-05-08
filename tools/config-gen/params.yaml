@@ -1,0 +1,39 @@
+- flag-name: "app-name"
+  config-path: "app-name"
+  type: "string"
+  usage: "The application name of this mount."
+
+- flag-name: "file-mode"
+  config-path: "file-system.file-mode"
+  type: "octal"
+  usage: "Permissions bits for files, in octal."
+
+- flag-name: "uid"
+  config-path: "file-system.uid"
+  type: "int"
+  default: -1
+  usage: "UID owner of all inodes."
+
+- flag-name: "debug_fuse_errors"
+  type: "bool"
+  default: "true"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
+- flag-name: "debug_fuse"
+  type: "bool"
+  default: "true"
+  usage: "This flag is currently unused."
+  deprecated: true
+  deprecation-warning: "This flag is currently unused."
+
+- flag-name: "debug_invariants"
+  config-path: "debug.exit-on-invariant-violation"
+  type: "bool"
+  usage: "Exit when internal invariants are violated."
+
+- flag-name: "debug_mutex"
+  config-path: "debug.log-mutex"
+  type: "bool"
+  usage: "Print debug messages when a mutex is held too long."

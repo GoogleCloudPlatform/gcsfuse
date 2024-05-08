@@ -442,8 +442,13 @@ func handlePanicWhileMounting() {
 	}
 }
 
+// Don't remove the comment below. It's used to generate config.go file
+// which is used for flag and config file parsing.
+// Refer https://go.dev/blog/generate for details.
+//
+//go:generate go run -C tools/config-gen . --paramsFile=params.yaml --outFile=../../cfg/config.go --templateFile=config.tpl
 func main() {
-	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
+        if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		cmd.Execute()
 		return
 	}
