@@ -33,6 +33,8 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
+const BucketType = "FLAT"
+
 type BucketConfig struct {
 	BillingProject                     string
 	OnlyDir                            string
@@ -162,7 +164,7 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
+		b = bm.storageHandle.BucketHandle(name, BucketType, bm.config.BillingProject)
 	}
 
 	// Enable monitoring.
