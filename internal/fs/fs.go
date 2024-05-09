@@ -110,6 +110,8 @@ type ServerConfig struct {
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
 
+	DirContentCacheTTL time.Duration
+
 	// The UID and GID that owns all inodes in the file system.
 	Uid uint32
 	Gid uint32
@@ -176,6 +178,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
+		dirContentCacheTTL:         time.Minute * 1,
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -342,6 +345,7 @@ type fileSystem struct {
 	enableNonexistentTypeCache bool
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
+	dirContentCacheTTL         time.Duration
 	renameDirLimit             int64
 	sequentialReadSizeMb       int32
 
@@ -2140,6 +2144,7 @@ func (fs *fileSystem) OpenDir(
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.dirInodeOrDie(op.Inode)
+	lastDirContentCacheTime := in.LastDirContentCacheTime()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -2147,6 +2152,13 @@ func (fs *fileSystem) OpenDir(
 
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
+
+	op.KeepDirectoryContentsPageCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
+	if lastDirContentCacheTime.Equal(time.Unix(0, 0)) {
+		op.KeepDirectoryContentsPageCache = true
+	}
+	logger.Info("Changing the flag name: ", op.KeepDirectoryContentsPageCache)
+	op.CacheDirContentsAsPageCache = true
 
 	return
 }

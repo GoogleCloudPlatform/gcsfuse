@@ -17,6 +17,7 @@ package inode
 import (
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
@@ -224,4 +225,8 @@ func (d *baseDirInode) DeleteChildDir(
 func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
 	// Base directory can not contain local files.
 	return nil
+}
+
+func (d *baseDirInode) LastDirContentCacheTime() time.Time {
+	return time.Now()
 }
