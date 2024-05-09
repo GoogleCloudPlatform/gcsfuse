@@ -151,7 +151,8 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 		cmd.Args = append(cmd.Args, bin.goTarget)
 
 		// Set up environment.
-		cmd.Env = []string{
+		cmd.Env = append(
+			os.Environ(),
 			"GO15VENDOREXPERIMENT=1",
 			"GO111MODULE=auto",
 			fmt.Sprintf("PATH=%s", pathEnv),
@@ -159,7 +160,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			fmt.Sprintf("GOPATH=%s", gopath),
 			fmt.Sprintf("GOCACHE=%s", gocache),
 			"CGO_ENABLED=0",
-		}
+		)
 
 		// Build.
 		var output []byte
