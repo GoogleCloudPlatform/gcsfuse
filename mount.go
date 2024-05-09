@@ -101,6 +101,7 @@ be interacting with the file system.`)
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           flags.DebugGCS,
+		EnableHNS:                          mountConfig.EnableHNS,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
