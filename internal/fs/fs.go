@@ -110,8 +110,6 @@ type ServerConfig struct {
 	// before the expiration, we may fail to find it.
 	DirTypeCacheTTL time.Duration
 
-	DirContentCacheTTL time.Duration
-
 	// The UID and GID that owns all inodes in the file system.
 	Uid uint32
 	Gid uint32
@@ -178,7 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		dirContentCacheTTL:         time.Minute * 1,
+		dirContentCacheTTL:         cfg.MountConfig.DirContentCacheTtlInSeconds,
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
