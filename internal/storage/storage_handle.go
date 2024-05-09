@@ -21,6 +21,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -35,12 +36,15 @@ import (
 	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
+const BucketType = "FLAT"
+
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
 	// all subsequent calls on the bucket. Calls with user-project will be billed
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
+	BucketType(bucketName string) (string, error)
 	BucketHandle(bucketName, bucketType, billingProject string) (bh *bucketHandle)
 }
 
@@ -207,4 +211,29 @@ func (sh *storageClient) BucketHandle(bucketName, bucketType, billingProject str
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
 	return
+}
+
+func (sh *storageClient) BucketType(bucketName string) (string, error) {
+	var bucketType string = BucketType
+	var callOptions []gax.CallOption
+
+	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      "projects/_/buckets/" + bucketName + "/storageLayout",
+		Prefix:    "",
+		RequestId: "",
+	}, callOptions...)
+
+	if err != nil {
+		err = fmt.Errorf("GetStorageLayout: %w", err)
+		return bucketType, err
+	}
+
+	if stoargeLayout.HierarchicalNamespace != nil {
+		isHierarchicalNamespace := stoargeLayout.GetHierarchicalNamespace()
+		if isHierarchicalNamespace.Enabled {
+			bucketType = "HIERARCHICAL"
+		}
+	}
+
+	return bucketType, nil
 }

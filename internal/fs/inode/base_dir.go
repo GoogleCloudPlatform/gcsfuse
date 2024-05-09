@@ -132,7 +132,7 @@ func (d *baseDirInode) LookUpChild(ctx context.Context, name string) (*Core, err
 	var err error
 	bucket, ok := d.buckets[name]
 	if !ok {
-		bucket, err = d.bucketManager.SetUpBucket(ctx, name, true)
+		bucket, err = d.bucketManager.SetUpBucket(ctx, name, true, false)
 		if err != nil {
 			return nil, err
 		}

@@ -33,7 +33,7 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-const BucketType = "FLAT"
+const Bucket_Type = "FLAT"
 
 type BucketConfig struct {
 	BillingProject                     string
@@ -69,7 +69,7 @@ type BucketConfig struct {
 type BucketManager interface {
 	SetUpBucket(
 		ctx context.Context,
-		name string, isMultibucketMount bool) (b SyncerBucket, err error)
+		name string, isMultibucketMount bool, enableHNS bool) (b SyncerBucket, err error)
 
 	// Shuts down the bucket manager and its buckets
 	ShutDown()
@@ -79,7 +79,6 @@ type bucketManager struct {
 	config          BucketConfig
 	storageHandle   storage.StorageHandle
 	sharedStatCache *lru.Cache
-
 	// Garbage collector
 	gcCtx                 context.Context
 	stopGarbageCollecting func()
@@ -158,13 +157,22 @@ func (bm *bucketManager) SetUpBucket(
 	ctx context.Context,
 	name string,
 	isMultibucketMount bool,
+	enableHns bool,
 ) (sb SyncerBucket, err error) {
 	var b gcs.Bucket
 	// Set up the appropriate backing bucket.
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(name, BucketType, bm.config.BillingProject)
+		var bucketType string = storage.BucketType
+		if enableHns {
+			bucketType, err = bm.storageHandle.BucketType(name)
+			if err != nil {
+				err = fmt.Errorf("error in getting bucket type: %w", err)
+				return
+			}
+		}
+		b = bm.storageHandle.BucketHandle(name, bucketType, bm.config.BillingProject)
 	}
 
 	// Enable monitoring.
