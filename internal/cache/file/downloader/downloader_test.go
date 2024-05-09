@@ -56,7 +56,7 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	// Create bucket in fake storage.
 	dt.fakeStorage = storage.NewFakeStorage()
 	storageHandle := dt.fakeStorage.CreateStorageHandle()
-	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
+	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, storage.BucketType, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
 	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb)
