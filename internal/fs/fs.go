@@ -2153,12 +2153,12 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
-	op.KeepDirectoryContentsPageCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
-	if lastDirContentCacheTime.Equal(time.Unix(0, 0)) {
-		op.KeepDirectoryContentsPageCache = true
-	}
-	logger.Info("Changing the flag name: ", op.KeepDirectoryContentsPageCache)
-	op.CacheDirContentsAsPageCache = true
+	// Invalidates the directory content page cache once cached response is out of
+	// dirContentCacheTTL.
+	op.KeepDirContentPageCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
+
+	// Enable directory content cache in case of non-zero ttl.
+	op.CacheDirContentAsPageCache = fs.dirContentCacheTTL > 0
 
 	return
 }
