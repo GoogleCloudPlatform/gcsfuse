@@ -164,7 +164,7 @@ func (bm *bucketManager) SetUpBucket(
 	} else {
 		// TODO: Implement a method that determines and returns the appropriate bucket type
 		// when the enableHNS flag is set to true.
-		bucketType := storage.BucketType
+		bucketType := storage.DefaultBucketType
 		b = bm.storageHandle.BucketHandle(name, bucketType, bm.config.BillingProject)
 	}
 
