@@ -124,9 +124,10 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 ////////////////////////////////////////////////////////////////////////
 
 type bucket struct {
-	clock timeutil.Clock
-	name  string
-	mu    syncutil.InvariantMutex
+	clock      timeutil.Clock
+	name       string
+	bucketType string
+	mu         syncutil.InvariantMutex
 
 	// The set of extant objects.
 	//
@@ -433,6 +434,10 @@ func copyObject(o *gcs.Object) *gcs.Object {
 
 func (b *bucket) Name() string {
 	return b.name
+}
+
+func (b *bucket) BucketType() string {
+	return b.bucketType
 }
 
 // LOCKS_EXCLUDED(b.mu)

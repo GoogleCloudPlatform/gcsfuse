@@ -35,13 +35,15 @@ import (
 	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
+const BucketType string = "FLAT"
+
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
 	// all subsequent calls on the bucket. Calls with user-project will be billed
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(bucketName string, billingProject string) (bh *bucketHandle)
+	BucketHandle(bucketName, bucketType, billingProject string) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -198,13 +200,13 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
+func (sh *storageClient) BucketHandle(bucketName, bucketType, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketName: bucketName}
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
 	return
 }

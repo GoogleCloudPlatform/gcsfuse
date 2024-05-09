@@ -63,6 +63,10 @@ func (b *prefixBucket) Name() string {
 	return b.wrapped.Name()
 }
 
+func (b *prefixBucket) BucketType() string {
+	return b.wrapped.BucketType()
+}
+
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {

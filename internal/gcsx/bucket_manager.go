@@ -162,7 +162,10 @@ func (bm *bucketManager) SetUpBucket(
 	if name == canned.FakeBucketName {
 		b = canned.MakeFakeBucket(ctx)
 	} else {
-		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
+		// TODO: Implement a method that determines and returns the appropriate bucket type
+		// when the enableHNS flag is set to true.
+		bucketType := storage.BucketType
+		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject, bucketType)
 	}
 
 	// Enable monitoring.
