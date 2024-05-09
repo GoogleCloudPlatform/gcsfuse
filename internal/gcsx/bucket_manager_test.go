@@ -33,7 +33,7 @@ func init() { RegisterTestSuite(&BucketManagerTest{}) }
 func (t *BucketManagerTest) SetUp(_ *TestInfo) {
 	t.fakeStorage = storage.NewFakeStorage()
 	t.storageHandle = t.fakeStorage.CreateStorageHandle()
-	t.bucket = t.storageHandle.BucketHandle(TestBucketName, "")
+	t.bucket = t.storageHandle.BucketHandle(TestBucketName, storage.BucketType, "")
 
 	AssertNe(nil, t.bucket)
 }
