@@ -56,7 +56,7 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 func (testSuite *BucketHandleTest) SetupTest() {
 	testSuite.fakeStorage = NewFakeStorage()
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
-	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, BucketType, "")
+	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, DefaultBucketType, "")
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 }
@@ -977,7 +977,7 @@ func (testSuite *BucketHandleTest) TestNameMethod() {
 func (testSuite *BucketHandleTest) TestBucketTypeMethod() {
 	bucketType := testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), BucketType, bucketType)
+	assert.Equal(testSuite.T(), DefaultBucketType, bucketType)
 }
 
 func (testSuite *BucketHandleTest) TestIsStorageConditionsNotEmptyWithEmptyConditions() {

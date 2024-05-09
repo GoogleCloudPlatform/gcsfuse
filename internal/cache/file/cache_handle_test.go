@@ -107,7 +107,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	// Create bucket in fake storage.
 	cht.fakeStorage = storage.NewFakeStorage()
 	storageHandle := cht.fakeStorage.CreateStorageHandle()
-	cht.bucket = storageHandle.BucketHandle(storage.TestBucketName, storage.BucketType, "")
+	cht.bucket = storageHandle.BucketHandle(storage.TestBucketName, storage.DefaultBucketType, "")
 
 	// Create test object in the bucket.
 	ctx := context.Background()

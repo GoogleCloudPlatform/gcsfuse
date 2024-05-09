@@ -35,7 +35,7 @@ import (
 	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
-const BucketType string = "FLAT"
+const DefaultBucketType string = "FLAT"
 
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
