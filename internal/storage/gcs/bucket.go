@@ -41,7 +41,7 @@ const (
 type Bucket interface {
 	Name() string
 
-	// Return Type of bucket e.g. FLAT or HIERARCHICAL
+	// Return Type of bucket e.g. Hierarchical or NonHierarchical
 	BucketType() BucketTypes
 
 	// Create a reader for the contents of a particular generation of an object.
