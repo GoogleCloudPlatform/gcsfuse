@@ -302,11 +302,10 @@ func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
-func TestGetDefaultBucketType(t *testing.T) {
-	mockClient := new(MockStorageControlClient)
-	assert.NotNil(t, mockClient)
-
+// EnableHNS flag is false so conrtolClient will be nil.
+func TestGetDefaultBucketTypeOnNilControlClient(t *testing.T) {
 	bucketType := mockGetBucketType(nil, "example-bucket")
+
 	assert.Equal(t, gcs.NonHierarchical, bucketType, "Expected Hierarchical bucket type")
 }
 
