@@ -315,9 +315,9 @@ func TestGetBucketTypeForHierarchicalNameSpace(t *testing.T) {
 
 	// Set the expectation for GetStorageLayout.
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-			Return(&controlpb.StorageLayout{
-				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-			}, nil)
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+		}, nil)
 
 	bucketType := mockGetBucketType(mockClient, "example-bucket")
 	assert.Equal(t, gcs.Hierarchical, bucketType, "Expected Hierarchical bucket type")
