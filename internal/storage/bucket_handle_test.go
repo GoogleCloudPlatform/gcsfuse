@@ -977,7 +977,7 @@ func (testSuite *BucketHandleTest) TestNameMethod() {
 func (testSuite *BucketHandleTest) TestBucketTypeMethod() {
 	bucketType := testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), DefaultBucketType, bucketType)
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketType)
 }
 
 func (testSuite *BucketHandleTest) TestIsStorageConditionsNotEmptyWithEmptyConditions() {

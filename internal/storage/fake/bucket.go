@@ -126,7 +126,7 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 type bucket struct {
 	clock      timeutil.Clock
 	name       string
-	bucketType string
+	bucketType gcs.BucketTypes
 	mu         syncutil.InvariantMutex
 
 	// The set of extant objects.

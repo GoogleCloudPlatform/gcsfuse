@@ -36,8 +36,6 @@ import (
 	_ "google.golang.org/grpc/xds/googledirectpath"
 )
 
-const DefaultBucketType string = "FLAT"
-
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
 	// all subsequent calls on the bucket. Calls with user-project will be billed

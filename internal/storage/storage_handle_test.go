@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -54,7 +55,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBil
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), DefaultBucketType, bucketHandle.bucketType)
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketHandle.bucketType)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
@@ -70,7 +71,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), DefaultBucketType, bucketHandle.bucketType)
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketHandle.bucketType)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {

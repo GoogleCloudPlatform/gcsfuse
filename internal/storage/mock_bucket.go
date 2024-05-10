@@ -208,7 +208,7 @@ func (m *mockBucket) Name() (o0 string) {
 	return
 }
 
-func (m *mockBucket) BucketType() (o0 string) {
+func (m *mockBucket) BucketType() (o0 gcs.BucketTypes) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -226,7 +226,7 @@ func (m *mockBucket) BucketType() (o0 string) {
 
 	// o0 string
 	if retVals[0] != nil {
-		o0 = retVals[0].(string)
+		o0 = retVals[0].(gcs.BucketTypes)
 	}
 
 	return
