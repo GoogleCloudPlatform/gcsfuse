@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -202,6 +204,11 @@ type dirInode struct {
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
 	prevDirListingTimeStamp *time.Time
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+	hasObjectsListBeenRead atomic.Bool
 }
 
 var _ DirInode = &dirInode{}
@@ -583,10 +590,111 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
+// shortened from gcs.Object
+type MinObjectForListing struct {
+	Name string
+	Type metadata.Type
+}
+
+func NonLocalObjectToMinObjectForListing(o *gcs.Object) *MinObjectForListing {
+	if o == nil {
+		return nil
+	}
+
+	return &MinObjectForListing{Name: o.Name, Type: TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, Name{objectName: o.Name})}
+}
+
+// shortened from gcs.Listing
+type MinGcsListing struct {
+	Objects           []*MinObjectForListing
+	CollapsedRuns     []string
+	ContinuationToken string
+}
+
+func GcsListingToMinGcListing(gcsListing *gcs.Listing) *MinGcsListing {
+	if gcsListing == nil {
+		return nil
+	}
+
+	minGcsListing := &MinGcsListing{CollapsedRuns: gcsListing.CollapsedRuns, ContinuationToken: gcsListing.ContinuationToken, Objects: []*MinObjectForListing{}}
+	for _, v := range gcsListing.Objects {
+		minGcsListing.Objects = append(minGcsListing.Objects, NonLocalObjectToMinObjectForListing(v))
+	}
+
+	return minGcsListing
+}
+
+// purely for debugging and logging. Remove later!
+func StrsOfGcsListing(listing *gcs.Listing) (strs []string) {
+	strs = append(strs, "gcs.listing={")
+
+	strs = append(strs, fmt.Sprintf("    listing.ContinuationToken=%q", listing.ContinuationToken))
+
+	strs = append(strs, "")
+
+	strs = append(strs, "    Objects=[")
+	for _, obj := range listing.Objects {
+		strs = append(strs, fmt.Sprintf("        object=%#v", obj))
+	}
+	strs = append(strs, "    ]")
+
+	strs = append(strs, "    CollapsedRuns=[")
+	for _, cr := range listing.CollapsedRuns {
+		strs = append(strs, fmt.Sprintf("        %#v", cr))
+	}
+	strs = append(strs, "    ]")
+
+	strs = append(strs, "}")
+
+	return
+}
+
+// purely for debugging and logging. Remove later!
+func PrintGcsListing(listing *gcs.Listing, printFn func(string)) {
+	for _, str := range StrsOfGcsListing(listing) {
+		printFn(str)
+	}
+}
+
+// purely for debugging and logging. Remove later!
+func StrsOfMinGcsListing(listing *MinGcsListing) (strs []string) {
+	strs = append(strs, "MinGcslisting={")
+
+	strs = append(strs, fmt.Sprintf("    listing.ContinuationToken=%q", listing.ContinuationToken))
+
+	strs = append(strs, "")
+
+	strs = append(strs, "    Objects=[")
+	for _, obj := range listing.Objects {
+		strs = append(strs, fmt.Sprintf("        object=%#v", obj))
+	}
+	strs = append(strs, "    ]")
+
+	strs = append(strs, "    CollapsedRuns=[")
+	for _, cr := range listing.CollapsedRuns {
+		strs = append(strs, fmt.Sprintf("        %#v", cr))
+	}
+	strs = append(strs, "    ]")
+
+	strs = append(strs, "}")
+
+	return
+}
+
+// purely for debugging and logging. Remove later!
+func PrintMinGcsListing(listing *MinGcsListing, printFn func(string)) {
+	for _, str := range StrsOfMinGcsListing(listing) {
+		printFn(str)
+	}
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
 	tok string) (cores map[Name]*Core, newTok string, err error) {
+
+	var listing *MinGcsListing
+
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -600,11 +708,16 @@ func (d *dirInode) readObjects(
 		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 	}
 
-	listing, err := d.bucket.ListObjects(ctx, req)
+	gcsListing, err := d.bucket.ListObjects(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+
+	logger.Debugf("GCS ListObjects output: ")
+	PrintGcsListing(gcsListing, func(s string) {
+		logger.Debugf("ListObjects: " + s)
+	})
 
 	cores = make(map[Name]*Core)
 	defer func() {
@@ -614,7 +727,16 @@ func (d *dirInode) readObjects(
 		}
 	}()
 
-	for _, o := range listing.Objects {
+	listing = GcsListingToMinGcListing(gcsListing)
+
+	logger.Debugf("Internal ListObjects MinGcsListing: ")
+	PrintMinGcsListing(listing, func(s string) {
+		logger.Debugf("ListObjects: " + s)
+	})
+
+	d.hasObjectsListBeenRead.Store(true)
+	
+	for _, o := range gcsListing.Objects {
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -645,14 +767,14 @@ func (d *dirInode) readObjects(
 	}
 
 	// Return an appropriate continuation token, if any.
-	newTok = listing.ContinuationToken
+	newTok = gcsListing.ContinuationToken
 
 	if !d.implicitDirs {
 		return
 	}
 
 	// Add implicit directories into the result.
-	for _, p := range listing.CollapsedRuns {
+	for _, p := range gcsListing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
 		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {

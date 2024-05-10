@@ -39,24 +39,45 @@ type Core struct {
 	Local bool
 }
 
+// Core contains critical information about an inode before its creation.
+// Creating by shortening inode.Core .
+type MinCoreForListing struct {
+	FullName Name
+	ItemType metadata.Type
+}
+
 // Exists returns true iff the back object exists implicitly or explicitly.
 func (c *Core) Exists() bool {
 	return c != nil
+}
+
+func TypeFromMinCore(m *gcs.MinObject, local bool, fullname Name) metadata.Type {
+	switch {
+	case m == nil && !local:
+		return metadata.ImplicitDirType
+	case fullname.IsDir():
+		return metadata.ExplicitDirType
+	case IsSymlink(m):
+		return metadata.SymlinkType
+	default:
+		return metadata.RegularFileType
+	}
 }
 
 func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
 		return metadata.UnknownType
-	case c.MinObject == nil && !c.Local:
-		return metadata.ImplicitDirType
-	case c.FullName.IsDir():
-		return metadata.ExplicitDirType
-	case IsSymlink(c.MinObject):
-		return metadata.SymlinkType
 	default:
-		return metadata.RegularFileType
+		return TypeFromMinCore(c.MinObject, c.Local, c.FullName)
 	}
+}
+
+func (c *MinCoreForListing) Type() metadata.Type {
+	if c == nil {
+		return metadata.UnknownType
+	}
+	return c.ItemType
 }
 
 // SanityCheck returns an error if the object is conflicting with itself, which
