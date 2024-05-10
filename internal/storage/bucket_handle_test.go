@@ -56,7 +56,7 @@ func TestBucketHandleTestSuite(testSuite *testing.T) {
 func (testSuite *BucketHandleTest) SetupTest() {
 	testSuite.fakeStorage = NewFakeStorage()
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
-	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, DefaultBucketType, "")
+	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 }

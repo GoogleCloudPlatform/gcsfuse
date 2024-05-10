@@ -43,7 +43,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(bucketName, bucketType, billingProject string) (bh *bucketHandle)
+	BucketHandle(bucketName string, billingProject string) (bh *bucketHandle)
 }
 
 type storageClient struct {
@@ -200,12 +200,16 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-func (sh *storageClient) BucketHandle(bucketName, bucketType, billingProject string) (bh *bucketHandle) {
+func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
+
+	// TODO: Implement a method that determines and returns the appropriate bucket type
+	// when the enableHNS flag is set to true.
+	bucketType := DefaultBucketType
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
 	return
