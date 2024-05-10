@@ -215,13 +215,13 @@ func (m *mockBucket) BucketType() (o0 string) {
 	// Hand the call off to the controller, which does most of the work.
 	retVals := m.controller.HandleMethodCall(
 		m,
-		"BucketType",
+		"BucketTypes",
 		file,
 		line,
 		[]interface{}{})
 
 	if len(retVals) != 1 {
-		panic(fmt.Sprintf("mockBucket.BucketType: invalid return values: %v", retVals))
+		panic(fmt.Sprintf("mockBucket.BucketTypes: invalid return values: %v", retVals))
 	}
 
 	// o0 string

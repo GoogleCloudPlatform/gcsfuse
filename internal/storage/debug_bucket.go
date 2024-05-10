@@ -125,7 +125,7 @@ func (b *debugBucket) Name() string {
 	return b.wrapped.Name()
 }
 
-func (b *debugBucket) BucketType() string {
+func (b *debugBucket) BucketType() gcs.BucketTypes  {
 	return b.wrapped.BucketType()
 }
 

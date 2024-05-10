@@ -122,7 +122,7 @@ func (b *fastStatBucket) Name() string {
 	return b.wrapped.Name()
 }
 
-func (b *fastStatBucket) BucketType() string {
+func (b *fastStatBucket) BucketType() gcs.BucketTypes  {
 	return b.wrapped.BucketType()
 }
 

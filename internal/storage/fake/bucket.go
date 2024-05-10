@@ -436,7 +436,7 @@ func (b *bucket) Name() string {
 	return b.name
 }
 
-func (b *bucket) BucketType() string {
+func (b *bucket) BucketType() gcs.BucketTypes  {
 	return b.bucketType
 }
 
