@@ -691,52 +691,84 @@ func PrintMinGcsListing(listing *MinGcsListing, printFn func(string)) {
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
+	tok string) (cores map[Name]*MinCoreForListing, newTok string, err error) {
 
 	var listing *MinGcsListing
 
-	// Ask the bucket to list some objects.
-	req := &gcs.ListObjectsRequest{
-		Delimiter:                "/",
-		IncludeTrailingDelimiter: true,
-		Prefix:                   d.Name().GcsObjectName(),
-		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
-		// Setting Projection param to noAcl since fetching owner and acls are not
-		// required.
-		ProjectionVal:            gcs.NoAcl,
-		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
-	}
-
-	gcsListing, err := d.bucket.ListObjects(ctx, req)
-	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
-		return
-	}
-
-	logger.Debugf("GCS ListObjects output: ")
-	PrintGcsListing(gcsListing, func(s string) {
-		logger.Debugf("ListObjects: " + s)
-	})
-
-	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+	if !d.hasObjectsListBeenRead.Load() {
+		var gcsListing *gcs.Listing
+		// Ask the bucket to list some objects.
+		req := &gcs.ListObjectsRequest{
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			Prefix:                   d.Name().GcsObjectName(),
+			ContinuationToken:        tok,
+			MaxResults:               MaxResultsForListObjectsCall,
+			// Setting Projection param to noAcl since fetching owner and acls are not
+			// required.
+			ProjectionVal:            gcs.NoAcl,
+			IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 		}
-	}()
 
-	listing = GcsListingToMinGcListing(gcsListing)
+		gcsListing, err = d.bucket.ListObjects(ctx, req)
+		if err != nil {
+			err = fmt.Errorf("ListObjects: %w", err)
+			return
+		}
 
-	logger.Debugf("Internal ListObjects MinGcsListing: ")
-	PrintMinGcsListing(listing, func(s string) {
-		logger.Debugf("ListObjects: " + s)
-	})
+		// logger.Debugf("GCS ListObjects output: ")
+		// PrintGcsListing(gcsListing, func(s string) {
+		// 	logger.Debugf("ListObjects: " + s)
+		// })
 
-	d.hasObjectsListBeenRead.Store(true)
-	
-	for _, o := range gcsListing.Objects {
+		// This probably needs to be moved out of the
+		// if !d.hasObjectsListBeenRead.Load() check,
+		// to always update the type-cache.
+		defer func() {
+			now := d.cacheClock.Now()
+			for fullName, c := range cores {
+				d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+			}
+		}()
+
+		listing = GcsListingToMinGcListing(gcsListing)
+
+		// logger.Debugf("Internal ListObjects MinGcsListing: ")
+		// PrintMinGcsListing(listing, func(s string) {
+		// 	logger.Debugf("ListObjects: " + s)
+		// })
+
+		d.hasObjectsListBeenRead.Store(true)
+	} else {
+		listing = &(MinGcsListing{})
+
+		i := 0                   // purely for debugging.. remove later!
+		index := d.cache.Index() // entire map for type-cache entries
+		for name, objtype := range index {
+			logger.Debugf("typecache-items[%d]: name=%s objtype=%v\n", i, name, objtype)
+			switch objtype {
+			case metadata.NonexistentType:
+			case metadata.UnknownType:
+				logger.Warnf("Entry of UnknownType in type-cache: %s", name)
+			case metadata.ImplicitDirType:
+				listing.CollapsedRuns = append(listing.CollapsedRuns, name)
+			case metadata.ExplicitDirType:
+				if len(name) != 0 {
+					name += "/"
+				}
+				fallthrough
+			default:
+				listing.Objects = append(listing.Objects, &MinObjectForListing{Name: name, Type: objtype})
+			}
+			i++
+		}
+	}
+
+	if cores == nil {
+		cores = make(map[Name]*MinCoreForListing)
+	}
+
+	for _, o := range listing.Objects {
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -749,42 +781,43 @@ func (d *dirInode) readObjects(
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			explicitDir := &MinCoreForListing{
+				// Bucket:    d.Bucket(),
+				FullName: dirName,
+				// MinObject: storageutil.ConvertObjToMinObject(o),
+				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, dirName),
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
-			file := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  fileName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			file := &MinCoreForListing{
+				// Bucket:    d.Bucket(),
+				FullName: fileName,
+				// MinObject: storageutil.ConvertObjToMinObject(o),
+				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, fileName),
 			}
 			cores[fileName] = file
 		}
 	}
 
 	// Return an appropriate continuation token, if any.
-	newTok = gcsListing.ContinuationToken
+	newTok = listing.ContinuationToken
 
 	if !d.implicitDirs {
 		return
 	}
 
 	// Add implicit directories into the result.
-	for _, p := range gcsListing.CollapsedRuns {
+	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
 		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
 			continue
 		}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+		implicitDir := &MinCoreForListing{
+			FullName: dirName,
+			ItemType: TypeFromMinCore(nil, false, dirName),
 		}
 		cores[dirName] = implicitDir
 	}
@@ -794,7 +827,7 @@ func (d *dirInode) readObjects(
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var cores map[Name]*Core
+	var cores map[Name]*MinCoreForListing
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)

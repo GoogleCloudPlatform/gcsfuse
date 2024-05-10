@@ -24,13 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"logger"
 	"net/http"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 
@@ -295,7 +295,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
 
-	logger.Debugf("Calling GCS ListObjectsRequest with request=%#v", *req)
+	//logger.Debugf("Calling GCS ListObjectsRequest with request=%#v", *req)
 
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
@@ -318,7 +318,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			return
 		}
 
-		logger.Debugf("GCS ListObjects outpudts[#%d]: Prefix=\"%s\", Name=\"%s\"", iter, attrs.Prefix, attrs.Name)
+		//logger.Debugf("GCS ListObjects outpudts[#%d]: Prefix=\"%s\", Name=\"%s\"", iter, attrs.Prefix, attrs.Name)
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
