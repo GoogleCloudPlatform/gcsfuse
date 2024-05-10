@@ -738,7 +738,11 @@ func (d *dirInode) readObjects(
 		// 	logger.Debugf("ListObjects: " + s)
 		// })
 
-		d.hasObjectsListBeenRead.Store(true)
+		// ContinuationToken token being "" indicates that this is the last
+		// list call on this dirInode in this sequence.
+		if listing.ContinuationToken == "" {
+			d.hasObjectsListBeenRead.Store(true)
+		}
 	} else {
 		listing = &(MinGcsListing{})
 
