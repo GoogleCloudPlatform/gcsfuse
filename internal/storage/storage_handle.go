@@ -201,6 +201,32 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
+// Determines and returns the appropriate bucket type when the controlClient is non-nil.
+func getBucketType(controlClient *control.StorageControlClient, bucketName string) gcs.BucketTypes {
+	if controlClient == nil {
+		return gcs.NonHierarchical
+	}
+
+	var callOptions []gax.CallOption
+	stoargeLayout, err := controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      "projects/_/buckets/" + bucketName + "/storageLayout",
+		Prefix:    "",
+		RequestId: "",
+	}, callOptions...)
+
+	if err != nil {
+		log.Printf("GetStorageLayout: %v", err)
+		return gcs.NonHierarchical
+	}
+
+	if stoargeLayout.HierarchicalNamespace != nil {
+		if stoargeLayout.GetHierarchicalNamespace().Enabled {
+			return gcs.Hierarchical
+		}
+	}
+	return gcs.NonHierarchical
+}
+
 func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
@@ -208,28 +234,7 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	// Default bucket type.
-	bucketType := gcs.NonHierarchical
-
-	// Determines and returns the appropriate bucket type when the controlClient is non-nil.
-	if sh.storageControlClient != nil {
-		var callOptions []gax.CallOption
-		stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-			Name:      "projects/_/buckets/" + bucketName + "/storageLayout",
-			Prefix:    "",
-			RequestId: "",
-		}, callOptions...)
-
-		if err != nil {
-			log.Fatalf("GetStorageLayout: %v", err)
-		}
-
-		if stoargeLayout.HierarchicalNamespace != nil {
-			if stoargeLayout.GetHierarchicalNamespace().Enabled {
-				bucketType = gcs.Hierarchical
-			}
-		}
-	}
+	bucketType := getBucketType(sh.storageControlClient, bucketName)
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
 	return
