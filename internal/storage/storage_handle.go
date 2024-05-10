@@ -219,10 +219,8 @@ func getBucketType(controlClient *control.StorageControlClient, bucketName strin
 		return gcs.NonHierarchical
 	}
 
-	if stoargeLayout.HierarchicalNamespace != nil {
-		if stoargeLayout.GetHierarchicalNamespace().Enabled {
-			return gcs.Hierarchical
-		}
+	if stoargeLayout.HierarchicalNamespace != nil && stoargeLayout.GetHierarchicalNamespace().Enabled {
+		return gcs.Hierarchical
 	}
 	return gcs.NonHierarchical
 }
