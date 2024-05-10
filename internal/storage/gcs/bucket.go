@@ -29,7 +29,6 @@ const (
 	Hierarchical
 )
 
-
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //

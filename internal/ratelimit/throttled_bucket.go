@@ -50,7 +50,7 @@ func (b *throttledBucket) Name() string {
 	return b.wrapped.Name()
 }
 
-func (b *throttledBucket) BucketType() gcs.BucketTypes  {
+func (b *throttledBucket) BucketType() gcs.BucketTypes {
 	return b.wrapped.BucketType()
 }
 
