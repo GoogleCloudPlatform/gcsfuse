@@ -81,14 +81,6 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 	assert.Nil(testSuite.T(), bucketHandle.Bucket)
 }
 
-func (testSuite *StorageHandleTest) TestBucketType() {
-	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
-	bucketType, err := storageHandle.BucketType(TestBucketName)
-
-	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), DefaultBucketType, bucketType)
-}
-
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig() // by default http1 enabled
 

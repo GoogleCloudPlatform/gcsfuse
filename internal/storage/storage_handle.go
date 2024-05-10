@@ -16,11 +16,13 @@ package storage
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -206,9 +208,28 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	// TODO: Implement a method that determines and returns the appropriate bucket type
-	// when the enableHNS flag is set to true.
+	// Default bucket type.
 	bucketType := gcs.NonHierarchical
+
+	// Determines and returns the appropriate bucket type when the controlClient is non-nil.
+	if sh.storageControlClient != nil {
+		var callOptions []gax.CallOption
+		stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+			Name:      "projects/_/buckets/" + bucketName + "/storageLayout",
+			Prefix:    "",
+			RequestId: "",
+		}, callOptions...)
+
+		if err != nil {
+			log.Printf("GetStorageLayout: %v", err)
+		}
+
+		if stoargeLayout.HierarchicalNamespace != nil {
+			if stoargeLayout.GetHierarchicalNamespace().Enabled {
+				bucketType = gcs.Hierarchical
+			}
+		}
+	}
 
 	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
 	return
