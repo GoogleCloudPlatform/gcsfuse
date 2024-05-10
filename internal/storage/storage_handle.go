@@ -221,7 +221,7 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		}, callOptions...)
 
 		if err != nil {
-			log.Printf("GetStorageLayout: %v", err)
+			log.Fatalf("GetStorageLayout: %v", err)
 		}
 
 		if stoargeLayout.HierarchicalNamespace != nil {
