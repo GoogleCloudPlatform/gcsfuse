@@ -60,6 +60,8 @@ type TypeCache interface {
 	// If entry doesn't exist in the cache, then
 	// UnknownType is returned.
 	Get(now time.Time, name string) Type
+
+	Index() map[string]Type
 }
 
 type cacheEntry struct {
@@ -184,4 +186,17 @@ func (tc *typeCache) Get(now time.Time, name string) Type {
 		return UnknownType
 	}
 	return entry.inodeType
+}
+
+func (tc *typeCache) Index() map[string]Type {
+	if tc == nil || tc.entries == nil {
+		return map[string]Type{}
+	}
+
+	index := map[string]Type{}
+	for k, v := range tc.entries.Index() {
+		index[k] = v.(cacheEntry).inodeType
+	}
+
+	return index
 }

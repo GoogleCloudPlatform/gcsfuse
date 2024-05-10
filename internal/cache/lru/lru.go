@@ -267,3 +267,18 @@ func (c *Cache) UpdateWithoutChangingOrder(
 
 	return nil
 }
+
+func (c *Cache) Index() map[string]ValueType {
+	if c == nil {
+		return map[string]ValueType{}
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	ret := map[string]ValueType{}
+	for k, v := range c.index {
+		ret[k] = v.Value.(entry).Value
+	}
+	return ret
+}
