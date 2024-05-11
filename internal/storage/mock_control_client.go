@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+
 // MockStorageControlClient creates a mock version of the StorageControlClient.
 type MockStorageControlClient struct {
 	mock.Mock
