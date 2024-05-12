@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -123,7 +124,7 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
 	// Validate CRC of cached file matches GCS CRC.
 	cachedFilePath := getCachedFilePath(fileName)
-	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
+	crc32ValueOfCachedFile, err := util.CalculateFileCRC32(cachedFilePath)
 	if err != nil {
 		t.Errorf("CalculateFileCRC32 Failed: %v", err)
 	}
@@ -158,7 +159,7 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	}
 	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
-	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
+	gotCRC32Value, err := util.CalculateCRC32(strings.NewReader(expectedOutcome.content))
 	if err != nil {
 		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}

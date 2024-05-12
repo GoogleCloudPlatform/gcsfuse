@@ -85,6 +85,10 @@ type Job struct {
 	removeJobCallback func()
 
 	mu locker.Locker
+
+	// validateCacheChecksum validate the checksum of cached file with the checksum
+	// attributes on gcs.
+	validateCacheChecksum bool
 }
 
 // JobStatus represents the status of job.
@@ -102,14 +106,15 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func()) (job *Job) {
+	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func(), validateCacheChecksum bool) (job *Job) {
 	job = &Job{
-		object:               object,
-		bucket:               bucket,
-		fileInfoCache:        fileInfoCache,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		fileSpec:             fileSpec,
-		removeJobCallback:    removeJobCallback,
+		object:                object,
+		bucket:                bucket,
+		fileInfoCache:         fileInfoCache,
+		sequentialReadSizeMb:  sequentialReadSizeMb,
+		fileSpec:              fileSpec,
+		removeJobCallback:     removeJobCallback,
+		validateCacheChecksum: validateCacheChecksum,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -391,6 +396,19 @@ func (job *Job) downloadObjectAsync() {
 			} else {
 				job.mu.Lock()
 				job.status.Name = Completed
+				if job.validateCacheChecksum { // should validate checksum
+					var extendedAttrs *gcs.ExtendedObjectAttributes
+					_, extendedAttrs, err = job.bucket.StatObject(context.Background(), &gcs.StatObjectRequest{Name: job.object.Name, ReturnExtendedObjectAttributes: true})
+					checksumFromFile, err := util.CalculateCRC32(cacheFile)
+					if err != nil {
+						logger.Warnf("Error in calculating the checksum: %v", err)
+					} else {
+						if checksumFromFile != *extendedAttrs.CRC32C {
+							job.status.Name = Invalid
+							logger.Warnf("Download file checksum mismatch: %v", err)
+						}
+					}
+				}
 				job.notifySubscribers()
 				job.mu.Unlock()
 				return

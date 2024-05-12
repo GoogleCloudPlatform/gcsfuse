@@ -209,7 +209,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 // fileInfoCache then no need to create file in cache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64, validateCacheChecksum bool) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 

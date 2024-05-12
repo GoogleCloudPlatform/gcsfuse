@@ -43,6 +43,7 @@ func validateDefaultConfig(mountConfig *MountConfig) {
 	ExpectEq("", mountConfig.CacheDir)
 	ExpectEq(-1, mountConfig.FileCacheConfig.MaxSizeMB)
 	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	ExpectEq(false, mountConfig.FileCacheConfig.validateCacheChecksum)
 	ExpectEq(1, mountConfig.GrpcClientConfig.ConnPoolSize)
 	ExpectEq(false, mountConfig.AuthConfig.AnonymousAccess)
 	ExpectEq(false, mountConfig.EnableHNS)

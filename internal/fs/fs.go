@@ -243,7 +243,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
-		cfg.SequentialReadSizeMb)
+		cfg.SequentialReadSizeMb, cfg.MountConfig.FileCacheConfig.ValidateCacheChecksum)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
 		cacheDir, filePerm, dirPerm)
 	return
@@ -462,6 +462,10 @@ type fileSystem struct {
 	// cacheFileForRangeRead when true downloads file into cache even for
 	// random file access.
 	cacheFileForRangeRead bool
+
+	// validateCacheChecksum validate the checksum of cached file with the checksum
+	// attributes on gcs.
+	validateCacheChecksum bool
 }
 
 ////////////////////////////////////////////////////////////////////////

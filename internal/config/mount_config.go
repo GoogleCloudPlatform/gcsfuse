@@ -96,6 +96,7 @@ type FileSystemConfig struct {
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
+	ValidateCacheChecksum bool  `yaml:"validate-cache-checksum"`
 }
 
 type MetadataCacheConfig struct {
