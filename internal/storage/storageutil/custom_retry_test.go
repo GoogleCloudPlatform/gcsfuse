@@ -21,19 +21,11 @@ import (
 	"net/url"
 	"testing"
 
-	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 )
 
-func TestCustomRetry(t *testing.T) { RunTests(t) }
-
-type customRetryTest struct {
-}
-
-func init() { RegisterTestSuite(&customRetryTest{}) }
-
-func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
+func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 	// 401
 	var err401 = googleapi.Error{
 		Code: 401,
@@ -49,26 +41,26 @@ func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
 		Body: "API rate limit exceeded",
 	}
 
-	ExpectEq(true, ShouldRetry(&err401))
-	ExpectEq(true, ShouldRetry(&err502))
-	ExpectEq(true, ShouldRetry(&err429))
+	assert.Equal(t, true, ShouldRetry(&err401))
+	assert.Equal(t, true, ShouldRetry(&err502))
+	assert.Equal(t, true, ShouldRetry(&err429))
 }
 
-func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError400() {
+func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 	// 400 - bad request
 	var err400 = googleapi.Error{
 		Code: 400,
 	}
 
-	ExpectEq(false, ShouldRetry(&err400))
+	assert.Equal(t, false, ShouldRetry(&err400))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueWithUnexpectedEOFError() {
-	ExpectEq(true, ShouldRetry(io.ErrUnexpectedEOF))
+func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
+	assert.Equal(t, true, ShouldRetry(io.ErrUnexpectedEOF))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueWithNetworkError() {
-	ExpectEq(true, ShouldRetry(net.ErrClosed))
+func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
+	assert.Equal(t, true, ShouldRetry(net.ErrClosed))
 }
 
 func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
