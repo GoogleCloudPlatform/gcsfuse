@@ -19,26 +19,23 @@ import (
 	"os"
 	"testing"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
 const tpcUniverseDomain = "apis-tpclp.goog"
-
-func TestAuth(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type AuthTest struct {
+	suite.Suite
 }
 
-func init() {
-	RegisterTestSuite(&AuthTest{})
-}
-
-func (t *AuthTest) SetUp(ti *TestInfo) {
+func TestAuthSuite(t *testing.T) {
+	suite.Run(t, new(AuthTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -47,30 +44,30 @@ func (t *AuthTest) SetUp(ti *TestInfo) {
 
 func (t *AuthTest) TestGetUniverseDomainForGoogle() {
 	contents, err := os.ReadFile("testdata/google_creds.json")
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 
 	domain, err := getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
-	ExpectEq(nil, err)
-	ExpectEq(universeDomainDefault, domain)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), universeDomainDefault, domain)
 }
 
 func (t *AuthTest) TestGetUniverseDomainForTPC() {
 	contents, err := os.ReadFile("testdata/tpc_creds.json")
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 
 	domain, err := getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
-	ExpectEq(nil, err)
-	ExpectEq(tpcUniverseDomain, domain)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), tpcUniverseDomain, domain)
 }
 
 func (t *AuthTest) TestGetUniverseDomainForEmptyCreds() {
 	contents, err := os.ReadFile("testdata/empty_creds.json")
-	AssertEq(nil, err)
+	assert.NoError(t.T(), err)
 
 	_, err = getUniverseDomain(context.Background(), contents, storagev1.DevstorageFullControlScope)
 
-	ExpectNe(nil, err)
-	ExpectEq("CredentialsFromJSON(): unexpected end of JSON input", err.Error())
+	assert.Error(t.T(), err)
+	assert.Equal(t.T(), "CredentialsFromJSON(): unexpected end of JSON input", err.Error())
 }

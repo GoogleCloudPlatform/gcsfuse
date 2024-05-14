@@ -16,253 +16,234 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
-	"github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestYamlParser(t *testing.T) { RunTests(t) }
-
 type YamlParserTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&YamlParserTest{}) }
+func TestYamlParserSuite(t *testing.T) {
+	suite.Run(t, new(YamlParserTest))
+}
 
-func validateDefaultConfig(mountConfig *MountConfig) {
-	AssertNe(nil, mountConfig)
-	ExpectEq(false, mountConfig.CreateEmptyFile)
-	ExpectEq(false, mountConfig.ListConfig.EnableEmptyManagedFolders)
-	ExpectEq("INFO", mountConfig.LogConfig.Severity)
-	ExpectEq("", mountConfig.LogConfig.Format)
-	ExpectEq("", mountConfig.LogConfig.FilePath)
-	ExpectEq(512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	ExpectEq(true, mountConfig.LogConfig.LogRotateConfig.Compress)
-	ExpectEq("", mountConfig.CacheDir)
-	ExpectEq(-1, mountConfig.FileCacheConfig.MaxSizeMB)
-	ExpectEq(false, mountConfig.FileCacheConfig.CacheFileForRangeRead)
-	ExpectEq(1, mountConfig.GrpcClientConfig.ConnPoolSize)
-	ExpectEq(false, mountConfig.AuthConfig.AnonymousAccess)
-	ExpectEq(false, mountConfig.EnableHNS)
-	ExpectFalse(mountConfig.FileSystemConfig.IgnoreInterrupts)
+func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
+	assert.NotNil(t, mountConfig)
+	assert.False(t, mountConfig.CreateEmptyFile)
+	assert.False(t, mountConfig.ListConfig.EnableEmptyManagedFolders)
+	assert.Equal(t, "INFO", string(mountConfig.LogConfig.Severity))
+	assert.Equal(t, "", mountConfig.LogConfig.Format)
+	assert.Equal(t, "", mountConfig.LogConfig.FilePath)
+	assert.Equal(t, 512, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	assert.Equal(t, 10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
+	assert.True(t, bool(mountConfig.LogConfig.LogRotateConfig.Compress))
+	assert.Equal(t, "", string(mountConfig.CacheDir))
+	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
+	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.Equal(t, 1, mountConfig.GrpcClientConfig.ConnPoolSize)
+	assert.False(t, mountConfig.AuthConfig.AnonymousAccess)
+	assert.Equal(t, false, bool(mountConfig.EnableHNS))
+	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
 	mountConfig, err := ParseConfigFile("")
 
-	AssertEq(nil, err)
-	validateDefaultConfig(mountConfig)
+	assert.NoError(t.T(), err)
+	validateDefaultConfig(t.T(), mountConfig)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFile() {
 	mountConfig, err := ParseConfigFile("testdata/empty_file.yaml")
 
-	AssertEq(nil, err)
-	validateDefaultConfig(mountConfig)
+	assert.NoError(t.T(), err)
+	validateDefaultConfig(t.T(), mountConfig)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_NonExistingFile() {
 	_, err := ParseConfigFile("testdata/nofile.yaml")
 
-	AssertNe(nil, err)
-	AssertEq("error reading config file: open testdata/nofile.yaml: no such file or directory", err.Error())
+	assert.ErrorContains(t.T(), err, "error reading config file: open testdata/nofile.yaml: no such file or directory")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	_, err := ParseConfigFile("testdata/invalid_config.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
+	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_ValidConfigWith0BackupFileCount() {
 	mountConfig, err := ParseConfigFile("testdata/valid_config_with_0_backup-file-count.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	ExpectEq(true, mountConfig.WriteConfig.CreateEmptyFile)
-	ExpectEq(ERROR, mountConfig.LogConfig.Severity)
-	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
-	ExpectEq("text", mountConfig.LogConfig.Format)
-	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(0, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.True(t.T(), mountConfig.WriteConfig.CreateEmptyFile)
+	assert.Equal(t.T(), ERROR, mountConfig.LogConfig.Severity)
+	assert.Equal(t.T(), "/tmp/logfile.json", mountConfig.LogConfig.FilePath)
+	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
+	assert.Equal(t.T(), 0, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
+	assert.False(t.T(), mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_Invalid_UnexpectedField_Config() {
 	_, err := ParseConfigFile("testdata/invalid_unexpectedfield_config.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:"))
-	AssertTrue(strings.Contains(err.Error(), "line 5: field formats not found in type config.LogConfig"))
+	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:")
+	assert.ErrorContains(t.T(), err, "line 5: field formats not found in type config.LogConfig")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	mountConfig, err := ParseConfigFile("testdata/valid_config.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	ExpectEq(true, mountConfig.WriteConfig.CreateEmptyFile)
-	ExpectEq(ERROR, mountConfig.LogConfig.Severity)
-	ExpectEq("/tmp/logfile.json", mountConfig.LogConfig.FilePath)
-	ExpectEq("text", mountConfig.LogConfig.Format)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.True(t.T(), mountConfig.WriteConfig.CreateEmptyFile)
+	assert.Equal(t.T(), ERROR, mountConfig.LogConfig.Severity)
+	assert.Equal(t.T(), "/tmp/logfile.json", mountConfig.LogConfig.FilePath)
+	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
 
 	// log-rotate config
-	ExpectEq(100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
-	ExpectEq(5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	ExpectEq(false, mountConfig.LogConfig.LogRotateConfig.Compress)
+	assert.Equal(t.T(), 100, mountConfig.LogConfig.LogRotateConfig.MaxFileSizeMB)
+	assert.Equal(t.T(), 5, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
+	assert.False(t.T(), mountConfig.LogConfig.LogRotateConfig.Compress)
 
 	// metadata-cache config
-	ExpectEq(5, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	ExpectEq(1, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
-	ExpectEq(3, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
+	assert.Equal(t.T(), int64(5), mountConfig.MetadataCacheConfig.TtlInSeconds)
+	assert.Equal(t.T(), 1, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+	assert.Equal(t.T(), int64(3), mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 
 	// list config
-	ExpectEq(true, mountConfig.ListConfig.EnableEmptyManagedFolders)
+	assert.True(t.T(), mountConfig.ListConfig.EnableEmptyManagedFolders)
 
 	// auth config
-	ExpectEq(true, mountConfig.AuthConfig.AnonymousAccess)
+	assert.True(t.T(), mountConfig.AuthConfig.AnonymousAccess)
 
 	// enable-hns
-	ExpectEq(true, mountConfig.EnableHNS)
+	assert.Equal(t.T(), true, bool(mountConfig.EnableHNS))
 
 	// file-system config
-	ExpectTrue(mountConfig.FileSystemConfig.IgnoreInterrupts)
+	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]")))
+	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig1() {
 	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_1.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "max-file-size-mb should be atleast 1")))
+	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "max-file-size-mb should be atleast 1"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
 	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_2.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(),
-		fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value")))
+	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	_, err := ParseConfigFile("testdata/invalid_filecachesize_config.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing file-cache configs: the value of max-size-mb for file-cache can't be less than -1"))
+	assert.ErrorContains(t.T(), err, "error parsing file-cache configs: the value of max-size-mb for file-cache can't be less than -1")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
 
-	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsInvalidValueError)))
+	assert.ErrorContains(t.T(), err, MetadataCacheTtlSecsInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_ttl-unset.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_ttl_too_high.yaml")
 
-	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(MetadataCacheTtlSecsTooHighError)))
+	assert.ErrorContains(t.T(), err, MetadataCacheTtlSecsTooHighError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTypeCacheMaxSize() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_type-cache-max-size-mb.yaml")
 
-	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(TypeCacheMaxSizeMBInvalidValueError)))
+	assert.ErrorContains(t.T(), err, TypeCacheMaxSizeMBInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheMaxSizeNotSet() {
 	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_type-cache-max-size-mb_unset.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidStatCacheSize() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_stat-cache-max-size-mb.yaml")
 
-	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeMBInvalidValueError)))
+	assert.ErrorContains(t.T(), err, StatCacheMaxSizeMBInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNotSet() {
 	mountConfig, err := ParseConfigFile("testdata/metadata_cache_config_stat-cache-max-size-mb_unset.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeTooHigh() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_stat-cache-max-size-mb_too_high.yaml")
 
-	AssertNe(nil, err)
-	AssertThat(err, oglematchers.Error(oglematchers.HasSubstr(StatCacheMaxSizeMBTooHighError)))
+	assert.ErrorContains(t.T(), err, StatCacheMaxSizeMBTooHighError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnPoolSize() {
 	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_conn_pool_size.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing grpc-config: the value of conn-pool-size can't be less than 1"))
+	assert.ErrorContains(t.T(), err, "error parsing grpc-config: the value of conn-pool-size can't be less than 1")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize() {
 	mountConfig, err := ParseConfigFile("testdata/grpc_client_config/unset_conn_pool_size.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidIgnoreInterruptsValue() {
 	_, err := ParseConfigFile("testdata/file_system_config/invalid_ignore_interrupts.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
+	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterruptsValue() {
 	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_ignore_interrupts.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(false, mountConfig.FileSystemConfig.IgnoreInterrupts)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), false, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidAnonymousAccessValue() {
 	_, err := ParseConfigFile("testdata/auth_config/invalid_anonymous_access.yaml")
 
-	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool"))
+	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetAnonymousAccessValue() {
 	mountConfig, err := ParseConfigFile("testdata/auth_config/unset_anonymous_access.yaml")
 
-	AssertEq(nil, err)
-	AssertNe(nil, mountConfig)
-	AssertEq(false, mountConfig.AuthConfig.AnonymousAccess)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), false, mountConfig.AuthConfig.AnonymousAccess)
 }
