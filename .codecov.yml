@@ -9,6 +9,6 @@ coverage:
         if_ci_failed: ignore
     patch:
       default:
-        target: 0%
+        target: 80%
         threshold: 0%
-  
+        
