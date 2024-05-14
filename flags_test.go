@@ -140,6 +140,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.ExperimentalEnableJsonRead)
 	ExpectTrue(f.IgnoreInterrupts)
 	ExpectTrue(f.AnonymousAccess)
+	ExpectTrue(f.DebugHTTP)
 
 	// --foo=false form
 	args = nil
@@ -177,7 +178,7 @@ func (t *FlagsTest) Bools() {
 func (t *FlagsTest) DecimalNumbers() {
 	args := []string{
 		"--uid=17",
-		"--gid=11",
+		"--gid=19",
 		"--limit-bytes-per-sec=123.4",
 		"--limit-ops-per-sec=56.78",
 		"--stat-cache-capacity=8192",
