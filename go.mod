@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/storage v1.41.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
-	github.com/fsouza/fake-gcs-server v1.48.0
+	github.com/fsouza/fake-gcs-server v1.49.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.4
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
@@ -20,7 +20,7 @@ require (
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli v1.22.14
+	github.com/urfave/cli v1.22.15
 	go.opencensus.io v0.24.0
 	golang.org/x/net v0.25.0
 	golang.org/x/oauth2 v0.20.0
@@ -47,7 +47,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20231128003011-0fa0005c9caa // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.12.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.4 // indirect
