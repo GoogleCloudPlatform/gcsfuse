@@ -18,7 +18,6 @@
 package operations_test
 
 import (
-	"context"
 	"io/fs"
 	"os"
 	"path"
@@ -26,7 +25,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,53 +42,231 @@ import (
 //	    explicitDir2
 //					file1.txt
 func createDirectoryStructureForParallelDiropsTest(t *testing.T) {
-	_ = setup.SetupTestDirectory(DirForOperationTests)
-
-	ctx := context.Background()
-	storageClient, err := client.CreateStorageClient(ctx)
-	if err != nil {
-		t.Fatalf("failed while creting client for parallel dirops test client.CreateStorageClient: %v", err)
-	}
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	setup.CleanUpDir(testDir)
 
 	// Create explicitDir1 structure
-	explicitDir1 := path.Join(DirForOperationTests, "explicitDir1")
-	err = client.CreateObjectOnGCS(ctx, storageClient, explicitDir1+"/", "")
-	if err != nil {
-		t.Fatalf("error while creating explicitdir1 : %v", err)
-	}
+	explicitDir1 := path.Join(testDir, "explicitDir1")
+	operations.CreateDirectory(explicitDir1, t)
 	filePath1 := path.Join(explicitDir1, "file1.txt")
-	err = client.CreateObjectOnGCS(ctx, storageClient, filePath1, "12345")
-	if err != nil {
-		t.Fatalf("error while creating explicitdir1/file1.txt : %v", err)
-	}
+	operations.CreateFileOfSize(5, filePath1, t)
 	filePath2 := path.Join(explicitDir1, "file2.txt")
-	err = client.CreateObjectOnGCS(ctx, storageClient, filePath2, "6789101112")
-	if err != nil {
-		t.Fatalf("error while creating explicitdir1/file2.txt : %v", err)
-	}
+	operations.CreateFileOfSize(10, filePath2, t)
 
 	// Create explicitDir2 structure
-	explicitDir2 := path.Join(DirForOperationTests, "explicitDir2")
-	err = client.CreateObjectOnGCS(ctx, storageClient, explicitDir2+"/", "")
-	if err != nil {
-		t.Fatalf("error while creating explicitdir2: %v", err)
-	}
+	explicitDir2 := path.Join(testDir, "explicitDir2")
+	operations.CreateDirectory(explicitDir2, t)
 	filePath1 = path.Join(explicitDir2, "file1.txt")
-	err = client.CreateObjectOnGCS(ctx, storageClient, filePath1, "-1234556789")
-	if err != nil {
-		t.Fatalf("error while creating explicitdir2/file1.txt : %v", err)
-	}
+	operations.CreateFileOfSize(11, filePath1, t)
 
-	filePath1 = path.Join(DirForOperationTests, "file1.txt")
-	err = client.CreateObjectOnGCS(ctx, storageClient, filePath1, "abcdef")
-	if err != nil {
-		t.Fatalf("error while creating file1.txt: %v", err)
+	filePath1 = path.Join(testDir, "file1.txt")
+	operations.CreateFileOfSize(5, filePath1, t)
+	filePath2 = path.Join(testDir, "file2.txt")
+	operations.CreateFileOfSize(3, filePath2, t)
+}
+
+func TestParallelLookUpsForSameFile(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Create directory structure for testing.
+	createDirectoryStructureForParallelDiropsTest(t)
+	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+		defer wg.Done()
+		fileInfo, err := os.Stat(filePath)
+		return fileInfo, err
 	}
-	filePath2 = path.Join(DirForOperationTests, "file2.txt")
-	err = client.CreateObjectOnGCS(ctx, storageClient, filePath2, "xyz")
-	if err != nil {
-		t.Fatalf("error while creating file2.txt: %v", err)
+	var stat1, stat2 os.FileInfo
+	var err1, err2 error
+
+	// Parallel lookups of file just under mount.
+	filePath := path.Join(testDir, "file1.txt")
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		stat1, err1 = lookUpFunc(&wg, filePath)
+	}()
+	go func() {
+		stat2, err2 = lookUpFunc(&wg, filePath)
+	}()
+	wg.Wait()
+
+	// Assert both stats passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Equal(t, int64(5), stat1.Size())
+	assert.Equal(t, int64(5), stat2.Size())
+	assert.Contains(t, filePath, stat1.Name())
+	assert.Contains(t, filePath, stat2.Name())
+
+	// Parallel lookups of file under a directory in mount.
+	filePath = path.Join(testDir, "explicitDir1/file2.txt")
+	wg.Add(2)
+	go func() {
+		stat1, err1 = lookUpFunc(&wg, filePath)
+	}()
+	go func() {
+		stat2, err2 = lookUpFunc(&wg, filePath)
+	}()
+	wg.Wait()
+
+	// Assert both stats passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Equal(t, int64(10), stat1.Size())
+	assert.Equal(t, int64(10), stat2.Size())
+	assert.Contains(t, filePath, stat1.Name())
+	assert.Contains(t, filePath, stat2.Name())
+}
+
+func TestParallelReadDirsForSameDir(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Create directory structure for testing.
+	createDirectoryStructureForParallelDiropsTest(t)
+	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
+		defer wg.Done()
+		dirEntries, err := os.ReadDir(dirPath)
+		return dirEntries, err
 	}
+	var dirEntries1, dirEntries2 []os.DirEntry
+	var err1, err2 error
+
+	// Parallel readDirs of explicit dir under mount.
+	dirPath := path.Join(testDir, "explicitDir1")
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		dirEntries1, err1 = readDirFunc(&wg, dirPath)
+	}()
+	go func() {
+		dirEntries2, err2 = readDirFunc(&wg, dirPath)
+	}()
+	wg.Wait()
+
+	// Assert both readDirs passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Contains(t, "file1.txt", dirEntries1[0].Name())
+	assert.Contains(t, "file2.txt", dirEntries1[1].Name())
+	assert.Contains(t, "file1.txt", dirEntries2[0].Name())
+	assert.Contains(t, "file2.txt", dirEntries2[1].Name())
+
+	// Parallel readDirs of a directory and its parent directory.
+	dirPath = path.Join(testDir, "explicitDir1")
+	parentDirPath := testDir
+	wg = sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		dirEntries1, err1 = readDirFunc(&wg, dirPath)
+	}()
+	go func() {
+		dirEntries2, err2 = readDirFunc(&wg, parentDirPath)
+	}()
+	wg.Wait()
+
+	// Assert both readDirs passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Contains(t, "file1.txt", dirEntries1[0].Name())
+	assert.Contains(t, "file2.txt", dirEntries1[1].Name())
+	assert.Contains(t, "explicitDir1", dirEntries2[0].Name())
+	assert.Contains(t, "explicitDir2", dirEntries2[1].Name())
+	assert.Contains(t, "file1.txt", dirEntries2[2].Name())
+	assert.Contains(t, "file2.txt", dirEntries2[3].Name())
+}
+
+func TestParallelLookUpAndDeleteSameDir(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Create directory structure for testing.
+	createDirectoryStructureForParallelDiropsTest(t)
+	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
+		defer wg.Done()
+		fileInfo, err := os.Stat(dirPath)
+		return fileInfo, err
+	}
+	deleteFunc := func(wg *sync.WaitGroup, dirPath string) error {
+		defer wg.Done()
+		err := os.RemoveAll(dirPath)
+		return err
+	}
+	var statInfo os.FileInfo
+	var lookUpErr, deleteErr error
+
+	// Parallel lookups of explicit dir under mount.
+	dirPath := path.Join(testDir, "explicitDir1")
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
+	}()
+	go func() {
+		deleteErr = deleteFunc(&wg, dirPath)
+	}()
+	wg.Wait()
+
+	// Assert either dir is created first or deleted first
+	assert.ErrorIs(t, deleteErr, nil)
+	_, err := os.Stat(dirPath)
+	assert.True(t, os.IsNotExist(err))
+	if lookUpErr == nil {
+		assert.Contains(t, statInfo.Name(), "explicitDir1")
+		assert.True(t, statInfo.IsDir())
+	} else {
+		assert.True(t, os.IsNotExist(lookUpErr))
+	}
+}
+
+func TestParallelLookUpsForDifferentFiles(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	// Create directory structure for testing.
+	createDirectoryStructureForParallelDiropsTest(t)
+	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
+		defer wg.Done()
+		fileInfo, err := os.Stat(filePath)
+		return fileInfo, err
+	}
+	var stat1, stat2 os.FileInfo
+	var err1, err2 error
+
+	// Parallel lookups of two files just under mount.
+	filePath1 := path.Join(testDir, "file1.txt")
+	filePath2 := path.Join(testDir, "file2.txt")
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		stat1, err1 = lookUpFunc(&wg, filePath1)
+	}()
+	go func() {
+		stat2, err2 = lookUpFunc(&wg, filePath2)
+	}()
+	wg.Wait()
+
+	// Assert both stats passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Equal(t, int64(5), stat1.Size())
+	assert.Equal(t, int64(3), stat2.Size())
+	assert.Contains(t, filePath1, stat1.Name())
+	assert.Contains(t, filePath2, stat2.Name())
+
+	// Parallel lookups of two files under a directory in mount.
+	filePath1 = path.Join(testDir, "explicitDir1", "file1.txt")
+	filePath2 = path.Join(testDir, "explicitDir1", "file2.txt")
+	wg = sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		stat1, err1 = lookUpFunc(&wg, filePath1)
+	}()
+	go func() {
+		stat2, err2 = lookUpFunc(&wg, filePath2)
+	}()
+	wg.Wait()
+
+	// Assert both stats passed and give correct information
+	assert.ErrorIs(t, err1, nil)
+	assert.ErrorIs(t, err2, nil)
+	assert.Equal(t, int64(5), stat1.Size())
+	assert.Equal(t, int64(10), stat2.Size())
+	assert.Contains(t, filePath1, stat1.Name())
+	assert.Contains(t, filePath2, stat2.Name())
 }
 
 func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
@@ -126,10 +303,10 @@ func TestParallelReadDirAndMkdirInsideSameDir(t *testing.T) {
 	wg.Wait()
 
 	// Assert both listing and mkdir succeeded
-	assert.Nil(t, readDirErr)
-	assert.Nil(t, mkdirErr)
+	assert.ErrorIs(t, readDirErr, nil)
+	assert.ErrorIs(t, mkdirErr, nil)
 	dirStatInfo, err := os.Stat(newDirPath)
-	assert.Nil(t, err)
+	assert.ErrorIs(t, err, nil)
 	assert.True(t, dirStatInfo.IsDir())
 	// List should happen either before or after creation of newDir.
 	assert.GreaterOrEqual(t, len(dirEntries), 8)
@@ -169,7 +346,7 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 	wg.Wait()
 
 	// Assert either file is looked up first or deleted first
-	assert.Nil(t, deleteErr)
+	assert.ErrorIs(t, deleteErr, nil)
 	_, err := os.Stat(filePath)
 	assert.True(t, os.IsNotExist(err))
 	if lookUpErr == nil {
@@ -212,9 +389,9 @@ func TestParallelLookUpAndRenameSameFile(t *testing.T) {
 	wg.Wait()
 
 	// Assert either file is renamed first or looked up first
-	assert.Nil(t, renameErr)
+	assert.ErrorIs(t, renameErr, nil)
 	newFileInfo, err := os.Stat(newFilePath)
-	assert.Nil(t, err)
+	assert.ErrorIs(t, err, nil)
 	assert.Contains(t, newFileInfo.Name(), "newFile.txt")
 	assert.False(t, newFileInfo.IsDir())
 	assert.Equal(t, int64(5), newFileInfo.Size())
@@ -257,9 +434,9 @@ func TestParallelLookUpAndMkdirSameDir(t *testing.T) {
 	wg.Wait()
 
 	// Assert either directory is created first or looked up first
-	assert.Nil(t, mkdirErr)
+	assert.ErrorIs(t, mkdirErr, nil)
 	dirStatInfo, err := os.Stat(dirPath)
-	assert.Nil(t, err)
+	assert.ErrorIs(t, err, nil)
 	assert.True(t, dirStatInfo.IsDir())
 	if lookUpErr == nil {
 		assert.Contains(t, statInfo.Name(), "newDir")

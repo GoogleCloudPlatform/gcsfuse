@@ -88,7 +88,7 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
@@ -118,6 +118,15 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath2})
+
+	mountConfig3 := config.MountConfig{
+		// Run with metadata caches disabled.
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds: 0,
+		},
+	}
+	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath3})
 
 	return flags
 }
