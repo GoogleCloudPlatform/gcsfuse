@@ -122,7 +122,7 @@ google-pasta==0.2.0 \
     --hash=sha256:b32482794a366b5366a32c92a9a9201b107821889935a02b3e51f6b432ea84ed \
     --hash=sha256:c9f2c8dfc8f96d0d5808299920721be30c9eec37f2389f28904f454565c8a16e
     # via tensorflow
-grpcio==1.54.0 \
+grpcio==1.63.0 \
     --hash=sha256:02000b005bc8b72ff50c477b6431e8886b29961159e8b8d03c00b3dd9139baed \
     --hash=sha256:031bbd26656e0739e4b2c81c172155fb26e274b8d0312d67aefc730bcba915b6 \
     --hash=sha256:1209d6b002b26e939e4c8ea37a3d5b4028eb9555394ea69fb1adbd4b61a10bb8 \
@@ -475,7 +475,7 @@ urllib3==1.26.18 \
     # via
     #   google-auth
     #   requests
-werkzeug==3.0.1 \
+werkzeug==3.0.3 \
     --hash=sha256:507e811ecea72b18a404947aded4b3390e1db8f826b494d76550ef45bb3b1dcc \
     --hash=sha256:90a285dc0e42ad56b34e696398b8122ee4c681833fb35b8334a095d82c56da10
     # via tensorboard
