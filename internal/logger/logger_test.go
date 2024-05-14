@@ -22,7 +22,8 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -39,12 +40,13 @@ const (
 	jsonErrorString   = "^{\"timestamp\":{\"seconds\":\\d{10},\"nanos\":\\d{0,9}},\"severity\":\"ERROR\",\"message\":\"TestLogs: www.errorExample.com\"}"
 )
 
-func TestLogger(t *testing.T) { RunTests(t) }
-
 type LoggerTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&LoggerTest{}) }
+func TestLoggerSuite(t *testing.T) {
+	suite.Run(t, new(LoggerTest))
+}
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -96,24 +98,24 @@ func getTestLoggingFunctions() []func() {
 	}
 }
 
-func validateOutput(expected []string, output []string) {
+func validateOutput(t *testing.T, expected []string, output []string) {
 	for i := range output {
 		if expected[i] == "" {
-			AssertEq(expected[i], output[i])
+			assert.Equal(t, expected[i], output[i])
 		} else {
 			expectedRegexp := regexp.MustCompile(expected[i])
-			AssertTrue(expectedRegexp.MatchString(output[i]))
+			assert.True(t, expectedRegexp.MatchString(output[i]))
 		}
 	}
 }
 
-func validateLogOutputAtSpecifiedFormatAndSeverity(format string, level config.LogSeverity, expectedOutput []string) {
+func validateLogOutputAtSpecifiedFormatAndSeverity(t *testing.T, format string, level config.LogSeverity, expectedOutput []string) {
 	// set log format
 	defaultLoggerFactory.format = format
 
 	output := fetchLogOutputForSpecifiedSeverityLevel(level, getTestLoggingFunctions())
 
-	validateOutput(expectedOutput, output)
+	validateOutput(t, expectedOutput, output)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -125,7 +127,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
 	}
 
 	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.OFF, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.OFF, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
@@ -134,7 +136,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity("text", config.ERROR, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.ERROR, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
@@ -143,7 +145,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity("text", config.WARNING, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.WARNING, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
@@ -152,7 +154,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity("text", config.INFO, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.INFO, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
@@ -161,7 +163,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity("text", config.DEBUG, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.DEBUG, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
@@ -170,7 +172,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
 	}
 
 	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity("text", config.TRACE, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.TRACE, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
@@ -179,7 +181,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
 	}
 
 	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.OFF, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.OFF, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
@@ -188,7 +190,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.ERROR, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.ERROR, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
@@ -197,7 +199,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.WARNING, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.WARNING, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
@@ -206,7 +208,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.INFO, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.INFO, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
@@ -215,7 +217,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.DEBUG, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.DEBUG, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
@@ -224,7 +226,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
 	}
 
 	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity("json", config.TRACE, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.TRACE, expected)
 }
 
 func (t *LoggerTest) TestSetLoggingLevel() {
@@ -262,7 +264,7 @@ func (t *LoggerTest) TestSetLoggingLevel() {
 
 	for _, test := range testData {
 		setLoggingLevel(test.inputLevel, test.programLevel)
-		AssertEq(test.programLevel.Level(), test.expectedProgramLevel)
+		assert.Equal(t.T(), test.programLevel.Level(), test.expectedProgramLevel)
 	}
 }
 
@@ -285,14 +287,14 @@ func (t *LoggerTest) TestInitLogFile() {
 
 	err := InitLogFile(logConfig)
 
-	AssertEq(nil, err)
-	ExpectEq(filePath, defaultLoggerFactory.file.Name())
-	ExpectEq(nil, defaultLoggerFactory.sysWriter)
-	ExpectEq(format, defaultLoggerFactory.format)
-	ExpectEq(config.DEBUG, defaultLoggerFactory.level)
-	ExpectEq(fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
-	ExpectEq(backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
-	ExpectEq(true, defaultLoggerFactory.logRotateConfig.Compress)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())
+	assert.Nil(t.T(), defaultLoggerFactory.sysWriter)
+	assert.Equal(t.T(), format, defaultLoggerFactory.format)
+	assert.Equal(t.T(), config.DEBUG, defaultLoggerFactory.level)
+	assert.Equal(t.T(), fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
+	assert.Equal(t.T(), backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
+	assert.True(t.T(), defaultLoggerFactory.logRotateConfig.Compress)
 }
 
 func (t *LoggerTest) TestSetLogFormatToText() {
@@ -323,9 +325,9 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 	for _, test := range testData {
 		SetLogFormat(test.format)
 
-		AssertNe(nil, defaultLoggerFactory)
-		AssertNe(nil, defaultLogger)
-		ExpectEq(defaultLoggerFactory.format, test.format)
+		assert.NotNil(t.T(), defaultLoggerFactory)
+		assert.NotNil(t.T(), defaultLogger)
+		assert.Equal(t.T(), defaultLoggerFactory.format, test.format)
 		// Create a logger using defaultLoggerFactory that writes to buffer.
 		var buf bytes.Buffer
 		redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
@@ -333,6 +335,6 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 		output := buf.String()
 		// Compare expected and actual log.
 		expectedRegexp := regexp.MustCompile(test.expectedOutput)
-		ExpectTrue(expectedRegexp.MatchString(output))
+		assert.True(t.T(), expectedRegexp.MatchString(output))
 	}
 }

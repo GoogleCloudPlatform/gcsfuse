@@ -19,19 +19,21 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/perms"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
-
-func TestPerms(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type PermsTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&PermsTest{}) }
+func TestPermsSuite(t *testing.T) {
+	suite.Run(t, new(PermsTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -39,10 +41,10 @@ func init() { RegisterTestSuite(&PermsTest{}) }
 
 func (t *PermsTest) MyUserAndGroupNoError() {
 	uid, gid, err := perms.MyUserAndGroup()
-	ExpectEq(err, nil)
+	assert.NoError(t.T(), err)
 
 	unexpected_id_signed := -1
 	unexpected_id := uint32(unexpected_id_signed)
-	ExpectNe(uid, unexpected_id)
-	ExpectNe(gid, unexpected_id)
+	assert.NotEqual(t.T(), uid, unexpected_id)
+	assert.NotEqual(t.T(), gid, unexpected_id)
 }
