@@ -96,6 +96,7 @@ func (t *FlagsTest) Defaults() {
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
+	ExpectTrue(f.DebugFuseErrors)
 
 	// Debugging
 	ExpectFalse(f.DebugFuse)
@@ -140,6 +141,7 @@ func (t *FlagsTest) Bools() {
 	ExpectTrue(f.ExperimentalEnableJsonRead)
 	ExpectTrue(f.IgnoreInterrupts)
 	ExpectTrue(f.AnonymousAccess)
+	ExpectTrue(f.DebugHTTP)
 
 	// --foo=false form
 	args = nil
