@@ -89,6 +89,16 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 			err:            &net.OpError{Err: errors.New("connection reset")},
 			expectedResult: true,
 		},
+		{
+			name:           "URL Error - connection reset by peer",
+			err:            &url.Error{Err: errors.New("connection reset by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - connection reset by peer",
+			err:            &net.OpError{Err: errors.New("connection reset by peer")},
+			expectedResult: true,
+		},
 	}
 
 	for _, tc := range testCases {
