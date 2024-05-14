@@ -18,8 +18,11 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Test and generate coverage report
-        run: CGO_ENABLED=1 go test -p 1 -covermode=atomic -v -race -coverprofile=coverage.out ./...
+      - name: Test and coverage
+        run: CGO_ENABLED=0 go test -p 1 -covermode=atomic -v -coverprofile=coverage.out ./...
+
+      - name: Cache RaceDetector Test and coverage
+        run: CGO_ENABLED=1 go test -p 1 -covermode=atomic -v -race -coverprofile=coverage_cache_race.out ./internal/cache/...
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.3.1
