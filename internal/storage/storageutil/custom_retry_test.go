@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 )
 
@@ -67,18 +68,41 @@ func (t customRetryTest) ShouldRetryReturnsTrueWithUnexpectedEOFError() {
 }
 
 func (t customRetryTest) ShouldRetryReturnsTrueWithNetworkError() {
-	ExpectEq(true, ShouldRetry(&net.OpError{
-		Err: errors.New("use of closed network connection")}))
+	ExpectEq(true, ShouldRetry(net.ErrClosed))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueURLError() {
-	var urlErrConnRefused = url.Error{
-		Err: errors.New("connection refused"),
-	}
-	var urlErrConnReset = url.Error{
-		Err: errors.New("connection reset"),
+func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
+	testCases := []struct {
+		name           string
+		err            error
+		expectedResult bool
+	}{
+		{
+			name:           "URL Error - Connection Refused",
+			err:            &url.Error{Err: errors.New("connection refused")},
+			expectedResult: true,
+		},
+		{
+			name:           "URL Error - Connection Reset",
+			err:            &url.Error{Err: errors.New("connection reset")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - Connection Refused",
+			err:            &net.OpError{Err: errors.New("connection refused")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - Connection Reset",
+			err:            &net.OpError{Err: errors.New("connection reset")},
+			expectedResult: true,
+		},
 	}
 
-	ExpectEq(true, ShouldRetry(&urlErrConnRefused))
-	ExpectEq(true, ShouldRetry(&urlErrConnReset))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualResult := ShouldRetry(tc.err)
+			assert.Equal(t, tc.expectedResult, actualResult)
+		})
+	}
 }
