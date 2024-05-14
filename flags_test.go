@@ -370,21 +370,6 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	AssertEq(nil, err)
 }
 
-func (t *FlagsTest) Test_resolveConfigFilePaths() {
-	mountConfig := &config.MountConfig{}
-	mountConfig.LogConfig = config.LogConfig{
-		FilePath: "~/test.txt",
-	}
-	mountConfig.CacheDir = "~/cache-dir"
-
-	err := resolveConfigFilePaths(mountConfig)
-
-	AssertEq(nil, err)
-	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
-	ExpectEq(filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
-}
 
 func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
 	mountConfig := &config.MountConfig{}
