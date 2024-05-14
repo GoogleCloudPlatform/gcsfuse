@@ -21,18 +21,11 @@ import (
 	"net/url"
 	"testing"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 )
 
-func TestCustomRetry(t *testing.T) { RunTests(t) }
-
-type customRetryTest struct {
-}
-
-func init() { RegisterTestSuite(&customRetryTest{}) }
-
-func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
+func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 	// 401
 	var err401 = googleapi.Error{
 		Code: 401,
@@ -48,37 +41,80 @@ func (t customRetryTest) ShouldRetryReturnsTrueWithGoogleApiError() {
 		Body: "API rate limit exceeded",
 	}
 
-	ExpectEq(true, ShouldRetry(&err401))
-	ExpectEq(true, ShouldRetry(&err502))
-	ExpectEq(true, ShouldRetry(&err429))
+	assert.Equal(t, true, ShouldRetry(&err401))
+	assert.Equal(t, true, ShouldRetry(&err502))
+	assert.Equal(t, true, ShouldRetry(&err429))
 }
 
-func (t customRetryTest) ShouldRetryReturnsFalseWithGoogleApiError400() {
+func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 	// 400 - bad request
 	var err400 = googleapi.Error{
 		Code: 400,
 	}
 
-	ExpectEq(false, ShouldRetry(&err400))
+	assert.Equal(t, false, ShouldRetry(&err400))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueWithUnexpectedEOFError() {
-	ExpectEq(true, ShouldRetry(io.ErrUnexpectedEOF))
+func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
+	assert.Equal(t, true, ShouldRetry(io.ErrUnexpectedEOF))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueWithNetworkError() {
-	ExpectEq(true, ShouldRetry(&net.OpError{
-		Err: errors.New("use of closed network connection")}))
+func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
+	assert.Equal(t, true, ShouldRetry(net.ErrClosed))
 }
 
-func (t customRetryTest) ShouldRetryReturnsTrueURLError() {
-	var urlErrConnRefused = url.Error{
-		Err: errors.New("connection refused"),
+func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
+	testCases := []struct {
+		name           string
+		err            error
+		expectedResult bool
+	}{
+		{
+			name:           "URL Error - Connection Refused",
+			err:            &url.Error{Err: errors.New("connection refused")},
+			expectedResult: true,
+		},
+		{
+			name:           "URL Error - Connection Reset",
+			err:            &url.Error{Err: errors.New("connection reset")},
+			expectedResult: true,
+		},
+		{
+			name:           "URL Error - connection reset by peer",
+			err:            &url.Error{Err: errors.New("connection reset by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "URL Error - connection refused by peer",
+			err:            &url.Error{Err: errors.New("connection refused by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - Connection Refused",
+			err:            &net.OpError{Err: errors.New("connection refused")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - Connection Reset",
+			err:            &net.OpError{Err: errors.New("connection reset")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - connection reset by peer",
+			err:            &net.OpError{Err: errors.New("connection reset by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "Op Error - connection refused by peer",
+			err:            &net.OpError{Err: errors.New("connection refused by peer")},
+			expectedResult: true,
+		},
 	}
-	var urlErrConnReset = url.Error{
-		Err: errors.New("connection reset"),
-	}
 
-	ExpectEq(true, ShouldRetry(&urlErrConnRefused))
-	ExpectEq(true, ShouldRetry(&urlErrConnReset))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualResult := ShouldRetry(tc.err)
+			assert.Equal(t, tc.expectedResult, actualResult)
+		})
+	}
 }
