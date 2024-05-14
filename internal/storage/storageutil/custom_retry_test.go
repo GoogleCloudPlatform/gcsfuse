@@ -80,6 +80,16 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 			expectedResult: true,
 		},
 		{
+			name:           "URL Error - connection reset by peer",
+			err:            &url.Error{Err: errors.New("connection reset by peer")},
+			expectedResult: true,
+		},
+		{
+			name:           "URL Error - connection refused by peer",
+			err:            &url.Error{Err: errors.New("connection refused by peer")},
+			expectedResult: true,
+		},
+		{
 			name:           "Op Error - Connection Refused",
 			err:            &net.OpError{Err: errors.New("connection refused")},
 			expectedResult: true,
@@ -90,13 +100,13 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 			expectedResult: true,
 		},
 		{
-			name:           "URL Error - connection reset by peer",
-			err:            &url.Error{Err: errors.New("connection reset by peer")},
+			name:           "Op Error - connection reset by peer",
+			err:            &net.OpError{Err: errors.New("connection reset by peer")},
 			expectedResult: true,
 		},
 		{
-			name:           "Op Error - connection reset by peer",
-			err:            &net.OpError{Err: errors.New("connection reset by peer")},
+			name:           "Op Error - connection refused by peer",
+			err:            &net.OpError{Err: errors.New("connection refused by peer")},
 			expectedResult: true,
 		},
 	}
