@@ -26,6 +26,7 @@ jobs:
 
         # collect coverage for all packages beyond the one under test
         cover-pkg: ./...
+        test-args: '["-p=1"]'
         
 
   linux-tests:
