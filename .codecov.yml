@@ -1,0 +1,14 @@
+coverage:
+  round: down
+  precision: 2
+  status:
+    project:  
+      default:
+        target: 80%
+        threshold: 0% 
+        if_ci_failed: ignore
+    patch:
+      default:
+        target: 0%
+        threshold: 0%
+  
