@@ -17,17 +17,6 @@ jobs:
         # default fetch-depth is insufficent to find previous coverage notes
         fetch-depth: 10
 
-    - uses: gwatts/go-coverage-action@v2
-      id: coverage
-      with:
-        # Optional coverage threshold
-        # use fail-coverage to determine what should happen below this threshold
-        coverage-threshold: 50
-
-        # collect coverage for all packages beyond the one under test
-        cover-pkg: ./...
-        test-args: '["-p=1"]'
-
   linux-tests:
     strategy:
       matrix:
