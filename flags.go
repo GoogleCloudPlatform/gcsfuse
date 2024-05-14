@@ -359,6 +359,10 @@ func newApp() (app *cli.App) {
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
+			cli.BoolFlag{
+				Name:  "test_mutex",
+				Usage: "Print debug messages when a mutex is held too long.",
+			},
 		},
 	}
 
