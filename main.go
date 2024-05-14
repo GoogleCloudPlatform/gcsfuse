@@ -27,6 +27,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -442,6 +443,10 @@ func handlePanicWhileMounting() {
 }
 
 func main() {
+	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
+		cmd.Execute()
+		return
+	}
 	defer handlePanicWhileMounting()
 
 	// Make logging output better.
