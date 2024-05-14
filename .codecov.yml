@@ -1,10 +1,10 @@
 codecov:
   strict_yaml_branch: master
 coverage:
-  changes: true
   round: down
   precision: 2
   status:
+    changes: true
     project:  
       default:
         target: 100%
