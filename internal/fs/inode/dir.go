@@ -749,7 +749,7 @@ func (d *dirInode) readObjects(
 		i := 0                   // purely for debugging.. remove later!
 		index := d.cache.Index() // entire map for type-cache entries
 		for name, objtype := range index {
-			logger.Debugf("typecache-items[%d]: name=%s objtype=%v\n", i, name, objtype)
+			// logger.Debugf("typecache-items[%d]: name=%s objtype=%v\n", i, name, objtype)
 			switch objtype {
 			case metadata.NonexistentType:
 			case metadata.UnknownType:
@@ -786,18 +786,14 @@ func (d *dirInode) readObjects(
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &MinCoreForListing{
-				// Bucket:    d.Bucket(),
 				FullName: dirName,
-				// MinObject: storageutil.ConvertObjToMinObject(o),
 				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, dirName),
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &MinCoreForListing{
-				// Bucket:    d.Bucket(),
 				FullName: fileName,
-				// MinObject: storageutil.ConvertObjToMinObject(o),
 				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, fileName),
 			}
 			cores[fileName] = file

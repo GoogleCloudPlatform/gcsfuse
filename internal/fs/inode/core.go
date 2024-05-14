@@ -39,7 +39,7 @@ type Core struct {
 	Local bool
 }
 
-// Core contains critical information about an inode before its creation.
+// MinCoreForListing contains critical information about an inode before its creation.
 // Creating by shortening inode.Core .
 type MinCoreForListing struct {
 	FullName Name

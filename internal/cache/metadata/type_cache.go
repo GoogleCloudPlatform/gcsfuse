@@ -60,7 +60,10 @@ type TypeCache interface {
 	// If entry doesn't exist in the cache, then
 	// UnknownType is returned.
 	Get(now time.Time, name string) Type
-
+	// Index Returns a map of all the
+	// {name, Type} pairs inserted using the Insert
+	// method. It is not a reference to the internal map,
+	// but a copy of the data from it.
 	Index() map[string]Type
 }
 

@@ -235,7 +235,7 @@ func (bm *bucketManager) SetUpBucket(
 	}
 
 	// Periodically garbage collect temporary objects
-	//go garbageCollect(bm.gcCtx, bm.config.TmpObjectPrefix, sb)
+	go garbageCollect(bm.gcCtx, bm.config.TmpObjectPrefix, sb)
 
 	return
 }

@@ -268,11 +268,16 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	return nil
 }
 
+// Index Returns a single map of the all the
+// {key, value} pairs inserted using the Insert
+// method. It is not a reference to the internal map,
+// but a copy of the relevant data from it.
 func (c *Cache) Index() map[string]ValueType {
 	if c == nil {
 		return map[string]ValueType{}
 	}
-
+	
+	// need a single read-lock for reading the entire map.
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
