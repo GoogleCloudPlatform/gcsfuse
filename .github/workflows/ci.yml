@@ -9,14 +9,6 @@ on:
       - '*'
 
 jobs:
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        # default fetch-depth is insufficent to find previous coverage notes
-        fetch-depth: 10
-
   linux-tests:
     strategy:
       matrix:
