@@ -96,6 +96,7 @@ func (t *FlagsTest) Defaults() {
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
+	ExpectTrue(f.DebugFuseErrors)
 
 	// Debugging
 	ExpectFalse(f.DebugFuse)
