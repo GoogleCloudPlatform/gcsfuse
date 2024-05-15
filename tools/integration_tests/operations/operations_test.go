@@ -88,7 +88,7 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
