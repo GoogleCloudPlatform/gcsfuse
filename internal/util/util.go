@@ -38,6 +38,9 @@ const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 // to get the corresponding resident set size.
 const HeapSizeToRssConversionFactor float64 = 2
 
+// "readOp" is the value used in read context to store pointer to the read operation.
+const ReadOp = "readOp"
+
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
 // ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR

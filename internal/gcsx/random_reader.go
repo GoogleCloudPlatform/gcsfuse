@@ -15,6 +15,7 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -29,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -49,9 +49,6 @@ const maxReadSize = 8 * MB
 
 // Minimum number of seeks before evaluating if the read pattern is random.
 const minSeeksForRandom = 2
-
-// "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -177,7 +174,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+	readOp := ctx.Value(util.ReadOp).(*fuseops.ReadFileOp)
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
 
@@ -482,7 +479,8 @@ func (rr *randomReader) startRead(
 	}
 
 	// Begin the read.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx = context.WithoutCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	rc, err := rr.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{

@@ -20,9 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
@@ -134,7 +134,7 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 func (b *debugBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	readOp := ctx.Value(gcsx.ReadOp).(*fuseops.ReadFileOp)
+	readOp := ctx.Value(util.ReadOp).(*fuseops.ReadFileOp)
 	id, desc, start := b.startRequest("Read(%q, %v), Handle: %d, Inode: %d, PID: %d", req.Name, req.Range, readOp.Handle, readOp.Inode, readOp.OpContext.Pid)
 
 	// Call through.
