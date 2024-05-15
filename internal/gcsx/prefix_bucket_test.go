@@ -16,7 +16,7 @@ package gcsx_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -87,7 +87,7 @@ func (t *PrefixBucketTest) NewReader() {
 	AssertEq(nil, err)
 	defer rc.Close()
 
-	actual, err := ioutil.ReadAll(rc)
+	actual, err := io.ReadAll(rc)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(actual))
 }

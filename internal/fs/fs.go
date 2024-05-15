@@ -2228,7 +2228,7 @@ func (fs *fileSystem) ReadFile(
 		defer cancel()
 	}
 	// Save readOp in context for access in logs.
-	ctx = context.WithValue(ctx, gcsx.ReadOp, op)
+	ctx = context.WithValue(ctx, gcsx.ReadopKey{}, op)
 
 	// Find the handle and lock it.
 	fs.mu.Lock()

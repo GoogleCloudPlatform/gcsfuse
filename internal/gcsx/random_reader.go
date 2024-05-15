@@ -51,7 +51,8 @@ const maxReadSize = 8 * MB
 const minSeeksForRandom = 2
 
 // "readOp" is the value used in read context to store pointer to the read operation.
-const ReadOp = "readOp"
+
+type ReadopKey struct{}
 
 // RandomReader is an object that knows how to read ranges within a particular
 // generation of a particular GCS object. Optimised for (large) sequential reads.
@@ -177,7 +178,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Request log and start the execution timer.
 	requestId := uuid.New()
-	readOp := ctx.Value(ReadOp).(*fuseops.ReadFileOp)
+	readOp := ctx.Value(ReadopKey{}).(*fuseops.ReadFileOp)
 	logger.Tracef("%.13v <- FileCache(%s:/%s, offset: %d, size: %d handle: %d)", requestId, rr.bucket.Name(), rr.object.Name, offset, len(p), readOp.Handle)
 	startTime := time.Now()
 
@@ -303,7 +304,7 @@ func (rr *randomReader) ReadAt(
 
 		// If we don't have a reader, start a read operation.
 		if rr.reader == nil {
-			err = rr.startRead(ctx, offset, int64(len(p)))
+			err = rr.startRead(offset, int64(len(p)))
 			if err != nil {
 				err = fmt.Errorf("startRead: %w", err)
 				return
@@ -430,7 +431,6 @@ func (rr *randomReader) readFull(
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(
-	ctx context.Context,
 	start int64,
 	size int64) (err error) {
 	// Make sure start and size are legal.

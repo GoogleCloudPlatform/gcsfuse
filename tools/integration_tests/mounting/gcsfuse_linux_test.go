@@ -40,7 +40,7 @@ func (t *GcsfuseTest) Statfs() {
 
 	err = t.runGcsfuse(args)
 	AssertEq(nil, err)
-	defer util.Unmount(t.dir)
+	defer func() { _ = util.Unmount(t.dir) }()
 
 	// Stat the file system.
 	err = syscall.Statfs(t.dir, &stat)

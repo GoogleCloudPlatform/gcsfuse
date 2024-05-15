@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -47,9 +46,9 @@ import (
 
 const (
 	filePerms            os.FileMode = 0740
-	dirPerms                         = 0754
-	RenameDirLimit                   = 5
-	SequentialReadSizeMb             = 200
+	dirPerms             os.FileMode = 0754
+	RenameDirLimit       int64       = 5
+	SequentialReadSizeMb int32       = 200
 )
 
 func TestFS(t *testing.T) { RunTests(t) }
@@ -151,7 +150,7 @@ func (t *fsTest) SetUpTestSuite() {
 	t.serverCfg.DirPerms = dirPerms
 
 	// Set up a temporary directory for mounting.
-	mntDir, err = ioutil.TempDir("", "fs_test")
+	mntDir, err = os.MkdirTemp("", "fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system server.
@@ -201,7 +200,6 @@ func (t *fsTest) TearDownTestSuite() {
 
 	// Unlink the mount point.
 	if err = os.Remove(mntDir); err != nil {
-		err = fmt.Errorf("Unlinking mount point: %w", err)
 		return
 	}
 

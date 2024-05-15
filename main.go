@@ -371,8 +371,8 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
-	monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
-	monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
+	_ = monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
+	_ = monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
@@ -384,14 +384,14 @@ func runCLIApp(c *cli.Context) (err error) {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 
-			daemonize.SignalOutcome(nil)
+			_ = daemonize.SignalOutcome(nil)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
 			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
 			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
-			daemonize.SignalOutcome(err)
+			_ = daemonize.SignalOutcome(err)
 			return
 		}
 	}

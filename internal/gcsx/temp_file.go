@@ -146,9 +146,9 @@ type fileState string
 
 const (
 	fileIncomplete fileState = "fileIncomplete"
-	fileComplete             = "fileComplete"
-	fileDirty                = "fileDirty"
-	fileDestroyed            = "fileDestroyed"
+	fileComplete   fileState = "fileComplete"
+	fileDirty      fileState = "fileDirty"
+	fileDestroyed  fileState = "fileDestroyed"
 )
 
 type tempFile struct {
@@ -332,7 +332,7 @@ const (
 func (tf *tempFile) ensure(limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
-		size, err := tf.f.Seek(0, 2)
+		size, _ := tf.f.Seek(0, 2)
 		if size >= limit {
 			return nil
 		}
@@ -340,7 +340,7 @@ func (tf *tempFile) ensure(limit int64) error {
 		if n < minCopyLength {
 			n = minCopyLength
 		}
-		n, err = io.CopyN(tf.f, tf.source, n)
+		n, err := io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
 			tf.source.Close()
 			tf.dirtyThreshold = size + n

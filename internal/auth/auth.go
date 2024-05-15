@@ -60,6 +60,7 @@ func newTokenSourceFromPath(
 	jwtConfig, err := google.JWTConfigFromJSON(contents, scope)
 	if err != nil {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+		return
 	}
 	// Create the token source.
 	ts = jwtConfig.TokenSource(ctx)
