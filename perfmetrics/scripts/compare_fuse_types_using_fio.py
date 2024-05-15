@@ -33,7 +33,7 @@ from fio import fio_metrics
 from absl import app
 
 GCSFUSE_REPO = 'https://github.com/GoogleCloudPlatform/gcsfuse'
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+GCSFUSE_FLAGS = "--implicit-dirs"
 
 
 def _install_gcsfuse(version, gcs_bucket, gcsfuse_flags) -> None:

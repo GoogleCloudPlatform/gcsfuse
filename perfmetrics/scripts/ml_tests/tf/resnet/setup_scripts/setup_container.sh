@@ -28,7 +28,6 @@ echo "logging:
        " > /tmp/gcsfuse_config.yaml
 nohup gcsfuse/gcsfuse --foreground \
       --implicit-dirs \
-      --max-conns-per-host 100 \
       --stackdriver-export-interval 60s \
       --config-file /tmp/gcsfuse_config.yaml \
       gcsfuse-ml-tf-data myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
