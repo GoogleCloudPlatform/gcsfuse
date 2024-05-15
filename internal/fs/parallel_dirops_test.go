@@ -118,8 +118,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.Equal(t.T(), int64(6), stat1.Size())
 	assert.Equal(t.T(), int64(6), stat2.Size())
 	assert.Contains(t.T(), filePath, stat1.Name())
@@ -137,8 +137,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.Equal(t.T(), int64(10), stat1.Size())
 	assert.Equal(t.T(), int64(10), stat2.Size())
 	assert.Contains(t.T(), filePath, stat1.Name())
@@ -167,8 +167,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.True(t.T(), stat1.IsDir())
 	assert.True(t.T(), stat2.IsDir())
 	assert.Contains(t.T(), dirPath, stat1.Name())
@@ -186,8 +186,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.True(t.T(), stat1.IsDir())
 	assert.True(t.T(), stat2.IsDir())
 	assert.Contains(t.T(), dirPath, stat1.Name())
@@ -216,12 +216,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForSameDir() {
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
-	assert.Contains(t.T(), "file1.txt", dirEntries1[0].Name())
-	assert.Contains(t.T(), "file2.txt", dirEntries1[1].Name())
-	assert.Contains(t.T(), "file1.txt", dirEntries2[0].Name())
-	assert.Contains(t.T(), "file2.txt", dirEntries2[1].Name())
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
+	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
+	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries2[1].Name(), "file2.txt")
 
 	// Parallel readDirs of implicit dir under mount.
 	dirPath = path.Join(mntDir, "implicitDir1")
@@ -236,10 +236,10 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForSameDir() {
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
-	assert.Contains(t.T(), "file1.txt", dirEntries1[0].Name())
-	assert.Contains(t.T(), "file1.txt", dirEntries2[0].Name())
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
+	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
 
 	// Parallel readDirs of a directory and its parent directory.
 	dirPath = path.Join(mntDir, "explicitDir1")
@@ -255,14 +255,14 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForSameDir() {
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
-	assert.Contains(t.T(), "file1.txt", dirEntries1[0].Name())
-	assert.Contains(t.T(), "file2.txt", dirEntries1[1].Name())
-	assert.Contains(t.T(), "explicitDir1", dirEntries2[0].Name())
-	assert.Contains(t.T(), "file1.txt", dirEntries2[1].Name())
-	assert.Contains(t.T(), "file2.txt", dirEntries2[2].Name())
-	assert.Contains(t.T(), "implicitDir1", dirEntries2[3].Name())
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
+	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
+	assert.Contains(t.T(), dirEntries2[0].Name(), "explicitDir1")
+	assert.Contains(t.T(), dirEntries2[1].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries2[2].Name(), "file2.txt")
+	assert.Contains(t.T(), dirEntries2[3].Name(), "implicitDir1")
 
 }
 
@@ -293,9 +293,9 @@ func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
 	wg.Wait()
 
 	// Assert either directory is created first or listed first
-	assert.Nil(t.T(), mkdirErr)
+	assert.NoError(t.T(), mkdirErr)
 	dirStatInfo, err := os.Stat(dirPath)
-	assert.Nil(t.T(), err)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), dirStatInfo.IsDir())
 	if readDirErr == nil {
 		assert.Equal(t.T(), 0, len(dirEntries))
@@ -316,9 +316,9 @@ func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
 	wg.Wait()
 
 	// Assert either directory is created first or listed first
-	assert.Nil(t.T(), mkdirErr)
+	assert.NoError(t.T(), mkdirErr)
 	dirStatInfo, err = os.Stat(dirPath)
-	assert.Nil(t.T(), err)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), dirStatInfo.IsDir())
 	if readDirErr == nil {
 		assert.Equal(t.T(), 0, len(dirEntries))
@@ -355,7 +355,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 	wg.Wait()
 
 	// Assert either file is created first or looked up first
-	assert.Nil(t.T(), createErr)
+	assert.NoError(t.T(), createErr)
 	assert.Contains(t.T(), file.Name(), "file3.txt")
 	if lookUpErr == nil {
 		assert.Equal(t.T(), int64(0), fileInfo.Size())
@@ -393,7 +393,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {
 	wg.Wait()
 
 	// Assert either file is looked up first or deleted first
-	assert.Nil(t.T(), deleteErr)
+	assert.NoError(t.T(), deleteErr)
 	_, err := os.Stat(filePath)
 	assert.True(t.T(), os.IsNotExist(err))
 	if lookUpErr == nil {
@@ -433,9 +433,9 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameFile() {
 	wg.Wait()
 
 	// Assert either file is renamed first or looked up first
-	assert.Nil(t.T(), renameErr)
+	assert.NoError(t.T(), renameErr)
 	newFileInfo, err := os.Stat(newFilePath)
-	assert.Nil(t.T(), err)
+	assert.NoError(t.T(), err)
 	assert.Contains(t.T(), newFileInfo.Name(), "newFile.txt")
 	assert.False(t.T(), newFileInfo.IsDir())
 	assert.Equal(t.T(), int64(5), newFileInfo.Size())
@@ -475,7 +475,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameDir() {
 	wg.Wait()
 
 	// Assert either dir is created first or deleted first
-	assert.Nil(t.T(), deleteErr)
+	assert.NoError(t.T(), deleteErr)
 	_, err := os.Stat(dirPath)
 	assert.True(t.T(), os.IsNotExist(err))
 	if lookUpErr == nil {
@@ -513,9 +513,9 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndMkdirSameDir() {
 	wg.Wait()
 
 	// Assert either directory is created first or looked up first
-	assert.Nil(t.T(), mkdirErr)
+	assert.NoError(t.T(), mkdirErr)
 	dirStatInfo, err := os.Stat(dirPath)
-	assert.Nil(t.T(), err)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), dirStatInfo.IsDir())
 	if lookUpErr == nil {
 		assert.Contains(t.T(), statInfo.Name(), "newDir")
@@ -553,9 +553,9 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameDir() {
 	wg.Wait()
 
 	// Assert either directory is renamed first or looked up first
-	assert.Nil(t.T(), renameErr)
+	assert.NoError(t.T(), renameErr)
 	dirStatInfo, err := os.Stat(newDirPath)
-	assert.Nil(t.T(), err)
+	assert.NoError(t.T(), err)
 	assert.True(t.T(), dirStatInfo.IsDir())
 	if lookUpErr == nil {
 		assert.Contains(t.T(), statInfo.Name(), "explicitDir1")
@@ -588,8 +588,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.Equal(t.T(), int64(6), stat1.Size())
 	assert.Equal(t.T(), int64(3), stat2.Size())
 	assert.Contains(t.T(), filePath1, stat1.Name())
@@ -609,8 +609,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.Equal(t.T(), int64(5), stat1.Size())
 	assert.Equal(t.T(), int64(10), stat2.Size())
 	assert.Contains(t.T(), filePath1, stat1.Name())
@@ -640,8 +640,8 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentDirs() {
 	wg.Wait()
 
 	// Assert both stats passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
 	assert.True(t.T(), stat1.IsDir())
 	assert.True(t.T(), stat2.IsDir())
 	assert.Contains(t.T(), dirPath1, stat1.Name())
@@ -671,11 +671,11 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForDifferentDirs() {
 	wg.Wait()
 
 	// Assert both readDirs passed and give correct information
-	assert.Nil(t.T(), err1)
-	assert.Nil(t.T(), err2)
-	assert.Contains(t.T(), "file1.txt", dirEntries1[0].Name())
-	assert.Contains(t.T(), "file2.txt", dirEntries1[1].Name())
-	assert.Contains(t.T(), "file1.txt", dirEntries2[0].Name())
+	assert.NoError(t.T(), err1)
+	assert.NoError(t.T(), err2)
+	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
+	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
+	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
 }
 
 func TestParallelDiropsTestSuite(t *testing.T) {
