@@ -214,9 +214,10 @@ func getBucketType(controlClient *control.StorageControlClient, bucketName strin
 		RequestId: "",
 	}, callOptions...)
 
+	// In case bucket does not exist, set type unknown instead of panic.
 	if err != nil {
 		log.Printf("GetStorageLayout: %v", err)
-		return gcs.NonHierarchical
+		return gcs.Unknown
 	}
 
 	if stoargeLayout.HierarchicalNamespace != nil && stoargeLayout.GetHierarchicalNamespace().Enabled {

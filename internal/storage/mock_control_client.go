@@ -30,7 +30,7 @@ func mockGetBucketType(controlClient *MockStorageControlClient, bucketName strin
 	}, nil...)
 
 	if err != nil {
-		return gcs.NonHierarchical
+		return gcs.Unknown
 	}
 
 	if stoargeLayout.GetHierarchicalNamespace() != nil && stoargeLayout.GetHierarchicalNamespace().Enabled {

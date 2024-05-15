@@ -28,6 +28,7 @@ type BucketType int
 const (
 	NonHierarchical BucketType = iota
 	Hierarchical
+	Unknown
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary

@@ -332,5 +332,5 @@ func (testSuite *StorageHandleTest) TestGetBucketTypeWithError() {
 		Return(x, errors.New("mocked error"))
 
 	bucketType := mockGetBucketType(testSuite.mockClient, TestBucketName)
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketType, "Expected NonHierarchical when there's an error")
+	assert.Equal(testSuite.T(), gcs.Unknown, bucketType, "Expected Unknown when there's an error")
 }
