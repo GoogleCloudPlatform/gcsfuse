@@ -49,7 +49,7 @@ git fetch origin -q
 
 function execute_perf_test() {
   mkdir -p gcs
-  GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100"
+  GCSFUSE_FLAGS="--implicit-dirs"
   BUCKET_NAME=presubmit-perf-tests
   MOUNT_POINT=gcs
   # The VM will itself exit if the gcsfuse mount fails.

@@ -24,7 +24,7 @@ cd gcsfuse/perfmetrics/scripts
 ```
 4. Create a directory and mount your GCS bucket into it using GCSFuse:
 ```bash
-GCSFUSE_FLAGS="--implicit-dirs --max-conns-per-host 100 --client-protocol http1"
+GCSFUSE_FLAGS="--implicit-dirs --client-protocol http1"
 BUCKET_NAME=your-bucket-name
 mkdir -p your-directory-name
 MOUNT_POINT=your-directory-name

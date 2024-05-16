@@ -57,7 +57,6 @@ echo "Mounting GCSFuse..."
 nohup /pytorch_dino/gcsfuse/gcsfuse --foreground \
         --stackdriver-export-interval=60s \
         --implicit-dirs \
-        --max-conns-per-host=100 \
         --config-file $config_filename \
       $TEST_BUCKET gcsfuse_data > "run_artifacts/gcsfuse.out" 2> "run_artifacts/gcsfuse.err" &
 

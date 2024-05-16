@@ -93,6 +93,7 @@ func (t *FlagsTest) Defaults() {
 	ExpectEq("", f.TempDir)
 	ExpectEq(2, f.RetryMultiplier)
 	ExpectFalse(f.EnableNonexistentTypeCache)
+	ExpectEq(0, f.MaxConnsPerHost)
 
 	// Logging
 	ExpectTrue(f.DebugFuseErrors)
