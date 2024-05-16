@@ -31,7 +31,6 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 
@@ -295,9 +294,6 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-
-	logger.Debugf("Calling GCS ListObjectsRequest with request=%#v", *req)
-
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
@@ -305,8 +301,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	var list gcs.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
-	iter := 0
-	for ; ; iter++ {
+	for {
 		var attrs *storage.ObjectAttrs
 
 		attrs, err = itr.Next()
@@ -318,8 +313,6 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			err = fmt.Errorf("Error in iterating through objects: %w", err)
 			return
 		}
-
-		logger.Debugf("GCS ListObjects outputs[#%d]: Prefix=\"%s\", Name=\"%s\"", iter, attrs.Prefix, attrs.Name)
 
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304

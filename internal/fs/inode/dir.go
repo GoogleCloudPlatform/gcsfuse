@@ -624,70 +624,6 @@ func GcsListingToMinGcListing(gcsListing *gcs.Listing) *MinGcsListing {
 	return minGcsListing
 }
 
-// purely for debugging and logging. Remove later!
-func StrsOfGcsListing(listing *gcs.Listing) (strs []string) {
-	strs = append(strs, "gcs.listing={")
-
-	strs = append(strs, fmt.Sprintf("    listing.ContinuationToken=%q", listing.ContinuationToken))
-
-	strs = append(strs, "")
-
-	strs = append(strs, "    Objects=[")
-	for _, obj := range listing.Objects {
-		strs = append(strs, fmt.Sprintf("        object=%#v", obj))
-	}
-	strs = append(strs, "    ]")
-
-	strs = append(strs, "    CollapsedRuns=[")
-	for _, cr := range listing.CollapsedRuns {
-		strs = append(strs, fmt.Sprintf("        %#v", cr))
-	}
-	strs = append(strs, "    ]")
-
-	strs = append(strs, "}")
-
-	return
-}
-
-// purely for debugging and logging. Remove later!
-func PrintGcsListing(listing *gcs.Listing, printFn func(string)) {
-	for _, str := range StrsOfGcsListing(listing) {
-		printFn(str)
-	}
-}
-
-// purely for debugging and logging. Remove later!
-func StrsOfMinGcsListing(listing *MinGcsListing) (strs []string) {
-	strs = append(strs, "MinGcslisting={")
-
-	strs = append(strs, fmt.Sprintf("    listing.ContinuationToken=%q", listing.ContinuationToken))
-
-	strs = append(strs, "")
-
-	strs = append(strs, "    Objects=[")
-	for _, obj := range listing.Objects {
-		strs = append(strs, fmt.Sprintf("        object=%#v", obj))
-	}
-	strs = append(strs, "    ]")
-
-	strs = append(strs, "    CollapsedRuns=[")
-	for _, cr := range listing.CollapsedRuns {
-		strs = append(strs, fmt.Sprintf("        %#v", cr))
-	}
-	strs = append(strs, "    ]")
-
-	strs = append(strs, "}")
-
-	return
-}
-
-// purely for debugging and logging. Remove later!
-func PrintMinGcsListing(listing *MinGcsListing, printFn func(string)) {
-	for _, str := range StrsOfMinGcsListing(listing) {
-		printFn(str)
-	}
-}
-
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
@@ -716,11 +652,6 @@ func (d *dirInode) readObjects(
 			return
 		}
 
-		// logger.Debugf("GCS ListObjects output: ")
-		// PrintGcsListing(gcsListing, func(s string) {
-		// 	logger.Debugf("ListObjects: " + s)
-		// })
-
 		// This probably needs to be moved out of the
 		// if !d.hasObjectsListBeenRead.Load() check,
 		// to always update the type-cache.
@@ -733,11 +664,6 @@ func (d *dirInode) readObjects(
 
 		listing = GcsListingToMinGcListing(gcsListing)
 
-		// logger.Debugf("Internal ListObjects MinGcsListing: ")
-		// PrintMinGcsListing(listing, func(s string) {
-		// 	logger.Debugf("ListObjects: " + s)
-		// })
-
 		// ContinuationToken token being "" indicates that this is the last
 		// list call on this dirInode in this sequence.
 		if listing.ContinuationToken == "" {
@@ -746,10 +672,8 @@ func (d *dirInode) readObjects(
 	} else {
 		listing = &(MinGcsListing{})
 
-		i := 0                   // purely for debugging.. remove later!
 		index := d.cache.Index() // entire map for type-cache entries
 		for name, objtype := range index {
-			// logger.Debugf("typecache-items[%d]: name=%s objtype=%v\n", i, name, objtype)
 			switch objtype {
 			case metadata.NonexistentType:
 			case metadata.UnknownType:
@@ -764,7 +688,6 @@ func (d *dirInode) readObjects(
 			default:
 				listing.Objects = append(listing.Objects, &MinObjectForListing{Name: name, Type: objtype})
 			}
-			i++
 		}
 	}
 
@@ -787,14 +710,14 @@ func (d *dirInode) readObjects(
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &MinCoreForListing{
 				FullName: dirName,
-				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, dirName),
+				ItemType: o.Type,
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &MinCoreForListing{
 				FullName: fileName,
-				ItemType: o.Type, //TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, fileName),
+				ItemType: o.Type,
 			}
 			cores[fileName] = file
 		}
