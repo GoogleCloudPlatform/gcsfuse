@@ -81,11 +81,12 @@ func nonEmptyCommit() ([]byte, error) {
 }
 
 func setGithubUserConfig() {
-	output, err := operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "config --global user.email \"abc@def.com\"")
+	repositoryPath := path.Join(testDirPath, repoName)
+	output, err := operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "config user.email \"abc@def.com\"")
 	if err != nil {
 		log.Printf("Error setting git user.email: %s: %v", string(output), err)
 	}
-	output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "config --global user.name \"abc\"")
+	output, err = operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "config user.name \"abc\"")
 	if err != nil {
 		log.Printf("Error setting git user.name: %s: %v", string(output), err)
 	}
@@ -121,6 +122,7 @@ func (s *ignoreInterruptsTest) TestGitEmptyCommit(t *testing.T) {
 	if err != nil {
 		t.Errorf("cloneRepository() failed: %v", err)
 	}
+	setGithubUserConfig()
 
 	output, err := emptyCommit()
 
@@ -134,6 +136,7 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
 	if err != nil {
 		t.Errorf("cloneRepository() failed: %v", err)
 	}
+	setGithubUserConfig()
 
 	filePath := path.Join(testDirPath, repoName, testFileName)
 	operations.CreateFileOfSize(util.MiB, filePath, t)
@@ -154,6 +157,5 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
 
 func TestIgnoreInterrupts(t *testing.T) {
 	ts := &ignoreInterruptsTest{}
-	setGithubUserConfig()
 	test_setup.RunTests(t, ts)
 }
