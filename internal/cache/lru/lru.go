@@ -276,7 +276,7 @@ func (c *Cache) Index() map[string]ValueType {
 	if c == nil {
 		return map[string]ValueType{}
 	}
-	
+
 	// need a single read-lock for reading the entire map.
 	c.mu.RLock()
 	defer c.mu.RUnlock()

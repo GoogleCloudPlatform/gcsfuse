@@ -590,7 +590,7 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// shortened from gcs.Object     
+// shortened from gcs.Object
 // needs to be made private
 type MinObjectForListing struct {
 	Name string
@@ -690,7 +690,7 @@ func (d *dirInode) readObjects(
 				if len(name) != 0 {
 					name += "/"
 				}
-				// There are some cases here which need name to be added to 
+				// There are some cases here which need name to be added to
 				// listing.CollapsedRuns. TODO: figure out those cases here.
 				fallthrough
 			default:
