@@ -590,12 +590,14 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
-// shortened from gcs.Object
+// shortened from gcs.Object     
+// needs to be made private
 type MinObjectForListing struct {
 	Name string
 	Type metadata.Type
 }
 
+// needs to be made private
 func NonLocalObjectToMinObjectForListing(o *gcs.Object) *MinObjectForListing {
 	if o == nil {
 		return nil
@@ -605,12 +607,14 @@ func NonLocalObjectToMinObjectForListing(o *gcs.Object) *MinObjectForListing {
 }
 
 // shortened from gcs.Listing
+// needs to be made private
 type MinGcsListing struct {
 	Objects           []*MinObjectForListing
 	CollapsedRuns     []string
 	ContinuationToken string
 }
 
+// needs to be made private
 func GcsListingToMinGcListing(gcsListing *gcs.Listing) *MinGcsListing {
 	if gcsListing == nil {
 		return nil
@@ -670,6 +674,8 @@ func (d *dirInode) readObjects(
 			d.hasObjectsListBeenRead.Store(true)
 		}
 	} else {
+		// Type-cache supposedly already has the mappings, and we should utilize that for
+		// creating listing output here.
 		listing = &(MinGcsListing{})
 
 		index := d.cache.Index() // entire map for type-cache entries
@@ -684,6 +690,8 @@ func (d *dirInode) readObjects(
 				if len(name) != 0 {
 					name += "/"
 				}
+				// There are some cases here which need name to be added to 
+				// listing.CollapsedRuns. TODO: figure out those cases here.
 				fallthrough
 			default:
 				listing.Objects = append(listing.Objects, &MinObjectForListing{Name: name, Type: objtype})
