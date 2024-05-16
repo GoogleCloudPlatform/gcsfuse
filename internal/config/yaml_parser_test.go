@@ -45,7 +45,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.Equal(t, 1, mountConfig.GrpcClientConfig.ConnPoolSize)
 	assert.False(t, mountConfig.AuthConfig.AnonymousAccess)
-	assert.Equal(t, false, bool(mountConfig.EnableHNS))
+	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
@@ -122,7 +122,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.True(t.T(), mountConfig.AuthConfig.AnonymousAccess)
 
 	// enable-hns
-	assert.Equal(t.T(), true, bool(mountConfig.EnableHNS))
+	assert.True(t.T(), bool(mountConfig.EnableHNS))
 
 	// file-system config
 	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
@@ -245,5 +245,5 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetAnonymousAcces
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), false, mountConfig.AuthConfig.AnonymousAccess)
+	assert.False(t.T(), mountConfig.AuthConfig.AnonymousAccess)
 }
