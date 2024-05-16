@@ -20,23 +20,20 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
-
-func TestFlag(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type FlagTest struct {
+	suite.Suite
 }
 
-func init() {
-	RegisterTestSuite(&FlagTest{})
-}
-
-func (t *FlagTest) SetUp(ti *TestInfo) {
+func TestFlagSuite(t *testing.T) {
+	suite.Run(t, new(FlagTest))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -135,7 +132,7 @@ func (t *FlagTest) TestResolveMetadataCacheTTL() {
 		},
 	}
 	for _, input := range inputs {
-		AssertEq(input.expectedMetadataCacheTTL, ResolveMetadataCacheTTL(input.statCacheTTL, input.typeCacheTTL, input.ttlInSeconds))
+		assert.Equal(t.T(), input.expectedMetadataCacheTTL, ResolveMetadataCacheTTL(input.statCacheTTL, input.typeCacheTTL, input.ttlInSeconds))
 	}
 }
 
@@ -212,7 +209,7 @@ func (t *FlagTest) TestResolveStatCacheMaxSizeMB() {
 		},
 	} {
 		statCacheMaxSizeMB, err := ResolveStatCacheMaxSizeMB(input.mountConfigStatCacheMaxSizeMB, input.flagStatCacheCapacity)
-		AssertEq(nil, err)
-		AssertEq(input.expectedStatCacheMaxSizeMB, statCacheMaxSizeMB)
+		assert.NoError(t.T(), err)
+		assert.Equal(t.T(), input.expectedStatCacheMaxSizeMB, statCacheMaxSizeMB)
 	}
 }
