@@ -21,10 +21,12 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
@@ -207,6 +209,24 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
+func callListRecursive(mountPoint string) (err error) {
+	logger.Debugf("Started recursive listing of %s ...", mountPoint)
+	numItems := 0
+	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
+		//logger.Infof("Walked path:%s, d=%s, isDir=%v", path, d.Name(), d.IsDir())
+		if err != nil {
+			logger.Errorf("Walked path:%s, d=%s, isDir=%v, err=%v", path, d.Name(), d.IsDir(), err)
+		}
+
+		numItems++
+		return err
+	})
+
+	logger.Debugf("... Completed recursive listing of %s. Number of items listed: %v", mountPoint, numItems)
+
+	return
+}
+
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -365,6 +385,8 @@ func runCLIApp(c *cli.Context) (err error) {
 			return
 		} else {
 			logger.Infof(SuccessfulMountMessage)
+
+			go callListRecursive(mountPoint)
 		}
 
 		return
@@ -385,6 +407,8 @@ func runCLIApp(c *cli.Context) (err error) {
 			logger.Info(SuccessfulMountMessage)
 
 			daemonize.SignalOutcome(nil)
+
+			go callListRecursive(mountPoint)
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
