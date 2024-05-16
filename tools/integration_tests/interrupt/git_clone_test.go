@@ -18,6 +18,7 @@
 package interrupt
 
 import (
+	"log"
 	"path"
 	"testing"
 
@@ -77,6 +78,18 @@ func gitAdd(filePath string) ([]byte, error) {
 func nonEmptyCommit() ([]byte, error) {
 	repositoryPath := path.Join(testDirPath, repoName)
 	return operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "commit -m \"test\"")
+}
+
+func setGithubUserConfig() {
+	repositoryPath := path.Join(testDirPath, repoName)
+	output, err := operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "git config --global user.email \"abc@def.com\"")
+	if err != nil {
+		log.Printf("Error setting git user.email: %s: %v", string(output), err)
+	}
+	output, err = operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "git config --global user.name \"abc\"")
+	if err != nil {
+		log.Printf("Error setting git user.name: %s: %v", string(output), err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -142,5 +155,6 @@ func (s *ignoreInterruptsTest) TestGitCommitWithChanges(t *testing.T) {
 
 func TestIgnoreInterrupts(t *testing.T) {
 	ts := &ignoreInterruptsTest{}
+	setGithubUserConfig()
 	test_setup.RunTests(t, ts)
 }
