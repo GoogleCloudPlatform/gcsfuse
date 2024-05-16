@@ -81,12 +81,11 @@ func nonEmptyCommit() ([]byte, error) {
 }
 
 func setGithubUserConfig() {
-	repositoryPath := path.Join(testDirPath, repoName)
-	output, err := operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "git config --global user.email \"abc@def.com\"")
+	output, err := operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "config user.email \"abc@def.com\"")
 	if err != nil {
 		log.Printf("Error setting git user.email: %s: %v", string(output), err)
 	}
-	output, err = operations.ExecuteToolCommandfInDirectory(repositoryPath, tool, "git config --global user.name \"abc\"")
+	output, err = operations.ExecuteToolCommandfInDirectory(testDirPath, tool, "config user.name \"abc\"")
 	if err != nil {
 		log.Printf("Error setting git user.name: %s: %v", string(output), err)
 	}
