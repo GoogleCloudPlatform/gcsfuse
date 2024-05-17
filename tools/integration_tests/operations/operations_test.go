@@ -145,7 +145,6 @@ func TestMain(m *testing.M) {
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	if !testing.Short() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
 
