@@ -50,11 +50,13 @@ func TestMain(m *testing.M) {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
-	flags := [][]string{
-		{"--implicit-dirs"},
-		{"--client-protocol=grpc", "--implicit-dirs=true"}}
+	flagsSet := [][]string{{"--implicit-dirs"}}
 
-	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flags, m)
+	if !testing.Short() {
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+	}
+
+	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
 
 	// Close storage client and release resources.
 	storageClient.Close()

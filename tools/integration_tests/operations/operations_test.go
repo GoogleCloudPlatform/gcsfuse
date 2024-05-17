@@ -142,11 +142,10 @@ func TestMain(m *testing.M) {
 		// By default, creating emptyFile is disabled.
 		{"--implicit-dirs=true"},
 		{"--implicit-dirs=false"},
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
-		{"--client-protocol=grpc", "--implicit-dirs=true"}}
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	if !testing.Short() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=false"})
+		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
