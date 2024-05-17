@@ -17,10 +17,9 @@ package config
 import (
 	"testing"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
-
-func TestConfig(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -36,9 +35,12 @@ type flags struct {
 	AnonymousAccess  bool
 }
 type ConfigTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&ConfigTest{}) }
+func TestConfigSuite(t *testing.T) {
+	suite.Run(t, new(ConfigTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
@@ -64,9 +66,9 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
 
 	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
 
-	AssertEq(mountConfig.LogConfig.Format, "text")
-	AssertEq(mountConfig.LogConfig.FilePath, "/tmp/hello.txt")
-	AssertEq(mountConfig.LogConfig.Severity, TRACE)
+	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
+	assert.Equal(t.T(), "/tmp/hello.txt", mountConfig.LogConfig.FilePath)
+	assert.Equal(t.T(), TRACE, mountConfig.LogConfig.Severity)
 }
 
 func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
@@ -86,9 +88,9 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 
 	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
 
-	AssertEq(mountConfig.LogConfig.Format, "json")
-	AssertEq(mountConfig.LogConfig.FilePath, "a.txt")
-	AssertEq(mountConfig.LogConfig.Severity, INFO)
+	assert.Equal(t.T(), "json", mountConfig.LogConfig.Format)
+	assert.Equal(t.T(), "a.txt", mountConfig.LogConfig.FilePath)
+	assert.Equal(t.T(), INFO, mountConfig.LogConfig.Severity)
 }
 
 func (t *ConfigTest) TestIsFileCacheEnabled() {
@@ -98,10 +100,10 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 			MaxSizeMB: -1,
 		},
 	}
-	AssertEq(IsFileCacheEnabled(mountConfig), true)
+	assert.True(t.T(), IsFileCacheEnabled(mountConfig))
 
 	mountConfig1 := &MountConfig{}
-	AssertEq(IsFileCacheEnabled(mountConfig1), false)
+	assert.False(t.T(), IsFileCacheEnabled(mountConfig1))
 
 	mountConfig2 := &MountConfig{
 		CacheDir: "",
@@ -109,7 +111,7 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 			MaxSizeMB: -1,
 		},
 	}
-	AssertEq(IsFileCacheEnabled(mountConfig2), false)
+	assert.False(t.T(), IsFileCacheEnabled(mountConfig2))
 
 	mountConfig3 := &MountConfig{
 		CacheDir: "//tmp//folder//",
@@ -117,7 +119,7 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 			MaxSizeMB: 0,
 		},
 	}
-	AssertEq(IsFileCacheEnabled(mountConfig3), false)
+	assert.False(t.T(), IsFileCacheEnabled(mountConfig3))
 }
 
 type TestCliContext struct {
@@ -151,7 +153,7 @@ func TestOverrideWithIgnoreInterruptsFlag(t *testing.T) {
 
 			OverrideWithIgnoreInterruptsFlag(testContext, mountConfig, tt.ignoreInterruptFlagValue)
 
-			AssertEq(tt.expectedIgnoreInterrupt, mountConfig.FileSystemConfig.IgnoreInterrupts)
+			assert.Equal(t, tt.expectedIgnoreInterrupt, mountConfig.FileSystemConfig.IgnoreInterrupts)
 		})
 	}
 }
@@ -179,7 +181,7 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 
 			OverrideWithAnonymousAccessFlag(testContext, mountConfig, tt.anonymousAccessFlagValue)
 
-			AssertEq(tt.expectedAnonymousAccess, mountConfig.AuthConfig.AnonymousAccess)
+			assert.Equal(t, tt.expectedAnonymousAccess, mountConfig.AuthConfig.AnonymousAccess)
 		})
 	}
 }
