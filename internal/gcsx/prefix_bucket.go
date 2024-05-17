@@ -63,7 +63,7 @@ func (b *prefixBucket) Name() string {
 	return b.wrapped.Name()
 }
 
-func (b *prefixBucket) BucketType() gcs.BucketTypes {
+func (b *prefixBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 

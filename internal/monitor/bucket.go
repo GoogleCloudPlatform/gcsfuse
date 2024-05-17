@@ -114,7 +114,7 @@ func (mb *monitoringBucket) Name() string {
 	return mb.wrapped.Name()
 }
 
-func (mb *monitoringBucket) BucketType() gcs.BucketTypes {
+func (mb *monitoringBucket) BucketType() gcs.BucketType {
 	return mb.wrapped.BucketType()
 }
 
