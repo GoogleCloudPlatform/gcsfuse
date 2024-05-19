@@ -328,7 +328,7 @@ func (bm *fakeBucketManager) ShutDown() {}
 
 func (bm *fakeBucketManager) SetUpBucket(
 	ctx context.Context,
-	name string, isMultibucketMount bool) (sb gcsx.SyncerBucket, err error) {
+	name string, isMultibucketMount bool, enableHNS bool) (sb gcsx.SyncerBucket, err error) {
 	bucket, ok := bm.buckets[name]
 	if ok {
 		sb = gcsx.NewSyncerBucket(

@@ -50,6 +50,11 @@ func (b *throttledBucket) Name() string {
 	return b.wrapped.Name()
 }
 
+func (b *throttledBucket) Type() string {
+	return b.wrapped.Type()
+}
+
+
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
