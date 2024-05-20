@@ -1190,23 +1190,23 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 	assert.Equal(testSuite.T(), len(ContentInTestObject)+len(ContentInTestSubObject), int(composedObj.Size))
 }
 
-func (testSuite *StorageHandleTest) TestGetBucketTypeForHierarchicalNameSpace() {
+func (testSuite *StorageHandleTest) TestFetchBucketTypeForHierarchicalNameSpace() {
 	// Set the expectation for GetStorageLayout.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 			Return(&controlpb.StorageLayout{
 				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 			}, nil)
 
-	bucketType := mockGetBucketType(testSuite.mockClient, TestBucketName)
+	bucketType := mockFetchAndSetBucketType(testSuite.mockClient)
 	assert.Equal(testSuite.T(), gcs.Hierarchical, bucketType, "Expected Hierarchical bucket type")
 }
 
-func (testSuite *StorageHandleTest) TestGetBucketTypeWithError() {
+func (testSuite *StorageHandleTest) TestFetchBucketTypeWithError() {
 	var x *controlpb.StorageLayout
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(x, errors.New("mocked error"))
 
-	bucketType := mockGetBucketType(testSuite.mockClient, TestBucketName)
+	bucketType := mockFetchAndSetBucketType(testSuite.mockClient)
 	assert.Equal(testSuite.T(), gcs.Unknown, bucketType, "Expected Unknown when there's an error")
 }

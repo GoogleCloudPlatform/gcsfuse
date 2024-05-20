@@ -19,14 +19,14 @@ func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context, req *co
 	return args.Get(0).(*controlpb.StorageLayout), args.Error(1)
 }
 
-// Mock getBucketType function
-func mockGetBucketType(controlClient *MockStorageControlClient, bucketName string) gcs.BucketType {
-	if controlClient == nil {
+// Mock FetchAndSetBucketType function
+func mockFetchAndSetBucketType(mockClient *MockStorageControlClient) gcs.BucketType {
+	if mockClient == nil {
 		return gcs.NonHierarchical
 	}
 
-	stoargeLayout, err := controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name: "projects/_/buckets/" + bucketName + "/storageLayout",
+	stoargeLayout, err := mockClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name: "projects/_/buckets/" + TestBucketName + "/storageLayout",
 	}, nil...)
 
 	if err != nil {
