@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+// Special type declared to protect just any string
+// from being set to MetadataPrefetchMode.
 type MetadataPrefetchModeValue string
 
 const (
@@ -52,10 +54,14 @@ const (
 	DefaultGrpcConnPoolSize                       = 1
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
-
+	
+	// MetadataPrefetchModeDisabled is the mode without metadata-prefetch.
 	MetadataPrefetchModeDisabled     MetadataPrefetchModeValue = "disabled"
+	// MetadataPrefetchModeSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
 	MetadataPrefetchModeSynchronous  MetadataPrefetchModeValue = "synchronous"
+	// MetadataPrefetchModeAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
 	MetadataPrefetchModeAsynchronous MetadataPrefetchModeValue = "asynchronous"
+	// DefaultMetadataPrefetchMode is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchModeDisabled.
 	DefaultMetadataPrefetchMode                                = MetadataPrefetchModeDisabled
 )
 

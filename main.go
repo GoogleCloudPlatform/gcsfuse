@@ -389,8 +389,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			case config.MetadataPrefetchModeDisabled:
 				logger.Infof(SuccessfulMountMessage)
 			case config.MetadataPrefetchModeSynchronous:
-				err = callListRecursive(mountPoint)
-				if err != nil {
+				if err = callListRecursive(mountPoint); err != nil {
 					err = fmt.Errorf("daemonize.Run: metadata-prefetch failed: %w", err)
 					return
 				}
@@ -418,18 +417,25 @@ func runCLIApp(c *cli.Context) (err error) {
 	{
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
+		// This utility is to absorb the error
+		// returned by daemonize.SignalOutcome calls by simply
+		// logging them as error logs.
 		callDaemonizeSignalOutcome := func(err error) {
 			if err2 := daemonize.SignalOutcome(err); err2 != nil {
 				logger.Errorf("Failed to signal to daemon: %v", err2)
 			}
 		}
 
+		markSuccessfullMount := func() {
+			// Print the success message in the log-file/stdout depending on what the logger is set to.
+			logger.Info(SuccessfulMountMessage)
+			callDaemonizeSignalOutcome(nil)
+		}
+
 		if err == nil {
 			switch mountConfig.MetadataPrefetchMode {
 			case config.MetadataPrefetchModeDisabled:
-				// Print the success message in the log-file/stdout depending on what the logger is set to.
-				logger.Info(SuccessfulMountMessage)
-				callDaemonizeSignalOutcome(nil)
+				markSuccessfullMount()
 			case config.MetadataPrefetchModeSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
 					// Printing via mountStatus will have duplicate logs on the console while
@@ -441,13 +447,9 @@ func runCLIApp(c *cli.Context) (err error) {
 					return
 				}
 
-				// Print the success message in the log-file/stdout depending on what the logger is set to.
-				logger.Info(SuccessfulMountMessage)
-				daemonize.SignalOutcome(nil)
+				markSuccessfullMount()
 			case config.MetadataPrefetchModeAsynchronous:
-				// Print the success message in the log-file/stdout depending on what the logger is set to.
-				logger.Info(SuccessfulMountMessage)
-				callDaemonizeSignalOutcome(nil)
+				markSuccessfullMount()
 
 				go func() {
 					if err := callListRecursive(mountPoint); err != nil {
@@ -461,7 +463,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			// losing error logs when run in the background mode.
 			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
 			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
-			daemonize.SignalOutcome(err)
+			callDaemonizeSignalOutcome(err)
 			return
 		}
 	}

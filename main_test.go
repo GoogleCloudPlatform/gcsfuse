@@ -216,6 +216,18 @@ func (t *MainTest) TestMetadataPrefetchModeAsynchronous() {
 	AssertEq(expected, actual)
 }
 
+func (t *MainTest) TestMetadataPrefetchModeDisabled() {
+	mountConfig := &config.MountConfig{
+		MetadataPrefetchMode: config.MetadataPrefetchModeDisabled,
+	}
+
+	actual, err := util.Stringify(mountConfig)
+	AssertEq(nil, err)
+
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":false,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false,\"MetadataPrefetchMode\":\"disabled\"}"
+	AssertEq(expected, actual)
+}
+
 func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshalledString() {
 	mountOptions := map[string]string{
 		"1": "one",
