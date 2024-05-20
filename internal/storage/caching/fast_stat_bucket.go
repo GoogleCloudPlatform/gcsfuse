@@ -122,6 +122,10 @@ func (b *fastStatBucket) Name() string {
 	return b.wrapped.Name()
 }
 
+func (b *fastStatBucket) BucketType() gcs.BucketType {
+	return b.wrapped.BucketType()
+}
+
 func (b *fastStatBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {

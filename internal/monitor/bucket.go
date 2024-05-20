@@ -114,6 +114,10 @@ func (mb *monitoringBucket) Name() string {
 	return mb.wrapped.Name()
 }
 
+func (mb *monitoringBucket) BucketType() gcs.BucketType {
+	return mb.wrapped.BucketType()
+}
+
 func (mb *monitoringBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {

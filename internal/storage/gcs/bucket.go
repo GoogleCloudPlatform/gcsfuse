@@ -20,6 +20,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+// BucketType represents different types of buckets like
+// Hierarchical or NonHierarchical as constants.
+type BucketType int
+
+// BucketType enum values.
+const (
+	NonHierarchical BucketType = iota
+	Hierarchical
+)
+
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //
@@ -30,6 +40,9 @@ import (
 // All methods are safe for concurrent access.
 type Bucket interface {
 	Name() string
+
+	// Return Type of bucket e.g. Hierarchical or NonHierarchical
+	BucketType() BucketType
 
 	// Create a reader for the contents of a particular generation of an object.
 	// On a nil error, the caller must arrange for the reader to be closed when
