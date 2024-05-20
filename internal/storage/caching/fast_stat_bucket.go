@@ -127,7 +127,7 @@ func (b *fastStatBucket) BucketType() gcs.BucketType {
 }
 
 func (b *fastStatBucket) FetchAndSetBucketType() {
-	 b.wrapped.FetchAndSetBucketType()
+	b.wrapped.FetchAndSetBucketType()
 }
 
 func (b *fastStatBucket) NewReader(

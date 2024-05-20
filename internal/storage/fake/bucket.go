@@ -108,8 +108,6 @@ func prefixSuccessor(prefix string) string {
 	return string(limit)
 }
 
-
-
 // Return the smallest i such that prefix < s[i].metadata.Name and
 // !strings.HasPrefix(s[i].metadata.Name, prefix).
 func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
