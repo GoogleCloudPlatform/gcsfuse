@@ -247,8 +247,6 @@ func (m *mockBucket) FetchAndSetBucketType() {
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.FetchAndSetBucketType: invalid return values: %v", retVals))
 	}
-
-	return
 }
 
 func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o0 io.ReadCloser, o1 error) {

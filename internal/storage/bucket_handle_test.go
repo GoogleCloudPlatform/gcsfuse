@@ -60,7 +60,9 @@ func (testSuite *BucketHandleTest) SetupTest() {
 	testSuite.fakeStorage = NewFakeStorage()
 	testSuite.storageHandle = testSuite.fakeStorage.CreateStorageHandle()
 	testSuite.bucketHandle = testSuite.storageHandle.BucketHandle(TestBucketName, "")
+	testSuite.mockClient = new(MockStorageControlClient)
 
+	assert.NotNil(testSuite.T(), testSuite.mockClient)
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 }
 
@@ -1199,6 +1201,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpace()
 		}, nil)
 
 	bucketType := mockFetchAndSetBucketType(testSuite.mockClient)
+
 	assert.Equal(testSuite.T(), gcs.Hierarchical, bucketType, "Expected Hierarchical bucket type")
 }
 
@@ -1209,5 +1212,6 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithError() {
 		Return(x, errors.New("mocked error"))
 
 	bucketType := mockFetchAndSetBucketType(testSuite.mockClient)
+
 	assert.Equal(testSuite.T(), gcs.Unknown, bucketType, "Expected Unknown when there's an error")
 }

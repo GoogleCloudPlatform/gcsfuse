@@ -460,9 +460,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 		return
 	}
 
-	b.bucketType = gcs.NonHierarchical
-
-	return
+	b.bucketType = gcs.Unknown
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
