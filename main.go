@@ -210,64 +210,13 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
-// walkDir recursively descends path, calling walkDirFn.
-func walkDirConcurrent(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
-	if err := walkDirFn(path, d, nil); err != nil || !d.IsDir() {
-		if err == filepath.SkipDir && d.IsDir() {
-			// Successfully skipped directory.
-			err = nil
-		}
-		return err
-	}
-
-	dirs, err := os.ReadDir(path)
-	if err != nil {
-		// Second call, to report ReadDir error.
-		err = walkDirFn(path, d, err)
-		if err != nil {
-			if err == filepath.SkipDir && d.IsDir() {
-				err = nil
-			}
-			return err
-		}
-	}
-
-	for _, d1 := range dirs {
-		path1 := filepath.Join(path, d1.Name())
-		if err := walkDirConcurrent(path1, d1, walkDirFn); err != nil {
-			if err == filepath.SkipDir {
-				break
-			}
-			return err
-		}
-	}
-	return nil
-}
-
-func WalkDirConcurrent(root string, fn fs.WalkDirFunc) error {
-	info, err := os.Lstat(root)
-	if err != nil {
-		err = fn(root, nil, err)
-	} else {
-		err = walkDirConcurrent(root, fs.FileInfoToDirEntry(info), fn)
-	}
-	if err == filepath.SkipDir || err == filepath.SkipAll {
-		return nil
-	}
-	return err
-}
-
 func callListRecursive(mountPoint string) (err error) {
 	logger.Debugf("Started recursive listing of %s ...", mountPoint)
 	numItems := 0
-	err = WalkDirConcurrent(mountPoint, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
 		//logger.Infof("Walked path:%s, d=%s, isDir=%v", path, d.Name(), d.IsDir())
 		if err != nil {
 			logger.Errorf("Walked path:%s, d=%s, isDir=%v, err=%v", path, d.Name(), d.IsDir(), err)
-		}
-
-		if d.IsDir() && path != mountPoint {
-			logger.Debugf("Started recursive listing of directory %s", path)
 		}
 
 		numItems++
