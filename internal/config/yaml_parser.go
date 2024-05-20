@@ -43,6 +43,7 @@ const (
 	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
 	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
+	UnsupportedMetadataPrefixModeError    = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, synchronous, asynchronous."
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -107,6 +108,19 @@ func (grpcClientConfig *GrpcClientConfig) validate() error {
 	return nil
 }
 
+func validateMetadataPrefetchMode(mode MetadataPrefetchModeValue) error {
+	switch mode {
+	case MetadataPrefetchModeDisabled:
+		fallthrough
+	case MetadataPrefetchModeSynchronous:
+		fallthrough
+	case MetadataPrefetchModeAsynchronous:
+		return nil
+	default:
+		return fmt.Errorf(UnsupportedMetadataPrefixModeError, mode)
+	}
+}
+
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig = NewMountConfig()
 
@@ -155,5 +169,10 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	if err = mountConfig.GrpcClientConfig.validate(); err != nil {
 		return mountConfig, fmt.Errorf("error parsing grpc-config: %w", err)
 	}
+
+	if err = validateMetadataPrefetchMode(mountConfig.MetadataPrefetchMode); err != nil {
+		return mountConfig, fmt.Errorf("error parsing metadata-prefetch-mode: %w", err)
+	}
+
 	return
 }

@@ -128,6 +128,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	// file-system config
 	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.True(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+
+	// metadata-prefetch-mode config
+	assert.Equal(t.T(), "disabled", string(mountConfig.MetadataPrefetchMode))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -262,4 +265,44 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaPrefetchMode_SupportedValues() {
+	for _, input := range []struct {
+		filename string
+		mode     string
+	}{{
+		filename: "testdata/metadata_prefetch_mode_supported_value1.yaml",
+		mode:     "synchronous",
+	},
+		{
+			filename: "testdata/metadata_prefetch_mode_supported_value2.yaml",
+			mode:     "asynchronous",
+		},
+		{
+			filename: "testdata/metadata_prefetch_mode_supported_value3.yaml",
+			mode:     "disabled",
+		},
+		{
+			filename: "testdata/metadata_prefetch_mode_unset.yaml",
+			mode:     "disabled",
+		},
+	} {
+		mountConfig, err := ParseConfigFile(input.filename)
+		assert.NoError(t.T(), err)
+		assert.NotNil(t.T(), mountConfig)
+		assert.Equal(t.T(), input.mode, string(mountConfig.MetadataPrefetchMode))
+	}
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetatadaPrefetchMode_UnsupportedValues() {
+	for _, input := range []struct {
+		filename string
+	}{{
+		filename: "testdata/metadata_prefetch_mode_unsupported_value.yaml",
+	},
+	} {
+		_, err := ParseConfigFile(input.filename)
+		assert.ErrorContains(t.T(), err, fmt.Sprintf(UnsupportedMetadataPrefixModeError, "unsupported"))
+	}
 }

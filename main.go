@@ -211,19 +211,19 @@ func populateArgs(c *cli.Context) (
 }
 
 func callListRecursive(mountPoint string) (err error) {
-	logger.Debugf("Started recursive listing of %s ...", mountPoint)
+	logger.Debugf("Started recursive metadata-prefetch of directory: \"%s\" ...", mountPoint)
 	numItems := 0
 	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
 		//logger.Infof("Walked path:%s, d=%s, isDir=%v", path, d.Name(), d.IsDir())
 		if err != nil {
-			logger.Errorf("Walked path:%s, d=%s, isDir=%v, err=%v", path, d.Name(), d.IsDir(), err)
+			return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, err=%w", path, d.Name(), d.IsDir(), err)
 		}
 
 		numItems++
 		return err
 	})
 
-	logger.Debugf("... Completed recursive listing of %s. Number of items listed: %v", mountPoint, numItems)
+	logger.Debugf("... Completed recursive metadata-prefetch of directory: \"%s\". Number of items discovered: %v", mountPoint, numItems)
 
 	return
 }
@@ -385,12 +385,23 @@ func runCLIApp(c *cli.Context) (err error) {
 			err = fmt.Errorf("daemonize.Run: %w", err)
 			return
 		} else {
-			logger.Infof(SuccessfulMountMessage)
-
-			err = callListRecursive(mountPoint)
-			if err != nil {
-				err = fmt.Errorf("daemonize.Run: %w", err)
-				return
+			switch mountConfig.MetadataPrefetchMode {
+			case config.MetadataPrefetchModeDisabled:
+				logger.Infof(SuccessfulMountMessage)
+			case config.MetadataPrefetchModeSynchronous:
+				err = callListRecursive(mountPoint)
+				if err != nil {
+					err = fmt.Errorf("daemonize.Run: metadata-prefetch failed: %w", err)
+					return
+				}
+				logger.Infof(SuccessfulMountMessage)
+			case config.MetadataPrefetchModeAsynchronous:
+				logger.Infof(SuccessfulMountMessage)
+				go func() {
+					if err := callListRecursive(mountPoint); err != nil {
+						logger.Errorf("metadata-prefetch failed: %v", err)
+					}
+				}()
 			}
 		}
 
@@ -407,21 +418,42 @@ func runCLIApp(c *cli.Context) (err error) {
 	{
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
-		if err == nil {
-			// Print the success message in the log-file/stdout depending on what the logger is set to.
-			logger.Info(SuccessfulMountMessage)
+		callDaemonizeSignalOutcome := func(err error) {
+			if err2 := daemonize.SignalOutcome(err); err2 != nil {
+				logger.Errorf("Failed to signal to daemon: %v", err2)
+			}
+		}
 
-			err = callListRecursive(mountPoint)
-			if err != nil {
-				// Printing via mountStatus will have duplicate logs on the console while
-				// mounting gcsfuse in foreground mode. But this is important to avoid
-				// losing error logs when run in the background mode.
-				logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
-				err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
-				daemonize.SignalOutcome(err)
-				return
-			} else {
+		if err == nil {
+			switch mountConfig.MetadataPrefetchMode {
+			case config.MetadataPrefetchModeDisabled:
+				// Print the success message in the log-file/stdout depending on what the logger is set to.
+				logger.Info(SuccessfulMountMessage)
+				callDaemonizeSignalOutcome(nil)
+			case config.MetadataPrefetchModeSynchronous:
+				if err = callListRecursive(mountPoint); err != nil {
+					// Printing via mountStatus will have duplicate logs on the console while
+					// mounting gcsfuse in foreground mode. But this is important to avoid
+					// losing error logs when run in the background mode.
+					logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
+					err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
+					callDaemonizeSignalOutcome(err)
+					return
+				}
+
+				// Print the success message in the log-file/stdout depending on what the logger is set to.
+				logger.Info(SuccessfulMountMessage)
 				daemonize.SignalOutcome(nil)
+			case config.MetadataPrefetchModeAsynchronous:
+				// Print the success message in the log-file/stdout depending on what the logger is set to.
+				logger.Info(SuccessfulMountMessage)
+				callDaemonizeSignalOutcome(nil)
+
+				go func() {
+					if err := callListRecursive(mountPoint); err != nil {
+						logger.Errorf("Metadata-prefetch failed: %v", err)
+					}
+				}()
 			}
 		} else {
 			// Printing via mountStatus will have duplicate logs on the console while
