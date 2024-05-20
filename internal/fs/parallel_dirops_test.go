@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,33 +33,10 @@ type ParallelDiropsTest struct {
 	fsTest
 }
 
+// ParallelDiropsWithoutCachesTest runs all the unit tests of ParallelDiropsTest
+// but without metadata caches.
 type ParallelDiropsWithoutCachesTest struct {
 	ParallelDiropsTest
-}
-
-// createFilesAndDirStructureInBucket creates the following files and directory
-// structure.
-// bucket
-//
-//			file1.txt
-//			file2.txt
-//			explicitDir1
-//					file1.txt
-//					file2.txt
-//	    implicitDir1
-//					file1.txt
-func (t *ParallelDiropsTest) createFilesAndDirStructureInBucket() {
-	assert.Nil(
-		t.T(),
-		t.createObjects(
-			map[string]string{
-				"file1.txt":              "abcdef",
-				"file2.txt":              "xyz",
-				"explicitDir1/":          "",
-				"explicitDir1/file1.txt": "12345",
-				"explicitDir1/file2.txt": "6789101112",
-				"implicitDir1/file1.txt": "-1234556789",
-			}))
 }
 
 func (t *ParallelDiropsTest) SetupSuite() {
@@ -94,6 +71,38 @@ func (t *ParallelDiropsTest) TearDownTest() {
 
 func (t *ParallelDiropsTest) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
+}
+
+func TestParallelDiropsTestSuite(t *testing.T) {
+	suite.Run(t, new(ParallelDiropsTest))
+}
+
+func TestParallelDiropsWithoutCachesTestSuite(t *testing.T) {
+	suite.Run(t, new(ParallelDiropsWithoutCachesTest))
+}
+
+// createFilesAndDirStructureInBucket creates the following files and directory
+// structure.
+// bucket
+//
+//	file1.txt
+//	file2.txt
+//	explicitDir1/
+//	explicitDir1/file1.txt
+//	explicitDir1/file2.txt
+//	implicitDir1/file1.txt
+func (t *ParallelDiropsTest) createFilesAndDirStructureInBucket() {
+	assert.Nil(
+		t.T(),
+		t.createObjects(
+			map[string]string{
+				"file1.txt":              "abcdef",
+				"file2.txt":              "xyz",
+				"explicitDir1/":          "",
+				"explicitDir1/file1.txt": "12345",
+				"explicitDir1/file2.txt": "6789101112",
+				"implicitDir1/file1.txt": "-1234556789",
+			}))
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
@@ -194,7 +203,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 	assert.Contains(t.T(), dirPath, stat2.Name())
 }
 
-func (t *ParallelDiropsTest) TestParallelReadDirsForSameDir() {
+func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
 		defer wg.Done()
 		dirEntries, err := os.ReadDir(dirPath)
@@ -676,12 +685,4 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForDifferentDirs() {
 	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
 	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
 	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
-}
-
-func TestParallelDiropsTestSuite(t *testing.T) {
-	suite.Run(t, new(ParallelDiropsTest))
-}
-
-func TestParallelDiropsWithoutCachesTestSuite(t *testing.T) {
-	suite.Run(t, new(ParallelDiropsWithoutCachesTest))
 }
