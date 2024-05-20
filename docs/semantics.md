@@ -244,11 +244,7 @@ When a new file is created and ```open(2)``` was called with ```O_CREAT```, an e
 
 **Pubsub notifications on file creation**
 
-[Pubsub notifications](https://cloud.google.com/storage/docs/reporting-changes) may be enabled on a Cloud Storage bucket to help track changes to Cloud Storage objects. Due to the semantics that Cloud Storage FUSE uses to create files, 3 different events are generated, per file created:
-
-- One OBJECT_FINALIZE event: a zero sized object has been created.
-- One OBJECT_DELETE event: the first generation of the object has been deleted.
-- One OBJECT_FINALIZE event: a non-zero sized object has been created.
+[Pubsub notifications](https://cloud.google.com/storage/docs/reporting-changes) may be enabled on a Cloud Storage bucket to help track changes to Cloud Storage objects. Due to the semantics that Cloud Storage FUSE uses to create files, an OBJECT_FINALIZE event is generated per file created indicating that a non-zero sized object has been created.
 
 These Cloud Storage events can be used from other cloud products, such as AppEngine, Cloud Functions, etc. It is recommended to ignore events for files with zero size.
 
