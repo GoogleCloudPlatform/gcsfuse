@@ -451,6 +451,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 
 	// In case bucket does not exist, set type unknown instead of panic.
 	if err != nil {
+		b.bucketType = gcs.Unknown
 		log.Printf("GetStorageLayout: %v", err)
 		return
 	}
