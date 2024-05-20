@@ -111,7 +111,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.22.3.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.22.3.linux-${architecture}.tar.gz -q
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -181,7 +181,7 @@ function run_non_parallel_tests() {
     echo $log_file >> $TEST_LOGS_FILE
 
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG --integrationTest -v --testbucket=$bucket_name_non_parallel --testInstalledPackage=true -timeout 60m > "$log_file" 2>&1
     exit_code_non_parallel=$?
     if [ $exit_code_non_parallel != 0 ]; then
       exit_code=$exit_code_non_parallel
@@ -205,7 +205,7 @@ function run_parallel_tests() {
     local log_file="/tmp/${test_dir_p}_${bucket_name_parallel}.log"
     echo $log_file >> $TEST_LOGS_FILE
     # Executing integration tests
-    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=$bucket_name_parallel --testInstalledPackage=true -timeout 60m > "$log_file" 2>&1 &
     pid=$!  # Store the PID of the background process
     pids+=("$pid")  # Optionally add the PID to an array for later
   done
@@ -222,7 +222,7 @@ function run_parallel_tests() {
   return $exit_code
 }
 
-function print_test_logs() {
+function gather_test_logs() {
   readarray -t test_logs_array < "$TEST_LOGS_FILE"
   rm "$TEST_LOGS_FILE"
   for test_log_file in "${test_logs_array[@]}"
@@ -245,6 +245,8 @@ parallel_tests_exit_code=$?
 echo "Running non parallel tests ..."
 run_non_parallel_tests TEST_DIR_NON_PARALLEL $bucket_name
 non_parallel_tests_exit_code=$?
+
+gather_test_logs()
 
 if [ $parallel_tests_exit_code != 0 ] || [ $non_parallel_tests_exit_code != 0 ]
 then
