@@ -20,7 +20,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// BucketType represent type of bucket like Hierarchical nonHierarchical as constants
+// BucketType represents different types of buckets like
+// Hierarchical or NonHierarchical as constants.
 type BucketType int
 
 // BucketType enum values.
