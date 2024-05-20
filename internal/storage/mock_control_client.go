@@ -20,7 +20,7 @@ func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context, req *co
 }
 
 // Mock getBucketType function
-func mockGetBucketType(controlClient *MockStorageControlClient, bucketName string) gcs.BucketTypes {
+func mockGetBucketType(controlClient *MockStorageControlClient, bucketName string) gcs.BucketType {
 	if controlClient == nil {
 		return gcs.NonHierarchical
 	}

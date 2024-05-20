@@ -110,6 +110,10 @@ type monitoringBucket struct {
 	wrapped gcs.Bucket
 }
 
+func (mb *monitoringBucket) FetchAndSetBucketType() {
+	mb.wrapped.FetchAndSetBucketType()
+}
+
 func (mb *monitoringBucket) Name() string {
 	return mb.wrapped.Name()
 }

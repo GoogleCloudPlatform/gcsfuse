@@ -108,6 +108,8 @@ func prefixSuccessor(prefix string) string {
 	return string(limit)
 }
 
+
+
 // Return the smallest i such that prefix < s[i].metadata.Name and
 // !strings.HasPrefix(s[i].metadata.Name, prefix).
 func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
@@ -438,6 +440,10 @@ func (b *bucket) Name() string {
 
 func (b *bucket) BucketType() gcs.BucketType {
 	return b.bucketType
+}
+
+func (b *bucket) FetchAndSetBucketType() {
+	b.bucketType = gcs.Unknown
 }
 
 // LOCKS_EXCLUDED(b.mu)

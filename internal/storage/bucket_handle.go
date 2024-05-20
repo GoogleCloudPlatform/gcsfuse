@@ -24,9 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
@@ -35,9 +39,10 @@ import (
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket     *storage.BucketHandle
-	bucketName string
-	bucketType gcs.BucketType
+	bucket        *storage.BucketHandle
+	bucketName    string
+	bucketType    gcs.BucketType
+	controlClient *control.StorageControlClient
 }
 
 func (bh *bucketHandle) Name() string {
@@ -426,6 +431,36 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 
 	// Converting attrs to type *Object.
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
+
+	return
+}
+
+// Fetch bucket type from GetStorageLayout and set it. e.g. Hierarchical or NonHierarchical
+func (b *bucketHandle) FetchAndSetBucketType() {
+	if b.controlClient == nil {
+		b.bucketType = gcs.NonHierarchical
+		return
+	}
+
+	var callOptions []gax.CallOption
+	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      "projects/_/buckets/" + b.bucketName + "/storageLayout",
+		Prefix:    "",
+		RequestId: "",
+	}, callOptions...)
+
+	// In case bucket does not exist, set type unknown instead of panic.
+	if err != nil {
+		log.Printf("GetStorageLayout: %v", err)
+		return
+	}
+
+	if stoargeLayout.HierarchicalNamespace != nil && stoargeLayout.GetHierarchicalNamespace().Enabled {
+		b.bucketType = gcs.Hierarchical
+		return
+	}
+
+	b.bucketType = gcs.NonHierarchical
 
 	return
 }

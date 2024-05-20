@@ -16,13 +16,11 @@ package storage
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -201,31 +199,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
-// Determines and returns the appropriate bucket type when the controlClient is non-nil.
-func getBucketType(controlClient *control.StorageControlClient, bucketName string) gcs.BucketTypes {
-	if controlClient == nil {
-		return gcs.NonHierarchical
-	}
-
-	var callOptions []gax.CallOption
-	stoargeLayout, err := controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name:      "projects/_/buckets/" + bucketName + "/storageLayout",
-		Prefix:    "",
-		RequestId: "",
-	}, callOptions...)
-
-	// In case bucket does not exist, set type unknown instead of panic.
-	if err != nil {
-		log.Printf("GetStorageLayout: %v", err)
-		return gcs.Unknown
-	}
-
-	if stoargeLayout.HierarchicalNamespace != nil && stoargeLayout.GetHierarchicalNamespace().Enabled {
-		return gcs.Hierarchical
-	}
-	return gcs.NonHierarchical
-}
-
 func (sh *storageClient) BucketHandle(bucketName string, billingProject string) (bh *bucketHandle) {
 	storageBucketHandle := sh.client.Bucket(bucketName)
 
@@ -233,8 +206,6 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	bucketType := getBucketType(sh.storageControlClient, bucketName)
-
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
+	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: gcs.Unknown, bucketName: bucketName, controlClient: sh.storageControlClient}
 	return
 }

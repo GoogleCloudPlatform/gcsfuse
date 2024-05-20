@@ -16,17 +16,14 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"testing"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -312,25 +309,4 @@ func (testSuite *StorageHandleTest) TestGetDefaultBucketTypWithControlClientNil(
 	bucketType := mockGetBucketType(nil, TestBucketName)
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketType, "Expected Hierarchical bucket type")
-}
-
-func (testSuite *StorageHandleTest) TestGetBucketTypeForHierarchicalNameSpace() {
-	// Set the expectation for GetStorageLayout.
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(&controlpb.StorageLayout{
-			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		}, nil)
-
-	bucketType := mockGetBucketType(testSuite.mockClient, TestBucketName)
-	assert.Equal(testSuite.T(), gcs.Hierarchical, bucketType, "Expected Hierarchical bucket type")
-}
-
-func (testSuite *StorageHandleTest) TestGetBucketTypeWithError() {
-	var x *controlpb.StorageLayout
-	// Test when the client returns an error.
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
-		Return(x, errors.New("mocked error"))
-
-	bucketType := mockGetBucketType(testSuite.mockClient, TestBucketName)
-	assert.Equal(testSuite.T(), gcs.Unknown, bucketType, "Expected Unknown when there's an error")
 }
