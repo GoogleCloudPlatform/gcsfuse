@@ -92,6 +92,18 @@ func (d *baseDirInode) Unlock() {
 	d.mu.Unlock()
 }
 
+// LockForChildLookup takes exclusive lock on inode when the inode's child is
+// looked up. It is different from non-base dir inode because during lookup of
+// child in base directory inode, the buckets map is modified and hence should
+// be guarded by exclusive lock.
+func (d *baseDirInode) LockForChildLookup() {
+	d.mu.Lock()
+}
+
+func (d *baseDirInode) UnlockForChildLookup() {
+	d.mu.Unlock()
+}
+
 func (d *baseDirInode) ID() fuseops.InodeID {
 	return d.id
 }

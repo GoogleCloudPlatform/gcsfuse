@@ -90,7 +90,8 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
-	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
+	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
+	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 }
 
 type FileCacheConfig struct {
@@ -180,6 +181,5 @@ func NewMountConfig() *MountConfig {
 		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
-
 	return mountConfig
 }
