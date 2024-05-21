@@ -206,17 +206,11 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	var controlClient *control.StorageControlClient = nil
-
-	if sh.storageControlClient != nil {
-		controlClient = sh.storageControlClient
-	}
-
 	bh = &bucketHandle{
 		bucket:        storageBucketHandle,
 		bucketType:    gcs.Unknown,
 		bucketName:    bucketName,
-		controlClient: controlClient,
+		controlClient: sh.storageControlClient,
 	}
 	return
 }
