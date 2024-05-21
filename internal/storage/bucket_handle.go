@@ -457,7 +457,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 	}
 
 	hierarchicalNamespace := stoargeLayout.GetHierarchicalNamespace()
-	if hierarchicalNamespace  != nil && hierarchicalNamespace.Enabled {
+	if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
 		b.bucketType = gcs.Hierarchical
 		return
 	}
