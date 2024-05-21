@@ -27,12 +27,12 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -42,7 +42,7 @@ type bucketHandle struct {
 	bucket        *storage.BucketHandle
 	bucketName    string
 	bucketType    gcs.BucketType
-	controlClient *control.StorageControlClient
+	controlClient StorageControlClientInterface
 }
 
 func (bh *bucketHandle) Name() string {

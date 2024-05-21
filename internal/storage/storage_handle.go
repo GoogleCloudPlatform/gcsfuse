@@ -210,6 +210,7 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		bucket:        storageBucketHandle,
 		bucketType:    gcs.Unknown,
 		bucketName:    bucketName,
-		controlClient: sh.storageControlClient}
+		controlClient: sh.storageControlClient,
+	}
 	return
 }
