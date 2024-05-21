@@ -2153,10 +2153,10 @@ func (fs *fileSystem) OpenDir(
 
 	// Invalidates the directory content page cache once cached response is out of
 	// dirContentCacheTTL.
-	op.KeepDirContentPageCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
+	op.KeepCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
 
 	// Enable directory content cache in case of non-zero ttl.
-	op.CacheDirContentAsPageCache = fs.dirContentCacheTTL > 0
+	op.CacheDir = fs.dirContentCacheTTL > 0
 
 	return
 }
