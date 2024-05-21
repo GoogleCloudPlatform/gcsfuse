@@ -59,7 +59,6 @@ const (
 	offsetForRangeReadWithin8MB         = 4 * util.MiB
 	offset10MiB                         = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB  = 50
-	randomReadChunkCount                = fileSizeForRangeRead / chunkSizeToRead
 	cacheCapacityForVeryLargeFileInMiB  = 500
 	veryLargeFileSize                   = cacheCapacityForVeryLargeFileInMiB * util.MiB
 	offsetEndOfFile                     = veryLargeFileSize - 1*util.MiB

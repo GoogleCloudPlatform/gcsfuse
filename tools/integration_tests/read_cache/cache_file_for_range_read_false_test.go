@@ -85,6 +85,7 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
 	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
+	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
 
 	var wg sync.WaitGroup
 	for i := 0; i < 2; i++ {
