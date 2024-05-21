@@ -24,13 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"google.golang.org/api/googleapi"
@@ -452,7 +452,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 	// In case bucket does not exist, set type unknown instead of panic.
 	if err != nil {
 		b.bucketType = gcs.Unknown
-		log.Printf("GetStorageLayout: %v", err)
+		logger.Errorf("Error returned from GetStorageLayout: %v", err)
 		return
 	}
 
@@ -462,7 +462,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 		return
 	}
 
-	b.bucketType = gcs.Unknown
+	b.bucketType = gcs.NonHierarchical
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

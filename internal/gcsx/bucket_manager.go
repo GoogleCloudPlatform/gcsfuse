@@ -222,7 +222,7 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.TmpObjectPrefix,
 		b)
 
-	// Fetch and set bucket type
+	// Fetch bucket type from storage layout api and set bucket type.
 	b.FetchAndSetBucketType()
 
 	// Check whether this bucket works, giving the user a warning early if there
