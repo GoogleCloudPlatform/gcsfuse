@@ -21,7 +21,7 @@ import (
 
 // Special type declared to stop any random string
 // from being set to MetadataPrefetchMode.
-type MetadataPrefetchModeValue string
+type metadataPrefetchModeValue string
 
 const (
 	// Default log rotation config values.
@@ -56,11 +56,11 @@ const (
 	DefaultEnableHNS                              = false
 
 	// MetadataPrefetchModeDisabled is the mode without metadata-prefetch.
-	MetadataPrefetchModeDisabled MetadataPrefetchModeValue = "disabled"
+	MetadataPrefetchModeDisabled metadataPrefetchModeValue = "disabled"
 	// MetadataPrefetchModeSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	MetadataPrefetchModeSynchronous MetadataPrefetchModeValue = "synchronous"
+	MetadataPrefetchModeSynchronous metadataPrefetchModeValue = "synchronous"
 	// MetadataPrefetchModeAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	MetadataPrefetchModeAsynchronous MetadataPrefetchModeValue = "asynchronous"
+	MetadataPrefetchModeAsynchronous metadataPrefetchModeValue = "asynchronous"
 	// DefaultMetadataPrefetchMode is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchModeDisabled.
 	DefaultMetadataPrefetchMode = MetadataPrefetchModeDisabled
 )
@@ -144,14 +144,12 @@ type MountConfig struct {
 	EnableHNS           `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
 
-	// MetadataPrefetchMode indicates whether or not to prefetch the metadata of the mounted bucket.
-	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points.
-	// Supported values:
-	// "disabled": no pretch is executed. This is the default value, if not set.
-	// "synchronous": prefetch is executed with, blocking mount.
-	// "asynchronous": prefetch is executed without blocking mount.
+	// MetadataPrefetchMode indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
+	// Supported values: MetadataPrefetchModeDisabled, MetadataPrefetchModeSynchronous, and MetadataPrefetchModeAsynchronous.
 	// Any other values will return error on mounting.
-	MetadataPrefetchMode MetadataPrefetchModeValue `yaml:"metadata-prefetch-mode"`
+	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
+	// gcsfuse command itself, which flag is targeted at.
+	MetadataPrefetchMode metadataPrefetchModeValue `yaml:"metadata-prefetch-mode"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
