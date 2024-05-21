@@ -21,6 +21,7 @@ package ratelimit_test
 
 import (
 	cryptorand "crypto/rand"
+	"fmt"
 	"io"
 	"math/rand"
 	"runtime"
@@ -30,13 +31,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/ratelimit"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
-
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
 )
-
-func TestThrottle(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -124,15 +122,18 @@ func processArrivals(
 ////////////////////////////////////////////////////////////////////////
 
 type ThrottleTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&ThrottleTest{}) }
+func TestThrottleSuite(t *testing.T) {
+	suite.Run(t, new(ThrottleTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ThrottleTest) IntegrationTest() {
+func (t *ThrottleTest) TestIntegration() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	const perCaseDuration = 1 * time.Second
 
@@ -161,7 +162,7 @@ func (t *ThrottleTest) IntegrationTest() {
 			tc.limitRateHz,
 			perCaseDuration)
 
-		AssertEq(nil, err)
+		assert.NoError(t.T(), err)
 
 		throttle := ratelimit.NewThrottle(tc.limitRateHz, capacity)
 
@@ -197,13 +198,7 @@ func (t *ThrottleTest) IntegrationTest() {
 		}
 
 		expected := smallerRateHz * (float64(perCaseDuration) / float64(time.Second))
-		ExpectThat(
-			totalProcessed,
-			AllOf(
-				GreaterThan(expected*0.90),
-				LessThan(expected*1.10)),
-			"Test case %d. expected: %f",
-			i,
-			expected)
+		assert.InDelta(t.T(), totalProcessed, expected, 0.1*expected,
+			fmt.Sprintf("Test case %d. expected: %f", i, expected))
 	}
 }
