@@ -164,6 +164,8 @@ func (bm *bucketManager) SetUpBucket(
 	} else {
 		b = bm.storageHandle.BucketHandle(name, bm.config.BillingProject)
 	}
+	// Fetch bucket type from storage layout api and set bucket type.
+	b.FetchAndSetBucketType()
 
 	// Enable monitoring.
 	if bm.config.EnableMonitoring {
@@ -221,9 +223,6 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.AppendThreshold,
 		bm.config.TmpObjectPrefix,
 		b)
-
-	// Fetch bucket type from storage layout api and set bucket type.
-	b.FetchAndSetBucketType()
 
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.

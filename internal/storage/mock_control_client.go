@@ -24,13 +24,13 @@ import (
 
 // MockStorageControlClient creates a mock version of the StorageControlClient.
 type MockStorageControlClient struct {
-	 mock.Mock
+	mock.Mock
 }
 
 // Implement the GetStorageLayout method for the mock.
 func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context,
 	req *controlpb.GetStorageLayoutRequest,
-	opts ...gax.CallOption)(*controlpb.StorageLayout, error) {
+	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
 	args := m.Called(ctx, req, opts)
 	return args.Get(0).(*controlpb.StorageLayout), args.Error(1)
 }
