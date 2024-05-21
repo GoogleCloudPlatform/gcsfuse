@@ -1450,3 +1450,30 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	AssertEq(1, len(entries))
 	AssertEq(entries[0].Name, "1_localChildInode")
 }
+
+func (t *DirTest) Test_ShouldInvalidateKernelDirCache_True() {
+	_, err := t.readAllEntries()
+	AssertEq(nil, err)
+	ttl := time.Millisecond * 10
+
+	// Wait for more than ttl.
+	time.Sleep(2 * ttl)
+
+	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+
+	AssertEq(true, shouldInvalidate)
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelDirCache_False() {
+	_, err := t.readAllEntries()
+	AssertEq(nil, err)
+	ttl := time.Second
+
+	// Wait for less than ttl
+	time.Sleep(ttl / 2)
+
+	// Check for 1s ttl.
+	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+
+	AssertEq(false, shouldInvalidate)
+}

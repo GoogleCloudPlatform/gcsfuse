@@ -199,3 +199,8 @@ func (t *BaseDirTest) LookUpChild_BucketCached() {
 	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
 	ExpectEq(3, t.bm.SetUpTimes())
 }
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelDirCache() {
+	ttl := time.Second
+	AssertEq(true, t.in.ShouldInvalidateKernelDirCache(ttl))
+}

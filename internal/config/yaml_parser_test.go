@@ -29,7 +29,6 @@ type YamlParserTest struct {
 func TestYamlParserSuite(t *testing.T) {
 	suite.Run(t, new(YamlParserTest))
 }
-
 func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.NotNil(t, mountConfig)
 	assert.False(t, mountConfig.CreateEmptyFile)
@@ -48,6 +47,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
+	assert.Equal(t, DefaultKernelDirCacheTtlInSeconds, mountConfig.KernelDirCacheTtlInSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -262,4 +262,19 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelDirCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_dir_cache_ttl.yaml")
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid` into time.Duration"))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelDirCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_dir_cache_ttl.yaml")
+
+	AssertEq(nil, err)
+	AssertNe(nil, mountConfig)
+	AssertEq(DefaultKernelDirCacheTtlInSeconds, mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds)
 }

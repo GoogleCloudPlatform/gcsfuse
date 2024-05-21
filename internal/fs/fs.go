@@ -176,7 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		dirContentCacheTTL:         cfg.MountConfig.DirContentCacheTtlInSeconds,
+		kernelDirCacheTTL:          cfg.MountConfig.KernelDirCacheTtlInSeconds,
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -343,9 +343,13 @@ type fileSystem struct {
 	enableNonexistentTypeCache bool
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
-	dirContentCacheTTL         time.Duration
-	renameDirLimit             int64
-	sequentialReadSizeMb       int32
+
+	// kernelDirCacheTTL specifies the duration since the last cached time when the
+	// filesystem forces the kernel to evict old cached entries.
+	kernelDirCacheTTL time.Duration
+
+	renameDirLimit       int64
+	sequentialReadSizeMb int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -2142,7 +2146,6 @@ func (fs *fileSystem) OpenDir(
 	// screwed up because the VFS layer shouldn't have let us forget the inode
 	// before opening it.
 	in := fs.dirInodeOrDie(op.Inode)
-	lastDirContentCacheTime := in.LastDirContentCacheTime()
 
 	// Allocate a handle.
 	handleID := fs.nextHandleID
@@ -2151,12 +2154,12 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
-	// Invalidates the directory content page cache once cached response is out of
-	// dirContentCacheTTL.
-	op.KeepCache = time.Since(lastDirContentCacheTime) < fs.dirContentCacheTTL
+	// Invalidates the kernel dir-cache once the last cached response is out of
+	// kernelDirCacheTTL.
+	op.KeepCache = !in.ShouldInvalidateKernelDirCache(fs.kernelDirCacheTTL)
 
-	// Enable directory content cache in case of non-zero ttl.
-	op.CacheDir = fs.dirContentCacheTTL > 0
+	// Enables kernel dir-cache in case of non-zero kernelDirCacheTTL.
+	op.CacheDir = fs.kernelDirCacheTTL > 0
 
 	return
 }

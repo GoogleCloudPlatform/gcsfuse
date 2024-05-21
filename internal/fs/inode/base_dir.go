@@ -227,6 +227,8 @@ func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEn
 	return nil
 }
 
-func (d *baseDirInode) LastDirContentCacheTime() time.Time {
-	return time.Now()
+func (d *baseDirInode) ShouldInvalidateKernelDirCache(ttl time.Duration) bool {
+	// Keeping the default behavior although list operation is not supported
+	// for baseDirInode.
+	return true
 }

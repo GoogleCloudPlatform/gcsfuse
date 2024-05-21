@@ -24,7 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -82,8 +81,8 @@ type DirInode interface {
 	// The contents of the Offset and Inode fields for returned entries is
 	// undefined.
 	ReadEntries(
-			ctx context.Context,
-			tok string) (entries []fuseutil.Dirent, newTok string, err error)
+		ctx context.Context,
+		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
 	// Create an empty child file with the supplied (relative) name, failing with
 	// *gcs.PreconditionError if a backing object already exists in GCS.
@@ -118,17 +117,17 @@ type DirInode interface {
 	// metaGeneration may be set to a non-nil pointer giving a meta-generation
 	// precondition, but need not be.
 	DeleteChildFile(
-			ctx context.Context,
-			name string,
-			generation int64,
-			metaGeneration *int64) (err error)
+		ctx context.Context,
+		name string,
+		generation int64,
+		metaGeneration *int64) (err error)
 
 	// Delete the backing object for the child directory with the given
 	// (relative) name if it is not an Implicit Directory.
 	DeleteChildDir(
-			ctx context.Context,
-			name string,
-			isImplicitDir bool) (err error)
+		ctx context.Context,
+		name string,
+		isImplicitDir bool) (err error)
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
@@ -141,7 +140,9 @@ type DirInode interface {
 	// UnlockForChildLookup unlocks the lock taken with LockForChildLookup.
 	UnlockForChildLookup()
 
-	LastDirContentCacheTime() time.Time
+	// ShouldInvalidateKernelDirCache tells the filesystem whether kernel dir-cache
+	// should be invalidated or not.
+	ShouldInvalidateKernelDirCache(ttl time.Duration) bool
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -190,8 +191,11 @@ type dirInode struct {
 	// GUARDED_BY(mu)
 	cache metadata.TypeCache
 
-	// last cached response
-	lastDirContentCachedTime time.Time
+	// lastDirListingTimeStamp is the last time when the kernel asked the directory
+	// listing from the filesystem.
+	// Specially used when kernelDirCacheTTL > 0 that means kernel dir-cache is
+	// enabled.
+	lastDirListingTimeStamp time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -216,17 +220,17 @@ var _ DirInode = &dirInode{}
 //
 // REQUIRES: name.IsDir()
 func NewDirInode(
-		id fuseops.InodeID,
-		name Name,
-		attrs fuseops.InodeAttributes,
-		implicitDirs bool,
-		enableManagedFoldersListing bool,
-		enableNonexistentTypeCache bool,
-		typeCacheTTL time.Duration,
-		bucket *gcsx.SyncerBucket,
-		mtimeClock timeutil.Clock,
-		cacheClock timeutil.Clock,
-		typeCacheMaxSizeMB int) (d DirInode) {
+	id fuseops.InodeID,
+	name Name,
+	attrs fuseops.InodeAttributes,
+	implicitDirs bool,
+	enableManagedFoldersListing bool,
+	enableNonexistentTypeCache bool,
+	typeCacheTTL time.Duration,
+	bucket *gcsx.SyncerBucket,
+	mtimeClock timeutil.Clock,
+	cacheClock timeutil.Clock,
+	typeCacheMaxSizeMB int) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
@@ -243,7 +247,7 @@ func NewDirInode(
 		name:                        name,
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		lastDirContentCachedTime:    time.Unix(0, 0),
+		lastDirListingTimeStamp:     time.Unix(0, 0),
 	}
 
 	typed.lc.Init(id)
@@ -367,9 +371,9 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 
 // Fail if the name already exists. Pass on errors directly.
 func (d *dirInode) createNewObject(
-		ctx context.Context,
-		name Name,
-		metadata map[string]string) (o *gcs.Object, err error) {
+	ctx context.Context,
+	name Name,
+	metadata map[string]string) (o *gcs.Object, err error) {
 	// Create an empty backing object for the child, failing if it already
 	// exists.
 	var precond int64
@@ -440,7 +444,7 @@ func (d *dirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-		ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
+	ctx context.Context) (attrs fuseops.InodeAttributes, err error) {
 	// Set up basic attributes.
 	attrs = d.attrs
 	attrs.Nlink = 1
@@ -568,8 +572,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
-		ctx context.Context,
-		tok string) (cores map[Name]*Core, newTok string, err error) {
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
@@ -653,8 +657,8 @@ func (d *dirInode) readObjects(
 }
 
 func (d *dirInode) ReadEntries(
-		ctx context.Context,
-		tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	ctx context.Context,
+	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
 	var cores map[Name]*Core
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
@@ -678,8 +682,7 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	d.lastDirContentCachedTime = time.Now()
-	logger.Info("Setting the time: ", d.lastDirContentCachedTime)
+	d.lastDirListingTimeStamp = time.Now()
 	return
 }
 
@@ -786,10 +789,10 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildFile(
-		ctx context.Context,
-		name string,
-		generation int64,
-		metaGeneration *int64) (err error) {
+	ctx context.Context,
+	name string,
+	generation int64,
+	metaGeneration *int64) (err error) {
 	d.cache.Erase(name)
 	childName := NewFileName(d.Name(), name)
 
@@ -812,9 +815,9 @@ func (d *dirInode) DeleteChildFile(
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildDir(
-		ctx context.Context,
-		name string,
-		isImplicitDir bool) (err error) {
+	ctx context.Context,
+	name string,
+	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
 
 	// if the directory is an implicit directory, then no backing object
@@ -863,6 +866,6 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 	return
 }
 
-func (d *dirInode) LastDirContentCacheTime() time.Time {
-	return d.lastDirContentCachedTime
+func (d *dirInode) ShouldInvalidateKernelDirCache(ttl time.Duration) bool {
+	return time.Since(d.lastDirListingTimeStamp) > ttl
 }

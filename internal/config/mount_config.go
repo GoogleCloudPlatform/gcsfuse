@@ -59,6 +59,8 @@ const (
 	MetadataPrefetchOnMountAsynchronous string = "async"
 	// DefaultMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchOnMountDisabled.
 	DefaultMetadataPrefetchOnMount = MetadataPrefetchOnMountDisabled
+
+	DefaultKernelDirCacheTtlInSeconds             = 0
 )
 
 type WriteConfig struct {
@@ -99,10 +101,11 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
+<<<<<<< HEAD
 	IgnoreInterrupts            bool          `yaml:"ignore-interrupts"`
 	DisableParallelDirops       bool          `yaml:"disable-parallel-dirops"`
 	IgnoreInterrupts            bool          `yaml:"ignore-interrupts"`
-	DirContentCacheTtlInSeconds time.Duration `yaml:"dir-content-cache-ttl-secs"`
+	KernelDirCacheTtlInSeconds time.Duration `yaml:"kernel-dir-cache-ttl-secs"`
 }
 
 type FileCacheConfig struct {
@@ -194,7 +197,7 @@ func NewMountConfig() *MountConfig {
 	mountConfig.EnableHNS = DefaultEnableHNS
 
 	mountConfig.FileSystemConfig = FileSystemConfig{
-		DirContentCacheTtlInSeconds: 0,
+		KernelDirCacheTtlInSeconds: DefaultKernelDirCacheTtlInSeconds,
 	}
 	return mountConfig
 }
