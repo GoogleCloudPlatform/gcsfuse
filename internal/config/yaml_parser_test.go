@@ -284,6 +284,10 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaPrefetchMode_SupportedValues
 			mode:     "disabled",
 		},
 		{
+			filename: "testdata/metadata_prefetch_mode_supported_value3.yaml",
+			mode:     "disabled",
+		},
+		{
 			filename: "testdata/metadata_prefetch_mode_unset.yaml",
 			mode:     "disabled",
 		},
