@@ -288,3 +288,14 @@ func (t *MainTest) TestCallListRecursiveOnUnpopulatedDirectory() {
 	// Test that it does not return error.
 	assert.Nil(t.T(), err)
 }
+
+func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
+	// Set up a mini file-system to test on, which must fail.
+	rootdir := "/path/to/non/existing/directory"
+
+	// Call the target utility.
+	err := callListRecursive(rootdir)
+
+	// Test that it returns error.
+	assert.ErrorContains(t.T(), err, "does not exist")
+}

@@ -216,7 +216,11 @@ func callListRecursive(mountPoint string) (err error) {
 	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
 		//logger.Infof("Walked path:%s, d=%s, isDir=%v", path, d.Name(), d.IsDir())
 		if err != nil {
-			return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, err=%w", path, d.Name(), d.IsDir(), err)
+			if d == nil {
+				return fmt.Errorf("got error walking: path=\"%s\" does not exist, error = %w", path, err)
+			} else {
+				return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, error = %w", path, d.Name(), d.IsDir(), err)
+			}
 		}
 
 		numItems++
