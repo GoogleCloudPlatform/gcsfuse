@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -247,4 +248,42 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 
 	expected := "{\"AppName\":\"\",\"Foreground\":false,\"ConfigFile\":\"\",\"MountOptions\":{\"1\":\"one\",\"2\":\"two\",\"3\":\"three\"},\"DirMode\":0,\"FileMode\":0,\"Uid\":0,\"Gid\":0,\"ImplicitDirs\":false,\"OnlyDir\":\"\",\"RenameDirLimit\":0,\"IgnoreInterrupts\":false,\"CustomEndpoint\":null,\"BillingProject\":\"\",\"KeyFile\":\"\",\"TokenUrl\":\"\",\"ReuseTokenFromUrl\":false,\"EgressBandwidthLimitBytesPerSecond\":0,\"OpRateLimitHz\":0,\"SequentialReadSizeMb\":10,\"AnonymousAccess\":false,\"MaxRetrySleep\":0,\"StatCacheCapacity\":0,\"StatCacheTTL\":0,\"TypeCacheTTL\":0,\"HttpClientTimeout\":0,\"MaxRetryDuration\":0,\"RetryMultiplier\":0,\"LocalFileCache\":false,\"TempDir\":\"\",\"ClientProtocol\":\"http4\",\"MaxConnsPerHost\":0,\"MaxIdleConnsPerHost\":0,\"EnableNonexistentTypeCache\":false,\"StackdriverExportInterval\":0,\"OtelCollectorAddress\":\"\",\"LogFile\":\"\",\"LogFormat\":\"\",\"ExperimentalEnableJsonRead\":false,\"DebugFuseErrors\":false,\"DebugFuse\":false,\"DebugFS\":false,\"DebugGCS\":false,\"DebugHTTP\":false,\"DebugInvariants\":false,\"DebugMutex\":false}"
 	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *MainTest) TestCallListRecursiveOnPopulatedDirectory() {
+	var err error
+
+	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
+	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
+	defer os.RemoveAll(rootdir)
+
+	for i := 0; i < 10000; i++ {
+		file1, err := os.CreateTemp(rootdir, "*")
+		assert.False(t.T(), file1 == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", rootdir, err)
+	}
+
+	dirPath := rootdir
+
+	for i := 0; i < 100; i++ {
+		dirPath = path.Join(dirPath, "dir")
+		err = os.Mkdir(dirPath, 0755)
+		assert.False(t.T(), err != nil, "failed to create sub-directory \"%s\" in \"%s\". err = %v", dirPath, rootdir, err)
+
+		file, err := os.CreateTemp(dirPath, "*****")
+		assert.False(t.T(), file == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", dirPath, err)
+	}
+
+	err = callListRecursive(rootdir)
+	assert.Nil(t.T(), err)
+}
+
+func (t *MainTest) TestCallListRecursiveOnUnpopulatedDirectory() {
+	var err error
+
+	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
+	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
+	defer os.RemoveAll(rootdir)
+
+	err = callListRecursive(rootdir)
+	assert.Nil(t.T(), err)
 }
