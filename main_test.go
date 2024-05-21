@@ -251,19 +251,15 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 }
 
 func (t *MainTest) TestCallListRecursiveOnPopulatedDirectory() {
-	var err error
-
+	// Set up a mini file-system to test on.
 	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
 	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
 	defer os.RemoveAll(rootdir)
-
 	for i := 0; i < 10000; i++ {
 		file1, err := os.CreateTemp(rootdir, "*")
 		assert.False(t.T(), file1 == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", rootdir, err)
 	}
-
 	dirPath := rootdir
-
 	for i := 0; i < 100; i++ {
 		dirPath = path.Join(dirPath, "dir")
 		err = os.Mkdir(dirPath, 0755)
@@ -273,17 +269,22 @@ func (t *MainTest) TestCallListRecursiveOnPopulatedDirectory() {
 		assert.False(t.T(), file == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", dirPath, err)
 	}
 
+	// Call the target utility.
 	err = callListRecursive(rootdir)
+
+	// Test that it does not return error.
 	assert.Nil(t.T(), err)
 }
 
 func (t *MainTest) TestCallListRecursiveOnUnpopulatedDirectory() {
-	var err error
-
+	// Set up a mini file-system to test on.
 	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
 	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
 	defer os.RemoveAll(rootdir)
 
+	// Call the target utility.
 	err = callListRecursive(rootdir)
+
+	// Test that it does not return error.
 	assert.Nil(t.T(), err)
 }
