@@ -1190,7 +1190,7 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 	assert.Equal(testSuite.T(), len(ContentInTestObject)+len(ContentInTestSubObject), int(composedObj.Size))
 }
 
-func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpace() {
+func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpaceTrue() {
 	mockClient := new(MockStorageControlClient)
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(&controlpb.StorageLayout{
@@ -1201,6 +1201,19 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpace()
 	testSuite.bucketHandle.FetchAndSetBucketType()
 
 	assert.Equal(testSuite.T(), gcs.Hierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpaceFalse() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+			Return(&controlpb.StorageLayout{
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+			}, nil)
+	testSuite.bucketHandle.controlClient = mockClient
+
+	testSuite.bucketHandle.FetchAndSetBucketType()
+
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestFetchBucketTypeWithError() {
