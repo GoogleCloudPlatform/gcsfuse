@@ -38,7 +38,8 @@ const (
 	smallContentSize                    = 128 * util.KiB
 	chunkSizeToRead                     = 128 * util.KiB
 	fileSize                            = 3 * util.MiB
-	fileSizeForRangeRead                = cacheCapacityForRangeReadTestInMiB * util.MiB
+	fileSizeSameAsCacheCapacity         = cacheCapacityForRangeReadTestInMiB * util.MiB
+	fileSizeForRangeRead                = 8 * util.MiB
 	chunksRead                          = fileSize / chunkSizeToRead
 	testFileName                        = "foo"
 	cacheCapacityInMB                   = 9
@@ -53,8 +54,8 @@ const (
 	zeroOffset                          = 0
 	randomReadOffset                    = 9 * util.MiB
 	configFileName                      = "config"
-	offsetForFirstRangeRead             = 5000
-	offsetForSecondRangeRead            = 1000
+	offset5000                          = 5000
+	offset1000                          = 1000
 	offsetForRangeReadWithin8MB         = 4 * util.MiB
 	offset10MiB                         = 10 * util.MiB
 	cacheCapacityForRangeReadTestInMiB  = 50
