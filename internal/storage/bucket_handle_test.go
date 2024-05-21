@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
@@ -1244,7 +1245,8 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithHierarchicalNamespaceI
 
 // ControlClient is nil
 func (testSuite *BucketHandleTest) TestFetchDefaultBucketTypeWithControlClientNil() {
-	testSuite.bucketHandle.controlClient = nil
+	var nilControlClient *control.StorageControlClient = nil
+	testSuite.bucketHandle.controlClient = nilControlClient
 
   testSuite.bucketHandle.FetchAndSetBucketType()
 

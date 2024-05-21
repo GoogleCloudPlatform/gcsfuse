@@ -27,6 +27,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -437,7 +438,8 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 
 // Fetch bucket type from GetStorageLayout and set it. e.g. Hierarchical or NonHierarchical
 func (b *bucketHandle) FetchAndSetBucketType() {
-	if b.controlClient == nil {
+	var nilControlClient *control.StorageControlClient = nil
+	if b.controlClient == nilControlClient {
 		b.bucketType = gcs.NonHierarchical
 		return
 	}
