@@ -1230,7 +1230,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithError() {
 }
 
 // Test when HierarchicalNamespace not present.
-func (testSuite *BucketHandleTest) TestFetchDefaultBucketTypeWithHierarchicalNamespaceIsNil() {
+func (testSuite *BucketHandleTest) TestFetchBucketTypeWithHierarchicalNamespaceIsNil() {
 	mockClient := new(MockStorageControlClient)
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 			Return(&controlpb.StorageLayout{
