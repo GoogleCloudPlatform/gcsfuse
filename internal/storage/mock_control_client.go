@@ -24,6 +24,7 @@ import (
 
 // MockStorageControlClient creates a mock version of the StorageControlClient.
 type MockStorageControlClient struct {
+	StorageControlClient
 	mock.Mock
 }
 
