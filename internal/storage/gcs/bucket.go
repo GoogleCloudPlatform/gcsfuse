@@ -17,6 +17,8 @@ package gcs
 import (
 	"io"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
 	"golang.org/x/net/context"
 )
 
@@ -140,4 +142,9 @@ type Bucket interface {
 	DeleteObject(
 		ctx context.Context,
 		req *DeleteObjectRequest) error
+
+
+	DeleteFolder(context.Context,
+		*controlpb.DeleteFolderRequest,
+		...gax.CallOption) error
 }

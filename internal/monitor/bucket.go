@@ -20,6 +20,8 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -192,6 +194,15 @@ func (mb *monitoringBucket) DeleteObject(
 	startTime := time.Now()
 	err := mb.wrapped.DeleteObject(ctx, req)
 	recordRequest(ctx, "DeleteObject", startTime)
+	return err
+}
+
+func (mb *monitoringBucket) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
+	startTime := time.Now()
+	err := mb.wrapped.DeleteFolder(ctx, req, opts...)
+	recordRequest(ctx, "DeleteFolder", startTime)
 	return err
 }
 

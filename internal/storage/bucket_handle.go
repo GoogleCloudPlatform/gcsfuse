@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -466,6 +465,12 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
+}
+
+func (b *bucketHandle) DeleteFolder(context.Context,
+	*controlpb.DeleteFolderRequest,
+	...gax.CallOption) error {
+	return nil
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

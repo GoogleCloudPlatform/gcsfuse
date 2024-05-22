@@ -17,6 +17,8 @@ package ratelimit
 import (
 	"io"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -180,6 +182,21 @@ func (b *throttledBucket) DeleteObject(
 
 	// Call through.
 	err = b.wrapped.DeleteObject(ctx, req)
+
+	return
+}
+
+func (b *throttledBucket) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) (err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	err = b.wrapped.DeleteFolder(ctx, req, opts...)
 
 	return
 }
