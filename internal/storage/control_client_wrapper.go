@@ -21,7 +21,6 @@ import (
 	"github.com/googleapis/gax-go/v2"
 )
 
-// Define the interface
 type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
 		req *controlpb.GetStorageLayoutRequest,
