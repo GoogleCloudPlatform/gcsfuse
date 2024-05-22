@@ -19,10 +19,6 @@ import (
 	"time"
 )
 
-// Special type declared to stop any random string
-// from being set to MetadataPrefetchMode.
-type metadataPrefetchModeValue string
-
 const (
 	// Default log rotation config values.
 	defaultMaxFileSizeMB   = 512
@@ -56,11 +52,11 @@ const (
 	DefaultEnableHNS                              = false
 
 	// MetadataPrefetchModeDisabled is the mode without metadata-prefetch.
-	MetadataPrefetchModeDisabled metadataPrefetchModeValue = "disabled"
+	MetadataPrefetchModeDisabled string = "disabled"
 	// MetadataPrefetchModeSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	MetadataPrefetchModeSynchronous metadataPrefetchModeValue = "synchronous"
+	MetadataPrefetchModeSynchronous string = "synchronous"
 	// MetadataPrefetchModeAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	MetadataPrefetchModeAsynchronous metadataPrefetchModeValue = "asynchronous"
+	MetadataPrefetchModeAsynchronous string = "asynchronous"
 	// DefaultMetadataPrefetchMode is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchModeDisabled.
 	DefaultMetadataPrefetchMode = MetadataPrefetchModeDisabled
 )
@@ -149,7 +145,7 @@ type MountConfig struct {
 	// Any other values will return error on mounting.
 	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
 	// gcsfuse command itself, which flag is targeted at.
-	MetadataPrefetchMode metadataPrefetchModeValue `yaml:"metadata-prefetch-mode"`
+	MetadataPrefetchMode string `yaml:"metadata-prefetch-mode"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three

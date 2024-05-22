@@ -108,7 +108,7 @@ func (grpcClientConfig *GrpcClientConfig) validate() error {
 	return nil
 }
 
-func validateMetadataPrefetchMode(mode metadataPrefetchModeValue) error {
+func validateMetadataPrefetchMode(mode string) error {
 	switch mode {
 	case MetadataPrefetchModeDisabled:
 		fallthrough
@@ -171,7 +171,7 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	}
 
 	// the following is a temp-fix to avoid errors like: error parsing metadata-prefetch-mode: unsupported metadata-prefix-mode: \"\";
-	if mountConfig.MetadataPrefetchMode == metadataPrefetchModeValue("") {
+	if mountConfig.MetadataPrefetchMode == "" {
 		mountConfig.MetadataPrefetchMode = DefaultMetadataPrefetchMode
 	}
 
