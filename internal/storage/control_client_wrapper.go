@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 )
@@ -27,12 +26,4 @@ type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
 		req *controlpb.GetStorageLayoutRequest,
 		opts ...gax.CallOption) (*controlpb.StorageLayout, error)
-}
-
-type StorageControlClientWrapper struct {
-	*control.StorageControlClient
-}
-
-func (w *StorageControlClientWrapper) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
-	return w.StorageControlClient.GetStorageLayout(ctx, req, opts...)
 }
