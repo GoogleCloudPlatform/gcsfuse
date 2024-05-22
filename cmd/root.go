@@ -18,7 +18,17 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+var (
+	cfgFile       string
+	bindErr       error
+	configFileErr error
+	unmarshalErr  error
+	config        cfg.Config
 )
 
 var rootCmd = &cobra.Command{
@@ -29,8 +39,17 @@ var rootCmd = &cobra.Command{
           technical overview of Cloud Storage FUSE, see
           https://cloud.google.com/storage/docs/gcs-fuse.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: the following error will be removed once the command is implemented.
-		return fmt.Errorf("unsupported operation")
+		if bindErr != nil {
+			return bindErr
+		}
+		if configFileErr != nil {
+			return configFileErr
+		}
+		if unmarshalErr != nil {
+			return unmarshalErr
+		}
+
+		return nil
 	},
 }
 
@@ -42,5 +61,21 @@ func Execute() {
 }
 
 func init() {
-	// TODO: add flags and bind them with viper here.
+	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Path to the config-file")
+	bindErr = cfg.BindFlags(rootCmd.PersistentFlags())
+}
+
+func initConfig() {
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+		viper.SetConfigType("yaml")
+	}
+
+	if err := viper.ReadInConfig(); err != nil {
+		configFileErr = fmt.Errorf("error while reading config file: %w", err)
+		return
+	}
+	unmarshalErr = viper.Unmarshal(&config)
 }
