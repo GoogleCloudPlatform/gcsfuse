@@ -141,18 +141,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		MetadataPrefetchMode: config.MetadataPrefetchModeAsynchronous,
 	}
 	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4})
-
-	// Set up config file testing metadata-prefetch-mode: "synchronous".
-	mountConfig5 := config.MountConfig{
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-		MetadataPrefetchMode: config.MetadataPrefetchModeSynchronous,
-	}
-	filePath5 := setup.YAMLConfigFile(mountConfig5, "config5.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath5})
+	flags = append(flags, []string{"--config-file=" + filePath4, "--metadata-prefetch-mode=asynchronous"})
 
 	return flags
 }

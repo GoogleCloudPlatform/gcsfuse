@@ -214,7 +214,6 @@ func callListRecursive(mountPoint string) (err error) {
 	logger.Debugf("Started recursive metadata-prefetch of directory: \"%s\" ...", mountPoint)
 	numItems := 0
 	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
-		//logger.Infof("Walked path:%s, d=%s, isDir=%v", path, d.Name(), d.IsDir())
 		if err != nil {
 			if d == nil {
 				return fmt.Errorf("got error walking: path=\"%s\" does not exist, error = %w", path, err)
@@ -394,12 +393,12 @@ func runCLIApp(c *cli.Context) (err error) {
 			if isDynamicMount {
 				logger.Infof(SuccessfulMountMessage)
 			} else {
-				switch mountConfig.MetadataPrefetchMode {
+				switch flags.MetadataPrefetchMode {
 				case config.MetadataPrefetchModeDisabled:
 					logger.Infof(SuccessfulMountMessage)
 				case config.MetadataPrefetchModeSynchronous:
 					if err = callListRecursive(mountPoint); err != nil {
-						err = fmt.Errorf("daemonize.Run: metadata-prefetch failed: %w", err)
+						err = fmt.Errorf("metadata-prefetch failed: %w", err)
 						return
 					}
 					logger.Infof(SuccessfulMountMessage)
@@ -446,7 +445,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			if isDynamicMount {
 				markSuccessfullMount()
 			} else {
-				switch mountConfig.MetadataPrefetchMode {
+				switch flags.MetadataPrefetchMode {
 				case config.MetadataPrefetchModeDisabled:
 					markSuccessfullMount()
 				case config.MetadataPrefetchModeSynchronous:
