@@ -33,7 +33,6 @@ const projectID string = "valid-project-id"
 type StorageHandleTest struct {
 	suite.Suite
 	fakeStorage FakeStorage
-	mockClient  *MockStorageControlClient
 }
 
 func TestStorageHandleTestSuite(t *testing.T) {
@@ -44,14 +43,10 @@ func (testSuite *StorageHandleTest) SetupTest() {
 	var err error
 	testSuite.fakeStorage = NewFakeStorage()
 	assert.Nil(testSuite.T(), err)
-	testSuite.mockClient = new(MockStorageControlClient)
-	assert.NotNil(testSuite.T(), testSuite.mockClient)
 }
 
 func (testSuite *StorageHandleTest) TearDownTest() {
 	testSuite.fakeStorage.ShutDown()
-	// Reset the mock client
-	testSuite.mockClient.AssertExpectations(testSuite.T())
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBillingProject() {
