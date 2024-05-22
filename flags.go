@@ -150,6 +150,13 @@ func newApp() (app *cli.App) {
 					"This prevents those signals from immediately terminating gcsfuse inflight operations.",
 			},
 
+			cli.Int64Flag{
+				Name:  config.KernelDirCacheTtlFlagName,
+				Value: 0,
+				Usage: "How long (in secs) directory content (output of ls) will be cached in the kernel. Cache which is kept more than TTL will be " +
+					"invalidated by the gcsfuse. Default (0) means no caching. Use negative value to cache for lifetime (no ttl). ",
+			},
+
 			/////////////////////////
 			// GCS
 			/////////////////////////
@@ -386,15 +393,16 @@ type flagStorage struct {
 	ConfigFile string
 
 	// File system
-	MountOptions     map[string]string
-	DirMode          os.FileMode
-	FileMode         os.FileMode
-	Uid              int64
-	Gid              int64
-	ImplicitDirs     bool
-	OnlyDir          string
-	RenameDirLimit   int64
-	IgnoreInterrupts bool
+	MountOptions      map[string]string
+	DirMode           os.FileMode
+	FileMode          os.FileMode
+	Uid               int64
+	Gid               int64
+	ImplicitDirs      bool
+	OnlyDir           string
+	RenameDirLimit    int64
+	IgnoreInterrupts  bool
+	KernelDirCacheTTL time.Duration
 
 	// GCS
 	CustomEndpoint                     *url.URL
@@ -534,15 +542,16 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		ConfigFile: c.String("config-file"),
 
 		// File system
-		MountOptions:     make(map[string]string),
-		DirMode:          os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
-		FileMode:         os.FileMode(*c.Generic("file-mode").(*OctalInt)),
-		Uid:              int64(c.Int("uid")),
-		Gid:              int64(c.Int("gid")),
-		ImplicitDirs:     c.Bool("implicit-dirs"),
-		OnlyDir:          c.String("only-dir"),
-		RenameDirLimit:   int64(c.Int("rename-dir-limit")),
-		IgnoreInterrupts: c.Bool(config.IgnoreInterruptsFlagName),
+		MountOptions:      make(map[string]string),
+		DirMode:           os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
+		FileMode:          os.FileMode(*c.Generic("file-mode").(*OctalInt)),
+		Uid:               int64(c.Int("uid")),
+		Gid:               int64(c.Int("gid")),
+		ImplicitDirs:      c.Bool("implicit-dirs"),
+		OnlyDir:           c.String("only-dir"),
+		RenameDirLimit:    int64(c.Int("rename-dir-limit")),
+		IgnoreInterrupts:  c.Bool(config.IgnoreInterruptsFlagName),
+		KernelDirCacheTTL: util.SecondsToTimeDuration(c.Int64(config.KernelDirCacheTtlFlagName)),
 
 		// GCS,
 		CustomEndpoint:                     customEndpoint,

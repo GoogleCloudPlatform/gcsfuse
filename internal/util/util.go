@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
@@ -37,6 +38,9 @@ const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 // which we multiply to the calculated heap-size
 // to get the corresponding resident set size.
 const HeapSizeToRssConversionFactor float64 = 2
+
+const MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
+const MaxTimeDuration = time.Duration(math.MaxInt64)
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
@@ -109,4 +113,18 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	ctx = context.WithoutCancel(ctx)
 	return context.WithCancel(ctx)
+}
+
+// SecondsToTimeDuration ensure no int64 overflow while converting secs to
+// time.Duration.
+func SecondsToTimeDuration(secs int64) time.Duration {
+	if secs < 0 {
+		return MaxTimeDuration
+	}
+
+	if secs > (math.MaxInt64 / int64(time.Second)) {
+		return MaxTimeDuration
+	} else {
+		return time.Duration(secs * int64(time.Second))
+	}
 }

@@ -176,7 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		kernelDirCacheTTL:          cfg.MountConfig.KernelDirCacheTtlInSeconds,
+		kernelDirCacheTTL:          util.SecondsToTimeDuration(cfg.MountConfig.KernelDirCacheTtlInSeconds),
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,

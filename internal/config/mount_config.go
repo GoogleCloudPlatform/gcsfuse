@@ -101,11 +101,9 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
-<<<<<<< HEAD
-	IgnoreInterrupts            bool          `yaml:"ignore-interrupts"`
-	DisableParallelDirops       bool          `yaml:"disable-parallel-dirops"`
-	IgnoreInterrupts            bool          `yaml:"ignore-interrupts"`
-	KernelDirCacheTtlInSeconds time.Duration `yaml:"kernel-dir-cache-ttl-secs"`
+	IgnoreInterrupts           bool  `yaml:"ignore-interrupts"`
+	DisableParallelDirops      bool  `yaml:"disable-parallel-dirops"`
+	KernelDirCacheTtlInSeconds int64 `yaml:"kernel-dir-cache-ttl-secs"`
 }
 
 type FileCacheConfig struct {

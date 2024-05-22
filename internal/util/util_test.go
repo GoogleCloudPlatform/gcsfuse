@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -277,4 +278,44 @@ func (ts *UtilTest) TestIsolateContextFromParentContext() {
 	// Cancel the new context and validate.
 	newCtxCancel()
 	assert.ErrorIs(ts.T(), newCtx.Err(), context.Canceled)
+}
+
+func (ts *UtilTest) Test_SecondsToTimeDuration() {
+	cases := []struct {
+		secs   int64
+		result time.Duration
+	}{
+		{
+			secs:   0,
+			result: 0,
+		},
+		{
+			secs:   1000,
+			result: 1000 * time.Second,
+		},
+		{
+			secs:   -44,
+			result: MaxTimeDuration,
+		},
+		{
+			secs:   math.MaxInt64,
+			result: MaxTimeDuration,
+		},
+		{
+			secs:   math.MaxInt64 / 10,
+			result: MaxTimeDuration,
+		},
+		{
+			secs:   math.MaxInt64 / 100,
+			result: MaxTimeDuration,
+		},
+		{
+			secs:   9223372036,
+			result: 9223372036 * time.Second,
+		},
+	}
+
+	for _, tc := range cases {
+		assert.Equal(ts.T(), tc.result, SecondsToTimeDuration(tc.secs))
+	}
 }

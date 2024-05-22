@@ -16,6 +16,7 @@ package config
 
 const IgnoreInterruptsFlagName = "ignore-interrupts"
 const AnonymousAccess = "anonymous-access"
+const KernelDirCacheTtlFlagName = "kernel-dir-cache-ttl"
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
@@ -57,6 +58,15 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 	// If the  anonymous-access flag is set, give it priority over the value in config file.
 	if c.IsSet(AnonymousAccess) {
 		mountConfig.AuthConfig.AnonymousAccess = anonymousAccess
+	}
+}
+
+// OverrideKernelDirCacheTtlFlag overwrites the kernel-dir-cache-ttl-secs config
+// with the kernel-dir-cache-ttl-secs flag value if the flag is set.
+func OverrideKernelDirCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
+	// If the kernel-dir-cache-ttl-secs flag is set, give it priority over the value in config file.
+	if c.IsSet(KernelDirCacheTtlFlagName) {
+		mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds = ttl
 	}
 }
 
