@@ -54,10 +54,6 @@ func (b *throttledBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 
-func (b *throttledBucket) FetchAndSetBucketType() {
-	b.wrapped.FetchAndSetBucketType()
-}
-
 func (b *throttledBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {

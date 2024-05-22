@@ -67,10 +67,6 @@ func (b *prefixBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 
-func (b *prefixBucket) FetchAndSetBucketType() {
-	b.wrapped.FetchAndSetBucketType()
-}
-
 func (b *prefixBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {

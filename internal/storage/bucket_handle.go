@@ -51,6 +51,31 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
+	var nilControlClient *control.StorageControlClient = nil
+	if bh.bucketType == gcs.Nil {
+		if bh.controlClient == nilControlClient {
+			bh.bucketType = gcs.NonHierarchical
+			return bh.bucketType
+		}
+
+		storageLayout, err := bh.getStorageLayout()
+
+		// In case bucket does not exist, set type unknown instead of panic.
+		if err != nil {
+			bh.bucketType = gcs.Unknown
+			logger.Errorf("Error returned from GetStorageLayout: %v", err)
+			return bh.bucketType
+		}
+
+		hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
+		if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
+			bh.bucketType = gcs.Hierarchical
+			return bh.bucketType
+		}
+
+		bh.bucketType = gcs.NonHierarchical
+	}
+
 	return bh.bucketType
 }
 
@@ -436,14 +461,9 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	return
 }
 
-// Fetch bucket type from GetStorageLayout and set it. e.g. Hierarchical or NonHierarchical
-func (b *bucketHandle) FetchAndSetBucketType() {
-	var nilControlClient *control.StorageControlClient = nil
-	if b.controlClient == nilControlClient {
-		b.bucketType = gcs.NonHierarchical
-		return
-	}
-
+// TODO: Consider adding this method to the bucket interface if additional
+// layout options are needed in the future.
+func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      "projects/_/buckets/" + b.bucketName + "/storageLayout",
@@ -451,20 +471,7 @@ func (b *bucketHandle) FetchAndSetBucketType() {
 		RequestId: "",
 	}, callOptions...)
 
-	// In case bucket does not exist, set type unknown instead of panic.
-	if err != nil {
-		b.bucketType = gcs.Unknown
-		logger.Errorf("Error returned from GetStorageLayout: %v", err)
-		return
-	}
-
-	hierarchicalNamespace := stoargeLayout.GetHierarchicalNamespace()
-	if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
-		b.bucketType = gcs.Hierarchical
-		return
-	}
-
-	b.bucketType = gcs.NonHierarchical
+	return stoargeLayout, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

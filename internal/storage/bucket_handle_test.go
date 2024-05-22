@@ -980,7 +980,7 @@ func (testSuite *BucketHandleTest) TestNameMethod() {
 func (testSuite *BucketHandleTest) TestBucketTypeMethod() {
 	bucketType := testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.Unknown, bucketType)
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketType)
 }
 
 func (testSuite *BucketHandleTest) TestIsStorageConditionsNotEmptyWithEmptyConditions() {
@@ -1199,7 +1199,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpaceTr
 		}, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 
-	testSuite.bucketHandle.FetchAndSetBucketType()
+	testSuite.bucketHandle.BucketType()
 
 	assert.Equal(testSuite.T(), gcs.Hierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }
@@ -1212,7 +1212,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeForHierarchicalNameSpaceFa
 		}, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 
-	testSuite.bucketHandle.FetchAndSetBucketType()
+	testSuite.bucketHandle.BucketType()
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
 }
@@ -1225,7 +1225,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithError() {
 		Return(x, errors.New("mocked error"))
 	testSuite.bucketHandle.controlClient = mockClient
 
-	testSuite.bucketHandle.FetchAndSetBucketType()
+	testSuite.bucketHandle.BucketType()
 
 	assert.Equal(testSuite.T(), gcs.Unknown, testSuite.bucketHandle.bucketType, "Expected Unknown when there's an error")
 }
@@ -1236,7 +1236,7 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithHierarchicalNamespaceI
 		Return(&controlpb.StorageLayout{}, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 
-	testSuite.bucketHandle.FetchAndSetBucketType()
+	testSuite.bucketHandle.BucketType()
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
 }
@@ -1245,7 +1245,7 @@ func (testSuite *BucketHandleTest) TestFetchDefaultBucketTypeWithControlClientNi
 	var nilControlClient *control.StorageControlClient = nil
 	testSuite.bucketHandle.controlClient = nilControlClient
 
-	testSuite.bucketHandle.FetchAndSetBucketType()
+	testSuite.bucketHandle.BucketType()
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }

@@ -223,7 +223,7 @@ func (bm *bucketManager) SetUpBucket(
 		b)
 
 	// Fetch bucket type from storage layout api and set bucket type.
-	b.FetchAndSetBucketType()
+	b.BucketType()
 
 	// Check whether this bucket works, giving the user a warning early if there
 	// is some problem.

@@ -24,7 +24,6 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
@@ -208,7 +207,6 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 
 	bh = &bucketHandle{
 		bucket:        storageBucketHandle,
-		bucketType:    gcs.Unknown,
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
 	}

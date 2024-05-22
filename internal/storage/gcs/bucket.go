@@ -26,7 +26,8 @@ type BucketType int
 
 // BucketType enum values.
 const (
-	NonHierarchical BucketType = iota
+	Nil BucketType = iota
+	NonHierarchical
 	Hierarchical
 	Unknown
 )
@@ -44,9 +45,6 @@ type Bucket interface {
 
 	// Return Type of bucket e.g. Hierarchical or NonHierarchical
 	BucketType() BucketType
-
-	// Fetch bucket type from GetStorageLayout and set it. e.g. Hierarchical or NonHierarchical
-	FetchAndSetBucketType()
 
 	// Create a reader for the contents of a particular generation of an object.
 	// On a nil error, the caller must arrange for the reader to be closed when

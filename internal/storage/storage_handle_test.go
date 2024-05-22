@@ -60,7 +60,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBil
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), gcs.Unknown, bucketHandle.bucketType)
+	assert.Equal(testSuite.T(), gcs.Nil, bucketHandle.bucketType)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithEmptyBillingProject() {
@@ -76,7 +76,7 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithNonEmpty
 
 	assert.NotNil(testSuite.T(), bucketHandle)
 	assert.Equal(testSuite.T(), TestBucketName, bucketHandle.bucketName)
-	assert.Equal(testSuite.T(), gcs.Unknown, bucketHandle.bucketType)
+	assert.Equal(testSuite.T(), gcs.Nil, bucketHandle.bucketType)
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNonEmptyBillingProject() {
