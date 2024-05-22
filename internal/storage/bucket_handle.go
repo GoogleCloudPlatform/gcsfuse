@@ -52,6 +52,10 @@ func (bh *bucketHandle) Name() string {
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
 	var nilControlClient *control.StorageControlClient = nil
+	// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
+	// Subsequent calls will be significantly faster as the results are cached in memory.
+	// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
+	// To avoid this, it's advisable to call this initially while mounting.
 	if bh.bucketType == gcs.Nil {
 		if bh.controlClient == nilControlClient {
 			bh.bucketType = gcs.NonHierarchical
