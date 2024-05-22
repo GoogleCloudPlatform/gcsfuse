@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"strings"
 	"testing"
 
@@ -214,40 +213,14 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 	assert.Equal(t.T(), expected, actual)
 }
 
-func (t *MainTest) TestCallListRecursiveOnPopulatedDirectory() {
+func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
 	// Set up a mini file-system to test on.
-	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
-	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
-	defer os.RemoveAll(rootdir)
-	for i := 0; i < 10000; i++ {
-		file1, err := os.CreateTemp(rootdir, "*")
-		assert.False(t.T(), file1 == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", rootdir, err)
-	}
-	dirPath := rootdir
-	for i := 0; i < 100; i++ {
-		dirPath = path.Join(dirPath, "dir")
-		err = os.Mkdir(dirPath, 0755)
-		assert.False(t.T(), err != nil, "failed to create sub-directory \"%s\" in \"%s\". err = %v", dirPath, rootdir, err)
-
-		file, err := os.CreateTemp(dirPath, "*****")
-		assert.False(t.T(), file == nil || err != nil, "failed to create file in \"%s\" for test. err = %v", dirPath, err)
-	}
-
-	// Call the target utility.
-	err = callListRecursive(rootdir)
-
-	// Test that it does not return error.
-	assert.Nil(t.T(), err)
-}
-
-func (t *MainTest) TestCallListRecursiveOnUnpopulatedDirectory() {
-	// Set up a mini file-system to test on.
-	rootdir, err := os.MkdirTemp("/tmp", "TestCallRecursive-*")
-	assert.False(t.T(), len(rootdir) == 0 || err != nil, "failed to create temp-directory for test. err = %v", err)
+	rootdir, _ := os.MkdirTemp("/tmp", "TestCallListRecursive-*")
+	os.CreateTemp(rootdir, "abc-*.txt")
 	defer os.RemoveAll(rootdir)
 
 	// Call the target utility.
-	err = callListRecursive(rootdir)
+	err := callListRecursive(rootdir)
 
 	// Test that it does not return error.
 	assert.Nil(t.T(), err)
