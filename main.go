@@ -226,6 +226,10 @@ func callListRecursive(mountPoint string) (err error) {
 		return err
 	})
 
+	if err != nil {
+		return fmt.Errorf("failed in recursive metadata-prefetch of directory: \"%s\"; error = %w", mountPoint, err)
+	}
+
 	logger.Debugf("... Completed recursive metadata-prefetch of directory: \"%s\". Number of items discovered: %v", mountPoint, numItems)
 
 	return nil
