@@ -139,13 +139,6 @@ type MountConfig struct {
 	AuthConfig          `yaml:"auth-config"`
 	EnableHNS           `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
-
-	// MetadataPrefetchMode indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
-	// Supported values: MetadataPrefetchModeDisabled, MetadataPrefetchModeSynchronous, and MetadataPrefetchModeAsynchronous.
-	// Any other values will return error on mounting.
-	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
-	// gcsfuse command itself, which flag is targeted at.
-	MetadataPrefetchMode string `yaml:"metadata-prefetch-mode"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -197,6 +190,5 @@ func NewMountConfig() *MountConfig {
 		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
-	mountConfig.MetadataPrefetchMode = DefaultMetadataPrefetchMode
 	return mountConfig
 }
