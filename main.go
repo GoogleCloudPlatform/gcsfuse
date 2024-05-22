@@ -229,7 +229,7 @@ func callListRecursive(mountPoint string) (err error) {
 
 	logger.Debugf("... Completed recursive metadata-prefetch of directory: \"%s\". Number of items discovered: %v", mountPoint, numItems)
 
-	return
+	return nil
 }
 
 func runCLIApp(c *cli.Context) (err error) {
