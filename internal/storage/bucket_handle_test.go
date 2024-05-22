@@ -1230,7 +1230,6 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithError() {
 	assert.Equal(testSuite.T(), gcs.Unknown, testSuite.bucketHandle.bucketType, "Expected Unknown when there's an error")
 }
 
-// Test when HierarchicalNamespace not present.
 func (testSuite *BucketHandleTest) TestFetchBucketTypeWithHierarchicalNamespaceIsNil() {
 	mockClient := new(MockStorageControlClient)
 	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
@@ -1242,7 +1241,6 @@ func (testSuite *BucketHandleTest) TestFetchBucketTypeWithHierarchicalNamespaceI
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
 }
 
-// ControlClient is nil
 func (testSuite *BucketHandleTest) TestFetchDefaultBucketTypeWithControlClientNil() {
 	var nilControlClient *control.StorageControlClient = nil
 	testSuite.bucketHandle.controlClient = nilControlClient
