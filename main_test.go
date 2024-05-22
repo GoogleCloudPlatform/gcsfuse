@@ -216,11 +216,12 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
 	// Set up a mini file-system to test on.
 	rootdir, _ := os.MkdirTemp("/tmp", "TestCallListRecursive-*")
-	os.CreateTemp(rootdir, "abc-*.txt")
+	_, err := os.CreateTemp(rootdir, "abc-*.txt")
+	assert.Nil(t.T(), err)
 	defer os.RemoveAll(rootdir)
 
 	// Call the target utility.
-	err := callListRecursive(rootdir)
+	err = callListRecursive(rootdir)
 
 	// Test that it does not return error.
 	assert.Nil(t.T(), err)
