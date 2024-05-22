@@ -440,10 +440,6 @@ func (b *bucket) BucketType() gcs.BucketType {
 	return b.bucketType
 }
 
-func (b *bucket) FetchAndSetBucketType() {
-	b.bucketType = gcs.Unknown
-}
-
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ListObjects(
 	ctx context.Context,

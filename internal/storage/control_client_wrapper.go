@@ -23,7 +23,7 @@ import (
 )
 
 // Define the interface
-type StorageControlClientInterface interface {
+type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
 		req *controlpb.GetStorageLayoutRequest,
 		opts ...gax.CallOption) (*controlpb.StorageLayout, error)
