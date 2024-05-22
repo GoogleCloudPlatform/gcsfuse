@@ -616,18 +616,15 @@ func validateMetadataPrefetchMode(mode string) error {
 
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
-		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-		return
+		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 	}
 
 	if !flags.ClientProtocol.IsValid() {
-		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
-		return
+		return fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
 
 	if err = validateMetadataPrefetchMode(flags.MetadataPrefetchMode); err != nil {
-		err = fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchModeFlag, err)
-		return
+		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchModeFlag, err)
 	}
 
 	return nil

@@ -439,7 +439,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			}
 		}
 
-		markSuccessfullMount := func() {
+		markSuccessfulMount := func() {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
@@ -447,11 +447,11 @@ func runCLIApp(c *cli.Context) (err error) {
 
 		if err == nil {
 			if isDynamicMount {
-				markSuccessfullMount()
+				markSuccessfulMount()
 			} else {
 				switch flags.MetadataPrefetchMode {
 				case config.MetadataPrefetchModeDisabled:
-					markSuccessfullMount()
+					markSuccessfulMount()
 				case config.MetadataPrefetchModeSynchronous:
 					if err = callListRecursive(mountPoint); err != nil {
 						// Printing via mountStatus will have duplicate logs on the console while
@@ -463,9 +463,9 @@ func runCLIApp(c *cli.Context) (err error) {
 						return
 					}
 
-					markSuccessfullMount()
+					markSuccessfulMount()
 				case config.MetadataPrefetchModeAsynchronous:
-					markSuccessfullMount()
+					markSuccessfulMount()
 
 					go func() {
 						if err := callListRecursive(mountPoint); err != nil {
