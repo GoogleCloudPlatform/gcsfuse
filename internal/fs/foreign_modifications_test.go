@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -500,7 +499,7 @@ func (t *ForeignModsTest) ReadFromFile_Small() {
 	defer func() { AssertEq(nil, f.Close()) }()
 
 	// Read its entire contents.
-	slice, err := ioutil.ReadAll(f)
+	slice, err := io.ReadAll(f)
 	AssertEq(nil, err)
 	ExpectEq("tacoburritoenchilada", string(slice))
 
@@ -602,7 +601,7 @@ func (t *ForeignModsTest) ReadBeyondEndOfFile() {
 	AssertEq(contents[contentLen-1], buf[0])
 
 	if err == nil {
-		n, err = f.Read(buf)
+		n, _ = f.Read(buf)
 		AssertEq(0, n)
 	}
 }
@@ -649,11 +648,11 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Reading from the old file handle should give the old data.
-	contents, err := ioutil.ReadAll(f1)
+	contents, err := io.ReadAll(f1)
 	AssertEq(nil, err)
 	ExpectEq("taco", string(contents))
 
-	contents, err = ioutil.ReadAll(f2)
+	contents, err = io.ReadAll(f2)
 	AssertEq(nil, err)
 	ExpectEq("burrito", string(contents))
 }
@@ -821,7 +820,7 @@ func (t *ForeignModsTest) Mtime() {
 		Metadata: map[string]string{
 			"gcsfuse_mtime": expected.UTC().Format(time.RFC3339Nano),
 		},
-		Contents: ioutil.NopCloser(strings.NewReader("")),
+		Contents: io.NopCloser(strings.NewReader("")),
 	}
 
 	_, err = bucket.CreateObject(ctx, req)
@@ -845,7 +844,7 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 			Metadata: map[string]string{
 				"gcsfuse_mtime": time.Now().UTC().Format(time.RFC3339Nano),
 			},
-			Contents: ioutil.NopCloser(strings.NewReader("")),
+			Contents: io.NopCloser(strings.NewReader("")),
 		})
 
 	AssertEq(nil, err)
@@ -885,7 +884,7 @@ func (t *ForeignModsTest) Symlink() {
 		Metadata: map[string]string{
 			"gcsfuse_symlink_target": "bar/baz",
 		},
-		Contents: ioutil.NopCloser(strings.NewReader("")),
+		Contents: io.NopCloser(strings.NewReader("")),
 	}
 
 	_, err = bucket.CreateObject(ctx, req)

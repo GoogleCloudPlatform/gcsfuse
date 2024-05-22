@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
@@ -85,24 +84,6 @@ func (t *DirHandleTest) resetDirHandle() {
 		dirInode,
 		true,
 	)
-}
-
-func (t *DirHandleTest) createLocalFileInode(name string, id fuseops.InodeID) (in inode.Inode) {
-	in = inode.NewFileInode(
-		id,
-		inode.NewFileName(t.dh.in.Name(), name),
-		nil,
-		fuseops.InodeAttributes{
-			Uid:  123,
-			Gid:  456,
-			Mode: 0712,
-		},
-		&t.bucket,
-		false, // localFileCache
-		contentcache.New("", &t.clock),
-		&t.clock,
-		true) // localFile
-	return
 }
 
 func (t *DirHandleTest) validateEntry(entry fuseutil.Dirent, name string, filetype fuseutil.DirentType) {

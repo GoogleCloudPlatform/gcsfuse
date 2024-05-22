@@ -160,7 +160,7 @@ var _ TearDownInterface = &RandomReaderTest{}
 
 func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	readOp := fuseops.ReadFileOp{Handle: 1}
-	t.rr.ctx = context.WithValue(ti.Ctx, ReadOp, &readOp)
+	t.rr.ctx = context.WithValue(ti.Ctx, ReadopKey{}, &readOp)
 
 	// Manufacture an object record.
 	t.object = &gcs.MinObject{
@@ -424,7 +424,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 
 	go func() {
 		buf := make([]byte, 2)
-		t.rr.wrapped.ReadAt(ctx, buf, 1)
+		_, _, _ = t.rr.wrapped.ReadAt(ctx, buf, 1)
 		close(readReturned)
 	}()
 

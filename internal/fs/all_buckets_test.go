@@ -16,7 +16,6 @@ package fs_test
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -56,13 +55,13 @@ func (t *AllBucketsTest) SetUpTestSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *AllBucketsTest) BaseDir_Ls() {
-	_, err := ioutil.ReadDir(mntDir)
+	_, err := os.ReadDir(mntDir)
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
 func (t *AllBucketsTest) BaseDir_Write() {
 	filename := path.Join(mntDir, "foo")
-	err := ioutil.WriteFile(
+	err := os.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
@@ -72,7 +71,7 @@ func (t *AllBucketsTest) BaseDir_Rename() {
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
 	filename := path.Join(mntDir + "/bucket-0/foo")
-	err = ioutil.WriteFile(
+	err = os.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	AssertEq(nil, err)
 
@@ -92,7 +91,7 @@ func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	const contents = "tacoburritoenchilada"
 	AssertEq(
 		nil,
-		ioutil.WriteFile(
+		os.WriteFile(
 			filename,
 			[]byte(contents),
 			os.FileMode(0644)))
@@ -143,7 +142,7 @@ func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	t.f1 = nil
 
 	// Read back its contents.
-	fileContents, err := ioutil.ReadFile(filename)
+	fileContents, err := os.ReadFile(filename)
 
 	AssertEq(nil, err)
 	ExpectEq("000o111ritoenchilada222", string(fileContents))

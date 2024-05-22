@@ -19,29 +19,18 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"google.golang.org/api/googleapi"
-	storagev1 "google.golang.org/api/storage/v1"
 )
 
 var (
-	// pointerSize represents the size of the pointer of any type.
-	pointerSize                             int
-	emptyStringSize                         int
-	emptyStringArraySize                    int
-	emptyObjectAccessControlSize            int
-	emptyObjectAccessControlProjectTeamSize int
+	emptyStringSize      int
+	emptyStringArraySize int
 )
 
 func init() {
-	var i int
-	pointerSize = int(reflect.TypeOf(&i).Size())
 	var s string
 	emptyStringSize = int(reflect.TypeOf(s).Size())
 	var sArray []string
 	emptyStringArraySize = int(reflect.TypeOf(sArray).Size())
-	var emptyObjectAccessControl storagev1.ObjectAccessControl
-	emptyObjectAccessControlSize = int(reflect.TypeOf(emptyObjectAccessControl).Size())
-	var emptyObjectAccessControlProjectTeam storagev1.ObjectAccessControlProjectTeam
-	emptyObjectAccessControlProjectTeamSize = int(reflect.TypeOf(emptyObjectAccessControlProjectTeam).Size())
 }
 
 // Definitions/conventions (not based on a standard, but just made up for convenience).
@@ -164,72 +153,6 @@ func contentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
 	// Account for map members.
 	size += contentSizeOfStringToStringArrayMap((*map[string][]string)(&sr.Header))
 
-	return
-}
-
-func contentSizeOfObjectAccessControlProjectTeam(oacpt *storagev1.ObjectAccessControlProjectTeam) (size int) {
-	if oacpt == nil {
-		return
-	}
-
-	// Account for string members.
-	for _, strPtr := range []*string{
-		&oacpt.ProjectNumber, &oacpt.Team,
-	} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// Account for string-array members.
-	for _, strArrayPtr := range []*[]string{
-		&oacpt.ForceSendFields, &oacpt.NullFields,
-	} {
-		size += contentSizeOfArrayOfStrings(strArrayPtr)
-	}
-
-	return
-}
-
-func contentSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size int) {
-	if acl == nil {
-		return
-	}
-
-	// Account for string members.
-	for _, strPtr := range []*string{
-		&acl.Bucket, &acl.Domain, &acl.Email, &acl.Entity,
-		&acl.EntityId, &acl.Etag, &acl.Id, &acl.Kind,
-		&acl.Object, &acl.Role, &acl.SelfLink} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// Account for integer-members - Generation.
-	// Nothing to be added here as described in the documentation at the top.
-
-	// Account for pointer-members.
-	size += emptyObjectAccessControlProjectTeamSize + contentSizeOfObjectAccessControlProjectTeam(acl.ProjectTeam)
-
-	// Account for other struct members.
-	size += contentSizeOfServerResponse(&acl.ServerResponse)
-
-	// Account for string-array members.
-	size += contentSizeOfArrayOfStrings(&acl.ForceSendFields)
-	size += contentSizeOfArrayOfStrings(&acl.NullFields)
-
-	return
-}
-
-func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (size int) {
-	if acls == nil {
-		return
-	}
-
-	for _, acl := range *acls {
-		// We could use unsafe.Sizeof(&acl) here instead of defining
-		// an unnecessary constant pointerSize, but that would
-		// have added cost of an extra unsafe.Sizeof on each
-		// member.
-		size += pointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
-	}
 	return
 }
 

@@ -17,7 +17,6 @@ package gcsx
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -86,12 +85,12 @@ func (t *FullObjectCreatorTest) CallsCreateObject() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertNe(nil, req)
 	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
 
-	b, err := ioutil.ReadAll(req.Contents)
+	b, err := io.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))
 }
@@ -147,7 +146,7 @@ func (t *FullObjectCreatorTest) CallsCreateObjectsWithObjectProperties() {
 		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertNe(nil, req)
 	ExpectEq(t.srcObject.Name, req.Name)
@@ -215,7 +214,7 @@ func (t *FullObjectCreatorTest) validateEmptyProperties(req *gcs.CreateObjectReq
 	AssertEq(false, req.EventBasedHold)
 	AssertEq("", req.StorageClass)
 	// Validate the object contents.
-	b, err := ioutil.ReadAll(req.Contents)
+	b, err := io.ReadAll(req.Contents)
 	AssertEq(nil, err)
 	ExpectEq(t.srcContents, string(b))
 }
@@ -254,7 +253,7 @@ func (oc *fakeObjectCreator) Create(
 	if mtime != nil {
 		oc.mtime = *mtime
 	}
-	oc.contents, err = ioutil.ReadAll(r)
+	oc.contents, err = io.ReadAll(r)
 	AssertEq(nil, err)
 
 	// Return results.
@@ -366,7 +365,7 @@ func (t *SyncerTest) SmallerThanSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -381,7 +380,7 @@ func (t *SyncerTest) SameSizeAsSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -402,7 +401,7 @@ func (t *SyncerTest) LargerThanSource_ThresholdInSource() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -422,7 +421,7 @@ func (t *SyncerTest) SourceTooShortForAppend() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
@@ -439,21 +438,19 @@ func (t *SyncerTest) SourceComponentCountTooHigh() {
 	AssertEq(nil, err)
 
 	// The full creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectTrue(t.fullCreator.called)
 	ExpectFalse(t.appendCreator.called)
 }
 
 func (t *SyncerTest) LargerThanSource_ThresholdAtEndOfSource() {
-	var err error
-
 	// Extend the length of the content.
-	err = t.content.Truncate(int64(len(srcObjectContents) + 1))
+	err := t.content.Truncate(int64(len(srcObjectContents) + 1))
 	AssertEq(nil, err)
 
 	// The append creator should be called.
-	t.call()
+	_, _ = t.call()
 
 	ExpectFalse(t.fullCreator.called)
 	ExpectTrue(t.appendCreator.called)
@@ -471,7 +468,7 @@ func (t *SyncerTest) CallsFullCreator() {
 	t.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertTrue(t.fullCreator.called)
 	ExpectEq(t.srcObject, t.fullCreator.srcObject)
@@ -537,7 +534,7 @@ func (t *SyncerTest) CallsAppendCreator() {
 	t.content.SetMtime(mtime)
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertTrue(t.appendCreator.called)
 	ExpectEq(t.srcObject, t.appendCreator.srcObject)

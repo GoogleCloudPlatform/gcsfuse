@@ -15,7 +15,6 @@
 package fs_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -46,7 +45,7 @@ func (t *ReadOnlyTest) SetUpTestSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ReadOnlyTest) CreateFile() {
-	err := ioutil.WriteFile(path.Join(mntDir, "foo"), []byte{}, 0700)
+	err := os.WriteFile(path.Join(mntDir, "foo"), []byte{}, 0700)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 

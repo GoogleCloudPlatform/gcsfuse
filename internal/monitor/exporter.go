@@ -101,7 +101,7 @@ func EnableOpenTelemetryCollectorExporter(address string) error {
 // the OpenTelemetry Collect and closes the exporter.
 func CloseOpenTelemetryCollectorExporter() {
 	if ocExporter != nil {
-		ocExporter.Stop()
+		_ = ocExporter.Stop()
 		ocExporter.Flush()
 	}
 	ocExporter = nil

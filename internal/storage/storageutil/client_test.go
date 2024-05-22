@@ -15,12 +15,10 @@
 package storageutil
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/oauth2"
 )
 
 func TestClient(t *testing.T) { RunTests(t) }
@@ -29,20 +27,6 @@ type clientTest struct {
 }
 
 func init() { RegisterTestSuite(&clientTest{}) }
-
-// Helpers
-
-func (t *clientTest) validateProxyInTransport(httpClient *http.Client) {
-	userAgentRT, ok := httpClient.Transport.(*userAgentRoundTripper)
-	AssertEq(true, ok)
-	oauthTransport, ok := userAgentRT.wrapped.(*oauth2.Transport)
-	AssertEq(true, ok)
-	transport, ok := oauthTransport.Base.(*http.Transport)
-	AssertEq(true, ok)
-	if ok {
-		ExpectEq(http.ProxyFromEnvironment, transport.Proxy)
-	}
-}
 
 // Tests
 

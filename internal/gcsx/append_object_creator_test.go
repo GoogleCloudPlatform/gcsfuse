@@ -240,7 +240,7 @@ func (t *AppendObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		WillOnce(Return(nil))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 
 	AssertNe(nil, req)
 	ExpectEq(t.srcObject.Name, req.DstName)
@@ -368,7 +368,7 @@ func (t *AppendObjectCreatorTest) CallsDeleteObject() {
 		WillOnce(Return(errors.New("")))
 
 	// Call
-	t.call()
+	_, _ = t.call()
 }
 
 func (t *AppendObjectCreatorTest) DeleteObjectFails() {
