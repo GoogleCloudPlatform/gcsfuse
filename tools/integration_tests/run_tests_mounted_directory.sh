@@ -101,6 +101,14 @@ gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
 
+# Run tests with config "metadata-cache: ttl-secs: 0" static mounting.
+echo "metadata-cache:
+       ttl-secs: 0
+       " > /tmp/gcsfuse_config.yaml
+gcsfuse --config-file=/tmp/gcsfuse_config.yaml $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
 # package readonly
 # Run tests with static mounting. (flags: --implicit-dirs=true,--o=ro)
 gcsfuse --o=ro --implicit-dirs=true $TEST_BUCKET_NAME $MOUNT_DIR
