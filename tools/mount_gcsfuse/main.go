@@ -122,7 +122,7 @@ func makeGcsfuseArgs(
 			"log_file",
 			"custom_endpoint",
 			"config_file",
-			"metadata_prefetch_mode":
+			"metadata_prefetch_on_mount":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
