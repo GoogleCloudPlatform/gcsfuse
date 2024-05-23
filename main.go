@@ -426,7 +426,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		// logging them as error logs.
 		callDaemonizeSignalOutcome := func(err error) {
 			if err2 := daemonize.SignalOutcome(err); err2 != nil {
-				logger.Errorf("Failed to signal to daemon: %v", err2)
+				logger.Errorf("Failed to signal error to parent-process from daemon: %v", err2)
 			}
 		}
 
