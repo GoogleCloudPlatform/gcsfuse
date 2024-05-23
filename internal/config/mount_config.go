@@ -54,9 +54,9 @@ const (
 	// MetadataPrefetchModeDisabled is the mode without metadata-prefetch.
 	MetadataPrefetchModeDisabled string = "disabled"
 	// MetadataPrefetchModeSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	MetadataPrefetchModeSynchronous string = "synchronous"
+	MetadataPrefetchModeSynchronous string = "sync"
 	// MetadataPrefetchModeAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	MetadataPrefetchModeAsynchronous string = "asynchronous"
+	MetadataPrefetchModeAsynchronous string = "async"
 	// DefaultMetadataPrefetchMode is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchModeDisabled.
 	DefaultMetadataPrefetchMode = MetadataPrefetchModeDisabled
 )

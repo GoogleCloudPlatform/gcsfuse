@@ -215,7 +215,7 @@ func (t *FlagsTest) Strings() {
 		"--temp-dir=foobar",
 		"--only-dir=baz",
 		"--client-protocol=HTTP2",
-		"--metadata-prefetch-on-mount=asynchronous",
+		"--metadata-prefetch-on-mount=async",
 	}
 
 	f := parseArgs(t, args)
@@ -381,7 +381,7 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 
 func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchMode() {
 	for _, input := range []string{
-		"disabled", "synchronous", "asynchronous",
+		"disabled", "sync", "async",
 	} {
 		flags := &flagStorage{
 			// Unrelated fields, not being tested here, so set to sane values.

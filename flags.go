@@ -372,7 +372,7 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name:  MetadataPrefetchModeFlag,
 				Value: config.DefaultMetadataPrefetchMode,
-				Usage: "This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"synchronous\" and \"asynchronous\". Any other values will return error on mounting. This is applicable only to single-bucket mount-points, and not to dynamic-mount points.",
+				Usage: "This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to single-bucket mount-points, and not to dynamic-mount points.",
 			},
 		},
 	}

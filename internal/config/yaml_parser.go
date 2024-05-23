@@ -43,7 +43,7 @@ const (
 	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
 	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
-	UnsupportedMetadataPrefixModeError    = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, synchronous, asynchronous"
+	UnsupportedMetadataPrefixModeError    = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
