@@ -214,16 +214,14 @@ func callListRecursive(mountPoint string) (err error) {
 	logger.Debugf("Started recursive metadata-prefetch of directory: \"%s\" ...", mountPoint)
 	numItems := 0
 	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			if d == nil {
-				return fmt.Errorf("got error walking: path=\"%s\" does not exist, error = %w", path, err)
-			} else {
-				return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, error = %w", path, d.Name(), d.IsDir(), err)
-			}
+		if err == nil {
+			numItems++
+			return err
 		}
-
-		numItems++
-		return err
+		if d == nil {
+			return fmt.Errorf("got error walking: path=\"%s\" does not exist, error = %w", path, err)
+		}
+		return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, error = %w", path, d.Name(), d.IsDir(), err)
 	})
 
 	if err != nil {
@@ -398,21 +396,18 @@ func runCLIApp(c *cli.Context) (err error) {
 			return err
 		}
 		switch flags.MetadataPrefetchOnMount {
-		case config.MetadataPrefetchOnMountDisabled:
-			logger.Infof(SuccessfulMountMessage)
 		case config.MetadataPrefetchOnMountSynchronous:
 			if err = callListRecursive(mountPoint); err != nil {
 				return fmt.Errorf("metadata-prefetch failed: %w", err)
 			}
-			logger.Infof(SuccessfulMountMessage)
 		case config.MetadataPrefetchOnMountAsynchronous:
-			logger.Infof(SuccessfulMountMessage)
 			go func() {
 				if err := callListRecursive(mountPoint); err != nil {
 					logger.Errorf("metadata-prefetch failed: %v", err)
 				}
 			}()
 		}
+		logger.Infof(SuccessfulMountMessage)
 		return err
 	}
 
@@ -441,7 +436,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			callDaemonizeSignalOutcome(nil)
 		}
 
-		markFailure := func(err error) {
+		markMountFailure := func(err error) {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
@@ -451,29 +446,26 @@ func runCLIApp(c *cli.Context) (err error) {
 		}
 
 		if err != nil {
-			markFailure(err)
+			markMountFailure(err)
 			return err
 		}
 		if isDynamicMount {
 			markSuccessfulMount()
 		} else {
 			switch flags.MetadataPrefetchOnMount {
-			case config.MetadataPrefetchOnMountDisabled:
-				markSuccessfulMount()
 			case config.MetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
-					markFailure(err)
+					markMountFailure(err)
 					return err
 				}
-				markSuccessfulMount()
 			case config.MetadataPrefetchOnMountAsynchronous:
-				markSuccessfulMount()
 				go func() {
 					if err := callListRecursive(mountPoint); err != nil {
 						logger.Errorf("Metadata-prefetch failed: %v", err)
 					}
 				}()
 			}
+			markSuccessfulMount()
 		}
 	}
 
