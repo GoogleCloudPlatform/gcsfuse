@@ -391,33 +391,29 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
-			err = fmt.Errorf("daemonize.Run: %w", err)
-			return
-		} else {
-			if isDynamicMount {
-				logger.Infof(SuccessfulMountMessage)
-			} else {
-				switch flags.MetadataPrefetchMode {
-				case config.MetadataPrefetchModeDisabled:
-					logger.Infof(SuccessfulMountMessage)
-				case config.MetadataPrefetchModeSynchronous:
-					if err = callListRecursive(mountPoint); err != nil {
-						err = fmt.Errorf("metadata-prefetch failed: %w", err)
-						return
-					}
-					logger.Infof(SuccessfulMountMessage)
-				case config.MetadataPrefetchModeAsynchronous:
-					logger.Infof(SuccessfulMountMessage)
-					go func() {
-						if err := callListRecursive(mountPoint); err != nil {
-							logger.Errorf("metadata-prefetch failed: %v", err)
-						}
-					}()
-				}
-			}
+			return fmt.Errorf("daemonize.Run: %w", err)
 		}
-
-		return
+		if isDynamicMount {
+			logger.Infof(SuccessfulMountMessage)
+			return err
+		}
+		switch flags.MetadataPrefetchMode {
+		case config.MetadataPrefetchModeDisabled:
+			logger.Infof(SuccessfulMountMessage)
+		case config.MetadataPrefetchModeSynchronous:
+			if err = callListRecursive(mountPoint); err != nil {
+				return fmt.Errorf("metadata-prefetch failed: %w", err)
+			}
+			logger.Infof(SuccessfulMountMessage)
+		case config.MetadataPrefetchModeAsynchronous:
+			logger.Infof(SuccessfulMountMessage)
+			go func() {
+				if err := callListRecursive(mountPoint); err != nil {
+					logger.Errorf("metadata-prefetch failed: %v", err)
+				}
+			}()
+		}
+		return err
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
@@ -445,43 +441,39 @@ func runCLIApp(c *cli.Context) (err error) {
 			callDaemonizeSignalOutcome(nil)
 		}
 
-		if err == nil {
-			if isDynamicMount {
-				markSuccessfulMount()
-			} else {
-				switch flags.MetadataPrefetchMode {
-				case config.MetadataPrefetchModeDisabled:
-					markSuccessfulMount()
-				case config.MetadataPrefetchModeSynchronous:
-					if err = callListRecursive(mountPoint); err != nil {
-						// Printing via mountStatus will have duplicate logs on the console while
-						// mounting gcsfuse in foreground mode. But this is important to avoid
-						// losing error logs when run in the background mode.
-						logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
-						err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
-						callDaemonizeSignalOutcome(err)
-						return
-					}
-
-					markSuccessfulMount()
-				case config.MetadataPrefetchModeAsynchronous:
-					markSuccessfulMount()
-
-					go func() {
-						if err := callListRecursive(mountPoint); err != nil {
-							logger.Errorf("Metadata-prefetch failed: %v", err)
-						}
-					}()
-				}
-			}
-		} else {
+		markFailure := func(err error) {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
 			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
 			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
 			callDaemonizeSignalOutcome(err)
-			return
+		}
+
+		if err != nil {
+			markFailure(err)
+			return err
+		}
+		if isDynamicMount {
+			markSuccessfulMount()
+		} else {
+			switch flags.MetadataPrefetchMode {
+			case config.MetadataPrefetchModeDisabled:
+				markSuccessfulMount()
+			case config.MetadataPrefetchModeSynchronous:
+				if err = callListRecursive(mountPoint); err != nil {
+					markFailure(err)
+					return err
+				}
+				markSuccessfulMount()
+			case config.MetadataPrefetchModeAsynchronous:
+				markSuccessfulMount()
+				go func() {
+					if err := callListRecursive(mountPoint); err != nil {
+						logger.Errorf("Metadata-prefetch failed: %v", err)
+					}
+				}()
+			}
 		}
 	}
 

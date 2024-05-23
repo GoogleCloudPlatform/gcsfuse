@@ -215,15 +215,18 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 
 func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
 	// Set up a mini file-system to test on.
-	rootdir, _ := os.MkdirTemp("/tmp", "TestCallListRecursive-*")
-	_, err := os.CreateTemp(rootdir, "abc-*.txt")
-	assert.Nil(t.T(), err)
+	rootdir, err := os.MkdirTemp("/tmp", "TestCallListRecursive-*")
+	if err != nil {
+		t.T().Fatalf("Failed to set up test. error = %v", err)
+	}
 	defer os.RemoveAll(rootdir)
+	_, err = os.CreateTemp(rootdir, "abc-*.txt")
+	if err != nil {
+		t.T().Fatalf("Failed to set up test. error = %v", err)
+	}
 
-	// Call the target utility.
 	err = callListRecursive(rootdir)
 
-	// Test that it does not return error.
 	assert.Nil(t.T(), err)
 }
 
@@ -231,9 +234,7 @@ func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
 	// Set up a mini file-system to test on, which must fail.
 	rootdir := "/path/to/non/existing/directory"
 
-	// Call the target utility.
 	err := callListRecursive(rootdir)
 
-	// Test that it returns error.
 	assert.ErrorContains(t.T(), err, "does not exist")
 }
