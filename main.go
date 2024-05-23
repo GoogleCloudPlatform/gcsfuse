@@ -393,21 +393,19 @@ func runCLIApp(c *cli.Context) (err error) {
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
-		if isDynamicMount(bucketName) {
-			logger.Infof(SuccessfulMountMessage)
-			return err
-		}
-		switch flags.MetadataPrefetchOnMount {
-		case config.MetadataPrefetchOnMountSynchronous:
-			if err = callListRecursive(mountPoint); err != nil {
-				return fmt.Errorf("metadata-prefetch failed: %w", err)
-			}
-		case config.MetadataPrefetchOnMountAsynchronous:
-			go func() {
-				if err := callListRecursive(mountPoint); err != nil {
-					logger.Errorf("metadata-prefetch failed: %v", err)
+		if !isDynamicMount(bucketName) {
+			switch flags.MetadataPrefetchOnMount {
+			case config.MetadataPrefetchOnMountSynchronous:
+				if err = callListRecursive(mountPoint); err != nil {
+					return fmt.Errorf("metadata-prefetch failed: %w", err)
 				}
-			}()
+			case config.MetadataPrefetchOnMountAsynchronous:
+				go func() {
+					if err := callListRecursive(mountPoint); err != nil {
+						logger.Errorf("metadata-prefetch failed: %v", err)
+					}
+				}()
+			}
 		}
 		logger.Infof(SuccessfulMountMessage)
 		return err
@@ -451,9 +449,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			markMountFailure(err)
 			return err
 		}
-		if isDynamicMount(bucketName) {
-			markSuccessfulMount()
-		} else {
+		if !isDynamicMount(bucketName) {
 			switch flags.MetadataPrefetchOnMount {
 			case config.MetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
@@ -467,8 +463,8 @@ func runCLIApp(c *cli.Context) (err error) {
 					}
 				}()
 			}
-			markSuccessfulMount()
 		}
+		markSuccessfulMount()
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
