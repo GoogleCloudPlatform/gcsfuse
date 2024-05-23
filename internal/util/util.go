@@ -26,21 +26,22 @@ import (
 	"time"
 )
 
-const GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
+const (
+	GCSFUSE_PARENT_PROCESS_DIR = "gcsfuse-parent-process-dir"
 
-// Constants for read types - Sequential/Random
-const Sequential = "Sequential"
-const Random = "Random"
+	// Constants for read types - Sequential/Random
+	Sequential = "Sequential"
+	Random     = "Random"
 
-const MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
+	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 
-// HeapSizeToRssConversionFactor is a constant factor
-// which we multiply to the calculated heap-size
-// to get the corresponding resident set size.
-const HeapSizeToRssConversionFactor float64 = 2
+	// HeapSizeToRssConversionFactor is a constant factor
+	// which we multiply to the calculated heap-size
+	// to get the corresponding resident set size.
+	HeapSizeToRssConversionFactor float64 = 2
 
-const MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
-const MaxTimeDuration = time.Duration(math.MaxInt64)
+	MaxTimeDuration = time.Duration(math.MaxInt64)
+)
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt

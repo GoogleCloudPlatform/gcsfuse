@@ -195,7 +195,7 @@ type dirInode struct {
 	// listing from the filesystem.
 	// Specially used when kernelDirCacheTTL > 0 that means kernel dir-cache is
 	// enabled.
-	lastDirListingTimeStamp time.Time
+	lastDirListingTimeStamp *time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -247,7 +247,7 @@ func NewDirInode(
 		name:                        name,
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		lastDirListingTimeStamp:     time.Unix(0, 0),
+		lastDirListingTimeStamp:     nil,
 	}
 
 	typed.lc.Init(id)
@@ -682,7 +682,8 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	d.lastDirListingTimeStamp = time.Now()
+	tempTime := time.Now()
+	d.lastDirListingTimeStamp = &tempTime
 	return
 }
 
@@ -867,5 +868,10 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 }
 
 func (d *dirInode) ShouldInvalidateKernelDirCache(ttl time.Duration) bool {
-	return time.Since(d.lastDirListingTimeStamp) > ttl
+	// Listing not happened yet, so invalidate.
+	if d.lastDirListingTimeStamp == nil {
+		return true
+	}
+
+	return time.Since(*d.lastDirListingTimeStamp) > ttl
 }

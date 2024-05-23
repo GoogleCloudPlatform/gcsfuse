@@ -344,8 +344,8 @@ type fileSystem struct {
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
 
-	// kernelDirCacheTTL specifies the duration since the last cached time when the
-	// filesystem forces the kernel to evict old cached entries.
+	// kernelDirCacheTTL specifies the duration to keep the dir response cached in kernel
+	// after ttl filesystem forces the kernel to evict old cache entries.
 	kernelDirCacheTTL time.Duration
 
 	renameDirLimit       int64

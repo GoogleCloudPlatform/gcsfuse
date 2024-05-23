@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
@@ -1449,6 +1451,16 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	// Validate entries contains only linked child files.
 	AssertEq(1, len(entries))
 	AssertEq(entries[0].Name, "1_localChildInode")
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelDirCache_FirstCall() {
+	// By setting this, we can eliminate the case when time is initialized with
+	// first epoch value (1970).
+	ttl := util.MaxTimeDuration
+
+	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+
+	AssertEq(true, shouldInvalidate)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelDirCache_True() {
