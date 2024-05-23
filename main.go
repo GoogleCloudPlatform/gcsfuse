@@ -233,6 +233,10 @@ func callListRecursive(mountPoint string) (err error) {
 	return nil
 }
 
+func isDynamicMount(bucketName string) bool {
+	return bucketName == "" || bucketName == "_"
+}
+
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -278,8 +282,6 @@ func runCLIApp(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-
-	isDynamicMount := bucketName == ""
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
 
@@ -391,7 +393,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		if err != nil {
 			return fmt.Errorf("daemonize.Run: %w", err)
 		}
-		if isDynamicMount {
+		if isDynamicMount(bucketName) {
 			logger.Infof(SuccessfulMountMessage)
 			return err
 		}
@@ -449,7 +451,7 @@ func runCLIApp(c *cli.Context) (err error) {
 			markMountFailure(err)
 			return err
 		}
-		if isDynamicMount {
+		if isDynamicMount(bucketName) {
 			markSuccessfulMount()
 		} else {
 			switch flags.MetadataPrefetchOnMount {

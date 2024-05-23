@@ -238,3 +238,23 @@ func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
 
 	assert.ErrorContains(t.T(), err, "does not exist")
 }
+
+func (t *MainTest) TestIsDynamicMount() {
+	for _, input := range []struct {
+		bucketName string
+		isDynamic  bool
+	}{
+		{
+			bucketName: "",
+			isDynamic:  true,
+		}, {
+			bucketName: "_",
+			isDynamic:  true,
+		}, {
+			bucketName: "abc",
+			isDynamic:  false,
+		},
+	} {
+		assert.Equal(t.T(), input.isDynamic, isDynamicMount(input.bucketName))
+	}
+}
