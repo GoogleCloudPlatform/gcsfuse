@@ -71,6 +71,11 @@ func TestMain(m *testing.M) {
 		return
 	}
 
+	if setup.TestOnTPCEndPoint() {
+		log.Print("These tests will not run for TPC endpoint.")
+		return
+	}
+
 	// Else run tests for testBucket.
 	// Set up test directory.
 	setup.SetUpTestDirForTestBucketFlag()

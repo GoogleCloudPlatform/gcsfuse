@@ -35,15 +35,18 @@ import (
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
-func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
+func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
-	client, err := storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(getTokenSrc(path.Join(os.Getenv("HOME"),"kay.json"))))
+	if setup.TestOnTPCEndPoint() {
+		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(getTokenSrc(path.Join(os.Getenv("HOME"), "kay.json"))))
+	} else {
+		client, err = storage.NewClient(ctx)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
 	return client, nil
 }
-
 
 func getTokenSrc(path string) (tokenSrc oauth2.TokenSource) {
 	contents, err := os.ReadFile(path)

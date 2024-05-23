@@ -36,6 +36,11 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	if setup.TestOnTPCEndPoint(){
+		log.Print("These tests will not run for TPC endpoint.")
+		return
+	}
+
 	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0"}}
 	if !testing.Short() {
 		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0"})

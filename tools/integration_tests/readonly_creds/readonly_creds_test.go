@@ -48,6 +48,11 @@ func TestMain(m *testing.M) {
 		return
 	}
 
+	if setup.TestOnTPCEndPoint() {
+		log.Print("These tests will not run for TPC endpoint.")
+		return
+	}
+
 	// Create test directory.
 	ctx := context.Background()
 	var storageClient *storage.Client

@@ -27,17 +27,23 @@ import (
 const DirectoryInTestBucket = "Test"
 
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
-	defaultArg := []string{"--only-dir",
+	var defaultArg []string
+	if setup.TestOnTPCEndPoint() {
+		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
+			"--key-file=/home/tulsishah_google_com/kay.json")
+	}
+
+	defaultArg = append(defaultArg, "--only-dir",
 		setup.OnlyDirMounted(),
 		"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
-		"--log-file=" + setup.LogFile(),
+		"--log-file="+setup.LogFile(),
 		"--log-format=text",
 		"--custom-endpoint=storage.apis-tpczero.goog:443",
 		"--key-file=/home/tulsishah_google_com/kay.json",
 		setup.TestBucket(),
-		setup.MntDir()}
+		setup.MntDir())
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])

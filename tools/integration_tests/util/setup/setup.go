@@ -39,7 +39,7 @@ var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
-
+var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
@@ -77,6 +77,10 @@ func TestBucket() string {
 
 func TestInstalledPackage() bool {
 	return *testInstalledPackage
+}
+
+func TestOnTPCEndPoint() bool{
+	return *testOnTPCEndPoint
 }
 
 func MountedDirectory() string {
