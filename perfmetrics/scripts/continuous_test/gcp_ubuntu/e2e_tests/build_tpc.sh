@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2023 Google Inc. All Rights Reserved.
+# Copyright 2024 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ set -e
 
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
-readonly RUN_TEST_ON_TPC_ENDPOINT=false
-readonly PROJECT_ID="gcs-fuse-test-ml"
-readonly BUCKET_LOCATION=us-central1
+readonly RUN_TEST_ON_TPC_ENDPOINT=true
+readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
+readonly LOCATION="u-us-prp1"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse..."
@@ -32,6 +32,15 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 # To execute tests for a specific commitId, ensure you've checked out from that commitId first.
 git checkout $commitId
 
+gcloud storage cp gs://gcsfuse-tpc-test/creds.json /tmp/sa.key.json
 echo "Running e2e tests on installed package...."
+
+gcloud config configurations create prptst
+gcloud config set universe_domain apis-tpczero.goog
+gcloud config set api_endpoint_overrides/compute https://compute.apis-tpczero.goog/compute/v1/
+gcloud auth activate-service-account --key-file=/tmp/sa.key.json
+gcloud config set project $PROJECT_ID
+
 # $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT
+./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $RUN_TEST_ON_TPC_ENDPOINT $PROJECT_ID $LOCATION
+gcloud config configurations activate default

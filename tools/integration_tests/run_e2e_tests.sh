@@ -21,9 +21,14 @@ RUN_E2E_TESTS_ON_PACKAGE=$1
 # Pass "true" to skip few non-essential tests.
 # By default, this script runs all the integration tests.
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
-
-# The location (region) where bucket should be created.
-BUCKET_LOCATION=$3
+# Pass "true" to run e2e tests on TPC endpoint.
+# The default value will be false.
+RUN_TEST_ON_TPC_ENDPOINT=false
+if [ $3 != "" ]; then
+  RUN_TEST_ON_TPC_ENDPOINT=$3
+fi
+PROJECT_ID=$4
+BUCKET_LOCATION=$5
 
 INTEGRATION_TEST_TIMEOUT=60m
 
@@ -40,6 +45,7 @@ if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
+readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
