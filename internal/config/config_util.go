@@ -16,7 +16,7 @@ package config
 
 const IgnoreInterruptsFlagName = "ignore-interrupts"
 const AnonymousAccess = "anonymous-access"
-const KernelDirCacheTtlFlagName = "kernel-dir-cache-ttl"
+const KernelDirCacheTtlFlagName = "kernel-dir-cache-ttl-secs"
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.

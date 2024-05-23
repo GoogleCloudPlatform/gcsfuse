@@ -268,7 +268,7 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelDirCac
 	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_dir_cache_ttl.yaml")
 
 	AssertNe(nil, err)
-	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid` into time.Duration"))
+	AssertTrue(strings.Contains(err.Error(), "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid` into int64"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelDirCacheTtl() {
