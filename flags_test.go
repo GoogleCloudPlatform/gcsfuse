@@ -187,7 +187,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--stat-cache-capacity=8192",
 		"--max-idle-conns-per-host=100",
 		"--max-conns-per-host=100",
-		"--kernel-dir-cache-ttl=234",
+		"--kernel-dir-cache-ttl-secs=234",
 	}
 
 	f := parseArgs(t, args)
