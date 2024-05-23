@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"path"
 	"reflect"
 	"testing"
 	"time"
@@ -26,16 +28,37 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
 func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
 	// Create new storage client.
-	client, err := storage.NewClient(ctx)
+	client, err := storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(getTokenSrc(path.Join(os.Getenv("HOME"),"kay.json"))))
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
 	return client, nil
+}
+
+
+func getTokenSrc(path string) (tokenSrc oauth2.TokenSource) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		err = fmt.Errorf("ReadFile(%q): %w", path, err)
+		return
+	}
+
+	// Create a config struct based on its contents.
+	ts, err := google.JWTAccessTokenSourceWithScope(contents, storagev1.DevstorageFullControlScope)
+	if err != nil {
+		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
+		return
+	}
+	return ts
 }
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
