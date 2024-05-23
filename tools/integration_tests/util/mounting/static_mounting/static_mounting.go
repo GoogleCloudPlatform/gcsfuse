@@ -29,6 +29,8 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
 		"--log-format=text",
+		"--custom-endpoint=storage.apis-tpczero.goog:443",
+		"--key-file=/home/tulsishah_google_com/kay.json",
 		setup.TestBucket(),
 		setup.MntDir()}
 
