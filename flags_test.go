@@ -16,7 +16,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"os"
 	"path/filepath"
 	"sort"

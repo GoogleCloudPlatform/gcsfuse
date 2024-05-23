@@ -205,7 +205,7 @@ func Test_OverrideKernelDirCacheTtlFlag(t *testing.T) {
 
 			OverrideKernelDirCacheTtlFlag(testContext, mountConfig, tt.flagValue)
 
-			AssertEq(tt.expectedValue, mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds)
+			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds)
 		})
 	}
 }

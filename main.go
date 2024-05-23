@@ -257,6 +257,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
+	config.OverrideKernelDirCacheTtlFlag(c, mountConfig, flags.KernelDirCacheTtlInSeconds)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
