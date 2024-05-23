@@ -441,6 +441,16 @@ func handlePanicWhileMounting() {
 		logger.Fatal("Panic: %v", a)
 	}
 }
+func InitMount() {
+	defer handlePanicWhileMounting()
+
+	// Make logging output better.
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+
+	// Set up profiling handlers.
+	go perf.HandleCPUProfileSignals()
+	go perf.HandleMemoryProfileSignals()
+}
 
 // Don't remove the comment below. It's used to generate config.go file
 // which is used for flag and config file parsing.
@@ -452,14 +462,7 @@ func main() {
 		cmd.Execute()
 		return
 	}
-	defer handlePanicWhileMounting()
-
-	// Make logging output better.
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-
-	// Set up profiling handlers.
-	go perf.HandleCPUProfileSignals()
-	go perf.HandleMemoryProfileSignals()
+	InitMount()
 
 	// Run.
 	err := run()

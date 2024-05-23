@@ -16,9 +16,11 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/perf"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,7 +30,7 @@ var (
 	bindErr       error
 	configFileErr error
 	unmarshalErr  error
-	config        cfg.Config
+	mountConfig   cfg.Config
 )
 
 var rootCmd = &cobra.Command{
@@ -48,14 +50,29 @@ var rootCmd = &cobra.Command{
 		if unmarshalErr != nil {
 			return unmarshalErr
 		}
-
 		return nil
 	},
+}
+
+func runApp() error {
+	defer handlePanicWhileMounting()
+
+	// Make logging output better.
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+
+	// Set up profiling handlers.
+	go perf.HandleCPUProfileSignals()
+	go perf.HandleMemoryProfileSignals()
+
+	// Run.
+	err := run()
+	return err
 }
 
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -77,5 +94,5 @@ func initConfig() {
 		configFileErr = fmt.Errorf("error while reading config file: %w", err)
 		return
 	}
-	unmarshalErr = viper.Unmarshal(&config)
+	unmarshalErr = viper.Unmarshal(&mountConfig)
 }
