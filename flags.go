@@ -35,9 +35,9 @@ const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
 
-	// MetadataPrefetchModeFlag is the name of the commandline flag for enabling
+	// MetadataPrefetchOnMountFlag is the name of the commandline flag for enabling
 	// metadata-prefetch mode aka 'ls -R' during mount.
-	MetadataPrefetchModeFlag = "metadata-prefetch-on-mount"
+	MetadataPrefetchOnMountFlag = "metadata-prefetch-on-mount"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -370,8 +370,8 @@ func newApp() (app *cli.App) {
 			/////////////////////////
 
 			cli.StringFlag{
-				Name:  MetadataPrefetchModeFlag,
-				Value: config.DefaultMetadataPrefetchMode,
+				Name:  MetadataPrefetchOnMountFlag,
+				Value: config.DefaultMetadataPrefetchOnMount,
 				Usage: "This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to single-bucket mount-points, and not to dynamic-mount points.",
 			},
 		},
@@ -440,12 +440,12 @@ type flagStorage struct {
 
 	// Post-mount actions
 
-	// MetadataPrefetchMode indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
-	// Supported values: MetadataPrefetchModeDisabled, MetadataPrefetchModeSynchronous, and MetadataPrefetchModeAsynchronous.
+	// MetadataPrefetchOnMount indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
+	// Supported values: MetadataPrefetchOnMountDisabled, MetadataPrefetchOnMountSynchronous, and MetadataPrefetchOnMountAsynchronous.
 	// Any other values will return error on mounting.
 	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
 	// gcsfuse command itself, which flag is targeted at.
-	MetadataPrefetchMode string
+	MetadataPrefetchOnMount string
 }
 
 func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
@@ -588,7 +588,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugMutex:      c.Bool("debug_mutex"),
 
 		// Post-mount actions
-		MetadataPrefetchMode: c.String(MetadataPrefetchModeFlag),
+		MetadataPrefetchOnMount: c.String(MetadataPrefetchOnMountFlag),
 	}
 
 	// Handle the repeated "-o" flag.
@@ -601,13 +601,13 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	return
 }
 
-func validateMetadataPrefetchMode(mode string) error {
+func validateMetadataPrefetchOnMount(mode string) error {
 	switch mode {
-	case config.MetadataPrefetchModeDisabled:
+	case config.MetadataPrefetchOnMountDisabled:
 		fallthrough
-	case config.MetadataPrefetchModeSynchronous:
+	case config.MetadataPrefetchOnMountSynchronous:
 		fallthrough
-	case config.MetadataPrefetchModeAsynchronous:
+	case config.MetadataPrefetchOnMountAsynchronous:
 		return nil
 	default:
 		return fmt.Errorf(config.UnsupportedMetadataPrefixModeError, mode)
@@ -623,8 +623,8 @@ func validateFlags(flags *flagStorage) (err error) {
 		return fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
 
-	if err = validateMetadataPrefetchMode(flags.MetadataPrefetchMode); err != nil {
-		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchModeFlag, err)
+	if err = validateMetadataPrefetchOnMount(flags.MetadataPrefetchOnMount); err != nil {
+		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)
 	}
 
 	return nil

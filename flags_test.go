@@ -104,7 +104,7 @@ func (t *FlagsTest) Defaults() {
 	assert.False(t.T(), f.DebugInvariants)
 
 	// Post-mount actions
-	assert.Equal(t.T(), config.MetadataPrefetchModeDisabled, f.MetadataPrefetchMode)
+	assert.Equal(t.T(), config.MetadataPrefetchOnMountDisabled, f.MetadataPrefetchOnMount)
 }
 
 func (t *FlagsTest) Bools() {
@@ -223,7 +223,7 @@ func (t *FlagsTest) Strings() {
 	assert.Equal(t.T(), "foobar", f.TempDir)
 	assert.Equal(t.T(), "baz", f.OnlyDir)
 	assert.Equal(t.T(), mountpkg.HTTP2, f.ClientProtocol)
-	assert.Equal(t.T(), config.MetadataPrefetchModeAsynchronous, f.MetadataPrefetchMode)
+	assert.Equal(t.T(), config.MetadataPrefetchOnMountAsynchronous, f.MetadataPrefetchOnMount)
 }
 
 func (t *FlagsTest) Durations() {
@@ -319,9 +319,9 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http1"),
-		MetadataPrefetchMode: config.DefaultMetadataPrefetchMode,
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http1"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
@@ -331,9 +331,9 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientPro
 
 func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 0,
-		ClientProtocol:       mountpkg.ClientProtocol("http2"),
-		MetadataPrefetchMode: config.DefaultMetadataPrefetchMode,
+		SequentialReadSizeMb:    0,
+		ClientProtocol:          mountpkg.ClientProtocol("http2"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
@@ -344,9 +344,9 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProt
 
 func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 2048,
-		ClientProtocol:       mountpkg.ClientProtocol("http1"),
-		MetadataPrefetchMode: config.DefaultMetadataPrefetchMode,
+		SequentialReadSizeMb:    2048,
+		ClientProtocol:          mountpkg.ClientProtocol("http1"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
@@ -357,9 +357,9 @@ func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndVali
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http4"),
-		MetadataPrefetchMode: config.DefaultMetadataPrefetchMode,
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http4"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
@@ -369,9 +369,9 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientP
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http2"),
-		MetadataPrefetchMode: config.DefaultMetadataPrefetchMode,
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http2"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
@@ -379,7 +379,7 @@ func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientPro
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchMode() {
+func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchOnMount() {
 	for _, input := range []string{
 		"disabled", "sync", "async",
 	} {
@@ -388,7 +388,7 @@ func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchMode() {
 			SequentialReadSizeMb: 200,
 			ClientProtocol:       mountpkg.ClientProtocol("http2"),
 			// The flag being tested.
-			MetadataPrefetchMode: input,
+			MetadataPrefetchOnMount: input,
 		}
 
 		err := validateFlags(flags)
@@ -397,7 +397,7 @@ func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchMode() {
 	}
 }
 
-func (t *FlagsTest) TestValidateFlagsForUnsupportedMetadataPrefetchMode() {
+func (t *FlagsTest) TestValidateFlagsForUnsupportedMetadataPrefetchOnMount() {
 	for _, input := range []string{
 		"", "unsupported",
 	} {
@@ -406,7 +406,7 @@ func (t *FlagsTest) TestValidateFlagsForUnsupportedMetadataPrefetchMode() {
 			SequentialReadSizeMb: 200,
 			ClientProtocol:       mountpkg.ClientProtocol("http2"),
 			// The flag being tested.
-			MetadataPrefetchMode: input,
+			MetadataPrefetchOnMount: input,
 		}
 
 		err := validateFlags(flags)
