@@ -638,7 +638,11 @@ func validateFlags(flags *flagStorage) (err error) {
 		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)
 	}
 
-	return nil
+	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {
+		return fmt.Errorf("kernelListCacheTtlSeconds: %w", err)
+	}
+
+	return
 }
 
 // A cli.Generic that can be used with cli.GenericFlag to obtain an int flag

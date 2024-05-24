@@ -265,13 +265,19 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
-	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_dir_cache_ttl.yaml")
+	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml")
 
-	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid` into int64")
+	assert.ErrorContains(t.T(), err, "invalid kernelListCacheTtlSecs: the value of ttl-secs can't be less than -1")
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsupportedLargeKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml")
+
+	assert.ErrorContains(t.T(), err, "invalid kernelListCacheTtlSecs: the value of ttl-secs is too high to be supported")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {
-	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_dir_cache_ttl.yaml")
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_list_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)

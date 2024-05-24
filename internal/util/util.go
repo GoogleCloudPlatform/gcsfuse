@@ -115,17 +115,3 @@ func IsolateContextFromParentContext(ctx context.Context) (context.Context, cont
 	ctx = context.WithoutCancel(ctx)
 	return context.WithCancel(ctx)
 }
-
-// SecondsToTimeDuration ensure no int64 overflow while converting secs to
-// time.Duration.
-func SecondsToTimeDuration(secs int64) time.Duration {
-	if secs < 0 {
-		return MaxTimeDuration
-	}
-
-	if secs > (math.MaxInt64 / int64(time.Second)) {
-		return MaxTimeDuration
-	} else {
-		return time.Duration(secs * int64(time.Second))
-	}
-}

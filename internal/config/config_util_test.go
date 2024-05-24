@@ -17,6 +17,7 @@ package config
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -187,7 +188,7 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 	}
 }
 
-func Test_OverrideKernelListCacheTtlConfigFlag(t *testing.T) {
+func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 	var testCases = []struct {
 		configValue   int64
 		flagValue     int64
@@ -209,9 +210,49 @@ func Test_OverrideKernelListCacheTtlConfigFlag(t *testing.T) {
 			testContext := &TestCliContext{isSet: tt.isFlagSet}
 			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelListCacheTtlSeconds: tt.configValue}}
 
-			OverrideKernelListCacheTtlConfigFlag(testContext, mountConfig, tt.flagValue)
+			OverrideWithKernelListCacheTtlFlag(testContext, mountConfig, tt.flagValue)
 
 			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+		})
+	}
+}
+
+func Test_IsTtlInSecsValid(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		ttlInSecs   int64
+		expectation error
+	}{
+		{"Negative", -5, fmt.Errorf(TtlInSecsInvalidValueError)},
+		{"Valid negative", -1, nil},
+		{"Positive", 8, nil},
+		{"Unsupported Large positive", MaxSupportedTtlInSeconds + 1, fmt.Errorf(TtlInSecsTooHighError)},
+		{"Zero", 0, nil},
+		{"Valid upper limit", MaxSupportedTtlInSeconds, nil},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectation, IsTtlInSecsValid(tt.ttlInSecs))
+		})
+	}
+}
+
+func Test_ValidListCacheTtlSecsToDuration(t *testing.T) {
+	var testCases = []struct {
+		testName         string
+		ttlInSecs        int64
+		expectedDuration time.Duration
+	}{
+		{"-1", -1, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
+		{"0", 0, time.Duration(0)},
+		{"Max supported positive", MaxSupportedTtlInSeconds, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
+		{"Positive", 1, time.Second},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectedDuration, ValidListCacheTtlSecsToDuration(tt.ttlInSecs))
 		})
 	}
 }

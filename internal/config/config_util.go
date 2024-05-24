@@ -14,10 +14,21 @@
 
 package config
 
+import (
+	"fmt"
+	"math"
+	"time"
+)
+
 const (
 	IgnoreInterruptsFlagName   = "ignore-interrupts"
 	AnonymousAccess            = "anonymous-access"
 	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
+	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
+
+	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
 )
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
@@ -63,9 +74,9 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 	}
 }
 
-// OverrideKernelListCacheTtlConfigFlag overwrites the kernel-list-cache-ttl-secs config
+// OverrideWithKernelListCacheTtlFlag overwrites the kernel-list-cache-ttl-secs config
 // with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
-func OverrideKernelListCacheTtlConfigFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
+func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
 	if c.IsSet(KernelListCacheTtlFlagName) {
 		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
 	}
@@ -73,4 +84,25 @@ func OverrideKernelListCacheTtlConfigFlag(c cliContext, mountConfig *MountConfig
 
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
 	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
+}
+
+// IsTtlInSecsValid return nil error if TtlInSecs is valid.
+func IsTtlInSecsValid(ttlSecs int64) error {
+	if ttlSecs < -1 {
+		return fmt.Errorf(TtlInSecsInvalidValueError)
+	}
+
+	if ttlSecs > MaxSupportedTtlInSeconds {
+		return fmt.Errorf(TtlInSecsTooHighError)
+	}
+
+	return nil
+}
+
+func ValidListCacheTtlSecsToDuration(secs int64) time.Duration {
+	if secs == -1 {
+		return time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
+	}
+
+	return time.Duration(secs * int64(time.Second))
 }
