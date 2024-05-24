@@ -244,9 +244,9 @@ func Test_ListCacheTtlSecsToDuration(t *testing.T) {
 		ttlInSecs        int64
 		expectedDuration time.Duration
 	}{
-		{"-1", -1, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
+		{"-1", -1, MaxSupportedTtl},
 		{"0", 0, time.Duration(0)},
-		{"Max supported positive", 9223372036, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
+		{"Max supported positive", 9223372036, MaxSupportedTtl},
 		{"Positive", 1, time.Second},
 	}
 

@@ -267,13 +267,13 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
 	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml")
 
-	assert.ErrorContains(t.T(), err, "invalid kernelListCacheTtlSecs: the value of ttl-secs can't be less than -1")
+	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsInvalidValueError))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsupportedLargeKernelListCacheTtl() {
 	_, err := ParseConfigFile("testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml")
 
-	assert.ErrorContains(t.T(), err, "invalid kernelListCacheTtlSecs: the value of ttl-secs is too high to be supported")
+	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsTooHighError))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {

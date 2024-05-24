@@ -75,7 +75,7 @@ func (t *FlagsTest) Defaults() {
 	assert.Equal(t.T(), -1, f.Gid)
 	assert.False(t.T(), f.ImplicitDirs)
 	assert.False(t.T(), f.IgnoreInterrupts)
-	assert.Equal(t.T(), 0, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), config.DefaultKernelListCacheTtlSeconds, f.KernelListCacheTtlSeconds)
 
 	// GCS
 	assert.Equal(t.T(), "", f.KeyFile)

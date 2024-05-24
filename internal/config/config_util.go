@@ -29,6 +29,7 @@ const (
 
 	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
+	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
 )
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
@@ -106,7 +107,7 @@ func ListCacheTtlSecsToDuration(secs int64) time.Duration {
 	}
 
 	if secs == -1 {
-		return time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
+		return MaxSupportedTtl
 	}
 
 	return time.Duration(secs * int64(time.Second))

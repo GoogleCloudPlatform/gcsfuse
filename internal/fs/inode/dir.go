@@ -144,7 +144,10 @@ type DirInode interface {
 	// should be invalidated or not.
 	ShouldInvalidateKernelListCache(ttl time.Duration) bool
 
+	// RLock readonly lock.
 	RLock()
+
+	// RUnlock readonly unlock.
 	RUnlock()
 }
 
