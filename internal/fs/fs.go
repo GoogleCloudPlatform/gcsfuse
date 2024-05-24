@@ -345,8 +345,8 @@ type fileSystem struct {
 	dirTypeCacheTTL            time.Duration
 
 	// kernelListCacheTTL specifies the duration to keep the readdir response cached
-	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before the
-	// next list call) from user, asks the kernel to evict the old cache entries.
+	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before as part
+	// of next list call) from user, asks the kernel to evict the old cache entries.
 	kernelListCacheTTL time.Duration
 
 	renameDirLimit       int64
