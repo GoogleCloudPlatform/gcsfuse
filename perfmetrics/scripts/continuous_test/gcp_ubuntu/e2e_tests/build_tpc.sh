@@ -21,7 +21,6 @@ readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
 readonly RUN_TEST_ON_TPC_ENDPOINT=true
 readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
-readonly LOCATION="u-us-prp1"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse..."
@@ -42,5 +41,5 @@ gcloud auth activate-service-account --key-file=/tmp/sa.key.json
 gcloud config set project $PROJECT_ID
 
 # $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $RUN_TEST_ON_TPC_ENDPOINT $PROJECT_ID $LOCATION
+./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $RUN_TEST_ON_TPC_ENDPOINT
 gcloud config configurations activate default

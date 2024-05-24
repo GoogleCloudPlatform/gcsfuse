@@ -37,7 +37,11 @@ import (
 func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
 	if setup.TestOnTPCEndPoint() {
-		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(getTokenSrc("/tmp/sa.key.json")))
+		ts, err := getTokenSrc("/tmp/sa.key.json")
+		if err != nil {
+			return nil, fmt.Errorf(fmt.Sprintf("Unable to fetch tokenSrc for TPC: %w", err))
+		}
+		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
 		client, err = storage.NewClient(ctx)
 	}
@@ -47,7 +51,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 	return client, nil
 }
 
-func getTokenSrc(path string) (tokenSrc oauth2.TokenSource) {
+func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("ReadFile(%q): %w", path, err)
@@ -60,7 +64,7 @@ func getTokenSrc(path string) (tokenSrc oauth2.TokenSource) {
 		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
 		return
 	}
-	return ts
+	return ts, err
 }
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
