@@ -29,8 +29,8 @@ echo "Building and installing gcsfuse..."
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
-# To execute tests for a specific commitId, ensure you've checked out from that commitId first.
-git checkout $commitId
+## To execute tests for a specific commitId, ensure you've checked out from that commitId first.
+#git checkout $commitId
 
 gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 echo "Running e2e tests on installed package...."
