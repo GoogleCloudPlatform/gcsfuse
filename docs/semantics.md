@@ -1,3 +1,4 @@
+
 # Read/Writes
 
 **Reads**
@@ -199,21 +200,20 @@ Even though A/, A/B/, and C/ are directories in the filesystem, a 0-byte object 
 
 The above example was based on greenfield deployments which assumes starting fresh, where the directories are created from Cloud Storage FUSE. If a user unmounts this Cloud Storage FUSE bucket, and then re-mounts it to a different path, the user will see the directory structure correctly in the filesystem because it was originally created by Cloud Storage FUSE.
 
-However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
+However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the Cloud Storage bucket using Cloud Storage FUSE, then those directories (and the sub-directories and objects under them) will not be visible, which do not have backing Cloud Storage objects. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching Cloud Storage object ending in a slash exists.
 
+**Note**: These backing objects for directories are special 0-byte objects, which are placeholders for directories, and can only be created either with Cloud Storage Fuse using mkdir command or other Cloud clients e.g. Cloud Web UI.
 
-So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using ``` gsutil cp -r``` command)
+Let us assume the user has the following objects in their Cloud Storage bucket (for example created by uploading a local directory using ``` gsutil cp -r``` command),
 
-- A/
+- A/ (no backing object on Cloud Storage bucket)
 - A/1.txt
-- A/B/
+- A/B/ (no backing object on Cloud Storage bucket)
 - A/B/2.txt
-- C/
+- C/ (no backing object on Cloud Storage bucket)
 - C/3.txt
 
-then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the ```mkdir``` command.
-
-This is the default behavior, unless a user passes the ```--implicit-dirs``` flag.
+Then, mounting the bucket and running ```ls``` to see its content will not show any files until either the directories A/, A/B/, and C/ get their backing Cloud Storage objects or `--implicit-dirs` flag is set in Cloud Storage Fuse mount command.
 
 **Using ```--implicit-dirs``` flag:**
 
@@ -227,6 +227,8 @@ However, implicit directories does have drawbacks:
 - Cloud Storage FUSE sends a single Objects.list request to Cloud Storage, and treats the directory as being implicitly defined if the results are non-empty. In rare cases (notably when many objects have recently been deleted) Objects.list may return an arbitrary number of empty responses with continuation tokens, even for a non-empty name range. In order to bound the number of requests, Cloud Storage FUSE simply ignores this subtlety. Therefore in rare cases an implicitly defined directory will fail to appear.
 
 Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used. 
+
+**Note:** `--implicit-dirs` flag is detrimental to performance, so it should be avoided unless necessary. To avoid it, you can mount using `--implicit-dirs` flag once, then create the directories on the mounted filesystem using the ```mkdir``` command, which will create the Cloud  Storage objects backing the directories, and then mount without --implicit-dirs  flag from the next time onwards.
 
 # Generations
 
