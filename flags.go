@@ -635,7 +635,7 @@ func validateFlags(flags *flagStorage) (err error) {
 	}
 
 	if err = validateMetadataPrefetchOnMount(flags.MetadataPrefetchOnMount); err != nil {
-		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)=
+		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)
 	}
 
 	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {

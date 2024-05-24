@@ -198,7 +198,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	assert.Equal(t.T(), 8192, f.StatCacheCapacity)
 	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
 	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
-	assert.Equal(t.T(), util.SecondsToTimeDuration(234), f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), 234, f.KernelListCacheTtlSeconds)
 }
 
 func (t *FlagsTest) OctalNumbers() {
@@ -450,8 +450,9 @@ func (t *FlagsTest) Test_KernelListCacheTtlSecs() {
 		"--kernel-list-cache-ttl-secs=-1",
 	}
 
-	f := parseArgs(args)
-	ExpectEq(-1, f.KernelListCacheTtlSeconds)
+	f := parseArgs(t, args)
+
+	assert.Equal(t.T(), -1, f.KernelListCacheTtlSeconds)
 }
 
 func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
@@ -459,6 +460,7 @@ func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
 		"--kernel-list-cache-ttl-secs=9223372036",
 	}
 
-	f := parseArgs(args)
-	ExpectEq(9223372036, f.KernelListCacheTtlSeconds)
+	f := parseArgs(t, args)
+
+	assert.Equal(t.T(), 9223372036, f.KernelListCacheTtlSeconds)
 }
