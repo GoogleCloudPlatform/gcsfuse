@@ -283,3 +283,11 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCach
 	assert.NotNil(t.T(), mountConfig)
 	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 }
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/valid_kernel_list_cache_ttl.yaml")
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), int64(10), mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+}

@@ -201,9 +201,10 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		"3": "three",
 	}
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http4"),
-		MountOptions:         mountOptions,
+		SequentialReadSizeMb:      10,
+		ClientProtocol:            mountpkg.ClientProtocol("http4"),
+		MountOptions:              mountOptions,
+		KernelListCacheTtlSeconds: -1,
 	}
 
 	actual, err := util.Stringify(flags)

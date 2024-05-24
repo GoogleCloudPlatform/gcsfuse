@@ -444,3 +444,21 @@ func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
 	assert.Equal(t.T(), "", mountConfig.LogConfig.FilePath)
 	assert.EqualValues(t.T(), "", mountConfig.CacheDir)
 }
+
+func (t *FlagsTest) Test_KernelListCacheTtlSecs() {
+	args := []string{
+		"--kernel-list-cache-ttl-secs=-1",
+	}
+
+	f := parseArgs(args)
+	ExpectEq(-1, f.KernelListCacheTtlSeconds)
+}
+
+func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
+	args := []string{
+		"--kernel-list-cache-ttl-secs=9223372036",
+	}
+
+	f := parseArgs(args)
+	ExpectEq(9223372036, f.KernelListCacheTtlSeconds)
+}

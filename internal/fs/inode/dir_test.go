@@ -1481,3 +1481,14 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 
 	AssertEq(false, shouldInvalidate)
 }
+
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
+	_, err := t.readAllEntries()
+	AssertEq(nil, err)
+	ttl := time.Duration(0)
+
+	// Check for 1s ttl.
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
+
+	AssertEq(true, shouldInvalidate)
+}
