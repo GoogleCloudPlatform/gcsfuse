@@ -20,6 +20,7 @@ set -e
 readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
 readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
 readonly RUN_TEST_ON_TPC_ENDPOINT=true
+# TPC project id
 readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
@@ -34,6 +35,7 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 echo "Running e2e tests on installed package...."
 
+# Initiate PRPTST environment to establish a TPC project and associated account.
 gcloud config configurations create prptst
 gcloud config set universe_domain apis-tpczero.goog
 gcloud config set api_endpoint_overrides/compute https://compute.apis-tpczero.goog/compute/v1/
@@ -42,4 +44,6 @@ gcloud config set project $PROJECT_ID
 
 # $1 argument is refering to value of testInstalledPackage
 ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $RUN_TEST_ON_TPC_ENDPOINT
+
+# Activate default environment after testing.
 gcloud config configurations activate default
