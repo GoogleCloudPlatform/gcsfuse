@@ -281,8 +281,9 @@ function main(){
        exit_code=$?
 
        set -e
-       # Delete bucket after testing.
-       gcloud alpha storage rm --recursive gs://gcsfuse-e2e-tests-tpc/
+
+       # Delete data after testing.
+       gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
 
        if [ $exit_code != 0 ];
        then
