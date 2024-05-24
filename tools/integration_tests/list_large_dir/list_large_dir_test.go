@@ -36,7 +36,7 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	if setup.TestOnTPCEndPoint(){
+	if setup.TestOnTPCEndPoint() {
 		log.Print("These tests will not run for TPC endpoint.")
 		return
 	}
