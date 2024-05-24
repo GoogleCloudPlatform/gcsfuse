@@ -202,7 +202,7 @@ The above example was based on greenfield deployments which assumes starting fre
 
 However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the Cloud Storage bucket using Cloud Storage FUSE, then those directories (and the sub-directories and objects under them) will not be visible, which do not have backing Cloud Storage objects. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching Cloud Storage object ending in a slash exists.
 
-**Note**: These backing objects for directories are special 0-byte objects, which are placeholders for directories, and can only be created either with Cloud Storage Fuse using mkdir command or other Cloud clients e.g. Cloud Web UI.
+**Note**: These backing objects for directories are special 0-byte objects, which are placeholders for directories, and can only be created either with Cloud Storage Fuse using mkdir command or other Cloud clients e.g. Cloud Web UI. These backing objects are not created by the Cloud Storage CLI tools such as `gcloud` and `gsutil`.
 
 Let us assume the user has the following objects in their Cloud Storage bucket (for example created by uploading a local directory using ``` gsutil cp -r``` command),
 
