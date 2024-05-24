@@ -17,9 +17,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/common"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -32,6 +33,10 @@ var (
 	MountConfig   cfg.Config
 )
 
+const (
+	maxSequentialReadSizeMb = 1024
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "gcsfuse [flags] bucket mount_point",
 	Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -39,6 +44,7 @@ var rootCmd = &cobra.Command{
           and access Cloud Storage buckets as local file systems. For a
           technical overview of Cloud Storage FUSE, see
           https://cloud.google.com/storage/docs/gcs-fuse.`,
+	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if bindErr != nil {
 			return bindErr
@@ -49,13 +55,55 @@ var rootCmd = &cobra.Command{
 		if unmarshalErr != nil {
 			return unmarshalErr
 		}
-		common.InitMount()
-		// Resolve flags
-
+		err := validateConfig()
+		if err != nil {
+			return err
+		}
+		bucketName, mountPoint, err := populateArgs(args)
 		return nil
 	},
 }
 
+func populateArgs(args []string) (
+	bucketName string,
+	mountPoint string,
+	err error) {
+	switch len(args) {
+	case 1:
+		bucketName = ""
+		mountPoint = args[0]
+
+	case 2:
+		bucketName = args[0]
+		mountPoint = args[1]
+
+	default:
+		err = fmt.Errorf(
+			"%s takes one or two arguments. Run `%s --help` for more info.",
+			path.Base(os.Args[0]),
+			path.Base(os.Args[0]))
+
+		return
+	}
+
+	// Canonicalize the mount point, making it absolute. This is important when
+	// daemonizing below, since the daemon will change its working directory
+	// before running this code again.
+	mountPoint, err = util.GetResolvedPath(mountPoint)
+	if err != nil {
+		err = fmt.Errorf("canonicalizing mount point: %w", err)
+		return
+	}
+	return
+}
+
+func validateConfig() error {
+	if MountConfig.GcsConnection.SequentialReadSizeMb < 1 || MountConfig.GcsConnection.SequentialReadSizeMb > maxSequentialReadSizeMb {
+		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
+	}
+	// TODO: Add validation for new flags.
+	return nil
+}
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -71,11 +119,18 @@ func init() {
 }
 
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-		viper.SetConfigType("yaml")
+	if cfgFile == "" {
+		unmarshalErr = viper.Unmarshal(&MountConfig)
+		return
 	}
+	// Use config file from the flag.
+	cfgFile, err := util.GetResolvedPath(cfgFile)
+	if err != nil {
+		configFileErr = fmt.Errorf("error while resolving config file path: %w", err)
+		return
+	}
+	viper.SetConfigFile(cfgFile)
+	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
 		configFileErr = fmt.Errorf("error while reading config file: %w", err)

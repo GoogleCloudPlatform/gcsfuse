@@ -50,13 +50,6 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 			defaultValue = p.DefaultValue
 		}
 		fn = "IntP"
-	case "octal":
-		if p.DefaultValue == "" {
-			defaultValue = "0"
-		} else {
-			defaultValue = p.DefaultValue
-		}
-		fn = "IntP"
 	case "float64":
 		if p.DefaultValue == "" {
 			defaultValue = "0.0"
@@ -83,6 +76,18 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 		}
 		defaultValue = fmt.Sprintf("%d * time.Nanosecond", dur.Nanoseconds())
 		fn = "DurationP"
+	case "octal":
+		fallthrough
+	case "url":
+		fallthrough
+	case "logSeverity":
+		fallthrough
+	case "protocol":
+		fallthrough
+	case "resolvedPath":
+		fallthrough
+	case "nonNegativeOrMinusOne":
+		fallthrough
 	case "string":
 		defaultValue = fmt.Sprintf("%q", p.DefaultValue)
 		fn = "StringP"

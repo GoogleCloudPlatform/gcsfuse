@@ -11,7 +11,7 @@
 - flag-name: "o"
   shorthand: "o"
   type: "[]string"
-  config-path: "mount-options"
+  config-path: "o"
   usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use -o ro"
   hide-shorthand: true
 
@@ -52,15 +52,28 @@
 - flag-name: "rename-dir-limit"
   config-path: "file-system.rename-dir-limit"
   type: "int"
-  usage: "Allow rename a directory containing fewer descendants than this limit."
+  usage: "Allow renaming a directory containing fewer descendants than this limit."
+
+- flag-name: "ignore-interrupts"
+  config-path: "file-system.ignore-interrupts"
+  type: "bool"
+  usage: >-
+    Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C).
+    This prevents those signals from immediately terminating gcsfuse inflight operations.
 
 - flag-name: "custom-endpoint"
   config-path: "gcs-connection.custom-endpoint"
-  type: "int"
-  usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. 
-                 The custom endpoint must support the equivalent resources and operations as the GCS 
-                 JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, 
-                 GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1."
+  type: "url"
+  usage: >-
+     Specifies an alternative custom endpoint for fetching data. Should only be used for testing. 
+     The custom endpoint must support the equivalent resources and operations as the GCS 
+     JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, 
+     GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.
+
+- flag-name: "anonymous-access"
+  config-path: "gcs-auth.anonymous-access"
+  type: "bool"
+  usage: "Authentication is enabled by default. This param disables authentication"
 
 - flag-name: "billing-project"
   config-path: "gcs-connection.billing-project"
@@ -68,30 +81,30 @@
   usage: "Project to use for billing when accessing a bucket enabled with “Requester Pays” (default: none)"
 
 - flag-name: "key-file"
-  config-path: "gcs-connection.auth.key-file"
-  type: "string"
+  config-path: "gcs-auth.key-file"
+  type: "resolvedPath"
   usage: "Absolute path to JSON key file for use with GCS. (default: none, Google application default credentials used)"
 
 - flag-name: "token-url"
-  config-path: "gcs-connection.auth.token-url"
-  type: "string"
+  config-path: "gcs-auth.token-url"
+  type: "url"
   usage: "A url for getting an access token when the key-file is absent."
 
 - flag-name: "reuse-token-from-url"
-  config-path: "gcs-connection.auth.reuse-token-from-url"
+  config-path: "gcs-auth.reuse-token-from-url"
   type: "bool"
   default: true
   usage: "If false, the token acquired from token-url is not reused."
 
 - flag-name: "limit-bytes-per-sec"
-  config-path: "gcs-connection.max-bytes-per-sec"
+  config-path: "gcs-connection.limit-bytes-per-sec"
   type: "float64"
   usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)"
   default: "-1"
 
 
 - flag-name: "limit-ops-per-sec"
-  config-path: "gcs-connection.max-ops-per-sec"
+  config-path: "gcs-connection.limit-ops-per-sec"
   type: "float64"
   usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
   default: "-1"
@@ -110,9 +123,10 @@
           Once the backoff duration exceeds this limit, the retry continues with this specified maximum value."
 
 - flag-name: "stat-cache-capacity"
-  config-path: "metadata-cache.stat-cache-max-size-mb"
   type: "int"
   default: "20460"
+  deprecated: true
+  deprecation-warning: Please use --stat-cache-max-size-mb flag or metadata-cache:stat-cache-max-size-mb config param instead
   usage: "How many entries can the stat-cache hold (impacts memory consumption).
   This flag has been deprecated (starting v2.0) and in its place only
   metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported.
@@ -121,6 +135,37 @@
   stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240
   for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb
   is not set."
+
+- flag-name: "stat-cache-ttl"
+  config-path: "metadata-cache.deprecated-stat-cache-ttl"
+  type: "duration"
+  default: "60s"
+  usage: "The minimum of stat-cache-ttl and type-cache-ttl values, rounded up
+  to the next higher multiple of a second, is used as ttl for both stat-cache
+  and type-cache, when metadata-cache:ttl-secs is not set."
+  deprecated: true
+  deprecation-warning: "Please use --metadata-cache-ttl-secs flag or metadata-cache:ttl-secs config param instead"
+
+- flag-name: "type-cache-ttl"
+  config-path: "metadata-cache.deprecated-type-cache-ttl"
+  type: "duration"
+  default: "60s"
+  usage: "How long to cache name -> file/dir mappings in directory inodes. The
+  minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the
+  next higher multiple of a second, is used as ttl for both stat-cache and
+  type-cache, when metadata-cache:ttl-secs is not set."
+  deprecated: true
+  deprecation-warning: "Please use --metadata-cache-ttl-secs or metadata-cache:ttl-secs config param instead"
+
+- flag-name: "kernel-list-cache-ttl-secs"
+  config-path: "list.kernel-list-cache-ttl-secs"
+  type: "duration"
+  default: "0"
+  usage: >-
+    How long the directory listing (output of ls <dir>) should be cached in the kernel page cache.
+    If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation
+    by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching.
+    Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.
 
 - flag-name: "type-cache-capacity"
   config-path: "metadata-cache.type-cache-max-size-mb"
@@ -133,27 +178,6 @@
   type: "int"
   default: "math.MinInt64"
   usage: "TTL for metadata-cache"
-
-- flag-name: "stat-cache-ttl"
-  config-path: "metadata-cache.deprecated-stat-cache-ttl"
-  type: "duration"
-  default: "60s"
-  usage: "The minimum of stat-cache-ttl and type-cache-ttl values, rounded up
-  to the next higher multiple of a second, is used as ttl for both stat-cache
-  and type-cache, when metadata-cache:ttl-secs is not set."
-  deprecated: true
-  deprecation-warning: "Please use --metadata-cache-ttl-secs instead"
-
-- flag-name: "type-cache-ttl"
-  config-path: "metadata-cache.deprecated-type-cache-ttl"
-  type: "duration"
-  default: "60s"
-  usage: "How long to cache name -> file/dir mappings in directory inodes. The
-  minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the
-  next higher multiple of a second, is used as ttl for both stat-cache and
-  type-cache, when metadata-cache:ttl-secs is not set."
-  deprecated: true
-  deprecation-warning: "Please use --metadata-cache-ttl-secs instead"
 
 - flag-name: "http-client-timeout"
   config-path: "gcs-connection.timeout"
@@ -177,13 +201,13 @@
 
 - flag-name: "temp-dir"
   config-path: "file-system.temp-dir"
-  type: "string"
+  type: "resolvedPath"
   usage: "Path to the temporary directory where writes are staged prior to
   upload to Cloud Storage. (default: system default, likely /tmp)"
 
 - flag-name: "client-protocol"
   config-path: "gcs-connection.protocol"
-  type: "string"
+  type: "protocol"
   default: "http1"
   usage: "The protocol used for communicating with the GCS backend.
     Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc."
@@ -223,13 +247,13 @@
 
 - flag-name: "log-file"
   config-path: "logging.file-path"
-  type: "string"
+  type: "resolvedPath"
   usage: "The file for storing logs that can be parsed by fluentd. When not
   provided, plain text logs are printed to stdout."
 
 - flag-name: "log-severity"
   config-path: "logging.severity"
-  type: "string"
+  type: "logSeverity"
   usage: "The severity threshold beyond which to log."
 
 - flag-name: "max-log-file-size"
@@ -332,7 +356,7 @@
 
 - flag-name: "cache-dir"
   config-path: "cache-dir"
-  type: "string"
+  type: "resolvedPath"
   usage: "Enables file-caching. Specifies the directory to use for file-cache."
 
 - flag-name: "enable-empty-managed-folders"
@@ -356,13 +380,3 @@
   type: "bool"
   usage: "Enables support for HNS buckets"
 
-- flag-name: "anonymous-access"
-  config-path: "gcs-connection.auth.anonymous-access"
-  type: "bool"
-  usage: "Authentication is enabled by default. This param disables authentication"
-
-- flag-name: "ignore-interrupts"
-  config-path: "file-system.ignore-interrupts"
-  type: "bool"
-  usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C).
-         This prevents those signals from immediately terminating gcsfuse inflight operations."

@@ -23,3 +23,9 @@ type Octal int
 func (oi Octal) String() string {
 	return fmt.Sprintf("%o", oi)
 }
+
+type Protocol string
+
+type LogSeverity string
+
+type ResolvedPath string
