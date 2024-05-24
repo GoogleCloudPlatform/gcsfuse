@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -131,6 +131,16 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	}
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
+
+	// Set up config file testing metadata-prefetch-on-mount: "async".
+	mountConfig4 := config.MountConfig{
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath4, "--metadata-prefetch-on-mount=async"})
 
 	return flags
 }

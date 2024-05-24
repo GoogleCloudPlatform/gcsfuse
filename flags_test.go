@@ -25,36 +25,35 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
 )
 
-func TestFlags(t *testing.T) { RunTests(t) }
+func TestFlags(t *testing.T) { suite.Run(t, new(FlagsTest)) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type FlagsTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&FlagsTest{}) }
-
-func parseArgs(args []string) (flags *flagStorage) {
+func parseArgs(t *FlagsTest, args []string) (flags *flagStorage) {
 	// Create a CLI app, and abuse it to snoop on the flags.
 	app := newApp()
 	var err error
 	app.Action = func(appCtx *cli.Context) {
 		flags, err = populateFlags(appCtx)
-		AssertEq(nil, err)
+		assert.Equal(t.T(), nil, err)
 	}
 
 	// Simulate argv.
 	fullArgs := append([]string{"some_app"}, args...)
 
 	err = app.Run(fullArgs)
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	return
 }
@@ -64,45 +63,48 @@ func parseArgs(args []string) (flags *flagStorage) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *FlagsTest) Defaults() {
-	f := parseArgs([]string{})
+	f := parseArgs(t, []string{})
 
 	// File system
-	ExpectNe(nil, f.MountOptions)
-	ExpectEq(0, len(f.MountOptions), "Options: %v", f.MountOptions)
+	assert.NotEqual(t.T(), nil, f.MountOptions)
+	assert.Equal(t.T(), 0, len(f.MountOptions), "Options: %v", f.MountOptions)
 
-	ExpectEq(os.FileMode(0755), f.DirMode)
-	ExpectEq(os.FileMode(0644), f.FileMode)
-	ExpectEq(-1, f.Uid)
-	ExpectEq(-1, f.Gid)
-	ExpectFalse(f.ImplicitDirs)
-	ExpectFalse(f.IgnoreInterrupts)
+	assert.Equal(t.T(), os.FileMode(0755), f.DirMode)
+	assert.Equal(t.T(), os.FileMode(0644), f.FileMode)
+	assert.Equal(t.T(), -1, f.Uid)
+	assert.Equal(t.T(), -1, f.Gid)
+	assert.False(t.T(), f.ImplicitDirs)
+	assert.False(t.T(), f.IgnoreInterrupts)
 
 	// GCS
-	ExpectEq("", f.KeyFile)
-	ExpectEq(-1, f.EgressBandwidthLimitBytesPerSecond)
-	ExpectEq(-1, f.OpRateLimitHz)
-	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectEq(nil, f.CustomEndpoint)
-	ExpectFalse(f.AnonymousAccess)
+	assert.Equal(t.T(), "", f.KeyFile)
+	assert.Equal(t.T(), -1, f.EgressBandwidthLimitBytesPerSecond)
+	assert.Equal(t.T(), -1, f.OpRateLimitHz)
+	assert.True(t.T(), f.ReuseTokenFromUrl)
+	assert.Equal(t.T(), nil, f.CustomEndpoint)
+	assert.False(t.T(), f.AnonymousAccess)
 
 	// Tuning
-	ExpectEq(mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
-	ExpectEq(mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
-	ExpectEq(mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
-	ExpectEq(0, f.HttpClientTimeout)
-	ExpectEq("", f.TempDir)
-	ExpectEq(2, f.RetryMultiplier)
-	ExpectFalse(f.EnableNonexistentTypeCache)
-	ExpectEq(0, f.MaxConnsPerHost)
+	assert.Equal(t.T(), mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
+	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
+	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
+	assert.Equal(t.T(), 0, f.HttpClientTimeout)
+	assert.Equal(t.T(), "", f.TempDir)
+	assert.Equal(t.T(), 2, f.RetryMultiplier)
+	assert.False(t.T(), f.EnableNonexistentTypeCache)
+	assert.Equal(t.T(), 0, f.MaxConnsPerHost)
 
 	// Logging
-	ExpectTrue(f.DebugFuseErrors)
+	assert.True(t.T(), f.DebugFuseErrors)
 
 	// Debugging
-	ExpectFalse(f.DebugFuse)
-	ExpectFalse(f.DebugGCS)
-	ExpectFalse(f.DebugHTTP)
-	ExpectFalse(f.DebugInvariants)
+	assert.False(t.T(), f.DebugFuse)
+	assert.False(t.T(), f.DebugGCS)
+	assert.False(t.T(), f.DebugHTTP)
+	assert.False(t.T(), f.DebugInvariants)
+
+	// Post-mount actions
+	assert.Equal(t.T(), config.MetadataPrefetchOnMountDisabled, f.MetadataPrefetchOnMount)
 }
 
 func (t *FlagsTest) Bools() {
@@ -129,18 +131,18 @@ func (t *FlagsTest) Bools() {
 		args = append(args, fmt.Sprintf("-%s", n))
 	}
 
-	f = parseArgs(args)
-	ExpectTrue(f.ImplicitDirs)
-	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectTrue(f.DebugFuseErrors)
-	ExpectTrue(f.DebugFuse)
-	ExpectTrue(f.DebugGCS)
-	ExpectTrue(f.DebugHTTP)
-	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableNonexistentTypeCache)
-	ExpectTrue(f.ExperimentalEnableJsonRead)
-	ExpectTrue(f.IgnoreInterrupts)
-	ExpectTrue(f.AnonymousAccess)
+	f = parseArgs(t, args)
+	assert.True(t.T(), f.ImplicitDirs)
+	assert.True(t.T(), f.ReuseTokenFromUrl)
+	assert.True(t.T(), f.DebugFuseErrors)
+	assert.True(t.T(), f.DebugFuse)
+	assert.True(t.T(), f.DebugGCS)
+	assert.True(t.T(), f.DebugHTTP)
+	assert.True(t.T(), f.DebugInvariants)
+	assert.True(t.T(), f.EnableNonexistentTypeCache)
+	assert.True(t.T(), f.ExperimentalEnableJsonRead)
+	assert.True(t.T(), f.IgnoreInterrupts)
+	assert.True(t.T(), f.AnonymousAccess)
 
 	// --foo=false form
 	args = nil
@@ -148,15 +150,15 @@ func (t *FlagsTest) Bools() {
 		args = append(args, fmt.Sprintf("-%s=false", n))
 	}
 
-	f = parseArgs(args)
-	ExpectFalse(f.ImplicitDirs)
-	ExpectFalse(f.ReuseTokenFromUrl)
-	ExpectFalse(f.DebugFuseErrors)
-	ExpectFalse(f.DebugFuse)
-	ExpectFalse(f.DebugGCS)
-	ExpectFalse(f.DebugHTTP)
-	ExpectFalse(f.DebugInvariants)
-	ExpectFalse(f.EnableNonexistentTypeCache)
+	f = parseArgs(t, args)
+	assert.False(t.T(), f.ImplicitDirs)
+	assert.False(t.T(), f.ReuseTokenFromUrl)
+	assert.False(t.T(), f.DebugFuseErrors)
+	assert.False(t.T(), f.DebugFuse)
+	assert.False(t.T(), f.DebugGCS)
+	assert.False(t.T(), f.DebugHTTP)
+	assert.False(t.T(), f.DebugInvariants)
+	assert.False(t.T(), f.EnableNonexistentTypeCache)
 
 	// --foo=true form
 	args = nil
@@ -164,15 +166,15 @@ func (t *FlagsTest) Bools() {
 		args = append(args, fmt.Sprintf("-%s=true", n))
 	}
 
-	f = parseArgs(args)
-	ExpectTrue(f.ImplicitDirs)
-	ExpectTrue(f.ReuseTokenFromUrl)
-	ExpectTrue(f.DebugFuseErrors)
-	ExpectTrue(f.DebugFuse)
-	ExpectTrue(f.DebugGCS)
-	ExpectTrue(f.DebugHTTP)
-	ExpectTrue(f.DebugInvariants)
-	ExpectTrue(f.EnableNonexistentTypeCache)
+	f = parseArgs(t, args)
+	assert.True(t.T(), f.ImplicitDirs)
+	assert.True(t.T(), f.ReuseTokenFromUrl)
+	assert.True(t.T(), f.DebugFuseErrors)
+	assert.True(t.T(), f.DebugFuse)
+	assert.True(t.T(), f.DebugGCS)
+	assert.True(t.T(), f.DebugHTTP)
+	assert.True(t.T(), f.DebugInvariants)
+	assert.True(t.T(), f.EnableNonexistentTypeCache)
 }
 
 func (t *FlagsTest) DecimalNumbers() {
@@ -186,14 +188,14 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--max-conns-per-host=100",
 	}
 
-	f := parseArgs(args)
-	ExpectEq(17, f.Uid)
-	ExpectEq(19, f.Gid)
-	ExpectEq(123.4, f.EgressBandwidthLimitBytesPerSecond)
-	ExpectEq(56.78, f.OpRateLimitHz)
-	ExpectEq(8192, f.StatCacheCapacity)
-	ExpectEq(100, f.MaxIdleConnsPerHost)
-	ExpectEq(100, f.MaxConnsPerHost)
+	f := parseArgs(t, args)
+	assert.Equal(t.T(), 17, f.Uid)
+	assert.Equal(t.T(), 19, f.Gid)
+	assert.Equal(t.T(), 123.4, f.EgressBandwidthLimitBytesPerSecond)
+	assert.Equal(t.T(), 56.78, f.OpRateLimitHz)
+	assert.Equal(t.T(), 8192, f.StatCacheCapacity)
+	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
+	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
 }
 
 func (t *FlagsTest) OctalNumbers() {
@@ -202,9 +204,9 @@ func (t *FlagsTest) OctalNumbers() {
 		"--file-mode", "611",
 	}
 
-	f := parseArgs(args)
-	ExpectEq(os.FileMode(0711), f.DirMode)
-	ExpectEq(os.FileMode(0611), f.FileMode)
+	f := parseArgs(t, args)
+	assert.Equal(t.T(), os.FileMode(0711), f.DirMode)
+	assert.Equal(t.T(), os.FileMode(0611), f.FileMode)
 }
 
 func (t *FlagsTest) Strings() {
@@ -213,13 +215,15 @@ func (t *FlagsTest) Strings() {
 		"--temp-dir=foobar",
 		"--only-dir=baz",
 		"--client-protocol=HTTP2",
+		"--metadata-prefetch-on-mount=async",
 	}
 
-	f := parseArgs(args)
-	ExpectEq("-asdf", f.KeyFile)
-	ExpectEq("foobar", f.TempDir)
-	ExpectEq("baz", f.OnlyDir)
-	ExpectEq(mountpkg.HTTP2, f.ClientProtocol)
+	f := parseArgs(t, args)
+	assert.Equal(t.T(), "-asdf", f.KeyFile)
+	assert.Equal(t.T(), "foobar", f.TempDir)
+	assert.Equal(t.T(), "baz", f.OnlyDir)
+	assert.Equal(t.T(), mountpkg.HTTP2, f.ClientProtocol)
+	assert.Equal(t.T(), config.MetadataPrefetchOnMountAsynchronous, f.MetadataPrefetchOnMount)
 }
 
 func (t *FlagsTest) Durations() {
@@ -231,12 +235,12 @@ func (t *FlagsTest) Durations() {
 		"--max-retry-sleep", "30s",
 	}
 
-	f := parseArgs(args)
-	ExpectEq(time.Minute+17*time.Second+100*time.Millisecond, f.StatCacheTTL)
-	ExpectEq(50*time.Second+900*time.Millisecond, f.TypeCacheTTL)
-	ExpectEq(800*time.Millisecond, f.HttpClientTimeout)
-	ExpectEq(-1*time.Second, f.MaxRetryDuration)
-	ExpectEq(30*time.Second, f.MaxRetrySleep)
+	f := parseArgs(t, args)
+	assert.Equal(t.T(), time.Minute+17*time.Second+100*time.Millisecond, f.StatCacheTTL)
+	assert.Equal(t.T(), 50*time.Second+900*time.Millisecond, f.TypeCacheTTL)
+	assert.Equal(t.T(), 800*time.Millisecond, f.HttpClientTimeout)
+	assert.Equal(t.T(), -1*time.Second, f.MaxRetryDuration)
+	assert.Equal(t.T(), 30*time.Second, f.MaxRetrySleep)
 }
 
 func (t *FlagsTest) Maps() {
@@ -245,7 +249,7 @@ func (t *FlagsTest) Maps() {
 		"-o", "user=jacobsa,noauto",
 	}
 
-	f := parseArgs(args)
+	f := parseArgs(t, args)
 
 	var keys sort.StringSlice
 	for k := range f.MountOptions {
@@ -253,31 +257,32 @@ func (t *FlagsTest) Maps() {
 	}
 
 	sort.Sort(keys)
-	AssertThat(keys, ElementsAre("noauto", "nodev", "rw", "user"))
+	assert.ElementsMatch(t.T(),
+		keys, []string{"noauto", "nodev", "rw", "user"})
 
-	ExpectEq("", f.MountOptions["noauto"])
-	ExpectEq("", f.MountOptions["nodev"])
-	ExpectEq("", f.MountOptions["rw"])
-	ExpectEq("jacobsa", f.MountOptions["user"])
+	assert.Equal(t.T(), "", f.MountOptions["noauto"])
+	assert.Equal(t.T(), "", f.MountOptions["nodev"])
+	assert.Equal(t.T(), "", f.MountOptions["rw"])
+	assert.Equal(t.T(), "jacobsa", f.MountOptions["user"])
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 	app := newApp()
 	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 	app.Action = func(appCtx *cli.Context) {
 		err = resolvePathForTheFlagInContext("log-file", appCtx)
-		AssertEq(nil, err)
+		assert.Equal(t.T(), nil, err)
 		err = resolvePathForTheFlagInContext("key-file", appCtx)
-		AssertEq(nil, err)
+		assert.Equal(t.T(), nil, err)
 		err = resolvePathForTheFlagInContext("config-file", appCtx)
-		AssertEq(nil, err)
+		assert.Equal(t.T(), nil, err)
 
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "config.yaml"),
 			appCtx.String("config-file"))
 	}
 	// Simulate argv.
@@ -286,21 +291,21 @@ func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 
 	err = app.Run(fullArgs)
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	app := newApp()
 	currentWorkingDir, err := os.Getwd()
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 	app.Action = func(appCtx *cli.Context) {
 		resolvePathForTheFlagsInContext(appCtx)
 
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "test.txt"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
-		ExpectEq(filepath.Join(currentWorkingDir, "config.yaml"),
+		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "config.yaml"),
 			appCtx.String("config-file"))
 	}
 	// Simulate argv.
@@ -309,64 +314,106 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 
 	err = app.Run(fullArgs)
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http1"),
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http1"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 }
 
 func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 0,
-		ClientProtocol:       mountpkg.ClientProtocol("http2"),
+		SequentialReadSizeMb:    0,
+		ClientProtocol:          mountpkg.ClientProtocol("http2"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
 
-	AssertNe(nil, err)
-	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
+	assert.NotEqual(t.T(), nil, err)
+	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
 func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 2048,
-		ClientProtocol:       mountpkg.ClientProtocol("http1"),
+		SequentialReadSizeMb:    2048,
+		ClientProtocol:          mountpkg.ClientProtocol("http1"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
 
-	AssertNe(nil, err)
-	AssertEq("SequentialReadSizeMb should be less than 1024", err.Error())
+	assert.NotEqual(t.T(), nil, err)
+	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http4"),
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http4"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
 
-	AssertEq("client protocol: http4 is not valid", err.Error())
+	assert.Equal(t.T(), "client protocol: http4 is not valid", err.Error())
 }
 
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
 	flags := &flagStorage{
-		SequentialReadSizeMb: 10,
-		ClientProtocol:       mountpkg.ClientProtocol("http2"),
+		SequentialReadSizeMb:    10,
+		ClientProtocol:          mountpkg.ClientProtocol("http2"),
+		MetadataPrefetchOnMount: config.DefaultMetadataPrefetchOnMount,
 	}
 
 	err := validateFlags(flags)
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
+}
+
+func (t *FlagsTest) TestValidateFlagsForSupportedMetadataPrefetchOnMount() {
+	for _, input := range []string{
+		"disabled", "sync", "async",
+	} {
+		flags := &flagStorage{
+			// Unrelated fields, not being tested here, so set to sane values.
+			SequentialReadSizeMb: 200,
+			ClientProtocol:       mountpkg.ClientProtocol("http2"),
+			// The flag being tested.
+			MetadataPrefetchOnMount: input,
+		}
+
+		err := validateFlags(flags)
+
+		assert.Equal(t.T(), nil, err)
+	}
+}
+
+func (t *FlagsTest) TestValidateFlagsForUnsupportedMetadataPrefetchOnMount() {
+	for _, input := range []string{
+		"", "unsupported",
+	} {
+		flags := &flagStorage{
+			// Unrelated fields, not being tested here, so set to sane values.
+			SequentialReadSizeMb: 200,
+			ClientProtocol:       mountpkg.ClientProtocol("http2"),
+			// The flag being tested.
+			MetadataPrefetchOnMount: input,
+		}
+
+		err := validateFlags(flags)
+
+		assert.NotEqual(t.T(), nil, err)
+		assert.ErrorContains(t.T(), err, fmt.Sprintf(config.UnsupportedMetadataPrefixModeError, input))
+	}
 }
 
 func (t *FlagsTest) Test_resolveConfigFilePaths() {
@@ -378,11 +425,11 @@ func (t *FlagsTest) Test_resolveConfigFilePaths() {
 
 	err := resolveConfigFilePaths(mountConfig)
 
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 	homeDir, err := os.UserHomeDir()
-	AssertEq(nil, err)
-	ExpectEq(filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
-	ExpectEq(filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
+	assert.EqualValues(t.T(), filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
 }
 
 func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
@@ -390,7 +437,7 @@ func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
 
 	err := resolveConfigFilePaths(mountConfig)
 
-	AssertEq(nil, err)
-	ExpectEq("", mountConfig.LogConfig.FilePath)
-	ExpectEq("", mountConfig.CacheDir)
+	assert.Equal(t.T(), nil, err)
+	assert.Equal(t.T(), "", mountConfig.LogConfig.FilePath)
+	assert.EqualValues(t.T(), "", mountConfig.CacheDir)
 }

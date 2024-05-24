@@ -50,6 +50,15 @@ const (
 	DefaultGrpcConnPoolSize                       = 1
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
+
+	// MetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
+	MetadataPrefetchOnMountDisabled string = "disabled"
+	// MetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
+	MetadataPrefetchOnMountSynchronous string = "sync"
+	// MetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
+	MetadataPrefetchOnMountAsynchronous string = "async"
+	// DefaultMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchOnMountDisabled.
+	DefaultMetadataPrefetchOnMount = MetadataPrefetchOnMountDisabled
 )
 
 type WriteConfig struct {

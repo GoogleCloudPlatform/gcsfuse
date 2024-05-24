@@ -10,19 +10,21 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func Test_Main(t *testing.T) { RunTests(t) }
+func Test_Main(t *testing.T) {
+	suite.Run(t, new(MainTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type MainTest struct {
+	suite.Suite
 }
-
-func init() { RegisterTestSuite(&MainTest{}) }
 
 func (t *MainTest) TestCreateStorageHandle() {
 	flags := &flagStorage{
@@ -40,8 +42,8 @@ func (t *MainTest) TestCreateStorageHandle() {
 	userAgent := "AppName"
 	storageHandle, err := createStorageHandle(flags, mountConfig, userAgent)
 
-	AssertEq(nil, err)
-	AssertNe(nil, storageHandle)
+	assert.Equal(t.T(), nil, err)
+	assert.NotEqual(t.T(), nil, storageHandle)
 }
 
 func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
@@ -62,8 +64,8 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 	userAgent := "AppName"
 	storageHandle, err := createStorageHandle(flags, mountConfig, userAgent)
 
-	AssertEq(nil, err)
-	AssertNe(nil, storageHandle)
+	assert.Equal(t.T(), nil, err)
+	assert.NotEqual(t.T(), nil, storageHandle)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
@@ -74,7 +76,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
@@ -82,14 +84,14 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
 
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled() {
@@ -102,7 +104,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled()
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
@@ -115,7 +117,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
 	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
@@ -126,7 +128,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
@@ -139,7 +141,7 @@ func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
@@ -150,7 +152,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
 	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
 
-	ExpectEq(expectedUserAgent, userAgent)
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshalledString() {
@@ -174,10 +176,10 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 	}
 
 	actual, err := util.Stringify(mountConfig)
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":true,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
-	AssertEq(expected, actual)
+	assert.Equal(t.T(), expected, actual)
 }
 
 func (t *MainTest) TestEnableHNSFlagFalse() {
@@ -186,10 +188,10 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 	}
 
 	actual, err := util.Stringify(mountConfig)
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
 	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":false,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
-	AssertEq(expected, actual)
+	assert.Equal(t.T(), expected, actual)
 }
 
 func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshalledString() {
@@ -205,9 +207,54 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 	}
 
 	actual, err := util.Stringify(flags)
-	AssertEq(nil, err)
+	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"AppName\":\"\",\"Foreground\":false,\"ConfigFile\":\"\",\"MountOptions\":{\"1\":\"one\",\"2\":\"two\",\"3\":\"three\"},\"DirMode\":0,\"FileMode\":0,\"Uid\":0,\"Gid\":0,\"ImplicitDirs\":false,\"OnlyDir\":\"\",\"RenameDirLimit\":0,\"IgnoreInterrupts\":false,\"CustomEndpoint\":null,\"BillingProject\":\"\",\"KeyFile\":\"\",\"TokenUrl\":\"\",\"ReuseTokenFromUrl\":false,\"EgressBandwidthLimitBytesPerSecond\":0,\"OpRateLimitHz\":0,\"SequentialReadSizeMb\":10,\"AnonymousAccess\":false,\"MaxRetrySleep\":0,\"StatCacheCapacity\":0,\"StatCacheTTL\":0,\"TypeCacheTTL\":0,\"HttpClientTimeout\":0,\"MaxRetryDuration\":0,\"RetryMultiplier\":0,\"LocalFileCache\":false,\"TempDir\":\"\",\"ClientProtocol\":\"http4\",\"MaxConnsPerHost\":0,\"MaxIdleConnsPerHost\":0,\"EnableNonexistentTypeCache\":false,\"StackdriverExportInterval\":0,\"OtelCollectorAddress\":\"\",\"LogFile\":\"\",\"LogFormat\":\"\",\"ExperimentalEnableJsonRead\":false,\"DebugFuseErrors\":false,\"DebugFuse\":false,\"DebugFS\":false,\"DebugGCS\":false,\"DebugHTTP\":false,\"DebugInvariants\":false,\"DebugMutex\":false}"
-	AssertEq(expected, actual)
-	AssertEq(expected, actual)
+	expected := "{\"AppName\":\"\",\"Foreground\":false,\"ConfigFile\":\"\",\"MountOptions\":{\"1\":\"one\",\"2\":\"two\",\"3\":\"three\"},\"DirMode\":0,\"FileMode\":0,\"Uid\":0,\"Gid\":0,\"ImplicitDirs\":false,\"OnlyDir\":\"\",\"RenameDirLimit\":0,\"IgnoreInterrupts\":false,\"CustomEndpoint\":null,\"BillingProject\":\"\",\"KeyFile\":\"\",\"TokenUrl\":\"\",\"ReuseTokenFromUrl\":false,\"EgressBandwidthLimitBytesPerSecond\":0,\"OpRateLimitHz\":0,\"SequentialReadSizeMb\":10,\"AnonymousAccess\":false,\"MaxRetrySleep\":0,\"StatCacheCapacity\":0,\"StatCacheTTL\":0,\"TypeCacheTTL\":0,\"HttpClientTimeout\":0,\"MaxRetryDuration\":0,\"RetryMultiplier\":0,\"LocalFileCache\":false,\"TempDir\":\"\",\"ClientProtocol\":\"http4\",\"MaxConnsPerHost\":0,\"MaxIdleConnsPerHost\":0,\"EnableNonexistentTypeCache\":false,\"StackdriverExportInterval\":0,\"OtelCollectorAddress\":\"\",\"LogFile\":\"\",\"LogFormat\":\"\",\"ExperimentalEnableJsonRead\":false,\"DebugFuseErrors\":false,\"DebugFuse\":false,\"DebugFS\":false,\"DebugGCS\":false,\"DebugHTTP\":false,\"DebugInvariants\":false,\"DebugMutex\":false,\"MetadataPrefetchOnMount\":\"\"}"
+	assert.Equal(t.T(), expected, actual)
+}
+
+func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
+	// Set up a mini file-system to test on.
+	rootdir, err := os.MkdirTemp("/tmp", "TestCallListRecursive-*")
+	if err != nil {
+		t.T().Fatalf("Failed to set up test. error = %v", err)
+	}
+	defer os.RemoveAll(rootdir)
+	_, err = os.CreateTemp(rootdir, "abc-*.txt")
+	if err != nil {
+		t.T().Fatalf("Failed to set up test. error = %v", err)
+	}
+
+	err = callListRecursive(rootdir)
+
+	assert.Nil(t.T(), err)
+}
+
+func (t *MainTest) TestCallListRecursiveOnNonExistingDirectory() {
+	// Set up a mini file-system to test on, which must fail.
+	rootdir := "/path/to/non/existing/directory"
+
+	err := callListRecursive(rootdir)
+
+	assert.ErrorContains(t.T(), err, "does not exist")
+}
+
+func (t *MainTest) TestIsDynamicMount() {
+	for _, input := range []struct {
+		bucketName string
+		isDynamic  bool
+	}{
+		{
+			bucketName: "",
+			isDynamic:  true,
+		}, {
+			bucketName: "_",
+			isDynamic:  true,
+		}, {
+			bucketName: "abc",
+			isDynamic:  false,
+		},
+	} {
+		assert.Equal(t.T(), input.isDynamic, isDynamicMount(input.bucketName))
+	}
 }
