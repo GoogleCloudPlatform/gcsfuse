@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -31,6 +32,30 @@ import (
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
+
+func isMetadataPrefetchOnMountEnabled(metadataPrefetchMode string) bool {
+	switch metadataPrefetchMode {
+	case config.MetadataPrefetchOnMountSynchronous, config.MetadataPrefetchOnMountAsynchronous:
+		return true
+	}
+	return false
+}
+
+func isTypeCacheEnabled(metadataCacheTTL time.Duration, typeCacheMaxSizeMB int) bool {
+	if metadataCacheTTL <= 0 || typeCacheMaxSizeMB == 0 || typeCacheMaxSizeMB < -1 {
+		return false
+	}
+
+	return true
+}
+
+func isStatCacheEnabled(metadataCacheTTL time.Duration, statCacheMaxSizeMB uint64) bool {
+	if metadataCacheTTL <= 0 || statCacheMaxSizeMB == 0 {
+		return false
+	}
+
+	return true
+}
 
 // Mount the file system based on the supplied arguments, returning a
 // fuse.MountedFileSystem that can be joined to wait for unmounting.
@@ -88,6 +113,16 @@ be interacting with the file system.`)
 	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-ttl=%v, metadata-cache:stat-cache-max-size-mb=%v: %w", flags.StatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
+	}
+
+	if isMetadataPrefetchOnMountEnabled(flags.MetadataPrefetchOnMount) {
+		if !isTypeCacheEnabled(metadataCacheTTL, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB) {
+			logger.Warnf("Enabled %s without enabling type-cache. It will not yield any performance benefits.", MetadataPrefetchOnMountFlag)
+		}
+
+		if !isStatCacheEnabled(metadataCacheTTL, statCacheMaxSizeMB) {
+			logger.Warnf("Enabled %s without enabling stat-cache. It will not yield any performance benefits.", MetadataPrefetchOnMountFlag)
+		}
 	}
 
 	bucketCfg := gcsx.BucketConfig{
