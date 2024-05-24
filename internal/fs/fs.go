@@ -176,7 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		kernelListCacheTTL:         config.ValidListCacheTtlSecsToDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
+		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -2157,6 +2157,9 @@ func (fs *fileSystem) OpenDir(
 
 	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
+
+		// Taking RLock() since ShouldInvalidateKernelListCache only reads the DirInode
+		// properties, no modification.
 		in.RLock()
 		// Invalidates the kernel list-cache once the last cached response is out of
 		// kernelListCacheTTL.

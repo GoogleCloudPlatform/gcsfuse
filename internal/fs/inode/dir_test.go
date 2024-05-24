@@ -16,12 +16,13 @@ package inode
 
 import (
 	"errors"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"os"
 	"path"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -751,6 +752,9 @@ func (t *DirTest) ReadEntries_Empty() {
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertNe(nil, &d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
@@ -799,6 +803,10 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
+
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertNe(nil, &d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -855,6 +863,10 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
+
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertNe(nil, &d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -897,6 +909,10 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.MinObject.Name)
+
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertNe(nil, &d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) CreateChildFile_DoesntExist() {
@@ -1453,6 +1469,9 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
+	d := t.in.(*dirInode)
+	d.prevDirListingTimeStamp = nil
+
 	// Irrespective of the ttl value, this should always return true.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(util.MaxTimeDuration)
 
@@ -1460,8 +1479,9 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
-	_, err := t.readAllEntries()
-	AssertEq(nil, err)
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
 	ttl := time.Second * 10
 	t.clock.AdvanceTime(ttl / 2)
 
@@ -1471,23 +1491,23 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
-	_, err := t.readAllEntries()
-	AssertEq(nil, err)
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
 	ttl := 10 * time.Second
 	t.clock.AdvanceTime(ttl + time.Second)
 
-	// Check for 1s ttl.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
 	AssertEq(true, shouldInvalidate)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
-	_, err := t.readAllEntries()
-	AssertEq(nil, err)
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
 	ttl := time.Duration(0)
 
-	// Check for 1s ttl.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
 	AssertEq(true, shouldInvalidate)

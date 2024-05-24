@@ -200,9 +200,9 @@ func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 		{0, 435, true, 435},
 		{0, 0, false, 0},
 		{0, 1, true, 1},
-		{588, -1, false, 588},
-		{5, 6, true, 6},
-		{6, 5, false, 6},
+		{9223372036, -1, false, 9223372036},
+		{5, -6, true, -6},
+		{9223372037, 5, false, 9223372037},
 	}
 
 	for index, tt := range testCases {
@@ -221,24 +221,24 @@ func Test_IsTtlInSecsValid(t *testing.T) {
 	var testCases = []struct {
 		testName    string
 		ttlInSecs   int64
-		expectation error
+		expectedErr error
 	}{
 		{"Negative", -5, fmt.Errorf(TtlInSecsInvalidValueError)},
 		{"Valid negative", -1, nil},
 		{"Positive", 8, nil},
-		{"Unsupported Large positive", MaxSupportedTtlInSeconds + 1, fmt.Errorf(TtlInSecsTooHighError)},
+		{"Unsupported Large positive", 9223372037, fmt.Errorf(TtlInSecsTooHighError)},
 		{"Zero", 0, nil},
-		{"Valid upper limit", MaxSupportedTtlInSeconds, nil},
+		{"Valid upper limit", 9223372036, nil},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.testName, func(t *testing.T) {
-			assert.Equal(t, tt.expectation, IsTtlInSecsValid(tt.ttlInSecs))
+			assert.Equal(t, tt.expectedErr, IsTtlInSecsValid(tt.ttlInSecs))
 		})
 	}
 }
 
-func Test_ValidListCacheTtlSecsToDuration(t *testing.T) {
+func Test_ListCacheTtlSecsToDuration(t *testing.T) {
 	var testCases = []struct {
 		testName         string
 		ttlInSecs        int64
@@ -246,13 +246,24 @@ func Test_ValidListCacheTtlSecsToDuration(t *testing.T) {
 	}{
 		{"-1", -1, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
 		{"0", 0, time.Duration(0)},
-		{"Max supported positive", MaxSupportedTtlInSeconds, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
+		{"Max supported positive", 9223372036, time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))},
 		{"Positive", 1, time.Second},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.testName, func(t *testing.T) {
-			assert.Equal(t, tt.expectedDuration, ValidListCacheTtlSecsToDuration(tt.ttlInSecs))
+			assert.Equal(t, tt.expectedDuration, ListCacheTtlSecsToDuration(tt.ttlInSecs))
 		})
 	}
+}
+
+func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	// The following is the code under test
+	ListCacheTtlSecsToDuration(-3)
 }

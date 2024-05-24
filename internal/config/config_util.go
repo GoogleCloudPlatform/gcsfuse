@@ -99,7 +99,12 @@ func IsTtlInSecsValid(ttlInSecs int64) error {
 	return nil
 }
 
-func ValidListCacheTtlSecsToDuration(secs int64) time.Duration {
+func ListCacheTtlSecsToDuration(secs int64) time.Duration {
+	err := IsTtlInSecsValid(secs)
+	if err != nil {
+		panic(fmt.Sprintf("invalid argument: %d, %v", secs, err))
+	}
+
 	if secs == -1 {
 		return time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
 	}
