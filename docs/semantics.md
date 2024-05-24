@@ -200,12 +200,11 @@ Even though A/, A/B/, and C/ are directories in the filesystem, a 0-byte object 
 
 The above example was based on greenfield deployments which assumes starting fresh, where the directories are created from Cloud Storage FUSE. If a user unmounts this Cloud Storage FUSE bucket, and then re-mounts it to a different path, the user will see the directory structure correctly in the filesystem because it was originally created by Cloud Storage FUSE.
 
-However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the Cloud Storage bucket using Cloud Storage FUSE, then those directories (and the sub-directories and objects under them) will not be visible, which do not have backing Cloud Storage objects. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching Cloud Storage object ending in a slash exists.
+However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the Cloud Storage bucket using Cloud Storage FUSE, then those directories (and the sub-directories and objects under them) will not be visible. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching Cloud Storage object ending in a slash exists.
 
-**Note**: These backing objects for directories are special 0-byte objects, which are placeholders for directories, and can only be created either with Cloud Storage Fuse using mkdir command or other Cloud clients e.g. Cloud Web UI. These backing objects are not created by the Cloud Storage CLI tools such as `gcloud` and `gsutil`.
+**Note**: These backing objects for directories are special 0-byte objects, which are placeholders for directories, and can only be created either with Cloud Storage Fuse using mkdir command or other Cloud clients e.g. Google Cloud Console. These backing objects are not created by the Cloud Storage CLI tools such as `gcloud` and `gsutil`.
 
-Let us assume the user has the following objects in their Cloud Storage bucket (for example created by uploading a local directory using ``` gsutil cp -r``` command),
-
+Lets take an example. The user creates the following objects by uploading a local directory using `gcloud cp -r` command (learn more [here](https://cloud.google.com/storage/docs/objects#command-line)). Since gcloud creates [simulated folders](https://cloud.google.com/storage/docs/objects#simulated-folders) the following hierarchy may get created:
 - A/ (no backing object on Cloud Storage bucket)
 - A/1.txt
 - A/B/ (no backing object on Cloud Storage bucket)
@@ -226,9 +225,8 @@ However, implicit directories does have drawbacks:
 - With the example above, it will appear as if there is a directory called "A/" containing a file called "1.txt". But when the user runs ‘rm A/1.txt’, it will appear as if the file system is completely empty. This is contrary to expectations, since the user hasn't run ```rmdir A/```.
 - Cloud Storage FUSE sends a single Objects.list request to Cloud Storage, and treats the directory as being implicitly defined if the results are non-empty. In rare cases (notably when many objects have recently been deleted) Objects.list may return an arbitrary number of empty responses with continuation tokens, even for a non-empty name range. In order to bound the number of requests, Cloud Storage FUSE simply ignores this subtlety. Therefore in rare cases an implicitly defined directory will fail to appear.
 
-Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used. 
-
-**Note:** `--implicit-dirs` flag is detrimental to performance, so it should be avoided unless necessary. To avoid it, you can mount using `--implicit-dirs` flag once, then create the directories on the mounted filesystem using the ```mkdir``` command, which will create the Cloud  Storage objects backing the directories, and then mount without --implicit-dirs  flag from the next time onwards.
+**Note:** `--implicit-dirs` flag is detrimental to performance, so it should be avoided unless necessary. To avoid it, you can mount using `--implicit-dirs` flag once, then create the directories on the mounted filesystem using the ```mkdir``` command, which will create the Cloud Storage objects backing the directories, and then mount without `--implicit-dirs` flag from the next time onwards.
+Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used.
 
 # Generations
 
