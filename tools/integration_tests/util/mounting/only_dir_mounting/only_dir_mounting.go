@@ -40,8 +40,6 @@ func MountGcsfuseWithOnlyDir(flags []string) (err error) {
 		"--debug_fuse",
 		"--log-file="+setup.LogFile(),
 		"--log-format=text",
-		"--custom-endpoint=storage.apis-tpczero.goog:443",
-		"--key-file=/tmp/sa.key.json",
 		setup.TestBucket(),
 		setup.MntDir())
 
