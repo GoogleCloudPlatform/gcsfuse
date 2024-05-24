@@ -38,6 +38,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 	// Create new storage client.
 	if setup.TestOnTPCEndPoint() {
 		var ts oauth2.TokenSource
+		// Set up the TPC endpoint and provide a token source for authentication.
 		ts, err = getTokenSrc("/tmp/sa.key.json")
 		if err != nil {
 			return nil, fmt.Errorf(fmt.Sprintf("Unable to fetch tokenSrc for TPC: %v", err))

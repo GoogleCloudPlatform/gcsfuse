@@ -37,6 +37,8 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	if setup.TestOnTPCEndPoint() {
+		// These tests require the creation of 12,000 objects on a bucket using gcloud,
+		// which is failing due to a "database locked" error.
 		log.Print("These tests will not run for TPC endpoint.")
 		return
 	}
