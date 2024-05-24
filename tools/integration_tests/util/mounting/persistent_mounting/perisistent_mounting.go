@@ -56,7 +56,7 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg, "-o", "custom_endpoint=storage.apis-tpczero.goog:443",
-			"-o", "key_file=/home/tulsishah_google_com/kay.json")
+			"-o", "key_file=/tmp/sa.key.json")
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)
