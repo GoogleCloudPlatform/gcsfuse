@@ -200,7 +200,14 @@ func (t *BaseDirTest) LookUpChild_BucketCached() {
 	ExpectEq(3, t.bm.SetUpTimes())
 }
 
-func (t *BaseDirTest) Test_ShouldInvalidateKernelDirCache() {
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
 	ttl := time.Second
-	AssertEq(true, t.in.ShouldInvalidateKernelDirCache(ttl))
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
+	ttl := time.Second
+	t.clock.AdvanceTime(10 * time.Second)
+
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
 }

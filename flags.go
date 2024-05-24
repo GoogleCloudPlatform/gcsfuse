@@ -150,13 +150,6 @@ func newApp() (app *cli.App) {
 					"This prevents those signals from immediately terminating gcsfuse inflight operations.",
 			},
 
-			cli.Int64Flag{
-				Name:  config.KernelDirCacheTtlFlagName,
-				Value: 0,
-				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. Cache which is kept " +
-					"more than TTL will be invalidated by the gcsfuse. Default (0) means no caching. Use -1 to cache for lifetime (no ttl).",
-			},
-
 			/////////////////////////
 			// GCS
 			/////////////////////////
@@ -242,6 +235,15 @@ func newApp() (app *cli.App) {
 				Name:  "type-cache-ttl",
 				Value: mount.DefaultStatOrTypeCacheTTL,
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
+			},
+
+			cli.Int64Flag{
+				Name:  config.KernelListCacheTtlFlagName,
+				Value: config.DefaultKernelListCacheTtlSeconds,
+				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache." +
+					"If cache is kept by kernel for longer than the TTL, then it will be invalidated by gcsfuse on next " +
+					"opendir (comes in the start, as part of next listing) call. Default (0) means no caching. Use -1 to cache " +
+					"for lifetime (no ttl). Negative value other than -1 will throw error.",
 			},
 
 			cli.DurationFlag{
@@ -393,16 +395,16 @@ type flagStorage struct {
 	ConfigFile string
 
 	// File system
-	MountOptions               map[string]string
-	DirMode                    os.FileMode
-	FileMode                   os.FileMode
-	Uid                        int64
-	Gid                        int64
-	ImplicitDirs               bool
-	OnlyDir                    string
-	RenameDirLimit             int64
-	IgnoreInterrupts           bool
-	KernelDirCacheTtlInSeconds int64
+	MountOptions              map[string]string
+	DirMode                   os.FileMode
+	FileMode                  os.FileMode
+	Uid                       int64
+	Gid                       int64
+	ImplicitDirs              bool
+	OnlyDir                   string
+	RenameDirLimit            int64
+	IgnoreInterrupts          bool
+	KernelListCacheTtlSeconds int64
 
 	// GCS
 	CustomEndpoint                     *url.URL
@@ -542,16 +544,16 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		ConfigFile: c.String("config-file"),
 
 		// File system
-		MountOptions:               make(map[string]string),
-		DirMode:                    os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
-		FileMode:                   os.FileMode(*c.Generic("file-mode").(*OctalInt)),
-		Uid:                        int64(c.Int("uid")),
-		Gid:                        int64(c.Int("gid")),
-		ImplicitDirs:               c.Bool("implicit-dirs"),
-		OnlyDir:                    c.String("only-dir"),
-		RenameDirLimit:             int64(c.Int("rename-dir-limit")),
-		IgnoreInterrupts:           c.Bool(config.IgnoreInterruptsFlagName),
-		KernelDirCacheTtlInSeconds: c.Int64(config.KernelDirCacheTtlFlagName),
+		MountOptions:              make(map[string]string),
+		DirMode:                   os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
+		FileMode:                  os.FileMode(*c.Generic("file-mode").(*OctalInt)),
+		Uid:                       int64(c.Int("uid")),
+		Gid:                       int64(c.Int("gid")),
+		ImplicitDirs:              c.Bool("implicit-dirs"),
+		OnlyDir:                   c.String("only-dir"),
+		RenameDirLimit:            int64(c.Int("rename-dir-limit")),
+		IgnoreInterrupts:          c.Bool(config.IgnoreInterruptsFlagName),
+		KernelListCacheTtlSeconds: c.Int64(config.KernelListCacheTtlFlagName),
 
 		// GCS,
 		CustomEndpoint:                     customEndpoint,

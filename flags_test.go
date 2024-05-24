@@ -75,7 +75,7 @@ func (t *FlagsTest) Defaults() {
 	assert.Equal(t.T(), -1, f.Gid)
 	assert.False(t.T(), f.ImplicitDirs)
 	assert.False(t.T(), f.IgnoreInterrupts)
-	assert.Equal(t.T(), 0, f.KernelDirCacheTTL)
+	assert.Equal(t.T(), 0, f.KernelListCacheTtlSeconds)
 
 	// GCS
 	assert.Equal(t.T(), "", f.KeyFile)
@@ -187,7 +187,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--stat-cache-capacity=8192",
 		"--max-idle-conns-per-host=100",
 		"--max-conns-per-host=100",
-		"--kernel-dir-cache-ttl-secs=234",
+		"--kernel-list-cache-ttl-secs=234",
 	}
 
 	f := parseArgs(t, args)
@@ -198,7 +198,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	assert.Equal(t.T(), 8192, f.StatCacheCapacity)
 	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
 	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
-	assert.Equal(t.T(), util.SecondsToTimeDuration(234), f.KernelDirCacheTTL)
+	assert.Equal(t.T(), util.SecondsToTimeDuration(234), f.KernelListCacheTtlSeconds)
 }
 
 func (t *FlagsTest) OctalNumbers() {

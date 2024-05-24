@@ -176,7 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		kernelDirCacheTTL:          util.SecondsToTimeDuration(cfg.MountConfig.KernelDirCacheTtlInSeconds),
+		kernelDirListCacheTTL:      util.SecondsToTimeDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -344,9 +344,10 @@ type fileSystem struct {
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
 
-	// kernelDirCacheTTL specifies the duration to keep the dir response cached in kernel
-	// after ttl filesystem forces the kernel to evict old cache entries.
-	kernelDirCacheTTL time.Duration
+	// kernelDirListCacheTTL specifies the duration to keep the readdir response cached
+	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before the
+	// next list call) from user, asks the kernel to evict the old cache entries.
+	kernelDirListCacheTTL time.Duration
 
 	renameDirLimit       int64
 	sequentialReadSizeMb int32
@@ -2154,13 +2155,18 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
-	// Invalidates the kernel dir-cache once the last cached response is out of
-	// kernelDirCacheTTL.
-	op.KeepCache = !in.ShouldInvalidateKernelDirCache(fs.kernelDirCacheTTL)
+	// Enables kernel list-cache in case of non-zero kernelDirListCacheTTL.
+	if fs.kernelDirListCacheTTL > 0 {
 
-	// Enables kernel dir-cache in case of non-zero kernelDirCacheTTL.
-	op.CacheDir = fs.kernelDirCacheTTL > 0
+		//
+		in.RLock()
+		// Invalidates the kernel list-cache once the last cached response is out of
+		// kernelDirListCacheTTL.
+		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelDirListCacheTTL)
+		in.RUnlock()
 
+		op.CacheDir = true
+	}
 	return
 }
 

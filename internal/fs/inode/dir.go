@@ -140,9 +140,12 @@ type DirInode interface {
 	// UnlockForChildLookup unlocks the lock taken with LockForChildLookup.
 	UnlockForChildLookup()
 
-	// ShouldInvalidateKernelDirCache tells the filesystem whether kernel dir-cache
+	// ShouldInvalidateKernelListCache tells the filesystem whether kernel list-cache
 	// should be invalidated or not.
-	ShouldInvalidateKernelDirCache(ttl time.Duration) bool
+	ShouldInvalidateKernelListCache(ttl time.Duration) bool
+
+	RLock()
+	RUnlock()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -191,11 +194,11 @@ type dirInode struct {
 	// GUARDED_BY(mu)
 	cache metadata.TypeCache
 
-	// lastDirListingTimeStamp is the last time when the kernel asked the directory
-	// listing from the filesystem.
-	// Specially used when kernelDirCacheTTL > 0 that means kernel dir-cache is
+	// prevDirListingTimeStamp is the time stamp of previous listing when user asked
+	// (via kernel) the directory listing from the filesystem.
+	// Specially used when kernelDirListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
-	lastDirListingTimeStamp *time.Time
+	prevDirListingTimeStamp *time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -247,7 +250,6 @@ func NewDirInode(
 		name:                        name,
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
-		lastDirListingTimeStamp:     nil,
 	}
 
 	typed.lc.Init(id)
@@ -402,6 +404,14 @@ func (d *dirInode) Lock() {
 
 func (d *dirInode) Unlock() {
 	d.mu.Unlock()
+}
+
+func (d *dirInode) RLock() {
+	d.mu.RLock()
+}
+
+func (d *dirInode) RUnlock() {
+	d.mu.RUnlock()
 }
 
 // LockForChildLookup takes read-only lock on inode when the inode's child is
@@ -682,8 +692,8 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	tempTime := time.Now()
-	d.lastDirListingTimeStamp = &tempTime
+	nowTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &nowTime
 	return
 }
 
@@ -867,11 +877,13 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 	return
 }
 
-func (d *dirInode) ShouldInvalidateKernelDirCache(ttl time.Duration) bool {
-	// Listing not happened yet, so invalidate.
-	if d.lastDirListingTimeStamp == nil {
+func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
+	// prevDirListingTimeStamp = nil means listing has not happened yet, and we should
+	// invalidate the if any already.
+	if d.prevDirListingTimeStamp == nil {
 		return true
 	}
 
-	return time.Since(*d.lastDirListingTimeStamp) > ttl
+	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
+	return cachedDuration > ttl
 }

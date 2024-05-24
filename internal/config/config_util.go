@@ -14,9 +14,11 @@
 
 package config
 
-const IgnoreInterruptsFlagName = "ignore-interrupts"
-const AnonymousAccess = "anonymous-access"
-const KernelDirCacheTtlFlagName = "kernel-dir-cache-ttl-secs"
+const (
+	IgnoreInterruptsFlagName   = "ignore-interrupts"
+	AnonymousAccess            = "anonymous-access"
+	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+)
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
@@ -61,12 +63,11 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 	}
 }
 
-// OverrideKernelDirCacheTtlFlag overwrites the kernel-dir-cache-ttl-secs config
-// with the kernel-dir-cache-ttl-secs flag value if the flag is set.
-func OverrideKernelDirCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
-	// If the kernel-dir-cache-ttl-secs flag is set, give it priority over the value in config file.
-	if c.IsSet(KernelDirCacheTtlFlagName) {
-		mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds = ttl
+// OverrideKernelListCacheTtlConfigFlag overwrites the kernel-list-cache-ttl-secs config
+// with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
+func OverrideKernelListCacheTtlConfigFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
+	if c.IsSet(KernelListCacheTtlFlagName) {
+		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
 	}
 }
 

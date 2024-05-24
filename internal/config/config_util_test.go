@@ -187,7 +187,7 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 	}
 }
 
-func Test_OverrideKernelDirCacheTtlFlag(t *testing.T) {
+func Test_OverrideKernelListCacheTtlConfigFlag(t *testing.T) {
 	var testCases = []struct {
 		configValue   int64
 		flagValue     int64
@@ -196,16 +196,22 @@ func Test_OverrideKernelDirCacheTtlFlag(t *testing.T) {
 	}{
 		{34, -1, true, -1},
 		{34, -1, false, 34},
+		{0, 435, true, 435},
+		{0, 0, false, 0},
+		{0, 1, true, 1},
+		{588, -1, false, 588},
+		{5, 6, true, 6},
+		{6, 5, false, 6},
 	}
 
 	for index, tt := range testCases {
 		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
 			testContext := &TestCliContext{isSet: tt.isFlagSet}
-			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelDirCacheTtlInSeconds: tt.configValue}}
+			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelListCacheTtlSeconds: tt.configValue}}
 
-			OverrideKernelDirCacheTtlFlag(testContext, mountConfig, tt.flagValue)
+			OverrideKernelListCacheTtlConfigFlag(testContext, mountConfig, tt.flagValue)
 
-			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds)
+			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 		})
 	}
 }

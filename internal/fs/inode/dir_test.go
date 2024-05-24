@@ -16,13 +16,12 @@ package inode
 
 import (
 	"errors"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"os"
 	"path"
 	"sort"
 	"testing"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -1453,39 +1452,32 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	AssertEq(entries[0].Name, "1_localChildInode")
 }
 
-func (t *DirTest) Test_ShouldInvalidateKernelDirCache_FirstCall() {
-	// By setting this, we can eliminate the case when time is initialized with
-	// first epoch value (1970).
-	ttl := util.MaxTimeDuration
-
-	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
+	// Irrespective of the ttl value, this should always return true.
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(util.MaxTimeDuration)
 
 	AssertEq(true, shouldInvalidate)
 }
 
-func (t *DirTest) Test_ShouldInvalidateKernelDirCache_True() {
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 	_, err := t.readAllEntries()
 	AssertEq(nil, err)
-	ttl := time.Millisecond * 10
+	ttl := time.Second * 10
+	t.clock.AdvanceTime(ttl / 2)
 
-	// Wait for more than ttl.
-	time.Sleep(2 * ttl)
-
-	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
 	AssertEq(true, shouldInvalidate)
 }
 
-func (t *DirTest) Test_ShouldInvalidateKernelDirCache_False() {
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 	_, err := t.readAllEntries()
 	AssertEq(nil, err)
-	ttl := time.Second
-
-	// Wait for less than ttl
-	time.Sleep(ttl / 2)
+	ttl := 10 * time.Second
+	t.clock.AdvanceTime(ttl + time.Second)
 
 	// Check for 1s ttl.
-	shouldInvalidate := t.in.ShouldInvalidateKernelDirCache(ttl)
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
 	AssertEq(false, shouldInvalidate)
 }

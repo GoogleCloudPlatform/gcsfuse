@@ -47,7 +47,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
-	assert.Equal(t, DefaultKernelDirCacheTtlInSeconds, mountConfig.KernelDirCacheTtlInSeconds)
+	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -264,16 +264,16 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelDirCacheTtl() {
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
 	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_dir_cache_ttl.yaml")
 
 	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid` into int64")
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelDirCacheTtl() {
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {
 	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_dir_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultKernelDirCacheTtlInSeconds, mountConfig.FileSystemConfig.KernelDirCacheTtlInSeconds)
+	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 }
