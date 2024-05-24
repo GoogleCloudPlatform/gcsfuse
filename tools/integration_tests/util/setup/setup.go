@@ -258,6 +258,14 @@ func ParseSetUpFlags() {
 	}
 }
 
+func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
+	flag.Parse()
+
+	if !*integrationTest {
+		t.SkipNow()
+	}
+}
+
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 
