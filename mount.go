@@ -133,7 +133,7 @@ be interacting with the file system.`)
 	}
 
 	fsName := bucketName
-	if bucketName == "" || bucketName == "_" {
+	if isDynamicMount(bucketName) {
 		// mounting all the buckets at once
 		fsName = "gcsfuse"
 	}
