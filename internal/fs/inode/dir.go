@@ -879,7 +879,7 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 
 func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	// prevDirListingTimeStamp = nil means listing has not happened yet, and we should
-	// invalidate the if any already.
+	// invalidate for clean start.
 	if d.prevDirListingTimeStamp == nil {
 		return true
 	}

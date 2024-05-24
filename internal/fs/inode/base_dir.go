@@ -77,7 +77,7 @@ func NewBaseDirInode(
 		buckets:       make(map[string]gcsx.SyncerBucket),
 	}
 	typed.lc.Init(id)
-	typed.mu = locker.NewRW(name.GcsObjectName(), func() {})
+	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
 
 	d = typed
 	return

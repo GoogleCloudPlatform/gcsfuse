@@ -748,13 +748,15 @@ func (t *DirTest) ReadDescendants_NonEmpty() {
 }
 
 func (t *DirTest) ReadEntries_Empty() {
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
-	d := t.in.(*dirInode)
-	AssertNe(nil, d)
-	AssertNe(nil, &d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
@@ -777,6 +779,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	// Set up the symlink target.
 	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -804,9 +811,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
-	d := t.in.(*dirInode)
-	AssertNe(nil, d)
-	AssertNe(nil, &d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -832,6 +838,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	// Set up the symlink target.
 	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -864,9 +875,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
-	d := t.in.(*dirInode)
-	AssertNe(nil, d)
-	AssertNe(nil, &d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -879,6 +889,11 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	// Create a backing object for a file.
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read the directory, priming the type cache.
 	_, err = t.readAllEntries()
@@ -910,9 +925,8 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	ExpectEq(dirObjName, result.MinObject.Name)
 
-	d := t.in.(*dirInode)
-	AssertNe(nil, d)
-	AssertNe(nil, &d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) CreateChildFile_DoesntExist() {
