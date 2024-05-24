@@ -885,5 +885,5 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	}
 
 	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
-	return cachedDuration > ttl
+	return cachedDuration >= ttl
 }

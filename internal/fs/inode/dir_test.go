@@ -1467,7 +1467,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
-	AssertEq(true, shouldInvalidate)
+	AssertEq(false, shouldInvalidate)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
@@ -1479,7 +1479,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 	// Check for 1s ttl.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
-	AssertEq(false, shouldInvalidate)
+	AssertEq(true, shouldInvalidate)
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {

@@ -452,7 +452,7 @@ func (t *FlagsTest) Test_KernelListCacheTtlSecs() {
 
 	f := parseArgs(t, args)
 
-	assert.Equal(t.T(), -1, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), int64(-1), f.KernelListCacheTtlSeconds)
 }
 
 func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
@@ -462,5 +462,5 @@ func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
 
 	f := parseArgs(t, args)
 
-	assert.Equal(t.T(), 9223372036, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), int64(9223372036), f.KernelListCacheTtlSeconds)
 }
