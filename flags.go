@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -88,7 +89,7 @@ func newApp() (app *cli.App) {
 				Name:  "config-file",
 				Value: "",
 				Usage: "The path to the config file where all gcsfuse related config needs to be specified. " +
-					"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.",
+						"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.",
 			},
 
 			/////////////////////////
@@ -143,7 +144,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: config.IgnoreInterruptsFlagName,
 				Usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). " +
-					"This prevents those signals from immediately terminating gcsfuse inflight operations.",
+						"This prevents those signals from immediately terminating gcsfuse inflight operations.",
 			},
 
 			/////////////////////////
@@ -153,9 +154,9 @@ func newApp() (app *cli.App) {
 			cli.StringFlag{
 				Name: "custom-endpoint",
 				Usage: "Specifies an alternative custom endpoint for fetching data. Should only be used for testing. " +
-					"The custom endpoint must support the equivalent resources and operations as the GCS " +
-					"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
-					"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.",
+						"The custom endpoint must support the equivalent resources and operations as the GCS " +
+						"JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified, " +
+						"GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.",
 			},
 
 			cli.BoolFlag{
@@ -212,7 +213,7 @@ func newApp() (app *cli.App) {
 				Name:  "max-retry-sleep",
 				Value: 30 * time.Second,
 				Usage: "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend." +
-					" Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.",
+						" Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.",
 			},
 
 			cli.IntFlag{
@@ -254,22 +255,22 @@ func newApp() (app *cli.App) {
 				Name:  "temp-dir",
 				Value: "",
 				Usage: "Path to the temporary directory where writes are staged prior to" +
-					" upload to Cloud Storage. (default: system default, likely /tmp)",
+						" upload to Cloud Storage. (default: system default, likely /tmp)",
 			},
 
 			cli.StringFlag{
 				Name:  "client-protocol",
 				Value: string(mountpkg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
-					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.",
+						"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.",
 			},
 
 			cli.IntFlag{
 				Name:  "max-conns-per-host",
 				Value: 0,
 				Usage: "The max number of TCP connections allowed per server. This is " +
-					"effective when --client-protocol is set to 'http1'. The default value" +
-					" 0 indicates no limit on TCP connections (limited by the machine specifications)",
+						"effective when --client-protocol is set to 'http1'. The default value" +
+						" 0 indicates no limit on TCP connections (limited by the machine specifications)",
 			},
 
 			cli.IntFlag{
@@ -281,9 +282,9 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "enable-nonexistent-type-cache",
 				Usage: "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType" +
-					" will be created. This also means new file/dir created might not be seen. For example, if this" +
-					" flag is set, and metadata-cache:ttl-secs (in config-file) or flag type-cache-ttl are set, then if we create the same file/node" +
-					" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
+						" will be created. This also means new file/dir created might not be seen. For example, if this" +
+						" flag is set, and metadata-cache:ttl-secs (in config-file) or flag type-cache-ttl are set, then if we create the same file/node" +
+						" in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.",
 			},
 
 			/////////////////////////
@@ -306,7 +307,7 @@ func newApp() (app *cli.App) {
 				Name:  "log-file",
 				Value: "",
 				Usage: "The file for storing logs that can be parsed by fluentd. When not provided," +
-					" plain text logs are printed to stdout.",
+						" plain text logs are printed to stdout.",
 			},
 
 			cli.StringFlag{
@@ -318,7 +319,7 @@ func newApp() (app *cli.App) {
 			cli.BoolFlag{
 				Name: "experimental-enable-json-read",
 				Usage: "By default, GCSFuse uses the GCS XML API to get and read objects. " +
-					"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
+						"When this flag is specified, GCSFuse uses the GCS JSON API instead.",
 			},
 
 			/////////////////////////
@@ -328,7 +329,7 @@ func newApp() (app *cli.App) {
 			cli.BoolTFlag{
 				Name: "debug_fuse_errors",
 				Usage: "If false, fuse errors will not be logged to the console (in case of --foreground) " +
-					"or the log-file (if specified)",
+						"or the log-file (if specified)",
 			},
 
 			cli.BoolFlag{
@@ -445,6 +446,30 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 
 	err = c.Set(flagKey, resolvedPath)
 	return
+}
+
+func resolveFilePathViper(key string, path *string) error {
+	resolvedPath, err := util.GetResolvedPath(*path)
+	if err != nil {
+		return err
+	}
+	if *path != resolvedPath {
+		logger.Infof("Value of [%s] resolved from [%s] to [%s]", key, *c, resolvedPath)
+		*path = resolvedPath
+	}
+	return nil
+}
+
+func resolvePathsViper(c *cfg.Config) (err error) {
+	if err := resolveFilePathViper("log-file", &c.Logging.FilePath); err != nil {
+		return fmt.Errorf("resolving for log-file: %w", err)
+	}
+
+	err = resolveFilePathViper("key-file", &c.GcsConnection.Auth.KeyFile)
+	if err != nil {
+		return fmt.Errorf("resolving for key-file: %w", err)
+	}
+
 }
 
 // For parent process: it only resolves the path with respect to home folder.
