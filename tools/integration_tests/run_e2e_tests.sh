@@ -48,6 +48,7 @@ TEST_DIR_PARALLEL=(
   "implicit_dir"
   "interrupt"
   "operations"
+  "metadata_prefetch"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(

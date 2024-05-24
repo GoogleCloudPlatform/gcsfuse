@@ -24,21 +24,21 @@ import (
 )
 
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
+	return MountGcsfuseForBucket(setup.TestBucket(), flags)
+}
+
+func MountGcsfuseForBucket(bkt string, flags []string) error {
 	defaultArg := []string{"--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
 		"--log-format=text",
-		setup.TestBucket(),
+		bkt,
 		setup.MntDir()}
 
-	for i := 0; i < len(defaultArg); i++ {
-		flags = append(flags, defaultArg[i])
-	}
+	flags = append(flags, defaultArg...)
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
-
-	return err
+	return mounting.MountGcsfuse(setup.BinFile(), flags)
 }
 
 func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCode int) {
