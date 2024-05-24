@@ -26,6 +26,8 @@ type BucketType int
 
 // BucketType enum values.
 const (
+	// A default value of "nil" indicates that the bucket
+	// type has not been specified.
 	Nil BucketType = iota
 	NonHierarchical
 	Hierarchical
