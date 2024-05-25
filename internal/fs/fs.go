@@ -176,6 +176,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
+		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -342,8 +343,14 @@ type fileSystem struct {
 	enableNonexistentTypeCache bool
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
-	renameDirLimit             int64
-	sequentialReadSizeMb       int32
+
+	// kernelListCacheTTL specifies the duration to keep the readdir response cached
+	// in kernel. After ttl, gcsfuse, (filesystem) on next opendir call (just before as part
+	// of next list call) from user, asks the kernel to evict the old cache entries.
+	kernelListCacheTTL time.Duration
+
+	renameDirLimit       int64
+	sequentialReadSizeMb int32
 
 	// The user and group owning everything in the file system.
 	uid uint32
@@ -2148,6 +2155,19 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
+	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
+	if fs.kernelListCacheTTL > 0 {
+
+		// Taking RLock() since ShouldInvalidateKernelListCache only reads the DirInode
+		// properties, no modification.
+		in.RLock()
+		// Invalidates the kernel list-cache once the last cached response is out of
+		// kernelListCacheTTL.
+		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)
+		in.RUnlock()
+
+		op.CacheDir = true
+	}
 	return
 }
 

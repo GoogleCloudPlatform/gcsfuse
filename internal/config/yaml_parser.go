@@ -108,6 +108,14 @@ func (grpcClientConfig *GrpcClientConfig) validate() error {
 	return nil
 }
 
+func (fileSystemConfig *FileSystemConfig) validate() error {
+	err := IsTtlInSecsValid(fileSystemConfig.KernelListCacheTtlSeconds)
+	if err != nil {
+		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
+	}
+	return nil
+}
+
 func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig = NewMountConfig()
 
@@ -155,6 +163,10 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 
 	if err = mountConfig.GrpcClientConfig.validate(); err != nil {
 		return mountConfig, fmt.Errorf("error parsing grpc-config: %w", err)
+	}
+
+	if err = mountConfig.FileSystemConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing file-system config: %w", err)
 	}
 
 	return

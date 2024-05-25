@@ -15,8 +15,10 @@
 package inode
 
 import (
-	"sync"
 	"syscall"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse"
@@ -49,7 +51,7 @@ type baseDirInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu sync.Mutex
+	mu locker.RWLocker
 
 	lc lookupCount
 
@@ -75,6 +77,7 @@ func NewBaseDirInode(
 		buckets:       make(map[string]gcsx.SyncerBucket),
 	}
 	typed.lc.Init(id)
+	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
 
 	d = typed
 	return
@@ -90,6 +93,14 @@ func (d *baseDirInode) Lock() {
 
 func (d *baseDirInode) Unlock() {
 	d.mu.Unlock()
+}
+
+func (d *baseDirInode) RLock() {
+	d.mu.RLock()
+}
+
+func (d *baseDirInode) RUnlock() {
+	d.mu.RUnlock()
 }
 
 // LockForChildLookup takes exclusive lock on inode when the inode's child is
@@ -224,4 +235,10 @@ func (d *baseDirInode) DeleteChildDir(
 func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
 	// Base directory can not contain local files.
 	return nil
+}
+
+func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
+	// Keeping the default behavior although list operation is not supported
+	// for baseDirInode.
+	return true
 }

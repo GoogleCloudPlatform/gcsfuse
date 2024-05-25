@@ -237,6 +237,15 @@ func newApp() (app *cli.App) {
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
+			cli.Int64Flag{
+				Name:  config.KernelListCacheTtlFlagName,
+				Value: config.DefaultKernelListCacheTtlSeconds,
+				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache." +
+					"If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation " +
+					"by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. " +
+					"Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.",
+			},
+
 			cli.DurationFlag{
 				Name:  "http-client-timeout",
 				Usage: "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout. ",
@@ -412,6 +421,7 @@ type flagStorage struct {
 	StatCacheCapacity          int
 	StatCacheTTL               time.Duration
 	TypeCacheTTL               time.Duration
+	KernelListCacheTtlSeconds  int64
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -556,13 +566,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		HttpClientTimeout: c.Duration("http-client-timeout"),
-		MaxRetryDuration:  c.Duration("max-retry-duration"),
-		RetryMultiplier:   c.Float64("retry-multiplier"),
+		MaxRetrySleep:             c.Duration("max-retry-sleep"),
+		StatCacheCapacity:         c.Int("stat-cache-capacity"),
+		StatCacheTTL:              c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:              c.Duration("type-cache-ttl"),
+		KernelListCacheTtlSeconds: c.Int64(config.KernelListCacheTtlFlagName),
+		HttpClientTimeout:         c.Duration("http-client-timeout"),
+		MaxRetryDuration:          c.Duration("max-retry-duration"),
+		RetryMultiplier:           c.Float64("retry-multiplier"),
 		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
 		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
@@ -627,7 +638,11 @@ func validateFlags(flags *flagStorage) (err error) {
 		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)
 	}
 
-	return nil
+	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {
+		return fmt.Errorf("kernelListCacheTtlSeconds: %w", err)
+	}
+
+	return
 }
 
 // A cli.Generic that can be used with cli.GenericFlag to obtain an int flag

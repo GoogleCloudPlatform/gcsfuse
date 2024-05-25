@@ -14,8 +14,23 @@
 
 package config
 
-const IgnoreInterruptsFlagName = "ignore-interrupts"
-const AnonymousAccess = "anonymous-access"
+import (
+	"fmt"
+	"math"
+	"time"
+)
+
+const (
+	IgnoreInterruptsFlagName   = "ignore-interrupts"
+	AnonymousAccess            = "anonymous-access"
+	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
+	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
+
+	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
+	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
+	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
+)
 
 // OverrideWithLoggingFlags overwrites the configs with the flag values if the
 // config values are empty.
@@ -60,6 +75,40 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 	}
 }
 
+// OverrideWithKernelListCacheTtlFlag overwrites the kernel-list-cache-ttl-secs config
+// with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
+func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
+	if c.IsSet(KernelListCacheTtlFlagName) {
+		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
+	}
+}
+
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
 	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
+}
+
+// IsTtlInSecsValid return nil error if ttlInSecs is valid.
+func IsTtlInSecsValid(ttlInSecs int64) error {
+	if ttlInSecs < -1 {
+		return fmt.Errorf(TtlInSecsInvalidValueError)
+	}
+
+	if ttlInSecs > MaxSupportedTtlInSeconds {
+		return fmt.Errorf(TtlInSecsTooHighError)
+	}
+
+	return nil
+}
+
+func ListCacheTtlSecsToDuration(secs int64) time.Duration {
+	err := IsTtlInSecsValid(secs)
+	if err != nil {
+		panic(fmt.Sprintf("invalid argument: %d, %v", secs, err))
+	}
+
+	if secs == -1 {
+		return MaxSupportedTtl
+	}
+
+	return time.Duration(secs * int64(time.Second))
 }

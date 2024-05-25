@@ -16,7 +16,6 @@ package config
 
 import (
 	"math"
-	"time"
 )
 
 const (
@@ -31,9 +30,6 @@ const (
 	// The constant value has been chosen deliberately
 	// to be improbable for a user to explicitly set.
 	TtlInSecsUnsetSentinel int64 = math.MinInt64
-
-	// The maximum multiple of seconds representable by time.Duration.
-	MaxSupportedTtlInSeconds int64 = int64(math.MaxInt64 / int64(time.Second))
 
 	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
 	// The value is set at the size needed for about 21k type-cache entries,
@@ -59,6 +55,8 @@ const (
 	MetadataPrefetchOnMountAsynchronous string = "async"
 	// DefaultMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchOnMountDisabled.
 	DefaultMetadataPrefetchOnMount = MetadataPrefetchOnMountDisabled
+
+	DefaultKernelListCacheTtlSeconds int64 = 0
 )
 
 type WriteConfig struct {
@@ -99,8 +97,9 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
-	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
-	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
+	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
+	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type FileCacheConfig struct {
@@ -190,5 +189,9 @@ func NewMountConfig() *MountConfig {
 		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
+
+	mountConfig.FileSystemConfig = FileSystemConfig{
+		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
+	}
 	return mountConfig
 }

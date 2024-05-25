@@ -29,7 +29,6 @@ type YamlParserTest struct {
 func TestYamlParserSuite(t *testing.T) {
 	suite.Run(t, new(YamlParserTest))
 }
-
 func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.NotNil(t, mountConfig)
 	assert.False(t, mountConfig.CreateEmptyFile)
@@ -48,6 +47,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
+	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -262,4 +262,32 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml")
+
+	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsInvalidValueError))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsupportedLargeKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml")
+
+	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsTooHighError))
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_list_cache_ttl.yaml")
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/valid_kernel_list_cache_ttl.yaml")
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), int64(10), mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 }

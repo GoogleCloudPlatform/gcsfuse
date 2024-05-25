@@ -75,6 +75,7 @@ func (t *FlagsTest) Defaults() {
 	assert.Equal(t.T(), -1, f.Gid)
 	assert.False(t.T(), f.ImplicitDirs)
 	assert.False(t.T(), f.IgnoreInterrupts)
+	assert.Equal(t.T(), config.DefaultKernelListCacheTtlSeconds, f.KernelListCacheTtlSeconds)
 
 	// GCS
 	assert.Equal(t.T(), "", f.KeyFile)
@@ -186,6 +187,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--stat-cache-capacity=8192",
 		"--max-idle-conns-per-host=100",
 		"--max-conns-per-host=100",
+		"--kernel-list-cache-ttl-secs=234",
 	}
 
 	f := parseArgs(t, args)
@@ -196,6 +198,7 @@ func (t *FlagsTest) DecimalNumbers() {
 	assert.Equal(t.T(), 8192, f.StatCacheCapacity)
 	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
 	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
+	assert.Equal(t.T(), 234, f.KernelListCacheTtlSeconds)
 }
 
 func (t *FlagsTest) OctalNumbers() {
@@ -440,4 +443,24 @@ func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
 	assert.Equal(t.T(), nil, err)
 	assert.Equal(t.T(), "", mountConfig.LogConfig.FilePath)
 	assert.EqualValues(t.T(), "", mountConfig.CacheDir)
+}
+
+func (t *FlagsTest) Test_KernelListCacheTtlSecs() {
+	args := []string{
+		"--kernel-list-cache-ttl-secs=-1",
+	}
+
+	f := parseArgs(t, args)
+
+	assert.Equal(t.T(), int64(-1), f.KernelListCacheTtlSeconds)
+}
+
+func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
+	args := []string{
+		"--kernel-list-cache-ttl-secs=9223372036",
+	}
+
+	f := parseArgs(t, args)
+
+	assert.Equal(t.T(), int64(9223372036), f.KernelListCacheTtlSeconds)
 }
