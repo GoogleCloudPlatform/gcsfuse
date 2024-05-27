@@ -467,10 +467,12 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	return
 }
 
-func (b *bucketHandle) DeleteFolder(context.Context,
-	*controlpb.DeleteFolderRequest,
-	...gax.CallOption) error {
-	return nil
+func (b *bucketHandle) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
+	err := b.controlClient.DeleteFolder(ctx, req, opts...)
+
+	return err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

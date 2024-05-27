@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -852,8 +853,22 @@ func (d *dirInode) DeleteChildDir(
 
 	if err != nil {
 		err = fmt.Errorf("DeleteObject: %w", err)
-		return
 	}
+
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		err = d.bucket.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
+			Name: "projects/_/buckets/" + d.bucket.Name() + "/folders/" + childName.GcsObjectName(),
+		})
+		if err != nil {
+			err = fmt.Errorf("DeleteFolder: %w", err)
+			return
+		}
+	} else {
+		if err != nil {
+			return
+		}
+	}
+
 	d.cache.Erase(name)
 
 	return
