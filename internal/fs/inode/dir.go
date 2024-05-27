@@ -861,12 +861,11 @@ func (d *dirInode) DeleteChildDir(
 		})
 		if err != nil {
 			err = fmt.Errorf("DeleteFolder: %w", err)
-			return
 		}
-	} else {
-		if err != nil {
-			return
-		}
+	}
+
+	if err != nil {
+		return
 	}
 
 	d.cache.Erase(name)
