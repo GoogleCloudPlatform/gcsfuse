@@ -161,10 +161,9 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
+	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	if !testing.Short() {
