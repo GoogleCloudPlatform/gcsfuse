@@ -164,7 +164,5 @@ func TestMain(m *testing.M) {
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 	}
 
-	// Delete objects from bucket after testing.
-	// setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 	os.Exit(successCode)
 }
