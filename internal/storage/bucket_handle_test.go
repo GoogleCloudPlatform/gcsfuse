@@ -1249,3 +1249,29 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectExit() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	testSuite.bucketHandle.controlClient = mockClient
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), &controlpb.DeleteFolderRequest{
+		Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName,
+	})
+
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectNotExit() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("mock error"))
+	testSuite.bucketHandle.controlClient = mockClient
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), &controlpb.DeleteFolderRequest{
+		Name: "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName,
+	})
+
+	assert.Equal(testSuite.T(), err.Error(), "mock error")
+}
