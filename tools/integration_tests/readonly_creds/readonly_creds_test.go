@@ -67,6 +67,6 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
 	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	client.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

@@ -97,6 +97,6 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	client.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

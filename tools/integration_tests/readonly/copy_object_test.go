@@ -27,7 +27,7 @@ import (
 // Copy srcFile in testBucket/Test/b/b.txt destination.
 func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 	// cp without destination file creates a destination file and create workflow is already covered separately.
-	copyFile := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	copyFile := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
 	// cp without destination file creates a destination file and create workflow is already covered separately.
 	// Checking if destination object exist.
@@ -43,14 +43,14 @@ func checkIfFileCopyFailed(srcFilePath string, t *testing.T) {
 
 // Copy testBucket/Test1.txt to testBucket/Test/b/b.txt
 func TestCopyFile(t *testing.T) {
-	file := path.Join(setup.MntDir(), FileNameInTestBucket)
+	file := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	checkIfFileCopyFailed(file, t)
 }
 
 // Copy testBucket/Test/a.txt to testBucket/Test/b/b.txt
 func TestCopyFileFromBucketDirectory(t *testing.T) {
-	file := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	file := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileCopyFailed(file, t)
 }
@@ -65,16 +65,16 @@ func checkIfDirCopyFailed(srcDirPath string, destDirPath string, t *testing.T) {
 
 // Copy testBucket/Test to testBucket/Test/b
 func TestCopyDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
-	destDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	srcDir := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
+	destDir := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
 	checkIfDirCopyFailed(srcDir, destDir, t)
 }
 
 // Copy testBucket/Test/b to testBucket
 func TestCopySubDirectory(t *testing.T) {
-	srcDir := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
-	destDir := path.Join(setup.MntDir())
+	srcDir := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	destDir := path.Join(setup.MntDir(), TestDirForReadOnlyTest)
 
 	checkIfDirCopyFailed(srcDir, destDir, t)
 }

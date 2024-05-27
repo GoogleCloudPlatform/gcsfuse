@@ -16,19 +16,24 @@
 package readonly_test
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+const TestDirForReadOnlyTest = "testDirForReadOnlyTest"
 const DirectoryNameInTestBucket = "Test"         //  testBucket/Test
 const FileNameInTestBucket = "Test1.txt"         //  testBucket/Test1.txt
 const SubDirectoryNameInTestBucket = "b"         //  testBucket/Test/b
@@ -44,6 +49,49 @@ const ContentInFileInDirectoryTestBucket = "This is from directory Test file a\n
 const ContentInFileInSubDirectoryTestBucket = "This is from directory Test/b file b\n"
 const RenameFile = "rename.txt"
 const RenameDir = "rename"
+
+func createTestDataForReadOnlyTests() {
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	// Define the text to write and the files to create
+	fileContents := []struct {
+		text string
+		file string
+		path string // Optional path within the bucket
+	}{
+		{"This is from directory Test file a", "a.txt", TestDirForReadOnlyTest + "/Test/"},
+		{"This is from file Test1", "Test1.txt", TestDirForReadOnlyTest + "/"},
+		{"This is from directory Test/b file b", "b.txt", TestDirForReadOnlyTest + "/Test/b/"},
+	}
+
+	// Create storage client before running tests.
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	client, err := client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+	defer cancel()
+	defer client.Close()
+	bucket := client.Bucket(setup.TestBucket())
+
+	// Loop through the file data and create/upload files
+	for _, data := range fileContents {
+		// Create a storage writer for the destination object
+		objectPath := fmt.Sprintf("%s%s", data.path, data.file)
+		object := bucket.Object(objectPath)
+		writer := object.NewWriter(ctx)
+
+		// Write the text to the object
+		if _, err := writer.Write([]byte(data.text + "\n")); err != nil {
+			log.Printf("Error writing to object %s: %v\n", objectPath, err)
+		}
+		err = writer.Close()
+		if err != nil {
+			log.Printf("Error in closing writer: %v", err)
+		}
+	}
+}
 
 func checkErrorForObjectNotExist(err error, t *testing.T) {
 	if !strings.Contains(err.Error(), "no such file or directory") {
@@ -89,11 +137,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Clean the bucket for readonly testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	// Cleanup
+	client.CleanupDirectoryOnGCS(TestDirForReadOnlyTest)
 
-	// Create objects in bucket for testing.
-	setup.RunScriptForTestData("testdata/create_objects.sh", setup.TestBucket())
+	// Create test data.
+	createTestDataForReadOnlyTests()
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
 	setup.RunTestsForMountedDirectoryFlag(m)
@@ -117,6 +165,6 @@ func TestMain(m *testing.M) {
 	}
 
 	// Delete objects from bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
+	// setup.RunScriptForTestData("testdata/delete_objects.sh", setup.TestBucket())
 	os.Exit(successCode)
 }

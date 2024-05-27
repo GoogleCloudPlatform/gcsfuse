@@ -355,15 +355,6 @@ func SetupTestDirectory(testDirName string) string {
 	return testDirPath
 }
 
-// CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
-func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
-	_, err := operations.ExecuteGcloudCommandf("storage rm -r gs://%s", directoryPathOnGCS)
-	if err != nil {
-		log.Printf("Error while cleaning up directory %s from GCS: %v",
-			directoryPathOnGCS, err)
-	}
-}
-
 func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	if MountedDirectory() != "" && TestBucket() != "" {
 		return true
