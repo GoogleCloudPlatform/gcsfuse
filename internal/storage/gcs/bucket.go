@@ -26,8 +26,12 @@ type BucketType int
 
 // BucketType enum values.
 const (
-	NonHierarchical BucketType = iota
+	// A default value of "nil" indicates that the bucket
+	// type has not been specified.
+	Nil BucketType = iota
+	NonHierarchical
 	Hierarchical
+	Unknown
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
