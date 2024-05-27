@@ -202,12 +202,12 @@ The above example was based on greenfield deployments which assumes starting fre
 
 However, if a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory, with the same name, using mkdir on the local instance (or by creating the folder in the WebUI). This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.  These backing objects for directories are special 0-byte objects, which are placeholders for directories and are not are not created by the Cloud Storage CLI tools such as gcloud or gsutil.
 
-So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using `gsutil cp -r` command)
+So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using `gsutil cp -r` command).
 - A/1.txt
 - A/B/2.txt
 - C/3.txt
 
-then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the `mkdir` command (or create these from the WebUI). A user would have to run `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C`
+then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the `mkdir` command (or create these from the WebUI). A user would have to run `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C`.
 At which point they will correctly see:
 - A/
 - A/1.txt
