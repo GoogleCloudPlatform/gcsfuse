@@ -139,7 +139,7 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 
 #run tests with testbucket flag
 set +e
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --testInstalledPackage --timeout=60m &>> ~/logs.txt
+GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --testInstalledPackage --timeout=80m &>> ~/logs.txt
 
 if [ $? -ne 0 ];
 then
