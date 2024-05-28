@@ -132,7 +132,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
 
-	// Set up config file testing metadata-prefetch-on-mount: "async".
+	// Set up config file testing experimental-metadata-prefetch-on-mount: "async".
 	mountConfig4 := config.MountConfig{
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
@@ -140,7 +140,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4, "--metadata-prefetch-on-mount=async"})
+	flags = append(flags, []string{"--config-file=" + filePath4, "--experimental-metadata-prefetch-on-mount=async"})
 
 	return flags
 }

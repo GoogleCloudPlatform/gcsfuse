@@ -437,13 +437,13 @@ func runCLIApp(c *cli.Context) (err error) {
 			return err
 		}
 		if !isDynamicMount(bucketName) {
-			switch flags.MetadataPrefetchOnMount {
-			case config.MetadataPrefetchOnMountSynchronous:
+			switch flags.ExperimentalMetadataPrefetchOnMount {
+			case config.ExperimentalMetadataPrefetchOnMountSynchronous:
 				if err = callListRecursive(mountPoint); err != nil {
 					markMountFailure(err)
 					return err
 				}
-			case config.MetadataPrefetchOnMountAsynchronous:
+			case config.ExperimentalMetadataPrefetchOnMountAsynchronous:
 				go func() {
 					if err := callListRecursive(mountPoint); err != nil {
 						logger.Errorf("Metadata-prefetch failed: %v", err)
