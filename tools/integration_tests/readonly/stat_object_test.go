@@ -32,7 +32,7 @@ func statObject(objPath string, t *testing.T) (file os.FileInfo) {
 }
 
 func TestStatFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  FileNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	file := statObject(filePath, t)
 
@@ -43,7 +43,7 @@ func TestStatFile(t *testing.T) {
 }
 
 func TestStatFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	file := statObject(filePath, t)
 
@@ -54,7 +54,7 @@ func TestStatFileFromBucketDirectory(t *testing.T) {
 }
 
 func TestStatFileFromBucketSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
 	file := statObject(filePath, t)
 
@@ -65,7 +65,7 @@ func TestStatFileFromBucketSubDirectory(t *testing.T) {
 }
 
 func TestStatDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
 
 	dir := statObject(dirPath, t)
 
@@ -76,7 +76,7 @@ func TestStatDirectory(t *testing.T) {
 }
 
 func TestStatSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
 	dir := statObject(dirPath, t)
 
@@ -96,25 +96,25 @@ func checkIfNonExistentObjectFailedToStat(objPath string, t *testing.T) {
 }
 
 func TestStatNotExistingFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNotExist)
 
 	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNotExist)
 
 	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirNotExist)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirNotExist)
 
 	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, DirNotExist)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, DirNotExist)
 
 	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }
