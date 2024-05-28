@@ -270,7 +270,7 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
-func (b *fastStatBucket ) DeleteFolder(ctx context.Context, folderName string) error {
+func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
 	b.invalidate(folderName)
 	err := b.wrapped.DeleteFolder(ctx, folderName)
 	return err
