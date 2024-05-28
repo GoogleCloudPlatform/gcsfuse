@@ -57,7 +57,7 @@ func (s *enableEmptyManagedFoldersTrue) Teardown(t *testing.T) {
 	bucket, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForEmptyManagedFoldersTest)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder1), setup.TestBucket())
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, EmptyManagedFolder2), setup.TestBucket())
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(bucket, testDir))
 }
 
 ////////////////////////////////////////////////////////////////////////

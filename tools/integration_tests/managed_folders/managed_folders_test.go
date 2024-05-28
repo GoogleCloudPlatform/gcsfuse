@@ -16,11 +16,15 @@
 package managed_folders
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -39,7 +43,9 @@ var (
 	// Mount directory is where our tests run.
 	mountDir string
 	// Root directory is the directory to be unmounted.
-	rootDir string
+	rootDir       string
+	storageClient *storage.Client
+	ctx           context.Context
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -48,6 +54,20 @@ var (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+
+	ctx := context.Background()
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err := client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+
+	defer cancel()
+	defer storageClient.Close()
+
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

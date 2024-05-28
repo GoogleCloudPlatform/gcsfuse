@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
@@ -35,6 +36,11 @@ const PrefixFileInExplicitDirInImplicitSubDir = "fileInExplicitDirInImplicitSubD
 const NumberOfFilesInExplicitDirInImplicitSubDir = 1
 const NumberOfFilesInExplicitDirInImplicitDir = 1
 const DirForImplicitDirTests = "dirForImplicitDirTests"
+
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
@@ -50,6 +56,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 
+	// Close storage client and release resources.
+	defer cancel()
+	defer storageClient.Close()
+
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
 	if !testing.Short() {
@@ -58,10 +68,7 @@ func TestMain(m *testing.M) {
 
 	successCode := implicit_and_explicit_dir_setup.RunTestsForImplicitDirAndExplicitDir(flagsSet, m)
 
-	// Close storage client and release resources.
-	storageClient.Close()
-	cancel()
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

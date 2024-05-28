@@ -15,6 +15,7 @@
 package setup
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -28,8 +29,10 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
+	"google.golang.org/api/iterator"
 )
 
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
@@ -370,11 +373,24 @@ func SetupTestDirectory(testDirName string) string {
 }
 
 // CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
-func CleanupDirectoryOnGCS(directoryPathOnGCS string) {
-	_, err := operations.ExecuteGcloudCommandf("storage rm -r gs://%s", directoryPathOnGCS)
-	if err != nil {
-		log.Printf("Error while cleaning up directory %s from GCS: %v",
-			directoryPathOnGCS, err)
+func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, directoryPathOnGCS string) {
+	if directoryPathOnGCS[len(directoryPathOnGCS)-1] == '/' {
+		directoryPathOnGCS = directoryPathOnGCS[:len(directoryPathOnGCS)-1]
+	}
+
+	bucket := client.Bucket(TestBucket())
+	it := bucket.Objects(ctx, &storage.Query{Prefix: directoryPathOnGCS + "/"})
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break // No more objects found
+		}
+		if err != nil {
+			log.Printf("error iterating objects: %v", err)
+		}
+		if err := bucket.Object(attrs.Name).Delete(ctx); err != nil {
+			log.Printf("error deleting object %s: %v", attrs.Name, err)
+		}
 	}
 }
 

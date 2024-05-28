@@ -15,6 +15,7 @@
 package managed_folders
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -25,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -113,12 +115,12 @@ func createDirectoryStructureForNonEmptyManagedFolders(t *testing.T) {
 	operations.CopyFileInBucket(path.Join("/tmp", FileInNonEmptyManagedFoldersTest), testDir, bucket, t)
 }
 
-func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
+func cleanup(ctx context.Context, client *storage.Client, bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, iam_role, t)
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, iam_role, t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
-	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	setup.CleanupDirectoryOnGCS(ctx, client, path.Join(bucket, testDir))
 }
 
 func listNonEmptyManagedFolders(t *testing.T) {

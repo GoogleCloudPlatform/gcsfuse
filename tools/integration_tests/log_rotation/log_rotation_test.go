@@ -17,11 +17,16 @@
 package log_rotation
 
 import (
+	"context"
+	"log"
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -38,6 +43,9 @@ const (
 
 var logDirPath string
 var logFilePath string
+
+var storageClient *storage.Client
+var ctx context.Context
 
 func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool,
 	logFilePath string) config.MountConfig {
@@ -60,6 +68,19 @@ func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress b
 ////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
+	ctx := context.Background()
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err := client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Printf("Error creating storage client: %v\n", err)
+		os.Exit(1)
+	}
+
+	defer cancel()
+	defer storageClient.Close()
+
 	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
@@ -97,6 +118,6 @@ func TestMain(m *testing.M) {
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
