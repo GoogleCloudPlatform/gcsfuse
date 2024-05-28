@@ -41,11 +41,12 @@ const (
 	logFileCount       = activeLogFileCount + backupLogFileCount
 )
 
-var logDirPath string
-var logFilePath string
-
-var storageClient *storage.Client
-var ctx context.Context
+var (
+	logDirPath    string
+	logFilePath   string
+	storageClient *storage.Client
+	ctx           context.Context
+)
 
 func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool,
 	logFilePath string) config.MountConfig {
@@ -68,6 +69,8 @@ func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress b
 ////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
+	setup.ParseSetUpFlags()
+
 	ctx := context.Background()
 	var cancel context.CancelFunc
 
@@ -80,8 +83,6 @@ func TestMain(m *testing.M) {
 
 	defer cancel()
 	defer storageClient.Close()
-
-	setup.ParseSetUpFlags()
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

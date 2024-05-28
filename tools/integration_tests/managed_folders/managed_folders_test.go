@@ -68,7 +68,6 @@ func TestMain(m *testing.M) {
 	defer cancel()
 	defer storageClient.Close()
 
-
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	if setup.MountedDirectory() != "" {

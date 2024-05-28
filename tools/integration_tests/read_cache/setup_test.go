@@ -134,7 +134,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	defer cancel()
 	defer storageClient.Close()
 
