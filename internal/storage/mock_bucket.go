@@ -12,8 +12,6 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -327,9 +325,7 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 	return
 }
 
-func (m *mockBucket) DeleteFolder(ctx context.Context,
-		req *controlpb.DeleteFolderRequest,
-		opts ...gax.CallOption) (o0 error) {
+func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 

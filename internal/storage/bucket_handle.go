@@ -83,8 +83,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -146,7 +146,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -467,10 +467,31 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	return
 }
 
-func (b *bucketHandle) DeleteFolder(ctx context.Context,
-	req *controlpb.DeleteFolderRequest,
-	opts ...gax.CallOption) error {
-	err := b.controlClient.DeleteFolder(ctx, req, opts...)
+func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	var callOptions []gax.CallOption
+	var err1, err2 error
+
+	err1 = b.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{
+			Name:       folderName,
+			Generation: 0, // Delete the latest version of object named after dir.
+		})
+
+	if err1 != nil {
+		err = fmt.Errorf("DeleteObject: %w", err1)
+	}
+
+	// In a hierarchical namespace, directory within a bucket is folder type.
+	if b.BucketType() == gcs.Hierarchical {
+		err2 = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
+			Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		}, callOptions...)
+
+		if err2 != nil {
+			err = fmt.Errorf("%w :DeleteFolder: %w", err, err2)
+		}
+	}
 
 	return err
 }

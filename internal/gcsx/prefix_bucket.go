@@ -20,8 +20,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -214,13 +212,6 @@ func (b *prefixBucket) DeleteObject(
 	return
 }
 
-func (b *prefixBucket) DeleteFolder(ctx context.Context,
-	req *controlpb.DeleteFolderRequest,
-	opts ...gax.CallOption) (err error) {
-	mReq := new(controlpb.DeleteFolderRequest)
-	*mReq = *req
-	mReq.Name = b.wrappedName(req.Name)
-
-	err = b.wrapped.DeleteFolder(ctx, req, opts...)
-	return err
+func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	return b.wrapped.DeleteFolder(ctx, folderName)
 }

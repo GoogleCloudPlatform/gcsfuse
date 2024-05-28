@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -844,25 +843,7 @@ func (d *dirInode) DeleteChildDir(
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err = d.bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
-
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
-	}
-
-	if d.bucket.BucketType() == gcs.Hierarchical {
-		err = d.bucket.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-			Name: "projects/_/buckets/" + d.bucket.Name() + "/folders/" + childName.GcsObjectName(),
-		})
-		if err != nil {
-			err = fmt.Errorf("DeleteFolder: %w", err)
-		}
-	}
+	err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
 
 	if err != nil {
 		return

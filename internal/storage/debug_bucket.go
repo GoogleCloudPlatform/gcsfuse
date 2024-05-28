@@ -20,8 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -232,12 +230,10 @@ func (b *debugBucket) DeleteObject(
 	return
 }
 
-func (b *debugBucket) DeleteFolder(ctx context.Context,
-	req *controlpb.DeleteFolderRequest,
-	opts ...gax.CallOption) (err error) {
-	id, desc, start := b.startRequest("DeleteFolder(%q)", req.Name)
+func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	id, desc, start := b.startRequest("DeleteFolder(%q)", folderName)
 	defer b.finishRequest(id, desc, start, &err)
 
-	err = b.wrapped.DeleteFolder(ctx, req, opts...)
+	err = b.wrapped.DeleteFolder(ctx, folderName)
 	return err
 }

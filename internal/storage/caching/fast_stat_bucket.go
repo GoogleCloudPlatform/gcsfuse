@@ -20,8 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -272,11 +270,9 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
-func (b *fastStatBucket ) DeleteFolder(ctx context.Context,
-		req *controlpb.DeleteFolderRequest,
-		opts ...gax.CallOption) error {
-	b.invalidate(req.Name)
-	err := b.wrapped.DeleteFolder(ctx, req, opts...)
+func (b *fastStatBucket ) DeleteFolder(ctx context.Context, folderName string) error {
+	b.invalidate(folderName)
+	err := b.wrapped.DeleteFolder(ctx, folderName)
 	return err
 }
 

@@ -27,8 +27,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -869,14 +867,12 @@ func (b *bucket) DeleteObject(
 	return
 }
 
-func (b *bucket) DeleteFolder(ctx context.Context,
-	req *controlpb.DeleteFolderRequest,
-	opts ...gax.CallOption) (err error) {
+func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Do we possess the object with the given name?
-	index := b.objects.find(req.Name)
+	index := b.objects.find(folderName)
 	if index == len(b.objects) {
 		return
 	}
