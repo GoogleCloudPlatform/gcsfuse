@@ -122,7 +122,7 @@ func makeGcsfuseArgs(
 			"log_file",
 			"custom_endpoint",
 			"config_file",
-			"metadata_prefetch_on_mount",
+			"experimental_metadata_prefetch_on_mount",
 			"kernel_list_cache_ttl_secs":
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
