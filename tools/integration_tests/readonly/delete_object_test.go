@@ -36,25 +36,25 @@ func checkIfObjDeletionFailed(objPath string, t *testing.T) {
 }
 
 func TestDeleteDir(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket)
+	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteFile(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  FileNameInTestBucket)
+	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteSubDirectory(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)
 }
 
 func TestDeleteFileInDirectory(t *testing.T) {
-	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	objPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfObjDeletionFailed(objPath, t)
 }

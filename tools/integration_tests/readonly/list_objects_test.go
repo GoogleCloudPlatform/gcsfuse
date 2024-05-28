@@ -59,7 +59,7 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 	// testBucket/Test/a.txt -- File
 	// testBucket/Test/b/    -- Dir
 
-	Dir := path.Join(setup.MntDir(), TestDirForReadOnlyTest,  DirectoryNameInTestBucket)
+	Dir := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
 	obj, err := os.ReadDir(Dir)
 	if err != nil {
 		log.Fatal(err)
