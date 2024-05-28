@@ -47,14 +47,14 @@ const (
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 
-	// MetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
-	MetadataPrefetchOnMountDisabled string = "disabled"
-	// MetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	MetadataPrefetchOnMountSynchronous string = "sync"
-	// MetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	MetadataPrefetchOnMountAsynchronous string = "async"
-	// DefaultMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchOnMountDisabled.
-	DefaultMetadataPrefetchOnMount = MetadataPrefetchOnMountDisabled
+	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
+	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
+	// ExperimentalMetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
+	ExperimentalMetadataPrefetchOnMountSynchronous string = "sync"
+	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
+	ExperimentalMetadataPrefetchOnMountAsynchronous string = "async"
+	// DefaultExperimentalMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is ExperimentalMetadataPrefetchOnMountDisabled.
+	DefaultExperimentalMetadataPrefetchOnMount = ExperimentalMetadataPrefetchOnMountDisabled
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 )
