@@ -141,6 +141,5 @@ type Bucket interface {
 		ctx context.Context,
 		req *DeleteObjectRequest) error
 
-
 	DeleteFolder(ctx context.Context, folderName string) error
 }
