@@ -37,7 +37,7 @@ const (
 
 	// MetadataPrefetchOnMountFlag is the name of the commandline flag for enabling
 	// metadata-prefetch mode aka 'ls -R' during mount.
-	MetadataPrefetchOnMountFlag = "metadata-prefetch-on-mount"
+	MetadataPrefetchOnMountFlag = "experimental-metadata-prefetch-on-mount"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.

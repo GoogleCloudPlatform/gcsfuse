@@ -218,7 +218,7 @@ func (t *FlagsTest) Strings() {
 		"--temp-dir=foobar",
 		"--only-dir=baz",
 		"--client-protocol=HTTP2",
-		"--metadata-prefetch-on-mount=async",
+		"--experimental-metadata-prefetch-on-mount=async",
 	}
 
 	f := parseArgs(t, args)
