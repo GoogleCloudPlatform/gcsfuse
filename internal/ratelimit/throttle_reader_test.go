@@ -19,12 +19,10 @@ import (
 	"io"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
-
-	. "github.com/jacobsa/ogletest"
 )
-
-func TestThrottledReader(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -61,6 +59,7 @@ func (ft *funcThrottle) Wait(
 ////////////////////////////////////////////////////////////////////////
 
 type ThrottledReaderTest struct {
+	suite.Suite
 	ctx context.Context
 
 	wrapped  funcReader
@@ -69,12 +68,12 @@ type ThrottledReaderTest struct {
 	reader io.Reader
 }
 
-var _ SetUpInterface = &ThrottledReaderTest{}
+func TestThrottledReaderSuite(t *testing.T) {
+	suite.Run(t, new(ThrottledReaderTest))
+}
 
-func init() { RegisterTestSuite(&ThrottledReaderTest{}) }
-
-func (t *ThrottledReaderTest) SetUp(ti *TestInfo) {
-	t.ctx = ti.Ctx
+func (t *ThrottledReaderTest) SetupTest() {
+	t.ctx = context.Background()
 
 	// Set up the default throttle function.
 	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
@@ -89,19 +88,19 @@ func (t *ThrottledReaderTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ThrottledReaderTest) CallsThrottle() {
+func (t *ThrottledReaderTest) TestCallsThrottle() {
 	const readSize = 17
-	AssertLe(readSize, t.throttle.Capacity())
+	assert.LessOrEqual(t.T(), uint64(readSize), t.throttle.Capacity())
 
 	// Throttle
 	var throttleCalled bool
 	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
-		AssertFalse(throttleCalled)
+		assert.False(t.T(), throttleCalled)
 		throttleCalled = true
 
-		AssertEq(t.ctx.Err(), ctx.Err())
-		AssertEq(t.ctx.Done(), ctx.Done())
-		AssertEq(readSize, tokens)
+		assert.Equal(t.T(), t.ctx.Err(), ctx.Err())
+		assert.Equal(t.T(), t.ctx.Done(), ctx.Done())
+		assert.Equal(t.T(), uint64(readSize), tokens)
 
 		err = errors.New("")
 		return
@@ -110,11 +109,11 @@ func (t *ThrottledReaderTest) CallsThrottle() {
 	// Call
 	_, err := t.reader.Read(make([]byte, readSize))
 
-	ExpectEq("", err.Error())
-	ExpectTrue(throttleCalled)
+	assert.Equal(t.T(), "", err.Error())
+	assert.True(t.T(), throttleCalled)
 }
 
-func (t *ThrottledReaderTest) ThrottleReturnsError() {
+func (t *ThrottledReaderTest) TestThrottleReturnsError() {
 	// Throttle
 	expectedErr := errors.New("taco")
 	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
@@ -125,22 +124,22 @@ func (t *ThrottledReaderTest) ThrottleReturnsError() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 1))
 
-	ExpectEq(0, n)
-	ExpectEq(expectedErr, err)
+	assert.Equal(t.T(), 0, n)
+	assert.EqualError(t.T(), err, expectedErr.Error())
 }
 
-func (t *ThrottledReaderTest) CallsWrapped() {
+func (t *ThrottledReaderTest) TestCallsWrapped() {
 	buf := make([]byte, 16)
-	AssertLe(len(buf), t.throttle.Capacity())
+	assert.LessOrEqual(t.T(), uint64(len(buf)), t.throttle.Capacity())
 
 	// Wrapped
 	var readCalled bool
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertFalse(readCalled)
+		assert.False(t.T(), readCalled)
 		readCalled = true
 
-		AssertEq(&buf[0], &p[0])
-		AssertEq(len(buf), len(p))
+		assert.Equal(t.T(), &buf[0], &p[0])
+		assert.Equal(t.T(), len(buf), len(p))
 
 		err = errors.New("")
 		return
@@ -149,11 +148,11 @@ func (t *ThrottledReaderTest) CallsWrapped() {
 	// Call
 	_, err := t.reader.Read(buf)
 
-	ExpectEq("", err.Error())
-	ExpectTrue(readCalled)
+	assert.Equal(t.T(), "", err.Error())
+	assert.True(t.T(), readCalled)
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsError() {
+func (t *ThrottledReaderTest) TestWrappedReturnsError() {
 	// Wrapped
 	expectedErr := errors.New("taco")
 	t.wrapped.f = func(p []byte) (n int, err error) {
@@ -165,11 +164,11 @@ func (t *ThrottledReaderTest) WrappedReturnsError() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 16))
 
-	ExpectEq(11, n)
-	ExpectEq(expectedErr, err)
+	assert.Equal(t.T(), 11, n)
+	assert.EqualError(t.T(), err, expectedErr.Error())
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsEOF() {
+func (t *ThrottledReaderTest) TestWrappedReturnsEOF() {
 	// Wrapped
 	t.wrapped.f = func(p []byte) (n int, err error) {
 		n = 11
@@ -180,13 +179,13 @@ func (t *ThrottledReaderTest) WrappedReturnsEOF() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 16))
 
-	ExpectEq(11, n)
-	ExpectEq(io.EOF, err)
+	assert.Equal(t.T(), 11, n)
+	assert.EqualError(t.T(), err, io.EOF.Error())
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsFullRead() {
+func (t *ThrottledReaderTest) TestWrappedReturnsFullRead() {
 	const readSize = 17
-	AssertLe(readSize, t.throttle.Capacity())
+	assert.LessOrEqual(t.T(), uint64(readSize), t.throttle.Capacity())
 
 	// Wrapped
 	t.wrapped.f = func(p []byte) (n int, err error) {
@@ -197,18 +196,18 @@ func (t *ThrottledReaderTest) WrappedReturnsFullRead() {
 	// Call
 	n, err := t.reader.Read(make([]byte, readSize))
 
-	ExpectEq(nil, err)
-	ExpectEq(readSize, n)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readSize, n)
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
+func (t *ThrottledReaderTest) TestWrappedReturnsShortRead_CallsAgain() {
 	buf := make([]byte, 16)
-	AssertLe(len(buf), t.throttle.Capacity())
+	assert.LessOrEqual(t.T(), uint64(len(buf)), t.throttle.Capacity())
 
 	// Wrapped
 	var callCount int
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertLt(callCount, 2)
+		assert.Less(t.T(), callCount, 2)
 		switch callCount {
 		case 0:
 			callCount++
@@ -216,8 +215,8 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
 
 		case 1:
 			callCount++
-			AssertEq(&buf[2], &p[0])
-			AssertEq(len(buf)-2, len(p))
+			assert.Equal(t.T(), &buf[2], &p[0])
+			assert.Equal(t.T(), len(buf)-2, len(p))
 			err = errors.New("")
 		}
 
@@ -227,17 +226,17 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_CallsAgain() {
 	// Call
 	_, err := t.reader.Read(buf)
 
-	ExpectEq("", err.Error())
-	ExpectEq(2, callCount)
+	assert.Equal(t.T(), "", err.Error())
+	assert.Equal(t.T(), 2, callCount)
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondReturnsError() {
+func (t *ThrottledReaderTest) TestWrappedReturnsShortRead_SecondReturnsError() {
 	// Wrapped
 	var callCount int
 	expectedErr := errors.New("taco")
 
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertLt(callCount, 2)
+		assert.Less(t.T(), callCount, 2)
 		switch callCount {
 		case 0:
 			callCount++
@@ -255,15 +254,15 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondReturnsError() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 16))
 
-	ExpectEq(2+11, n)
-	ExpectEq(expectedErr, err)
+	assert.Equal(t.T(), 2+11, n)
+	assert.EqualError(t.T(), err, expectedErr.Error())
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondReturnsEOF() {
+func (t *ThrottledReaderTest) TestWrappedReturnsShortRead_SecondReturnsEOF() {
 	// Wrapped
 	var callCount int
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertLt(callCount, 2)
+		assert.Less(t.T(), callCount, 2)
 		switch callCount {
 		case 0:
 			callCount++
@@ -281,15 +280,15 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondReturnsEOF() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 16))
 
-	ExpectEq(2+11, n)
-	ExpectEq(io.EOF, err)
+	assert.Equal(t.T(), 2+11, n)
+	assert.EqualError(t.T(), err, io.EOF.Error())
 }
 
-func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSucceedsInFull() {
+func (t *ThrottledReaderTest) TestWrappedReturnsShortRead_SecondSucceedsInFull() {
 	// Wrapped
 	var callCount int
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertLt(callCount, 2)
+		assert.Less(t.T(), callCount, 2)
 		switch callCount {
 		case 0:
 			callCount++
@@ -306,22 +305,22 @@ func (t *ThrottledReaderTest) WrappedReturnsShortRead_SecondSucceedsInFull() {
 	// Call
 	n, err := t.reader.Read(make([]byte, 16))
 
-	ExpectEq(16, n)
-	ExpectEq(nil, err)
+	assert.Equal(t.T(), 16, n)
+	assert.NoError(t.T(), err)
 }
 
-func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
+func (t *ThrottledReaderTest) TestReadSizeIsAboveThrottleCapacity() {
 	buf := make([]byte, 2048)
-	AssertGt(len(buf), t.throttle.Capacity())
+	assert.Greater(t.T(), uint64(len(buf)), t.throttle.Capacity())
 
 	// Wrapped
 	var readCalled bool
 	t.wrapped.f = func(p []byte) (n int, err error) {
-		AssertFalse(readCalled)
+		assert.False(t.T(), readCalled)
 		readCalled = true
 
-		AssertEq(&buf[0], &p[0])
-		ExpectEq(t.throttle.Capacity(), len(p))
+		assert.Equal(t.T(), &buf[0], &p[0])
+		assert.Equal(t.T(), t.throttle.Capacity(), uint64(len(p)))
 
 		err = errors.New("")
 		return
@@ -330,6 +329,6 @@ func (t *ThrottledReaderTest) ReadSizeIsAboveThrottleCapacity() {
 	// Call
 	_, err := t.reader.Read(buf)
 
-	ExpectEq("", err.Error())
-	ExpectTrue(readCalled)
+	assert.Equal(t.T(), "", err.Error())
+	assert.True(t.T(), readCalled)
 }

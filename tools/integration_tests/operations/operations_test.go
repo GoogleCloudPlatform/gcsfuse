@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
+	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
@@ -118,6 +118,29 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath2})
+
+	mountConfig3 := config.MountConfig{
+		// Run with metadata caches disabled.
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds: 0,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath3})
+
+	// Set up config file testing metadata-prefetch-on-mount: "async".
+	mountConfig4 := config.MountConfig{
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath4, "--metadata-prefetch-on-mount=async"})
 
 	return flags
 }

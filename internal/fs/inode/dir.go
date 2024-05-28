@@ -132,6 +132,23 @@ type DirInode interface {
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
 	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
+
+	// LockForChildLookup takes appropriate kind of lock when an inode's child is
+	// looked up.
+	LockForChildLookup()
+
+	// UnlockForChildLookup unlocks the lock taken with LockForChildLookup.
+	UnlockForChildLookup()
+
+	// ShouldInvalidateKernelListCache tells the filesystem whether kernel list-cache
+	// should be invalidated or not.
+	ShouldInvalidateKernelListCache(ttl time.Duration) bool
+
+	// RLock readonly lock.
+	RLock()
+
+	// RUnlock readonly unlock.
+	RUnlock()
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -168,9 +185,9 @@ type dirInode struct {
 	// Mutable state
 	/////////////////////////
 
-	// A mutex that must be held when calling certain methods. See documentation
-	// for each method.
-	mu locker.Locker
+	// A RW mutex that must be held when calling certain methods. See
+	// documentation for each method.
+	mu locker.RWLocker
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -179,6 +196,12 @@ type dirInode struct {
 	//
 	// GUARDED_BY(mu)
 	cache metadata.TypeCache
+
+	// prevDirListingTimeStamp is the time stamp of previous listing when user asked
+	// (via kernel) the directory listing from the filesystem.
+	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
+	// enabled.
+	prevDirListingTimeStamp *time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -235,7 +258,7 @@ func NewDirInode(
 	typed.lc.Init(id)
 
 	// Set up invariant checking.
-	typed.mu = locker.New(name.GcsObjectName(), typed.checkInvariants)
+	typed.mu = locker.NewRW(name.GcsObjectName(), typed.checkInvariants)
 
 	d = typed
 	return
@@ -384,6 +407,27 @@ func (d *dirInode) Lock() {
 
 func (d *dirInode) Unlock() {
 	d.mu.Unlock()
+}
+
+func (d *dirInode) RLock() {
+	d.mu.RLock()
+}
+
+func (d *dirInode) RUnlock() {
+	d.mu.RUnlock()
+}
+
+// LockForChildLookup takes read-only lock on inode when the inode's child is
+// looked up. It is safe to take read-only lock to allow parallel lookups of
+// children because (a) during lookup, GCS is only read (list/stat), so as long
+// as GCS is not changed remotely, lookup will be consistent (b) all the other
+// directory level operations (read or write type) take exclusive locks.
+func (d *dirInode) LockForChildLookup() {
+	d.mu.RLock()
+}
+
+func (d *dirInode) UnlockForChildLookup() {
+	d.mu.RUnlock()
 }
 
 func (d *dirInode) ID() fuseops.InodeID {
@@ -650,6 +694,9 @@ func (d *dirInode) ReadEntries(
 		}
 		entries = append(entries, entry)
 	}
+
+	nowTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &nowTime
 	return
 }
 
@@ -831,4 +878,15 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 		}
 	}
 	return
+}
+
+func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
+	// prevDirListingTimeStamp = nil means listing has not happened yet, and we should
+	// invalidate for clean start.
+	if d.prevDirListingTimeStamp == nil {
+		return true
+	}
+
+	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
+	return cachedDuration >= ttl
 }

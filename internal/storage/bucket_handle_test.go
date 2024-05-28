@@ -22,8 +22,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -1186,4 +1189,63 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithOneSrcObjectIsDstO
 	assert.Equal(testSuite.T(), ContentInTestObject+ContentInTestSubObject, dstBuffer)
 	assert.NotNil(testSuite.T(), composedObj)
 	assert.Equal(testSuite.T(), len(ContentInTestObject)+len(ContentInTestSubObject), int(composedObj.Size))
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceTrue() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+		}, nil)
+	testSuite.bucketHandle.controlClient = mockClient
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), gcs.Hierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
+		}, nil)
+	testSuite.bucketHandle.controlClient = mockClient
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeWithError() {
+	var x *controlpb.StorageLayout
+	mockClient := new(MockStorageControlClient)
+	// Test when the client returns an error.
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(x, errors.New("mocked error"))
+	testSuite.bucketHandle.controlClient = mockClient
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), gcs.Unknown, testSuite.bucketHandle.bucketType, "Expected Unknown when there's an error")
+}
+
+func (testSuite *BucketHandleTest) TestBucketTypeWithHierarchicalNamespaceIsNil() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+		Return(&controlpb.StorageLayout{}, nil)
+	testSuite.bucketHandle.controlClient = mockClient
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
+}
+
+func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
+	var nilControlClient *control.StorageControlClient = nil
+	testSuite.bucketHandle.controlClient = nilControlClient
+
+	testSuite.bucketHandle.BucketType()
+
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }

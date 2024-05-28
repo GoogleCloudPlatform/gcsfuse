@@ -21,20 +21,22 @@ import (
 	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/googleapi"
 )
-
-func TestSizeof(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type SizeofTest struct {
+	suite.Suite
 }
 
-func init() { RegisterTestSuite(&SizeofTest{}) }
+func TestSizeOfSuite(t *testing.T) {
+	suite.Run(t, new(SizeofTest))
+}
 
 var (
 	i            int
@@ -51,7 +53,7 @@ var (
 	sizeOfEmptyMinObject    int
 )
 
-func init() {
+func (t *SizeofTest) SetupTest() {
 	type emptyStruct struct{}
 
 	sizeOfInt = int(unsafe.Sizeof(i))
@@ -61,7 +63,7 @@ func init() {
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
 	sizeOfEmptyStruct = int(unsafe.Sizeof(emptyStruct{}))
-	AssertEq(0, sizeOfEmptyStruct)
+	assert.Equal(t.T(), 0, sizeOfEmptyStruct)
 
 	sizeOfEmptyMinObject = int(unsafe.Sizeof(gcs.MinObject{}))
 }
@@ -124,7 +126,7 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 		},
 	} {
 		calculatedSize := UnsafeSizeOf(&tc.t)
-		AssertEq(tc.expected_size, calculatedSize)
+		assert.Equal(t.T(), tc.expected_size, calculatedSize)
 	}
 }
 
@@ -147,7 +149,7 @@ func (t *SizeofTest) TestContentSizeOfString() {
 			expected_content_size: 11,
 		},
 	} {
-		AssertEq(tc.expected_content_size, contentSizeOfString(&tc.str))
+		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfString(&tc.str))
 	}
 }
 
@@ -177,7 +179,7 @@ func (t *SizeofTest) TestContentSizeOfArrayOfStrings() {
 			expected_content_size: 2*emptyStringSize + 5 + 11,
 		},
 	} {
-		AssertEq(tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
+		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfArrayOfStrings(&tc.strs))
 	}
 }
 
@@ -207,7 +209,7 @@ func (t *SizeofTest) TestContentSizeOfStringToStringMap() {
 			expected_content_size: emptyStringSize + 1 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringSize + 5,
 		},
 	} {
-		AssertEq(tc.expected_content_size, contentSizeOfStringToStringMap(&tc.m))
+		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfStringToStringMap(&tc.m))
 	}
 }
 
@@ -237,7 +239,7 @@ func (t *SizeofTest) TestContentSizeOfStringToStringArrayMap() {
 			expected_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5 + emptyStringSize + 4,
 		},
 	} {
-		AssertEq(tc.expected_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
+		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfStringToStringArrayMap(&tc.m))
 	}
 }
 
@@ -267,7 +269,7 @@ func (t *SizeofTest) TestContentSizeOfServerResponse() {
 			expected_content_size: emptyStringSize + 1 + emptyStringArraySize + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringArraySize + emptyStringSize + 5,
 		},
 	} {
-		AssertEq(tc.expected_content_size, contentSizeOfServerResponse(&tc.sr))
+		assert.Equal(t.T(), tc.expected_content_size, contentSizeOfServerResponse(&tc.sr))
 	}
 }
 
@@ -298,5 +300,5 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	expectedSize += len(name) + len(contentEncoding)
 	expectedSize += customMetadataFieldsContentSize
 
-	AssertEq(expectedSize, NestedSizeOfGcsMinObject(&m))
+	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
 }

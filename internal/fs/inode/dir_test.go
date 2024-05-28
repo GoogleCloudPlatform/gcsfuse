@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
@@ -746,10 +748,15 @@ func (t *DirTest) ReadDescendants_NonEmpty() {
 }
 
 func (t *DirTest) ReadEntries_Empty() {
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
@@ -772,6 +779,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	// Set up the symlink target.
 	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -798,6 +810,9 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
+
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -823,6 +838,11 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	// Set up the symlink target.
 	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -854,6 +874,9 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq("symlink", entry.Name)
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
+
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -866,6 +889,11 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	// Create a backing object for a file.
 	_, err = storageutil.CreateObject(t.ctx, t.bucket, fileObjName, []byte("taco"))
 	AssertEq(nil, err)
+
+	// Nil prevDirListingTimeStamp
+	d := t.in.(*dirInode)
+	AssertNe(nil, d)
+	AssertEq(nil, d.prevDirListingTimeStamp)
 
 	// Read the directory, priming the type cache.
 	_, err = t.readAllEntries()
@@ -896,6 +924,9 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache(name))
 
 	ExpectEq(dirObjName, result.MinObject.Name)
+
+	// Make sure prevDirListingTimeStamp is not nil.
+	AssertNe(nil, d.prevDirListingTimeStamp)
 }
 
 func (t *DirTest) CreateChildFile_DoesntExist() {
@@ -1449,4 +1480,49 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	// Validate entries contains only linked child files.
 	AssertEq(1, len(entries))
 	AssertEq(entries[0].Name, "1_localChildInode")
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
+	d := t.in.(*dirInode)
+	d.prevDirListingTimeStamp = nil
+
+	// Irrespective of the ttl value, this should always return true.
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(util.MaxTimeDuration)
+
+	AssertEq(true, shouldInvalidate)
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
+	ttl := time.Second * 10
+	t.clock.AdvanceTime(ttl / 2)
+
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
+
+	AssertEq(false, shouldInvalidate)
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
+	ttl := 10 * time.Second
+	t.clock.AdvanceTime(ttl + time.Second)
+
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
+
+	AssertEq(true, shouldInvalidate)
+}
+
+func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
+	d := t.in.(*dirInode)
+	currentTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &currentTime
+	ttl := time.Duration(0)
+
+	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
+
+	AssertEq(true, shouldInvalidate)
 }

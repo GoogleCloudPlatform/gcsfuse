@@ -21,12 +21,15 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -207,6 +210,33 @@ func populateArgs(c *cli.Context) (
 	return
 }
 
+func callListRecursive(mountPoint string) (err error) {
+	logger.Debugf("Started recursive metadata-prefetch of directory: \"%s\" ...", mountPoint)
+	numItems := 0
+	err = filepath.WalkDir(mountPoint, func(path string, d fs.DirEntry, err error) error {
+		if err == nil {
+			numItems++
+			return err
+		}
+		if d == nil {
+			return fmt.Errorf("got error walking: path=\"%s\" does not exist, error = %w", path, err)
+		}
+		return fmt.Errorf("got error walking: path=\"%s\", dentry=\"%s\", isDir=%v, error = %w", path, d.Name(), d.IsDir(), err)
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed in recursive metadata-prefetch of directory: \"%s\"; error = %w", mountPoint, err)
+	}
+
+	logger.Debugf("... Completed recursive metadata-prefetch of directory: \"%s\". Number of items discovered: %v", mountPoint, numItems)
+
+	return nil
+}
+
+func isDynamicMount(bucketName string) bool {
+	return bucketName == "" || bucketName == "_"
+}
+
 func runCLIApp(c *cli.Context) (err error) {
 	err = resolvePathForTheFlagsInContext(c)
 	if err != nil {
@@ -227,6 +257,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
+	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
@@ -361,13 +392,10 @@ func runCLIApp(c *cli.Context) (err error) {
 		// Run.
 		err = daemonize.Run(path, args, env, os.Stdout)
 		if err != nil {
-			err = fmt.Errorf("daemonize.Run: %w", err)
-			return
-		} else {
-			logger.Infof(SuccessfulMountMessage)
+			return fmt.Errorf("daemonize.Run: %w", err)
 		}
-
-		return
+		logger.Infof(SuccessfulMountMessage)
+		return err
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
@@ -380,20 +408,50 @@ func runCLIApp(c *cli.Context) (err error) {
 	{
 		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
 
-		if err == nil {
+		// This utility is to absorb the error
+		// returned by daemonize.SignalOutcome calls by simply
+		// logging them as error logs.
+		callDaemonizeSignalOutcome := func(err error) {
+			if err2 := daemonize.SignalOutcome(err); err2 != nil {
+				logger.Errorf("Failed to signal error to parent-process from daemon: %v", err2)
+			}
+		}
+
+		markSuccessfulMount := func() {
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
+			callDaemonizeSignalOutcome(nil)
+		}
 
-			daemonize.SignalOutcome(nil)
-		} else {
+		markMountFailure := func(err error) {
 			// Printing via mountStatus will have duplicate logs on the console while
 			// mounting gcsfuse in foreground mode. But this is important to avoid
 			// losing error logs when run in the background mode.
 			logger.Errorf("%s: %v\n", UnsuccessfulMountMessagePrefix, err)
 			err = fmt.Errorf("%s: mountWithArgs: %w", UnsuccessfulMountMessagePrefix, err)
-			daemonize.SignalOutcome(err)
-			return
+			callDaemonizeSignalOutcome(err)
 		}
+
+		if err != nil {
+			markMountFailure(err)
+			return err
+		}
+		if !isDynamicMount(bucketName) {
+			switch flags.MetadataPrefetchOnMount {
+			case config.MetadataPrefetchOnMountSynchronous:
+				if err = callListRecursive(mountPoint); err != nil {
+					markMountFailure(err)
+					return err
+				}
+			case config.MetadataPrefetchOnMountAsynchronous:
+				go func() {
+					if err := callListRecursive(mountPoint); err != nil {
+						logger.Errorf("Metadata-prefetch failed: %v", err)
+					}
+				}()
+			}
+		}
+		markSuccessfulMount()
 	}
 
 	// Let the user unmount with Ctrl-C (SIGINT).
@@ -442,6 +500,10 @@ func handlePanicWhileMounting() {
 }
 
 func main() {
+	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
+		cmd.Execute()
+		return
+	}
 	defer handlePanicWhileMounting()
 
 	// Make logging output better.

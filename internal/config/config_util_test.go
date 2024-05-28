@@ -15,7 +15,9 @@
 package config
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -184,4 +186,84 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 			assert.Equal(t, tt.expectedAnonymousAccess, mountConfig.AuthConfig.AnonymousAccess)
 		})
 	}
+}
+
+func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
+	var testCases = []struct {
+		configValue   int64
+		flagValue     int64
+		isFlagSet     bool
+		expectedValue int64
+	}{
+		{34, -1, true, -1},
+		{34, -1, false, 34},
+		{0, 435, true, 435},
+		{0, 0, false, 0},
+		{0, 1, true, 1},
+		{9223372036, -1, false, 9223372036}, // MaxSupportedTtlInSeconds
+		{5, -6, true, -6},
+		{9223372037, 5, false, 9223372037}, // MaxSupportedTtlInSeconds + 1
+	}
+
+	for index, tt := range testCases {
+		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelListCacheTtlSeconds: tt.configValue}}
+
+			OverrideWithKernelListCacheTtlFlag(testContext, mountConfig, tt.flagValue)
+
+			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+		})
+	}
+}
+
+func Test_IsTtlInSecsValid(t *testing.T) {
+	var testCases = []struct {
+		testName    string
+		ttlInSecs   int64
+		expectedErr error
+	}{
+		{"Negative", -5, fmt.Errorf(TtlInSecsInvalidValueError)},
+		{"Valid negative", -1, nil},
+		{"Positive", 8, nil},
+		{"Unsupported Large positive", 9223372037, fmt.Errorf(TtlInSecsTooHighError)},
+		{"Zero", 0, nil},
+		{"Valid upper limit", 9223372036, nil},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectedErr, IsTtlInSecsValid(tt.ttlInSecs))
+		})
+	}
+}
+
+func Test_ListCacheTtlSecsToDuration(t *testing.T) {
+	var testCases = []struct {
+		testName         string
+		ttlInSecs        int64
+		expectedDuration time.Duration
+	}{
+		{"-1", -1, MaxSupportedTtl},
+		{"0", 0, time.Duration(0)},
+		{"Max supported positive", 9223372036, MaxSupportedTtl},
+		{"Positive", 1, time.Second},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.testName, func(t *testing.T) {
+			assert.Equal(t, tt.expectedDuration, ListCacheTtlSecsToDuration(tt.ttlInSecs))
+		})
+	}
+}
+
+func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	// Calling with invalid argument to trigger panic.
+	ListCacheTtlSecsToDuration(-3)
 }

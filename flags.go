@@ -34,6 +34,10 @@ import (
 const (
 	// maxSequentialReadSizeMb is the max value supported by sequential-read-size-mb flag.
 	maxSequentialReadSizeMb = 1024
+
+	// MetadataPrefetchOnMountFlag is the name of the commandline flag for enabling
+	// metadata-prefetch mode aka 'ls -R' during mount.
+	MetadataPrefetchOnMountFlag = "metadata-prefetch-on-mount"
 )
 
 // Set up custom help text for gcsfuse; in particular the usage section.
@@ -233,6 +237,15 @@ func newApp() (app *cli.App) {
 				Usage: "How long to cache name -> file/dir mappings in directory inodes. This flag has been deprecated (starting v2.0) and in its place only metadata-cache:ttl-secs in the gcsfuse config-file will be supported. For now, the minimum of stat-cache-ttl and type-cache-ttl values, rounded up to the next higher multiple of a second, is used as ttl for both stat-cache and type-cache, when metadata-cache:ttl-secs is not set.",
 			},
 
+			cli.Int64Flag{
+				Name:  config.KernelListCacheTtlFlagName,
+				Value: config.DefaultKernelListCacheTtlSeconds,
+				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache." +
+					"If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation " +
+					"by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. " +
+					"Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.",
+			},
+
 			cli.DurationFlag{
 				Name:  "http-client-timeout",
 				Usage: "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout. ",
@@ -360,6 +373,16 @@ func newApp() (app *cli.App) {
 				Name:  "debug_mutex",
 				Usage: "Print debug messages when a mutex is held too long.",
 			},
+
+			/////////////////////////
+			// Post-mount actions
+			/////////////////////////
+
+			cli.StringFlag{
+				Name:  MetadataPrefetchOnMountFlag,
+				Value: config.DefaultMetadataPrefetchOnMount,
+				Usage: "This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to single-bucket mount-points, and not to dynamic-mount points.",
+			},
 		},
 	}
 
@@ -398,6 +421,7 @@ type flagStorage struct {
 	StatCacheCapacity          int
 	StatCacheTTL               time.Duration
 	TypeCacheTTL               time.Duration
+	KernelListCacheTtlSeconds  int64
 	HttpClientTimeout          time.Duration
 	MaxRetryDuration           time.Duration
 	RetryMultiplier            float64
@@ -423,6 +447,15 @@ type flagStorage struct {
 	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
+
+	// Post-mount actions
+
+	// MetadataPrefetchOnMount indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
+	// Supported values: MetadataPrefetchOnMountDisabled, MetadataPrefetchOnMountSynchronous, and MetadataPrefetchOnMountAsynchronous.
+	// Any other values will return error on mounting.
+	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
+	// gcsfuse command itself, which flag is targeted at.
+	MetadataPrefetchOnMount string
 }
 
 func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
@@ -533,13 +566,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:     c.Duration("max-retry-sleep"),
-		StatCacheCapacity: c.Int("stat-cache-capacity"),
-		StatCacheTTL:      c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:      c.Duration("type-cache-ttl"),
-		HttpClientTimeout: c.Duration("http-client-timeout"),
-		MaxRetryDuration:  c.Duration("max-retry-duration"),
-		RetryMultiplier:   c.Float64("retry-multiplier"),
+		MaxRetrySleep:             c.Duration("max-retry-sleep"),
+		StatCacheCapacity:         c.Int("stat-cache-capacity"),
+		StatCacheTTL:              c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:              c.Duration("type-cache-ttl"),
+		KernelListCacheTtlSeconds: c.Int64(config.KernelListCacheTtlFlagName),
+		HttpClientTimeout:         c.Duration("http-client-timeout"),
+		MaxRetryDuration:          c.Duration("max-retry-duration"),
+		RetryMultiplier:           c.Float64("retry-multiplier"),
 		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
 		LocalFileCache:             false,
 		TempDir:                    c.String("temp-dir"),
@@ -563,6 +597,9 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
+
+		// Post-mount actions
+		MetadataPrefetchOnMount: c.String(MetadataPrefetchOnMountFlag),
 	}
 
 	// Handle the repeated "-o" flag.
@@ -575,14 +612,34 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	return
 }
 
+func validateMetadataPrefetchOnMount(mode string) error {
+	switch mode {
+	case config.MetadataPrefetchOnMountDisabled:
+		fallthrough
+	case config.MetadataPrefetchOnMountSynchronous:
+		fallthrough
+	case config.MetadataPrefetchOnMountAsynchronous:
+		return nil
+	default:
+		return fmt.Errorf(config.UnsupportedMetadataPrefixModeError, mode)
+	}
+}
+
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
-		err = fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-		return
+		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 	}
 
 	if !flags.ClientProtocol.IsValid() {
-		err = fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
+		return fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
+	}
+
+	if err = validateMetadataPrefetchOnMount(flags.MetadataPrefetchOnMount); err != nil {
+		return fmt.Errorf("%s: is not valid; error = %w", MetadataPrefetchOnMountFlag, err)
+	}
+
+	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {
+		return fmt.Errorf("kernelListCacheTtlSeconds: %w", err)
 	}
 
 	return

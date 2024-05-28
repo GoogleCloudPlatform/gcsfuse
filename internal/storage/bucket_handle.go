@@ -27,17 +27,23 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket     *storage.BucketHandle
-	bucketName string
-	bucketType gcs.BucketType
+	bucket        *storage.BucketHandle
+	bucketName    string
+	bucketType    gcs.BucketType
+	controlClient StorageControlClient
 }
 
 func (bh *bucketHandle) Name() string {
@@ -45,6 +51,35 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
+	var nilControlClient *control.StorageControlClient = nil
+	// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
+	// Subsequent calls will be significantly faster as the results are cached in memory.
+	// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
+	// To avoid this, it's advisable to call this initially while mounting.
+	if bh.bucketType == gcs.Nil {
+		if bh.controlClient == nilControlClient {
+			bh.bucketType = gcs.NonHierarchical
+			return bh.bucketType
+		}
+
+		storageLayout, err := bh.getStorageLayout()
+
+		// In case bucket does not exist, set type unknown instead of panic.
+		if err != nil {
+			bh.bucketType = gcs.Unknown
+			logger.Errorf("Error returned from GetStorageLayout: %v", err)
+			return bh.bucketType
+		}
+
+		hierarchicalNamespace := storageLayout.GetHierarchicalNamespace()
+		if hierarchicalNamespace != nil && hierarchicalNamespace.Enabled {
+			bh.bucketType = gcs.Hierarchical
+			return bh.bucketType
+		}
+
+		bh.bucketType = gcs.NonHierarchical
+	}
+
 	return bh.bucketType
 }
 
@@ -428,6 +463,19 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
+}
+
+// TODO: Consider adding this method to the bucket interface if additional
+// layout options are needed in the future.
+func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
+	var callOptions []gax.CallOption
+	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      "projects/_/buckets/" + b.bucketName + "/storageLayout",
+		Prefix:    "",
+		RequestId: "",
+	}, callOptions...)
+
+	return stoargeLayout, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

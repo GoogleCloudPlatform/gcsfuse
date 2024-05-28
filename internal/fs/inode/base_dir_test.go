@@ -199,3 +199,15 @@ func (t *BaseDirTest) LookUpChild_BucketCached() {
 	_, _ = t.in.LookUpChild(t.ctx, "missing_bucket")
 	ExpectEq(3, t.bm.SetUpTimes())
 }
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache() {
+	ttl := time.Second
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}
+
+func (t *BaseDirTest) Test_ShouldInvalidateKernelListCache_TtlExpired() {
+	ttl := time.Second
+	t.clock.AdvanceTime(10 * time.Second)
+
+	AssertEq(true, t.in.ShouldInvalidateKernelListCache(ttl))
+}

@@ -24,7 +24,6 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
@@ -206,10 +205,10 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	// TODO: Implement a method that determines and returns the appropriate bucket type
-	// when the enableHNS flag is set to true.
-	bucketType := gcs.NonHierarchical
-
-	bh = &bucketHandle{bucket: storageBucketHandle, bucketType: bucketType, bucketName: bucketName}
+	bh = &bucketHandle{
+		bucket:        storageBucketHandle,
+		bucketName:    bucketName,
+		controlClient: sh.storageControlClient,
+	}
 	return
 }
