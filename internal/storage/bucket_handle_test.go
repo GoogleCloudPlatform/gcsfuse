@@ -1249,3 +1249,47 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectExitForHierarchicalBucket() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), TestObjectName)
+
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectNotExitForHierarchicalBucket() {
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("mock error"))
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), missingObjectName)
+
+	assert.Equal(testSuite.T(),"DeleteObject: gcs.NotFoundError: storage: object doesn't exist :DeleteFolder: mock error", err.Error())
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectExitForNonHierarchicalBucket() {
+	mockClient := new(MockStorageControlClient)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.NonHierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), TestObjectName)
+
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectNotExitForNonHierarchicalBucket() {
+	mockClient := new(MockStorageControlClient)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.NonHierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(context.Background(), missingObjectName)
+
+	assert.Equal(testSuite.T(), err.Error(), "DeleteObject: gcs.NotFoundError: storage: object doesn't exist")
+}
