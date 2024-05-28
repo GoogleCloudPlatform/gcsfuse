@@ -137,9 +137,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Cleanup
-	client.CleanupDirectoryOnGCS(TestDirForReadOnlyTest)
-
 	// Create test data.
 	createTestDataForReadOnlyTests()
 

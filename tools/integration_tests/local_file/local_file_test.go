@@ -121,6 +121,6 @@ func TestMain(m *testing.M) {
 	storageClient.Close()
 	cancel()
 	// Clean up test directory created.
-	client.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

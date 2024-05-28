@@ -119,7 +119,7 @@ func cleanup(bucket, testDir, serviceAccount, iam_role string, t *testing.T) {
 	revokePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, iam_role, t)
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder1), setup.TestBucket())
 	operations.DeleteManagedFoldersInBucket(path.Join(testDir, ManagedFolder2), setup.TestBucket())
-	client.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
+	setup.CleanupDirectoryOnGCS(path.Join(bucket, testDir))
 }
 
 func listNonEmptyManagedFolders(t *testing.T) {
