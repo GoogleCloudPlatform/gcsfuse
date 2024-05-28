@@ -44,13 +44,13 @@ var (
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
-	ctx := context.Background()
+	var err error
+	ctx = context.Background()
 	var cancel context.CancelFunc
 
 	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
-	storageClient, err := client.CreateStorageClient(ctx)
+	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
@@ -58,7 +58,6 @@ func TestMain(m *testing.M) {
 
 	defer cancel()
 	defer storageClient.Close()
-
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Else run tests for testBucket.
