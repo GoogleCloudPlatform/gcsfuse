@@ -27,6 +27,12 @@ BUCKET_LOCATION=$3
 
 INTEGRATION_TEST_TIMEOUT=60m
 
+if [ "$#" -ne 3 ]
+then
+  echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
+  exit 1
+fi
+
 if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
   echo "Setting the flag to skip few un-important integration tests."
