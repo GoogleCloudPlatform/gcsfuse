@@ -15,12 +15,15 @@
 package dynamic_mounting
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/compute/metadata"
+	"cloud.google.com/go/storage"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -98,33 +101,50 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	return
 }
 
-func CreateTestBucketForDynamicMounting() (bucketName string) {
-	project_id, err := metadata.ProjectID()
+func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {
+	projectID, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
 	}
 
-	// Create bucket with name gcsfuse-dynamic-mounting-test-xxxxx
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/create_bucket.sh", testBucketForDynamicMounting, project_id)
-
-	return testBucketForDynamicMounting
+	// Create bucket handle and attributes
+	storageClassAndLocation := &storage.BucketAttrs{
+		Location: "west",
+	}
+	bucket := client.Bucket(bucketName)
+	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
+		log.Fatalf("DynamicBucket(%q).Create: %w", bucketName, err)
+	}
+	return bucketName
 }
 
-func DeleteTestBucketForDynamicMounting(bucketName string) {
-	// Deleting bucket after testing.
-	setup.RunScriptForTestData("../util/mounting/dynamic_mounting/testdata/delete_bucket.sh", bucketName)
+func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Client, bucketName string) {
+	bucket := client.Bucket(bucketName)
+	if err := bucket.Delete(ctx); err != nil {
+		log.Printf("Bucket(%q).Delete: %w", bucketName, err)
+	}
 }
 
 func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
 
-	CreateTestBucketForDynamicMounting()
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("storage.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*15)
+	defer cancel()
+
+	testBucketForDynamicMounting = CreateTestBucketForDynamicMounting(ctx, client)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
 	log.Printf("Test log: %s\n", setup.LogFile())
 
-	DeleteTestBucketForDynamicMounting(testBucketForDynamicMounting)
+	DeleteTestBucketForDynamicMounting(ctx, client, testBucketForDynamicMounting)
 
 	return successCode
 }

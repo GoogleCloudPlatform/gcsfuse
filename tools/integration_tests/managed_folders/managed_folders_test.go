@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	ctx = context.Background()
 	var cancel context.CancelFunc
 
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*20)
 	storageClient, err = client.CreateStorageClient(ctx)
 	if err != nil {
 		log.Printf("Error creating storage client: %v\n", err)
