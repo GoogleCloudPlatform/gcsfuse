@@ -468,38 +468,48 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 }
 
 func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
-	var callOptions []gax.CallOption
-	var err1, err2 error
+	if b.BucketType() == gcs.NonHierarchical {
+		err = b.DeleteObject(
+			ctx,
+			&gcs.DeleteObjectRequest{
+				Name:       folderName,
+				Generation: 0, // Delete the latest version of object named after dir.
+			})
 
-	err1 = b.DeleteObject(
+		if err != nil {
+			err = fmt.Errorf("DeleteObject: %w", err)
+		}
+	} else {
+		err = b.deleteFolderForHierarchicalBucket(ctx, folderName)
+	}
+
+	return err
+}
+
+func (b *bucketHandle) deleteFolderForHierarchicalBucket(ctx context.Context, folderName string) (err error) {
+	var notfound *gcs.NotFoundError
+	var callOptions []gax.CallOption
+
+	err = b.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
 			Name:       folderName,
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
-	if err1 != nil {
-		err = fmt.Errorf("DeleteObject: %w", err1)
+	if err != nil {
+		// Ignore err if it is object not found as in HNS bucket object may exist as a folder.
+		if !errors.As(err, &notfound) {
+			return err
+		}
 	}
 
-	// In a hierarchical namespace, directory within a bucket is folder type.
-	if b.BucketType() == gcs.Hierarchical {
-		err2 = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-			Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
-		}, callOptions...)
+	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
+		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+	}, callOptions...)
 
-		if err2 != nil {
-			if err != nil {
-				// DeleteObject also throws an error.
-				err = fmt.Errorf("%w :DeleteFolder: %w", err, err2)
-			} else {
-				// DeleteObject is successful but DeleteFolder fails.
-				err = fmt.Errorf("DeleteFolder: %w", err2)
-			}
-		} else {
-			// DeleteFolder is successful so ignore the DeleteObject err.
-			err = nil
-		}
+	if err != nil {
+		err = fmt.Errorf("DeleteFolder: %w", err)
 	}
 
 	return err
