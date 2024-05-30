@@ -490,11 +490,14 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 
 		if err2 != nil {
 			if err != nil {
+				// DeleteObject also throws an error.
 				err = fmt.Errorf("%w :DeleteFolder: %w", err, err2)
 			} else {
+				// DeleteObject is successful but DeleteFolder fails.
 				err = fmt.Errorf("DeleteFolder: %w", err2)
 			}
 		} else {
+			// DeleteFolder is successful so ignore the DeleteObject err.
 			err = nil
 		}
 	}
