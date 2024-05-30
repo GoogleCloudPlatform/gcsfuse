@@ -101,7 +101,7 @@ func executeTestsForDynamicMounting(flags [][]string, m *testing.M) (successCode
 	return
 }
 
-func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (bucketName string) {
+func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Client) (testBucketForDynamicMounting string) {
 	projectID, err := metadata.ProjectID()
 	if err != nil {
 		log.Printf("Error in fetching project id: %v", err)
@@ -111,11 +111,11 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	storageClassAndLocation := &storage.BucketAttrs{
 		Location: "west",
 	}
-	bucket := client.Bucket(bucketName)
+	bucket := client.Bucket(testBucketForDynamicMounting)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
-		log.Fatalf("DynamicBucket(%q).Create: %v", bucketName, err)
+		log.Fatalf("DynamicBucket(%q).Create: %v", testBucketForDynamicMounting, err)
 	}
-	return bucketName
+	return testBucketForDynamicMounting
 }
 
 func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Client, bucketName string) {
@@ -138,7 +138,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*15)
 	defer cancel()
 
-	testBucketForDynamicMounting = CreateTestBucketForDynamicMounting(ctx, client)
+	CreateTestBucketForDynamicMounting(ctx, client)
 
 	successCode = executeTestsForDynamicMounting(flags, m)
 
