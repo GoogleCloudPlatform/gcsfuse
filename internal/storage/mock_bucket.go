@@ -28,8 +28,8 @@ type mockBucket struct {
 }
 
 func NewMockBucket(
-		c oglemock.Controller,
-		desc string) MockBucket {
+	c oglemock.Controller,
+	desc string) MockBucket {
 	return &mockBucket{
 		controller:  c,
 		description: desc,
@@ -154,7 +154,6 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectReques
 
 	return
 }
-
 
 func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 error) {
 	// Get a file name and line number for the caller.
@@ -284,7 +283,7 @@ func (m *mockBucket) NewReader(p0 context.Context, p1 *gcs.ReadObjectRequest) (o
 }
 
 func (m *mockBucket) StatObject(p0 context.Context,
-		p1 *gcs.StatObjectRequest) (o0 *gcs.MinObject, o1 *gcs.ExtendedObjectAttributes, o2 error) {
+	p1 *gcs.StatObjectRequest) (o0 *gcs.MinObject, o1 *gcs.ExtendedObjectAttributes, o2 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
