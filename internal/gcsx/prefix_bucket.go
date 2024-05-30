@@ -213,5 +213,6 @@ func (b *prefixBucket) DeleteObject(
 }
 
 func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
-	return b.wrapped.DeleteFolder(ctx, folderName)
+	mFolderName := b.wrappedName(folderName)
+	return b.wrapped.DeleteFolder(ctx, mFolderName)
 }
