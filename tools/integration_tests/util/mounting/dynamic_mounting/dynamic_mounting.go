@@ -113,7 +113,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	}
 	bucket := client.Bucket(bucketName)
 	if err := bucket.Create(ctx, projectID, storageClassAndLocation); err != nil {
-		log.Fatalf("DynamicBucket(%q).Create: %w", bucketName, err)
+		log.Fatalf("DynamicBucket(%q).Create: %v", bucketName, err)
 	}
 	return bucketName
 }
@@ -121,7 +121,7 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Client, bucketName string) {
 	bucket := client.Bucket(bucketName)
 	if err := bucket.Delete(ctx); err != nil {
-		log.Printf("Bucket(%q).Delete: %w", bucketName, err)
+		log.Printf("Bucket(%q).Delete: %v", bucketName, err)
 	}
 }
 
@@ -131,7 +131,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Fatalf("storage.NewClient: %w", err)
+		log.Fatalf("storage.NewClient: %v", err)
 	}
 	defer client.Close()
 
