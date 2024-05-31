@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 
@@ -88,7 +89,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
@@ -96,7 +97,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
@@ -104,7 +105,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
 func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -117,7 +118,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled()
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1)", cmd.GetGCSFuseVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -130,7 +131,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0)", cmd.GetGCSFuseVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
@@ -141,7 +142,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -154,7 +155,7 @@ func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
@@ -164,7 +165,7 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	mountConfig := &config.MountConfig{}
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig))
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", getVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0)", cmd.GetGCSFuseVersion()))
 
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }

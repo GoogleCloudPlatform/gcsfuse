@@ -17,17 +17,32 @@ package cmd
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/spf13/cobra"
 )
 
 // Set with `-ldflags -X github.com/googlecloudplatform/gcsfuse/v2/cmd.gcsfuseVersion=1.2.3`
 // by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
 var gcsfuseVersion string
 
-func getVersion() string {
+func GetGCSFuseVersion() string {
 	v := gcsfuseVersion
 	if v == "" {
 		v = "unknown"
 	}
 
 	return fmt.Sprintf("%s (Go version %s)", v, runtime.Version())
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Prints the version of GCSFuse.",
+	Long:  `Prints the version of GCSFuse.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("gcsfuse version", rootCmd.Version)
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
 }

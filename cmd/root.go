@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -24,13 +23,12 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "gcsfuse [flags] bucket mount_point",
 	Short: "Mount a specified GCS bucket or all accessible buckets locally",
-	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount
-          and access Cloud Storage buckets as local file systems. For a
-          technical overview of Cloud Storage FUSE, see
-          https://cloud.google.com/storage/docs/gcs-fuse.`,
+	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
+and access Cloud Storage buckets as local file systems. For a technical overview
+of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
+	Version: GetGCSFuseVersion(),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: the following error will be removed once the command is implemented.
-		return fmt.Errorf("unsupported operation")
+		return nil
 	},
 }
 

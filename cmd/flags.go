@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -72,7 +73,7 @@ func newApp() (app *cli.App) {
 
 	app = &cli.App{
 		Name:    "gcsfuse",
-		Version: getVersion(),
+		Version: cmd.GetGCSFuseVersion(),
 		Usage:   "Mount a specified GCS bucket or all accessible buckets locally",
 		Writer:  os.Stderr,
 		Flags: []cli.Flag{
