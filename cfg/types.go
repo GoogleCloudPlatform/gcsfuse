@@ -18,8 +18,21 @@ import (
 	"fmt"
 )
 
+// Octal is the datatype for params such as file-mode and dir-mode which accept a base-8 value.
 type Octal int
 
 func (oi Octal) String() string {
 	return fmt.Sprintf("%o", oi)
 }
+
+// Protocol is the datatype that specifies the type of connection: http1/http2/grpc.
+type Protocol string
+
+// LogSeverity represents the logging severity and can accept the following values
+// "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"
+type LogSeverity string
+
+// ResolvedPath represents a file-path which could be the absolute or relative
+// path or could be resolved based on the value of GCSFUSE_PARENT_PROCESS_DIR
+// env var.
+type ResolvedPath string

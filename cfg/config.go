@@ -27,6 +27,10 @@ type Config struct {
 	Debug DebugConfig `yaml:"debug"`
 
 	FileSystem FileSystemConfig `yaml:"file-system"`
+
+	GcsConnection GcsConnectionConfig `yaml:"gcs-connection"`
+
+	Logging LoggingConfig `yaml:"logging"`
 }
 
 type DebugConfig struct {
@@ -41,12 +45,29 @@ type FileSystemConfig struct {
 	Uid int `yaml:"uid"`
 }
 
+type GcsConnectionConfig struct {
+	ClientProtocol Protocol `yaml:"client-protocol"`
+}
+
+type LoggingConfig struct {
+	FilePath ResolvedPath `yaml:"file-path"`
+
+	Severity LogSeverity `yaml:"severity"`
+}
+
 func BindFlags(flagSet *pflag.FlagSet) error {
 	var err error
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
 	err = viper.BindPFlag("app-name", flagSet.Lookup("app-name"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.")
+
+	err = viper.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol"))
 	if err != nil {
 		return err
 	}
@@ -79,9 +100,23 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("file-mode", "", 0, "Permissions bits for files, in octal.")
+	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
 	err = viper.BindPFlag("file-system.file-mode", flagSet.Lookup("file-mode"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout.")
+
+	err = viper.BindPFlag("logging.file-path", flagSet.Lookup("log-file"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity")
+
+	err = viper.BindPFlag("logging.severity", flagSet.Lookup("log-severity"))
 	if err != nil {
 		return err
 	}
