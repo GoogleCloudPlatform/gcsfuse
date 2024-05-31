@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,7 +128,7 @@ func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	it := bucket.Objects(ctx, query)
 	for {
 		objAttrs, err := it.Next()
-		if err == storage.ErrObjectNotExist {
+		if strings.Contains(err.Error(), "no more items in iterator") {
 			break // No more objects
 		}
 		if err != nil {
