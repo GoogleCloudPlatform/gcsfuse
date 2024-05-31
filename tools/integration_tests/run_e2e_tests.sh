@@ -23,14 +23,14 @@ RUN_E2E_TESTS_ON_PACKAGE=$1
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
 # Pass "true" to run e2e tests on TPC endpoint.
 # The default value will be false.
+BUCKET_LOCATION=$3
 RUN_TEST_ON_TPC_ENDPOINT=false
-if [ $3 != "" ]; then
-  RUN_TEST_ON_TPC_ENDPOINT=$3
+if [ $4 != "" ]; then
+  RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-
 INTEGRATION_TEST_TIMEOUT=60m
 
-if [ "$#" -ne 3 ]
+if [ "$#" -ne 4 ]
 then
   echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
   exit 1
@@ -43,7 +43,6 @@ if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
-readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(

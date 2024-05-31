@@ -41,7 +41,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		// Set up the TPC endpoint and provide a token source for authentication.
 		ts, err = getTokenSrc("/tmp/sa.key.json")
 		if err != nil {
-			return nil, fmt.Errorf(fmt.Sprintf("Unable to fetch tokenSrc for TPC: %v", err))
+			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
