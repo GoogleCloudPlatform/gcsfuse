@@ -367,6 +367,10 @@ func (job *Job) downloadObjectAsync() {
 				}
 				start += maxRead
 				if start == newReaderLimit {
+					err = newReader.Close()
+					if err != nil {
+						logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
+					}
 					newReader = nil
 				}
 
