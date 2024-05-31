@@ -121,6 +121,27 @@ func CreateTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 
 func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Client, bucketName string) {
 	bucket := client.Bucket(bucketName)
+
+	// Iterate through objects and delete them
+	query := &storage.Query{}
+	it := bucket.Objects(ctx, query)
+	for {
+		objAttrs, err := it.Next()
+		if err == storage.ErrObjectNotExist {
+			break // No more objects
+		}
+		if err != nil {
+			log.Fatalf("Error iterating through objects: %v", err)
+		}
+
+		obj := bucket.Object(objAttrs.Name)
+		err = obj.Delete(ctx)
+		if err != nil {
+			log.Fatalf("Failed to delete object %s: %v", objAttrs.Name, err)
+		}
+		fmt.Printf("Deleted object: %s\n", objAttrs.Name)
+	}
+
 	if err := bucket.Delete(ctx); err != nil {
 		log.Printf("Bucket(%q).Delete: %v", bucketName, err)
 	}
