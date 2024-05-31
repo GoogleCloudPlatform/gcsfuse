@@ -30,7 +30,7 @@ if [ $4 != "" ]; then
 fi
 INTEGRATION_TEST_TIMEOUT=60m
 
-if [ "$#" -ne 4 ]
+if [ "$#" -lt 3 ]
 then
   echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
   exit 1
