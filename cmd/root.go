@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -26,9 +27,10 @@ var rootCmd = &cobra.Command{
 	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-	Version: GetGCSFuseVersion(),
+	Version: getVersion(),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return nil
+		// TODO: the following error will be removed once the command is implemented.
+		return fmt.Errorf("unsupported operation")
 	},
 }
 
