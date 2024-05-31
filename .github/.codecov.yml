@@ -1,3 +1,6 @@
+ignore:
+  - "tools"
+  - "benchmarks"
 coverage:
   round: down
   precision: 2
