@@ -135,7 +135,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	AssertEq(nil, err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {})
+	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, 0, 0, func() {})
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }

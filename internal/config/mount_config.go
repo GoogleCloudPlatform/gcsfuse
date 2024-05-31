@@ -16,6 +16,8 @@ package config
 
 import (
 	"math"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
@@ -47,14 +49,14 @@ const (
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 
-	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
-	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
-	// ExperimentalMetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
-	ExperimentalMetadataPrefetchOnMountSynchronous string = "sync"
-	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
-	ExperimentalMetadataPrefetchOnMountAsynchronous string = "async"
-	// DefaultExperimentalMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is ExperimentalMetadataPrefetchOnMountDisabled.
-	DefaultExperimentalMetadataPrefetchOnMount = ExperimentalMetadataPrefetchOnMountDisabled
+	// MetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
+	MetadataPrefetchOnMountDisabled string = "disabled"
+	// MetadataPrefetchOnMountSynchronous is the prefetch-mode where mounting is not marked complete until prefetch is complete.
+	MetadataPrefetchOnMountSynchronous string = "sync"
+	// MetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
+	MetadataPrefetchOnMountAsynchronous string = "async"
+	// DefaultMetadataPrefetchOnMount is default value of metadata-prefetch i.e. if not set by user; current it is MetadataPrefetchOnMountDisabled.
+	DefaultMetadataPrefetchOnMount = MetadataPrefetchOnMountDisabled
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 )
@@ -105,6 +107,8 @@ type FileSystemConfig struct {
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
+	DownloadParallelism   int   `yaml:"download-parallelism"`
+	ReadRequestSizeMB     int   `yaml:"read-request-size-mb"`
 }
 
 type MetadataCacheConfig struct {
@@ -172,7 +176,9 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB: DefaultFileCacheMaxSizeMB,
+		MaxSizeMB:           DefaultFileCacheMaxSizeMB,
+		DownloadParallelism: 0,
+		ReadRequestSizeMB:   50 * util.MiB,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

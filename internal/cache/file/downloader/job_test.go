@@ -71,7 +71,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		DirPerm:  util.DefaultDirPerm,
 	}
 	dt.cache = lru.NewCache(lruCacheSize)
-	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback)
+	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, 0, 0, removeCallback)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
