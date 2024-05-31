@@ -136,7 +136,7 @@ func RunTests(flags [][]string, m *testing.M) (successCode int) {
 	}
 	defer client.Close()
 
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*15)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*25)
 	defer cancel()
 
 	CreateTestBucketForDynamicMounting(ctx, client)
