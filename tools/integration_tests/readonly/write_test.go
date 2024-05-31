@@ -35,21 +35,21 @@ func checkIfFileFailedToOpenForWrite(filePath string, t *testing.T) {
 	operations.CheckErrorForReadOnlyFileSystem(err, t)
 }
 
-// testBucket/Test1.txt
+// testBucket/testDirForReadOnlyTest/Test1.txt
 func TestOpenFileWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	checkIfFileFailedToOpenForWrite(filePath, t)
 }
 
-// testBucket/Test/a.txt
+// testBucket/testDirForReadOnlyTest/Test/a.txt
 func TestOpenFileFromBucketDirectoryWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileFailedToOpenForWrite(filePath, t)
 }
 
-// testBucket/Test/b/b.txt
+// testBucket/testDirForReadOnlyTest/Test/b/b.txt
 func TestOpenFileFromBucketSubDirectoryWithReadWriteAccess(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 

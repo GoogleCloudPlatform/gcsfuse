@@ -35,21 +35,21 @@ func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testin
 	}
 }
 
-// testBucket/Test1.txt
+// testBucket/testDirForReadOnlyTest/Test1.txt
 func TestReadFile(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	checkIfFileReadSucceeded(filePath, ContentInFileInTestBucket, t)
 }
 
-// testBucket/Test/a.txt
+// testBucket/testDirForReadOnlyTest/Test/a.txt
 func TestReadFileFromBucketDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileReadSucceeded(filePath, ContentInFileInDirectoryTestBucket, t)
 }
 
-// testBucket/Test/b/b.txt
+// testBucket/testDirForReadOnlyTest/Test/b/b.txt
 func TestReadFileFromBucketSubDirectory(t *testing.T) {
 	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 

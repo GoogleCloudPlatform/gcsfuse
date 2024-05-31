@@ -36,7 +36,7 @@ func TestStatFile(t *testing.T) {
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test1.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test1.txt, Type - File
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket is incorrect.")
 	}
@@ -47,7 +47,7 @@ func TestStatFileFromBucketDirectory(t *testing.T) {
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test/a.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test/a.txt, Type - File
 	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket directory is incorrect.")
 	}
@@ -58,7 +58,7 @@ func TestStatFileFromBucketSubDirectory(t *testing.T) {
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test/b/b.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test/b/b.txt, Type - File
 	if file.Name() != FileNameInSubDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket subdirectory is incorrect.")
 	}
@@ -69,7 +69,7 @@ func TestStatDirectory(t *testing.T) {
 
 	dir := statObject(dirPath, t)
 
-	// Name - testBucket/Test/, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/, Type - Dir
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket directory is incorrect.")
 	}
@@ -80,7 +80,7 @@ func TestStatSubDirectory(t *testing.T) {
 
 	dir := statObject(dirPath, t)
 
-	// Name - testBucket/Test/b, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/b, Type - Dir
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket sub directory is incorrect.")
 	}

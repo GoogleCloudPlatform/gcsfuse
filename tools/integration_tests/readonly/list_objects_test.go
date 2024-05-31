@@ -27,8 +27,8 @@ import (
 func TestListObjectsInBucket(t *testing.T) {
 	// ** Directory structure **
 	// testBucket
-	// testBucket/Test       -- Dir
-	// testBucket/Test1.txt  -- File
+	// testBucket/testDirForReadOnlyTest/Test       -- Dir
+	// testBucket/testDirForReadOnlyTest/Test1.txt  -- File
 
 	obj, err := os.ReadDir(path.Join(setup.MntDir(), TestDirForReadOnlyTest))
 	if err != nil {
@@ -41,13 +41,13 @@ func TestListObjectsInBucket(t *testing.T) {
 	}
 
 	// Comparing first object name and type
-	// Name - testBucket/Test/, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/, Type - Dir
 	if obj[0].Name() != DirectoryNameInTestBucket || obj[0].IsDir() != true {
 		t.Errorf("Object Listed for bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type
-	// Name - testBucket/Test1.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test1.txt, Type - File
 	if obj[1].Name() != FileNameInTestBucket || obj[1].IsDir() != false {
 		t.Errorf("Object Listed for file in bucket is incorrect.")
 	}
@@ -55,9 +55,9 @@ func TestListObjectsInBucket(t *testing.T) {
 
 func TestListObjectsInBucketDirectory(t *testing.T) {
 	// ** SubDirectory structure **
-	// testBucket/Test
-	// testBucket/Test/a.txt -- File
-	// testBucket/Test/b/    -- Dir
+	// testBucket/testDirForReadOnlyTest/Test
+	// testBucket/testDirForReadOnlyTest/Test/a.txt -- File
+	// testBucket/testDirForReadOnlyTest/Test/b/    -- Dir
 
 	Dir := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
 	obj, err := os.ReadDir(Dir)
@@ -71,13 +71,13 @@ func TestListObjectsInBucketDirectory(t *testing.T) {
 	}
 
 	// Comparing first object name and type.
-	// Name - testBucket/Test/a.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test/a.txt, Type - File
 	if obj[0].Name() != FileNameInDirectoryTestBucket || obj[0].IsDir() != false {
 		t.Errorf("Object Listed for file in bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type.
-	// Name - testBucket/Test/b, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/b, Type - Dir
 	if obj[1].Name() != SubDirectoryNameInTestBucket || obj[1].IsDir() != true {
 		t.Errorf("Object Listed for bucket sub directory is incorrect.")
 	}
