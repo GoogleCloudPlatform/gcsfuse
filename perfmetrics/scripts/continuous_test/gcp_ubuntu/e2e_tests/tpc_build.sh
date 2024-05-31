@@ -42,8 +42,10 @@ gcloud config set api_endpoint_overrides/compute https://compute.apis-tpczero.go
 gcloud auth activate-service-account --key-file=/tmp/sa.key.json
 gcloud config set project $PROJECT_ID
 
+set +e
 # $1 argument is refering to value of testInstalledPackage
 ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $RUN_TEST_ON_TPC_ENDPOINT
+set -e
 
 # Activate default environment after testing.
 gcloud config configurations activate default

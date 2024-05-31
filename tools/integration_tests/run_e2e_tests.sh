@@ -275,7 +275,7 @@ function main(){
 
   set +e
 
-  # TPC tests will run in sequentially due to running gcloud commands in parellel is crashing frequently.
+  # TPC tests will run in sequentially due to running gcloud commands in parallel is crashing frequently.
   if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
        GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
        exit_code=$?
