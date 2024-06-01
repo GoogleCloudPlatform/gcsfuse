@@ -24,13 +24,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"logger"
 	"net/http"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 
