@@ -63,8 +63,7 @@ func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 	// Create a config struct based on its contents.
 	ts, err := google.JWTAccessTokenSourceWithScope(contents, storagev1.DevstorageFullControlScope)
 	if err != nil {
-		err = fmt.Errorf("JWTConfigFromJSON: %w", err)
-		return
+		return nil, fmt.Errorf("JWTConfigFromJSON: %w", err)
 	}
 	return ts, err
 }

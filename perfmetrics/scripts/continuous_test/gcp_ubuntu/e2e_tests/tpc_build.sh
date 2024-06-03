@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will run e2e tests.
+# This script will run e2e tests for tpc.
 # This will stop execution when any command will have non-zero status.
 set -e
 
