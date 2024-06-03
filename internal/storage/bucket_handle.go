@@ -477,11 +477,12 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 			})
 
 		if err != nil {
-			err = fmt.Errorf("DeleteObject: %w", err)
+			return fmt.Errorf("DeleteObject: %w", err)
 		}
-	} else if b.BucketType() == gcs.Hierarchical {
-		err = b.deleteFolderForHierarchicalBucket(ctx, folderName)
+		return nil
 	}
+
+	err = b.deleteFolderForHierarchicalBucket(ctx, folderName)
 
 	return err
 }

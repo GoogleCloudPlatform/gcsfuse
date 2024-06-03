@@ -841,7 +841,8 @@ func (d *dirInode) DeleteChildDir(
 	}
 	childName := NewDirName(d.Name(), name)
 
-	// Delete the backing object. Unfortunately we have no way to precondition
+	// Delete Folder deletes backing object as well as folder (in case of Hierarchical Bucket).
+	// Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
 
