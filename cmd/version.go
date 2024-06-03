@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
 import (
 	"fmt"
 	"runtime"
 )
 
-// Set with `-ldflags -X main.gcsfuseVersion=1.2.3` by tools/build_gcsfuse. If
-// not defined, we use "unknown" in getVersion.
+// Set with `-ldflags -X github.com/googlecloudplatform/gcsfuse/v2/cmd.gcsfuseVersion=1.2.3`
+// by tools/build_gcsfuse. If not defined, we use "unknown" in getVersion.
 var gcsfuseVersion string
 
 func getVersion() string {
