@@ -57,7 +57,7 @@ var (
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
 	// Define the text to write and the files to create
-	fileContents := []struct {
+	files:= []struct {
 		fileContent string
 		filePath    string
 	}{
@@ -69,14 +69,14 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 	bucket := storageClient.Bucket(setup.TestBucket())
 
 	// Loop through the file data and create/upload files
-	for _, data := range fileContents {
+	for _, file := range files {
 		// Create a storage writer for the destination object
-		object := bucket.Object(data.filePath)
+		object := bucket.Object(file.filePath)
 		writer := object.NewWriter(ctx)
 
 		// Write the text to the object
-		if _, err := writer.Write([]byte(data.fileContent + "\n")); err != nil {
-			log.Printf("Error writing to object %s: %v\n", data.filePath, err)
+		if _, err := writer.Write([]byte(file.fileContent + "\n")); err != nil {
+			log.Printf("Error writing to object %s: %v\n", file.filePath, err)
 		}
 		err := writer.Close()
 		if err != nil {
