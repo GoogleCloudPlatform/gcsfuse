@@ -202,8 +202,9 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
+	// These tests require changing service account permissions using a gcloud command,
+	// which is currently not supported on TPC.
+	if successCode == 0 && !setup.TestOnTPCEndPoint() {
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
 	}
 
