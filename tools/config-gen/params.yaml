@@ -50,7 +50,7 @@
   config-path: "logging.severity"
   type: "logSeverity"
   default: "info"
-  usage: "Specifies the logging severity"
+  usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error]"
 
 - flag-name: "client-protocol"
   config-path: "gcs-connection.client-protocol"
