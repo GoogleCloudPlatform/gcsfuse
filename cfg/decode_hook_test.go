@@ -158,6 +158,13 @@ func TestParsingSuccess(t *testing.T) {
 			},
 		},
 		{
+			name: "Duration2",
+			args: []string{"--durationParam=1h5m30s"},
+			testFn: func(t *testing.T, c TestConfig) {
+				assert.Equal(t, 1*time.Hour+5*time.Minute+30*time.Second, c.DurationParam)
+			},
+		},
+		{
 			name: "StringSlice1",
 			args: []string{"--stringSliceParam=a,b"},
 			testFn: func(t *testing.T, c TestConfig) {
@@ -203,12 +210,19 @@ func TestParsingSuccess(t *testing.T) {
 			},
 		},
 		{
-			name: "ResolvedPath2",
+			name: "ResolvedPath - with gcsfuse-parent-process-dir env set",
 			setupFn: func() {
 				os.Setenv("gcsfuse-parent-process-dir", "/a")
 				t.Cleanup(func() { os.Unsetenv("gcsfuse-parent-process-dir") })
 			},
 			args: []string{"--pathParam=./test.txt"},
+			testFn: func(t *testing.T, c TestConfig) {
+				assert.Equal(t, "/a/test.txt", string(c.PathParam))
+			},
+		},
+		{
+			name: "ResolvedPath - absolute path",
+			args: []string{"--pathParam=/a/test.txt"},
 			testFn: func(t *testing.T, c TestConfig) {
 				assert.Equal(t, "/a/test.txt", string(c.PathParam))
 			},
@@ -265,9 +279,10 @@ func TestParsingError(t *testing.T) {
 		return v
 	}
 	tests := []struct {
-		name  string
-		args  []string
-		param string
+		name   string
+		args   []string
+		param  string
+		errMsg string
 	}{
 		{
 			name: "Octal",
@@ -278,22 +293,24 @@ func TestParsingError(t *testing.T) {
 			args: []string{"--urlParam=a_b://abc"},
 		},
 		{
-			name: "LogSeverity",
-			args: []string{"--logSeverityParam=abc"},
+			name:   "LogSeverity",
+			args:   []string{"--logSeverityParam=abc"},
+			errMsg: "invalid logseverity value: abc. It can only assume values in the list: [TRACE DEBUG INFO WARNING ERROR OFF]",
 		},
 		{
-			name: "Protocol",
-			args: []string{"--protocolParam=pqr"},
+			name:   "Protocol",
+			args:   []string{"--protocolParam=pqr"},
+			errMsg: "invalid protocol value: pqr. It can only accept values in the list: [http1 http2 grpc]",
 		},
 	}
-	for _, k := range tests {
-		t.Run(k.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fs := declareFlags()
 			v := bindFlags(fs)
 			c := TestConfig{}
 			args := []string{"test"}
-			args = append(args, k.args...)
+			args = append(args, tc.args...)
 			err := fs.Parse(args)
 			if err != nil {
 				t.Fatalf("Flag parsing failed: %v", err)
@@ -301,7 +318,9 @@ func TestParsingError(t *testing.T) {
 
 			err = v.Unmarshal(&c, viper.DecodeHook(DecodeHook()))
 
-			assert.NotNil(t, err)
+			if assert.NotNil(t, err) && tc.errMsg != "" {
+				assert.ErrorContains(t, err, tc.errMsg)
+			}
 		})
 	}
 }

@@ -72,8 +72,6 @@ func getGoDataType(dt string) string {
 		return "Protocol"
 	case "resolvedPath":
 		return "ResolvedPath"
-	case "nonNegativeOrMinusOne":
-		return "NonNegativeOrMinusOne"
 	case "duration":
 		return "time.Duration"
 	default:

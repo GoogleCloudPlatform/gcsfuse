@@ -75,7 +75,7 @@ func validateParam(param Param) error {
 	// Validate the data type.
 	idx := slices.IndexFunc(
 		[]string{"int", "float64", "bool", "string", "duration", "octal", "[]int",
-			"[]string", "url", "logSeverity", "protocol", "resolvedPath", "nonNegativeOrMinusOne"},
+			"[]string", "url", "logSeverity", "protocol", "resolvedPath"},
 		func(dt string) bool {
 			return dt == param.Type
 		},

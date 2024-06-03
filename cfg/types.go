@@ -16,23 +16,68 @@ package cfg
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
 // Octal is the datatype for params such as file-mode and dir-mode which accept a base-8 value.
 type Octal int
 
-func (oi Octal) String() string {
-	return fmt.Sprintf("%o", oi)
+func (o *Octal) UnmarshalText(text []byte) error {
+	v, err := strconv.ParseInt(string(text) /*base=*/, 8 /*bitSize=*/, 32)
+	if err != nil {
+		return err
+	}
+	*o = Octal(v)
+	return nil
+}
+
+func (o *Octal) String() string {
+	return fmt.Sprintf("%o", *o)
 }
 
 // Protocol is the datatype that specifies the type of connection: http1/http2/grpc.
 type Protocol string
 
+func (p *Protocol) UnmarshalText(text []byte) error {
+	txtStr := string(text)
+	protocol := strings.ToLower(txtStr)
+	v := []string{"http1", "http2", "grpc"}
+	if !slices.Contains(v, protocol) {
+		return fmt.Errorf("invalid protocol value: %s. It can only accept values in the list: %v", txtStr, v)
+	}
+	*p = Protocol(protocol)
+	return nil
+}
+
 // LogSeverity represents the logging severity and can accept the following values
 // "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"
 type LogSeverity string
+
+func (l *LogSeverity) UnmarshalText(text []byte) error {
+	textStr := string(text)
+	level := strings.ToUpper(textStr)
+	v := []string{"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"}
+	if !slices.Contains(v, level) {
+		return fmt.Errorf("invalid logseverity value: %s. It can only assume values in the list: %v", textStr, v)
+	}
+	*l = LogSeverity(level)
+	return nil
+}
 
 // ResolvedPath represents a file-path which could be the absolute or relative
 // path or could be resolved based on the value of GCSFUSE_PARENT_PROCESS_DIR
 // env var.
 type ResolvedPath string
+
+func (p *ResolvedPath) UnmarshalText(text []byte) error {
+	path, err := util.GetResolvedPath(string(text))
+	if err != nil {
+		return err
+	}
+	*p = ResolvedPath(path)
+	return nil
+}

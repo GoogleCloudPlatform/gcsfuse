@@ -65,7 +65,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.")
+	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
 
 	err = viper.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol"))
 	if err != nil {
@@ -107,14 +107,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout.")
+	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run  in the foreground, or to syslog when Cloud Storage FUSE is run in the  background.")
 
 	err = viper.BindPFlag("logging.file-path", flagSet.Lookup("log-file"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity")
+	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
 	err = viper.BindPFlag("logging.severity", flagSet.Lookup("log-severity"))
 	if err != nil {
