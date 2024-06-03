@@ -57,7 +57,7 @@ var (
 
 func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.Client) {
 	// Define the text to write and the files to create
-	files:= []struct {
+	files := []struct {
 		fileContent string
 		filePath    string
 	}{
