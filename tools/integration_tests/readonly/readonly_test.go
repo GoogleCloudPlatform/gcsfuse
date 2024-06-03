@@ -164,7 +164,9 @@ func TestMain(m *testing.M) {
 		successCode = persistent_mounting.RunTests(flags, m)
 	}
 
-	if successCode == 0 {
+	// These tests require changing service account permissions using a gcloud command,
+	// which is currently not supported on TPC.
+	if successCode == 0 && !setup.TestOnTPCEndPoint() {
 		// Test for viewer permission on test bucket.
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 	}
