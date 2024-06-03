@@ -21,8 +21,8 @@ def open_file(file, mode):
 
 def arrange(files):
     # add the log files you want to open in files
-    print("entered arrange\n")
-    opened_files = []
+    # print("entered arrange\n")
+    file_handles = []
     unordered_list = []
     for file in files:
         if file.find(".zip") != -1:
@@ -35,25 +35,25 @@ def arrange(files):
         else:
             unordered_list.append(file)
             # print("appended \n", file)
-            opened_files.append(open_file(file, "r"))
+            file_handles.append(open_file(file, "r"))
 
     # to arrange the files sequentially
     file_tuple = []
-    i = 0
-    for opened in opened_files:
+    pos = 0
+    for entry in file_handles:
         # line = opened.readline()
-        lines = json.load(opened)
+        lines = json.load(entry)
         try:
             for line in lines:
                 sec = line["timestamp"]["seconds"]
                 nano = line["timestamp"]["nanos"]
-                file_tuple.append([[sec, nano], i])
+                file_tuple.append([[sec, nano], pos])
                 break
 
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON log line: {e}")
             exit(1)
-        i += 1
+        pos += 1
     # for tupl in file_tuple:
     #     print("ts: ", tupl[0][0], "index: \n", tupl[1])
 
@@ -64,9 +64,8 @@ def arrange(files):
         ordered_list.append(unordered_list[file_tup[1]])
 
     # closing the log files
-    for open_f in opened_files:
+    for open_f in file_handles:
         if open_f is not None:
             open_f.close()
-    print("leaving arranged\n")
+    # print("leaving arranged\n")
     return ordered_list
-
