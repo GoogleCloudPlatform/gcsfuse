@@ -275,6 +275,20 @@ func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	}
 }
 
+func ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet() {
+	ParseSetUpFlags()
+
+	if *testBucket == "" {
+		log.Print("Please pass the name of bucket to be mounted to --testBucket flag. It is required for this test.")
+		os.Exit(1)
+	}
+
+	if *mountedDirectory != "" {
+		log.Print("Please do not pass the mountedDirectory at test runtime. It is not supported for this test.")
+		os.Exit(1)
+	}
+}
+
 func RunTestsForMountedDirectoryFlag(m *testing.M) {
 	// Execute tests for the mounted directory.
 	if *mountedDirectory != "" {

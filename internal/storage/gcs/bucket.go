@@ -32,6 +32,9 @@ const (
 	NonHierarchical
 	Hierarchical
 	Unknown
+	// ReqIdField is the key for the value of
+	// GCS req-id in context.
+	ReqIdField string = "GcsReqId"
 )
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
