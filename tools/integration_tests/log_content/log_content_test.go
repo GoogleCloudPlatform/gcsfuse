@@ -24,33 +24,30 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const (
-	MiB      = 1024 * 1024
-	FileName = "fileName.txt"
-)
-
-var (
-	logFileOffset int
-)
-
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	// This test supports the scenario where only a testBucket has been passed.
+	// If a user passes a mountedDirectory, then the
+	// test cannot ensure that logs are generated for it,
+	// and thus does not support that scenario.
 	setup.ExitWithFailureIfMountedDirectoryIsSetOrTestBucketIsNotSet()
 
-	// Run tests for testBucket
+	// Enable tests for testBucket
 	setup.SetUpTestDirForTestBucketFlag()
 
-	// No flags to be set. Only debugs log are to be enabled,
-	// which are enabled by default by static_mounting.RunTests .
-	flagsSet := [][]string{{}}
-
+	// Set up a log file.
 	logFile, err := os.CreateTemp(setup.TestDir(), "log_content_test-*.log")
 	if err != nil || logFile == nil {
 		log.Fatalf("Failed to create temp-file for logging: %v", err)
 	}
 	defer logFile.Close()
 	setup.SetLogFile(logFile.Name())
+
+	// No explicit flags need to be set. Only debugs log are to be enabled,
+	// which are enabled by default by static_mounting.RunTests
+	// and by the above call to set log-file.
+	flagsSet := [][]string{{}}
 
 	successCode := 0
 	if successCode == 0 {
