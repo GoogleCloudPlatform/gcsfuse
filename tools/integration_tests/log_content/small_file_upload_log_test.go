@@ -15,12 +15,8 @@
 package log_content
 
 import (
-	"os"
-	"path"
-	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -30,41 +26,11 @@ const (
 )
 
 func TestSmallFileUploadFileLog(t *testing.T) {
-	testDir := path.Join(setup.MntDir(), DirForSmallFileUploadLog)
-	err := os.Mkdir(testDir, setup.FilePermission_0600)
-	if err != nil {
-		t.Fatalf("Error in creating directory:%v", err)
-	}
-	// Clean up.
-	defer operations.RemoveDir(testDir)
+	uploadFile(t, DirForBigFileUploadLog, SmallFileSize)
 
-	filePath := path.Join(testDir, FileName)
-
-	// Sequentially write the data in file.
-	err = operations.WriteFileSequentially(filePath, SmallFileSize, SmallFileSize)
-	if err != nil {
-		t.Fatalf("Error in writing file: %v", err)
-	}
-
-	logFile := setup.LogFile()
-	if logFile == "" {
-		t.Fatalf("No log-file found")
-	}
-
-	// Read the entire bytes file at once. This can be optimized by reading
-	// a bunch of lines at once, then eliminating the found
-	// expected substrings one by one.
-	bytes, err := os.ReadFile(logFile)
-	if err != nil {
-		t.Errorf("Failed in reading logfile %q: %v", logFile, err)
-	}
-	completeLogString := string(bytes)
-	logString := completeLogString[logFileOffset:]
-
-	unexpectedLogSubstring := "bytes uploaded so far"
-	if strings.Contains(logString, unexpectedLogSubstring) {
-		t.Errorf("Logfile %s contains unexpected substring: %q", logFile, unexpectedLogSubstring)
-	}
-
-	logFileOffset = len(completeLogString)
+	// The file being uploaded is too small (<16 MB) for progress logs
+	// to be printed.
+	unexpectedLogSubstrings := []string{"bytes uploaded so far"}
+	logString := extractRelevantLogsFromLogFile(t, setup.LogFile(), &logFileOffset)
+	verifyUnexpectedSubstringsInLogs(t, logString, unexpectedLogSubstrings)
 }
