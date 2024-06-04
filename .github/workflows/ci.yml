@@ -12,16 +12,17 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [ 1.22.x ]
-    runs-on: ubuntu-20.04
+        go: [ 1.23.x ]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Go ${{ matrix.go }}
       uses: actions/setup-go@v2.1.4
       with:
         go-version: ${{ matrix.go }}
+        fetch-depth: 0
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
     - name: Build
@@ -35,14 +36,14 @@ jobs:
       run: CGO_ENABLED=1 go test -p 1 -count 1 -v -race ./internal/cache/...
   lint:
     name: Lint
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: Setup Go
       uses: actions/setup-go@v3
       with:
-        go-version: "1.22"
+        go-version: "1.23"
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: golangci-lint
       uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
       with:
