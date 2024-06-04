@@ -1,23 +1,21 @@
+# put this function in utility file
+def get_val(message, key, delim, direction, offset):
+    # offset contains adjustments needed for spaces and key lengths
+    if direction == "fwd":
+        start_index = message.find(key)+len(key)+offset
+    else:
+        start_index = message.rfind(key)+len(key)+offset
+    end_index = message.find(delim, start_index)
+    return message[start_index:end_index]
 
 
 def parseit(log):
     message = log["message"]
-    # {"timestamp":{"seconds":1716900537,"nanos":713138380},"severity":"TRACE","message":"fuse_debug: Op 0x000033e0        connection.go:420] <- ReadFile (inode 6, PID 96407, handle 155, offset 192512, 4096 bytes)"}
-    start_index = message.find("inode")+6
-    end_index = message.find(",", start_index)
-    inode = int(message[start_index:end_index])
-    start_index = message.find("PID")+4
-    end_index = message.find(",", start_index)
-    pid = int(message[start_index:end_index])
-    start_index = message.find("handle")+7
-    end_index = message.find(",", start_index)
-    handle = int(message[start_index:end_index])
-    start_index = message.find("offset")+7
-    end_index = message.find(",", start_index)
-    offset = int(message[start_index:end_index])
-    start_index = message.rfind(",")+2
-    end_index = message.find(" ", start_index)
-    byts = int(message[start_index:end_index])
+    inode = int(get_val(message, "inode", ",", "fwd", 1))
+    pid = int(get_val(message, "PID", ",", "fwd", 1))
+    handle = int(get_val(message, "handle", ",", "fwd", 1))
+    offset = int(get_val(message, "offset", ",", "fwd", 1))
+    byts = int(get_val(message, ",", " ", "bck", 1))
     return [inode, pid, handle, offset, byts]
 
 
@@ -27,20 +25,6 @@ def processor(file, logs):
     pattern = {}
     last_entry = {}
     for log in logs:
-        # data = parseit(log)
-        # if (inode == data[0]) and (handle == data[2]):
-        #     # for i in range(5):
-        #     #     print(data[i], " ")
-        #     # print("\n")
-        #     if last_entry == -1:
-        #         pattern += "_"
-        #         last_entry = data[3] + data[4]
-        #     else:
-        #         if data[3] == last_entry:
-        #             pattern += "s"
-        #         else:
-        #             pattern += "r"
-        #         last_entry = data[3] + data[4]
         message = log["message"]
         if message.find("ReadFile") != -1:
             data = parseit(log)
@@ -57,21 +41,13 @@ def processor(file, logs):
                     last_entry[data[2]] = data[3] + data[4]
         else:
             if message.find("LookUpInode") != -1 and message.find(file) != -1:
-                start_index = message.find("Op 0x")+3
-                end_index = start_index+10
-                req = message[start_index:end_index]
+                req = get_val(message, "Op 0x", " ", "fwd", -1)
             if message.find("OK (inode") != -1:
-                start_index = message.find("Op 0x")+3
-                end_index = start_index+10
-                if req == message[start_index:end_index]:
-                    start_index = message.find("(inode ")+7
-                    end_index = message.rfind(")")
-                    inode = int(message[start_index:end_index])
+                if req == get_val(message, "Op 0x", " ", "fwd", -1):
+                    inode = int(get_val(message, "(inode", ")", "fwd", 1))
 
     for handle in pattern.keys():
-        print("Pattern of reads for handle = ", handle, ":", pattern[handle], "\n")
-        # pattern = "_rrrssssrr"
-        # assuming total reads >1
+        print("Pattern of reads for handle = ", handle, ":", "\n")
         if len(pattern[handle]) > 1:
             last_read = pattern[handle][1]
             streak = 1
@@ -83,7 +59,7 @@ def processor(file, logs):
                 else:
                     streak += 1
 
-            print(last_read, streak, "\n")
+            print(last_read, streak, "\t")
         else:
             print("A single read happened\n")
 
