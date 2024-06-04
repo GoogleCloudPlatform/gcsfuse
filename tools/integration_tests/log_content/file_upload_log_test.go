@@ -19,27 +19,39 @@ import (
 	"math"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
 const (
-	BigFileSize            int64 = 50 * MiB
-	DirForBigFileUploadLog       = "dirForiBigFileUploadLog"
+	BigFileSize              int64 = 50 * MiB
+	SmallFileSize            int64 = MiB
+	DirForBigFileUploadLog         = "dirForiBigFileUploadLog"
+	DirForSmallFileUploadLog       = "dirForSmallFileUploadLog"
 )
 
 func TestBigFileUploadLog(t *testing.T) {
-	fileSize := BigFileSize
 	uploadFile(t, DirForBigFileUploadLog, BigFileSize)
 
 	// Big files (> 16 MiB) are uploaded sequentially in chunks of size
 	// 16 MiB each and each chunk's successful upload generates a log.
 	gcsWriteChunkSize := 16 * MiB
-	numTotalChunksToBeCompleted := int(math.Floor(float64(fileSize) / float64(gcsWriteChunkSize)))
+	numTotalChunksToBeCompleted := int(math.Floor(float64(BigFileSize) / float64(gcsWriteChunkSize)))
 	var expectedSubstrings []string
 	for numChunksCompletedSoFar := 1; numChunksCompletedSoFar <= numTotalChunksToBeCompleted; numChunksCompletedSoFar++ {
 		expectedSubstrings = append(expectedSubstrings, fmt.Sprintf("%d bytes uploaded so far", numChunksCompletedSoFar*gcsWriteChunkSize))
 	}
 
 	logString := extractRelevantLogsFromLogFile(t, setup.LogFile(), &logFileOffset)
-	verifyExpectedSubstringsInLog(t, logString, expectedSubstrings)
+	operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
+}
+
+func TestSmallFileUploadFileLog(t *testing.T) {
+	uploadFile(t, DirForBigFileUploadLog, SmallFileSize)
+
+	// The file being uploaded is too small (<16 MB) for progress logs
+	// to be printed.
+	unexpectedLogSubstrings := []string{"bytes uploaded so far"}
+	logString := extractRelevantLogsFromLogFile(t, setup.LogFile(), &logFileOffset)
+	operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
 }

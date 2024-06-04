@@ -18,7 +18,6 @@ package log_content
 import (
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -47,22 +46,6 @@ func extractRelevantLogsFromLogFile(t *testing.T, logFile string, logFileOffset 
 	logString = completeLogString[*logFileOffset:]
 	*logFileOffset = len(completeLogString)
 	return
-}
-
-func verifyExpectedSubstringsInLog(t *testing.T, logString string, expectedSubstrings []string) {
-	for _, expectedSubstring := range expectedSubstrings {
-		if !strings.Contains(logString, expectedSubstring) {
-			t.Errorf("log does not contain expected substring (%q)", expectedSubstring)
-		}
-	}
-}
-
-func verifyUnexpectedSubstringsInLogs(t *testing.T, logString string, unexpectedSubstrings []string) {
-	for _, unexpectedSubstring := range unexpectedSubstrings {
-		if strings.Contains(logString, unexpectedSubstring) {
-			t.Errorf("log contain unexpected substring (%q)", unexpectedSubstring)
-		}
-	}
 }
 
 func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
