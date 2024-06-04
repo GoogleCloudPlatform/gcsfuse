@@ -69,6 +69,7 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount("")
 	bucketHandle := storageClient.Bucket(bucket)
 
+	log.Println(bucket, " ", object)
 	// Loop through the file data and create/upload files
 	for _, file := range files {
 		filePath := path.Join(object, file.filePath)
