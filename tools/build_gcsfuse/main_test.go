@@ -28,17 +28,51 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error while creating temporary directory: %v", err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	err = buildBinaries(dir, "../../", "99.88.77", nil)
 	if err != nil {
 		t.Fatalf("Error while building binary: %v", err)
 	}
-
-	cmd := exec.Command(path.Join(dir, "bin/gcsfuse"), "--version")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Error while running the gcsfuse binary: %v", err)
+	testCases := []struct {
+		name              string
+		args              string
+		expected          string
+		enableViperConfig string
+	}{
+		{
+			name:              "Version Flag without Viper config",
+			args:              "--version",
+			expected:          "gcsfuse version 99.88.77",
+			enableViperConfig: "false",
+		},
+		{
+			name:              "Version Flag with Viper config",
+			args:              "--version",
+			expected:          "gcsfuse version 99.88.77",
+			enableViperConfig: "true",
+		},
+		{
+			name:              "Version Shorthand with Viper config",
+			args:              "-v",
+			expected:          "gcsfuse version 99.88.77",
+			enableViperConfig: "true",
+		},
 	}
-	assert.Contains(t, string(output), "gcsfuse version 99.88.77")
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err = os.Setenv("ENABLE_GCSFUSE_VIPER_CONFIG", tc.enableViperConfig)
+			if err != nil {
+				t.Fatalf("Error while setting ENABLE_GCSFUSE_VIPER_CONFIG environment variable: %v", err)
+			}
+
+			cmd := exec.Command(path.Join(dir, "bin/gcsfuse"), tc.args)
+
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Error running gcsfuse with args %v: %v", tc.args, err)
+			}
+			assert.Contains(t, string(output), tc.expected)
+		})
+	}
 }
