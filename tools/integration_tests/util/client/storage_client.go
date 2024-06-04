@@ -56,8 +56,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		err = fmt.Errorf("ReadFile(%q): %w", path, err)
-		return
+		return nil, fmt.Errorf("ReadFile(%q): %w", path, err)
 	}
 
 	// Create a config struct based on its contents.
