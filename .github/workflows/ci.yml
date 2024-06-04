@@ -12,14 +12,14 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [ 1.23 ]
+        go: [ 1.22.x ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
         fetch-depth: 0
