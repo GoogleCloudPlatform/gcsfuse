@@ -66,12 +66,14 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		{"This is from directory Test/b file b", TestDirForReadOnlyTest + "/Test/b/b.txt"},
 	}
 
-	bucket := storageClient.Bucket(setup.TestBucket())
+	bucket, dirPath := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucketHandle := storageClient.Bucket(bucket)
 
 	// Loop through the file data and create/upload files
 	for _, file := range files {
+		filePath := path.Join(dirPath, file.filePath)
 		// Create a storage writer for the destination object
-		object := bucket.Object(file.filePath)
+		object := bucketHandle.Object(filePath)
 		writer := object.NewWriter(ctx)
 
 		// Write the text to the object
