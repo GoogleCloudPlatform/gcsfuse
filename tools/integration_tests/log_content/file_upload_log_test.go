@@ -26,11 +26,10 @@ import (
 )
 
 const (
-	BigFileSize              int64 = 50 * operations.MiB
-	SmallFileSize            int64 = operations.MiB
-	DirForBigFileUploadLog         = "dirForiBigFileUploadLog"
-	DirForSmallFileUploadLog       = "dirForSmallFileUploadLog"
-	FileName                       = "fileName.txt"
+	BigFileSize             int64 = 50 * operations.MiB
+	SmallFileSize           int64 = operations.MiB
+	DirForFileUploadLogTest       = "dirForFileUploadLogTest"
+	FileName                      = "fileName.txt"
 )
 
 func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
@@ -71,7 +70,7 @@ func uploadFileAndReturnLogs(t *testing.T, fileSize int64) string {
 		t.Fatal(err)
 	}
 
-	uploadFile(t, DirForBigFileUploadLog, fileSize)
+	uploadFile(t, DirForFileUploadLogTest, fileSize)
 	return extractRelevantLogsFromLogFile(t, setup.LogFile(), logFileOffset)
 }
 
@@ -90,7 +89,7 @@ func TestBigFileUploadLog(t *testing.T) {
 	operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
 }
 
-func TestSmallFileUploadFileLog(t *testing.T) {
+func TestSmallFileUploadLog(t *testing.T) {
 	logString := uploadFileAndReturnLogs(t, SmallFileSize)
 
 	// The file being uploaded is too small (<16 MB) for progress logs
