@@ -207,7 +207,7 @@ If a user has the following objects in their Cloud Storage buckets, for example 
 - C/3.txt
 
 then mounting the bucket and running ```ls``` to see its content will not show any files until placeholder directory objects A/, A/B/, and C/ are created in the GCS bucket. These placeholder directory objects can be created by running `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C` on GCSFuse mounted directory.
-At which point they will correctly see:
+At which point the user will correctly see:
 - A/
 - A/1.txt
 - A/B/
