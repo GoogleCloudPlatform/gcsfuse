@@ -2,6 +2,7 @@ import arranging
 import log_agg
 import open_handles_metric
 import read_pattern_metric
+import count_gcs_calls
 
 # Add the log files here
 files = []
@@ -18,6 +19,8 @@ end_time = int(input("end time(epoch): "))
 
 file = input("Enter the file name for metrics: ")
 
+# interval_open_handle = input("Enter the time period for open handles update: ")
+
 ordered_files = arranging.arrange(files)
 
 # metric 1 is open file handles and metric 2 is read patterns
@@ -29,3 +32,5 @@ tot_logs = log_agg.seg_log(ordered_files, agg_logs, start_time, end_time, file)
 open_handles_metric.processor(file, agg_logs[0])
 
 read_pattern_metric.processor(file, agg_logs[1])
+
+count_gcs_calls.count_calls(file, tot_logs)

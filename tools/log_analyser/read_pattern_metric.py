@@ -47,19 +47,19 @@ def processor(file, logs):
                     inode = int(get_val(message, "(inode", ")", "fwd", 1))
 
     for handle in pattern.keys():
-        print("Pattern of reads for handle = ", handle, ":", "\n")
+        print("Pattern of reads for handle = ", handle, ":")
         if len(pattern[handle]) > 1:
             last_read = pattern[handle][1]
             streak = 1
             for i in range(2, len(pattern[handle])):
                 if pattern[handle][i] != last_read:
-                    print(last_read, streak, " ")
+                    print(last_read, streak, end="\t")
                     last_read = pattern[handle][i]
                     streak = 1
                 else:
                     streak += 1
 
-            print(last_read, streak, "\t")
+            print(last_read, streak)
         else:
             print("A single read happened\n")
 

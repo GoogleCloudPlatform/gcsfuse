@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import datetime
 from pytz import timezone
 from read_pattern_metric import get_val
+import math
 
 
 # put this function in utility file
@@ -38,6 +39,15 @@ def processor(file, logs):
             data = parseit(log)
             timestamp_sec = log["timestamp"]["seconds"]
             if data[0] == inode:
+                # if last_timestamp + skip_time <= timestamp_sec
+                #     if last_timestamp != 0
+                #         x_axis.append(last_timestamp)
+                #         labels.append(epoch_to_iso(last_timestamp))
+                #         y_axis.append(buff_handles+last_handle_val)
+                #         last_timestamp = timestamp_sec
+                #         last_handle_val = last_handle_val + buff_handles
+                #         buff_handles = 1
+
                 if last_timestamp != timestamp_sec:
                     if last_timestamp != 0:
                         x_axis.append(last_timestamp)
