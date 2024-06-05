@@ -26,10 +26,11 @@ import (
 )
 
 const (
-	BigFileSize             int64 = 50 * operations.MiB
-	SmallFileSize           int64 = operations.MiB
-	DirForFileUploadLogTest       = "dirForFileUploadLogTest"
-	FileName                      = "fileName.txt"
+	BigFileSize                  int64 = 50 * operations.MiB
+	SmallFileSize                int64 = operations.MiB
+	DirForBigFileUploadLogTest         = "dirForBigFileUploadLogTest"
+	DirForSmallFileUploadLogTest       = "dirForSmallFileUploadLogTest"
+	FileName                           = "fileName.txt"
 )
 
 func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
@@ -63,19 +64,19 @@ func extractRelevantLogsFromLogFile(t *testing.T, logFile string, logFileOffset 
 	return
 }
 
-func uploadFileAndReturnLogs(t *testing.T, fileSize int64) string {
+func uploadFileAndReturnLogs(t *testing.T, dirName string, fileSize int64) string {
 	var err error
 	var logFileOffset int64
 	if logFileOffset, err = operations.SizeOfFile(setup.LogFile()); err != nil {
 		t.Fatal(err)
 	}
 
-	uploadFile(t, DirForFileUploadLogTest, fileSize)
+	uploadFile(t, dirName, fileSize)
 	return extractRelevantLogsFromLogFile(t, setup.LogFile(), logFileOffset)
 }
 
 func TestBigFileUploadLog(t *testing.T) {
-	logString := uploadFileAndReturnLogs(t, BigFileSize)
+	logString := uploadFileAndReturnLogs(t, DirForBigFileUploadLogTest, BigFileSize)
 
 	// Big files (> 16 MiB) are uploaded sequentially in chunks of size
 	// 16 MiB each and each chunk's successful upload generates a log.
@@ -90,7 +91,7 @@ func TestBigFileUploadLog(t *testing.T) {
 }
 
 func TestSmallFileUploadLog(t *testing.T) {
-	logString := uploadFileAndReturnLogs(t, SmallFileSize)
+	logString := uploadFileAndReturnLogs(t, DirForSmallFileUploadLogTest, SmallFileSize)
 
 	// The file being uploaded is too small (<16 MB) for progress logs
 	// to be printed.
