@@ -111,7 +111,7 @@ else
 fi
 
 # install go
-wget -O go_tar.tar.gz https://go.dev/dl/go1.22.3.linux-${architecture}.tar.gz
+wget -O go_tar.tar.gz https://go.dev/dl/go1.22.3.linux-${architecture}.tar.gz -q
 sudo tar -C /usr/local -xzf go_tar.tar.gz
 export PATH=${PATH}:/usr/local/go/bin
 #Write gcsfuse and go version to log file
@@ -139,9 +139,113 @@ git checkout $(sed -n 2p ~/details.txt) |& tee -a ~/logs.txt
 
 #run tests with testbucket flag
 set +e
-GODEBUG=asyncpreemptoff=1 CGO_ENABLED=0 go test ./tools/integration_tests/... -p 1 -short --integrationTest -v --testbucket=$(sed -n 3p ~/details.txt) --testInstalledPackage --timeout=60m &>> ~/logs.txt
 
-if [ $? -ne 0 ];
+# Test directory arrays
+TEST_DIR_PARALLEL=(
+  "local_file"
+  "log_rotation"
+  "mounting"
+  "read_cache"
+  "gzip"
+  "write_large_files"
+  "list_large_dir"
+  "rename_dir_limit"
+  "read_large_files"
+  "explicit_dir"
+  "implicit_dir"
+  "interrupt"
+  "operations"
+)
+
+# These tests never become parallel as it is changing bucket permissions.
+TEST_DIR_NON_PARALLEL=(
+  "readonly"
+  "managed_folders"
+  "readonly_creds"
+)
+
+# Create a temporary file to store the log file name.
+TEST_LOGS_FILE=$(mktemp)
+GO_TEST_SHORT_FLAG="-short"
+INTEGRATION_TEST_TIMEOUT=60m
+BUCKET_NAME=$(sed -n 3p ~/details.txt)
+
+function run_non_parallel_tests() {
+  local exit_code=0
+  local -n test_array=$1
+
+  for test_dir_np in "${test_array[@]}"
+  do
+    test_path_non_parallel="./tools/integration_tests/$test_dir_np"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_np}_${BUCKET_NAME}.log"
+    echo $log_file >> $TEST_LOGS_FILE
+
+    # Executing integration tests
+    GODEBUG=asyncpreemptoff=1 go test $test_path_non_parallel -p 1 $GO_TEST_SHORT_FLAG --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1
+    exit_code_non_parallel=$?
+    if [ $exit_code_non_parallel != 0 ]; then
+      exit_code=$exit_code_non_parallel
+    fi
+  done
+  return $exit_code
+}
+
+function run_parallel_tests() {
+  local exit_code=0
+  local -n test_array=$1
+  local pids=()
+
+  for test_dir_p in "${test_array[@]}"
+  do
+    test_path_parallel="./tools/integration_tests/$test_dir_p"
+    # To make it clear whether tests are running on a flat or HNS bucket, We kept the log file naming
+    # convention to include the bucket name as a suffix (e.g., package_name_bucket_name).
+    local log_file="/tmp/${test_dir_p}_${BUCKET_NAME}.log"
+    echo $log_file >> $TEST_LOGS_FILE
+    # Executing integration tests
+    GODEBUG=asyncpreemptoff=1 go test $test_path_parallel $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=$BUCKET_NAME --testInstalledPackage=true -timeout $INTEGRATION_TEST_TIMEOUT > "$log_file" 2>&1 &
+    pid=$!  # Store the PID of the background process
+    pids+=("$pid")  # Optionally add the PID to an array for later
+  done
+
+  # Wait for processes and collect exit codes
+  for pid in "${pids[@]}"; do
+    wait $pid
+    exit_code_parallel=$?
+    if [ $exit_code_parallel != 0 ]; then
+      exit_code=$exit_code_parallel
+    fi
+  done
+  return $exit_code
+}
+
+function gather_test_logs() {
+  readarray -t test_logs_array < "$TEST_LOGS_FILE"
+  rm "$TEST_LOGS_FILE"
+  for test_log_file in "${test_logs_array[@]}"
+  do
+    log_file=${test_log_file}
+    if [ -f "$log_file" ]; then
+      echo "=== Log for ${test_log_file} ===" >> ~/logs.txt
+      cat "$log_file" >> ~/logs.txt
+      echo "=========================================" >> ~/logs.txt
+    fi
+  done
+}
+
+echo "Running parallel tests..."
+run_parallel_tests TEST_DIR_PARALLEL
+parallel_tests_exit_code=$?
+
+echo "Running non parallel tests ..."
+run_non_parallel_tests TEST_DIR_NON_PARALLEL
+non_parallel_tests_exit_code=$?
+
+gather_test_logs()
+
+if [ $parallel_tests_exit_code != 0 ] || [ $non_parallel_tests_exit_code != 0 ]
 then
     echo "Test failures detected" &>> ~/logs.txt
 else
