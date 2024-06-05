@@ -184,6 +184,11 @@ func (b *throttledBucket) DeleteObject(
 	return
 }
 
+func (b *throttledBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	err = b.wrapped.ParallelDownloadToFile(ctx, req)
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // readerCloser
 ////////////////////////////////////////////////////////////////////////

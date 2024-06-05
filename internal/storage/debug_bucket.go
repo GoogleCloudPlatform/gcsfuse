@@ -229,3 +229,8 @@ func (b *debugBucket) DeleteObject(
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
 }
+
+func (b *debugBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	err = b.wrapped.ParallelDownloadToFile(ctx, req)
+	return
+}

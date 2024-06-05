@@ -324,3 +324,7 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 
 	return
 }
+
+func (b *mockBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	return
+}

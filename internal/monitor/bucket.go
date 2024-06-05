@@ -195,6 +195,11 @@ func (mb *monitoringBucket) DeleteObject(
 	return err
 }
 
+func (b *monitoringBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	err = b.wrapped.ParallelDownloadToFile(ctx, req)
+	return
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, ioMethod string) {
 	if err := stats.RecordWithTags(

@@ -288,3 +288,8 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 	return
 }
+
+func (b *fastStatBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	err = b.wrapped.ParallelDownloadToFile(ctx, req)
+	return
+}

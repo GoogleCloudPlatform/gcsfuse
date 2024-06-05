@@ -254,7 +254,9 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 		return false
 	}
 
-	return true
+	// Always making random, to serve the kernel-read request from GCS, if data is
+	// not downloaded in the cache yet.
+	return false
 }
 
 // Close closes the underlying fileHandle pointing to locally downloaded cache file.

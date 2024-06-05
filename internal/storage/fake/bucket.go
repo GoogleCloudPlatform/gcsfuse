@@ -866,3 +866,7 @@ func (b *bucket) DeleteObject(
 
 	return
 }
+
+func (b *bucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	return
+}

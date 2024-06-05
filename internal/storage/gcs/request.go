@@ -18,6 +18,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"os"
 
 	storagev1 "google.golang.org/api/storage/v1"
 )
@@ -375,4 +376,26 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+}
+
+// A request to delete an object by name. Non-existence is not treated as an
+// error.
+type ParallelDownloadToFileRequest struct {
+	// The name of the object to delete. Must be specified.
+	Name string
+
+	// The generation of the object to delete. Zero means the latest generation.
+	Generation int64
+
+	// If non-nil, the request will fail without effect if there is an object
+	// with the given name (and optionally generation), and its meta-generation
+	// is not equal to this value.
+	MetaGenerationPrecondition *int64
+
+	// If present, limit the contents returned to a range within the object.
+	Range *ByteRange
+
+	PartSize uint64
+
+	FileHandle *os.File
 }

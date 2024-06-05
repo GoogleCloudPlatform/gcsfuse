@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0
-	cloud.google.com/go/storage v1.41.0
+	cloud.google.com/go/storage v1.41.1-0.20240605002059-de9872df8565
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.49.1
@@ -95,7 +95,7 @@ require (
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20240530194437-404ba88c7ed0 // indirect
 	google.golang.org/genproto v0.0.0-20240528184218-531527333157 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240521202816-d264139d666e // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

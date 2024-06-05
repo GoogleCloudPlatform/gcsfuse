@@ -20,11 +20,14 @@
 package storage
 
 import (
+	"cloud.google.com/go/storage/transfermanager"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -44,6 +47,7 @@ type bucketHandle struct {
 	bucketName    string
 	bucketType    gcs.BucketType
 	controlClient StorageControlClient
+	downloader    *transfermanager.Downloader
 }
 
 func (bh *bucketHandle) Name() string {
@@ -480,4 +484,60 @@ func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
+}
+
+func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) error {
+
+	if b.downloader == nil {
+		return fmt.Errorf("parallel download not suppported")
+	}
+
+	if req.PartSize == 0 {
+		return fmt.Errorf("invalid part-size")
+	}
+
+	size := req.Range.Limit - req.Range.Start
+	numParts := (size-1)/req.PartSize + 1
+
+	wg := sync.WaitGroup{}
+
+	callback := func(out *transfermanager.DownloadOutput) {
+		wg.Done()
+		if out.Err != nil {
+			ctx.Done()
+			logger.Errorf("parallel download failed: %d", out.Err)
+		} else {
+			logger.Info("download succeeded at offset %v", out.Attrs.StartOffset)
+		}
+	}
+
+	for i := uint64(0); i < numParts; i++ {
+		offset := int64(i * req.PartSize)
+		length := int64(req.PartSize)
+		// For the last part, read to the end of the file.
+		if i == numParts-1 {
+			length = -1
+		}
+		w := io.NewOffsetWriter(req.FileHandle, offset)
+		in := &transfermanager.DownloadObjectInput{
+			Bucket:      b.bucketName,
+			Object:      req.Name,
+			Destination: w,
+			Range: &transfermanager.DownloadRange{
+				Offset: offset,
+				Length: length,
+			},
+			Callback: callback,
+		}
+
+		// Add download. This is non-blocking so the download will start in the
+		// background.
+		wg.Add(1)
+		err := b.downloader.DownloadObject(ctx, in)
+		if err != nil {
+			log.Fatalf("DownloadObject: %v", err)
+		}
+	}
+
+	return nil
 }
