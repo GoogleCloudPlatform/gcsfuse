@@ -17,6 +17,8 @@ package log_content
 import (
 	"fmt"
 	"math"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -24,34 +26,75 @@ import (
 )
 
 const (
-	BigFileSize              int64 = 50 * MiB
-	SmallFileSize            int64 = MiB
+	BigFileSize              int64 = 50 * operations.MiB
+	SmallFileSize            int64 = operations.MiB
 	DirForBigFileUploadLog         = "dirForiBigFileUploadLog"
 	DirForSmallFileUploadLog       = "dirForSmallFileUploadLog"
+	FileName                       = "fileName.txt"
 )
 
+func uploadFile(t *testing.T, dirNamePrefix string, fileSize int64) {
+	testDir, err := os.MkdirTemp(setup.MntDir(), dirNamePrefix+"-*")
+	if err != nil || testDir == "" {
+		t.Fatalf("Error in creating test-directory:%v", err)
+	}
+	// Clean up.
+	defer operations.RemoveDir(testDir)
+
+	filePath := path.Join(testDir, FileName)
+
+	// Sequentially write the data in file.
+	err = operations.WriteFileSequentially(filePath, fileSize, fileSize)
+	if err != nil {
+		t.Fatalf("Error in writing file: %v", err)
+	}
+}
+
+func extractRelevantLogsFromLogFile(t *testing.T, logFile string, logFileOffset int64) (logString string) {
+	// Read the entire log file at once. This can be optimized by reading
+	// a bunch of lines at once, then eliminating the found
+	// expected substrings one by one.
+	bytes, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Errorf("Failed in reading logfile %q: %v", logFile, err)
+	}
+	completeLogString := string(bytes)
+
+	logString = completeLogString[logFileOffset:]
+	return
+}
+
+func uploadFileAndReturnLogs(t *testing.T, fileSize int64) string {
+	var err error
+	var logFileOffset int64
+	if logFileOffset, err = operations.SizeOfFile(setup.LogFile()); err != nil {
+		t.Fatal(err)
+	}
+
+	uploadFile(t, DirForBigFileUploadLog, fileSize)
+	return extractRelevantLogsFromLogFile(t, setup.LogFile(), logFileOffset)
+}
+
 func TestBigFileUploadLog(t *testing.T) {
-	uploadFile(t, DirForBigFileUploadLog, BigFileSize)
+	logString := uploadFileAndReturnLogs(t, BigFileSize)
 
 	// Big files (> 16 MiB) are uploaded sequentially in chunks of size
 	// 16 MiB each and each chunk's successful upload generates a log.
-	gcsWriteChunkSize := 16 * MiB
+	gcsWriteChunkSize := 16 * operations.MiB
 	numTotalChunksToBeCompleted := int(math.Floor(float64(BigFileSize) / float64(gcsWriteChunkSize)))
 	var expectedSubstrings []string
 	for numChunksCompletedSoFar := 1; numChunksCompletedSoFar <= numTotalChunksToBeCompleted; numChunksCompletedSoFar++ {
 		expectedSubstrings = append(expectedSubstrings, fmt.Sprintf("%d bytes uploaded so far", numChunksCompletedSoFar*gcsWriteChunkSize))
 	}
 
-	logString := extractRelevantLogsFromLogFile(t, setup.LogFile(), &logFileOffset)
 	operations.VerifyExpectedSubstrings(t, logString, expectedSubstrings)
 }
 
 func TestSmallFileUploadFileLog(t *testing.T) {
-	uploadFile(t, DirForBigFileUploadLog, SmallFileSize)
+	logString := uploadFileAndReturnLogs(t, SmallFileSize)
 
 	// The file being uploaded is too small (<16 MB) for progress logs
 	// to be printed.
 	unexpectedLogSubstrings := []string{"bytes uploaded so far"}
-	logString := extractRelevantLogsFromLogFile(t, setup.LogFile(), &logFileOffset)
 	operations.VerifyUnexpectedSubstrings(t, logString, unexpectedLogSubstrings)
 }
