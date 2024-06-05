@@ -200,13 +200,12 @@ Even though A/, A/B/, and C/ are directories in the filesystem, a 0-byte object 
 The above example was based on greenfield deployments which assumes starting fresh, where the directories are created from Cloud Storage FUSE. If a user unmounts this Cloud Storage FUSE bucket, and then re-mounts it to a different path, the user will see the directory structure correctly in the filesystem because it was originally created by Cloud Storage FUSE.
 
 However, if a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory, with the same name, using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.  These backing objects for directories are special 0-byte objects which are placeholders for directories. Note that these can also be created via the WebUI and Cloud Storage SDKs, but not by the Cloud Storage CLI tools such as gcloud or gsutil.
-
 If a user has the following objects in their Cloud Storage buckets, for example created by uploading a local directory using `gsutil cp -r` command.
 - A/1.txt
 - A/B/2.txt
 - C/3.txt
 
-then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the `mkdir` command (or create these from the WebUI). A user would have to run `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C`.
+then mounting the bucket and running ```ls``` to see its content will not show any files until placeholder directory objects A/, A/B/, and C/ are created in the GCS bucket. These placeholder directory objects can be created by running `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C` on GCSFuse mounted directory.
 At which point they will correctly see:
 - A/
 - A/1.txt
