@@ -39,6 +39,60 @@ const (
 // So, if the current ReadDir() response is matching with previous one then
 // we can clearly say it is served from kernel cache. If not matching then served
 // from gcsfuse filesystem.
+type KernelListCacheTestCommon struct {
+	suite.Suite
+	fsTest
+}
+
+func (t *KernelListCacheTestCommon) SetupSuite() {
+	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.MountConfig = &config.MountConfig{
+		FileSystemConfig: config.FileSystemConfig{
+			DisableParallelDirops:     false,
+			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
+		}}
+	t.serverCfg.RenameDirLimit = 10
+	t.fsTest.SetUpTestSuite()
+}
+
+func (t *KernelListCacheTestCommon) SetupTest() {
+	t.createFilesAndDirStructureInBucket()
+	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+}
+
+func (t *KernelListCacheTestCommon) TearDownTest() {
+	cacheClock.AdvanceTime(util.MaxTimeDuration)
+	t.fsTest.TearDown()
+	//os.RemoveAll(path.Join(mntDir))
+}
+
+func (t *KernelListCacheTestCommon) TearDownSuite() {
+	t.fsTest.TearDownTestSuite()
+}
+
+func TestKernelListCacheTestSuite(t *testing.T) {
+	suite.Run(t, new(KernelListCacheTestCommon))
+}
+
+// createFilesAndDirStructureInBucket creates the following files and directory
+// structure.
+// bucket
+//
+//	explicitDir/
+//	explicitDir/file1.txt
+//	explicitDir/file2.txt
+//	implicitDir/file1.txt
+//	implicitDir/file2.txt
+func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"explicitDir/":          "",
+		"explicitDir/file1.txt": "12345",
+		"explicitDir/file2.txt": "6789101112",
+		"implicitDir/file1.txt": "-1234556789",
+		"implicitDir/file2.txt": "kdfkdj9",
+	}))
+}
+
 type KernelListCacheTestWithPositiveTtl struct {
 	suite.Suite
 	fsTest
