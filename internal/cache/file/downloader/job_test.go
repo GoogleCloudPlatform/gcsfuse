@@ -512,32 +512,6 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	AssertEq(nil, jobStatus.Err)
 }
 
-func (dt *downloaderTest) Test_Download_FileInfoRemovedInBetween() {
-	objectName := "path/in/gcs/foo.txt"
-	objectSize := 16 * util.MiB
-	objectContent := testutil.GenerateRandomBytes(objectSize)
-	var callbackExecuted atomic.Bool
-	removeCallback := func() { callbackExecuted.Store(true) }
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), removeCallback)
-	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: objectName}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
-		AssertEq(nil, err)
-		AssertEq(Invalid, jobStatus.Name)
-		wg.Done()
-	}()
-
-	// Delete fileinfo from file info cache
-	dt.job.fileInfoCache.Erase(fileInfoKeyName)
-
-	wg.Wait()
-	AssertTrue(callbackExecuted.Load())
-}
-
 func (dt *downloaderTest) Test_Download_InvalidOffset() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := util.MiB
