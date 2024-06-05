@@ -1,5 +1,3 @@
 # These owners will be the default owners for everything in
 # the repo.
 *           @GoogleCloudPlatform/gcsfuse-codeowners
-# Co-owners of tools/integration_tests/ directory.
-tools/integration_tests/ @ashmeenkaur @GoogleCloudPlatform/gcsfuse-codeowners
