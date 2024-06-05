@@ -68,9 +68,8 @@ func (l *LogSeverity) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// ResolvedPath represents a file-path which could be the absolute or relative
-// path or could be resolved based on the value of GCSFUSE_PARENT_PROCESS_DIR
-// env var.
+// ResolvedPath represents a file-path which is an absolute path and is resolved
+// based on the value of GCSFUSE_PARENT_PROCESS_DIR env var.
 type ResolvedPath string
 
 func (p *ResolvedPath) UnmarshalText(text []byte) error {

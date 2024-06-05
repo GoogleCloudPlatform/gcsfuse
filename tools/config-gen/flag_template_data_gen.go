@@ -76,15 +76,7 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 		}
 		defaultValue = fmt.Sprintf("%d * time.Nanosecond", dur.Nanoseconds())
 		fn = "DurationP"
-	case "octal":
-		fallthrough
-	case "url":
-		fallthrough
-	case "logSeverity":
-		fallthrough
-	case "protocol":
-		fallthrough
-	case "resolvedPath":
+	case "octal", "url", "logSeverity", "protocol", "resolvedPath":
 		fallthrough
 	case "string":
 		defaultValue = fmt.Sprintf("%q", p.DefaultValue)
