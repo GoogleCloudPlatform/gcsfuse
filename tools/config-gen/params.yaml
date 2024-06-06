@@ -85,7 +85,7 @@
 
 - flag-name: "key-file"
   config-path: "gcs-auth.key-file"
-  type: "string"
+  type: "resolvedPath"
   usage: "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)"
 
 - flag-name: "token-url"
