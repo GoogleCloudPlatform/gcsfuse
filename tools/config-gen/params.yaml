@@ -325,6 +325,7 @@
   deprecation-warning: "This flag is currently unused."
 
 - flag-name: "debug_gcs"
+  config-path: "debug.gcs"
   type: "bool"
   usage: "This flag is currently unused."
   deprecated: true

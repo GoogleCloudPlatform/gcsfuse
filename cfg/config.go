@@ -65,6 +65,8 @@ type Config struct {
 type DebugConfig struct {
 	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation"`
 
+	Gcs bool `yaml:"gcs"`
+
 	LogMutex bool `yaml:"log-mutex"`
 }
 
@@ -274,6 +276,11 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("debug_gcs", "", false, "This flag is currently unused.")
 
 	err = flagSet.MarkDeprecated("debug_gcs", "This flag is currently unused.")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindPFlag("debug.gcs", flagSet.Lookup("debug_gcs"))
 	if err != nil {
 		return err
 	}
