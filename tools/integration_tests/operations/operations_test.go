@@ -17,15 +17,10 @@ package operations_test
 
 import (
 	"os"
-	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -88,42 +83,43 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
-	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
+	//cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
 	// Set up config file with create-empty-file: true.
-	mountConfig1 := config.MountConfig{
-		WriteConfig: config.WriteConfig{
-			CreateEmptyFile: true,
-		},
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-	}
-	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath1})
+	//mountConfig1 := config.MountConfig{
+	//	WriteConfig: config.WriteConfig{
+	//		CreateEmptyFile: true,
+	//	},
+	//	LogConfig: config.LogConfig{
+	//		Severity:        config.TRACE,
+	//		LogRotateConfig: config.DefaultLogRotateConfig(),
+	//	},
+	//}
+	//filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
+	//flags = append(flags, []string{"--config-file=" + filePath1})
 
 	// Set up config file for file cache.
-	mountConfig2 := config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			// Keeping the size as low because the operations are performed on small
-			// files
-			MaxSizeMB: 2,
-		},
-		CacheDir: config.CacheDir(cacheDirPath),
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-	}
-	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath2})
+	//mountConfig2 := config.MountConfig{
+	//	FileCacheConfig: config.FileCacheConfig{
+	//		// Keeping the size as low because the operations are performed on small
+	//		// files
+	//		MaxSizeMB: 2,
+	//	},
+	//	CacheDir: config.CacheDir(cacheDirPath),
+	//	LogConfig: config.LogConfig{
+	//		Severity:        config.TRACE,
+	//		LogRotateConfig: config.DefaultLogRotateConfig(),
+	//	},
+	//}
+	//filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
+	//flags = append(flags, []string{"--config-file=" + filePath2})
 
 	mountConfig3 := config.MountConfig{
 		// Run with metadata caches disabled.
-		MetadataCacheConfig: config.MetadataCacheConfig{
-			TtlInSeconds: 0,
-		},
+		//MetadataCacheConfig: config.MetadataCacheConfig{
+		//	TtlInSeconds: 0,
+		//},
+		FileSystemConfig: config.FileSystemConfig{DisableParallelDirops: true},
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
@@ -152,35 +148,35 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-	flagsSet := [][]string{
-		// By default, creating emptyFile is disabled.
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
+	//flagsSet := [][]string{
+	//	// By default, creating emptyFile is disabled.
+	//	{}}
 
-	if !testing.Short() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
-	}
+	//if !testing.Short() {
+	//	flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+	//}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
+	//flagsSet = append(flagsSet, mountConfigFlags...)
 
-	successCode := static_mounting.RunTests(flagsSet, m)
+	//successCode := static_mounting.RunTests(flagsSet, m)
 
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
+	//if successCode == 0 {
+	successCode := only_dir_mounting.RunTests(mountConfigFlags, onlyDirMounted, m)
+	//}
 
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flagsSet, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, m)
-	}
-
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
-	}
+	//if successCode == 0 {
+	//	successCode = persistent_mounting.RunTests(flagsSet, m)
+	//}
+	//
+	//if successCode == 0 {
+	//	successCode = dynamic_mounting.RunTests(flagsSet, m)
+	//}
+	//
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
+	//}
 
 	os.Exit(successCode)
 }

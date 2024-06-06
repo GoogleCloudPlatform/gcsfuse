@@ -19,6 +19,7 @@ package operations_test
 
 import (
 	"io/fs"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -347,6 +348,7 @@ func TestParallelLookUpAndDeleteSameFile(t *testing.T) {
 
 	assert.NoError(t, deleteErr)
 	_, err := os.Stat(filePath)
+	log.Println("Error: ", err)
 	assert.True(t, os.IsNotExist(err))
 	// Assert either file is looked up first or deleted first
 	if lookUpErr == nil {
