@@ -498,7 +498,7 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 	}
 
 	size := req.Range.Limit - req.Range.Start
-	numParts := (size / req.PartSize) + 1
+	numParts := ((size - 1) / req.PartSize) + 1
 
 	logger.Tracef("downloading parallely from %d to %d", req.Range.Start, req.Range.Limit)
 
@@ -548,6 +548,9 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 	for i := uint64(0); i < numParts; i++ {
 		offset := int64(i * req.PartSize)
 		length := int64(req.PartSize)
+		if i == numParts-1 {
+			length = -1
+		}
 		w := io.NewOffsetWriter(req.FileHandle, offset)
 		in := &transfermanager.DownloadObjectInput{
 			Bucket:      b.bucketName,
