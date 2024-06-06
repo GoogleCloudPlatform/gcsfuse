@@ -398,6 +398,12 @@ func (job *Job) downloadObjectAsync() {
 					return
 				}
 			} else {
+				err = job.validateChecksum()
+				if err != nil {
+					job.failWhileDownloading(err)
+					return
+				}
+
 				job.mu.Lock()
 				job.status.Name = Completed
 				job.notifySubscribers()
@@ -462,4 +468,38 @@ func (job *Job) GetStatus() JobStatus {
 	job.mu.Lock()
 	defer job.mu.Unlock()
 	return job.status
+}
+
+func (job *Job) validateChecksum() (err error) {
+	crc32Val, err := cacheutil.CalculateFileCRC32(job.fileSpec.Path)
+	if err != nil {
+		return
+	}
+
+	// If checksum matches, simply return.
+	if *job.object.CRC32C == crc32Val {
+		return nil
+	}
+
+	// If the checksum doesn't match there is an error in downloading the object contents.
+	// Delete the file and corresponding key from fileInfoCache.
+	err = errors.New("checksum mismatch detected")
+	fileInfoKey := data.FileInfoKey{
+		BucketName: job.bucket.Name(),
+		ObjectName: job.object.Name,
+	}
+
+	fileInfoKeyName, keyErr := fileInfoKey.Key()
+	if keyErr != nil {
+		err = errors.Join(err, keyErr)
+		return
+	}
+
+	job.fileInfoCache.Erase(fileInfoKeyName)
+	removeErr := os.Remove(job.fileSpec.Path)
+	if removeErr != nil {
+		err = errors.Join(err, removeErr)
+	}
+
+	return
 }

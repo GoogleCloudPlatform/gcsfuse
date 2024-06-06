@@ -246,6 +246,20 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 	}
 }
 
+func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnCrcForValidFile() {
+	crc, err := CalculateFileCRC32("testdata/validfile.txt")
+
+	ExpectEq(nil, err)
+	ExpectEq(515179668, crc)
+}
+
+func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorForFileNotExist() {
+	crc, err := CalculateFileCRC32("testdata/nofile.txt")
+
+	ExpectTrue(strings.Contains(err.Error(), "no such file or directory"))
+	ExpectEq(0, crc)
+}
+
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")

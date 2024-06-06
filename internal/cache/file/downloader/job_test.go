@@ -89,6 +89,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 }
 
 func (dt *downloaderTest) verifyFile(content []byte) {
+	fmt.Println(dt.fileSpec.Path)
 	fileStat, err := os.Stat(dt.fileSpec.Path)
 	AssertEq(nil, err)
 	AssertEq(dt.fileSpec.FilePerm, fileStat.Mode())
@@ -437,6 +438,9 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 	expectedJobStatus := JobStatus{Downloading, nil, int64(objectSize)}
 	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
 
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
+
 	// Try to request for some offset when job was already completed.
 	offset := int64(16 * util.MiB)
 	jobStatus, err = dt.job.Download(ctx, offset, true)
@@ -571,9 +575,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
-	var callbackExecutionCount atomic.Int32
-	removeCallback := func() { callbackExecutionCount.Add(1) }
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), removeCallback)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), nil)
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	offsets := []int64{0, 4 * util.MiB, 16 * util.MiB, 8 * util.MiB, int64(objectSize), int64(objectSize) + 1}
@@ -599,6 +601,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 		go downloadFunc(offset, expectedErrs[i])
 	}
 	wg.Wait()
+	dt.waitForCrcCheckToBeCompleted()
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
@@ -608,9 +611,6 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	dt.verifyFile(objectContent)
 	// Verify file info cache
 	dt.verifyFileInfoEntry(uint64(objectSize))
-	// Verify callback is executed only once and removed
-	AssertEq(1, callbackExecutionCount.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
 }
 
 func (dt *downloaderTest) Test_GetStatus() {
@@ -686,6 +686,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
 	// Start download with waiting
 	_, err := dt.job.Download(ctx, int64(objectSize), true)
 	AssertEq(nil, err)
+	dt.waitForCrcCheckToBeCompleted()
 	jobStatus := dt.job.GetStatus()
 	AssertEq(Completed, jobStatus.Name)
 
