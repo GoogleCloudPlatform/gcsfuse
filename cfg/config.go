@@ -71,7 +71,7 @@ type DebugConfig struct {
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
 
-	MaxSizeMb int `yaml:"max-size-mb"`
+	MaxSizeMb int64 `yaml:"max-size-mb"`
 }
 
 type FileSystemConfig struct {
@@ -81,15 +81,15 @@ type FileSystemConfig struct {
 
 	FuseOptions []string `yaml:"fuse-options"`
 
-	Gid int `yaml:"gid"`
+	Gid int64 `yaml:"gid"`
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
-	RenameDirLimit int `yaml:"rename-dir-limit"`
+	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir string `yaml:"temp-dir"`
 
-	Uid int `yaml:"uid"`
+	Uid int64 `yaml:"uid"`
 }
 
 type GcsAuthConfig struct {
@@ -111,7 +111,7 @@ type GcsConnectionConfig struct {
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
-	GrpcConnPoolSize int `yaml:"grpc-conn-pool-size"`
+	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
 
 	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
 
@@ -119,11 +119,11 @@ type GcsConnectionConfig struct {
 
 	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec"`
 
-	MaxConnsPerHost int `yaml:"max-conns-per-host"`
+	MaxConnsPerHost int64 `yaml:"max-conns-per-host"`
 
-	MaxIdleConnsPerHost int `yaml:"max-idle-conns-per-host"`
+	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host"`
 
-	SequentialReadSizeMb int `yaml:"sequential-read-size-mb"`
+	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb"`
 }
 
 type GcsRetriesConfig struct {
@@ -135,15 +135,15 @@ type GcsRetriesConfig struct {
 type ListConfig struct {
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
 
-	KernelListCacheTtlSecs int `yaml:"kernel-list-cache-ttl-secs"`
+	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type LogRotateLoggingConfig struct {
-	BackupFileCount int `yaml:"backup-file-count"`
+	BackupFileCount int64 `yaml:"backup-file-count"`
 
 	Compress bool `yaml:"compress"`
 
-	MaxFileSizeMb int `yaml:"max-file-size-mb"`
+	MaxFileSizeMb int64 `yaml:"max-file-size-mb"`
 }
 
 type LoggingConfig struct {
@@ -157,7 +157,7 @@ type LoggingConfig struct {
 }
 
 type MetadataCacheConfig struct {
-	DeprecatedStatCacheCapacity int `yaml:"deprecated-stat-cache-capacity"`
+	DeprecatedStatCacheCapacity int64 `yaml:"deprecated-stat-cache-capacity"`
 
 	DeprecatedStatCacheTtl time.Duration `yaml:"deprecated-stat-cache-ttl"`
 
@@ -167,11 +167,11 @@ type MetadataCacheConfig struct {
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
-	StatCacheMaxSizeMb int `yaml:"stat-cache-max-size-mb"`
+	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
 
-	TtlSecs int `yaml:"ttl-secs"`
+	TtlSecs int64 `yaml:"ttl-secs"`
 
-	TypeCacheMaxSizeMb int `yaml:"type-cache-max-size-mb"`
+	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
 }
 
 type MetricsConfig struct {
