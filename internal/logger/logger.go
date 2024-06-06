@@ -15,6 +15,7 @@
 package logger
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -54,7 +55,7 @@ var (
 func InitLogFile(logConfig config.LogConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
-	var fileWriter *lumberjack.Logger
+	var fileWriter *bufio.Writer
 	var err error
 	if logConfig.FilePath != "" {
 		f, err = os.OpenFile(
@@ -65,12 +66,13 @@ func InitLogFile(logConfig config.LogConfig) error {
 		if err != nil {
 			return err
 		}
-		fileWriter = &lumberjack.Logger{
+		logRotateWriter := &lumberjack.Logger{
 			Filename:   f.Name(),
 			MaxSize:    logConfig.LogRotateConfig.MaxFileSizeMB,
 			MaxBackups: logConfig.LogRotateConfig.BackupFileCount,
 			Compress:   logConfig.LogRotateConfig.Compress,
 		}
+		fileWriter = bufio.NewWriterSize(logRotateWriter, 65536)
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
 			// Priority consist of facility and severity, here facility to specify the
@@ -164,6 +166,14 @@ func Fatal(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
+func FlushLogger() error {
+	err := defaultLoggerFactory.fileWriter.Flush()
+	if err != nil {
+		return fmt.Errorf("could not flush logs: %v", err)
+	}
+	return nil
+}
+
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
 	file            *os.File
@@ -171,7 +181,7 @@ type loggerFactory struct {
 	format          string
 	level           config.LogSeverity
 	logRotateConfig config.LogRotateConfig
-	fileWriter      *lumberjack.Logger
+	fileWriter      *bufio.Writer
 }
 
 func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
