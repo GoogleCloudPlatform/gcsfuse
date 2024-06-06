@@ -221,7 +221,7 @@
   deprecation-warning: "This is currently unused."
 
 - flag-name: "retry-multiplier"
-  config-path: "gcs-connection.retry-multiplier"
+  config-path: "gcs-retries.multiplier"
   type: "float64"
   usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
   default: 2

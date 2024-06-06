@@ -121,13 +121,13 @@ type GcsConnectionConfig struct {
 
 	MaxIdleConnsPerHost int `yaml:"max-idle-conns-per-host"`
 
-	RetryMultiplier float64 `yaml:"retry-multiplier"`
-
 	SequentialReadSizeMb int `yaml:"sequential-read-size-mb"`
 }
 
 type GcsRetriesConfig struct {
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
+
+	Multiplier float64 `yaml:"multiplier"`
 }
 
 type ListConfig struct {
@@ -545,7 +545,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 
 	flagSet.Float64P("retry-multiplier", "", 2, "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.")
 
-	err = viper.BindPFlag("gcs-connection.retry-multiplier", flagSet.Lookup("retry-multiplier"))
+	err = viper.BindPFlag("gcs-retries.multiplier", flagSet.Lookup("retry-multiplier"))
 	if err != nil {
 		return err
 	}
