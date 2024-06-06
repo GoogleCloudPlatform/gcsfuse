@@ -79,6 +79,8 @@ type ListConfig struct {
 	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
+
+	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type GrpcClientConfig struct {
@@ -97,9 +99,8 @@ type EnableHNS bool
 type CacheDir string
 
 type FileSystemConfig struct {
-	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
-	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
-	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
+	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
+	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 }
 
 type FileCacheConfig struct {
@@ -190,7 +191,7 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 
-	mountConfig.FileSystemConfig = FileSystemConfig{
+	mountConfig.ListConfig = ListConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
 	}
 	return mountConfig

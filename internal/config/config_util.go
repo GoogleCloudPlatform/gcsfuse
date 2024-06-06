@@ -79,7 +79,7 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 // with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
 	if c.IsSet(KernelListCacheTtlFlagName) {
-		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
+		mountConfig.ListConfig.KernelListCacheTtlSeconds = ttl
 	}
 }
 

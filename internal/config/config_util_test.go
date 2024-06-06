@@ -208,11 +208,11 @@ func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 	for index, tt := range testCases {
 		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
 			testContext := &TestCliContext{isSet: tt.isFlagSet}
-			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelListCacheTtlSeconds: tt.configValue}}
+			mountConfig := &MountConfig{ListConfig: ListConfig{KernelListCacheTtlSeconds: tt.configValue}}
 
 			OverrideWithKernelListCacheTtlFlag(testContext, mountConfig, tt.flagValue)
 
-			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+			assert.Equal(t, tt.expectedValue, mountConfig.ListConfig.KernelListCacheTtlSeconds)
 		})
 	}
 }
