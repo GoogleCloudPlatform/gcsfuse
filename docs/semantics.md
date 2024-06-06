@@ -199,21 +199,21 @@ Even though A/, A/B/, and C/ are directories in the filesystem, a 0-byte object 
 
 The above example was based on greenfield deployments which assumes starting fresh, where the directories are created from Cloud Storage FUSE. If a user unmounts this Cloud Storage FUSE bucket, and then re-mounts it to a different path, the user will see the directory structure correctly in the filesystem because it was originally created by Cloud Storage FUSE.
 
-However, If a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.
+However, if a user already has objects with prefixes to simulate a directory structure in their buckets that did not originate from Cloud Storage FUSE, and mounts the bucket using Cloud Storage FUSE, the directories and objects under the directories will not be visible until a user manually creates the directory, with the same name, using mkdir on the local instance. This is because with Cloud Storage FUSE, directories are by default not implicitly defined; they exist only if a matching object ending in a slash exists.  These backing objects for directories are special 0-byte objects which are placeholders for directories. Note that these can also be created via the WebUI and Cloud Storage SDKs, but not by the Cloud Storage CLI tools such as gcloud or gsutil.
 
+If a user has the following objects in their Cloud Storage buckets, for example created by uploading a local directory using `gsutil cp -r` command.
+- A/1.txt
+- A/B/2.txt
+- C/3.txt
 
-So if a user has the following objects in their Cloud Storage buckets, that were not originally created via Cloud Storage FUSE (for example created by uploading a local directory using ``` gsutil cp -r``` command)
-
+then mounting the bucket and running ```ls``` to see its content will not show any files until placeholder directory objects A/, A/B/, and C/ are created in the GCS bucket. These placeholder directory objects can be created by running `mkdir ./A`, `mkdir ./A/B` and `mkdir ./C` on GCSFuse mounted directory.
+At which point the user will correctly see:
 - A/
 - A/1.txt
 - A/B/
 - A/B/2.txt
 - C/
 - C/3.txt
-
-then mounting the bucket and running ```ls``` to see its content will not show any files until the directories A/, A/B/, and C/ are created on the local filesystem using the ```mkdir``` command.
-
-This is the default behavior, unless a user passes the ```--implicit-dirs``` flag.
 
 **Using ```--implicit-dirs``` flag:**
 
@@ -226,7 +226,7 @@ However, implicit directories does have drawbacks:
 - With the example above, it will appear as if there is a directory called "A/" containing a file called "1.txt". But when the user runs ‘rm A/1.txt’, it will appear as if the file system is completely empty. This is contrary to expectations, since the user hasn't run ```rmdir A/```.
 - Cloud Storage FUSE sends a single Objects.list request to Cloud Storage, and treats the directory as being implicitly defined if the results are non-empty. In rare cases (notably when many objects have recently been deleted) Objects.list may return an arbitrary number of empty responses with continuation tokens, even for a non-empty name range. In order to bound the number of requests, Cloud Storage FUSE simply ignores this subtlety. Therefore in rare cases an implicitly defined directory will fail to appear.
 
-Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used. 
+Alternatively, users can create a script which lists the buckets and creates the appropriate objects for the directories so that the ```--implicit-dirs``` flag is not used.
 
 # Generations
 
