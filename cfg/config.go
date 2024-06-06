@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE - DO NOT EDIT MANUALLY.
-
 package cfg
 
 import (
+	"strings"
+
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -57,6 +57,9 @@ type LoggingConfig struct {
 
 func BindFlags(flagSet *pflag.FlagSet) error {
 	var err error
+	flagSet.SetNormalizeFunc(func(f *pflag.FlagSet, name string) pflag.NormalizedName {
+		return pflag.NormalizedName(strings.ReplaceAll(name, "-", "_"))
+	})
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 

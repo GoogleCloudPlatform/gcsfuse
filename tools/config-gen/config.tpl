@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// GENERATED CODE - DO NOT EDIT MANUALLY.
-
 package cfg
 
 import (
@@ -32,6 +30,9 @@ type {{ .TypeName}} struct {
 
 func BindFlags(flagSet *pflag.FlagSet) error {
   var err error
+  flagSet.SetNormalizeFunc(func(f *pflag.FlagSet, name string) pflag.NormalizedName {
+  	return pflag.NormalizedName(strings.ReplaceAll(name, "-", "_"))
+  })
   {{range .FlagTemplateData}}
   flagSet.{{ .Fn}}("{{ .FlagName}}", "{{ .Shorthand}}", {{ .DefaultValue}}, {{ .Usage}})
   {{if .IsDeprecated}}
