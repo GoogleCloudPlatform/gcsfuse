@@ -159,7 +159,7 @@ func (b *debugBucket) CreateObject(
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
-	o, err = b.wrapped.CreateObject(ctx, req)
+	o, err = b.wrapped.CreateObject(context.WithValue(ctx, gcs.ReqIdField, id), req)
 	return
 }
 

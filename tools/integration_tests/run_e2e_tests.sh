@@ -56,6 +56,7 @@ TEST_DIR_PARALLEL=(
   "implicit_dir"
   "interrupt"
   "operations"
+  "log_content"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
