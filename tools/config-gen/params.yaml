@@ -62,7 +62,7 @@
 
 - flag-name: "custom-endpoint"
   config-path: "gcs-connection.custom-endpoint"
-  type: "string"
+  type: "url"
   usage: >-
     Specifies an alternative custom endpoint for fetching data. Should only be
     used for testing.  The custom endpoint must support the equivalent resources
@@ -297,6 +297,7 @@
   default: "json"
 
 - flag-name: "experimental-enable-json-read"
+  config-path: "gcs-connection.experimental-enable-json-read"
   type: "bool"
   usage: >-
     By default, GCSFuse uses the GCS XML API to get and read objects. When this

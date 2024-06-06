@@ -107,7 +107,9 @@ type GcsConnectionConfig struct {
 
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
-	CustomEndpoint string `yaml:"custom-endpoint"`
+	CustomEndpoint url.URL `yaml:"custom-endpoint"`
+
+	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
 	GrpcConnPoolSize int `yaml:"grpc-conn-pool-size"`
 
@@ -328,6 +330,11 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-json-read", "", false, "By default, GCSFuse uses the GCS XML API to get and read objects. When this flag is specified, GCSFuse uses the GCS JSON API instead.\"")
 
 	err = flagSet.MarkDeprecated("experimental-enable-json-read", "Experimental flag: could be dropped even in a minor release.")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read"))
 	if err != nil {
 		return err
 	}
