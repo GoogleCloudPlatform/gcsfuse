@@ -8,7 +8,6 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
 	github.com/fsouza/fake-gcs-server v1.49.1
-	github.com/google/safetext v0.0.0-20240104143208-7a7d9b3d812f
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.4
 	github.com/jacobsa/daemonize v0.0.0-20160101105449-e460293e890f
@@ -20,6 +19,7 @@ require (
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
@@ -71,8 +71,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
