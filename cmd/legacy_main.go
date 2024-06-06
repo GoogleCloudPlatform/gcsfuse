@@ -111,11 +111,11 @@ func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, us
 		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,
 		KeyFile:                    flags.KeyFile,
-		AnonymousAccess:            mountConfig.AuthConfig.AnonymousAccess,
+		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
-		GrpcConnPoolSize:           mountConfig.GrpcClientConfig.ConnPoolSize,
+		GrpcConnPoolSize:           mountConfig.GCSConnection.GRPCConnPoolSize,
 		EnableHNS:                  mountConfig.EnableHNS,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)

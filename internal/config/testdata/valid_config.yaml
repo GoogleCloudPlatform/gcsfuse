@@ -21,12 +21,12 @@ metadata-cache:
   ttl-secs: 5
   type-cache-max-size-mb: 1
   stat-cache-max-size-mb: 3
+gcs-auth:
+  anonymous-access: true
 list:
   enable-empty-managed-folders: true
-auth-config:
-  anonymous-access: true
-grpc:
-  conn-pool-size: 4
+gcs-connection:
+  grpc-conn-pool-size: 4
 enable-hns: true
 file-system:
   ignore-interrupts: true

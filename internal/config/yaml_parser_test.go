@@ -47,8 +47,8 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, -1, mountConfig.FileCacheConfig.MaxDownloadParallelism)
 	assert.Equal(t, 25, mountConfig.FileCacheConfig.ReadRequestSizeMB)
 	assert.True(t, mountConfig.FileCacheConfig.EnableCrcCheck)
-	assert.Equal(t, 1, mountConfig.GrpcClientConfig.ConnPoolSize)
-	assert.False(t, mountConfig.AuthConfig.AnonymousAccess)
+	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
+	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
@@ -125,7 +125,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.True(t.T(), mountConfig.ListConfig.EnableEmptyManagedFolders)
 
 	// auth config
-	assert.True(t.T(), mountConfig.AuthConfig.AnonymousAccess)
+	assert.True(t.T(), mountConfig.GCSAuth.AnonymousAccess)
 
 	// enable-hns
 	assert.True(t.T(), bool(mountConfig.EnableHNS))
@@ -241,17 +241,17 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeToo
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_invalidConnPoolSize() {
-	_, err := ParseConfigFile("testdata/grpc_client_config/invalid_conn_pool_size.yaml")
+	_, err := ParseConfigFile("testdata/gcs_connection/invalid_conn_pool_size.yaml")
 
-	assert.ErrorContains(t.T(), err, "error parsing grpc-config: the value of conn-pool-size can't be less than 1")
+	assert.ErrorContains(t.T(), err, "error parsing gcs-connection configs: the value of conn-pool-size can't be less than 1")
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize() {
-	mountConfig, err := ParseConfigFile("testdata/grpc_client_config/unset_conn_pool_size.yaml")
+	mountConfig, err := ParseConfigFile("testdata/gcs_connection/unset_conn_pool_size.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultGrpcConnPoolSize, mountConfig.GrpcClientConfig.ConnPoolSize)
+	assert.Equal(t.T(), DefaultGrpcConnPoolSize, mountConfig.GCSConnection.GRPCConnPoolSize)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidIgnoreInterruptsValue() {
@@ -268,18 +268,18 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterrup
 	assert.Equal(t.T(), false, mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidAnonymousAccessValue() {
-	_, err := ParseConfigFile("testdata/auth_config/invalid_anonymous_access.yaml")
+func (t *YamlParserTest) TestReadConfigFile_GCSAuth_InvalidAnonymousAccessValue() {
+	_, err := ParseConfigFile("testdata/gcs_auth/invalid_anonymous_access.yaml")
 
 	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `abc` into bool")
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetAnonymousAccessValue() {
-	mountConfig, err := ParseConfigFile("testdata/auth_config/unset_anonymous_access.yaml")
+func (t *YamlParserTest) TestReadConfigFile_GCSAuth_UnsetAnonymousAccessValue() {
+	mountConfig, err := ParseConfigFile("testdata/gcs_auth/unset_anonymous_access.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.False(t.T(), mountConfig.AuthConfig.AnonymousAccess)
+	assert.False(t.T(), mountConfig.GCSAuth.AnonymousAccess)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidDisableParallelDirops() {

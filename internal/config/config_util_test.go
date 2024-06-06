@@ -179,11 +179,11 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 	for _, tt := range overrideWithAnonymousAccessFlagTests {
 		t.Run(tt.testName, func(t *testing.T) {
 			testContext := &TestCliContext{isSet: tt.isFlagSet}
-			mountConfig := &MountConfig{AuthConfig: AuthConfig{AnonymousAccess: tt.anonymousAccessConfigValue}}
+			mountConfig := &MountConfig{GCSAuth: GCSAuth{AnonymousAccess: tt.anonymousAccessConfigValue}}
 
 			OverrideWithAnonymousAccessFlag(testContext, mountConfig, tt.anonymousAccessFlagValue)
 
-			assert.Equal(t, tt.expectedAnonymousAccess, mountConfig.AuthConfig.AnonymousAccess)
+			assert.Equal(t, tt.expectedAnonymousAccess, mountConfig.GCSAuth.AnonymousAccess)
 		})
 	}
 }

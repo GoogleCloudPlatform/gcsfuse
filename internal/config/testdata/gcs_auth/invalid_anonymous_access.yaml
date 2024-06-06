@@ -1,2 +1,2 @@
-auth-config:
+gcs-auth:
   anonymous-access: abc
