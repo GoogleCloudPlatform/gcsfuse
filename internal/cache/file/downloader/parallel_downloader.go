@@ -6,66 +6,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
-	"io"
 	"os"
 	"strings"
 )
-
-func (job *Job) rangeDownloader(start, end int64) (err error) {
-	newReader, err := job.bucket.NewReader(
-		job.cancelCtx,
-		&gcs.ReadObjectRequest{
-			Name:       job.object.Name,
-			Generation: job.object.Generation,
-			Range: &gcs.ByteRange{
-				Start: uint64(start),
-				Limit: uint64(end),
-			},
-			ReadCompressed: job.object.HasContentEncodingGzip(),
-		})
-	if err != nil {
-		return
-	}
-	monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, end-start)
-
-	// Open cacheFile and write into it.
-	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_RDWR, job.fileSpec.FilePerm)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if err != nil {
-			_ = newReader.Close()
-			_ = cacheFile.Close()
-			return
-		}
-		err = newReader.Close()
-		if err != nil {
-			logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
-		}
-		err = cacheFile.Close()
-		if err != nil {
-			return
-		}
-	}()
-
-	_, err = cacheFile.Seek(start, 0)
-	if err != nil {
-		err = fmt.Errorf("downloadObjectAsync: error while seeking file handle, seek %d: %w", start, err)
-		return
-	}
-	// Copy the contents from NewReader to cache file.
-	_, readErr := io.CopyN(cacheFile, newReader, end-start)
-	if readErr != nil {
-		err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %w", readErr)
-		return
-	}
-	return
-}
 
 // downloadObjectAsync downloads the backing GCS object into a file as part of
 // file cache using NewReader method of gcs.Bucket.
@@ -90,6 +35,7 @@ func (job *Job) downloadObjectInParallelAsync() {
 
 	// Create, open and truncate cache file for writing object into it.
 	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
+	defer cacheFile.Close()
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
 		job.failWhileDownloading(err)
@@ -103,11 +49,6 @@ func (job *Job) downloadObjectInParallelAsync() {
 		err = fmt.Errorf("downloadObjectAsync: error while truncating the cache file: %w", err)
 		job.failWhileDownloading(err)
 		return
-	}
-	err = cacheFile.Close()
-	if err != nil {
-		err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
-		job.failWhileDownloading(err)
 	}
 
 	notifyInvalid := func() {
@@ -127,14 +68,16 @@ func (job *Job) downloadObjectInParallelAsync() {
 			return
 		default:
 			if start < end {
+				logger.Infof("Start: %d, End: %d", start, end)
+				limit := uint64(start) + uint64(readRequestSize)*uint64(job.downloadParallelism)
 				err = job.bucket.ParallelDownloadToFile(job.cancelCtx, &gcs.ParallelDownloadToFileRequest{
 					Name:       job.object.Name,
 					Generation: job.object.Generation,
-					Range:      &gcs.ByteRange{Start: uint64(start), Limit: uint64(start) + uint64(readRequestSize)*uint64(job.downloadParallelism)},
+					Range:      &gcs.ByteRange{Start: uint64(start), Limit: limit},
 					FileHandle: cacheFile,
 					PartSize:   uint64(job.readRequestSizeMb * cacheutil.MiB),
 				})
-
+				logger.Infof("Error while parallel download: %v", err)
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
 						notifyInvalid()
@@ -142,6 +85,10 @@ func (job *Job) downloadObjectInParallelAsync() {
 					}
 					job.failWhileDownloading(err)
 					return
+				} else {
+					// Update the start offset on success.
+					start = int64(limit)
+					logger.Infof("changing the start: %d", start)
 				}
 
 				job.mu.Lock()

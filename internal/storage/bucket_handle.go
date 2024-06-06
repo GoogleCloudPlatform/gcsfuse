@@ -499,25 +499,25 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 	size := req.Range.Limit - req.Range.Start
 	numParts := (size-1)/req.PartSize + 1
 
+	logger.Infof("downloading parallely from %d to %d", req.Range.Start, req.Range.Limit)
+	logger.Infof("part size: %d", size)
+	logger.Infof("no. of parts: %d", numParts)
+
 	wg := sync.WaitGroup{}
 
 	callback := func(out *transfermanager.DownloadOutput) {
 		wg.Done()
 		if out.Err != nil {
 			ctx.Done()
-			logger.Errorf("parallel download failed: %d", out.Err)
+			logger.Errorf("parallel download failed: %v", out.Err)
 		} else {
-			logger.Info("download succeeded at offset %v", out.Attrs.StartOffset)
+			logger.Infof("download succeeded at offset: %d", out.Attrs.StartOffset)
 		}
 	}
 
 	for i := uint64(0); i < numParts; i++ {
 		offset := int64(i * req.PartSize)
 		length := int64(req.PartSize)
-		// For the last part, read to the end of the file.
-		if i == numParts-1 {
-			length = -1
-		}
 		w := io.NewOffsetWriter(req.FileHandle, offset)
 		in := &transfermanager.DownloadObjectInput{
 			Bucket:      b.bucketName,
@@ -539,5 +539,8 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 		}
 	}
 
+	// Wait for the full download to complete.
+	wg.Wait()
+	logger.Infof("Parallel download completed successfully.")
 	return nil
 }
