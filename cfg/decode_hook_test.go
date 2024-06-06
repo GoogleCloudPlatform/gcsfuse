@@ -229,17 +229,17 @@ func TestParsingSuccess(t *testing.T) {
 		},
 	}
 
-	for _, k := range tests {
-		t.Run(k.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if k.setupFn != nil {
-				k.setupFn()
+			if tc.setupFn != nil {
+				tc.setupFn()
 			}
 			c := TestConfig{}
 			fs := declareFlags()
 			v := bindFlags(fs)
 			args := []string{"test"}
-			args = append(args, k.args...)
+			args = append(args, tc.args...)
 			err := fs.Parse(args)
 			if err != nil {
 				t.Fatalf("Flag parsing failed: %v", err)
@@ -248,7 +248,7 @@ func TestParsingSuccess(t *testing.T) {
 			err = v.Unmarshal(&c, viper.DecodeHook(DecodeHook()))
 
 			if assert.Nil(t, err) {
-				k.testFn(t, c)
+				tc.testFn(t, c)
 			}
 		})
 	}

@@ -21,7 +21,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func decodeURLHook() mapstructure.DecodeHookFuncType {
+func stringToURLHookFunc() mapstructure.DecodeHookFuncType {
 	return func(
 		f reflect.Type,
 		t reflect.Type,
@@ -46,7 +46,7 @@ func decodeURLHook() mapstructure.DecodeHookFuncType {
 func DecodeHook() mapstructure.DecodeHookFunc {
 	return mapstructure.ComposeDecodeHookFunc(
 		mapstructure.TextUnmarshallerHookFunc(),
-		decodeURLHook(),
+		stringToURLHookFunc(),
 		mapstructure.StringToTimeDurationHookFunc(), // default hook
 		mapstructure.StringToSliceHookFunc(","),     // default hook
 	)
