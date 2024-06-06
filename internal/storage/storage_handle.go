@@ -48,6 +48,7 @@ type StorageHandle interface {
 type storageClient struct {
 	client               *storage.Client
 	storageControlClient *control.StorageControlClient
+	downloader           *transfermanager.Downloader
 }
 
 // Return clientOpts for both gRPC client and control client.
@@ -195,7 +196,14 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithErrorFunc(storageutil.ShouldRetry))
 
-	sh = &storageClient{client: sc, storageControlClient: controlClient}
+	downloader, err := transfermanager.NewDownloader(sc,
+		transfermanager.WithWorkers(clientConfig.ThreadPoolSize), transfermanager.WithCallbacks())
+	if err != nil {
+		logger.Errorf("error in creation downloader")
+		downloader = nil
+	}
+
+	sh = &storageClient{client: sc, storageControlClient: controlClient, downloader: downloader}
 	return
 }
 
@@ -206,18 +214,11 @@ func (sh *storageClient) BucketHandle(bucketName string, billingProject string) 
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
 
-	downloader, err := transfermanager.NewDownloader(sh.client,
-		transfermanager.WithWorkers(1000), transfermanager.WithCallbacks())
-	if err != nil {
-		logger.Errorf("error in creation downloader")
-		downloader = nil
-	}
-
 	bh = &bucketHandle{
 		bucket:        storageBucketHandle,
 		bucketName:    bucketName,
 		controlClient: sh.storageControlClient,
-		downloader:    downloader,
+		downloader:    sh.downloader,
 	}
 	return
 }

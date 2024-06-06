@@ -117,6 +117,7 @@ func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, us
 		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           mountConfig.GrpcClientConfig.ConnPoolSize,
 		EnableHNS:                  mountConfig.EnableHNS,
+		ThreadPoolSize:             mountConfig.ThreadPoolSize,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)

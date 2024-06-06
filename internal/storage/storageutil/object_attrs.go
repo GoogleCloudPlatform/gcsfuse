@@ -147,6 +147,7 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 		Updated:         o.Updated,
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
+		CRC32C:          o.CRC32C,
 	}
 }
 

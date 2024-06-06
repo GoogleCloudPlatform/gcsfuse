@@ -1,15 +1,19 @@
 package downloader
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"hash/crc32"
+	"io"
+	"os"
+	"strings"
+
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
-	"os"
-	"strings"
 )
 
 // downloadObjectAsync downloads the backing GCS object into a file as part of
@@ -70,6 +74,9 @@ func (job *Job) downloadObjectInParallelAsync() {
 			if start < end {
 				logger.Infof("Start: %d, End: %d", start, end)
 				limit := uint64(start) + uint64(readRequestSize)*uint64(job.downloadParallelism)
+				if limit > job.object.Size {
+					limit = job.object.Size
+				}
 				err = job.bucket.ParallelDownloadToFile(job.cancelCtx, &gcs.ParallelDownloadToFileRequest{
 					Name:       job.object.Name,
 					Generation: job.object.Generation,
@@ -77,7 +84,6 @@ func (job *Job) downloadObjectInParallelAsync() {
 					FileHandle: cacheFile,
 					PartSize:   uint64(job.readRequestSizeMb * cacheutil.MiB),
 				})
-				logger.Infof("Error while parallel download: %v", err)
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
 						notifyInvalid()
@@ -116,11 +122,58 @@ func (job *Job) downloadObjectInParallelAsync() {
 				}
 			} else {
 				job.mu.Lock()
+
+				// Validate CRC32
+				downloadedCrc, err := CRC32(job.fileSpec.Path)
+				logger.Infof("Downloaded CRC: %d", downloadedCrc)
+				logger.Infof("GCS crc: %d", *job.object.CRC32C)
+				if err == nil && *job.object.CRC32C == downloadedCrc {
+					logger.Infof("CRC32 check passed.")
+				} else {
+					job.mu.Unlock()
+					job.failWhileDownloading(err)
+					return
+				}
+
 				job.status.Name = Completed
+
 				job.notifySubscribers()
 				job.mu.Unlock()
 				return
 			}
 		}
 	}
+}
+
+const bufferSize = 65536
+
+// CRCReader returns CRC-32-Castagnoli checksum of content in reader
+func CRCReader(reader io.Reader) (uint32, error) {
+	table := crc32.MakeTable(crc32.Castagnoli)
+	checksum := crc32.Checksum([]byte(""), table)
+	buf := make([]byte, bufferSize)
+	for {
+		switch n, err := reader.Read(buf); err {
+		case nil:
+			checksum = crc32.Update(checksum, table, buf[:n])
+		case io.EOF:
+			return checksum, nil
+		default:
+			return 0, err
+		}
+	}
+}
+
+func CRC32(filename string) (uint32, error) {
+	if info, err := os.Stat(filename); err != nil || info.IsDir() {
+		return 0, err
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = file.Close() }()
+
+	return CRCReader(bufio.NewReader(file))
 }

@@ -231,6 +231,9 @@ func (b *debugBucket) DeleteObject(
 }
 
 func (b *debugBucket) ParallelDownloadToFile(ctx context.Context, req *gcs.ParallelDownloadToFileRequest) (err error) {
+	id, desc, start := b.startRequest("ParallelDownloadToFile(%q, %v)", req.Name, req.Range)
+	defer b.finishRequest(id, desc, start, &err)
+
 	err = b.wrapped.ParallelDownloadToFile(ctx, req)
 	return
 }

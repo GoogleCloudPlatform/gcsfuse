@@ -20,7 +20,6 @@
 package storage
 
 import (
-	"cloud.google.com/go/storage/transfermanager"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +27,8 @@ import (
 	"log"
 	"net/http"
 	"sync"
+
+	"cloud.google.com/go/storage/transfermanager"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -497,21 +498,50 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 	}
 
 	size := req.Range.Limit - req.Range.Start
-	numParts := (size-1)/req.PartSize + 1
+	numParts := (size / req.PartSize) + 1
 
-	logger.Infof("downloading parallely from %d to %d", req.Range.Start, req.Range.Limit)
-	logger.Infof("part size: %d", size)
-	logger.Infof("no. of parts: %d", numParts)
+	logger.Tracef("downloading parallely from %d to %d", req.Range.Start, req.Range.Limit)
+
+	// Get a cancel function for the context and start a background goroutine
+	// to monitor for any errors, which will be sent from the callback in a
+	// channel.
+	cancelCtx, cancel := context.WithCancel(ctx)
+
+	partErrors := make(chan error)
+	done := make(chan bool)
+	var firstError error
+
+	monitorCancel := func() {
+		// Block until either all work is done, or at least one error has been
+		// received. done will eventually trigger even if work in flight is
+		// cancelled or errors.
+	out:
+		for {
+			select {
+			case <-done:
+				cancel()
+				break out
+			case err := <-partErrors:
+				// Only take the first error, but continue to drain subsequent
+				// errors from the channel (mostly context cancelled).
+				if firstError == nil {
+					firstError = err
+					cancel()
+				}
+			}
+		}
+
+	}
+	go monitorCancel()
 
 	wg := sync.WaitGroup{}
 
 	callback := func(out *transfermanager.DownloadOutput) {
 		wg.Done()
 		if out.Err != nil {
-			ctx.Done()
 			logger.Errorf("parallel download failed: %v", out.Err)
 		} else {
-			logger.Infof("download succeeded at offset: %d", out.Attrs.StartOffset)
+			logger.Tracef("download succeeded at offset: %d", out.Attrs.StartOffset)
 		}
 	}
 
@@ -533,7 +563,7 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 		// Add download. This is non-blocking so the download will start in the
 		// background.
 		wg.Add(1)
-		err := b.downloader.DownloadObject(ctx, in)
+		err := b.downloader.DownloadObject(cancelCtx, in)
 		if err != nil {
 			log.Fatalf("DownloadObject: %v", err)
 		}
@@ -541,6 +571,12 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 
 	// Wait for the full download to complete.
 	wg.Wait()
-	logger.Infof("Parallel download completed successfully.")
+	done <- true
+
+	if firstError != nil {
+		logger.Errorf("error in parallel download: %v", firstError)
+	} else {
+		logger.Tracef("Parallel download completed successfully.")
+	}
 	return nil
 }

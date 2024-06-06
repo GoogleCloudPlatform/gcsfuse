@@ -109,6 +109,7 @@ type FileCacheConfig struct {
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
 	DownloadParallelism   int   `yaml:"download-parallelism"`
 	ReadRequestSizeMB     int   `yaml:"read-request-size-mb"`
+	ThreadPoolSize        int   `yaml:"thread-pool-size"`
 }
 
 type MetadataCacheConfig struct {
@@ -179,6 +180,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB:           DefaultFileCacheMaxSizeMB,
 		DownloadParallelism: 0,
 		ReadRequestSizeMB:   50 * util.MiB,
+		ThreadPoolSize:      1000,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
