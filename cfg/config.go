@@ -55,6 +55,8 @@ type Config struct {
 
 	Metrics MetricsConfig `yaml:"metrics"`
 
+	Monitoring MonitoringConfig `yaml:"monitoring"`
+
 	OnlyDir string `yaml:"only-dir"`
 
 	Write WriteConfig `yaml:"write"`
@@ -161,6 +163,8 @@ type MetadataCacheConfig struct {
 
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
 
+	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
+
 	StatCacheMaxSizeMb int `yaml:"stat-cache-max-size-mb"`
 
 	TtlSecs int `yaml:"ttl-secs"`
@@ -170,6 +174,10 @@ type MetadataCacheConfig struct {
 
 type MetricsConfig struct {
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
+}
+
+type MonitoringConfig struct {
+	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address"`
 }
 
 type WriteConfig struct {
@@ -331,9 +339,19 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	err = viper.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount"))
+	if err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-opentelemetry-collector-address", "", "", "Experimental: Export metrics to the OpenTelemetry collector at this address.")
 
 	err = flagSet.MarkDeprecated("experimental-opentelemetry-collector-address", "Experimental flag: could be dropped even in a minor release.")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address"))
 	if err != nil {
 		return err
 	}

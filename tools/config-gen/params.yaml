@@ -275,6 +275,7 @@
   default: "0s"
 
 - flag-name: "experimental-opentelemetry-collector-address"
+  config-path: "monitoring.experimental-opentelemetry-collector-address"
   type: "string"
   usage: "Experimental: Export metrics to the OpenTelemetry collector at this address."
   deprecated: true
@@ -345,6 +346,7 @@
   usage: "Print debug messages when a mutex is held too long."
 
 - flag-name: "experimental-metadata-prefetch-on-mount"
+  config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
   type: "string"
   usage: >-
     Experimental: This indicates whether or not to prefetch the metadata
