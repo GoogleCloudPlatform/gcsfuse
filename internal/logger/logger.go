@@ -163,10 +163,14 @@ func Errorf(format string, v ...interface{}) {
 func Fatal(format string, v ...interface{}) {
 	Errorf(format, v...)
 	Errorf(string(debug.Stack()))
+	_ = FlushLogger()
 	os.Exit(1)
 }
 
 func FlushLogger() error {
+	if defaultLoggerFactory.fileWriter == nil {
+		return nil
+	}
 	err := defaultLoggerFactory.fileWriter.Flush()
 	if err != nil {
 		return fmt.Errorf("could not flush logs: %v", err)

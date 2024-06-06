@@ -91,7 +91,6 @@ func (em *errorMapping) handlePanic() {
 	// detect if panic occurred or not
 	a := recover()
 	if a != nil {
-		_ = logger.FlushLogger()
 		logger.Fatal("Panic: %v", a)
 	}
 }

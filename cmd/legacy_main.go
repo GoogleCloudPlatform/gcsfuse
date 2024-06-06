@@ -70,8 +70,9 @@ func registerSIGINTHandler(mountPoint string) {
 				logger.Errorf("Failed to unmount in response to SIGINT: %v", err)
 			} else {
 				logger.Infof("Successfully unmounted in response to SIGINT.")
-				return
 			}
+			_ = logger.FlushLogger()
+			return
 		}
 	}()
 }
