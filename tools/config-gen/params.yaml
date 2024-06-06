@@ -7,6 +7,7 @@
   config-path: "file-system.file-mode"
   type: "octal"
   usage: "Permissions bits for files, in octal."
+  default: "0644"
 
 - flag-name: "uid"
   config-path: "file-system.uid"
@@ -37,3 +38,26 @@
   config-path: "debug.log-mutex"
   type: "bool"
   usage: "Print debug messages when a mutex is held too long."
+
+- flag-name: "log-file"
+  config-path: "logging.file-path"
+  type: "resolvedPath"
+  usage: >-
+    The file for storing logs that can be parsed by fluentd. When not provided,
+    plain text logs are printed to stdout when Cloud Storage FUSE is run 
+    in the foreground, or to syslog when Cloud Storage FUSE is run in the 
+    background.
+
+- flag-name: "log-severity"
+  config-path: "logging.severity"
+  type: "logSeverity"
+  default: "info"
+  usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
+
+- flag-name: "client-protocol"
+  config-path: "gcs-connection.client-protocol"
+  type: "protocol"
+  default: "http1"
+  usage: >-
+    The protocol used for communicating with the GCS backend.
+    Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
