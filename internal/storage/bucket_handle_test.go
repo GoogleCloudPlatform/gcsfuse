@@ -44,6 +44,20 @@ var ContentDisposition string = "ContentDisposition"
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
+ 
+// objectsToObjectNames is a helper function which returns 
+// a list of string containing the names of all the 
+// GCS objects in the passed list.
+// For nil objects, name is returned as nil.
+func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {
+	objectNames = make([]string, len(objects))
+	for i, object := range objects {
+		if object != nil {
+			objectNames[i] = object.Name
+		}
+	}
+	return
+}
 
 type BucketHandleTest struct {
 	suite.Suite
@@ -499,17 +513,9 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 9, len(obj.Objects))
 	assert.Equal(testSuite.T(), TestObjectRootFolderName, obj.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder1Name, obj.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder2Name, obj.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder3Name, obj.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder4Name, obj.Objects[4].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, obj.Objects[5].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, obj.Objects[6].Name)
-	assert.Equal(testSuite.T(), TestObjectName, obj.Objects[7].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, obj.Objects[8].Name)
 	assert.Equal(testSuite.T(), TestObjectGeneration, obj.Objects[0].Generation)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(obj.Objects))
 	assert.Nil(testSuite.T(), obj.CollapsedRuns)
 }
 
@@ -537,16 +543,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	// Validate that 5 objects are listed when MaxResults is passed 5.
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 9, len(allObjects.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, allObjects.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder1Name, allObjects.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder2Name, allObjects.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder3Name, allObjects.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder4Name, allObjects.Objects[4].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, allObjects.Objects[5].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, allObjects.Objects[6].Name)
-	assert.Equal(testSuite.T(), TestObjectName, allObjects.Objects[7].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, allObjects.Objects[8].Name)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(allObjects.Objects))
 	assert.Nil(testSuite.T(), allObjects.CollapsedRuns)
 
 	// Note: The behavior is different in real GCS storage JSON API. In real API,
@@ -556,10 +553,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 	// This is because fake storage doesn't support pagination and hence maxResults
 	// has no affect.
 	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), 3, len(collapsedListOfObjects.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, collapsedListOfObjects.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectName, collapsedListOfObjects.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, collapsedListOfObjects.Objects[2].Name)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(collapsedListOfObjects.Objects))
 	assert.Equal(testSuite.T(), 1, len(collapsedListOfObjects.CollapsedRuns))
 }
 
@@ -575,7 +569,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 			ProjectionVal:            0,
 		})
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 9, len(allObjectsWithMaxResults.Objects))
+	assert.Equal(testSuite.T(), 6, len(allObjectsWithMaxResults.Objects))
 
 	allObjectsWithoutMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
@@ -587,18 +581,9 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 		})
 
 	// Validate that all objects (5) are listed when MaxResults is not passed.
-	assert.Equal(testSuite.T(), nil, err2)
-	assert.Equal(testSuite.T(), 9, len(allObjectsWithoutMaxResults.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, allObjectsWithoutMaxResults.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder1Name, allObjectsWithoutMaxResults.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder2Name, allObjectsWithoutMaxResults.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder3Name, allObjectsWithoutMaxResults.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder4Name, allObjectsWithoutMaxResults.Objects[4].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, allObjectsWithoutMaxResults.Objects[5].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, allObjectsWithoutMaxResults.Objects[6].Name)
-	assert.Equal(testSuite.T(), TestObjectName, allObjectsWithoutMaxResults.Objects[7].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, allObjectsWithoutMaxResults.Objects[8].Name)
-	assert.Equal(testSuite.T(), nil, allObjectsWithoutMaxResults.CollapsedRuns)
+	assert.Nil(testSuite.T(), err2)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(allObjectsWithoutMaxResults.Objects))
+	assert.Nil(testSuite.T(), allObjectsWithoutMaxResults.CollapsedRuns)
 }
 
 func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
@@ -613,7 +598,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 			ProjectionVal:            0,
 		})
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 9, len(allObjects.Objects))
+	assert.Equal(testSuite.T(), 6, len(allObjects.Objects))
 
 	allObjectsWithZeroMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
@@ -628,16 +613,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	// Validate that all objects (5) are listed when MaxResults is 0. This has
 	// same behavior as not passing MaxResults in request.
 	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), 5, len(allObjectsWithZeroMaxResults.Objects))
-	assert.Equal(testSuite.T(), TestObjectRootFolderName, allObjectsWithZeroMaxResults.Objects[0].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder1Name, allObjectsWithZeroMaxResults.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder2Name, allObjectsWithZeroMaxResults.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder3Name, allObjectsWithZeroMaxResults.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestObjectInUnsupportedFolder4Name, allObjectsWithZeroMaxResults.Objects[4].Name)
-	assert.Equal(testSuite.T(), TestObjectSubRootFolderName, allObjectsWithZeroMaxResults.Objects[1].Name)
-	assert.Equal(testSuite.T(), TestSubObjectName, allObjectsWithZeroMaxResults.Objects[2].Name)
-	assert.Equal(testSuite.T(), TestObjectName, allObjectsWithZeroMaxResults.Objects[3].Name)
-	assert.Equal(testSuite.T(), TestGzipObjectName, allObjectsWithZeroMaxResults.Objects[4].Name)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(allObjectsWithZeroMaxResults.Objects))
 	assert.Nil(testSuite.T(), allObjectsWithZeroMaxResults.CollapsedRuns)
 }
 

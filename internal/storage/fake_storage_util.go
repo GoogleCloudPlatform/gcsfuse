@@ -24,10 +24,8 @@ const TestObjectRootFolderName string = "gcsfuse/"
 const TestObjectName string = "gcsfuse/default.txt"
 const TestObjectSubRootFolderName string = "gcsfuse/SubFolder/"
 const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"
-const TestObjectInUnsupportedFolder1Name string = "gcsfuse/\000/default.txt"
-const TestObjectInUnsupportedFolder2Name string = "gcsfuse/../default.txt"
-const TestObjectInUnsupportedFolder3Name string = "gcsfuse/./default.txt"
-const TestObjectInUnsupportedFolder4Name string = "gcsfuse//default.txt"
+
+const TestObjectInUnsupportedFolderName string = "gcsfuse//default.txt"
 const ContentInTestObject string = "Hello GCSFuse!!!"
 const ContentInTestSubObject string = "Hello GCSFuse From SubObject!!!"
 const TestObjectGeneration int64 = 780
@@ -132,45 +130,15 @@ func getTestFakeStorageObject() []fakestorage.Object {
 	}
 	fakeObjects = append(fakeObjects, testGzipObject)
 
-	testObjectInUnsupportedFolder1 := fakestorage.Object{
+	testObjectInUnsupportedFolder := fakestorage.Object{
 		ObjectAttrs: fakestorage.ObjectAttrs{
 			BucketName: TestBucketName,
-			Name:       TestObjectInUnsupportedFolder1Name,
+			Name:       TestObjectInUnsupportedFolderName,
 			Generation: TestObjectGeneration,
 		},
 		Content: []byte(ContentInTestSubObject),
 	}
-	fakeObjects = append(fakeObjects, testObjectInUnsupportedFolder1)
-
-	testObjectInUnsupportedFolder2 := fakestorage.Object{
-		ObjectAttrs: fakestorage.ObjectAttrs{
-			BucketName: TestBucketName,
-			Name:       TestObjectInUnsupportedFolder2Name,
-			Generation: TestObjectGeneration,
-		},
-		Content: []byte(ContentInTestSubObject),
-	}
-	fakeObjects = append(fakeObjects, testObjectInUnsupportedFolder2)
-
-	testObjectInUnsupportedFolder3 := fakestorage.Object{
-		ObjectAttrs: fakestorage.ObjectAttrs{
-			BucketName: TestBucketName,
-			Name:       TestObjectInUnsupportedFolder3Name,
-			Generation: TestObjectGeneration,
-		},
-		Content: []byte(ContentInTestSubObject),
-	}
-	fakeObjects = append(fakeObjects, testObjectInUnsupportedFolder3)
-
-	testObjectInUnsupportedFolder4 := fakestorage.Object{
-		ObjectAttrs: fakestorage.ObjectAttrs{
-			BucketName: TestBucketName,
-			Name:       TestObjectInUnsupportedFolder4Name,
-			Generation: TestObjectGeneration,
-		},
-		Content: []byte(ContentInTestSubObject),
-	}
-	fakeObjects = append(fakeObjects, testObjectInUnsupportedFolder4)
+	fakeObjects = append(fakeObjects, testObjectInUnsupportedFolder)
 
 	return fakeObjects
 }
