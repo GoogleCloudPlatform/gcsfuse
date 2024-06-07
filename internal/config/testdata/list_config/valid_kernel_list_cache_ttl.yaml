@@ -1,2 +1,2 @@
-file-system:
+list:
   kernel-list-cache-ttl-secs: 10
