@@ -569,3 +569,64 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
+
+// Create objects in implicit directories with
+// unsupported names such as ., .., /, \0 and
+// test that stat and ReadDirPicky on the different directories.
+func (t *ImplicitDirsTest) UnsupportedDirNames() {
+	var fi os.FileInfo
+	var entries []os.FileInfo
+	var err error
+
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo//bar":     "", // unsupported
+				"foo/./bar":    "", // unsupported
+				"foo/../bar":   "", // unsupported
+				"foo/\000/bar": "", // unsupported
+				"/bar":         "", // unsupported
+				"./bar":        "", // unsupported
+				"../bar":       "", // unsupported
+				"\000/bar":     "", // unsupported
+				"a/b":          "", // supported
+			}))
+
+	// Statting the mount directory should return a directory entry.
+	fi, err = os.Stat(mntDir)
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
+
+	// Statting the mount-directory/foo should return a directory entry named "foo".
+	fi, err = os.Stat(path.Join(mntDir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// Statting the mount-directory/a should return a directory entry named "a".
+	fi, err = os.Stat(path.Join(mntDir, "a"))
+	AssertEq(nil, err)
+
+	ExpectEq("a", fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// ReadDirPicky on mountdir/foo should fail as the unsupported sub-directories in that can not be read.
+	_, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
+	AssertNe(nil, err)
+
+	// ReadDirPicky on mountdir should fail as the unsupported sub-directories in that can not be read.
+	_, err = fusetesting.ReadDirPicky(mntDir)
+	AssertNe(nil, err)
+
+	// ReadDir on mntdir/a should show the directory and should contain a single file object named "b".
+	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "a"))
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("b", fi.Name())
+	ExpectFalse(fi.IsDir())
+}
