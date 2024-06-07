@@ -172,6 +172,14 @@ func (t *fsTest) SetUpTestSuite() {
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
+
+	if t.serverCfg.MountConfig != nil {
+		mountConfig := t.serverCfg.MountConfig
+		if mountConfig.LogConfig.FilePath != "" {
+			err = logger.InitLogFile(mountConfig.LogConfig)
+			AssertEq(nil, err)
+		}
+	}
 }
 
 func (t *fsTest) TearDownTestSuite() {
