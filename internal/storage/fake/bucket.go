@@ -29,7 +29,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 )
@@ -503,56 +502,56 @@ func (b *bucket) ListObjects(
 				// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
 				// from gcs.bucket_handle.ListObjects.
 				// logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", resultPrefix)
-				if util.IsUnsupportedDirectoryName(resultPrefix) {
-					fmt.Printf("Ignoring unsupported object-prefix: \"%s\"\n", resultPrefix)
-				} else {
-					if len(listing.CollapsedRuns) == 0 ||
-						listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
+				//if util.IsUnsupportedDirectoryName(resultPrefix) {
+				//fmt.Printf("Ignoring unsupported object-prefix: \"%s\"\n", resultPrefix)
+				//} else {
+				if len(listing.CollapsedRuns) == 0 ||
+					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 
-						//fmt.Printf("Added following to prefixes: \"%s\"\n", resultPrefix)
+					//fmt.Printf("Added following to prefixes: \"%s\"\n", resultPrefix)
 
-						listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
-
-						fmt.Printf("listing.CollapsedRuns = \"%+q\"\n", listing.CollapsedRuns)
-
-						isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
-						if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
-							lastResultWasPrefix = true
-							continue
-						}
-					}
+					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
+
+				// fmt.Printf("listing.CollapsedRuns = \"%+q\"\n", listing.CollapsedRuns)
+
+				isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
+				if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
+					lastResultWasPrefix = true
+					continue
+				}
+				//}
 			}
 		}
 
-		if util.IsUnsupportedObjectName(o.metadata.Name) {
-			// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
-			// from gcs.bucket_handle.ListObjects.
-			// logger.Warnf("Encoutered unsupported object-name: \"%s\"", o.metadata.Name)
-			//fmt.Printf("Encoutered unsupported object-name: \"%s\"\n", o.metadata.Name)
-		} else {
+		//if util.IsUnsupportedObjectName(o.metadata.Name) {
+		// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
+		// from gcs.bucket_handle.ListObjects.
+		// logger.Warnf("Encoutered unsupported object-name: \"%s\"", o.metadata.Name)
+		//fmt.Printf("Encoutered unsupported object-name: \"%s\"\n", o.metadata.Name)
+		//} else {
 
-			lastResultWasPrefix = false
+		lastResultWasPrefix = false
 
-			printObj := func(objects []*gcs.Object) string {
-				ret := "["
-				for _, o := range objects {
-					if o != nil {
-						ret += fmt.Sprintf("{\"%s\"}", o.Name) + ","
-					}
-				}
-				ret += "]"
-				return ret
-			}
+		//printObj := func(objects []*gcs.Object) string {
+		//ret := "["
+		//for _, o := range objects {
+		//if o != nil {
+		//ret += fmt.Sprintf("{\"%s\"}", o.Name) + ","
+		//}
+		//}
+		//ret += "]"
+		//return ret
+		//}
 
-			// Otherwise, return as an object result. Make a copy to avoid handing back
-			// internal state.
-			listing.Objects = append(listing.Objects, copyObject(&o.metadata))
+		// Otherwise, return as an object result. Make a copy to avoid handing back
+		// internal state.
+		listing.Objects = append(listing.Objects, copyObject(&o.metadata))
 
-			//fmt.Printf("Added following to objects: \"%s\"\n", o.metadata.Name)
+		//fmt.Printf("Added following to objects: \"%s\"\n", o.metadata.Name)
 
-			fmt.Printf("listing.Objects = \"%s\"\n", printObj(listing.Objects))
-		}
+		//fmt.Printf("listing.Objects = \"%s\"\n", printObj(listing.Objects))
+		//}
 	}
 
 	// Set up a cursor for where to start the next scan if we didn't exhaust the
