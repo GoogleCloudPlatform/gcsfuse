@@ -244,7 +244,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
-		cfg.SequentialReadSizeMb)
+		cfg.SequentialReadSizeMb, cfg.MountConfig.EnableCrcCheck)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
 		cacheDir, filePerm, dirPerm)
 	return

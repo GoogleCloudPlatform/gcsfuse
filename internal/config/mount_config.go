@@ -57,6 +57,8 @@ const (
 	DefaultExperimentalMetadataPrefetchOnMount = ExperimentalMetadataPrefetchOnMountDisabled
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
+
+	DefaultEnableCrcCheck = true
 )
 
 type WriteConfig struct {
@@ -106,6 +108,7 @@ type FileSystemConfig struct {
 type FileCacheConfig struct {
 	MaxSizeMB             int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
+	EnableCrcCheck        bool  `yaml:"enable-crc-check"`
 }
 
 type MetadataCacheConfig struct {
@@ -173,7 +176,8 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB: DefaultFileCacheMaxSizeMB,
+		MaxSizeMB:      DefaultFileCacheMaxSizeMB,
+		EnableCrcCheck: DefaultEnableCrcCheck,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
