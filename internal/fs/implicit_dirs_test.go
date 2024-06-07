@@ -45,6 +45,23 @@ func init() {
 
 func (t *ImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
+
+	logfile := "/tmp/gcsfuse_logs.txt"
+	logConfig := config.LogConfig{
+		Severity: "TRACE",
+		Format:   "text",
+		FilePath: logfile,
+		LogRotateConfig: config.LogRotateConfig{
+			MaxFileSizeMB:   100000,
+			Compress:        false,
+			BackupFileCount: 100,
+		},
+	}
+	if t.serverCfg.MountConfig == nil {
+		t.serverCfg.MountConfig = config.NewMountConfig()
+	}
+	t.serverCfg.MountConfig.LogConfig = logConfig
+
 	t.fsTest.SetUpTestSuite()
 }
 
