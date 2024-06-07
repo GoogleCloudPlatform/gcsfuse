@@ -19,11 +19,16 @@
 package fs_test
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -646,4 +651,101 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	fi = entries[0]
 	ExpectEq("b", fi.Name())
 	ExpectFalse(fi.IsDir())
+}
+
+// Create objects in implicit directories with
+// unsupported names such as ., .., /, \0 and
+// test that stat and ReadDirPicky on the different directories.
+func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				//"a/b":     "", // supported
+				"foo/c": "", // supported
+				//"foo/c/d": "", // supported
+				"foo//e": "", // unsupported
+				//"foo/./f": "", // unsupported
+				// "foo/../g": "", // unsupported
+				//"/h": "", // unsupported
+				// "./i":      "", // unsupported
+				// "../j":     "", // unsupported
+			}))
+
+	expectedWalkedEntries := []struct {
+		path  string
+		name  string
+		isDir bool
+		found bool
+	}{{
+		path:  mntDir,
+		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
+		isDir: true,
+		// }, {
+		// 	path:  path.Join(mntDir, "a"),
+		// 	name:  "a",
+		// 	isDir: true,
+		// }, {
+		// 	path:  path.Join(mntDir, "a/b"),
+		// 	name:  "b",
+		// 	isDir: false,
+	}, {
+		path:  path.Join(mntDir, "foo"),
+		name:  "foo",
+		isDir: true,
+	}, {
+		path:  path.Join(mntDir, "foo/c"),
+		name:  "c",
+		isDir: false,
+		//}, {
+		//path:  path.Join(mntDir, "foo/c/d"),
+		//name:  "d",
+		//isDir: false,
+	},
+	}
+
+	maxIters := 100
+	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
+		defer fmt.Printf("... exiting WalkFn\n")
+		fmt.Printf("WalkFn called with path=%v,d=%s,isDir=%v,err=%v\n", path, d.Name(), d.IsDir(), err)
+		maxIters--
+
+		if err != nil {
+			return err
+		}
+
+		if maxIters < 0 {
+			return fmt.Errorf("walk went too deep")
+		}
+
+		// if d.Name() == "foo" {
+		// 	return filepath.SkipDir
+		// }
+
+		foundMatchingExpectedWalkingEntry := false
+		for i, _ := range expectedWalkedEntries {
+			expectedWalkedEntry := &expectedWalkedEntries[i]
+			if expectedWalkedEntry.path == path && expectedWalkedEntry.name == d.Name() && d.IsDir() == expectedWalkedEntry.isDir {
+				if expectedWalkedEntry.found {
+					return fmt.Errorf("found duplicate walked entry: path=%s, name=%s, isDir=%v", path, d.Name(), d.IsDir())
+				}
+
+				foundMatchingExpectedWalkingEntry = true
+				expectedWalkedEntry.found = true
+			}
+		}
+
+		if !foundMatchingExpectedWalkingEntry {
+			return fmt.Errorf("got unexpected walk entry: path=%s, name=%s, isDir=%v", path, d.Name(), d.IsDir())
+		}
+
+		return nil
+	}))
+
+	for _, expectedWalkedEntry := range expectedWalkedEntries {
+		if !expectedWalkedEntry.found {
+			AddFailure("Missing walked entry: path=%s, name=%s, isDir=%v", expectedWalkedEntry.path, expectedWalkedEntry.name, expectedWalkedEntry.isDir)
+		}
+	}
 }
