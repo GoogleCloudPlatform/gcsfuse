@@ -77,7 +77,7 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	chrT.cache = lru.NewCache(HandlerCacheMaxSize)
 
 	// Job manager
-	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb)
+	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm, util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb, true)
 
 	// Mocked cached handler object.
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)

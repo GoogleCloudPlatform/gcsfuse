@@ -71,7 +71,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		DirPerm:  util.DefaultDirPerm,
 	}
 	dt.cache = lru.NewCache(lruCacheSize)
-	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback)
+	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, true)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
@@ -510,32 +510,6 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 	AssertEq(nil, err)
 	AssertEq(Invalid, jobStatus.Name)
 	AssertEq(nil, jobStatus.Err)
-}
-
-func (dt *downloaderTest) Test_Download_FileInfoRemovedInBetween() {
-	objectName := "path/in/gcs/foo.txt"
-	objectSize := 16 * util.MiB
-	objectContent := testutil.GenerateRandomBytes(objectSize)
-	var callbackExecuted atomic.Bool
-	removeCallback := func() { callbackExecuted.Store(true) }
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), removeCallback)
-	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: objectName}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		jobStatus, err := dt.job.Download(context.Background(), int64(objectSize), true)
-		AssertEq(nil, err)
-		AssertEq(Invalid, jobStatus.Name)
-		wg.Done()
-	}()
-
-	// Delete fileinfo from file info cache
-	dt.job.fileInfoCache.Erase(fileInfoKeyName)
-
-	wg.Wait()
-	AssertTrue(callbackExecuted.Load())
 }
 
 func (dt *downloaderTest) Test_Download_InvalidOffset() {

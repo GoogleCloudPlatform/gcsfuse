@@ -1,8 +1,10 @@
+ignore:
+  - "tools"
+  - "benchmarks"
 coverage:
   round: down
   precision: 2
   status:
-    changes: true
     project:
       default:
         target: 60%

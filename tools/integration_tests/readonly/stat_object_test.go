@@ -32,55 +32,55 @@ func statObject(objPath string, t *testing.T) (file os.FileInfo) {
 }
 
 func TestStatFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test1.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test1.txt, Type - File
 	if file.Name() != FileNameInTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket is incorrect.")
 	}
 }
 
 func TestStatFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test/a.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test/a.txt, Type - File
 	if file.Name() != FileNameInDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket directory is incorrect.")
 	}
 }
 
 func TestStatFileFromBucketSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
 	file := statObject(filePath, t)
 
-	// Name - testBucket/Test/b/b.txt, Type - File
+	// Name - testBucket/testDirForReadOnlyTest/Test/b/b.txt, Type - File
 	if file.Name() != FileNameInSubDirectoryTestBucket || file.IsDir() != false {
 		t.Errorf("Object stated for file in bucket subdirectory is incorrect.")
 	}
 }
 
 func TestStatDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
 
 	dir := statObject(dirPath, t)
 
-	// Name - testBucket/Test/, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/, Type - Dir
 	if dir.Name() != DirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket directory is incorrect.")
 	}
 }
 
 func TestStatSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
 
 	dir := statObject(dirPath, t)
 
-	// Name - testBucket/Test/b, Type - Dir
+	// Name - testBucket/testDirForReadOnlyTest/Test/b, Type - Dir
 	if dir.Name() != SubDirectoryNameInTestBucket || dir.IsDir() != true {
 		t.Errorf("Object stated for bucket sub directory is incorrect.")
 	}
@@ -96,25 +96,25 @@ func checkIfNonExistentObjectFailedToStat(objPath string, t *testing.T) {
 }
 
 func TestStatNotExistingFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNotExist)
 
 	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNotExist)
 
 	checkIfNonExistentObjectFailedToStat(filePath, t)
 }
 
 func TestStatNotExistingDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirNotExist)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirNotExist)
 
 	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }
 
 func TestStatNotExistingSubDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, DirNotExist)
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, DirNotExist)
 
 	checkIfNonExistentObjectFailedToStat(dirPath, t)
 }

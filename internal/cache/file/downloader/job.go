@@ -85,6 +85,9 @@ type Job struct {
 	removeJobCallback func()
 
 	mu locker.Locker
+
+	// specifies whether the crc check needs to be done after the file is downloaded to cache.
+	enableCrcCheck bool
 }
 
 // JobStatus represents the status of job.
@@ -102,7 +105,8 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func()) (job *Job) {
+	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func(),
+	enableCrcCheck bool) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
@@ -110,6 +114,7 @@ func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
+		enableCrcCheck:       enableCrcCheck,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -362,6 +367,10 @@ func (job *Job) downloadObjectAsync() {
 				}
 				start += maxRead
 				if start == newReaderLimit {
+					err = newReader.Close()
+					if err != nil {
+						logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
+					}
 					newReader = nil
 				}
 

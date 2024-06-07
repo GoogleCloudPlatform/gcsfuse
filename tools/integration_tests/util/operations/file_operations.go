@@ -631,3 +631,14 @@ func CalculateFileCRC32(filePath string) (uint32, error) {
 
 	return CalculateCRC32(file)
 }
+
+// SizeOfFile returns the size of the given file by path.
+// by invoking a stat call on it.
+func SizeOfFile(filepath string) (size int64, err error) {
+	fstat, err := StatFile(filepath)
+	if err != nil {
+		return 0, err
+	}
+
+	return (*fstat).Size(), nil
+}

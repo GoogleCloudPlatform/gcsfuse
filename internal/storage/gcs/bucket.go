@@ -34,6 +34,15 @@ const (
 	Unknown
 )
 
+const (
+	// ReqIdField is the key for the value of
+	// GCS req-id in context.
+	// This is used by debugBucket
+	// for passing down Request ID
+	// into the underlying bucket implementation.
+	ReqIdField string = "GcsReqId"
+)
+
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.
 //

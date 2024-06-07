@@ -39,13 +39,13 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 }
 
 func TestCreateFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), "testFile.txt")
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, "testFile.txt")
 
 	checkIfFileCreationFailed(filePath, t)
 }
 
 func TestCreateFileInDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "testFile.txt")
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, "testFile.txt")
 
 	checkIfFileCreationFailed(filePath, t)
 }
@@ -61,13 +61,13 @@ func checkIfDirCreationFailed(dirPath string, t *testing.T) {
 }
 
 func TestCreateDir(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), "test")
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, "test")
 
 	checkIfDirCreationFailed(dirPath, t)
 }
 
 func TestCreateSubDirectoryInDirectory(t *testing.T) {
-	dirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, "test")
+	dirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, "test")
 
 	checkIfDirCreationFailed(dirPath, t)
 }

@@ -22,7 +22,16 @@ RUN_E2E_TESTS_ON_PACKAGE=$1
 # By default, this script runs all the integration tests.
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
 
+# The location (region) where bucket should be created.
+BUCKET_LOCATION=$3
+
 INTEGRATION_TEST_TIMEOUT=60m
+
+if [ "$#" -ne 3 ]
+then
+  echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
+  exit 1
+fi
 
 if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
@@ -31,7 +40,6 @@ if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
-readonly BUCKET_LOCATION="us-west1"
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
 TEST_DIR_PARALLEL=(
@@ -48,6 +56,7 @@ TEST_DIR_PARALLEL=(
   "implicit_dir"
   "interrupt"
   "operations"
+  "log_content"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(

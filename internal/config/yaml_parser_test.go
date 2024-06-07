@@ -42,6 +42,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, "", string(mountConfig.CacheDir))
 	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.True(t, mountConfig.FileCacheConfig.EnableCrcCheck)
 	assert.Equal(t, 1, mountConfig.GrpcClientConfig.ConnPoolSize)
 	assert.False(t, mountConfig.AuthConfig.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -128,6 +129,11 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	// file-system config
 	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.True(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+
+	// file-cache config
+	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMB)
+	assert.True(t.T(), mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCrcCheck)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -264,30 +270,30 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
-	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_ListConfig_InvalidKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/list_config/invalid_kernel_list_cache_ttl.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsInvalidValueError))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsupportedLargeKernelListCacheTtl() {
-	_, err := ParseConfigFile("testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_ListConfig_UnsupportedLargeKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/list_config/unsupported_large_kernel_list_cache_ttl.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsTooHighError))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {
-	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_ListConfig_UnsetKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/list_config/unset_kernel_list_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.ListConfig.KernelListCacheTtlSeconds)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCacheTtl() {
-	mountConfig, err := ParseConfigFile("testdata/file_system_config/valid_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_ListConfig_ValidKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/list_config/valid_kernel_list_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), int64(10), mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), int64(10), mountConfig.ListConfig.KernelListCacheTtlSeconds)
 }

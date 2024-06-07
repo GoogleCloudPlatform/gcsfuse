@@ -143,7 +143,7 @@ func buildBinaries(dstDir, srcDir, version string, buildArgs []string) (err erro
 			cmd.Args = append(
 				cmd.Args,
 				"-ldflags",
-				fmt.Sprintf("-X main.gcsfuseVersion=%s", version),
+				fmt.Sprintf("-X github.com/googlecloudplatform/gcsfuse/v2/cmd.gcsfuseVersion=%s", version),
 			)
 			cmd.Args = append(cmd.Args, buildArgs...)
 		}

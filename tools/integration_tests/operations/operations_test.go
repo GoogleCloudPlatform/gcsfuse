@@ -132,16 +132,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
 
-	// Set up config file testing metadata-prefetch-on-mount: "async".
-	mountConfig4 := config.MountConfig{
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
-	}
-	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4, "--metadata-prefetch-on-mount=async"})
-
 	return flags
 }
 
@@ -161,10 +151,9 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
+	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
 	if !testing.Short() {

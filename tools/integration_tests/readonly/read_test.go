@@ -35,23 +35,23 @@ func checkIfFileReadSucceeded(filePath string, expectedContent string, t *testin
 	}
 }
 
-// testBucket/Test1.txt
+// testBucket/testDirForReadOnlyTest/Test1.txt
 func TestReadFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNameInTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
 
 	checkIfFileReadSucceeded(filePath, ContentInFileInTestBucket, t)
 }
 
-// testBucket/Test/a.txt
+// testBucket/testDirForReadOnlyTest/Test/a.txt
 func TestReadFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
 
 	checkIfFileReadSucceeded(filePath, ContentInFileInDirectoryTestBucket, t)
 }
 
-// testBucket/Test/b/b.txt
+// testBucket/testDirForReadOnlyTest/Test/b/b.txt
 func TestReadFileFromBucketSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
 
 	checkIfFileReadSucceeded(filePath, ContentInFileInSubDirectoryTestBucket, t)
 }
@@ -68,19 +68,19 @@ func checkIfNonExistentFileFailedToOpen(filePath string, t *testing.T) {
 }
 
 func TestReadNonExistentFile(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNotExist)
 
 	checkIfNonExistentFileFailedToOpen(filePath, t)
 }
 
 func TestReadNonExistentFileFromBucketDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNotExist)
 
 	checkIfNonExistentFileFailedToOpen(filePath, t)
 }
 
 func TestReadNonExistentFileFromBucketSubDirectory(t *testing.T) {
-	filePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNotExist)
+	filePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNotExist)
 
 	checkIfNonExistentFileFailedToOpen(filePath, t)
 }

@@ -55,11 +55,14 @@ type JobManager struct {
 	// "test_bucket/a/b/foo.txt"
 	jobs map[string]*Job
 	mu   locker.Locker
+
+	// Specifies whether Crc check needs to be done.
+	enableCrcCheck bool
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheDir string, sequentialReadSizeMb int32) (jm *JobManager) {
+func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheDir string, sequentialReadSizeMb int32, enableCrcCheck bool) (jm *JobManager) {
 	jm = &JobManager{fileInfoCache: fileInfoCache, filePerm: filePerm,
-		dirPerm: dirPerm, cacheDir: cacheDir, sequentialReadSizeMb: sequentialReadSizeMb}
+		dirPerm: dirPerm, cacheDir: cacheDir, sequentialReadSizeMb: sequentialReadSizeMb, enableCrcCheck: enableCrcCheck}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
 	return
@@ -96,7 +99,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.enableCrcCheck)
 	jm.jobs[objectPath] = job
 	return job
 }

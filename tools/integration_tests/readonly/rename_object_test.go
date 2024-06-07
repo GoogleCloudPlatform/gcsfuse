@@ -58,34 +58,34 @@ func checkIfRenameDirFailed(oldDirPath string, newDirPath string, t *testing.T) 
 	}
 }
 
-// Rename testBucket/Test1.txt to testBucket/Rename.txt
+// Rename testBucket/testDirForReadOnlyTest/Test1.txt to testBucket/testDirForReadOnlyTest/Rename.txt
 func TestRenameFile(t *testing.T) {
-	oldFilePath := path.Join(setup.MntDir(), FileNameInTestBucket)
-	newFilePath := path.Join(setup.MntDir(), RenameFile)
+	oldFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, FileNameInTestBucket)
+	newFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, RenameFile)
 
 	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
-// Rename testBucket/Test/a.txt to testBucket/Test/Rename.txt
+// Rename testBucket/testDirForReadOnlyTest/Test/a.txt to testBucket/testDirForReadOnlyTest/Test/Rename.txt
 func TestRenameFileFromBucketDirectory(t *testing.T) {
-	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
-	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameFile)
+	oldFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, FileNameInDirectoryTestBucket)
+	newFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, RenameFile)
 
 	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
-// Rename testBucket/Test/b/b.txt to testBucket/Test/b/Rename.txt
+// Rename testBucket/testDirForReadOnlyTest/Test/b/b.txt to testBucket/testDirForReadOnlyTest/Test/b/Rename.txt
 func TestRenameFileFromBucketSubDirectory(t *testing.T) {
-	oldFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
-	newFilePath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, RenameFile)
+	oldFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, FileNameInSubDirectoryTestBucket)
+	newFilePath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket, RenameFile)
 
 	checkIfRenameFileFailed(oldFilePath, newFilePath, t)
 }
 
-// Rename testBucket/Test to testBucket/Rename
+// Rename testBucket/testDirForReadOnlyTest/Test to testBucket/testDirForReadOnlyTest/Rename
 func TestRenameDir(t *testing.T) {
-	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket)
-	newDirPath := path.Join(setup.MntDir(), RenameDir)
+	oldDirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket)
+	newDirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, RenameDir)
 
 	checkIfRenameDirFailed(oldDirPath, newDirPath, t)
 
@@ -118,10 +118,10 @@ func TestRenameDir(t *testing.T) {
 	}
 }
 
-// Rename testBucket/Test/b to testBucket/Test/Rename
+// Rename testBucket/testDirForReadOnlyTest/Test/b to testBucket/testDirForReadOnlyTest/Test/Rename
 func TestRenameSubDirectory(t *testing.T) {
-	oldDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
-	newDirPath := path.Join(setup.MntDir(), DirectoryNameInTestBucket, RenameDir)
+	oldDirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, SubDirectoryNameInTestBucket)
+	newDirPath := path.Join(setup.MntDir(), TestDirForReadOnlyTest, DirectoryNameInTestBucket, RenameDir)
 
 	checkIfRenameDirFailed(oldDirPath, newDirPath, t)
 
