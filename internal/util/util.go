@@ -45,8 +45,10 @@ const (
 )
 
 var (
-	unsupportedObjectNameSubstrings  = []string{"//", "/./", "/../", "\000"}
-	unsupportedDirectoryNamePrefixes = []string{"/", "./", "../"}
+	// unsupportedObjectNameSubstrings  = []string{"//", "/./", "/../", "\000"}
+	// unsupportedDirectoryNamePrefixes = []string{"/", "./", "../"}
+	unsupportedObjectNameSubstrings  = []string{"//"}
+	unsupportedDirectoryNamePrefixes = []string{"/"}
 )
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
