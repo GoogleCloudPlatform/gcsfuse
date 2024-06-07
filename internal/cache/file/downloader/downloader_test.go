@@ -16,7 +16,6 @@ package downloader
 
 import (
 	"context"
-	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"os"
 	"path"
 	"sync"
@@ -30,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
 )
