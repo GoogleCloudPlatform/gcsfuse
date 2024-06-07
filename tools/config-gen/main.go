@@ -22,8 +22,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
-
-	"github.com/google/safetext/yamltemplate"
+	"text/template" // NOLINT
 )
 
 var (
@@ -60,7 +59,7 @@ func write(data templateData) error {
 	if err != nil {
 		return err
 	}
-	tmpl, err := yamltemplate.New("config.tpl").ParseFiles(*templateFile)
+	tmpl, err := template.New("config.tpl").ParseFiles(*templateFile)
 	if err != nil {
 		return err
 	}
