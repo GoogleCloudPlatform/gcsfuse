@@ -24,18 +24,25 @@ def seg_log(files, agg_map, start_time, end_time, filename):
             if message.find("OpenFile") != -1:
                 agg_map[0].append(log)
 
-            if message.find("LookUpInode") != -1:
+            elif message.find("LookUpInode") != -1:
                 agg_map[0].append(log)
                 agg_map[1].append(log)
 
-            if message.find("OK (inode") != -1:
+            elif message.find("OK (inode") != -1:
                 agg_map[0].append(log)
                 agg_map[1].append(log)
 
-            if message.find("ReadFile") != -1:
+            elif message.find("ReadFile") != -1:
                 agg_map[1].append(log)
-            if message.find(filename) != -1:
+
+            elif message.find(filename) != -1:
                 agg_map[2].append(log)
+
+            elif message.find("ReleaseFileHandle") != -1:
+                agg_map[0].append(log)
+
+            elif message.find("OK (Handle") != -1:
+                agg_map[0].append(log)
             # for other logs add more ifs
 
     return logs

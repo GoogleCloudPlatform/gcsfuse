@@ -23,6 +23,7 @@ def processor(file, logs):
     req = ""
     inode = -1
     pattern = {}
+    avg_read_size = {}
     last_entry = {}
     for log in logs:
         message = log["message"]
@@ -33,12 +34,15 @@ def processor(file, logs):
                     pattern[data[2]] = ""
                     pattern[data[2]] += "_"
                     last_entry[data[2]] = data[3] + data[4]
+                    avg_read_size[data[2]] = 0
                 else:
                     if data[3] == last_entry[data[2]]:
                         pattern[data[2]] += "s"
                     else:
                         pattern[data[2]] += "r"
                     last_entry[data[2]] = data[3] + data[4]
+                avg_read_size[data[2]] += data[4]
+
         else:
             if message.find("LookUpInode") != -1 and message.find(file) != -1:
                 req = get_val(message, "Op 0x", " ", "fwd", -1)
@@ -60,8 +64,11 @@ def processor(file, logs):
                     streak += 1
 
             print(last_read, streak)
+            print("Total reads for this handle:", len(pattern[handle]))
+            print("Average read size:", avg_read_size[handle]/len(pattern[handle]))
         else:
             print("A single read happened\n")
+            print("Read size:", avg_read_size[handle])
 
     if len(pattern) == 0:
         print("No reads happened for the given file\n")

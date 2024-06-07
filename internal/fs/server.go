@@ -32,5 +32,6 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 
 	fs = wrappers.WithErrorMapping(fs)
 	fs = wrappers.WithMonitoring(fs)
+	fs = wrappers.WithExtraLogInfo(fs)
 	return fuseutil.NewFileSystemServer(fs), nil
 }

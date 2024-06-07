@@ -33,6 +33,10 @@ def processor(file, logs):
     buff_handles = 0
     labels = []
     req = ""
+    req_map = {}
+    handle_map = {}
+    handles_opened = 0
+    handles_closed = 0
     for log in logs:
         message = log["message"]
         if message.find("OpenFile") != -1:
@@ -47,7 +51,9 @@ def processor(file, logs):
                 #         last_timestamp = timestamp_sec
                 #         last_handle_val = last_handle_val + buff_handles
                 #         buff_handles = 1
-
+                handles_opened += 1
+                req = get_val(message, "Op 0x", " ", "fwd", 0)
+                req_map[req] = timestamp_sec
                 if last_timestamp != timestamp_sec:
                     if last_timestamp != 0:
                         x_axis.append(last_timestamp)
@@ -58,6 +64,30 @@ def processor(file, logs):
                     buff_handles = 1
                 else:
                     buff_handles += 1
+
+        elif message.find("OK (Handle") != -1:
+            req = get_val(message, "Op 0x", " ", "fwd", 0)
+            handle = int(get_val(message, "Handle", ")", "fwd", 1))
+            if req in req_map.keys():
+                handle_map[handle] = req_map[req]
+
+        elif message.find("ReleaseFileHandle") != -1:
+            # {"timestamp":{"seconds":1717577027,"nanos":384694489},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:420] <- ReleaseFileHandle (PID 0, Handle 0)"}
+            handle = int(get_val(message, ", Handle", ")", "fwd", 1))
+            if handle in handle_map.keys():
+                timestamp_sec = log["timestamp"]["seconds"]
+                handles_closed += 1
+                handle_map.pop(handle)
+                if last_timestamp != timestamp_sec:
+                    last_handle_val += buff_handles
+                    x_axis.append(last_timestamp)
+                    labels.append(epoch_to_iso(last_timestamp))
+                    y_axis.append(last_handle_val)
+                    buff_handles = -1
+                    last_timestamp = timestamp_sec
+                else:
+                    buff_handles -= 1
+
         else:
             if message.find("LookUpInode") != -1 and message.find(file) != -1:
                 req = get_val(message, "Op 0x", " ", "fwd", -1)
@@ -72,7 +102,10 @@ def processor(file, logs):
     labels_y = []
     for i in y_axis:
         labels_y.append(i)
-    print("Total handles opened: ", last_handle_val, "\n")
+    print("Total handles opened:", handles_opened)
+    print("Total handles closed:", handles_closed)
+    for handle in handle_map.keys():
+        print("Handle", handle, "opened at time:", epoch_to_iso(handle_map[handle]), "was not released in given time interval")
     plt.scatter(x_axis, y_axis)
     plt.xticks(x_axis, labels)
     plt.yticks(y_axis, labels_y)

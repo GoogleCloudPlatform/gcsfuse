@@ -132,8 +132,9 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 func (b *debugBucket) NewReader(
 	ctx context.Context,
 	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+	//extraInfo := ctx.Value("extraInfo").(wrappers.ExtraInfo)
+	//id, desc, start := b.startRequest("Read(%q, %v), Handle: %d, Inode: %d, PID: %d", req.Name, req.Range, extraInfo.Handle, extraInfo.Inode, extraInfo.OpContext.Pid)
 	id, desc, start := b.startRequest("Read(%q, %v)", req.Name, req.Range)
-
 	// Call through.
 	rc, err = b.wrapped.NewReader(ctx, req)
 	if err != nil {

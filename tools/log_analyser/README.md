@@ -1,5 +1,7 @@
 This log analyzer takes log files and a few filters and outputs the analysis.
 
+Please include changes as per the pull request before running the code-
+[https://github.com/jacobsa/fuse/pull/164](https://github.com/jacobsa/fuse/pull/164)
 
 Enter the names of the log files (with absolute paths)
 for exp- `/usr/local/google/home/patelvishvesh/tmp/test_json`

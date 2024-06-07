@@ -3,6 +3,7 @@ import log_agg
 import open_handles_metric
 import read_pattern_metric
 import count_gcs_calls
+import bytes_transferred
 
 # Add the log files here
 files = []
@@ -34,3 +35,5 @@ open_handles_metric.processor(file, agg_logs[0])
 read_pattern_metric.processor(file, agg_logs[1])
 
 count_gcs_calls.count_calls(file, tot_logs)
+
+bytes_transferred.processor(tot_logs)
