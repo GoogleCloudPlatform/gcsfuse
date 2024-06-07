@@ -86,6 +86,7 @@ type Job struct {
 
 	mu locker.Locker
 
+	// specifies whether the crc check needs to be done after the file is downloaded to cache.
 	enableCrcCheck bool
 }
 
