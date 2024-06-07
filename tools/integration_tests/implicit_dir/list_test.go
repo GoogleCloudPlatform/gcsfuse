@@ -42,7 +42,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/.                                                                  -- Dir
 	// testBucket/dirForImplicitDirTests/./fileInUnsupportedImplicitDir2                                    -- File
 	// testBucket/dirForImplicitDirTests//                                                                  -- Dir
-	// testBucket/dirForImplicitDirTests//fileInUnsupportedImplicitDir3                                     -- File 
+	// testBucket/dirForImplicitDirTests//fileInUnsupportedImplicitDir3                                     -- File
 
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForImplicitDirTests, t)
