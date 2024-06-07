@@ -1542,14 +1542,14 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
 	ExpectEq(minObject1.ContentEncoding, minObject2.ContentEncoding)
+	ExpectNe(nil, minObject1.CRC32C)
+	ExpectNe(nil, minObject2.CRC32C)
 
 	// Validate Extended Object Attributes.
 	ExpectEq(extendedAttr1.ContentType, extendedAttr2.ContentType)
 	ExpectEq(extendedAttr1.ContentLanguage, extendedAttr2.ContentLanguage)
 	ExpectEq(extendedAttr1.CacheControl, extendedAttr2.CacheControl)
 	ExpectEq(extendedAttr1.Owner, extendedAttr2.Owner)
-	ExpectNe(nil, extendedAttr1.CRC32C)
-	ExpectNe(nil, extendedAttr2.CRC32C)
 	ExpectEq(extendedAttr1.MediaLink, extendedAttr2.MediaLink)
 	ExpectEq(extendedAttr1.StorageClass, extendedAttr2.StorageClass)
 	ExpectTrue(reflect.DeepEqual(extendedAttr1.Deleted, time.Time{}))
