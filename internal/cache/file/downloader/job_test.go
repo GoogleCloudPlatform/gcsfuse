@@ -781,3 +781,63 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	defer dt.job.mu.Unlock()
 	AssertEq(nil, dt.job.removeJobCallback)
 }
+
+func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsTrue() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 8 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(8 * util.MiB)
+	jobStatus, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	// Here the crc check will be successful
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+	// Verify file
+	dt.verifyFile(objectContent[:jobStatus.Offset])
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+	// Tamper the file
+	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
+	AssertEq(nil, err)
+
+	err = dt.job.validateChecksum()
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "checksum mismatch detected"))
+}
+
+func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsFalse() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 1 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(1 * util.MiB)
+	jobStatus, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	// Here the crc check will be successful
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+	// Verify file
+	dt.verifyFile(objectContent[:jobStatus.Offset])
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+	// Tamper the file
+	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
+	AssertEq(nil, err)
+	dt.job.enableCrcCheck = false
+
+	err = dt.job.validateChecksum()
+
+	AssertEq(nil, err)
+	// Verify file
+	dt.verifyFile([]byte("test"))
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+}

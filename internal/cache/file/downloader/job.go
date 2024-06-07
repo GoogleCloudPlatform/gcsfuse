@@ -471,6 +471,10 @@ func (job *Job) GetStatus() JobStatus {
 }
 
 func (job *Job) validateChecksum() (err error) {
+	if !job.enableCrcCheck {
+		return
+	}
+
 	crc32Val, err := cacheutil.CalculateFileCRC32(job.fileSpec.Path)
 	if err != nil {
 		return

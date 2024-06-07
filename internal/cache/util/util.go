@@ -131,27 +131,26 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) err
 	return nil
 }
 
-func calculateCRC32(src io.Reader) (uint32, error) {
-	crc32Table := crc32.MakeTable(crc32.Castagnoli) // Pre-calculate the table
-	hasher := crc32.New(crc32Table)
-
-	fmt.Println("copying src")
-	if _, err := io.Copy(hasher, src); err != nil {
-		fmt.Println("error here")
-		return 0, fmt.Errorf("error calculating CRC-32: %w", err) // Wrap error
+func calculateCRC32(reader io.Reader) (uint32, error) {
+	table := crc32.MakeTable(crc32.Castagnoli)
+	checksum := crc32.Checksum([]byte(""), table)
+	buf := make([]byte, 65536)
+	for {
+		switch n, err := reader.Read(buf); err {
+		case nil:
+			checksum = crc32.Update(checksum, table, buf[:n])
+		case io.EOF:
+			return checksum, nil
+		default:
+			return 0, err
+		}
 	}
-
-	fmt.Println("reached here")
-	fmt.Println(hasher.Sum32())
-	return hasher.Sum32(), nil // Return checksum and nil error on success
 }
 
 // CalculateFileCRC32 calculates and returns the CRC-32 checksum of a file.
 func CalculateFileCRC32(filePath string) (uint32, error) {
 	// Open file with simplified flags and permissions
 	file, err := os.Open(filePath)
-	fmt.Println(filePath)
-	fmt.Println(err)
 	if err != nil {
 		return 0, fmt.Errorf("error opening file: %w", err)
 	}
