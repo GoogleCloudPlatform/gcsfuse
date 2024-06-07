@@ -42,6 +42,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, "", string(mountConfig.CacheDir))
 	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.True(t, mountConfig.FileCacheConfig.EnableCrcCheck)
 	assert.Equal(t, 1, mountConfig.GrpcClientConfig.ConnPoolSize)
 	assert.False(t, mountConfig.AuthConfig.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -128,6 +129,11 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	// file-system config
 	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.True(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
+
+	// file-cache config
+	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMB)
+	assert.True(t.T(), mountConfig.FileCacheConfig.CacheFileForRangeRead)
+	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCrcCheck)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {

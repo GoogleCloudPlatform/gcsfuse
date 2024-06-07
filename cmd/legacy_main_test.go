@@ -192,7 +192,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 	actual, err := util.Stringify(mountConfig)
 	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":true,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"EnableCrcCheck\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":true,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
 	assert.Equal(t.T(), expected, actual)
 }
 
@@ -204,7 +204,7 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 	actual, err := util.Stringify(mountConfig)
 	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":false,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
+	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"EnableCrcCheck\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"ConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":false,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
 	assert.Equal(t.T(), expected, actual)
 }
 
