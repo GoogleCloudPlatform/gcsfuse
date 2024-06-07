@@ -297,6 +297,9 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
+
+	logger.Debugf("Calling GCS ListObjects for %#v", query)
+
 	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
@@ -304,6 +307,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	var list gcs.Listing
 
 	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	iter := 0
 	for {
 		var attrs *storage.ObjectAttrs
 
@@ -317,28 +321,31 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			return
 		}
 
+		logger.Debugf("ListObjects.response[#%d] = Prefix=\"%s\", Name=\"%s\"", iter, attrs.Prefix, attrs.Name)
+		iter++
+
 		// Prefix attribute will be set for the objects returned as part of Prefix[] array in list response.
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
 			if util.IsUnsupportedDirectoryName(attrs.Prefix) {
-				// Do not list unsupported directories such as '.', '..', 
+				// Do not list unsupported directories such as '.', '..',
 				// '/', and '\0' as prefixes, which become implicit directories,
 				// unless there are explicit GCS objects corresponding to them.
-				// Unix environments see these directories 
-				// as having special meanings e.g. a/b/../ is treated as a/, similarly, 
+				// Unix environments see these directories
+				// as having special meanings e.g. a/b/../ is treated as a/, similarly,
 				// a/./ as a/, a//b/ as a/b/. 'a/\00/b' is not a valid substring file/directory
 				// in any unix file/directory name. GCSFuse simulates the same behvaiour
 				// by ignoring the GCS objects which have these specially reserved/unsupported unix names/substrings.
-				logger.Warnf("Ignoring unsupported object-prefix (implicit-directory): \"%s\"", attrs.Prefix)
+				logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", attrs.Prefix)
 			} else {
 				list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 			}
 		} else {
 			if util.IsUnsupportedObjectName(attrs.Name) {
 				// For GCS objects, which have the unsupported substrings i.e. //, /./, /../, \0'
-				// in their names, should be warned against as they can not be properly 
-				// mapped by GCSFuse, as these are either specially reserved/unsupported 
+				// in their names, should be warned against as they can not be properly
+				// mapped by GCSFuse, as these are either specially reserved/unsupported
 				// names in unix environments.
 				logger.Warnf("Encoutered unsupported object-name: \"%s\"", attrs.Name)
 			}
