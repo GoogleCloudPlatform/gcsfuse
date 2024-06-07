@@ -38,6 +38,7 @@ const (
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
 	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
+	BufferSizeForCrcCheck                     = 65536
 )
 
 const (
@@ -134,7 +135,7 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) err
 func calculateCRC32(reader io.Reader) (uint32, error) {
 	table := crc32.MakeTable(crc32.Castagnoli)
 	checksum := crc32.Checksum([]byte(""), table)
-	buf := make([]byte, 65536)
+	buf := make([]byte, BufferSizeForCrcCheck)
 	for {
 		switch n, err := reader.Read(buf); err {
 		case nil:

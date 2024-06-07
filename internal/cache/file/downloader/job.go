@@ -487,7 +487,7 @@ func (job *Job) validateChecksum() (err error) {
 
 	// If the checksum doesn't match there is an error in downloading the object contents.
 	// Delete the file and corresponding key from fileInfoCache.
-	err = errors.New("checksum mismatch detected")
+	err = fmt.Errorf("checksum mismatch detected. Actual: %d, expected: %d", crc32Val, *job.object.CRC32C)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
 		ObjectName: job.object.Name,
