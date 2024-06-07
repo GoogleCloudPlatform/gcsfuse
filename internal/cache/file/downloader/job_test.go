@@ -783,7 +783,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 }
 
 func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsTrue() {
-	objectName := "path/in/gcs/foo.txt"
+	objectName := "path/in/gcs/file1.txt"
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
@@ -811,7 +811,7 @@ func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcChec
 }
 
 func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsFalse() {
-	objectName := "path/in/gcs/foo.txt"
+	objectName := "path/in/gcs/file2.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
