@@ -253,8 +253,9 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 	if currentOffset-fch.prevOffset > downloader.ReadChunkSize {
 		return false
 	}
-
-	return true
+	// Deliberately making isSeq false always so that the foreground read serves
+	// are not blocked
+	return false
 }
 
 // Close closes the underlying fileHandle pointing to locally downloaded cache file.

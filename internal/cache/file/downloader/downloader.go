@@ -44,6 +44,8 @@ type JobManager struct {
 	// file in cache.
 	sequentialReadSizeMb int32
 	fileInfoCache        *lru.Cache
+	downloadParallelism  int
+	readRequestSizeMb    int
 
 	/////////////////////////
 	// Mutable state
@@ -57,9 +59,11 @@ type JobManager struct {
 	mu   locker.Locker
 }
 
-func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode, cacheDir string, sequentialReadSizeMb int32) (jm *JobManager) {
+func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
+		cacheDir string, sequentialReadSizeMb int32, downloadParallelism int, readRequestSizeMb int) (jm *JobManager) {
 	jm = &JobManager{fileInfoCache: fileInfoCache, filePerm: filePerm,
-		dirPerm: dirPerm, cacheDir: cacheDir, sequentialReadSizeMb: sequentialReadSizeMb}
+		dirPerm: dirPerm, cacheDir: cacheDir, sequentialReadSizeMb: sequentialReadSizeMb,
+		downloadParallelism: downloadParallelism, readRequestSizeMb: readRequestSizeMb}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
 	return
@@ -96,7 +100,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, jm.downloadParallelism, jm.readRequestSizeMb, removeJobCallback)
 	jm.jobs[objectPath] = job
 	return job
 }

@@ -58,6 +58,8 @@ type Job struct {
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
+	downloadParallelism  int
+	readRequestSizeMb    int
 
 	/////////////////////////
 	// Mutable state
@@ -102,13 +104,16 @@ type jobSubscriber struct {
 }
 
 func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func()) (job *Job) {
+	sequentialReadSizeMb int32, fileSpec data.FileSpec, downloadParallelism int,
+	readRequestSizeMb int, removeJobCallback func()) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
 		fileInfoCache:        fileInfoCache,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
+		downloadParallelism:  downloadParallelism,
+		readRequestSizeMb:    readRequestSizeMb,
 		removeJobCallback:    removeJobCallback,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
@@ -424,7 +429,11 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		// Start the async download
 		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
-		go job.downloadObjectAsync()
+		if job.downloadParallelism != 0 {
+			go job.downloadObjectInParallelAsync()
+		} else {
+			go job.downloadObjectAsync()
+		}
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
