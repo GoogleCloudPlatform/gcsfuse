@@ -89,7 +89,6 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 }
 
 func (dt *downloaderTest) verifyFile(content []byte) {
-	fmt.Println(dt.fileSpec.Path)
 	fileStat, err := os.Stat(dt.fileSpec.Path)
 	AssertEq(nil, err)
 	AssertEq(dt.fileSpec.FilePerm, fileStat.Mode())
@@ -536,7 +535,7 @@ func (dt *downloaderTest) Test_Download_InvalidOffset() {
 }
 
 func (dt *downloaderTest) Test_Download_CtxCancelled() {
-	objectName := "path/in/gcs/foo.txt"
+	objectName := "path/in/gcs/cancel.txt"
 	objectSize := 16 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
