@@ -74,9 +74,12 @@ func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 	// Last notification is sent after the entire file is downloaded and before the CRC check is done.
 	// Hence, explicitly waiting till the CRC check is done.
 	for {
+		dt.job.mu.Lock()
 		if dt.job.status.Name == Completed || dt.job.status.Name == Failed {
+			dt.job.mu.Unlock()
 			break
 		}
+		dt.job.mu.Unlock()
 	}
 }
 
