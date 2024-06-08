@@ -646,7 +646,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 
 	maxIters := 100
 	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
-		defer fmt.Printf("... exiting WalkFn\n")
+		defer fmt.Printf("... exiting WalkFn for %s\n", path)
 		fmt.Printf("WalkFn called with path=%v,d=%s,isDir=%v,err=%v\n", path, d.Name(), d.IsDir(), err)
 		maxIters--
 

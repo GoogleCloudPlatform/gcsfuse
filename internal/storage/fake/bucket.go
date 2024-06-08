@@ -444,6 +444,9 @@ func (b *bucket) BucketType() gcs.BucketType {
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+	defer fmt.Printf("\t... existing ListObjects(%q) with listings: %#v, error=%v\n",
+		req.Prefix, listing, err)
+	fmt.Printf("\tListObjects(%q) ...\n", req.Prefix)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -462,7 +465,7 @@ func (b *bucket) ListObjects(
 		nameStart = req.ContinuationToken
 	}
 
-	fmt.Printf("query-prefix: \"%s\"\n", req.Prefix)
+	//fmt.Printf("query-prefix: \"%s\"\n", req.Prefix)
 
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
