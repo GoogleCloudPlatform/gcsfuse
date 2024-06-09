@@ -248,6 +248,25 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_anywhere_cache(){
+   local test_bucket_name="golang-grpc-test-lankita-anywhere-cache-test" ## TODO: adding temporary bucket name for testing purpose
+
+   echo "Running tests for Anywhere Cache"
+   run_non_parallel_tests TEST_DIR_HNS_GROUP "$test_bucket_name" ## TODO: separate group will be created for anywhere cache in final tests
+   non_parallel_tests_pid_anywhere_cache_group=$!
+
+   wait $non_parallel_tests_pid_anywhere_cache_group
+   non_parallel_tests_pid_anywhere_cache_group_exit_code=$?
+
+   # clean_up test_bucket_name
+
+   if [ $non_parallel_tests_pid_anywhere_cache_group_exit_code != 0 ];
+   then
+     return 1
+   fi
+   return 0
+}
+
 #commenting it so cleanup and failure check happens for both
 #set -e
 
@@ -281,11 +300,17 @@ function main(){
   run_e2e_tests_for_flat_bucket &
   e2e_tests_flat_bucket_pid=$!
 
+  run_e2e_tests_for_anywhere_cache &
+  e2e_tests_anywhere_cache_test_pid=$!
+
   wait $e2e_tests_flat_bucket_pid
   e2e_tests_flat_bucket_status=$?
 
   wait $e2e_tests_hns_bucket_pid
   e2e_tests_hns_bucket_status=$?
+
+  wait $e2e_tests_anywhere_cache_test_pid
+  e2e_tests_anywhere_cache_test_status=$?
 
   set -e
 
@@ -306,6 +331,12 @@ function main(){
   if [ $e2e_tests_hns_bucket_status != 0 ];
   then
     echo "The e2e tests for hns bucket failed.."
+    exit 1
+  fi
+
+  if [ $e2e_tests_anywhere_cache_test_status != 0 ];
+  then
+    echo "The e2e tests for anywhere cache failed.."
     exit 1
   fi
 }
