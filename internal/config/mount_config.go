@@ -58,7 +58,11 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 
-	DefaultEnableCrcCheck = true
+	DefaultEnableCrcCheck             = true
+	DefaultEnableParallelDownloads    = false
+	DefaultReadRequestSizeMB          = 25
+	DefaultDownloadParallelismPerFile = 10
+	DefaultMaxDownloadParallelism     = -1
 )
 
 type WriteConfig struct {
@@ -106,9 +110,13 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB             int64 `yaml:"max-size-mb"`
-	CacheFileForRangeRead bool  `yaml:"cache-file-for-range-read"`
-	EnableCrcCheck        bool  `yaml:"enable-crc-check"`
+	MaxSizeMB                  int64 `yaml:"max-size-mb"`
+	CacheFileForRangeRead      bool  `yaml:"cache-file-for-range-read"`
+	EnableParallelDownloads    bool  `yaml:"enable-parallel-downloads"`
+	DownloadParallelismPerFile uint  `yaml:"download-parallelism-per-file"`
+	MaxDownloadParallelism     int   `yaml:"max-download-parallelism"`
+	ReadRequestSizeMB          uint  `yaml:"read-request-size-mb"`
+	EnableCrcCheck             bool  `yaml:"enable-crc-check"`
 }
 
 type MetadataCacheConfig struct {
@@ -176,8 +184,12 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:      DefaultFileCacheMaxSizeMB,
-		EnableCrcCheck: DefaultEnableCrcCheck,
+		MaxSizeMB:                  DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:    DefaultEnableParallelDownloads,
+		DownloadParallelismPerFile: DefaultDownloadParallelismPerFile,
+		MaxDownloadParallelism:     DefaultMaxDownloadParallelism,
+		ReadRequestSizeMB:          DefaultReadRequestSizeMB,
+		EnableCrcCheck:             DefaultEnableCrcCheck,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

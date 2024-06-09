@@ -37,13 +37,15 @@ const (
 
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 
-	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
-	UnsupportedMetadataPrefixModeError    = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
+	MetadataCacheTtlSecsInvalidValueError   = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError        = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
+	TypeCacheMaxSizeMBInvalidValueError     = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBInvalidValueError     = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBTooHighError          = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	MaxSupportedStatCacheMaxSizeMB          = util.MaxMiBsInUint64
+	UnsupportedMetadataPrefixModeError      = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
+	FileCacheMaxSizeMBInvalidValueError     = "the value of max-size-mb for file-cache can't be less than -1"
+	MaxDownloadParallelismInvalidValueError = "the value of max-download-parallelism for file-cache can't be less than -1"
 )
 
 func IsValidLogSeverity(severity LogSeverity) bool {
@@ -72,7 +74,10 @@ func IsValidLogRotateConfig(config LogRotateConfig) error {
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
 	if fileCacheConfig.MaxSizeMB < -1 {
-		return fmt.Errorf("the value of max-size-mb for file-cache can't be less than -1")
+		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
+	}
+	if fileCacheConfig.MaxDownloadParallelism < -1 {
+		return fmt.Errorf(MaxDownloadParallelismInvalidValueError)
 	}
 	return nil
 }
