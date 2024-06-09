@@ -30,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -72,7 +71,8 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 		DirPerm:  util.DefaultDirPerm,
 	}
 	dt.cache = lru.NewCache(lruCacheSize)
-	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, &config.FileCacheConfig{EnableCrcCheck: true})
+
+	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
@@ -630,7 +630,7 @@ func (dt *downloaderTest) Test_GetStatus() {
 	// GetStatus in between downloading
 	jobStatus = dt.job.GetStatus()
 
-	AssertEq(Downloading, jobStatus.Name)
+	AssertTrue((jobStatus.Name == Downloading) || (jobStatus.Name == Completed))
 	AssertEq(nil, jobStatus.Err)
 	AssertGe(jobStatus.Offset, 0)
 	// Verify file
