@@ -60,7 +60,6 @@ type Job struct {
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
 	fileCacheConfig      *config.FileCacheConfig
-	// downloaded to cache.
 
 	/////////////////////////
 	// Mutable state
@@ -269,26 +268,33 @@ func (job *Job) updateFileInfoCache() (err error) {
 	return
 }
 
+// cleanUpDownloadAsyncJob is a helper function which performs clean up tasks
+// for the async job and this should be called at the end of async job.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) cleanUpDownloadAsyncJob() {
+	// Close the job.doneCh, clear the cancelFunc & cancelCtx and call the
+	// remove job callback function.
+	job.cancelFunc()
+	close(job.doneCh)
+
+	job.mu.Lock()
+	if job.removeJobCallback != nil {
+		job.removeJobCallback()
+		job.removeJobCallback = nil
+	}
+	job.cancelCtx, job.cancelFunc = nil, nil
+	job.mu.Unlock()
+}
+
 // downloadObjectAsync downloads the backing GCS object into a file as part of
 // file cache using NewReader method of gcs.Bucket.
 //
 // Note: There can only be one async download running for a job at a time.
 // Acquires and releases LOCK(job.mu)
 func (job *Job) downloadObjectAsync() {
-	// Close the job.doneCh, clear the cancelFunc & cancelCtx and call the
-	// remove job callback function in any case - completion/failure.
-	defer func() {
-		job.cancelFunc()
-		close(job.doneCh)
-
-		job.mu.Lock()
-		if job.removeJobCallback != nil {
-			job.removeJobCallback()
-			job.removeJobCallback = nil
-		}
-		job.cancelCtx, job.cancelFunc = nil, nil
-		job.mu.Unlock()
-	}()
+	// Cleanup the async job in all cases - completion/failure/invalidation.
+	defer job.cleanUpDownloadAsyncJob()
 
 	// Create, open and truncate cache file for writing object into it.
 	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
@@ -441,7 +447,11 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		// Start the async download
 		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
-		go job.downloadObjectAsync()
+		if job.fileCacheConfig.EnableParallelDownloads {
+			go job.parallelDownloadObjectAsync()
+		} else {
+			go job.downloadObjectAsync()
+		}
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil
