@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"log"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -128,7 +128,7 @@ func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	it := bucket.Objects(ctx, query)
 	for {
 		objAttrs, err := it.Next()
-		if err != nil && strings.Contains(err.Error(), "no more items in iterator") {
+		if err == iterator.Done {
 			break // No more objects
 		}
 		if err != nil {

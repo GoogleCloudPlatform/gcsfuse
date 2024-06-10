@@ -378,8 +378,10 @@ func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, director
 		directoryPathOnGCS = directoryPathOnGCS[:len(directoryPathOnGCS)-1]
 	}
 
-	bucket := client.Bucket(TestBucket())
-	it := bucket.Objects(ctx, &storage.Query{Prefix: directoryPathOnGCS + "/"})
+	bucket, dirPath := GetBucketAndObjectBasedOnTypeOfMount("")
+	bucketHandle := client.Bucket(bucket)
+
+	it := bucketHandle.Objects(ctx, &storage.Query{Prefix: dirPath + "/"})
 	for {
 		attrs, err := it.Next()
 		if err == iterator.Done {
@@ -388,7 +390,7 @@ func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, director
 		if err != nil {
 			log.Printf("error iterating objects: %v", err)
 		}
-		if err := bucket.Object(attrs.Name).Delete(ctx); err != nil {
+		if err := bucketHandle.Object(attrs.Name).Delete(ctx); err != nil {
 			log.Printf("error deleting object %s: %v", attrs.Name, err)
 		}
 	}
