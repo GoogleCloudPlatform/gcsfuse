@@ -58,7 +58,7 @@ type Job struct {
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
-	// Specifies whether the crc check needs to be done after the file is
+	// Specifies whether the CRC check needs to be done after the file is
 	// downloaded to cache.
 	enableCrcCheck bool
 

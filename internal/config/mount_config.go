@@ -113,9 +113,9 @@ type FileCacheConfig struct {
 	MaxSizeMB                  int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead      bool  `yaml:"cache-file-for-range-read"`
 	EnableParallelDownloads    bool  `yaml:"enable-parallel-downloads"`
-	DownloadParallelismPerFile uint  `yaml:"download-parallelism-per-file"`
+	DownloadParallelismPerFile int   `yaml:"download-parallelism-per-file"`
 	MaxDownloadParallelism     int   `yaml:"max-download-parallelism"`
-	ReadRequestSizeMB          uint  `yaml:"read-request-size-mb"`
+	ReadRequestSizeMB          int   `yaml:"read-request-size-mb"`
 	EnableCrcCheck             bool  `yaml:"enable-crc-check"`
 }
 

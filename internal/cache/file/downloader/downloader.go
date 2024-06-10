@@ -47,14 +47,14 @@ type JobManager struct {
 	enableParallelDownloads bool
 	// downloadParallelismPerFile specifies the maximum number of goroutines that
 	// are spawned for downloading object from GCS per job.
-	downloadParallelismPerFile uint
+	downloadParallelismPerFile int
 	// maxDownloadParallelism specifies the maximum number of goroutines that can be
 	// spawned for downloading objects from GCS across jobs.
 	maxDownloadParallelism int
 	// parallelReadRequestSizeMb specifies the size of read request that each of
 	// the goroutines make to GCS.
-	parallelReadRequestSizeMb uint
-	// Specifies whether Crc check needs to be done.
+	parallelReadRequestSizeMb int
+	// Specifies whether CRC check needs to be done.
 	enableCrcCheck bool
 
 	/////////////////////////
@@ -71,8 +71,8 @@ type JobManager struct {
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, enableParallelDownloads bool,
-	downloadParallelismPerFile uint, maxDownloadParallelism int,
-	parallelReadRequestSizeMb uint, enableCrcCheck bool) (jm *JobManager) {
+	downloadParallelismPerFile int, maxDownloadParallelism int,
+	parallelReadRequestSizeMb int, enableCrcCheck bool) (jm *JobManager) {
 	jm = &JobManager{
 		fileInfoCache:              fileInfoCache,
 		filePerm:                   filePerm,
