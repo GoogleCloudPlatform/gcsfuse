@@ -174,7 +174,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 
 	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 	lruCache := lru.NewCache(CacheMaxSize)
-	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, true)
+	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, false, 0, 0, 0, true)
 	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
