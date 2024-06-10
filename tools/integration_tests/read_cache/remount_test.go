@@ -132,11 +132,11 @@ func TestRemountTest(t *testing.T) {
 	}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
+		{"--implicit-dirs=true", "--stat-cache-ttl=0"},
+		{"--implicit-dirs=false", "--stat-cache-ttl=0"},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName), "--stat-cache-ttl=0")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "", "--stat-cache-ttl=0")
 
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}

@@ -157,7 +157,6 @@ func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFi
 
 func ValidateCRCWithGCS(gotCRC32Value uint32, objectPath string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	attr, err := StatObject(ctx, storageClient, objectPath)
-	log.Println("Object Path: ", objectPath)
 	if err != nil {
 		t.Errorf("Failed to fetch object attributes: %v", err)
 	}
