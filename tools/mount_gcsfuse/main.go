@@ -88,7 +88,7 @@ func makeGcsfuseArgs(
 			"experimental_enable_json_read",
 			"enable_hns",
 			"ignore_interrupts",
-			"anonymous_acess",
+			"anonymous_access",
 			"log_rotate_compress":
 			if value == "" {
 				value = "true"
