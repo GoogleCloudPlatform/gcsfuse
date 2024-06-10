@@ -74,7 +74,7 @@ func makeGcsfuseArgs(
 	opts map[string]string) (args []string, err error) {
 	// Deal with options.
 	for name, value := range opts {
-		switch name {
+		switch strings.Replace(name, "-", "_", -1) {
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
