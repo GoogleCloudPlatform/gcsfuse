@@ -219,6 +219,16 @@ func NewFileSystem(
 }
 
 func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
+	// If parallel downloads are enabled then download-parallelism-per-file or
+	// max-download-parallelism or read-request-size-mb can't be 0.
+	if cfg.MountConfig.FileCacheConfig.EnableParallelDownloads {
+		if cfg.MountConfig.FileCacheConfig.DownloadParallelismPerFile == 0 ||
+			cfg.MountConfig.FileCacheConfig.MaxDownloadParallelism == 0 ||
+			cfg.MountConfig.FileCacheConfig.ReadRequestSizeMB == 0 {
+			return nil, fmt.Errorf("createFileCacheHandler: download-parallelism-per-file or max-download-parallelism or read-request-size-mb can't be 0 when parallel downloads are enabled")
+		}
+	}
+
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
