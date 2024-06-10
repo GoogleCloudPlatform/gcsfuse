@@ -469,6 +469,26 @@ func listingToString(listing *gcs.Listing) (string, error) {
 	return ret, nil
 }
 
+func (b *bucket) printAllObjectNames() {
+	allObjectNames := []string{}
+	for i := 0; i < len(b.objects); i++ {
+		var o fakeObject = b.objects[i]
+		name := o.metadata.Name
+		allObjectNames = append(allObjectNames, name)
+	}
+	fmt.Printf("\t\tAllObjectNames={%v}\n", strings.Join(allObjectNames, ","))
+}
+
+func (b *bucket) printIndexedObjectNames(indexStart, indexLimit int) {
+	allObjectNames := []string{}
+	for i := indexStart; i < indexLimit; i++ {
+		var o fakeObject = b.objects[i]
+		name := o.metadata.Name
+		allObjectNames = append(allObjectNames, name)
+	}
+	fmt.Printf("\t\tIndexedObjectNames={%v}\n", strings.Join(allObjectNames, ","))
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ListObjects(
 	ctx context.Context,
@@ -477,12 +497,14 @@ func (b *bucket) ListObjects(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.printAllObjectNames()
+
 	// Set up the result object.
 	listing = new(gcs.Listing)
 
 	defer func() {
 		listingStr, _ := listingToString(listing)
-		fmt.Printf("\t... existing ListObjects(%q) with %s, error=%v\n",
+		fmt.Printf("\t... exiting ListObjects(%q) with %s, error=%v\n",
 			req.Prefix, listingStr, err)
 	}()
 
@@ -498,20 +520,13 @@ func (b *bucket) ListObjects(
 		nameStart = req.ContinuationToken
 	}
 
-	//fmt.Printf("query-prefix: \"%s\"\n", req.Prefix)
-
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
 	indexLimit := minInt(indexStart+maxResults, prefixLimit)
 
-	allObjectNames := []string{}
-	for i := indexStart; i < indexLimit; i++ {
-		var o fakeObject = b.objects[i]
-		name := o.metadata.Name
-		allObjectNames = append(allObjectNames, name)
-	}
-	fmt.Printf("\t\tallObjectNames={%v}\n", strings.Join(allObjectNames, ","))
+	fmt.Printf("\t\tmaxResults=%v,indexStart=%v,prefixLimit=%v,indexLimit=%v\n", maxResults, indexStart, prefixLimit, indexLimit)
+	b.printIndexedObjectNames(indexStart, indexLimit)
 
 	// Scan the array.
 	var lastResultWasPrefix bool
@@ -547,7 +562,7 @@ func (b *bucket) ListObjects(
 				// Save the result, but only if it's not a duplicate.
 				resultPrefix := name[:resultPrefixLimit]
 
-				fmt.Printf("\t\t\tresultPrefix: \"%s\"\n", resultPrefix)
+				//fmt.Printf("\t\t\tresultPrefix: \"%s\"\n", resultPrefix)
 
 				//// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
 				//// from gcs.bucket_handle.ListObjects.
@@ -583,23 +598,23 @@ func (b *bucket) ListObjects(
 
 		lastResultWasPrefix = false
 
-		printObj := func(objects []*gcs.Object) string {
-			ret := "["
-			for _, o := range objects {
-				if o != nil {
-					ret += fmt.Sprintf("{\"%s\"}", o.Name) + ","
-				}
-			}
-			ret += "]"
-			return ret
-		}
+		//printObj := func(objects []*gcs.Object) string {
+		//ret := "["
+		//for _, o := range objects {
+		//if o != nil {
+		//ret += fmt.Sprintf("{\"%s\"}", o.Name) + ","
+		//}
+		//}
+		//ret += "]"
+		//return ret
+		//}
 
 		// Otherwise, return as an object result. Make a copy to avoid handing back
 		// internal state.
 		listing.Objects = append(listing.Objects, copyObject(&o.metadata))
 
 		fmt.Printf("\t\t\tAdded following to objects: \"%s\"\n", o.metadata.Name)
-		fmt.Printf("\t\t\tlisting.Objects = \"%s\"\n", printObj(listing.Objects))
+		//fmt.Printf("\t\t\tlisting.Objects = \"%s\"\n", printObj(listing.Objects))
 		//}
 	}
 
