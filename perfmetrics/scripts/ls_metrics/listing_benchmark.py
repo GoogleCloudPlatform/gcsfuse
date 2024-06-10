@@ -539,9 +539,10 @@ def _export_to_gsheet(worksheet, ls_data, spreadsheet_id=""):
   """
   # Changing directory to comply with "cred.json" path in "gsheet.py".
   os.chdir('..')
-
-  gsheet.write_to_google_sheet(worksheet, ls_data, spreadsheet_id)
-
+  if spreadsheet_id != "":
+    gsheet.write_to_google_sheet(worksheet, ls_data, spreadsheet_id)
+  else:
+    gsheet.write_to_google_sheet(worksheet, ls_data)
   os.chdir('./ls_metrics')  # Changing the directory back to current directory.
   return
 
