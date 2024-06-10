@@ -601,10 +601,10 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 		nil,
 		t.createObjects(
 			map[string]string{
-				//"a/b":     "", // supported
-				"foo/c": "", // supported
-				//"foo/c/d": "", // supported
-				"foo//e": "", // unsupported
+				"a/b": "", // supported
+				//"foo/c": "", // supported
+				"foo/c/d": "", // supported
+				"foo//e":  "", // unsupported
 				//"foo/./f": "", // unsupported
 				// "foo/../g": "", // unsupported
 				//"/h": "", // unsupported
@@ -621,26 +621,23 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 		path:  mntDir,
 		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
 		isDir: true,
-		// }, {
-		// 	path:  path.Join(mntDir, "a"),
-		// 	name:  "a",
-		// 	isDir: true,
-		// }, {
-		// 	path:  path.Join(mntDir, "a/b"),
-		// 	name:  "b",
-		// 	isDir: false,
+	}, {
+		path:  path.Join(mntDir, "a"),
+		name:  "a",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "a/b"),
+		name: "b",
 	}, {
 		path:  path.Join(mntDir, "foo"),
 		name:  "foo",
 		isDir: true,
 	}, {
-		path:  path.Join(mntDir, "foo/c"),
-		name:  "c",
-		isDir: false,
-		//}, {
-		//path:  path.Join(mntDir, "foo/c/d"),
-		//name:  "d",
-		//isDir: false,
+		path: path.Join(mntDir, "foo/c"),
+		name: "c",
+	}, {
+		path: path.Join(mntDir, "foo/c/d"),
+		name: "d",
 	},
 	}
 
