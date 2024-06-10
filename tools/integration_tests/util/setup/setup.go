@@ -384,10 +384,10 @@ func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, director
 			break // No more objects found
 		}
 		if err != nil {
-			log.Printf("error iterating objects: %v", err)
+			log.Fatalf("Error iterating objects: %v", err)
 		}
 		if err := bucketHandle.Object(attrs.Name).Delete(ctx); err != nil {
-			log.Printf("error deleting object %s: %v", attrs.Name, err)
+			log.Printf("Error deleting object %s: %v", attrs.Name, err)
 		}
 	}
 }
