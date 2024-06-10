@@ -633,8 +633,9 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 		name:  "foo",
 		isDir: true,
 	}, {
-		path: path.Join(mntDir, "foo/c"),
-		name: "c",
+		path:  path.Join(mntDir, "foo/c"),
+		name:  "c",
+		isDir: true,
 	}, {
 		path: path.Join(mntDir, "foo/c/d"),
 		name: "d",
