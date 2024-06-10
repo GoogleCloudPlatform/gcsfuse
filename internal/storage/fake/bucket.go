@@ -440,18 +440,50 @@ func (b *bucket) BucketType() gcs.BucketType {
 	return b.bucketType
 }
 
+func objectToString(o *gcs.Object) string {
+	if o == nil {
+		return "nil"
+	} else {
+		return o.Name
+	}
+}
+
+func objectsToString(os []*gcs.Object) string {
+	ret := "["
+	for _, o := range os {
+		ret += objectToString(o) + ","
+	}
+	ret += "]"
+	return ret
+}
+
+func listingToString(listing *gcs.Listing) (string, error) {
+	var ret string = "listing{"
+	if listing != nil {
+		ret += "CollapsedRuns=[" + strings.Join(listing.CollapsedRuns, ",") + "],"
+		ret += "Objects=" + objectsToString(listing.Objects) + ","
+		ret += "ContinuationToken=" + listing.ContinuationToken
+	}
+	ret += "}"
+	return ret, nil
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	defer fmt.Printf("\t... existing ListObjects(%q) with listings: %#v, error=%v\n",
-		req.Prefix, listing, err)
-	fmt.Printf("\tListObjects(%q) ...\n", req.Prefix)
+	fmt.Printf("\t(bucket=%p).ListObjects(%q) ...\n", b, req.Prefix)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Set up the result object.
 	listing = new(gcs.Listing)
+
+	defer func() {
+		listingStr, _ := listingToString(listing)
+		fmt.Printf("\t... existing ListObjects(%q) with %s, error=%v\n",
+			req.Prefix, listingStr, err)
+	}()
 
 	// Handle defaults.
 	maxResults := req.MaxResults
@@ -472,20 +504,28 @@ func (b *bucket) ListObjects(
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
 	indexLimit := minInt(indexStart+maxResults, prefixLimit)
 
+	allObjectNames := []string{}
+	for i := indexStart; i < indexLimit; i++ {
+		var o fakeObject = b.objects[i]
+		name := o.metadata.Name
+		allObjectNames = append(allObjectNames, name)
+	}
+	fmt.Printf("\t\tallObjectNames={%v}\n", strings.Join(allObjectNames, ","))
+
 	// Scan the array.
 	var lastResultWasPrefix bool
 	for i := indexStart; i < indexLimit; i++ {
 		var o fakeObject = b.objects[i]
 		name := o.metadata.Name
 
-		//fmt.Printf("found object: \"%s\"\n", name)
+		fmt.Printf("\t\tfound object: \"%s\"\n", name)
 
 		// Search for a delimiter if necessary.
 		if req.Delimiter != "" {
 			// Search only in the part after the prefix.
 			nameMinusQueryPrefix := name[len(req.Prefix):]
 
-			//fmt.Printf("nameMinusQueryPrefix: \"%s\"\n", nameMinusQueryPrefix)
+			fmt.Printf("\t\t\tnameMinusQueryPrefix: \"%s\"\n", nameMinusQueryPrefix)
 
 			delimiterIndex := strings.Index(nameMinusQueryPrefix, req.Delimiter)
 			if delimiterIndex >= 0 {
@@ -500,7 +540,7 @@ func (b *bucket) ListObjects(
 				// Save the result, but only if it's not a duplicate.
 				resultPrefix := name[:resultPrefixLimit]
 
-				//fmt.Printf("resultPrefix: \"%s\"\n", resultPrefix)
+				fmt.Printf("\t\t\tresultPrefix: \"%s\"\n", resultPrefix)
 
 				// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
 				// from gcs.bucket_handle.ListObjects.
@@ -511,12 +551,12 @@ func (b *bucket) ListObjects(
 				if len(listing.CollapsedRuns) == 0 ||
 					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 
-					//fmt.Printf("Added following to prefixes: \"%s\"\n", resultPrefix)
+					fmt.Printf("\t\t\tAdded following to prefixes: \"%s\"\n", resultPrefix)
 
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
 
-				// fmt.Printf("listing.CollapsedRuns = \"%+q\"\n", listing.CollapsedRuns)
+				fmt.Printf("\t\t\tlisting.CollapsedRuns = \"%+q\"\n", listing.CollapsedRuns)
 
 				isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
 				if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
