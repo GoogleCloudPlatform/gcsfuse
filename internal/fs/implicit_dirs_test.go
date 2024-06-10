@@ -607,7 +607,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 				"foo//e":  "", // unsupported
 				//"foo/./f": "", // unsupported
 				// "foo/../g": "", // unsupported
-				//"/h": "", // unsupported
+				"/h": "", // unsupported
 				// "./i":      "", // unsupported
 				// "../j":     "", // unsupported
 			}))
