@@ -374,10 +374,6 @@ func SetupTestDirectory(testDirName string) string {
 
 // CleanupDirectoryOnGCS cleans up the object/directory path passed in parameter.
 func CleanupDirectoryOnGCS(ctx context.Context, client *storage.Client, directoryPathOnGCS string) {
-	if directoryPathOnGCS[len(directoryPathOnGCS)-1] == '/' {
-		directoryPathOnGCS = directoryPathOnGCS[:len(directoryPathOnGCS)-1]
-	}
-
 	bucket, dirPath := GetBucketAndObjectBasedOnTypeOfMount("")
 	bucketHandle := client.Bucket(bucket)
 
