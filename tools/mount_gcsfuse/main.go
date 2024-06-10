@@ -85,7 +85,11 @@ func makeGcsfuseArgs(
 			"experimental_local_file_cache",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache",
-			"experimental_enable_json_read":
+			"experimental_enable_json_read",
+			"enable_hns",
+			"ignore_interrupts",
+			"anonymous_acess",
+			"log_rotate_compress":
 			if value == "" {
 				value = "true"
 			}
@@ -123,7 +127,16 @@ func makeGcsfuseArgs(
 			"custom_endpoint",
 			"config_file",
 			"experimental_metadata_prefetch_on_mount",
-			"kernel_list_cache_ttl_secs":
+			"kernel_list_cache_ttl_secs",
+			"stat_cache_max_size_mb",
+			"type_cache_max_size_mb",
+			"metadata_cache_ttl_secs",
+			"log_severity",
+			"log_rotate_max_file_size_mb",
+			"log_rotate_backup_file-count",
+			"file_cache_max_size_mb",
+			"grpc_conn_pool_size":
+
 			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
