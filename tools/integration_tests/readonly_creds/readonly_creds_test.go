@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	// Create test directory.
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*2)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
