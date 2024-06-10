@@ -128,9 +128,9 @@ func interestingNames() (names []string) {
 		// Other tricky URL cases.
 		"foo () bar",
 		"foo [] bar",
-		"foo // bar",
+		//"foo // bar",
 		"foo %?/ bar",
-		"foo http://google.com/search?q=foo&bar=baz#qux bar",
+		//"foo http://google.com/search?q=foo&bar=baz#qux bar",
 
 		"foo ?bar",
 		"foo? bar",
@@ -4457,4 +4457,61 @@ func (t *cancellationTest) ReadObject() {
 				HasSubstr("transport closed"),
 				HasSubstr("request canceled"))))
 	ExpectLt(time.Since(before), 50*time.Millisecond)
+}
+
+func (t *cancellationTest) TestListForUnsupportedDirNames() {
+	// Create several objects.
+	AssertEq(
+		nil,
+		createEmpty(
+			t.ctx,
+			t.bucket,
+			[]string{
+				"a/b",
+				"foo//e",
+				"foo/c/d",
+			}))
+
+	for _, input := range []struct {
+		reqPrefix             string
+		expectedCollapsedRuns []any
+		expectedObjectNames   []any
+	}{
+		{
+			reqPrefix:             "foo/",
+			expectedCollapsedRuns: []any{"foo/c/"},
+		},
+		{
+			reqPrefix:           "foo/c/",
+			expectedObjectNames: []any{"foo/c/d"},
+		},
+	} {
+		fmt.Printf("input=%#v\n", input)
+		// List with the delimiter "!".
+		req := &gcs.ListObjectsRequest{
+			Prefix:    input.reqPrefix,
+			Delimiter: "/",
+		}
+
+		listing, err := t.bucket.ListObjects(t.ctx, req)
+		AssertEq(nil, err)
+		AssertNe(nil, listing)
+		AssertEq("", listing.ContinuationToken)
+
+		// Collapsed runs
+		ExpectThat(listing.CollapsedRuns, ElementsAre(input.expectedCollapsedRuns...))
+
+		// Objects
+		objectNames := []string{}
+		for _, o := range listing.Objects {
+			if o != nil {
+				objectNames = append(objectNames, o.Name)
+			}
+		}
+		ExpectThat(objectNames, ElementsAre(input.expectedObjectNames...))
+		//AssertEq(2, len(listing.Objects))
+		//ExpectEq("b", listing.Objects[0].Name)
+		//ExpectEq("d", listing.Objects[1].Name)
+		//
+	}
 }
