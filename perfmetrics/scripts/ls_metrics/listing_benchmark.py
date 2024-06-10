@@ -57,6 +57,7 @@ import sys
 import time
 
 import directory_pb2 as directory_proto
+
 sys.path.insert(0, '..')
 import generate_files
 from google.protobuf.json_format import ParseDict
@@ -65,7 +66,6 @@ import numpy as np
 
 from bigquery import experiments_gcsfuse_bq
 from bigquery import constants
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,6 +78,7 @@ WORKSHEET_NAME_GCS = 'ls_metrics_gcsfuse'
 WORKSHEET_NAME_PD = 'ls_metrics_persistent_disk'
 MOUNT_TYPE_GCS = 'gcs_bucket'
 MOUNT_TYPE_PD = 'persistent_disk'
+
 
 def _count_number_of_files_and_folders(directory, files, folders):
   """Count the number of files and folders in the given directory recursively.
@@ -92,7 +93,8 @@ def _count_number_of_files_and_folders(directory, files, folders):
   files += directory.num_files
   folders += directory.num_folders
   for folder in directory.folders:
-    child_files, child_folders = _count_number_of_files_and_folders(folder, 0, 0)
+    child_files, child_folders = _count_number_of_files_and_folders(folder, 0,
+                                                                    0)
     files += child_files
     folders += child_folders
   return files, folders
@@ -184,7 +186,8 @@ def _parse_results(folders, results_list, message, num_samples) -> dict:
     metrics[testing_folder.name]['Quantiles'] = dict()
     sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
     for percentile in sample_set:
-      metrics[testing_folder.name]['Quantiles']['{} %ile'.format(percentile)] = round(
+      metrics[testing_folder.name]['Quantiles'][
+        '{} %ile'.format(percentile)] = round(
           np.percentile(results_list[testing_folder.name], percentile), 3)
 
   print(metrics)
@@ -210,7 +213,7 @@ def _record_time_of_operation(command, path, num_samples) -> list:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT)
     end_time_sec = time.time()
-    result_list.append((end_time_sec-start_time_sec)*1000)
+    result_list.append((end_time_sec - start_time_sec) * 1000)
   return result_list
 
 
@@ -256,7 +259,8 @@ def _perform_testing(
 
 
 def _create_directory_structure(
-    gcs_bucket_url, persistent_disk_url, directory_structure, create_files_in_gcs) -> int:
+    gcs_bucket_url, persistent_disk_url, directory_structure,
+    create_files_in_gcs) -> int:
   """Creates new directory structure using generate_files.py as a library.
 
   This function creates new directory structure in persistent disk. If
@@ -494,9 +498,16 @@ def _parse_arguments(argv):
       nargs=1,
       required=True,
   )
+
+  parser.add_argument(
+      'spreadsheet_id',
+      help='Provide id of spreadsheet',
+      action='store'
+  )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
+
 
 def _check_dependencies(packages) -> None:
   """Check whether the dependencies are installed or not.
@@ -519,7 +530,8 @@ def _check_dependencies(packages) -> None:
 
   return
 
-def _export_to_gsheet(worksheet, ls_data):
+
+def _export_to_gsheet(worksheet, ls_data, spreadsheet_id=""):
   """Writes list results to Google Spreadsheets
   Args:
     worksheet (str): Google sheet name to which results will be uploaded
@@ -528,10 +540,11 @@ def _export_to_gsheet(worksheet, ls_data):
   # Changing directory to comply with "cred.json" path in "gsheet.py".
   os.chdir('..')
 
-  gsheet.write_to_google_sheet(worksheet, ls_data)
+  gsheet.write_to_google_sheet(worksheet, ls_data, spreadsheet_id)
 
   os.chdir('./ls_metrics')  # Changing the directory back to current directory.
   return
+
 
 def _export_to_bigquery(test_type, config_id, start_time_build, ls_data):
   """Writes list results to BigQuery
@@ -541,19 +554,24 @@ def _export_to_bigquery(test_type, config_id, start_time_build, ls_data):
     start_time_build (str): Start time of the build
     ls_data (list): List results to be uploaded
   """
-  bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
+  bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(
+      constants.PROJECT_ID, constants.DATASET_ID)
   ls_data_upload = [[test_type] + row for row in ls_data]
-  bigquery_obj.upload_metrics_to_table(constants.LS_TABLE_ID, config_id, start_time_build, ls_data_upload)
+  bigquery_obj.upload_metrics_to_table(constants.LS_TABLE_ID, config_id,
+                                       start_time_build, ls_data_upload)
   return
+
 
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file')
+                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file spreadsheet_id')
 
   args = _parse_arguments(argv)
+
+  print("Spread sheet id: ", args.spreadsheet_id)
 
   _check_dependencies(['gsutil', 'gcsfuse'])
 
@@ -602,7 +620,8 @@ if __name__ == '__main__':
     subprocess.call('bash', shell=True)
   log.info('Directory Structure Created.\n')
 
-  gcs_bucket = _mount_gcs_bucket(directory_structure.name, args.gcsfuse_flags[0])
+  gcs_bucket = _mount_gcs_bucket(directory_structure.name,
+                                 args.gcsfuse_flags[0])
 
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
@@ -615,20 +634,26 @@ if __name__ == '__main__':
       directory_structure.folders, persistent_disk_results, args.message[0],
       int(args.num_samples[0]))
 
-  upload_values_gcs = _get_values_to_export(directory_structure.folders, gcs_parsed_metrics, args.command[0])
-  upload_values_pd = _get_values_to_export(directory_structure.folders, pd_parsed_metrics, args.command[0])
+  upload_values_gcs = _get_values_to_export(directory_structure.folders,
+                                            gcs_parsed_metrics, args.command[0])
+  upload_values_pd = _get_values_to_export(directory_structure.folders,
+                                           pd_parsed_metrics, args.command[0])
 
   if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')
-    _export_to_gsheet(WORKSHEET_NAME_GCS, upload_values_gcs)
-    _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd)
+    _export_to_gsheet(WORKSHEET_NAME_GCS, upload_values_gcs,
+                      args.spreadsheet_id)
+    _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd, args.spreadsheet_id)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
-      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+      raise Exception(
+          "Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
     log.info('Uploading results to the BigQuery.\n')
-    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0], args.start_time_build[0], upload_values_gcs)
-    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0], args.start_time_build[0], upload_values_pd)
+    _export_to_bigquery(MOUNT_TYPE_GCS, args.config_id[0],
+                        args.start_time_build[0], upload_values_gcs)
+    _export_to_bigquery(MOUNT_TYPE_PD, args.config_id[0],
+                        args.start_time_build[0], upload_values_pd)
 
   if not args.keep_files:
     log.info('Deleting files from persistent disk.\n')

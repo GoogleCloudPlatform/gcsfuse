@@ -77,6 +77,13 @@ def _parse_arguments(argv):
       nargs=1,
       required=False,
   )
+
+  parser.add_argument(
+      'spreadsheet_id',
+      help='Provide id of spreadsheet',
+      action='store'
+  )
+
   return parser.parse_args(argv[1:])
 
 
@@ -88,17 +95,24 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
+  print("Spread sheet id: ", args.spreadsheet_id)
+
   temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
   metrics_data = fio_metrics_obj.get_values_to_upload(temp)
 
   if args.upload_gs:
-    gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME,metrics_data)
+    gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
+                                 args.spreadsheet_id)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
-      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
-    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-    bigquery_obj.upload_metrics_to_table(constants.FIO_TABLE_ID, args.config_id[0], args.start_time_build[0], metrics_data)
+      raise Exception(
+          "Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(
+        constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj.upload_metrics_to_table(constants.FIO_TABLE_ID,
+                                         args.config_id[0],
+                                         args.start_time_build[0], metrics_data)
 
   print('Waiting for 360 seconds for metrics to be updated on VM...')
   # It takes up to 240 seconds for sampled data to be visible on the VM metrics graph
@@ -139,10 +153,16 @@ if __name__ == '__main__':
       vm_metrics_data.append(row)
 
   if args.upload_gs:
-    gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data)
+    gsheet.write_to_google_sheet(VM_WORKSHEET_NAME, vm_metrics_data,
+                                 args.spreadsheet_id)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
-      raise Exception("Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
-    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(constants.PROJECT_ID, constants.DATASET_ID)
-    bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID, args.config_id[0], args.start_time_build[0], vm_metrics_data)
+      raise Exception(
+          "Pass required arguments experiments configuration ID and start time of build for uploading to BigQuery")
+    bigquery_obj = experiments_gcsfuse_bq.ExperimentsGCSFuseBQ(
+        constants.PROJECT_ID, constants.DATASET_ID)
+    bigquery_obj.upload_metrics_to_table(constants.VM_TABLE_ID,
+                                         args.config_id[0],
+                                         args.start_time_build[0],
+                                         vm_metrics_data)

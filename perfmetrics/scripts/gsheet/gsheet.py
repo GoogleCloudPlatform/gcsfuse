@@ -6,6 +6,7 @@ SPREADSHEET_ID = '1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
 
 CREDENTIALS_PATH = ('./gsheet/creds.json')
 
+
 def _get_sheets_service_client():
   creds = service_account.Credentials.from_service_account_file(
       CREDENTIALS_PATH, scopes=SCOPES)
@@ -13,7 +14,8 @@ def _get_sheets_service_client():
   return service
 
 
-def write_to_google_sheet(worksheet: str, data) -> None:
+def write_to_google_sheet(worksheet: str, data,
+    spreadsheet_id=SPREADSHEET_ID) -> None:
   """Calls the API to update the values of a sheet.
 
   Args:
@@ -27,19 +29,19 @@ def write_to_google_sheet(worksheet: str, data) -> None:
 
   # Getting the index of the last occupied row in the sheet
   spreadsheet_response = sheets_client.spreadsheets().values().get(
-      spreadsheetId=SPREADSHEET_ID,
+      spreadsheetId=spreadsheet_id,
       range='{}!A1:A'.format(worksheet)).execute()
   entries = len(spreadsheet_response['values'])
 
   # Clearing the occupied rows
   request = sheets_client.spreadsheets().values().clear(
-      spreadsheetId=SPREADSHEET_ID, 
-      range='{}!A2:{}'.format(worksheet,entries+1), 
+      spreadsheetId=spreadsheet_id,
+      range='{}!A2:{}'.format(worksheet, entries + 1),
       body={}).execute()
 
   # Appending new rows
   sheets_client.spreadsheets().values().update(
-      spreadsheetId=SPREADSHEET_ID,
+      spreadsheetId=spreadsheet_id,
       valueInputOption='USER_ENTERED',
       body={
           'majorDimension': 'ROWS',
