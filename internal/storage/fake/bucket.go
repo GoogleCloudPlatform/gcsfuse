@@ -27,6 +27,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -493,11 +494,11 @@ func (b *bucket) printIndexedObjectNames(indexStart, indexLimit int) {
 func (b *bucket) ListObjects(
 	ctx context.Context,
 	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
-	fmt.Printf("\t(bucket=%p).ListObjects(%q) ...\n", b, req.Prefix)
+	fmt.Printf("\t(bucket=%p).ListObjects(%#v) ...\n", b, req)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.printAllObjectNames()
+	//b.printAllObjectNames()
 
 	// Set up the result object.
 	listing = new(gcs.Listing)
@@ -523,7 +524,26 @@ func (b *bucket) ListObjects(
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
-	indexLimit := minInt(indexStart+maxResults, prefixLimit)
+	var indexLimit int
+	ignoreObjectsWithUnsupportedNames := true
+	if maxResults == 1 {
+		for ; indexStart < prefixLimit; indexStart++ {
+			name := b.objects[indexStart].metadata.Name
+			if util.IsUnsupportedDirectoryName(name) {
+				logger.Warnf("Ignoring unsupported object-prefix: %q", name)
+				fmt.Printf("\t\tIgnoring unsupported object-name: %q\n", name)
+			} else {
+				indexLimit = indexStart + 1
+				ignoreObjectsWithUnsupportedNames = false
+				break
+			}
+		}
+		if indexStart == prefixLimit {
+			indexLimit = prefixLimit
+		}
+	} else {
+		indexLimit = minInt(indexStart+maxResults, prefixLimit)
+	}
 
 	fmt.Printf("\t\tmaxResults=%v,indexStart=%v,prefixLimit=%v,indexLimit=%v\n", maxResults, indexStart, prefixLimit, indexLimit)
 	b.printIndexedObjectNames(indexStart, indexLimit)
@@ -536,8 +556,8 @@ func (b *bucket) ListObjects(
 
 		fmt.Printf("\t\tfound object: \"%s\"\n", name)
 
-		if util.IsUnsupportedDirectoryName(name) {
-			// logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", resultPrefix)
+		if ignoreObjectsWithUnsupportedNames && util.IsUnsupportedDirectoryName(name) {
+			logger.Warnf("Ignoring unsupported object: \"%s\"", name)
 			fmt.Printf("\t\t\tIgnoring unsupported object-name: \"%s\"\n", name)
 			continue
 		}
