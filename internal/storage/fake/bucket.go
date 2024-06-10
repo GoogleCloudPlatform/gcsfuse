@@ -557,8 +557,8 @@ func (b *bucket) ListObjects(
 		fmt.Printf("\t\tfound object: \"%s\"\n", name)
 
 		if ignoreObjectsWithUnsupportedNames && util.IsUnsupportedDirectoryName(name) {
-			logger.Warnf("Ignoring unsupported object: \"%s\"", name)
-			fmt.Printf("\t\t\tIgnoring unsupported object-name: \"%s\"\n", name)
+			logger.Warnf("Ignoring unsupported object: %q", name)
+			fmt.Printf("\t\t\tIgnoring unsupported object-name: %q\n", name)
 			continue
 		}
 
