@@ -96,7 +96,7 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	setup.SetDynamicBucketMounted(testBucket2)
 	defer setup.SetDynamicBucketMounted("")
 	// Introducing a sleep of 7 seconds after bucket creation to address propagation delays.
-	time.Sleep(7 * time.Second)
+	time.Sleep(10 * time.Second)
 	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
@@ -132,11 +132,11 @@ func TestRemountTest(t *testing.T) {
 	}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--stat-cache-ttl=0"},
-		{"--implicit-dirs=false", "--stat-cache-ttl=0"},
+		{"--implicit-dirs=true"},
+		{"--implicit-dirs=false"},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName), "--stat-cache-ttl=0")
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "", "--stat-cache-ttl=0")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName))
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
 
 	// Create storage client before running tests.
 	ts := &remountTest{ctx: context.Background()}
