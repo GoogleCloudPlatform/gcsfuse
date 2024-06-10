@@ -43,7 +43,7 @@ GCSFUSE_FLAGS="--implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
 BUCKET_NAME="periodic-perf-tests"
-SPREADSHEET_ID = '155cH7GEAuCg5TN7BqACMH9CFwVRrIKN4ylwSj1AjaLs'
+SPREADSHEET_ID='155cH7GEAuCg5TN7BqACMH9CFwVRrIKN4ylwSj1AjaLs'
 
 # Executing perf tests
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
