@@ -1,4 +1,5 @@
 file-cache:
   cache-file-for-range-read: true
+  enable-parallel-downloads: true
   download-parallelism-per-file: 100
   read-request-size-mb: 0
