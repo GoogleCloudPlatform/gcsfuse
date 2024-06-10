@@ -584,12 +584,6 @@ func (b *bucket) ListObjects(
 
 				//fmt.Printf("\t\t\tresultPrefix: \"%s\"\n", resultPrefix)
 
-				//// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
-				//// from gcs.bucket_handle.ListObjects.
-				//if util.IsUnsupportedDirectoryName(resultPrefix) {
-				//// logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", resultPrefix)
-				//fmt.Printf("\t\t\tIgnoring unsupported object-prefix: \"%s\"\n", resultPrefix)
-				//} else {
 				if len(listing.CollapsedRuns) == 0 ||
 					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 
@@ -605,16 +599,8 @@ func (b *bucket) ListObjects(
 					lastResultWasPrefix = true
 					continue
 				}
-				//}
 			}
 		}
-
-		//if util.IsUnsupportedObjectName(o.metadata.Name) {
-		//// Imitate the behaviour of ListObjects for reserved/unsupported unix names/substrings
-		//// from gcs.bucket_handle.ListObjects.
-		//logger.Warnf("\t\t\tEncoutered unsupported object-name: \"%s\"", o.metadata.Name)
-		//fmt.Printf("\t\t\tEncoutered unsupported object-name: \"%s\"\n", o.metadata.Name)
-		//} else {
 
 		lastResultWasPrefix = false
 
@@ -635,7 +621,6 @@ func (b *bucket) ListObjects(
 
 		fmt.Printf("\t\t\tAdded following to objects: \"%s\"\n", o.metadata.Name)
 		//fmt.Printf("\t\t\tlisting.Objects = \"%s\"\n", printObj(listing.Objects))
-		//}
 	}
 
 	// Set up a cursor for where to start the next scan if we didn't exhaust the
