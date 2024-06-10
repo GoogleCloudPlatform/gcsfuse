@@ -503,7 +503,6 @@ def _parse_arguments(argv):
       'spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
-      required=False,
   )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
