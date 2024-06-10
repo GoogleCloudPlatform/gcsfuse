@@ -95,7 +95,7 @@ func (s *remountTest) TestCacheIsNotReusedOnDynamicRemount(t *testing.T) {
 	defer dynamic_mounting.DeleteTestBucketForDynamicMounting(ctx, storageClient, testBucket2)
 	setup.SetDynamicBucketMounted(testBucket2)
 	defer setup.SetDynamicBucketMounted("")
-	// Introducing a sleep of 7 seconds after bucket creation to address propagation delays.
+	// Introducing a sleep of 10 seconds after bucket creation to address propagation delays.
 	time.Sleep(10 * time.Second)
 	client.SetupTestDirectory(s.ctx, s.storageClient, testDirName)
 	testFileName2 := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
