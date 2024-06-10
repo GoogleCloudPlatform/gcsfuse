@@ -140,7 +140,6 @@ func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 		if err != nil {
 			log.Fatalf("Failed to delete object %s: %v", objAttrs.Name, err)
 		}
-		fmt.Printf("Deleted object: %s\n", objAttrs.Name)
 	}
 
 	if err := bucket.Delete(ctx); err != nil {
