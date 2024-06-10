@@ -548,16 +548,17 @@ func (b *bucketHandle) ParallelDownloadToFile(ctx context.Context, req *gcs.Para
 	for i := uint64(0); i < numParts; i++ {
 		offset := int64(i * req.PartSize)
 		length := int64(req.PartSize)
-		if i == numParts-1 {
+		realOffset := offset + int64(req.Range.Start)
+		if i == numParts-1 && (numParts*req.PartSize) != size {
 			length = -1
 		}
-		w := io.NewOffsetWriter(req.FileHandle, offset)
+		w := io.NewOffsetWriter(req.FileHandle, realOffset)
 		in := &transfermanager.DownloadObjectInput{
 			Bucket:      b.bucketName,
 			Object:      req.Name,
 			Destination: w,
 			Range: &transfermanager.DownloadRange{
-				Offset: offset,
+				Offset: realOffset,
 				Length: length,
 			},
 			Callback: callback,
