@@ -40,8 +40,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 )
 
@@ -81,6 +81,7 @@ type fsTest struct {
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
+	suite.Suite
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
