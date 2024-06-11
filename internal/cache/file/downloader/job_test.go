@@ -100,14 +100,18 @@ func (dt *downloaderTest) verifyFile(content []byte) {
 }
 
 func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
-	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	fileInfo := dt.cache.LookUp(fileInfoKeyName)
+	fileInfo := dt.getFileInfo()
 	AssertTrue(fileInfo != nil)
 	AssertEq(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
 	AssertLe(offset, fileInfo.(data.FileInfo).Offset)
 	AssertEq(dt.object.Size, fileInfo.(data.FileInfo).Size())
+}
+
+func (dt *downloaderTest) getFileInfo() lru.ValueType {
+	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	return dt.cache.LookUp(fileInfoKeyName)
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
@@ -806,6 +810,10 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTr
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "checksum mismatch detected"))
+	AssertEq(nil, dt.getFileInfo())
+	_, err = os.Stat(dt.fileSpec.Path)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFalse() {
