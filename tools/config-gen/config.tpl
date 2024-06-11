@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// GENERATED CODE - DO NOT EDIT config.go FILE MANUALLY.
+
 package cfg
 
 import (

@@ -27,7 +27,6 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 		mountPoint string
 		opts       map[string]string
 		expected   []string
-		expectErr  bool
 	}{
 		{
 			name:       "TestMakeGcsfuseArgs with NoOptions",
@@ -96,8 +95,11 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 			device:     "gcsfuse",
 			mountPoint: "/mnt/gcs",
 			opts: map[string]string{
-				"dir_mode": "0755", "key_file": "/path/to/key"},
-			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "gcsfuse", "/mnt/gcs"},
+				"dir_mode":                     "0755",
+				"key_file":                     "/path/to/key",
+				"log_rotate_backup_file_count": "2",
+			},
+			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2", "gcsfuse", "/mnt/gcs"},
 		},
 
 		{
@@ -105,8 +107,11 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 			device:     "gcsfuse",
 			mountPoint: "/mnt/gcs",
 			opts: map[string]string{
-				"dir-mode": "0755", "key-file": "/path/to/key"},
-			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "gcsfuse", "/mnt/gcs"},
+				"dir-mode":                     "0755",
+				"key-file":                     "/path/to/key",
+				"log-rotate-backup-file-count": "2",
+			},
+			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2", "gcsfuse", "/mnt/gcs"},
 		},
 
 		{
@@ -148,11 +153,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			args, err := makeGcsfuseArgs(tc.device, tc.mountPoint, tc.opts)
-			if tc.expectErr && err == nil {
-				t.Errorf("Expected error, but got none")
-			} else if !tc.expectErr && err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
+			assert.Nil(t, err)
 
 			// Assert that all flags are present (no matter the order).
 			assert.ElementsMatch(t, args[:len(args)-2], tc.expected[:len(tc.expected)-2])

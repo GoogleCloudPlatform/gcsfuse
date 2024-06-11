@@ -133,7 +133,7 @@ func makeGcsfuseArgs(
 			"metadata_cache_ttl_secs",
 			"log_severity",
 			"log_rotate_max_file_size_mb",
-			"log_rotate_backup_file-count",
+			"log_rotate_backup_file_count",
 			"file_cache_max_size_mb",
 			"grpc_conn_pool_size":
 
