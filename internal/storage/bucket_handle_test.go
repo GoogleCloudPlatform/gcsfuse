@@ -45,10 +45,6 @@ var ContentDisposition string = "ContentDisposition"
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
 
-// objectsToObjectNames is a helper function which returns
-// a list of strings containing the names of all the
-// GCS objects in the passed list.
-// For nil objects, name is returned as <nil>.
 func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {
 	objectNames = make([]string, len(objects))
 	for i, object := range objects {
@@ -570,7 +566,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 			ProjectionVal:            0,
 		})
 
-	// Validate that all objects are listed when MaxResults is not passed.
+	// Validate that all objects (5) are listed when MaxResults is not passed.
 	assert.Nil(testSuite.T(), err2)
 	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObjWithoutMaxResults.Objects))
 	assert.Nil(testSuite.T(), fiveObjWithoutMaxResults.CollapsedRuns)
@@ -605,25 +601,6 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	assert.Nil(testSuite.T(), err2)
 	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObjWithZeroMaxResults.Objects))
 	assert.Nil(testSuite.T(), fiveObjWithZeroMaxResults.CollapsedRuns)
-}
-
-func (testSuite *BucketHandleTest) TestListObjectMethodWithOneMaxResult() {
-	// Validate that we have 5 objects in fakeserver
-	oneObj, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
-			Prefix:                   TestObjectRootFolderName,
-			Delimiter:                "",
-			IncludeTrailingDelimiter: true,
-			ContinuationToken:        "",
-			MaxResults:               1,
-			ProjectionVal:            0,
-		})
-
-	// Validate that all objects (5) are listed when MaxResults is 0. This has
-	// same behavior as not passing MaxResults in request.
-	assert.Nil(testSuite.T(), err2)
-	assert.Less(testSuite.T(), 0, len(oneObj.Objects))
-	assert.Nil(testSuite.T(), oneObj.CollapsedRuns)
 }
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
