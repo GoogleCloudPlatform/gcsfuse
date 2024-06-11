@@ -192,7 +192,33 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 	actual, err := util.Stringify(mountConfig)
 	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"TRACE\",\"Format\":\"\",\"FilePath\":\"\\\"path\\\"to\\\"file\\\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":2,\"BackupFileCount\":2,\"Compress\":true},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"EnableParallelDownloads\":false,\"DownloadParallelismPerFile\":0,\"MaxDownloadParallelism\":0,\"ReadRequestSizeMB\":0,\"EnableCrcCheck\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"GRPCConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":true,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
+	expected := strings.Join([]string{
+		`{"CreateEmptyFile":false`,
+		`"Severity":"TRACE"`,
+		`"Format":""`,
+		`"FilePath":"\"path\"to\"file\""`,
+		`"LogRotateConfig":{"MaxFileSizeMB":2`,
+		`"BackupFileCount":2`,
+		`"Compress":true}`,
+		`"MaxSizeMB":0`,
+		`"CacheFileForRangeRead":false`,
+		`"EnableParallelDownloads":false`,
+		`"DownloadParallelismPerFile":0`,
+		`"MaxDownloadParallelism":0`,
+		`"ReadRequestSizeMB":0`,
+		`"EnableCrcCheck":false`,
+		`"CacheDir":""`,
+		`"TtlInSeconds":0`,
+		`"TypeCacheMaxSizeMB":0`,
+		`"StatCacheMaxSizeMB":0`,
+		`"EnableEmptyManagedFolders":false`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"GRPCConnPoolSize":0`,
+		`"AnonymousAccess":false`,
+		`"EnableHNS":true`,
+		`"IgnoreInterrupts":false`,
+		`"DisableParallelDirops":false}`,
+	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
 
@@ -204,7 +230,33 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 	actual, err := util.Stringify(mountConfig)
 	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"CreateEmptyFile\":false,\"Severity\":\"\",\"Format\":\"\",\"FilePath\":\"\",\"LogRotateConfig\":{\"MaxFileSizeMB\":0,\"BackupFileCount\":0,\"Compress\":false},\"MaxSizeMB\":0,\"CacheFileForRangeRead\":false,\"EnableParallelDownloads\":false,\"DownloadParallelismPerFile\":0,\"MaxDownloadParallelism\":0,\"ReadRequestSizeMB\":0,\"EnableCrcCheck\":false,\"CacheDir\":\"\",\"TtlInSeconds\":0,\"TypeCacheMaxSizeMB\":0,\"StatCacheMaxSizeMB\":0,\"EnableEmptyManagedFolders\":false,\"KernelListCacheTtlSeconds\":0,\"GRPCConnPoolSize\":0,\"AnonymousAccess\":false,\"EnableHNS\":false,\"IgnoreInterrupts\":false,\"DisableParallelDirops\":false}"
+	expected := strings.Join([]string{
+		`{"CreateEmptyFile":false`,
+		`"Severity":""`,
+		`"Format":""`,
+		`"FilePath":""`,
+		`"LogRotateConfig":{"MaxFileSizeMB":0`,
+		`"BackupFileCount":0`,
+		`"Compress":false}`,
+		`"MaxSizeMB":0`,
+		`"CacheFileForRangeRead":false`,
+		`"EnableParallelDownloads":false`,
+		`"DownloadParallelismPerFile":0`,
+		`"MaxDownloadParallelism":0`,
+		`"ReadRequestSizeMB":0`,
+		`"EnableCrcCheck":false`,
+		`"CacheDir":""`,
+		`"TtlInSeconds":0`,
+		`"TypeCacheMaxSizeMB":0`,
+		`"StatCacheMaxSizeMB":0`,
+		`"EnableEmptyManagedFolders":false`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"GRPCConnPoolSize":0`,
+		`"AnonymousAccess":false`,
+		`"EnableHNS":false`,
+		`"IgnoreInterrupts":false`,
+		`"DisableParallelDirops":false}`,
+	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
 
@@ -224,7 +276,58 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 	actual, err := util.Stringify(flags)
 	assert.Equal(t.T(), nil, err)
 
-	expected := "{\"AppName\":\"\",\"Foreground\":false,\"ConfigFile\":\"\",\"MountOptions\":{\"1\":\"one\",\"2\":\"two\",\"3\":\"three\"},\"DirMode\":0,\"FileMode\":0,\"Uid\":0,\"Gid\":0,\"ImplicitDirs\":false,\"OnlyDir\":\"\",\"RenameDirLimit\":0,\"IgnoreInterrupts\":false,\"CustomEndpoint\":null,\"BillingProject\":\"\",\"KeyFile\":\"\",\"TokenUrl\":\"\",\"ReuseTokenFromUrl\":false,\"EgressBandwidthLimitBytesPerSecond\":0,\"OpRateLimitHz\":0,\"SequentialReadSizeMb\":10,\"AnonymousAccess\":false,\"MaxRetrySleep\":0,\"StatCacheCapacity\":0,\"StatCacheTTL\":0,\"TypeCacheTTL\":0,\"KernelListCacheTtlSeconds\":-1,\"HttpClientTimeout\":0,\"MaxRetryDuration\":0,\"RetryMultiplier\":0,\"LocalFileCache\":false,\"TempDir\":\"\",\"ClientProtocol\":\"http4\",\"MaxConnsPerHost\":0,\"MaxIdleConnsPerHost\":0,\"EnableNonexistentTypeCache\":false,\"StackdriverExportInterval\":0,\"OtelCollectorAddress\":\"\",\"LogFile\":\"\",\"LogFormat\":\"\",\"ExperimentalEnableJsonRead\":false,\"DebugFuseErrors\":false,\"DebugFuse\":false,\"DebugFS\":false,\"DebugGCS\":false,\"DebugHTTP\":false,\"DebugInvariants\":false,\"DebugMutex\":false,\"ExperimentalMetadataPrefetchOnMount\":\"\"}"
+	expected := strings.Join([]string{
+		`{"AppName":""`,
+		`"Foreground":false`,
+		`"ConfigFile":""`,
+		`"MountOptions":{"1":"one"`,
+		`"2":"two"`,
+		`"3":"three"}`,
+		`"DirMode":0`,
+		`"FileMode":0`,
+		`"Uid":0`,
+		`"Gid":0`,
+		`"ImplicitDirs":false`,
+		`"OnlyDir":""`,
+		`"RenameDirLimit":0`,
+		`"IgnoreInterrupts":false`,
+		`"CustomEndpoint":null`,
+		`"BillingProject":""`,
+		`"KeyFile":""`,
+		`"TokenUrl":""`,
+		`"ReuseTokenFromUrl":false`,
+		`"EgressBandwidthLimitBytesPerSecond":0`,
+		`"OpRateLimitHz":0`,
+		`"SequentialReadSizeMb":10`,
+		`"AnonymousAccess":false`,
+		`"MaxRetrySleep":0`,
+		`"StatCacheCapacity":0`,
+		`"StatCacheTTL":0`,
+		`"TypeCacheTTL":0`,
+		`"KernelListCacheTtlSeconds":-1`,
+		`"HttpClientTimeout":0`,
+		`"MaxRetryDuration":0`,
+		`"RetryMultiplier":0`,
+		`"LocalFileCache":false`,
+		`"TempDir":""`,
+		`"ClientProtocol":"http4"`,
+		`"MaxConnsPerHost":0`,
+		`"MaxIdleConnsPerHost":0`,
+		`"EnableNonexistentTypeCache":false`,
+		`"StackdriverExportInterval":0`,
+		`"OtelCollectorAddress":""`,
+		`"LogFile":""`,
+		`"LogFormat":""`,
+		`"ExperimentalEnableJsonRead":false`,
+		`"DebugFuseErrors":false`,
+		`"DebugFuse":false`,
+		`"DebugFS":false`,
+		`"DebugGCS":false`,
+		`"DebugHTTP":false`,
+		`"DebugInvariants":false`,
+		`"DebugMutex":false`,
+		`"ExperimentalMetadataPrefetchOnMount":""}`,
+	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
 
