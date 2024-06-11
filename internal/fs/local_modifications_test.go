@@ -334,7 +334,7 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	// Write some data into it.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Open another handle for reading and writing.
 	t.f2, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
@@ -344,14 +344,14 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	// second handle..
 	n, err = t.f2.Read(buf[:2])
 	assert.Nil(t.T(), err)
-	AssertEq(2, n)
+	assert.Equal(t.T(), 2, n)
 	ExpectEq("ta", string(buf[:n]))
 
 	// Write some contents with the second handle, which should now be at offset
 	// 2.
 	n, err = t.f2.Write([]byte("nk"))
 	assert.Nil(t.T(), err)
-	AssertEq(2, n)
+	assert.Equal(t.T(), 2, n)
 
 	// Check the overall contents now.
 	contents, err := ioutil.ReadFile(t.f2.Name())
@@ -469,7 +469,7 @@ func (t *MknodTest) Directory() {
 	// Quoth `man 2 mknod`: "Under Linux, this call cannot be used to create
 	// directories."
 	err = syscall.Mknod(p, syscall.S_IFDIR|0700, 0)
-	ExpectEq(syscall.EPERM, err)
+	assert.Equal(t.T(), syscall.EPERM, err)
 }
 
 func (t *MknodTest) AlreadyExists() {
@@ -487,7 +487,7 @@ func (t *MknodTest) AlreadyExists() {
 
 	// Create (second)
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
-	ExpectEq(syscall.EEXIST, err)
+	assert.Equal(t.T(), syscall.EEXIST, err)
 
 	// Read
 	contents, err := ioutil.ReadFile(p)
@@ -505,7 +505,7 @@ func (t *MknodTest) NonExistentParent() {
 	p := path.Join(mntDir, "foo/bar")
 
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
-	ExpectEq(syscall.ENOENT, err)
+	assert.Equal(t.T(), syscall.ENOENT, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -544,7 +544,7 @@ func (t *ModesTest) ReadOnlyMode() {
 	// Attempt to write.
 	n, err := t.f1.Write([]byte("taco"))
 
-	AssertEq(0, n)
+	assert.Equal(t.T(), 0, n)
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
@@ -758,7 +758,7 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 	// The seek position should have been updated.
 	off, err := getFileOffset(t.f1)
 	assert.Nil(t.T(), err)
-	ExpectEq(len(contents)+len("222"), off)
+	assert.Equal(t.T(), len(contents)+len("222"), off)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
@@ -769,7 +769,7 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
+	assert.Equal(t.T(), io.EOF, err)
 	ExpectEq(contents+"222", string(buf[:n]))
 
 	// Read the full contents with another file handle.
@@ -806,7 +806,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	// The seek position should have been unaffected.
 	off, err := getFileOffset(t.f1)
 	assert.Nil(t.T(), err)
-	ExpectEq(1, off)
+	assert.Equal(t.T(), 1, off)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
@@ -817,7 +817,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	buf := make([]byte, 1024)
 	n, err := t.f1.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
+	assert.Equal(t.T(), io.EOF, err)
 	ExpectEq("taco111ritoenchilada", string(buf[:n]))
 
 	// Read the full contents with another file handle.
@@ -841,17 +841,17 @@ func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	// Write three bytes.
 	n, err := t.f1.Write([]byte("111"))
 	assert.Nil(t.T(), err)
-	AssertEq(3, n)
+	assert.Equal(t.T(), 3, n)
 
 	// Write at offset six.
 	n, err = t.f1.WriteAt([]byte("222"), 6)
 	assert.Nil(t.T(), err)
-	AssertEq(3, n)
+	assert.Equal(t.T(), 3, n)
 
 	// The seek position should have been unaffected.
 	off, err := getFileOffset(t.f1)
 	assert.Nil(t.T(), err)
-	ExpectEq(3, off)
+	assert.Equal(t.T(), 3, off)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadFile(t.f1.Name())
@@ -1419,7 +1419,7 @@ func (t *FileTest) WriteOverlapsEndOfFile() {
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
@@ -1442,7 +1442,7 @@ func (t *FileTest) WriteStartsAtEndOfFile() {
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
@@ -1461,7 +1461,7 @@ func (t *FileTest) WriteStartsPastEndOfFile() {
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
@@ -1488,12 +1488,12 @@ func (t *FileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	// Write the range [10, 14).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// We should still be at offset 4.
 	offset, err := getFileOffset(t.f1)
 	assert.Nil(t.T(), err)
-	ExpectEq(4, offset)
+	assert.Equal(t.T(), 4, offset)
 }
 
 func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
@@ -1519,12 +1519,12 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	// Write the range [10, 14).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// We should still be at offset 4.
 	offset, err := getFileOffset(t.f1)
 	assert.Nil(t.T(), err)
-	ExpectEq(4, offset)
+	assert.Equal(t.T(), 4, offset)
 }
 
 func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
@@ -1534,30 +1534,30 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	AssertNe(nil, minObject1)
 	AssertNe(nil, minObject2)
 	// Validate Min Object.
-	ExpectEq(minObject1.Name, minObject2.Name)
-	ExpectEq(0, minObject1.Size)
-	ExpectEq(FileContentsSize, minObject2.Size)
+	assert.Equal(t.T(), minObject1.Name, minObject2.Name)
+	assert.Equal(t.T(), 0, minObject1.Size)
+	assert.Equal(t.T(), FileContentsSize, minObject2.Size)
 	ExpectNe(minObject1.Generation, minObject2.Generation)
 	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcsx.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
-	ExpectEq(minObject1.ContentEncoding, minObject2.ContentEncoding)
+	assert.Equal(t.T(), minObject1.ContentEncoding, minObject2.ContentEncoding)
 	ExpectNe(nil, minObject1.CRC32C)
 	ExpectNe(nil, minObject2.CRC32C)
 
 	// Validate Extended Object Attributes.
-	ExpectEq(extendedAttr1.ContentType, extendedAttr2.ContentType)
-	ExpectEq(extendedAttr1.ContentLanguage, extendedAttr2.ContentLanguage)
-	ExpectEq(extendedAttr1.CacheControl, extendedAttr2.CacheControl)
-	ExpectEq(extendedAttr1.Owner, extendedAttr2.Owner)
-	ExpectEq(extendedAttr1.MediaLink, extendedAttr2.MediaLink)
-	ExpectEq(extendedAttr1.StorageClass, extendedAttr2.StorageClass)
+	assert.Equal(t.T(), extendedAttr1.ContentType, extendedAttr2.ContentType)
+	assert.Equal(t.T(), extendedAttr1.ContentLanguage, extendedAttr2.ContentLanguage)
+	assert.Equal(t.T(), extendedAttr1.CacheControl, extendedAttr2.CacheControl)
+	assert.Equal(t.T(), extendedAttr1.Owner, extendedAttr2.Owner)
+	assert.Equal(t.T(), extendedAttr1.MediaLink, extendedAttr2.MediaLink)
+	assert.Equal(t.T(), extendedAttr1.StorageClass, extendedAttr2.StorageClass)
 	ExpectTrue(reflect.DeepEqual(extendedAttr1.Deleted, time.Time{}))
 	ExpectTrue(reflect.DeepEqual(extendedAttr2.Deleted, time.Time{}))
-	ExpectEq(extendedAttr1.ComponentCount+1, extendedAttr2.ComponentCount)
-	ExpectEq(extendedAttr1.EventBasedHold, extendedAttr2.EventBasedHold)
-	ExpectEq(extendedAttr1.Acl, extendedAttr2.Acl)
+	assert.Equal(t.T(), extendedAttr1.ComponentCount+1, extendedAttr2.ComponentCount)
+	assert.Equal(t.T(), extendedAttr1.EventBasedHold, extendedAttr2.EventBasedHold)
+	assert.Equal(t.T(), extendedAttr1.Acl, extendedAttr2.Acl)
 	assert.Nil(t.T(), extendedAttr1.Acl)
 }
 
@@ -1623,24 +1623,24 @@ func (t *FileTest) ReadsPastEndOfFile() {
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Read a range overlapping EOF.
 	n, err = t.f1.ReadAt(buf[:4], 2)
-	AssertEq(io.EOF, err)
-	ExpectEq(2, n)
+	assert.Equal(t.T(), io.EOF, err)
+	assert.Equal(t.T(), 2, n)
 	ExpectEq("co", string(buf[:n]))
 
 	// Read a range starting at EOF.
 	n, err = t.f1.ReadAt(buf[:4], 4)
-	AssertEq(io.EOF, err)
-	ExpectEq(0, n)
+	assert.Equal(t.T(), io.EOF, err)
+	assert.Equal(t.T(), 0, n)
 	ExpectEq("", string(buf[:n]))
 
 	// Read a range starting past EOF.
 	n, err = t.f1.ReadAt(buf[:4], 100)
-	AssertEq(io.EOF, err)
-	ExpectEq(0, n)
+	assert.Equal(t.T(), io.EOF, err)
+	assert.Equal(t.T(), 0, n)
 	ExpectEq("", string(buf[:n]))
 }
 
@@ -1737,20 +1737,20 @@ func (t *FileTest) Seek() {
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Seek and overwrite.
 	off, err := t.f1.Seek(1, 0)
 	assert.Nil(t.T(), err)
-	AssertEq(1, off)
+	assert.Equal(t.T(), 1, off)
 
 	n, err = t.f1.Write([]byte("xx"))
 	assert.Nil(t.T(), err)
-	AssertEq(2, n)
+	assert.Equal(t.T(), 2, n)
 
 	// Read full the contents of the file.
 	n, err = t.f1.ReadAt(buf, 0)
-	AssertEq(io.EOF, err)
+	assert.Equal(t.T(), io.EOF, err)
 	ExpectEq("txxo", string(buf[:n]))
 }
 
@@ -1768,7 +1768,7 @@ func (t *FileTest) Stat() {
 
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	time.Sleep(timeSlop + timeSlop/2)
 
@@ -1882,7 +1882,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	// Write some data into it.
 	n, err := f.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Unlink it.
 	err = os.Remove(fileName)
@@ -1905,14 +1905,14 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	buf := make([]byte, 1024)
 	n, err = f.ReadAt(buf, 0)
 
-	AssertEq(io.EOF, err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), io.EOF, err)
+	assert.Equal(t.T(), 4, n)
 	ExpectEq("taco", string(buf[:4]))
 
 	// Writing should still work, too.
 	n, err = f.Write([]byte("burrito"))
 	assert.Nil(t.T(), err)
-	AssertEq(len("burrito"), n)
+	assert.Equal(t.T(), len("burrito"), n)
 }
 
 func (t *FileTest) UnlinkFile_NoLongerInBucket() {
@@ -2113,7 +2113,7 @@ func (t *FileTest) Sync_Dirty() {
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Sync it.
 	err = t.f1.Sync()
@@ -2153,7 +2153,7 @@ func (t *FileTest) Sync_NotDirty() {
 	m2, _, err := bucket.StatObject(ctx, statReq)
 	assert.Nil(t.T(), err)
 	AssertNe(nil, m2)
-	ExpectEq(m1.Generation, m2.Generation)
+	assert.Equal(t.T(), m1.Generation, m2.Generation)
 }
 
 func (t *FileTest) Sync_Clobbered() {
@@ -2167,7 +2167,7 @@ func (t *FileTest) Sync_Clobbered() {
 	// Dirty the file by giving it some contents.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
@@ -2203,7 +2203,7 @@ func (t *FileTest) Close_Dirty() {
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Close it.
 	err = t.f1.Close()
@@ -2248,7 +2248,7 @@ func (t *FileTest) Close_Clobbered() {
 	// Dirty the file by giving it some contents.
 	n, err = f.Write([]byte("taco"))
 	assert.Nil(t.T(), err)
-	AssertEq(4, n)
+	assert.Equal(t.T(), 4, n)
 
 	// Replace the underlying object with a new generation.
 	_, err = storageutil.CreateObject(
@@ -2372,13 +2372,13 @@ func (t *SymlinkTest) CreateLink() {
 
 	assert.Nil(t.T(), err)
 	AssertNe(nil, m)
-	ExpectEq(0, m.Size)
-	ExpectEq("foo", m.Metadata["gcsfuse_symlink_target"])
+	assert.Equal(t.T(), 0, m.Size)
+	assert.Equal(t.T(), "foo", m.Metadata["gcsfuse_symlink_target"])
 
 	// Read the link.
 	target, err := os.Readlink(symlinkName)
 	assert.Nil(t.T(), err)
-	ExpectEq("foo", target)
+	assert.Equal(t.T(), "foo", target)
 
 	// Stat the link.
 	fi, err = os.Lstat(symlinkName)

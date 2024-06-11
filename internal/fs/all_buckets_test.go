@@ -49,7 +49,7 @@ func (t *AllBucketsTest) SetUpTestSuite() {
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
 	t.fsTest.SetUpTestSuite()
-	AssertEq("", t.serverCfg.BucketName)
+	assert.Equal(t.T(), "", t.serverCfg.BucketName)
 }
 
 ////////////////////////////////////////////////////////////////////////

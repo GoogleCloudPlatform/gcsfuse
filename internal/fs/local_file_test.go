@@ -561,7 +561,7 @@ func (t *LocalFileTest) ReadLocalFile() {
 	buf := make([]byte, len(contents))
 	n, err := t.f1.ReadAt(buf, 0)
 	assert.Nil(t.T(), err)
-	AssertEq(len(contents), n)
+	assert.Equal(t.T(), len(contents), n)
 	AssertEq(contents, string(buf))
 
 	// Close the file and validate if the file is created on GCS.
@@ -768,7 +768,7 @@ func (t *LocalFileTest) TestCreateSymlinkForLocalFile() {
 	// Read the link.
 	target, err := os.Readlink(symlinkName)
 	assert.Nil(t.T(), err)
-	ExpectEq(filePath, target)
+	assert.Equal(t.T(), filePath, target)
 	contents, err := os.ReadFile(symlinkName)
 	assert.Nil(t.T(), err)
 	ExpectEq(FileContents, string(contents))
@@ -790,7 +790,7 @@ func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
 	// Read the link.
 	target, err := os.Readlink(symlinkName)
 	assert.Nil(t.T(), err)
-	ExpectEq(filePath, target)
+	assert.Equal(t.T(), filePath, target)
 
 	// Remove filePath and then close the fileHandle to avoid syncing to GCS.
 	err = os.Remove(filePath)

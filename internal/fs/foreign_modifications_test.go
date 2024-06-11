@@ -510,15 +510,15 @@ func (t *ForeignModsTest) ReadFromFile_Small() {
 
 	s, err = readRange(f, int64(len("taco")), len("burrito"))
 	assert.Nil(t.T(), err)
-	ExpectEq("burrito", s)
+	assert.Equal(t.T(), "burrito", s)
 
 	s, err = readRange(f, 0, len("taco"))
 	assert.Nil(t.T(), err)
-	ExpectEq("taco", s)
+	assert.Equal(t.T(), "taco", s)
 
 	s, err = readRange(f, int64(len("tacoburrito")), len("enchilada"))
 	assert.Nil(t.T(), err)
-	ExpectEq("enchilada", s)
+	assert.Equal(t.T(), "enchilada", s)
 }
 
 func (t *ForeignModsTest) ReadFromFile_Large() {
@@ -560,7 +560,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 		}
 
 		assert.Nil(t.T(), err)
-		AssertEq(size, n)
+		assert.Equal(t.T(), size, n)
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
 			"offset: %d\n"+
@@ -600,11 +600,11 @@ func (t *ForeignModsTest) ReadBeyondEndOfFile() {
 	buf := make([]byte, 2)
 	n, err := f.Read(buf)
 	AssertEq(1, n, "err: %v", err)
-	AssertEq(contents[contentLen-1], buf[0])
+	assert.Equal(t.T(), contents[contentLen-1], buf[0])
 
 	if err == nil {
 		n, err = f.Read(buf)
-		AssertEq(0, n)
+		assert.Equal(t.T(), 0, n)
 	}
 }
 
@@ -903,5 +903,5 @@ func (t *ForeignModsTest) Symlink() {
 	// Read the link.
 	target, err := os.Readlink(path.Join(mntDir, "foo"))
 	assert.Nil(t.T(), err)
-	ExpectEq("bar/baz", target)
+	assert.Equal(t.T(), "bar/baz", target)
 }

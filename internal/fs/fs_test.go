@@ -151,7 +151,6 @@ func (t *fsTest) SetUpTestSuite() {
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), err)
 
 	// Set up permissions.
 	t.serverCfg.FilePerms = filePerms
