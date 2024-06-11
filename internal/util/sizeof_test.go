@@ -298,7 +298,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	customMetadaField2 := "google-xyz-field"
 	customMetadaValue2 := "google-symlink"
 	customMetadataFields := map[string]string{customMetadaField1: customMetadaValue1, customMetadaField2: customMetadaValue2}
-	customMetadataFieldsContentSize := sizeOfUInt32 + emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
+	customMetadataFieldsContentSize := +emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
 
 	m := gcs.MinObject{
 		Name:            name,
@@ -312,7 +312,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	}
 
 	var expectedSize int = sizeOfEmptyMinObject
-	expectedSize += len(name) + len(contentEncoding)
+	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
 	expectedSize += customMetadataFieldsContentSize
 
 	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
