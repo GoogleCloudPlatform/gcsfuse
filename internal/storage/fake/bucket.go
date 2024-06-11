@@ -470,18 +470,26 @@ func (b *bucket) ListObjects(
 	indexStart := b.objects.lowerBound(nameStart)
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
 	var indexLimit int
-	ignoreObjectsWithUnsupportedNames := true
+	checkForUnsupportedObjectNames := true
 	if maxResults == 1 {
+		// If maxResults is set to 1 (generally for LookUpInode), do not let
+		// presence of unsupported objects to make
+		// this ListObjects call return nothing.
+		// If first object in this prefix is unsupported,
+		// try the second, then third and so on,
+		// until a supported object is found.
 		for ; indexStart < prefixLimit; indexStart++ {
 			name := b.objects[indexStart].metadata.Name
 			if util.IsUnsupportedDirectoryName(name) {
-				logger.Warnf("Ignoring unsupported object-prefix: %q", name)
+				logger.Warnf("Ignoring unsupported object-name: %q", name)
 			} else {
 				indexLimit = indexStart + 1
-				ignoreObjectsWithUnsupportedNames = false
+				checkForUnsupportedObjectNames = false
 				break
 			}
 		}
+		// If there are no supported objects for the requested prefix,
+		// then bypass the for-loop below.
 		if indexStart == prefixLimit {
 			indexLimit = prefixLimit
 		}
@@ -495,8 +503,8 @@ func (b *bucket) ListObjects(
 		var o fakeObject = b.objects[i]
 		name := o.metadata.Name
 
-		if ignoreObjectsWithUnsupportedNames && util.IsUnsupportedDirectoryName(name) {
-			logger.Warnf("Ignoring unsupported object: %q", name)
+		if checkForUnsupportedObjectNames && util.IsUnsupportedDirectoryName(name) {
+			logger.Warnf("Ignoring unsupported object-name: %q", name)
 			continue
 		}
 
