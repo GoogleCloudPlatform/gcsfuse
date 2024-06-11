@@ -4459,7 +4459,7 @@ func (t *cancellationTest) ReadObject() {
 	ExpectLt(time.Since(before), 50*time.Millisecond)
 }
 
-func (t *cancellationTest) TestListForUnsupportedDirNames() {
+func (t *cancellationTest) TestListForUnsupportedNames() {
 	// Create several objects.
 	AssertEq(
 		nil,
@@ -4467,36 +4467,85 @@ func (t *cancellationTest) TestListForUnsupportedDirNames() {
 			t.ctx,
 			t.bucket,
 			[]string{
+				"//",
 				"a/b",
 				"foo//e",
 				"foo/c/d",
 			}))
 
 	for _, input := range []struct {
-		reqPrefix             string
+		// inputs
+		reqPrefix  string
+		maxResults int
+		delim      string
+
+		// passing []any instead of []string to allow being
+		// passed into ElementsAre utility.
 		expectedCollapsedRuns []any
 		expectedObjectNames   []any
+
+		isExpectedContinuationTokenNotEmpty bool
 	}{
 		{
+			reqPrefix:             "",
+			maxResults:            5000,
+			delim:                 "/",
+			expectedCollapsedRuns: []any{"a/", "foo/"},
+			expectedObjectNames:   []any{},
+		},
+		{
+			reqPrefix:                           "",
+			maxResults:                          1,
+			delim:                               "/",
+			expectedCollapsedRuns:               []any{"a/"},
+			expectedObjectNames:                 []any{},
+			isExpectedContinuationTokenNotEmpty: true,
+		},
+		{
 			reqPrefix:             "foo/",
+			maxResults:            5000,
+			delim:                 "/",
+			expectedCollapsedRuns: []any{"foo/c/"},
+		},
+		{
+			reqPrefix:             "foo/",
+			maxResults:            1,
+			delim:                 "/",
 			expectedCollapsedRuns: []any{"foo/c/"},
 		},
 		{
 			reqPrefix:           "foo/c/",
+			maxResults:          1,
+			delim:               "/",
+			expectedObjectNames: []any{"foo/c/d"},
+		},
+		{
+			reqPrefix:           "foo/c/",
+			maxResults:          5000,
+			delim:               "/",
+			expectedObjectNames: []any{"foo/c/d"},
+		},
+		{
+			reqPrefix:           "foo/",
+			maxResults:          5000,
+			expectedObjectNames: []any{"foo/c/d"},
+		},
+		{
+			reqPrefix:           "foo/",
+			maxResults:          1,
+			delim:               "",
 			expectedObjectNames: []any{"foo/c/d"},
 		},
 	} {
-		fmt.Printf("input=%#v\n", input)
-		// List with the delimiter "!".
 		req := &gcs.ListObjectsRequest{
-			Prefix:    input.reqPrefix,
-			Delimiter: "/",
+			Prefix:     input.reqPrefix,
+			Delimiter:  input.delim,
+			MaxResults: input.maxResults,
 		}
 
 		listing, err := t.bucket.ListObjects(t.ctx, req)
 		AssertEq(nil, err)
 		AssertNe(nil, listing)
-		AssertEq("", listing.ContinuationToken)
 
 		// Collapsed runs
 		ExpectThat(listing.CollapsedRuns, ElementsAre(input.expectedCollapsedRuns...))
@@ -4509,9 +4558,6 @@ func (t *cancellationTest) TestListForUnsupportedDirNames() {
 			}
 		}
 		ExpectThat(objectNames, ElementsAre(input.expectedObjectNames...))
-		//AssertEq(2, len(listing.Objects))
-		//ExpectEq("b", listing.Objects[0].Name)
-		//ExpectEq("d", listing.Objects[1].Name)
-		//
+		ExpectEq(input.isExpectedContinuationTokenNotEmpty, listing.ContinuationToken != "")
 	}
 }
