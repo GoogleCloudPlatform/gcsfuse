@@ -1537,7 +1537,7 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	assert.Equal(t.T(), minObject1.Name, minObject2.Name)
 	assert.Equal(t.T(), 0, minObject1.Size)
 	assert.Equal(t.T(), FileContentsSize, minObject2.Size)
-	ExpectNe(minObject1.Generation, minObject2.Generation)
+	assert.NotEqual(t.T(), minObject1.Generation, minObject2.Generation)
 	ExpectTrue(minObject1.Updated.Before(minObject2.Updated))
 	attr1MTime, _ := time.Parse(time.RFC3339Nano, minObject1.Metadata[gcsx.MtimeMetadataKey])
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
