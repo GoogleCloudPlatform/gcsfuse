@@ -70,9 +70,9 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
 
 	// Do a random read on file and validate from gcs.
-	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForFirstRangeRead, t)
+	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset5000, t)
 	// Read file again from offset 1000 and validate from gcs.
-	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForSecondRangeRead, t)
+	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offset1000, t)
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], false, false, 1, t)
@@ -83,8 +83,9 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
-	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
-	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeForRangeRead, t)
+	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
+	testFileNames[1] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
+	randomReadChunkCount := fileSizeSameAsCacheCapacity / chunkSizeToRead
 
 	var wg sync.WaitGroup
 	for i := 0; i < 2; i++ {
@@ -111,7 +112,7 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
 
 	validateFileIsNotCached(testFileNames[0], t)
-	validateFileInCacheDirectory(testFileNames[1], fileSizeForRangeRead, s.ctx, s.storageClient, t)
+	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
