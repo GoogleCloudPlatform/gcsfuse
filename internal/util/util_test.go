@@ -292,30 +292,10 @@ func (ts *UtilTest) TestIsUnsupportedObjectName() {
 			name:          "abc.txt",
 			isUnsupported: false,
 		},
-		// {
-		// 	name:          "abc\000",
-		// 	isUnsupported: true,
-		// },
-		// {
-		// 	name:          "abc\000/",
-		// 	isUnsupported: true,
-		// },
 		{
 			name:          "foo//bar",
 			isUnsupported: true,
 		},
-	}
-
-	for _, tc := range cases {
-		assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
-	}
-}
-
-func (ts *UtilTest) TestIsUnsupportedDirectoryName() {
-	cases := []struct {
-		name          string
-		isUnsupported bool
-	}{
 		{
 			name:          "abc/",
 			isUnsupported: false,
@@ -324,33 +304,13 @@ func (ts *UtilTest) TestIsUnsupportedDirectoryName() {
 			name:          "abc//",
 			isUnsupported: true,
 		},
-		// {
-		// 	name:          "abc/./",
-		// 	isUnsupported: true,
-		// },
-		// {
-		// 	name:          "abc/../",
-		// 	isUnsupported: true,
-		// },
-		// {
-		// 	name:          "abc\000/",
-		// 	isUnsupported: true,
-		// },
-		// {
-		// 	name:          "./",
-		// 	isUnsupported: true,
-		// },
 		{
 			name:          "/",
 			isUnsupported: true,
 		},
-		// {
-		// 	name:          "../",
-		// 	isUnsupported: true,
-		// },
 	}
 
 	for _, tc := range cases {
-		assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedDirectoryName(tc.name))
+		assert.Equal(ts.T(), tc.isUnsupported, IsUnsupportedObjectName(tc.name))
 	}
 }

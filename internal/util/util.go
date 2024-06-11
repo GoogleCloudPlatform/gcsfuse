@@ -45,10 +45,8 @@ const (
 )
 
 var (
-	// unsupportedObjectNameSubstrings  = []string{"//", "/./", "/../", "\000"}
-	// unsupportedDirectoryNamePrefixes = []string{"/", "./", "../"}
-	unsupportedObjectNameSubstrings  = []string{"//"}
-	unsupportedDirectoryNamePrefixes = []string{"/"}
+	unsupportedObjectNameSubstrings = []string{"//"}
+	unsupportedObjectNamePrefixes   = []string{"/"}
 )
 
 // 1. Returns the same filepath in case of absolute path or empty filename.
@@ -125,26 +123,16 @@ func IsolateContextFromParentContext(ctx context.Context) (context.Context, cont
 }
 
 // IsUnsupportedObjectName returns true if the passed
-// string is a valid GCS object name, which is unsupported in GCSFuse.
+// string is a valid GCS object name or prefix,
+// which is unsupported in GCSFuse.
 func IsUnsupportedObjectName(name string) bool {
 	for _, substring := range unsupportedObjectNameSubstrings {
 		if strings.Contains(name, substring) {
 			return true
 		}
 	}
-
-	return false
-}
-
-// IsUnsupportedDirectoryName returns true if the passed
-// string is a valid GCS directory name or prefix,
-// which is unsupported in GCSFuse.
-func IsUnsupportedDirectoryName(dirName string) bool {
-	if IsUnsupportedObjectName(dirName) {
-		return true
-	}
-	for _, prefix := range unsupportedDirectoryNamePrefixes {
-		if strings.HasPrefix(dirName, prefix) {
+	for _, prefix := range unsupportedObjectNamePrefixes {
+		if strings.HasPrefix(name, prefix) {
 			return true
 		}
 	}

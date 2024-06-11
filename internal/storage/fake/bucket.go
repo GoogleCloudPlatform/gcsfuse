@@ -480,7 +480,7 @@ func (b *bucket) ListObjects(
 		// until a supported object is found.
 		for ; indexStart < prefixLimit; indexStart++ {
 			name := b.objects[indexStart].metadata.Name
-			if util.IsUnsupportedDirectoryName(name) {
+			if util.IsUnsupportedObjectName(name) {
 				logger.Warnf("Ignoring unsupported object-name: %q", name)
 			} else {
 				indexLimit = indexStart + 1
@@ -503,7 +503,7 @@ func (b *bucket) ListObjects(
 		var o fakeObject = b.objects[i]
 		name := o.metadata.Name
 
-		if checkForUnsupportedObjectNames && util.IsUnsupportedDirectoryName(name) {
+		if checkForUnsupportedObjectNames && util.IsUnsupportedObjectName(name) {
 			logger.Warnf("Ignoring unsupported object-name: %q", name)
 			continue
 		}

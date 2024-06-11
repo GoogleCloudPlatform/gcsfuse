@@ -328,7 +328,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
-			if util.IsUnsupportedDirectoryName(attrs.Prefix) {
+			if util.IsUnsupportedObjectName(attrs.Prefix) {
 				// Do not list unsupported directories such as '.', '..',
 				// '/', and '\0' as prefixes, which become implicit directories,
 				// unless there are explicit GCS objects corresponding to them.
