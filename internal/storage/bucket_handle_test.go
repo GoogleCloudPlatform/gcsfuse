@@ -44,9 +44,9 @@ var ContentDisposition string = "ContentDisposition"
 // FakeGCSServer is not handling generation and metageneration checks for Delete flow and IncludeFoldersAsPrefixes check for ListObjects flow.
 // Hence, we are not writing tests for these flows.
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L515
- 
-// objectsToObjectNames is a helper function which returns 
-// a list of string containing the names of all the 
+
+// objectsToObjectNames is a helper function which returns
+// a list of string containing the names of all the
 // GCS objects in the passed list.
 // For nil objects, name is returned as nil.
 func objectsToObjectNames(objects []*gcs.Object) (objectNames []string) {

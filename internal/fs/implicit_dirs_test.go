@@ -724,7 +724,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 		// }
 
 		foundMatchingExpectedWalkingEntry := false
-		for i, _ := range expectedWalkedEntries {
+		for i := range expectedWalkedEntries {
 			expectedWalkedEntry := &expectedWalkedEntries[i]
 			if expectedWalkedEntry.path == path && expectedWalkedEntry.name == d.Name() && d.IsDir() == expectedWalkedEntry.isDir {
 				if expectedWalkedEntry.found {

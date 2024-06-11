@@ -32,7 +32,7 @@ const gcsFuseParentProcessDir = "/var/generic/google"
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type UtilTest struct {/*  */
+type UtilTest struct {
 	suite.Suite
 }
 
