@@ -73,7 +73,17 @@ type DebugConfig struct {
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
 
+	DownloadParallelismPerFile int64 `yaml:"download-parallelism-per-file"`
+
+	EnableCrcCheck bool `yaml:"enable-crc-check"`
+
+	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
+
+	MaxDownloadParallelism int64 `yaml:"max-download-parallelism"`
+
 	MaxSizeMb int64 `yaml:"max-size-mb"`
+
+	ReadRequestSizeMb int64 `yaml:"read-request-size-mb"`
 }
 
 type FileSystemConfig struct {
@@ -313,6 +323,20 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("download-parallelism-per-file", "", 10, "Number of concurrent download requests per file.")
+
+	err = viper.BindPFlag("file-cache.download-parallelism-per-file", flagSet.Lookup("download-parallelism-per-file"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-crc-check", "", true, "Performs CRC check to ensure that file is correctly downloaded into cache.")
+
+	err = viper.BindPFlag("file-cache.enable-crc-check", flagSet.Lookup("enable-crc-check"))
+	if err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
 	err = viper.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders"))
@@ -330,6 +354,13 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
 	err = viper.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-parallel-downloads", "", false, "Enable parallel downloads.")
+
+	err = viper.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("enable-parallel-downloads"))
 	if err != nil {
 		return err
 	}
@@ -508,6 +539,13 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("max-download-parallelism", "", -1, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+
+	err = viper.BindPFlag("file-cache.max-download-parallelism", flagSet.Lookup("max-download-parallelism"))
+	if err != nil {
+		return err
+	}
+
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
 	err = viper.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host"))
@@ -546,6 +584,13 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
 	err = viper.BindPFlag("only-dir", flagSet.Lookup("only-dir"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.IntP("read-request-size-mb", "", 0, "Size of chunks in MiB that each concurrent request downloads.")
+
+	err = viper.BindPFlag("file-cache.read-request-size-mb", flagSet.Lookup("read-request-size-mb"))
 	if err != nil {
 		return err
 	}

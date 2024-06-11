@@ -385,6 +385,34 @@
   type: "bool"
   usage: "Whether to cache file for range reads."
 
+- flag-name: "enable-crc-check"
+  config-path: "file-cache.enable-crc-check"
+  type: "bool"
+  usage: "Performs CRC check to ensure that file is correctly downloaded into cache."
+  default: true
+
+- flag-name: "enable-parallel-downloads"
+  config-path: "file-cache.enable-parallel-downloads"
+  type: "bool"
+  usage: "Enable parallel downloads."
+
+- flag-name: "download-parallelism-per-file"
+  config-path: "file-cache.download-parallelism-per-file"
+  type: "int"
+  usage: "Number of concurrent download requests per file."
+  default: "10"
+
+- flag-name: "max-download-parallelism"
+  config-path: "file-cache.max-download-parallelism"
+  type: "int"
+  usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
+  default: "-1"
+
+- flag-name: "read-request-size-mb"
+  config-path: "file-cache.read-request-size-mb"
+  type: "int"
+  usage: "Size of chunks in MiB that each concurrent request downloads."
+
 - flag-name: "cache-dir"
   config-path: "cache-dir"
   type: "resolvedPath"
