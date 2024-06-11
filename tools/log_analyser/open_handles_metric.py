@@ -65,15 +65,15 @@ def processor(file, logs):
                 else:
                     buff_handles += 1
 
-        elif message.find("OK (Handle") != -1:
+        elif message.find("OK (handle") != -1:
             req = get_val(message, "Op 0x", " ", "fwd", 0)
-            handle = int(get_val(message, "Handle", ")", "fwd", 1))
+            handle = int(get_val(message, "handle", ")", "fwd", 1))
             if req in req_map.keys():
                 handle_map[handle] = req_map[req]
 
         elif message.find("ReleaseFileHandle") != -1:
             # {"timestamp":{"seconds":1717577027,"nanos":384694489},"severity":"TRACE","message":"fuse_debug: Op 0x00000012        connection.go:420] <- ReleaseFileHandle (PID 0, Handle 0)"}
-            handle = int(get_val(message, ", Handle", ")", "fwd", 1))
+            handle = int(get_val(message, ", handle", ")", "fwd", 1))
             if handle in handle_map.keys():
                 timestamp_sec = log["timestamp"]["seconds"]
                 handles_closed += 1

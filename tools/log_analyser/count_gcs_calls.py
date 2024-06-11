@@ -1,64 +1,68 @@
 from read_pattern_metric import get_val
 
+validity_check = [[0, 1, 1, 1, 1, 1, 1], [1, 0, 0, 1, 1, 0, 0]]
+calls_name = ["ListObjects", "StatObject", "ComposeObjects", "DeleteObject", "CreateObject", "UpdateObject", "CopyObject"]
+latency = [0, 0, 0, 0, 0, 0, 0]
+calls_made = [0, 0, 0, 0, 0, 0, 0]
+calls_returned = [0, 0, 0, 0, 0, 0, 0]
+req_map = [{}, {}, {}, {}, {}, {}, {}]
+
 
 def not_returned_printer(req_dict, call_type):
     for itr in req_dict.keys():
         print(call_type, " call made at ", req_dict[itr], " did not return in the given interval\n")
 
 
+def general_call_processor(log, msg_type, file, is_dir):
+    message = log["message"]
+    log_filename = get_val(message, calls_name[msg_type], "\"", "fwd", 2)
+    # print(len(log_filename))
+    if log_filename == file and validity_check[is_dir][msg_type] == 1:
+        if message.find("<-") != -1:
+            req = get_val(message, "0x", " ", "fwd", 0)
+            req_map[msg_type][req] = log["timestamp"]["seconds"]
+            calls_made[msg_type] += 1
+        elif message.find("->") != -1:
+            req = get_val(message, "0x", " ", "fwd", 0)
+            if req in req_map[msg_type].keys():
+                calls_returned[msg_type] += 1
+                start_index = message.rfind("(")
+                if message.find("ms", start_index) != -1:
+                    latency[msg_type] += float(get_val(message, "(", "ms", "bck", 0))
+                else:
+                    latency[msg_type] += 1000*float(get_val(message, "(", "s", "bck", 0))
+                req_map[msg_type].pop(req)
+
+
 def count_calls(file, logs):
-    latency = [0, 0, 0]
-    calls_made = [0, 0, 0]
-    calls_returned = [0, 0, 0]
-    req_map = [{}, {}, {}]
+
     is_dir = (file[len(file)-1] == '/')
     for log in logs:
         message = log["message"]
-       # {"timestamp":{"seconds":1717664104,"nanos":976222345},"severity":"TRACE","message":"gcs: Req             0x33: <- ListObjects(\"testfile6.txt/\")"}
-        if message.find("ListObjects") != -1 and is_dir == True:
-            log_dir = get_val(message, "ListObjects", "\"", "fwd", 2)
-            # print(len(log_dir))
-            if log_dir == file:
-                if message.find("<-") != -1:
-                    req = get_val(message, "0x", " ", "fwd", 0)
-                    req_map[0][req] = log["timestamp"]["seconds"]
-                    calls_made[0] += 1
-                elif message.find("->") != -1:
-                    req = get_val(message, "0x", " ", "fwd", 0)
-                    if req in req_map[0].keys():
-                        calls_returned[0] += 1
-                        latency[0] += float(get_val(message, "(", "ms", "bck", 0))
-                        req_map[0].pop(req)
-        if message.find("StatObject") != -1 and is_dir == False:
-            # {"timestamp":{"seconds":1717664104,"nanos":976249685},"severity":"TRACE","message":"gcs: Req             0x34: <- StatObject(\"testfile6.txt\")"}
-            log_file = get_val(message, "StatObject", "\"", "fwd", 2)
-            # print(log_file)
-            if log_file == file:
-                if message.find("<-") != -1:
-                    req = get_val(message, "0x", " ", "fwd", 0)
-                    req_map[1][req] = log["timestamp"]["seconds"]
-                    calls_made[1] += 1
-                elif message.find("->") != -1:
-                    req = get_val(message, "0x", " ", "fwd", 0)
-                    if req in req_map[1].keys():
-                        calls_returned[1] += 1
-                        latency[1] += float(get_val(message, "(", "ms", "bck", 0))
-                        req_map[1].pop(req)
+        if message.find("ListObjects") != -1:
+            general_call_processor(log, 0, file, is_dir)
+        elif message.find("StatObject") != -1:
+            general_call_processor(log, 1, file, is_dir)
+        elif message.find("ComposeObjects") != -1:
+            general_call_processor(log, 2, file, is_dir)
+        elif message.find("DeleteObject") != -1:
+            general_call_processor(log, 3, file, is_dir)
+        elif message.find("CreateObject") != -1:
+            general_call_processor(log, 4, file, is_dir)
+        elif message.find("UpdateObject") != -1:
+            general_call_processor(log, 5, file, is_dir)
+        elif message.find("CopyObject") != -1:
+            general_call_processor(log, 6, file, is_dir)
 
-    if is_dir:
-        print("Total ListObjects calls made: ", calls_made[0])
-        print("Total ListObjects calls returned: ", calls_returned[0])
-        print("Total latency due to ListObjects calls: ", latency[0])
-        if calls_returned[0] != 0:
-            print("Average latency due to ListObjects calls: ", 1.0*latency[0]/calls_returned[0])
-        not_returned_printer(req_map[0], "ListObjects")
-    if not is_dir:
-        print("Total StatObject call made: ", calls_made[1])
-        print("Total StatObject call returned: ", calls_returned[1])
-        print("Total latency due to StatObject calls: ", latency[1])
-        if calls_returned[1] != 0:
-            print("Average latency due to StatObject calls: ", 1.0*latency[1]/calls_returned[1])
-        not_returned_printer(req_map[1], "StatObject")
+    for i in range(7):
+        if validity_check[is_dir][i] == 1:
+            print("Total", calls_name[i], "calls made: ", calls_made[i])
+            print("Total", calls_name[i], "calls returned: ", calls_returned[i])
+            print("Total latency due to", calls_name[i], "calls: ", latency[i])
+            if calls_returned[i] != 0:
+                print("Average latency due to", calls_name[i], "calls: ", 1.0*latency[i]/calls_returned[i], "\n")
+        not_returned_printer(req_map[i], calls_name[i])
+        print("")
 
 
 

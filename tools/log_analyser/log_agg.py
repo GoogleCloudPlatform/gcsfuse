@@ -41,7 +41,7 @@ def seg_log(files, agg_map, start_time, end_time, filename):
             elif message.find("ReleaseFileHandle") != -1:
                 agg_map[0].append(log)
 
-            elif message.find("OK (Handle") != -1:
+            elif message.find("OK (handle") != -1:
                 agg_map[0].append(log)
             # for other logs add more ifs
 
