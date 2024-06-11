@@ -89,12 +89,12 @@ type ListConfig struct {
 	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
-type GrpcClientConfig struct {
-	// ConnPoolSize configures the number of gRPC channel in grpc client.
-	ConnPoolSize int `yaml:"conn-pool-size,omitempty"`
+type GCSConnection struct {
+	// GRPCConnPoolSize configures the number of gRPC channel in grpc client.
+	GRPCConnPoolSize int `yaml:"grpc-conn-pool-size,omitempty"`
 }
 
-type AuthConfig struct {
+type GCSAuth struct {
 	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
 	// please pass anonymous-access flag explicitly if you do not want authentication enabled for your workflow.
 	AnonymousAccess bool `yaml:"anonymous-access"`
@@ -146,8 +146,8 @@ type MountConfig struct {
 	CacheDir            `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
-	GrpcClientConfig    `yaml:"grpc"`
-	AuthConfig          `yaml:"auth-config"`
+	GCSConnection       `yaml:"gcs-connection"`
+	GCSAuth             `yaml:"gcs-auth"`
 	EnableHNS           `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
 }
@@ -199,10 +199,10 @@ func NewMountConfig() *MountConfig {
 	mountConfig.ListConfig = ListConfig{
 		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFoldersListing,
 	}
-	mountConfig.GrpcClientConfig = GrpcClientConfig{
-		ConnPoolSize: DefaultGrpcConnPoolSize,
+	mountConfig.GCSConnection = GCSConnection{
+		GRPCConnPoolSize: DefaultGrpcConnPoolSize,
 	}
-	mountConfig.AuthConfig = AuthConfig{
+	mountConfig.GCSAuth = GCSAuth{
 		AnonymousAccess: DefaultAnonymousAccess,
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS

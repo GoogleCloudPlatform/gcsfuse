@@ -114,8 +114,8 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 	return nil
 }
 
-func (grpcClientConfig *GrpcClientConfig) validate() error {
-	if grpcClientConfig.ConnPoolSize < 1 {
+func (grpcClientConfig *GCSConnection) validate() error {
+	if grpcClientConfig.GRPCConnPoolSize < 1 {
 		return fmt.Errorf("the value of conn-pool-size can't be less than 1")
 	}
 	return nil
@@ -174,8 +174,8 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return mountConfig, fmt.Errorf("error parsing metadata-cache configs: %w", err)
 	}
 
-	if err = mountConfig.GrpcClientConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing grpc-config: %w", err)
+	if err = mountConfig.GCSConnection.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing gcs-connection configs: %w", err)
 	}
 
 	if err = mountConfig.ListConfig.validate(); err != nil {
