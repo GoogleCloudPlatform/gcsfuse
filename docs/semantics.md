@@ -383,9 +383,9 @@ Not all of the usual file system features are supported. Most prominently:
 Cloud Storage objects having following constraints in their name
 are not accessible through Cloud Storage Fuse.
 
-1. `''` (empty-name), Or
-1. Names beginning with `/`, Or
-1. Names containing `//`.
+1. `''`  (empty-name), `.`, or `..`, Or
+1. Names beginning with `/`, `./`, `../` Or
+1. Names containing `//`, `/./`, `/../`.
 
 The above objects cannot be accessed
 through Cloud Storage Fuse, as these names have

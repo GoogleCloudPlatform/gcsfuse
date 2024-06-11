@@ -44,7 +44,11 @@ const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
 const FileInUnsupportedImplicitDirectory1 = "fileInUnsupportedImplicitDir1"
+const FileInUnsupportedImplicitDirectory2 = "fileInUnsupportedImplicitDir2"
+const FileInUnsupportedImplicitDirectory3 = "fileInUnsupportedImplicitDir3"
 const FileInUnsupportedPathInRootDirectory = "fileInUnsupportedPathInRootDirectory"
+const FileInUnsupportedPathInRootDirectory2 = "fileInUnsupportedPathInRootDirectory2"
+const FileInUnsupportedPathInRootDirectory3 = "fileInUnsupportedPathInRootDirectory3"
 
 func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
@@ -112,16 +116,32 @@ func CreateUnsupportedImplicitDirectoryStructure(ctx context.Context, testDir st
 	// Unsupported Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                 -- Dir
 	// testBucket/testDir/implicitDirectory//fileInUnsupportedImplicitDir1                  -- File
+	// testBucket/testDir/implicitDirectory/./fileInUnsupportedImplicitDir2                 -- File
+	// testBucket/testDir/implicitDirectory/../fileInUnsupportedImplicitDir3                -- File
 	// testBucket//FileInUnsupportedPathInRootDirectory                                     -- File
+	// testBucket/./FileInUnsupportedPathInRootDirectory2                                   -- File
+	// testBucket/../FileInUnsupportedPathInRootDirectory3                                  -- File
 
 	completeGcsTestDirName := path.Join(testDir, ImplicitDirectory)
 	createObjectsOnGcs(ctx,
 		[]objectCreationMetadata{
 			{
 				"This is testBucket/testDir//fileInUnsupportedImplicitDir1", completeGcsTestDirName + "//" + FileInUnsupportedImplicitDirectory1,
+			}, 
+			{
+				"This is testBucket/testDir/./fileInUnsupportedImplicitDir2", completeGcsTestDirName + "/./" + FileInUnsupportedImplicitDirectory2,
+			},
+			{
+				"This is testBucket/testDir/../fileInUnsupportedImplicitDir3", completeGcsTestDirName + "/../" + FileInUnsupportedImplicitDirectory3,
 			},
 			{
 				"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
+			}, 
+			{
+				"This is testBucket/./fileInUnsupportedPathInRootDirectory2", "./" + FileInUnsupportedPathInRootDirectory2,
+			},
+			{
+				"This is testBucket/../fileInUnsupportedPathInRootDirectory3", "../" + FileInUnsupportedPathInRootDirectory3,
 			},
 		},
 		storageClient, t)
