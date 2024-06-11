@@ -47,8 +47,6 @@ const TestObjectSize = 16 * util.MiB
 const TestObjectName = "foo.txt"
 const DefaultSequentialReadSizeMb = 17
 
-//func TestCacheHandle(t *testing.T) { RunTests(t) }
-
 type cacheHandleTest struct {
 	suite.Suite
 	bucket      gcs.Bucket
