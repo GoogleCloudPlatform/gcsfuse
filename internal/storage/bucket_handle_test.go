@@ -607,24 +607,24 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	assert.Nil(testSuite.T(), fiveObjWithZeroMaxResults.CollapsedRuns)
 }
 
-// func (testSuite *BucketHandleTest) TestListObjectMethodWithOneMaxResult() {
-// 	// Validate that we have 5 objects in fakeserver
-// 	oneObj, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
-// 		&gcs.ListObjectsRequest{
-// 			Prefix:                   TestObjectRootFolderName,
-// 			Delimiter:                "",
-// 			IncludeTrailingDelimiter: true,
-// 			ContinuationToken:        "",
-// 			MaxResults:               1,
-// 			ProjectionVal:            0,
-// 		})
+func (testSuite *BucketHandleTest) TestListObjectMethodWithOneMaxResult() {
+	// Validate that we have 5 objects in fakeserver
+	oneObj, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
+		&gcs.ListObjectsRequest{
+			Prefix:                   TestObjectRootFolderName,
+			Delimiter:                "",
+			IncludeTrailingDelimiter: true,
+			ContinuationToken:        "",
+			MaxResults:               1,
+			ProjectionVal:            0,
+		})
 
-// 	// Validate that all objects (5) are listed when MaxResults is 0. This has
-// 	// same behavior as not passing MaxResults in request.
-// 	assert.Nil(testSuite.T(), err2)
-// 	assert.Equal(testSuite.T(), 1, len(oneObj.Objects))
-// 	assert.Nil(testSuite.T(), oneObj.CollapsedRuns)
-// }
+	// Validate that all objects (5) are listed when MaxResults is 0. This has
+	// same behavior as not passing MaxResults in request.
+	assert.Nil(testSuite.T(), err2)
+	assert.Less(testSuite.T(), 0, len(oneObj.Objects))
+	assert.Nil(testSuite.T(), oneObj.CollapsedRuns)
+}
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
 // Hence, we are not writing tests for these parameters
