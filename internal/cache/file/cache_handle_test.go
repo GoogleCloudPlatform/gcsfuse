@@ -37,6 +37,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/suite"
 )
 
 const CacheMaxSize = 100 * util.MiB
@@ -46,9 +47,10 @@ const TestObjectSize = 16 * util.MiB
 const TestObjectName = "foo.txt"
 const DefaultSequentialReadSizeMb = 17
 
-func TestCacheHandle(t *testing.T) { RunTests(t) }
+//func TestCacheHandle(t *testing.T) { RunTests(t) }
 
 type cacheHandleTest struct {
+	suite.Suite
 	bucket      gcs.Bucket
 	fakeStorage storage.FakeStorage
 	object      *gcs.MinObject
@@ -58,8 +60,8 @@ type cacheHandleTest struct {
 	fileSpec    data.FileSpec
 }
 
-func init() {
-	RegisterTestSuite(&cacheHandleTest{})
+func TestBucketHandleTestSuite(testSuite *testing.T) {
+	suite.Run(testSuite, new(cacheHandleTest))
 }
 
 func (cht *cacheHandleTest) addTestFileInfoEntryInCache() {
@@ -100,7 +102,7 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	AssertTrue(reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
 
-func (cht *cacheHandleTest) SetUp(*TestInfo) {
+func (cht *cacheHandleTest) SetupTest() {
 	locker.EnableInvariantsCheck()
 	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 
@@ -140,7 +142,7 @@ func (cht *cacheHandleTest) SetUp(*TestInfo) {
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
 
-func (cht *cacheHandleTest) TearDown() {
+func (cht *cacheHandleTest) TearDownTest() {
 	cht.fakeStorage.ShutDown()
 
 	err := cht.cacheHandle.Close()
