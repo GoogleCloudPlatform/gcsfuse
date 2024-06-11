@@ -150,7 +150,7 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	assert.Nil(t.T(), err)
 
 	// Set up permissions.
@@ -159,11 +159,11 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up a temporary directory for mounting.
 	mntDir, err = ioutil.TempDir("", "fs_test")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a file system server.
 	server, err := fs.NewServer(ctx, &t.serverCfg)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Mount the file system.
 	mountCfg := t.mountCfg
@@ -178,7 +178,7 @@ func (t *fsTest) SetUpTestSuite() {
 	}
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *fsTest) TearDownTestSuite() {
@@ -203,7 +203,7 @@ func (t *fsTest) TearDownTestSuite() {
 	}
 
 	if err := mfs.Join(ctx); err != nil {
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 	}
 
 	// Unlink the mount point.
@@ -307,20 +307,20 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 
 func currentUid() uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	return uint32(uid)
 }
 
 func currentGid() uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	gid, err := strconv.ParseUint(user.Gid, 10, 32)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	return uint32(gid)
 }

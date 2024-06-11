@@ -42,6 +42,7 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
 )
 
 // The radius we use for "expect mtime is within"-style assertions. We can't
@@ -201,20 +202,20 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 		os.O_RDWR|os.O_CREATE,
 		0700)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write some contents.
 	_, err = t.f1.Write([]byte("012"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Read some contents with Seek and Read.
 	_, err = t.f1.Seek(1, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 2)
 	_, err = io.ReadFull(t.f1, buf)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("12", string(buf))
 
 	// Close the file.
@@ -223,13 +224,13 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 
 	// The object should now be present in the bucket.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("012", string(contents))
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("012", string(fileContents))
 }
 
@@ -247,20 +248,20 @@ func (t *OpenTest) ExistingFile() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("012"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Read some contents with Seek and Read.
 	_, err = t.f1.Seek(2, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(t.f1, buf)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("2obu", string(buf))
 
 	// Close the file.
@@ -270,7 +271,7 @@ func (t *OpenTest) ExistingFile() {
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
@@ -291,23 +292,23 @@ func (t *OpenTest) ExistingFile_Truncate() {
 		os.O_RDWR|os.O_TRUNC,
 		0)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The file should be empty.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(0, fi.Size())
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("012"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Read the contents.
 	_, err = t.f1.Seek(0, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	contentsSlice, err := ioutil.ReadAll(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("012", string(contentsSlice))
 
 	// Close the file.
@@ -317,7 +318,7 @@ func (t *OpenTest) ExistingFile_Truncate() {
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("012", string(fileContents))
 }
 
@@ -328,33 +329,33 @@ func (t *OpenTest) AlreadyOpenedFile() {
 
 	// Create and open a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write some data into it.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Open another handle for reading and writing.
 	t.f2, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The contents written through the first handle should be available to the
 	// second handle..
 	n, err = t.f2.Read(buf[:2])
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, n)
 	ExpectEq("ta", string(buf[:n]))
 
 	// Write some contents with the second handle, which should now be at offset
 	// 2.
 	n, err = t.f2.Write([]byte("nk"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, n)
 
 	// Check the overall contents now.
 	contents, err := ioutil.ReadFile(t.f2.Name())
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("tank", string(contents))
 }
 
@@ -372,7 +373,7 @@ func (t *OpenTest) LegalNames() {
 
 	// A listing should contain them all.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	AssertEq(len(names), len(entries))
 	for i, n := range names {
@@ -440,11 +441,11 @@ func (t *MknodTest) File() {
 
 	// Create
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq(path.Base(p), fi.Name())
 	ExpectEq(0, fi.Size())
@@ -452,7 +453,7 @@ func (t *MknodTest) File() {
 
 	// Read
 	contents, err := ioutil.ReadFile(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("", string(contents))
 }
 
@@ -482,7 +483,7 @@ func (t *MknodTest) AlreadyExists() {
 
 	// Create (first)
 	err = ioutil.WriteFile(p, []byte("taco"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create (second)
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
@@ -490,7 +491,7 @@ func (t *MknodTest) AlreadyExists() {
 
 	// Read
 	contents, err := ioutil.ReadFile(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 }
 
@@ -533,11 +534,11 @@ func (t *ModesTest) ReadOnlyMode() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Read its contents.
 	fileContents, err := ioutil.ReadAll(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(contents, string(fileContents))
 
 	// Attempt to write.
@@ -562,7 +563,7 @@ func (t *ModesTest) WriteOnlyMode() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_WRONLY, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Reading should fail.
 	_, err = ioutil.ReadAll(t.f1)
@@ -572,22 +573,22 @@ func (t *ModesTest) WriteOnlyMode() {
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("000"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the middle of the file using File.WriteAt.
 	_, err = t.f1.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek and write past the end of the file.
 	_, err = t.f1.Seek(int64(len(contents)), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = t.f1.Write([]byte("222"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Close the file.
@@ -597,7 +598,7 @@ func (t *ModesTest) WriteOnlyMode() {
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
@@ -615,43 +616,43 @@ func (t *ModesTest) ReadWriteMode() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("000"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the middle of the file using File.WriteAt.
 	_, err = t.f1.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek and write past the end of the file.
 	_, err = t.f1.Seek(int64(len(contents)), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = t.f1.Write([]byte("222"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
 	_, err = t.f1.Seek(4, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(t.f1, buf)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("111r", string(buf))
 
 	// Read the full contents with ReadAt.
 	buf = make([]byte, len(contents)+len("222"))
 	_, err = t.f1.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("000o111ritoenchilada222", string(buf))
 
 	// Close the file.
@@ -661,7 +662,7 @@ func (t *ModesTest) ReadWriteMode() {
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
@@ -679,44 +680,44 @@ func (t *ModesTest) FuzzyReadWriteMode() {
 
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("baz\u1100\u1161", string(fileContents))
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("타코世界"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek and write immediately after the previous string.
 	_, err = t.f1.Seek(int64(len("타코世界")), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = t.f1.Write([]byte("\u0041\u030a"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("타코世界")+len("\u0041\u030a"), fi.Size())
 
 	// Read some contents with Seek and Read.
 	_, err = t.f1.Seek(0, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 3)
 	_, err = io.ReadFull(t.f1, buf)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("타", string(buf))
 
 	// Read the full contents with ReadAt.
 	buf = make([]byte, len("타코世界")+len("\u0041\u030a"))
 	_, err = t.f1.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("타코世界\u0041\u030a", string(buf))
 
 	// Close the file.
@@ -726,7 +727,7 @@ func (t *ModesTest) FuzzyReadWriteMode() {
 	// Read back its contents.
 	fileContents, err = ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("타코世界\u0041\u030a", string(fileContents))
 }
 
@@ -744,24 +745,24 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR|os.O_APPEND, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write using File.Write. This should go to the end of the file regardless
 	// of whether we Seek somewhere else first.
 	_, err = t.f1.Seek(1, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = t.f1.Write([]byte("222"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The seek position should have been updated.
 	off, err := getFileOffset(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents)+len("222"), off)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read the full contents with ReadAt.
@@ -774,7 +775,7 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(contents+"222", string(fileContents))
 }
 
@@ -792,24 +793,24 @@ func (t *ModesTest) AppendMode_WriteAt() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek somewhere in the file.
 	_, err = t.f1.Seek(1, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the middle of the file using File.WriteAt.
 	_, err = t.f1.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The seek position should have been unaffected.
 	off, err := getFileOffset(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(1, off)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents), fi.Size())
 
 	// Read the full contents with ReadAt.
@@ -822,7 +823,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	// Read the full contents with another file handle.
 	fileContents, err := ioutil.ReadFile(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco111ritoenchilada", string(fileContents))
 }
 
@@ -835,26 +836,26 @@ func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 		os.O_RDWR|os.O_CREATE,
 		0600)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write three bytes.
 	n, err := t.f1.Write([]byte("111"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(3, n)
 
 	// Write at offset six.
 	n, err = t.f1.WriteAt([]byte("222"), 6)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(3, n)
 
 	// The seek position should have been unaffected.
 	off, err := getFileOffset(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(3, off)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadFile(t.f1.Name())
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("111\x00\x00\x00222", string(contents))
 }
@@ -868,7 +869,7 @@ func (t *ModesTest) ReadFromWriteOnlyFile() {
 		os.O_WRONLY|os.O_CREATE,
 		0700)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to read from it.
 	_, err = t.f1.Read(make([]byte, 1024))
@@ -886,7 +887,7 @@ func (t *ModesTest) WriteToReadOnlyFile() {
 		os.O_RDONLY|os.O_CREATE,
 		0700)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to write t it.
 	_, err = t.f1.Write([]byte("taco"))
@@ -916,12 +917,12 @@ func (t *DirectoryTest) Mkdir_OneLevel() {
 
 	// Create a directory within the root.
 	err = os.Mkdir(dirName, 0754)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
@@ -933,13 +934,13 @@ func (t *DirectoryTest) Mkdir_OneLevel() {
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(dirName)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the root.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -954,16 +955,16 @@ func (t *DirectoryTest) Mkdir_TwoLevels() {
 
 	// Create a directory within the root.
 	err = os.Mkdir(path.Join(mntDir, "parent"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a child of that directory.
 	err = os.Mkdir(path.Join(mntDir, "parent/dir"), 0754)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the directory.
 	fi, err = os.Stat(path.Join(mntDir, "parent/dir"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
@@ -975,13 +976,13 @@ func (t *DirectoryTest) Mkdir_TwoLevels() {
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "parent/dir"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the parent.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "parent"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -995,7 +996,7 @@ func (t *DirectoryTest) Mkdir_AlreadyExists() {
 
 	// Create the directory once.
 	err = os.Mkdir(dirName, 0754)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to create it again.
 	err = os.Mkdir(dirName, 0754)
@@ -1010,7 +1011,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsFile() {
 	// Create a file.
 	fileName := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(fileName, []byte{}, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to create a directory within the file.
 	dirName := path.Join(fileName, "dir")
@@ -1033,7 +1034,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsNonExistent() {
 
 func (t *DirectoryTest) Stat_Root() {
 	fi, err := os.Stat(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq(path.Base(mntDir), fi.Name())
 	ExpectEq(0, fi.Size())
@@ -1049,11 +1050,11 @@ func (t *DirectoryTest) Stat_FirstLevelDirectory() {
 
 	// Create a sub-directory.
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
@@ -1069,11 +1070,11 @@ func (t *DirectoryTest) Stat_SecondLevelDirectory() {
 
 	// Create two levels of directories.
 	err = os.MkdirAll(path.Join(mntDir, "parent/dir"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(mntDir, "parent/dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
@@ -1091,14 +1092,14 @@ func (t *DirectoryTest) ReadDir_Root() {
 	// Create a file and a directory.
 	createTime := mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(mntDir, "bar"), []byte("taco"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.Mkdir(path.Join(mntDir, "foo"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	// bar
@@ -1130,19 +1131,19 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	// Create a directory.
 	parent := path.Join(mntDir, "parent")
 	err = os.Mkdir(parent, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a file and a directory within it.
 	createTime := mtimeClock.Now()
 	err = ioutil.WriteFile(path.Join(parent, "bar"), []byte("taco"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.Mkdir(path.Join(parent, "foo"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(parent)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	// bar
@@ -1172,7 +1173,7 @@ func (t *DirectoryTest) Rmdir_NotEmpty() {
 
 	// Create two levels of directories.
 	err = os.MkdirAll(path.Join(mntDir, "foo/bar"), 0754)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to remove the parent.
 	err = os.Remove(path.Join(mntDir, "foo"))
@@ -1183,7 +1184,7 @@ func (t *DirectoryTest) Rmdir_NotEmpty() {
 	// The parent should still be there.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
@@ -1194,26 +1195,26 @@ func (t *DirectoryTest) Rmdir_Empty() {
 
 	// Create two levels of directories.
 	err = os.MkdirAll(path.Join(mntDir, "foo/bar"), 0754)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Remove the leaf.
 	err = os.Remove(path.Join(mntDir, "foo/bar"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// There should be nothing left in the parent.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 
 	// Remove the parent.
 	err = os.Remove(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Now the root directory should be empty, too.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 }
 
@@ -1222,26 +1223,26 @@ func (t *DirectoryTest) Rmdir_OpenedForReading() {
 
 	// Create a directory.
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Open the directory for reading.
 	t.f1, err = os.Open(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Remove the directory.
 	err = os.Remove(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a new directory, with the same name even, and add some contents
 	// within it.
 	err = os.MkdirAll(path.Join(mntDir, "dir/foo"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.MkdirAll(path.Join(mntDir, "dir/bar"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.MkdirAll(path.Join(mntDir, "dir/baz"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// We should still be able to stat the open file handle.
 	fi, err := t.f1.Stat()
@@ -1261,21 +1262,21 @@ func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
 
 	// Create a directory.
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Unlink the directory.
 	err = os.Remove(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Re-create the directory with the same name. Nothing crazy should happen.
 	// In the past, this used to crash (cf.
 	// https://github.com/GoogleCloudPlatform/gcsfuse/issues/8).
 	err = os.Mkdir(path.Join(mntDir, "dir"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Statting should reveal nothing surprising.
 	fi, err := os.Stat(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
@@ -1287,7 +1288,7 @@ func (t *DirectoryTest) CreateHardLink() {
 
 	// Write a file.
 	err = ioutil.WriteFile(path.Join(mntDir, "foo"), []byte(""), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to hard link it. We don't support doing so.
 	err = os.Link(
@@ -1304,13 +1305,13 @@ func (t *DirectoryTest) Chmod() {
 	// Create a directory.
 	p := path.Join(mntDir, "foo")
 	err = os.Mkdir(p, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to chmod it. Chmod should succeed even though we don't do anything
 	// useful. The OS X Finder otherwise complains to the user when copying in a
 	// file.
 	err = os.Chmod(p, 0777)
-	ExpectEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *DirectoryTest) Chtimes() {
@@ -1319,12 +1320,12 @@ func (t *DirectoryTest) Chtimes() {
 	// Create a directory.
 	p := path.Join(mntDir, "foo")
 	err = os.Mkdir(p, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Chtimes should succeed even though we don't do anything useful. The OS X
 	// Finder otherwise complains to the user when copying in a directory.
 	err = os.Chtimes(p, time.Now(), time.Now())
-	ExpectEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *DirectoryTest) AtimeCtimeAndMtime() {
@@ -1334,11 +1335,11 @@ func (t *DirectoryTest) AtimeCtimeAndMtime() {
 	p := path.Join(mntDir, "foo")
 	createTime := mtimeClock.Now()
 	err = os.Mkdir(p, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// We require only that the times be "reasonable".
 	atime, ctime, mtime := fusetesting.GetTimes(fi)
@@ -1355,7 +1356,7 @@ func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
 
 	// Stat the root directory.
 	fi, err := os.Stat(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// We require only that the times be "reasonable".
 	atime, ctime, mtime := fusetesting.GetTimes(fi)
@@ -1378,14 +1379,14 @@ func (t *DirectoryTest) ContentTypes() {
 
 		// Create the directory.
 		err := os.Mkdir(p, 0700)
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 
 		// There should be no content type set in GCS.
 		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{
 			Name:                           name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		AssertNe(nil, e)
 		ExpectEq("", e.ContentType, "name: %q", name)
 	}
@@ -1409,20 +1410,20 @@ func (t *FileTest) WriteOverlapsEndOfFile() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Make it 4 bytes long.
 	err = t.f1.Truncate(4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
@@ -1432,20 +1433,20 @@ func (t *FileTest) WriteStartsAtEndOfFile() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Make it 2 bytes long.
 	err = t.f1.Truncate(2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
@@ -1455,16 +1456,16 @@ func (t *FileTest) WriteStartsPastEndOfFile() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write the range [2, 6).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Read the full contents of the file.
 	contents, err := ioutil.ReadAll(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
@@ -1474,24 +1475,24 @@ func (t *FileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Make it 16 bytes long.
 	err = t.f1.Truncate(16)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek to offset 4.
 	_, err = t.f1.Seek(4, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write the range [10, 14).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// We should still be at offset 4.
 	offset, err := getFileOffset(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(4, offset)
 }
 
@@ -1505,24 +1506,24 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 		os.O_RDWR|os.O_CREATE,
 		0600)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Make it 16 bytes long.
 	err = t.f1.Truncate(16)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek to offset 4.
 	_, err = t.f1.Seek(4, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write the range [10, 14).
 	n, err = t.f1.WriteAt([]byte("taco"), 2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// We should still be at offset 4.
 	offset, err := getFileOffset(t.f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(4, offset)
 }
 
@@ -1557,14 +1558,14 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	ExpectEq(extendedAttr1.ComponentCount+1, extendedAttr2.ComponentCount)
 	ExpectEq(extendedAttr1.EventBasedHold, extendedAttr2.EventBasedHold)
 	ExpectEq(extendedAttr1.Acl, extendedAttr2.Acl)
-	ExpectEq(nil, extendedAttr1.Acl)
+	assert.Nil(t.T(), extendedAttr1.Acl)
 }
 
 func createFile(filePath string) {
 	f, err := os.Create(filePath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	err = f.Close()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
@@ -1573,16 +1574,16 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	createFile(path.Join(mntDir, fileName))
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	time.Sleep(timeSlop + timeSlop/2)
 
 	// Append to the file.
 	err = operations.WriteFileInAppendMode(path.Join(mntDir, fileName), FileContents)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Fetch object attributes after file append.
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	// Validate object attributes are as expected.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
@@ -1593,18 +1594,18 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	createFile(path.Join(mntDir, fileName))
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	time.Sleep(timeSlop + timeSlop/2)
 
 	// Over-write the file.
 	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR, operations.FilePermission_0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	_, err = fh.WriteAt([]byte(FileContents), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	err = fh.Close()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Validate object attributes are as expected.
 	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
@@ -1617,11 +1618,11 @@ func (t *FileTest) ReadsPastEndOfFile() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Read a range overlapping EOF.
@@ -1649,24 +1650,24 @@ func (t *FileTest) Truncate_Smaller() {
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Open it for modification.
 	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Truncate it.
 	err = t.f1.Truncate(2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(2, fi.Size())
 
 	// Read the contents.
 	contents, err := ioutil.ReadFile(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("ta", string(contents))
 }
 
@@ -1676,24 +1677,24 @@ func (t *FileTest) Truncate_SameSize() {
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Open it for modification.
 	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Truncate it.
 	err = t.f1.Truncate(4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(4, fi.Size())
 
 	// Read the contents.
 	contents, err := ioutil.ReadFile(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 }
 
@@ -1703,24 +1704,24 @@ func (t *FileTest) Truncate_Larger() {
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Open it for modification.
 	t.f1, err = os.OpenFile(fileName, os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Truncate it.
 	err = t.f1.Truncate(6)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(6, fi.Size())
 
 	// Read the contents.
 	contents, err := ioutil.ReadFile(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco\x00\x00", string(contents))
 }
 
@@ -1731,20 +1732,20 @@ func (t *FileTest) Seek() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Seek and overwrite.
 	off, err := t.f1.Seek(1, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, off)
 
 	n, err = t.f1.Write([]byte("xx"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, n)
 
 	// Read full the contents of the file.
@@ -1759,21 +1760,21 @@ func (t *FileTest) Stat() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Give it some contents.
 	time.Sleep(timeSlop + timeSlop/2)
 	writeTime := mtimeClock.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	time.Sleep(timeSlop + timeSlop/2)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -1793,13 +1794,13 @@ func (t *FileTest) StatUnopenedFile() {
 	createTime := mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(mntDir, "foo"), []byte("taco"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	time.Sleep(timeSlop + timeSlop/2)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -1819,13 +1820,13 @@ func (t *FileTest) LstatUnopenedFile() {
 	createTime := mtimeClock.Now()
 
 	err = ioutil.WriteFile(path.Join(mntDir, "foo"), []byte("taco"), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	time.Sleep(timeSlop + timeSlop/2)
 
 	// Lstat it.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -1843,11 +1844,11 @@ func (t *FileTest) UnlinkFile_Exists() {
 	// Write a file.
 	fileName := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Unlink it.
 	err = os.Remove(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Statting it should fail.
 	_, err = os.Stat(fileName)
@@ -1857,7 +1858,7 @@ func (t *FileTest) UnlinkFile_Exists() {
 
 	// Nothing should be in the directory.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 }
 
@@ -1875,28 +1876,28 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 
 	// Create and open a file.
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	// Write some data into it.
 	n, err := f.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Unlink it.
 	err = os.Remove(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The directory should no longer contain it.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 
 	// We should be able to stat the file. It should still show as having
 	// contents, but with no links.
 	fi, err := f.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(4, fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -1910,7 +1911,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 
 	// Writing should still work, too.
 	n, err = f.Write([]byte("burrito"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(len("burrito"), n)
 }
 
@@ -1920,7 +1921,7 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	// Write a file.
 	fileName := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Delete it from the bucket through the back door.
 	AssertEq(
@@ -1929,7 +1930,7 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 			ctx,
 			&gcs.DeleteObjectRequest{Name: "foo"}))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to unlink it.
 	err = os.Remove(fileName)
@@ -1944,16 +1945,16 @@ func (t *FileTest) UnlinkFile_FromSubDirectory() {
 	// Create a sub-directory.
 	dirName := path.Join(mntDir, "dir")
 	err = os.Mkdir(dirName, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write a file to that directory.
 	fileName := path.Join(dirName, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Unlink it.
 	err = os.Remove(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Statting it should fail.
 	_, err = os.Stat(fileName)
@@ -1963,7 +1964,7 @@ func (t *FileTest) UnlinkFile_FromSubDirectory() {
 
 	// Nothing should be in the directory.
 	entries, err := fusetesting.ReadDirPicky(dirName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 }
 
@@ -1973,19 +1974,19 @@ func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
 	// Write a file.
 	fileName := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Unlink it.
 	err = os.Remove(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Re-create a file with the same name.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Statting should result in a record for the new contents.
 	fi, err := os.Stat(fileName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -1999,13 +2000,13 @@ func (t *FileTest) Chmod() {
 	// Write a file.
 	p := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(p, []byte(""), 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to chmod it. Chmod should succeed even though we don't do anything
 	// useful. The OS X Finder otherwise complains to the user when copying in a
 	// file.
 	err = os.Chmod(p, 0777)
-	ExpectEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *FileTest) Chtimes_InactiveFile() {
@@ -2014,16 +2015,16 @@ func (t *FileTest) Chtimes_InactiveFile() {
 	// Create a file.
 	p := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(p, []byte{}, 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
 	err = os.Chtimes(p, time.Now(), newMtime)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it and confirm that it worked.
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
@@ -2033,34 +2034,34 @@ func (t *FileTest) Chtimes_OpenFile_Clean() {
 	// Create a file.
 	p := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(p, []byte{}, 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Open it for reading.
 	f, err := os.Open(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
 	err = os.Chtimes(p, time.Now(), newMtime)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it by path.
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 
 	// Stat it by fd.
 	fi, err = f.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 
 	// Close the file, then stat it by path again.
 	err = f.Close()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	fi, err = os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
@@ -2070,34 +2071,34 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 	// Create a file.
 	p := path.Join(mntDir, "foo")
 	f, err := os.Create(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	// Dirty the file.
 	_, err = f.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Change its mtime.
 	newMtime := time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
 	err = os.Chtimes(p, time.Now(), newMtime)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it by path.
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 
 	// Stat it by fd.
 	fi, err = f.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 
 	// Close the file, then stat it by path again.
 	err = f.Close()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	fi, err = os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
@@ -2107,21 +2108,21 @@ func (t *FileTest) Sync_Dirty() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Sync it.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The contents should now be in the bucket, even though we haven't closed
 	// the file.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 }
 
@@ -2130,10 +2131,10 @@ func (t *FileTest) Sync_NotDirty() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	// Sync the file.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The above should have created a generation for the object. Grab a record
 	// for it.
@@ -2141,16 +2142,16 @@ func (t *FileTest) Sync_NotDirty() {
 		Name: "foo",
 	}
 	m1, _, err := bucket.StatObject(ctx, statReq)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertNe(nil, m1)
 
 	// Sync the file again.
 	err = t.f1.Sync()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// A new generation need not have been written.
 	m2, _, err := bucket.StatObject(ctx, statReq)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertNe(nil, m2)
 	ExpectEq(m1.Generation, m2.Generation)
 }
@@ -2161,11 +2162,11 @@ func (t *FileTest) Sync_Clobbered() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Dirty the file by giving it some contents.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
@@ -2175,7 +2176,7 @@ func (t *FileTest) Sync_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to sync the file. This may result in an error if the OS has
 	// decided to hold back the writes from above until now (in which case the
@@ -2187,7 +2188,7 @@ func (t *FileTest) Sync_Clobbered() {
 	}
 
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foobar", string(contents))
 }
 
@@ -2197,21 +2198,21 @@ func (t *FileTest) Close_Dirty() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Give it some contents.
 	n, err = t.f1.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Close it.
 	err = t.f1.Close()
 	t.f1 = nil
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The contents should now be in the bucket.
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 }
 
@@ -2220,19 +2221,19 @@ func (t *FileTest) Close_NotDirty() {
 
 	// Create a file.
 	t.f1, err = os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Close the file.
 	err = t.f1.Close()
 	t.f1 = nil
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Verify if the object is created in GCS.
 	statReq := &gcs.StatObjectRequest{
 		Name: "foo",
 	}
 	_, _, err = bucket.StatObject(ctx, statReq)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *FileTest) Close_Clobbered() {
@@ -2241,12 +2242,12 @@ func (t *FileTest) Close_Clobbered() {
 
 	// Create a file.
 	f, err := os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	// Dirty the file by giving it some contents.
 	n, err = f.Write([]byte("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(4, n)
 
 	// Replace the underlying object with a new generation.
@@ -2256,7 +2257,7 @@ func (t *FileTest) Close_Clobbered() {
 		"foo",
 		[]byte("foobar"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Close the file. This may result in a "generation not found" error when
 	// faulting in the object's contents on Linux where close may cause cached
@@ -2265,7 +2266,7 @@ func (t *FileTest) Close_Clobbered() {
 	f.Close()
 
 	contents, err := storageutil.ReadObject(ctx, bucket, "foo")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foobar", string(contents))
 }
 
@@ -2276,15 +2277,15 @@ func (t *FileTest) AtimeAndCtime() {
 	p := path.Join(mntDir, "foo")
 	createTime := mtimeClock.Now()
 	f, err := os.Create(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	_, err = f.Write([]byte("test contents"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	err = f.Close()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat it.
 	fi, err := os.Stat(p)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// We require only that atime and ctime be "reasonable".
 	atime, ctime, _ := fusetesting.GetTimes(fi)
@@ -2306,29 +2307,29 @@ func (t *FileTest) ContentTypes() {
 
 		// Create a file.
 		f, err := os.Create(p)
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		err = f.Close()
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 
 		// Modify the file and cause a new generation to be written out.
 		f1, err := os.OpenFile(p, os.O_WRONLY, 0)
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		defer func() {
 			err := f1.Close()
-			AssertEq(nil, err)
+			assert.Nil(t.T(), err)
 		}()
 		_, err = f1.Write([]byte("taco"))
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 
 		err = f1.Sync()
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 
 		// The GCS content type should still be correct.
 		_, e, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{
 			Name:                           name,
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		AssertNe(nil, e)
 		ExpectEq(expected, e.ContentType, "name: %q", name)
 	}
@@ -2359,29 +2360,29 @@ func (t *SymlinkTest) CreateLink() {
 	const contents = "taco"
 
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a symlink to it.
 	symlinkName := path.Join(mntDir, "bar")
 	err = os.Symlink("foo", symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the object in the bucket.
 	m, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertNe(nil, m)
 	ExpectEq(0, m.Size)
 	ExpectEq("foo", m.Metadata["gcsfuse_symlink_target"])
 
 	// Read the link.
 	target, err := os.Readlink(symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foo", target)
 
 	// Stat the link.
 	fi, err = os.Lstat(symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("bar", fi.Name())
 	ExpectEq(0, fi.Size())
@@ -2389,7 +2390,7 @@ func (t *SymlinkTest) CreateLink() {
 
 	// Read the parent directory.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -2399,7 +2400,7 @@ func (t *SymlinkTest) CreateLink() {
 
 	// Stat the target via the link.
 	fi, err = os.Stat(symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len(contents), fi.Size())
@@ -2412,16 +2413,16 @@ func (t *SymlinkTest) CreateLink_Exists() {
 	// Create a file and a directory.
 	fileName := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(fileName, []byte{}, 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	dirName := path.Join(mntDir, "bar")
 	err = os.Mkdir(dirName, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create an existing symlink.
 	symlinkName := path.Join(mntDir, "baz")
 	err = os.Symlink("blah", symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Symlinking on top of any of them should fail.
 	names := []string{
@@ -2442,11 +2443,11 @@ func (t *SymlinkTest) RemoveLink() {
 	// Create the link.
 	symlinkName := path.Join(mntDir, "foo")
 	err = os.Symlink("blah", symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Remove it.
 	err = os.Remove(symlinkName)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// It should be gone from the bucket.
 	_, err = storageutil.ReadObject(ctx, bucket, "foo")
@@ -2471,24 +2472,24 @@ func (t *RenameTest) DirectoryNamingConflicts() {
 
 	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	conflictingPath := path.Join(mntDir, "bar")
 	err = os.Mkdir(conflictingPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	conflictingFile := path.Join(conflictingPath, "placeholder.txt")
 	err = ioutil.WriteFile(conflictingFile, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = syscall.Rename(oldPath, conflictingPath)
 	ExpectThat(err, Error(HasSubstr("directory not empty")))
 
 	err = os.Remove(conflictingFile)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = syscall.Rename(oldPath, conflictingPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *RenameTest) DirectoryContainingFiles() {
@@ -2497,23 +2498,23 @@ func (t *RenameTest) DirectoryContainingFiles() {
 	// Create a directory.
 	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	for i := 0; i < int(RenameDirLimit); i++ {
 		file := fmt.Sprintf("%s/%d.txt", oldPath, i)
 		err = ioutil.WriteFile(file, []byte("taco"), 0400)
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 	}
 
 	// Attempt to rename it.
 	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// File count exceeds the limit.
 	file := fmt.Sprintf("%s/%d.txt", newPath, RenameDirLimit)
 	err = ioutil.WriteFile(file, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to rename it.
 	err = os.Rename(newPath, oldPath)
@@ -2526,32 +2527,32 @@ func (t *RenameTest) DirectoryContainingDirectories() {
 	// Create a directory.
 	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a subdirectory.
 	subPath := path.Join(oldPath, "baz")
 	err = os.Mkdir(subPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a subsubdirectory.
 	subSubPath := path.Join(subPath, "qux")
 	err = os.Mkdir(subSubPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create files.
 	filePath1 := path.Join(subPath, "file1")
 	err = ioutil.WriteFile(filePath1, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	filePath2 := path.Join(subSubPath, "file2")
 	err = ioutil.WriteFile(filePath2, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Rename the directory.
 	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	files, err := ioutil.ReadDir(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(files))
 	ExpectEq("baz", files[0].Name())
 	ExpectTrue(files[0].IsDir())
@@ -2563,18 +2564,18 @@ func (t *RenameTest) EmptyDirectory() {
 	// Create a directory.
 	oldPath := path.Join(mntDir, "foo")
 	err = os.Mkdir(oldPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Rename it.
 	newPath := path.Join(mntDir, "bar")
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = os.Stat(oldPath)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 
 	file, err := os.Stat(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectTrue(file.IsDir())
 }
 
@@ -2585,19 +2586,19 @@ func (t *RenameTest) WithinDir() {
 	parentPath := path.Join(mntDir, "parent")
 
 	err = os.Mkdir(parentPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// And a file within it.
 	oldPath := path.Join(parentPath, "foo")
 
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Rename it.
 	newPath := path.Join(parentPath, "bar")
 
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The old name shouldn't work.
 	_, err = os.Stat(oldPath)
@@ -2608,16 +2609,16 @@ func (t *RenameTest) WithinDir() {
 
 	// The new name should.
 	fi, err := os.Stat(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("taco"), fi.Size())
 
 	contents, err := ioutil.ReadFile(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 
 	// There should only be the new entry in the directory.
 	entries, err := fusetesting.ReadDirPicky(parentPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 	fi = entries[0]
 
@@ -2633,22 +2634,22 @@ func (t *RenameTest) AcrossDirs() {
 	newParentPath := path.Join(mntDir, "new")
 
 	err = os.Mkdir(oldParentPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.Mkdir(newParentPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// And a file within the first.
 	oldPath := path.Join(oldParentPath, "foo")
 
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Rename it.
 	newPath := path.Join(newParentPath, "bar")
 
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The old name shouldn't work.
 	_, err = os.Stat(oldPath)
@@ -2659,21 +2660,21 @@ func (t *RenameTest) AcrossDirs() {
 
 	// The new name should.
 	fi, err := os.Stat(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("taco"), fi.Size())
 
 	contents, err := ioutil.ReadFile(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 
 	// Check the old parent.
 	entries, err := fusetesting.ReadDirPicky(oldParentPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(0, len(entries))
 
 	// And the new one.
 	entries, err = fusetesting.ReadDirPicky(newParentPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 	fi = entries[0]
 
@@ -2688,11 +2689,11 @@ func (t *RenameTest) OutOfFileSystem() {
 	oldPath := path.Join(mntDir, "foo")
 
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to move it out of the file system.
 	tempDir, err := ioutil.TempDir("", "memfs_test")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer os.RemoveAll(tempDir)
 
 	err = os.Rename(oldPath, path.Join(tempDir, "bar"))
@@ -2704,7 +2705,7 @@ func (t *RenameTest) IntoFileSystem() {
 
 	// Create a file outside of our file system.
 	f, err := ioutil.TempFile("", "memfs_test")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	oldPath := f.Name()
@@ -2721,24 +2722,24 @@ func (t *RenameTest) OverExistingFile() {
 	// Create two files.
 	oldPath := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	newPath := path.Join(mntDir, "bar")
 	err = ioutil.WriteFile(newPath, []byte("burrito"), 0600)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Rename one over the other.
 	err = os.Rename(oldPath, newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the file contents.
 	contents, err := ioutil.ReadFile(newPath)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 
 	// And the parent listing.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 	fi := entries[0]
 
@@ -2752,11 +2753,11 @@ func (t *RenameTest) OverExisting_WrongType() {
 	// Create a file and a directory.
 	filePath := path.Join(mntDir, "foo")
 	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	dirPath := path.Join(mntDir, "bar")
 	err = os.Mkdir(dirPath, 0700)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Renaming one over the other shouldn't work.
 	err = os.Rename(filePath, dirPath)

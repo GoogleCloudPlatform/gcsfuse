@@ -32,6 +32,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/jacobsa/fuse/fusetesting"
@@ -79,7 +80,7 @@ func init() {
 
 func (t *ForeignModsTest) StatRoot() {
 	fi, err := os.Stat(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq(path.Base(mntDir), fi.Name())
 	ExpectEq(0, fi.Size())
@@ -93,7 +94,7 @@ func (t *ForeignModsTest) StatRoot() {
 func (t *ForeignModsTest) ReadDir_EmptyRoot() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectThat(entries, ElementsAre())
 }
@@ -120,7 +121,7 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	/////////////////////////
 
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
@@ -164,11 +165,11 @@ func (t *ForeignModsTest) ReadDir_EmptySubDirectory() {
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "bar"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectThat(entries, ElementsAre())
 }
@@ -195,11 +196,11 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 
 	// Wait for the directory to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(path.Join(mntDir))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 	var e os.FileInfo
@@ -257,11 +258,11 @@ func (t *ForeignModsTest) UnreachableObjects() {
 			"bar/0/",
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Only the conflicitng file name should show up in the root.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -271,7 +272,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 
 	// Statting the conflicting name should give the file.
 	fi, err = os.Stat(path.Join(mntDir, "test"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("test", fi.Name())
 	ExpectEq(filePerms, fi.Mode())
@@ -285,7 +286,7 @@ func (t *ForeignModsTest) UnreachableObjects() {
 	// other tests as soon as directory with similar name is created. Hence
 	// cleaning them.
 	err = storageutil.DeleteAllObjects(ctx, bucket)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
@@ -312,7 +313,7 @@ func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -331,14 +332,14 @@ func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
 
 	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the file.
 	fi, err = os.Stat(path.Join(mntDir, "foo\n"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -346,7 +347,7 @@ func (t *ForeignModsTest) FileAndDirectoryWithConflictingName() {
 
 	// Listing the directory should yield the sole child file.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -379,12 +380,12 @@ func (t *ForeignModsTest) SymlinkAndDirectoryWithConflictingName() {
 			}))
 
 	err = setSymlinkTarget(ctx, bucket, "foo", "")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// symlink named "foo\n".
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -403,21 +404,21 @@ func (t *ForeignModsTest) SymlinkAndDirectoryWithConflictingName() {
 
 	// Statting "foo" should yield the directory.
 	fi, err = os.Lstat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the symlink.
 	fi, err = os.Lstat(path.Join(mntDir, "foo\n"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectFalse(fi.IsDir())
 
 	// Listing the directory should yield the sole child file.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -457,7 +458,7 @@ func (t *ForeignModsTest) Inodes() {
 
 	// List.
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	AssertEq(3, len(entries), "Names: %v", getFileNames(entries))
 
@@ -492,31 +493,31 @@ func (t *ForeignModsTest) ReadFromFile_Small() {
 
 	// Wait for it to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to open it.
 	f, err := os.Open(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer func() { AssertEq(nil, f.Close()) }()
 
 	// Read its entire contents.
 	slice, err := ioutil.ReadAll(f)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("tacoburritoenchilada", string(slice))
 
 	// Read various ranges of it.
 	var s string
 
 	s, err = readRange(f, int64(len("taco")), len("burrito"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("burrito", s)
 
 	s, err = readRange(f, 0, len("taco"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", s)
 
 	s, err = readRange(f, int64(len("tacoburrito")), len("enchilada"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("enchilada", s)
 }
 
@@ -542,11 +543,11 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 			"foo",
 			contents)
 
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 
 		// Attempt to open it.
 		f, err := os.Open(path.Join(mntDir, "foo"))
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		defer func() { AssertEq(nil, f.Close()) }()
 
 		// Read part of it.
@@ -558,7 +559,7 @@ func (t *ForeignModsTest) ReadFromFile_Large() {
 			err = nil
 		}
 
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 		AssertEq(size, n)
 		AssertTrue(
 			bytes.Equal(contents[offset:offset+int64(size)], buf[:n]),
@@ -585,16 +586,16 @@ func (t *ForeignModsTest) ReadBeyondEndOfFile() {
 
 	// Wait for it to show up in the file system.
 	_, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Attempt to open it.
 	f, err := os.Open(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer func() { AssertEq(nil, f.Close()) }()
 
 	// Attempt to read beyond the end of the file.
 	_, err = f.Seek(int64(contentLen-1), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 2)
 	n, err := f.Read(buf)
@@ -613,14 +614,14 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 
 	// Open the corresponding file for reading.
 	f1, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer func() {
 		ExpectEq(nil, f1.Close())
 	}()
 
 	// Make sure that the contents are cached locally.
 	_, err = f1.ReadAt(make([]byte, 1), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Overwrite the object.
 	AssertEq(nil, t.createWithContents("foo", "burrito"))
@@ -628,7 +629,7 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -638,23 +639,23 @@ func (t *ForeignModsTest) ObjectIsOverwritten_File() {
 	// around the fact that osxfuse will re-use file handles. See the notes on
 	// fuse.FileSystem.OpenFile for more.
 	f2, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer func() {
 		ExpectEq(nil, f2.Close())
 	}()
 
 	fi, err = f2.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("burrito"), fi.Size())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Reading from the old file handle should give the old data.
 	contents, err := ioutil.ReadAll(f1)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("taco", string(contents))
 
 	contents, err = ioutil.ReadAll(f2)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("burrito", string(contents))
 }
 
@@ -666,7 +667,7 @@ func (t *ForeignModsTest) ObjectIsOverwritten_Directory() {
 
 	// Open the corresponding inode.
 	t.f1, err = os.Open(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Overwrite the object.
 	AssertEq(nil, t.createWithContents("dir/", ""))
@@ -674,7 +675,7 @@ func (t *ForeignModsTest) ObjectIsOverwritten_Directory() {
 	// The inode should still be accessible.
 	fi, err := t.f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("dir", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
@@ -685,14 +686,14 @@ func (t *ForeignModsTest) ObjectMetadataChanged_File() {
 
 	// Open the corresponding file for reading.
 	f1, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDONLY, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer func() {
 		ExpectEq(nil, f1.Close())
 	}()
 
 	// Make sure that the contents are cached locally.
 	_, err = f1.ReadAt(make([]byte, 1), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Change the object's metadata, causing a new generation.
 	lang := "fr"
@@ -703,12 +704,12 @@ func (t *ForeignModsTest) ObjectMetadataChanged_File() {
 			ContentLanguage: &lang,
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 }
@@ -721,7 +722,7 @@ func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
 
 	// Open the corresponding inode.
 	t.f1, err = os.Open(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Change the object's metadata, causing a new generation.
 	lang := "fr"
@@ -732,12 +733,12 @@ func (t *ForeignModsTest) ObjectMetadataChanged_Directory() {
 			ContentLanguage: &lang,
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// The inode should still be accessible.
 	fi, err := t.f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("dir", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
@@ -754,7 +755,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 		}
 	}()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Delete the object.
 	AssertEq(
@@ -766,7 +767,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 	// The file should appear to be unlinked, but with the previous contents.
 	fi, err := f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
@@ -790,7 +791,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 
 	// Open the corresponding inode.
 	t.f1, err = os.Open(path.Join(mntDir, "dir"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Delete the object.
 	AssertEq(
@@ -802,7 +803,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_Directory() {
 	// The inode should still be fstat'able.
 	fi, err := t.f1.Stat()
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("dir", fi.Name())
 	ExpectTrue(fi.IsDir())
 
@@ -825,11 +826,11 @@ func (t *ForeignModsTest) Mtime() {
 	}
 
 	_, err = bucket.CreateObject(ctx, req)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the file.
 	fi, err := os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected))
 }
@@ -848,11 +849,11 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 			Contents: ioutil.NopCloser(strings.NewReader("")),
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the object so that the file system assigns it an inode.
 	_, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Update the mtime.
 	expected := time.Date(2001, 2, 3, 4, 5, 6, 7, time.Local)
@@ -867,11 +868,11 @@ func (t *ForeignModsTest) RemoteMtimeChange() {
 			},
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the file again. We should see the new mtime.
 	fi, err := os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(expected))
 }
@@ -889,11 +890,11 @@ func (t *ForeignModsTest) Symlink() {
 	}
 
 	_, err = bucket.CreateObject(ctx, req)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Stat the link.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(0, fi.Size())
@@ -901,6 +902,6 @@ func (t *ForeignModsTest) Symlink() {
 
 	// Read the link.
 	target, err := os.Readlink(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("bar/baz", target)
 }

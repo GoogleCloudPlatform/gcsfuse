@@ -29,6 +29,7 @@ import (
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
+	"github.com/stretchr/testify/assert"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -110,7 +111,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 			return
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Read each back.
 	err = forEachName(
@@ -130,7 +131,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 			return
 		})
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *StressTest) TruncateFileManyTimesInParallel() {
@@ -139,7 +140,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 
 	// Create a file.
 	f, err := os.Create(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	defer f.Close()
 
 	// Set up a function that repeatedly truncates the file to random lengths,
@@ -177,13 +178,13 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	}
 
 	err = b.Join()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	close(finalSizes)
 
 	// The final size should be consistent.
 	fi, err := f.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	var found = false
 	for s := range finalSizes {

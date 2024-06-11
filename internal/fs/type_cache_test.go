@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -166,7 +167,7 @@ func (t *typeCacheTestCommon) createObjectOnGCS(name string) *gcs.Object {
 		name,
 		contentInBytes)
 
-	ExpectEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertNe(nil, fileObject)
 
 	return fileObject
@@ -175,7 +176,7 @@ func (t *typeCacheTestCommon) createObjectOnGCS(name string) *gcs.Object {
 func (t *typeCacheTestCommon) statAndConfirmIsDir(name string, isDir bool) {
 	fi, err = os.Stat(name)
 
-	ExpectEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertNe(nil, fi)
 	ExpectEq(isDir, fi.IsDir())
 }

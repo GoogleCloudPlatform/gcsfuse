@@ -29,6 +29,7 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -55,7 +56,7 @@ func (t *ImplicitDirsTest) SetUpTestSuite() {
 func (t *ImplicitDirsTest) NothingPresent() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectThat(entries, ElementsAre())
 }
@@ -76,7 +77,7 @@ func (t *ImplicitDirsTest) FileObjectPresent() {
 
 	// Statting the name should return an entry for the file.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectEq(4, fi.Size())
@@ -84,7 +85,7 @@ func (t *ImplicitDirsTest) FileObjectPresent() {
 
 	// ReadDir should show the file.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -109,14 +110,14 @@ func (t *ImplicitDirsTest) DirectoryObjectPresent() {
 
 	// Statting the name should return an entry for the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -139,14 +140,14 @@ func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 
 	// Statting the name should return an entry for the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -169,14 +170,14 @@ func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 
 	// Statting the name should return an entry for the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// ReadDir should show the directory.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(1, len(entries))
 
 	fi = entries[0]
@@ -204,7 +205,7 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -223,14 +224,14 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
 
 	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the file.
 	fi, err = os.Stat(path.Join(mntDir, "foo\n"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -257,7 +258,7 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	// A listing of the parent should contain a directory named "foo" and a
 	// file named "foo\n".
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -276,14 +277,14 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 
 	// Statting "foo" should yield the directory.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the file.
 	fi, err = os.Stat(path.Join(mntDir, "foo\n"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(len("taco"), fi.Size())
@@ -309,12 +310,12 @@ func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 
 	// Cause "foo" to look like a symlink.
 	err = setSymlinkTarget(ctx, bucket, "foo", "")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// A listing of the parent should contain a directory named "foo" and a
 	// symlink named "foo\n".
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(2, len(entries))
 
 	fi = entries[0]
@@ -333,14 +334,14 @@ func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 
 	// Statting "foo" should yield the directory.
 	fi, err = os.Lstat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting "foo\n" should yield the symlink.
 	fi, err = os.Lstat(path.Join(mntDir, "foo\n"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo\n", fi.Name())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
@@ -402,7 +403,7 @@ func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
 
 	// Stat it.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
@@ -417,7 +418,7 @@ func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
 
 	// Stat the directory again.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
@@ -438,7 +439,7 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 
 	// Stat it.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
@@ -452,7 +453,7 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 
 	// Stat the directory again.
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
@@ -478,7 +479,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
 	// It should still be there.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
@@ -504,7 +505,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
 	// It should still be there.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
@@ -525,22 +526,22 @@ func (t *ImplicitDirsTest) Rmdir_Empty() {
 
 	// Remove the leaf.
 	err = os.Remove(path.Join(mntDir, "foo/bar"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// There should be nothing left in the parent.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 
 	// Remove the parent.
 	err = os.Remove(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Now the root directory should be empty, too.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectThat(entries, ElementsAre())
 }
 
@@ -559,7 +560,7 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// We require only that the times be "reasonable".
 	atime, ctime, mtime := fusetesting.GetTimes(fi)

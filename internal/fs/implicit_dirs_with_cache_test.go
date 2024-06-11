@@ -26,6 +26,7 @@ import (
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -69,7 +70,7 @@ func (t *ImplicitDirsWithCacheTest) TestRemoveAll() {
 	output, err := cmd.CombinedOutput()
 
 	AssertEq("", string(output))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
 func (t *ImplicitDirsWithCacheTest) TestRenameImplicitDir() {
@@ -90,18 +91,18 @@ func (t *ImplicitDirsWithCacheTest) TestRenameImplicitDir() {
 	)
 
 	//verify os.Rename successful
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	// verify the renamed files and directories
 	fi1, err := os.Stat(path.Join(mntDir, "fooNew"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertTrue(fi1.IsDir())
 	fi2, err := os.Stat(path.Join(mntDir, "fooNew/bar1"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(fi2.Name(), "bar1")
 	fi3, err := os.Stat(path.Join(mntDir, "fooNew/bar2"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	AssertEq(fi3.Name(), "bar2")
 	fi4, err := os.Stat(path.Join(mntDir, "foo"))
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
-	AssertEq(nil, fi4)
+	assert.Nil(t.T(), fi4)
 }
