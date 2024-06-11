@@ -20,7 +20,6 @@ import (
 	"log"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
@@ -147,18 +146,8 @@ func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	}
 }
 
-func RunTests(flags [][]string, m *testing.M) (successCode int) {
+func RunTests(flags [][]string, ctx context.Context, client *storage.Client, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
-
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Fatalf("storage.NewClient: %v", err)
-	}
-	defer client.Close()
-
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*25)
-	defer cancel()
 
 	CreateTestBucketForDynamicMounting(ctx, client)
 

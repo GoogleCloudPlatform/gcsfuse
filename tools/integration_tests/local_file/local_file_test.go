@@ -117,7 +117,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, m)
+		successCode = dynamic_mounting.RunTests(flagsSet, ctx, storageClient, m)
 	}
 
 	// Clean up test directory created.

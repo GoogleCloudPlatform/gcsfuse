@@ -16,11 +16,16 @@
 package operations_test
 
 import (
+	"context"
+	"log"
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -87,6 +92,11 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
+var (
+	storageClient *storage.Client
+	ctx           context.Context
+)
+
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
@@ -137,8 +147,22 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
+	ctx = context.Background()
+	var cancel context.CancelFunc
+	var err error
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+
+	// Create storage client before running tests.
+	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
+	storageClient, err = client.CreateStorageClient(ctx)
+	if err != nil {
+		log.Fatalf("client.CreateStorageClient: %v", err)
+	}
+
+	// Close storage client and release resources.
+	defer cancel()
+	defer storageClient.Close()
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
@@ -174,7 +198,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, m)
+		successCode = dynamic_mounting.RunTests(flagsSet, ctx, storageClient, m)
 	}
 
 	if successCode == 0 {
