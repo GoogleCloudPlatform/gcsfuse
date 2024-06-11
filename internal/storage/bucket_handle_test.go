@@ -1285,23 +1285,3 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 
 	assert.Equal(testSuite.T(), "DeleteFolder: mock error", err.Error())
 }
-
-func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectExitForNonHierarchicalBucket() {
-	mockClient := new(MockStorageControlClient)
-	testSuite.bucketHandle.controlClient = mockClient
-	testSuite.bucketHandle.bucketType = gcs.NonHierarchical
-
-	err := testSuite.bucketHandle.DeleteFolder(context.Background(), TestObjectName)
-
-	assert.Nil(testSuite.T(), err)
-}
-
-func (testSuite *BucketHandleTest) TestDeleteFolderWhenObjectNotExitForNonHierarchicalBucket() {
-	mockClient := new(MockStorageControlClient)
-	testSuite.bucketHandle.controlClient = mockClient
-	testSuite.bucketHandle.bucketType = gcs.NonHierarchical
-
-	err := testSuite.bucketHandle.DeleteFolder(context.Background(), missingObjectName)
-
-	assert.Equal(testSuite.T(), "DeleteObject: gcs.NotFoundError: storage: object doesn't exist", err.Error())
-}

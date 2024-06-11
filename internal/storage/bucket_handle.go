@@ -83,8 +83,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -146,7 +146,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -468,26 +468,6 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 }
 
 func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
-	if b.BucketType() == gcs.NonHierarchical {
-		err = b.DeleteObject(
-			ctx,
-			&gcs.DeleteObjectRequest{
-				Name:       folderName,
-				Generation: 0, // Delete the latest version of object named after dir.
-			})
-
-		if err != nil {
-			return fmt.Errorf("DeleteObject: %w", err)
-		}
-		return nil
-	}
-
-	err = b.deleteFolderForHierarchicalBucket(ctx, folderName)
-
-	return err
-}
-
-func (b *bucketHandle) deleteFolderForHierarchicalBucket(ctx context.Context, folderName string) (err error) {
 	var notfound *gcs.NotFoundError
 	var callOptions []gax.CallOption
 
