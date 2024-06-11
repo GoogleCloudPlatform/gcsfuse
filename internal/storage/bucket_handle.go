@@ -341,39 +341,35 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 			// mapped by GCSFuse, as these are either specially reserved/unsupported
 			// names in unix environments.
 			isUnsupportedObjectName := util.IsUnsupportedObjectName(attrs.Name)
-			// appendToObjects := func() {
-			// 	// Converting attrs to *Object type.
-			// 	currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-			// 	list.Objects = append(list.Objects, currObject)
-			// }
-
-			if isUnsupportedObjectName {
-				if req.MaxResults == 1 {
-					// MaxResult=1 is generally used for LookUpInode .
-					// There could be multiple objects for the requested prefix,
-					// and the lexicographically first (or first few) of those could be
-					// unsupported object names.
-					// In this case, if we don't add this first object to the list of
-					// returned objects, then listing.Objects would be empty leading to
-					// LookUpInode for this prefix returning error. So,
-					// we only warn for this object name being unsupported, but
-					// still add it to listing.Objects .
-					logger.Warnf("Encoutered unsupported object-name: \"%s\"", attrs.Name)
-					// appendToObjects()
-					currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-					list.Objects = append(list.Objects, currObject)
-				} else if req.MaxResults == 0 || req.MaxResults > 1 {
-					// MaxResult==0 || MaxResult>1 is generally used for ReadDir .
-					// In this case, we can skip adding those objects which
-					// have unsupported object names as ReadDir will still return the supported object names.
-					// If there are only unsupported objects for a given prefix, then ReadDir should return
-					// no objects.
-					logger.Warnf("Encoutered unsupported object-name: \"%s\". Not adding it to the list of objects", attrs.Name)
-				}
-			} else {
-				// appendToObjects()
+			appendToObjects := func() {
+				// Converting attrs to *Object type.
 				currObject := storageutil.ObjectAttrsToBucketObject(attrs)
 				list.Objects = append(list.Objects, currObject)
+			}
+
+			if isUnsupportedObjectName {
+				// if req.MaxResults == 1 {
+				// 	// MaxResult=1 is generally used for LookUpInode .
+				// 	// There could be multiple objects for the requested prefix,
+				// 	// and the lexicographically first (or first few) of those could be
+				// 	// unsupported object names.
+				// 	// In this case, if we don't add this first object to the list of
+				// 	// returned objects, then listing.Objects would be empty leading to
+				// 	// LookUpInode for this prefix returning error. So,
+				// 	// we only warn for this object name being unsupported, but
+				// 	// still add it to listing.Objects .
+				// 	logger.Warnf("Encoutered unsupported object-name: \"%s\"", attrs.Name)
+				// 	appendToObjects()
+				// } else if req.MaxResults == 0 || req.MaxResults > 1 {
+				// MaxResult==0 || MaxResult>1 is generally used for ReadDir .
+				// In this case, we can skip adding those objects which
+				// have unsupported object names as ReadDir will still return the supported object names.
+				// If there are only unsupported objects for a given prefix, then ReadDir should return
+				// no objects.
+				logger.Warnf("Encoutered unsupported object-name: \"%s\". Not adding it to the list of objects", attrs.Name)
+				// }
+			} else {
+				appendToObjects()
 			}
 		}
 
