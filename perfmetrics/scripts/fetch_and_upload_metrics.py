@@ -95,8 +95,6 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  print("Spread sheet id: ", args.spreadsheet_id)
-
   temp = fio_metrics_obj.get_metrics(args.fio_json_output_path)
   metrics_data = fio_metrics_obj.get_values_to_upload(temp)
 
