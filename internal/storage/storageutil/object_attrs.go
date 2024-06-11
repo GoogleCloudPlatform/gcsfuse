@@ -147,6 +147,7 @@ func ConvertObjToMinObject(o *gcs.Object) *gcs.MinObject {
 		Updated:         o.Updated,
 		Metadata:        o.Metadata,
 		ContentEncoding: o.ContentEncoding,
+		CRC32C:          o.CRC32C,
 	}
 }
 
@@ -161,7 +162,6 @@ func ConvertObjToExtendedObjectAttributes(o *gcs.Object) *gcs.ExtendedObjectAttr
 		CacheControl:       o.CacheControl,
 		Owner:              o.Owner,
 		MD5:                o.MD5,
-		CRC32C:             o.CRC32C,
 		MediaLink:          o.MediaLink,
 		StorageClass:       o.StorageClass,
 		Deleted:            o.Deleted,
@@ -192,7 +192,7 @@ func ConvertMinObjectAndExtendedObjectAttributesToObject(m *gcs.MinObject,
 		CacheControl:       e.CacheControl,
 		Owner:              e.Owner,
 		MD5:                e.MD5,
-		CRC32C:             e.CRC32C,
+		CRC32C:             m.CRC32C,
 		MediaLink:          e.MediaLink,
 		StorageClass:       e.StorageClass,
 		Deleted:            e.Deleted,

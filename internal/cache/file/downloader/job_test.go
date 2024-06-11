@@ -100,14 +100,18 @@ func (dt *downloaderTest) verifyFile(content []byte) {
 }
 
 func (dt *downloaderTest) verifyFileInfoEntry(offset uint64) {
-	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
-	fileInfoKeyName, err := fileInfoKey.Key()
-	AssertEq(nil, err)
-	fileInfo := dt.cache.LookUp(fileInfoKeyName)
+	fileInfo := dt.getFileInfo()
 	AssertTrue(fileInfo != nil)
 	AssertEq(dt.object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
 	AssertLe(offset, fileInfo.(data.FileInfo).Offset)
 	AssertEq(dt.object.Size, fileInfo.(data.FileInfo).Size())
+}
+
+func (dt *downloaderTest) getFileInfo() lru.ValueType {
+	fileInfoKey := data.FileInfoKey{BucketName: dt.bucket.Name(), ObjectName: dt.object.Name}
+	fileInfoKeyName, err := fileInfoKey.Key()
+	AssertEq(nil, err)
+	return dt.cache.LookUp(fileInfoKeyName)
 }
 
 func (dt *downloaderTest) fileCachePath(bucketName string, objectName string) string {
@@ -436,6 +440,8 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 	// Verify that jobStatus is Downloading but offset is object size
 	expectedJobStatus := JobStatus{Downloading, nil, int64(objectSize)}
 	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
 
 	// Try to request for some offset when job was already completed.
 	offset := int64(16 * util.MiB)
@@ -532,7 +538,7 @@ func (dt *downloaderTest) Test_Download_InvalidOffset() {
 }
 
 func (dt *downloaderTest) Test_Download_CtxCancelled() {
-	objectName := "path/in/gcs/foo.txt"
+	objectName := "path/in/gcs/cancel.txt"
 	objectSize := 16 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
@@ -571,9 +577,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	objectName := "path/in/gcs/foo.txt"
 	objectSize := 25 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
-	var callbackExecutionCount atomic.Int32
-	removeCallback := func() { callbackExecutionCount.Add(1) }
-	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), removeCallback)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), nil)
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	offsets := []int64{0, 4 * util.MiB, 16 * util.MiB, 8 * util.MiB, int64(objectSize), int64(objectSize) + 1}
@@ -599,6 +603,7 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 		go downloadFunc(offset, expectedErrs[i])
 	}
 	wg.Wait()
+	dt.waitForCrcCheckToBeCompleted()
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
@@ -608,9 +613,6 @@ func (dt *downloaderTest) Test_Download_Concurrent() {
 	dt.verifyFile(objectContent)
 	// Verify file info cache
 	dt.verifyFileInfoEntry(uint64(objectSize))
-	// Verify callback is executed only once and removed
-	AssertEq(1, callbackExecutionCount.Load())
-	AssertEq(nil, dt.job.removeJobCallback)
 }
 
 func (dt *downloaderTest) Test_GetStatus() {
@@ -686,6 +688,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
 	// Start download with waiting
 	_, err := dt.job.Download(ctx, int64(objectSize), true)
 	AssertEq(nil, err)
+	dt.waitForCrcCheckToBeCompleted()
 	jobStatus := dt.job.GetStatus()
 	AssertEq(Completed, jobStatus.Name)
 
@@ -779,4 +782,68 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
 	AssertEq(nil, dt.job.removeJobCallback)
+}
+
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTrue() {
+	objectName := "path/in/gcs/file1.txt"
+	objectSize := 8 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(8 * util.MiB)
+	jobStatus, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	// Here the crc check will be successful
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+	// Verify file
+	dt.verifyFile(objectContent[:jobStatus.Offset])
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+	// Tamper the file
+	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
+	AssertEq(nil, err)
+
+	err = dt.job.validateCRC()
+
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "checksum mismatch detected"))
+	AssertEq(nil, dt.getFileInfo())
+	_, err = os.Stat(dt.fileSpec.Path)
+	AssertNe(nil, err)
+	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFalse() {
+	objectName := "path/in/gcs/file2.txt"
+	objectSize := 1 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(1 * util.MiB)
+	jobStatus, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	// Here the crc check will be successful
+	dt.waitForCrcCheckToBeCompleted()
+	AssertEq(Completed, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+	// Verify file
+	dt.verifyFile(objectContent[:jobStatus.Offset])
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+	// Tamper the file
+	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
+	AssertEq(nil, err)
+	dt.job.enableCrcCheck = false
+
+	err = dt.job.validateCRC()
+
+	AssertEq(nil, err)
+	// Verify file
+	dt.verifyFile([]byte("test"))
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }

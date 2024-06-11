@@ -234,6 +234,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	currentTime := time.Now()
 	contentEncode := "test_encoding"
 	metadata := map[string]string{"test_key": "test_value"}
+	var crc32C uint32 = 1234
 	gcsObject := gcs.Object{
 		Name:            name,
 		Size:            size,
@@ -242,6 +243,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 		Updated:         currentTime,
 		Metadata:        metadata,
 		ContentEncoding: contentEncode,
+		CRC32C:          &crc32C,
 	}
 
 	gcsMinObject := ConvertObjToMinObject(&gcsObject)
@@ -254,6 +256,7 @@ func (t objectAttrsTest) Test_ConvertObjToMinObject_WithValidObject() {
 	ExpectTrue(currentTime.Equal(gcsMinObject.Updated))
 	ExpectEq(contentEncode, gcsMinObject.ContentEncoding)
 	ExpectEq(metadata, gcsMinObject.Metadata)
+	ExpectEq(crc32C, *gcsMinObject.CRC32C)
 }
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilObject() {
@@ -266,7 +269,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNilObject
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObject() {
 	var attrMd5 *[16]byte
-	var crc32C uint32 = 0
 	timeAttr := time.Now()
 	gcsObject := gcs.Object{
 		ContentType:        "ContentType",
@@ -274,7 +276,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 		CacheControl:       "CacheControl",
 		Owner:              "Owner",
 		MD5:                attrMd5,
-		CRC32C:             &crc32C,
 		MediaLink:          "MediaLink",
 		StorageClass:       "StorageClass",
 		Deleted:            timeAttr,
@@ -293,7 +294,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithValidObje
 	ExpectEq(gcsObject.CacheControl, extendedObjAttr.CacheControl)
 	ExpectEq(gcsObject.Owner, extendedObjAttr.Owner)
 	ExpectEq(gcsObject.MD5, extendedObjAttr.MD5)
-	ExpectEq(gcsObject.CRC32C, extendedObjAttr.CRC32C)
 	ExpectEq(gcsObject.MediaLink, extendedObjAttr.MediaLink)
 	ExpectEq(gcsObject.StorageClass, extendedObjAttr.StorageClass)
 	ExpectEq(0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))
@@ -338,7 +338,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 
 func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMinObjectAndNonNilAttributes() {
 	var attrMd5 *[16]byte
-	var crc32C uint32 = 0
 	timeAttr := time.Now()
 	minObject := &gcs.MinObject{
 		Name:            "test",
@@ -355,7 +354,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 		CacheControl:       "CacheControl",
 		Owner:              "Owner",
 		MD5:                attrMd5,
-		CRC32C:             &crc32C,
 		MediaLink:          "MediaLink",
 		StorageClass:       "StorageClass",
 		Deleted:            timeAttr,
@@ -381,7 +379,6 @@ func (t objectAttrsTest) Test_ConvertObjToExtendedObjectAttributes_WithNonNilMin
 	ExpectEq(gcsObject.CacheControl, extendedObjAttr.CacheControl)
 	ExpectEq(gcsObject.Owner, extendedObjAttr.Owner)
 	ExpectEq(gcsObject.MD5, extendedObjAttr.MD5)
-	ExpectEq(gcsObject.CRC32C, extendedObjAttr.CRC32C)
 	ExpectEq(gcsObject.MediaLink, extendedObjAttr.MediaLink)
 	ExpectEq(gcsObject.StorageClass, extendedObjAttr.StorageClass)
 	ExpectEq(0, gcsObject.Deleted.Compare(extendedObjAttr.Deleted))

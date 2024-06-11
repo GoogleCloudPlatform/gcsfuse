@@ -16,6 +16,8 @@ package util
 
 import (
 	"fmt"
+	"hash/crc32"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -36,6 +38,7 @@ const (
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
 	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
+	BufferSizeForCRC                          = 65536
 )
 
 const (
@@ -127,4 +130,32 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) err
 	}
 
 	return nil
+}
+
+func calculateCRC32(reader io.Reader) (uint32, error) {
+	table := crc32.MakeTable(crc32.Castagnoli)
+	checksum := crc32.Checksum([]byte(""), table)
+	buf := make([]byte, BufferSizeForCRC)
+	for {
+		switch n, err := reader.Read(buf); err {
+		case nil:
+			checksum = crc32.Update(checksum, table, buf[:n])
+		case io.EOF:
+			return checksum, nil
+		default:
+			return 0, err
+		}
+	}
+}
+
+// CalculateFileCRC32 calculates and returns the CRC-32 checksum of a file.
+func CalculateFileCRC32(filePath string) (uint32, error) {
+	// Open file with simplified flags and permissions
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("error opening file: %w", err)
+	}
+	defer file.Close() // Ensure file closure
+
+	return calculateCRC32(file)
 }

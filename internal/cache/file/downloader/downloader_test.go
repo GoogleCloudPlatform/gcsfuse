@@ -15,10 +15,12 @@
 package downloader
 
 import (
+	"context"
 	"os"
 	"path"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -31,7 +33,6 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
@@ -68,6 +69,20 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 func (dt *downloaderTest) TearDown() {
 	dt.fakeStorage.ShutDown()
 	operations.RemoveDir(cacheDir)
+}
+
+func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
+	// Last notification is sent after the entire file is downloaded and before the CRC check is done.
+	// Hence, explicitly waiting till the CRC check is done.
+	for {
+		dt.job.mu.Lock()
+		if dt.job.status.Name == Completed || dt.job.status.Name == Failed {
+			dt.job.mu.Unlock()
+			break
+		}
+		dt.job.mu.Unlock()
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func (dt *downloaderTest) verifyJob(job *Job, object *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32) {

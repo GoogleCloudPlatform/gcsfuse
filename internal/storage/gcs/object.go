@@ -88,6 +88,7 @@ type MinObject struct {
 	Updated         time.Time
 	Metadata        map[string]string
 	ContentEncoding string
+	CRC32C          *uint32 // Missing for CMEK buckets
 }
 
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
@@ -97,7 +98,6 @@ type ExtendedObjectAttributes struct {
 	CacheControl       string
 	Owner              string
 	MD5                *[md5.Size]byte // Missing for composite objects
-	CRC32C             *uint32         // Missing for CMEK buckets
 	MediaLink          string
 	StorageClass       string
 	Deleted            time.Time
