@@ -576,7 +576,7 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 }
 
 // Create objects in implicit directories with
-// unsupported names such as ., .., /, \0 and
+// unsupported object names and
 // test that stat and ReadDirPicky on the different directories.
 func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	var fi os.FileInfo
@@ -590,46 +590,79 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 			map[string]string{
 				"foo//bar": "", // unsupported
 				"foo/1":    "", // supported
-				"/bar":     "", // unsupported
 				"a/2":      "", // supported
 				"a//3":     "", // unsupported
+				"4":        "", // supported
+				"/bar":     "", // unsupported
+				"bar//5":   "", // unsupported
 			}))
 
 	// Statting the mount directory should return a directory entry.
 	fi, err = os.Stat(mntDir)
 	AssertEq(nil, err)
+	AssertNe(nil, fi)
 	ExpectTrue(fi.IsDir())
 
 	// Statting the mount-directory/foo should return a directory entry named "foo".
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
-
+	AssertNe(nil, fi)
 	ExpectEq("foo", fi.Name())
 	ExpectTrue(fi.IsDir())
 
 	// Statting the mount-directory/a should return a directory entry named "a".
 	fi, err = os.Stat(path.Join(mntDir, "a"))
 	AssertEq(nil, err)
-
+	AssertNe(nil, fi)
 	ExpectEq("a", fi.Name())
 	ExpectTrue(fi.IsDir())
 
-	// ReadDirPicky on mountdir/foo should fail as the unsupported sub-directories in that can not be read.
-	_, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
-	AssertEq(nil, err)
+	// Statting the mount-directory/a//3 should fail as it should be ignored.
+	_, err = os.Stat(path.Join(mntDir, "a/3"))
+	AssertNe(nil, err)
 
-	// ReadDirPicky on mountdir should fail as the unsupported sub-directories in that can not be read.
-	_, err = fusetesting.ReadDirPicky(mntDir)
+	// Statting the mount-directory/4 should return a file entry named "a".
+	fi, err = os.Stat(path.Join(mntDir, "4"))
 	AssertEq(nil, err)
+	AssertNe(nil, fi)
+	ExpectEq("4", fi.Name())
+	ExpectFalse(fi.IsDir())
 
-	// ReadDir on mntdir/a should show the directory and should contain a single file object named "b".
+	// Statting the mount-directory/bar should fail as it should be ignored.
+	_, err = os.Stat(path.Join(mntDir, "bar"))
+	AssertNe(nil, err)
+
+	// ReadDirPicky on mountdir should not fail as the unsupported sub-directories should be ignored.
+	entries, err = fusetesting.ReadDirPicky(mntDir)
+	AssertEq(nil, err)
+	AssertNe(nil, entries)
+	AssertEq(3, len(entries))
+	AssertNe(nil, entries[0])
+	ExpectEq("4", entries[0].Name())
+	ExpectFalse(entries[0].IsDir())
+	AssertNe(nil, entries[1])
+	ExpectEq("a", entries[1].Name())
+	ExpectTrue(entries[1].IsDir())
+	AssertNe(nil, entries[2])
+	ExpectEq("foo", entries[2].Name())
+	ExpectTrue(entries[2].IsDir())
+
+	// ReadDirPicky on mountdir/foo should not fail as the unsupported sub-directories should be ignored.
+	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
+	AssertEq(nil, err)
+	AssertNe(nil, entries)
+	AssertEq(1, len(entries))
+	AssertNe(nil, entries[0])
+	ExpectEq("1", entries[0].Name())
+	ExpectFalse(entries[0].IsDir())
+
+	// ReadDirPicky on mntdir/a should work the directory and should contain a single file object named "b".
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "a"))
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
-
-	fi = entries[0]
-	ExpectEq("2", fi.Name())
-	ExpectFalse(fi.IsDir())
+	AssertNe(nil, entries[0])
+	ExpectEq("2", entries[0].Name())
+	ExpectFalse(entries[0].IsDir())
 }
 
 // Create objects in implicit directories with
@@ -637,14 +670,16 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 // test that stat and ReadDirPicky on the different directories.
 func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 	// Set up contents.
-	AssertEq(
+	ExpectEq(
 		nil,
 		t.createObjects(
 			map[string]string{
 				"a/b":     "", // supported
 				"foo/c/d": "", // supported
 				"foo//e":  "", // unsupported
+				"f":       "", //supported
 				"/h":      "", // unsupported
+				"/":       "", // unsupported
 			}))
 
 	expectedWalkedEntries := []struct {
@@ -656,6 +691,10 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 		path:  mntDir,
 		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
 		isDir: true,
+	}, {
+		path:  path.Join(mntDir, "f"),
+		name:  "f",
+		isDir: false,
 	}, {
 		path:  path.Join(mntDir, "a"),
 		name:  "a",
