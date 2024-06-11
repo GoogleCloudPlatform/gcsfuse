@@ -13,12 +13,6 @@
 # limitations under the License.
 
 # Here $1 refers to the testBucket/testdir argument
-echo "This is from directory .. file fileInUnsupportedImplicitDir1" > fileInUnsupportedImplicitDir1
-# bucket/testdir/../fileInImplicitDir1
-gcloud storage cp fileInUnsupportedImplicitDir1 gs://$1/../
-echo "This is from directory . file fileInUnsupportedImplicitDir2" > fileInUnsupportedImplicitDir2
-# bucket/testdir/./fileInImplicitDir2
-gcloud storage cp fileInUnsupportedImplicitDir2 gs://$1/./
-echo "This is from directory \"\" file fileInUnsupportedImplicitDir3" > fileInUnsupportedImplicitDir3
-# bucket/testdir//fileInImplicitDir3
-gcloud storage cp fileInUnsupportedImplicitDir3 gs://$1//fileInUnsupportedImplicitDir3 
+echo "This is from directory \"\" file fileInUnsupportedImplicitDir1" > fileInUnsupportedImplicitDir1
+# bucket/testdir//fileInImplicitDir1
+gcloud storage cp fileInUnsupportedImplicitDir1 gs://$1//fileInUnsupportedImplicitDir1

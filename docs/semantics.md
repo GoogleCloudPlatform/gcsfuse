@@ -378,25 +378,20 @@ Not all of the usual file system features are supported. Most prominently:
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
 
-**Unsupported GCS object names**
+**Unsupported object names**
 
-GCS objects having following constraints in their name
-are not accessible through GCSFuse.
+Cloud Storage objects having following constraints in their name
+are not accessible through Cloud Storage Fuse.
 
-1. Names `.`, `..`, or `'' (empty-name)`, Or
-1. Names beginning with `./`, `../`, or`/`, Or
-1. Names containing `/./`, `/../` or `//`, or
-   `\0` (null-character).
+1. `''` (empty-name), Or
+1. Names beginning with `/`, Or
+1. Names containing `//`.
 
-The above restricted GCS objects cannot be accessed
+The above objects cannot be accessed
 through Cloud Storage Fuse, as these names have
 special meanings in linux-based filesystems.
-For example, a file/directory with path `a/./b`
-is treated the same as `a/b`. Similar special
-meanings exist for `a/../b` and `a//b`.
+For example, a file/directory with path `a//b`
+is treated the same as `a/b`.
 
-The null-character (`\0`) is an unsupported character
-in linux-based filesystems.
-
-Any GCS objects having such names are invisible to
+Any objects having such names are invisible to
 (or in other words, ignored by) Cloud Storage Fuse mounts.

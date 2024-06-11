@@ -4459,7 +4459,7 @@ func (t *cancellationTest) ReadObject() {
 	ExpectLt(time.Since(before), 50*time.Millisecond)
 }
 
-func (t *cancellationTest) TestListForUnsupportedNames() {
+func (t *listTest) TestListForUnsupportedNames() {
 	// Create several objects.
 	AssertEq(
 		nil,

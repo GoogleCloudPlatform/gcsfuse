@@ -449,8 +449,6 @@ func (b *bucket) ListObjects(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	//b.printAllObjectNames()
-
 	// Set up the result object.
 	listing = new(gcs.Listing)
 
@@ -525,9 +523,6 @@ func (b *bucket) ListObjects(
 
 				// Save the result, but only if it's not a duplicate.
 				resultPrefix := name[:resultPrefixLimit]
-
-				//fmt.Printf("\t\t\tresultPrefix: \"%s\"\n", resultPrefix)
-
 				if len(listing.CollapsedRuns) == 0 ||
 					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)

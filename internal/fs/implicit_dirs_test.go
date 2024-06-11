@@ -28,7 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
@@ -50,22 +49,6 @@ func init() {
 
 func (t *ImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-
-	logfile := "/tmp/gcsfuse_logs.txt"
-	logConfig := config.LogConfig{
-		Severity: "TRACE",
-		Format:   "text",
-		FilePath: logfile,
-		LogRotateConfig: config.LogRotateConfig{
-			MaxFileSizeMB:   100000,
-			Compress:        false,
-			BackupFileCount: 100,
-		},
-	}
-	if t.serverCfg.MountConfig == nil {
-		t.serverCfg.MountConfig = config.NewMountConfig()
-	}
-	t.serverCfg.MountConfig.LogConfig = logConfig
 
 	t.fsTest.SetUpTestSuite()
 }
@@ -607,15 +590,9 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 			map[string]string{
 				"foo//bar": "", // unsupported
 				"foo/1":    "", // supported
-				// "foo/./bar":    "", // unsupported
-				// "foo/../bar":   "", // unsupported
-				// "foo/\000/bar": "", // unsupported
-				"/bar": "", // unsupported
-				// "./bar":        "", // unsupported
-				// "../bar":       "", // unsupported
-				// "\000/bar":     "", // unsupported
-				"a/2":  "", // supported
-				"a//3": "", // unsupported
+				"/bar":     "", // unsupported
+				"a/2":      "", // supported
+				"a//3":     "", // unsupported
 			}))
 
 	// Statting the mount directory should return a directory entry.
@@ -658,21 +635,16 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 // Create objects in implicit directories with
 // unsupported names such as ., .., /, \0 and
 // test that stat and ReadDirPicky on the different directories.
-func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
+func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 	// Set up contents.
 	AssertEq(
 		nil,
 		t.createObjects(
 			map[string]string{
-				"a/b": "", // supported
-				//"foo/c": "", // supported
+				"a/b":     "", // supported
 				"foo/c/d": "", // supported
 				"foo//e":  "", // unsupported
-				//"foo/./f": "", // unsupported
-				// "foo/../g": "", // unsupported
-				"/h": "", // unsupported
-				// "./i":      "", // unsupported
-				// "../j":     "", // unsupported
+				"/h":      "", // unsupported
 			}))
 
 	expectedWalkedEntries := []struct {
@@ -707,8 +679,6 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 
 	maxIters := 100
 	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
-		//defer fmt.Printf("... exiting WalkFn(%q)\n", path)
-		//fmt.Printf("WalkFn(path=%q,d=%q,isDir=%v,err=%v) ...\n", path, d.Name(), d.IsDir(), err)
 		maxIters--
 
 		if err != nil {
@@ -718,10 +688,6 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDirPath() {
 		if maxIters < 0 {
 			return fmt.Errorf("walk went too deep")
 		}
-
-		// if d.Name() == "foo" {
-		// 	return filepath.SkipDir
-		// }
 
 		foundMatchingExpectedWalkingEntry := false
 		for i := range expectedWalkedEntries {

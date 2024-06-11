@@ -285,11 +285,11 @@ func (ts *UtilTest) TestIsUnsupportedObjectName() {
 		isUnsupported bool
 	}{
 		{
-			name:          "abc",
+			name:          "foo",
 			isUnsupported: false,
 		},
 		{
-			name:          "abc.txt",
+			name:          "foo/bar",
 			isUnsupported: false,
 		},
 		{
