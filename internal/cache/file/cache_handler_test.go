@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -78,8 +79,9 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 
 	// Job manager
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm,
-		util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb, false,
-		0, 0, 0, true)
+		util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb, &config.FileCacheConfig{
+			EnableCrcCheck: true,
+		})
 
 	// Mocked cached handler object.
 	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -59,8 +60,9 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, false,
-		0, 0, 0, true)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, &config.FileCacheConfig{
+		EnableCrcCheck: true,
+	})
 }
 
 func (dt *downloaderTest) TearDown() {

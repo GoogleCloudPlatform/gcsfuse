@@ -20,6 +20,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
@@ -42,20 +43,9 @@ type JobManager struct {
 	// sequentialReadSizeMb is passed to Job created by JobManager, and it decides
 	// the size of GCS read requests by Job at the time of downloading object to
 	// file in cache.
-	sequentialReadSizeMb    int32
-	fileInfoCache           *lru.Cache
-	enableParallelDownloads bool
-	// downloadParallelismPerFile specifies the maximum number of goroutines that
-	// are spawned for downloading object from GCS per job.
-	downloadParallelismPerFile int
-	// maxDownloadParallelism specifies the maximum number of goroutines that can be
-	// spawned for downloading objects from GCS across jobs.
-	maxDownloadParallelism int
-	// parallelReadRequestSizeMb specifies the size of read request that each of
-	// the goroutines make to GCS.
-	parallelReadRequestSizeMb int
-	// Specifies whether CRC check needs to be done.
-	enableCrcCheck bool
+	sequentialReadSizeMb int32
+	fileInfoCache        *lru.Cache
+	fileCacheConfig      *config.FileCacheConfig
 
 	/////////////////////////
 	// Mutable state
@@ -70,20 +60,14 @@ type JobManager struct {
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
-	cacheDir string, sequentialReadSizeMb int32, enableParallelDownloads bool,
-	downloadParallelismPerFile int, maxDownloadParallelism int,
-	parallelReadRequestSizeMb int, enableCrcCheck bool) (jm *JobManager) {
+	cacheDir string, sequentialReadSizeMb int32, c *config.FileCacheConfig) (jm *JobManager) {
 	jm = &JobManager{
-		fileInfoCache:              fileInfoCache,
-		filePerm:                   filePerm,
-		dirPerm:                    dirPerm,
-		cacheDir:                   cacheDir,
-		sequentialReadSizeMb:       sequentialReadSizeMb,
-		enableParallelDownloads:    enableParallelDownloads,
-		downloadParallelismPerFile: downloadParallelismPerFile,
-		maxDownloadParallelism:     maxDownloadParallelism,
-		parallelReadRequestSizeMb:  parallelReadRequestSizeMb,
-		enableCrcCheck:             enableCrcCheck,
+		fileInfoCache:        fileInfoCache,
+		filePerm:             filePerm,
+		dirPerm:              dirPerm,
+		cacheDir:             cacheDir,
+		sequentialReadSizeMb: sequentialReadSizeMb,
+		fileCacheConfig:      c,
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -121,7 +105,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.enableCrcCheck)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig.EnableCrcCheck)
 	jm.jobs[objectPath] = job
 	return job
 }
