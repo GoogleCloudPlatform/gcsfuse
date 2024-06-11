@@ -20,6 +20,7 @@ import (
 	"path"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -80,6 +81,7 @@ func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 			break
 		}
 		dt.job.mu.Unlock()
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

@@ -253,6 +253,13 @@ func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnCrcForValidFile() {
 	ExpectEq(515179668, crc)
 }
 
+func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnZeroForEmptyFile() {
+	crc, err := CalculateFileCRC32("testdata/emptyfile.txt")
+
+	ExpectEq(nil, err)
+	ExpectEq(0, crc)
+}
+
 func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorForFileNotExist() {
 	crc, err := CalculateFileCRC32("testdata/nofile.txt")
 

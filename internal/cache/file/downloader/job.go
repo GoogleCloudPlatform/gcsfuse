@@ -398,7 +398,7 @@ func (job *Job) downloadObjectAsync() {
 					return
 				}
 			} else {
-				err = job.validateChecksum()
+				err = job.validateCRC()
 				if err != nil {
 					job.failWhileDownloading(err)
 					return
@@ -470,7 +470,9 @@ func (job *Job) GetStatus() JobStatus {
 	return job.status
 }
 
-func (job *Job) validateChecksum() (err error) {
+// Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
+// In case of mismatch deletes the file and corresponding entry from file cache.
+func (job *Job) validateCRC() (err error) {
 	if !job.enableCrcCheck {
 		return
 	}

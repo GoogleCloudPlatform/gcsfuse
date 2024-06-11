@@ -436,7 +436,6 @@ func (dt *downloaderTest) Test_Download_WhenAlreadyCompleted() {
 	// Verify that jobStatus is Downloading but offset is object size
 	expectedJobStatus := JobStatus{Downloading, nil, int64(objectSize)}
 	AssertTrue(reflect.DeepEqual(expectedJobStatus, jobStatus))
-
 	dt.waitForCrcCheckToBeCompleted()
 	AssertEq(Completed, dt.job.status.Name)
 
@@ -781,7 +780,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	AssertEq(nil, dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsTrue() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTrue() {
 	objectName := "path/in/gcs/file1.txt"
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -803,13 +802,13 @@ func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcChec
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
 
-	err = dt.job.validateChecksum()
+	err = dt.job.validateCRC()
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), "checksum mismatch detected"))
 }
 
-func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcCheckIsFalse() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFalse() {
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -832,7 +831,7 @@ func (dt *downloaderTest) Test_validateChecksum_ForTamperedFileWhenEnableCrcChec
 	AssertEq(nil, err)
 	dt.job.enableCrcCheck = false
 
-	err = dt.job.validateChecksum()
+	err = dt.job.validateCRC()
 
 	AssertEq(nil, err)
 	// Verify file
