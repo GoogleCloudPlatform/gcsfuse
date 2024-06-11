@@ -504,7 +504,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithEmptyDelimiter() {
 		})
 
 	assert.Nil(testSuite.T(), err)
-	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedDirName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(obj.Objects))
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(obj.Objects))
 	assert.Equal(testSuite.T(), TestObjectGeneration, obj.Objects[0].Generation)
 	assert.Nil(testSuite.T(), obj.CollapsedRuns)
 }
@@ -533,7 +533,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 	// Validate that 5 objects are listed when MaxResults is passed 5.
 	assert.Nil(testSuite.T(), err)
-	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedDirName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObj.Objects))
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObj.Objects))
 	assert.Nil(testSuite.T(), fiveObj.CollapsedRuns)
 
 	// Note: The behavior is different in real GCS storage JSON API. In real API,
@@ -549,7 +549,7 @@ func (testSuite *BucketHandleTest) TestListObjectMethodForMaxResult() {
 
 func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 	// Validate that ee have 5 objects in fakeserver
-	listedObjWithMaxResults, err := testSuite.bucketHandle.ListObjects(context.Background(),
+	fiveObjWithMaxResults, err := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -559,9 +559,9 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 			ProjectionVal:            0,
 		})
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 6, len(listedObjWithMaxResults.Objects))
+	assert.Equal(testSuite.T(), 5, len(fiveObjWithMaxResults.Objects))
 
-	listedObjWithoutMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
+	fiveObjWithoutMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -572,13 +572,13 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithMissingMaxResult() {
 
 	// Validate that all objects are listed when MaxResults is not passed.
 	assert.Nil(testSuite.T(), err2)
-	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedDirName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(listedObjWithoutMaxResults.Objects))
-	assert.Nil(testSuite.T(), listedObjWithoutMaxResults.CollapsedRuns)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObjWithoutMaxResults.Objects))
+	assert.Nil(testSuite.T(), fiveObjWithoutMaxResults.CollapsedRuns)
 }
 
 func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	// Validate that we have 5 objects in fakeserver
-	listedObjectsWithHighMaxResults, err := testSuite.bucketHandle.ListObjects(context.Background(),
+	fiveObj, err := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -588,9 +588,9 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 			ProjectionVal:            0,
 		})
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), 6, len(listedObjectsWithHighMaxResults.Objects))
+	assert.Equal(testSuite.T(), 5, len(fiveObj.Objects))
 
-	listedObjectsWithZeroMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
+	fiveObjWithZeroMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
 		&gcs.ListObjectsRequest{
 			Prefix:                   "",
 			Delimiter:                "",
@@ -603,9 +603,28 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	// Validate that all objects (5) are listed when MaxResults is 0. This has
 	// same behavior as not passing MaxResults in request.
 	assert.Nil(testSuite.T(), err2)
-	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectInUnsupportedDirName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(listedObjectsWithZeroMaxResults.Objects))
-	assert.Nil(testSuite.T(), listedObjectsWithZeroMaxResults.CollapsedRuns)
+	assert.ElementsMatch(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestSubObjectName, TestGzipObjectName, TestObjectName}, objectsToObjectNames(fiveObjWithZeroMaxResults.Objects))
+	assert.Nil(testSuite.T(), fiveObjWithZeroMaxResults.CollapsedRuns)
 }
+
+// func (testSuite *BucketHandleTest) TestListObjectMethodWithOneMaxResult() {
+// 	// Validate that we have 5 objects in fakeserver
+// 	oneObj, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
+// 		&gcs.ListObjectsRequest{
+// 			Prefix:                   TestObjectRootFolderName,
+// 			Delimiter:                "",
+// 			IncludeTrailingDelimiter: true,
+// 			ContinuationToken:        "",
+// 			MaxResults:               1,
+// 			ProjectionVal:            0,
+// 		})
+
+// 	// Validate that all objects (5) are listed when MaxResults is 0. This has
+// 	// same behavior as not passing MaxResults in request.
+// 	assert.Nil(testSuite.T(), err2)
+// 	assert.Equal(testSuite.T(), 1, len(oneObj.Objects))
+// 	assert.Nil(testSuite.T(), oneObj.CollapsedRuns)
+// }
 
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
 // Hence, we are not writing tests for these parameters
