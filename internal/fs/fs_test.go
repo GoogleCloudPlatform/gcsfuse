@@ -41,6 +41,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 )
@@ -52,7 +53,9 @@ const (
 	SequentialReadSizeMb             = 200
 )
 
-func TestFS(t *testing.T) { RunTests(t) }
+func TestFS(testSuite *testing.T) {
+	suite.Run(testSuite, new(fsTest))
+}
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
@@ -68,7 +71,8 @@ func init() {
 	go func() {
 		<-c
 		logger.Info("Received SIGINT; exiting after this test completes.")
-		StopRunningTests()
+		logger.Errorf("Need to re-enable StopRunningTests()\n")
+		// StopRunningTests()
 	}()
 }
 
@@ -78,10 +82,11 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
+	suite.Suite
+
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
-	suite.Suite
 
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
@@ -105,8 +110,8 @@ var (
 	buckets map[string]gcs.Bucket
 )
 
-var _ SetUpTestSuiteInterface = &fsTest{}
-var _ TearDownTestSuiteInterface = &fsTest{}
+// var _ SetUpTestSuiteInterface = &fsTest{}
+// var _ TearDownTestSuiteInterface = &fsTest{}
 
 func (t *fsTest) SetUpTestSuite() {
 	var err error
@@ -146,6 +151,7 @@ func (t *fsTest) SetUpTestSuite() {
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
 	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set up permissions.
 	t.serverCfg.FilePerms = filePerms
