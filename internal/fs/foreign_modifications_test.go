@@ -480,7 +480,7 @@ func (t *ForeignModsTest) Inodes() {
 func (t *ForeignModsTest) OpenNonExistentFile() {
 	_, err := os.Open(path.Join(mntDir, "foo"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("foo")))
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
@@ -779,7 +779,7 @@ func (t *ForeignModsTest) ObjectIsDeleted_File() {
 		}
 	}()
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 

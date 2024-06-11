@@ -168,7 +168,7 @@ func (t *typeCacheTestCommon) createObjectOnGCS(name string) *gcs.Object {
 		contentInBytes)
 
 	assert.Nil(t.T(), err)
-	AssertNe(nil, fileObject)
+	assert.NotNil(t.T(), fileObject)
 
 	return fileObject
 }
@@ -177,14 +177,14 @@ func (t *typeCacheTestCommon) statAndConfirmIsDir(name string, isDir bool) {
 	fi, err = os.Stat(name)
 
 	assert.Nil(t.T(), err)
-	AssertNe(nil, fi)
+	assert.NotNil(t.T(), fi)
 	ExpectEq(isDir, fi.IsDir())
 }
 
 func (t *typeCacheTestCommon) statAndExpectNotADirectoryError(name string) {
 	_, err = os.Stat(name)
 
-	ExpectNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("not a directory")))
 }
 
@@ -212,7 +212,7 @@ func (t *TypeCacheTestWithMaxSize1MB) TestNoEntryInitially() {
 	// should not contain any entry and os.Stat should fail.
 	_, err = os.Stat(path.Join(mntDir, foo))
 
-	ExpectNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, oglematchers.Error(oglematchers.HasSubstr("no such file or directory")))
 }
 

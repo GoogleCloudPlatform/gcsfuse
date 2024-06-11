@@ -530,7 +530,7 @@ func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 
 	// we should not be able to stat it in the bucket2 mount directory
 	_, err = os.Stat(path.Join(bucket2MntDir, name))
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertThat(err, Error(HasSubstr("no such file or directory")))
 
 	// And we should be able to stat it in bucket1 mount directory.

@@ -473,7 +473,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
 	// Attempt to remove it.
 	err = os.Remove(path.Join(mntDir, "foo"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// It should still be there.
@@ -499,7 +499,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
 	// Attempt to remove it.
 	err = os.Remove(path.Join(mntDir, "foo"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// It should still be there.

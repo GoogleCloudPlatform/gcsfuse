@@ -183,7 +183,7 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	var err error
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0700)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// No object should have been created.
@@ -545,7 +545,7 @@ func (t *ModesTest) ReadOnlyMode() {
 	n, err := t.f1.Write([]byte("taco"))
 
 	assert.Equal(t.T(), 0, n)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
@@ -568,7 +568,7 @@ func (t *ModesTest) WriteOnlyMode() {
 	// Reading should fail.
 	_, err = ioutil.ReadAll(t.f1)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 
 	// Write to the start of the file using File.Write.
@@ -874,7 +874,7 @@ func (t *ModesTest) ReadFromWriteOnlyFile() {
 	// Attempt to read from it.
 	_, err = t.f1.Read(make([]byte, 1024))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
@@ -892,7 +892,7 @@ func (t *ModesTest) WriteToReadOnlyFile() {
 	// Attempt to write t it.
 	_, err = t.f1.Write([]byte("taco"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
@@ -1001,7 +1001,7 @@ func (t *DirectoryTest) Mkdir_AlreadyExists() {
 	// Attempt to create it again.
 	err = os.Mkdir(dirName, 0754)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
@@ -1017,7 +1017,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsFile() {
 	dirName := path.Join(fileName, "dir")
 	err = os.Mkdir(dirName, 0754)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
@@ -1028,7 +1028,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsNonExistent() {
 	dirName := path.Join(mntDir, "foo/dir")
 	err = os.Mkdir(dirName, 0754)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
@@ -1178,7 +1178,7 @@ func (t *DirectoryTest) Rmdir_NotEmpty() {
 	// Attempt to remove the parent.
 	err = os.Remove(path.Join(mntDir, "foo"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// The parent should still be there.
@@ -1295,7 +1295,7 @@ func (t *DirectoryTest) CreateHardLink() {
 		path.Join(mntDir, "foo"),
 		path.Join(mntDir, "bar"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
@@ -1387,7 +1387,7 @@ func (t *DirectoryTest) ContentTypes() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 		assert.Nil(t.T(), err)
-		AssertNe(nil, e)
+		assert.NotNil(t.T(), e)
 		ExpectEq("", e.ContentType, "name: %q", name)
 	}
 }
@@ -1529,10 +1529,10 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 
 func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
 	minObject1, minObject2 *gcs.MinObject) {
-	AssertNe(nil, extendedAttr1)
-	AssertNe(nil, extendedAttr2)
-	AssertNe(nil, minObject1)
-	AssertNe(nil, minObject2)
+	assert.NotNil(t.T(), extendedAttr1)
+	assert.NotNil(t.T(), extendedAttr2)
+	assert.NotNil(t.T(), minObject1)
+	assert.NotNil(t.T(), minObject2)
 	// Validate Min Object.
 	assert.Equal(t.T(), minObject1.Name, minObject2.Name)
 	assert.Equal(t.T(), 0, minObject1.Size)
@@ -1543,8 +1543,8 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	attr2MTime, _ := time.Parse(time.RFC3339Nano, minObject2.Metadata[gcsx.MtimeMetadataKey])
 	ExpectTrue(attr1MTime.Before(attr2MTime))
 	assert.Equal(t.T(), minObject1.ContentEncoding, minObject2.ContentEncoding)
-	ExpectNe(nil, minObject1.CRC32C)
-	ExpectNe(nil, minObject2.CRC32C)
+	assert.NotNil(t.T(), minObject1.CRC32C)
+	assert.NotNil(t.T(), minObject2.CRC32C)
 
 	// Validate Extended Object Attributes.
 	assert.Equal(t.T(), extendedAttr1.ContentType, extendedAttr2.ContentType)
@@ -1853,7 +1853,7 @@ func (t *FileTest) UnlinkFile_Exists() {
 	// Statting it should fail.
 	_, err = os.Stat(fileName)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
@@ -1865,7 +1865,7 @@ func (t *FileTest) UnlinkFile_Exists() {
 func (t *FileTest) UnlinkFile_NonExistent() {
 	err := os.Remove(path.Join(mntDir, "foo"))
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -1935,7 +1935,7 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	// Attempt to unlink it.
 	err = os.Remove(fileName)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
@@ -1959,7 +1959,7 @@ func (t *FileTest) UnlinkFile_FromSubDirectory() {
 	// Statting it should fail.
 	_, err = os.Stat(fileName)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
@@ -2143,7 +2143,7 @@ func (t *FileTest) Sync_NotDirty() {
 	}
 	m1, _, err := bucket.StatObject(ctx, statReq)
 	assert.Nil(t.T(), err)
-	AssertNe(nil, m1)
+	assert.NotNil(t.T(), m1)
 
 	// Sync the file again.
 	err = t.f1.Sync()
@@ -2152,7 +2152,7 @@ func (t *FileTest) Sync_NotDirty() {
 	// A new generation need not have been written.
 	m2, _, err := bucket.StatObject(ctx, statReq)
 	assert.Nil(t.T(), err)
-	AssertNe(nil, m2)
+	assert.NotNil(t.T(), m2)
 	assert.Equal(t.T(), m1.Generation, m2.Generation)
 }
 
@@ -2330,7 +2330,7 @@ func (t *FileTest) ContentTypes() {
 			ForceFetchFromGcs:              true,
 			ReturnExtendedObjectAttributes: true})
 		assert.Nil(t.T(), err)
-		AssertNe(nil, e)
+		assert.NotNil(t.T(), e)
 		ExpectEq(expected, e.ContentType, "name: %q", name)
 	}
 
@@ -2371,7 +2371,7 @@ func (t *SymlinkTest) CreateLink() {
 	m, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: "bar"})
 
 	assert.Nil(t.T(), err)
-	AssertNe(nil, m)
+	assert.NotNil(t.T(), m)
 	assert.Equal(t.T(), 0, m.Size)
 	assert.Equal(t.T(), "foo", m.Metadata["gcsfuse_symlink_target"])
 

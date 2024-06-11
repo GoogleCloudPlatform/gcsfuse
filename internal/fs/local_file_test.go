@@ -152,15 +152,15 @@ func (t *LocalFileTest) newFileShouldGetSyncedToGCSAtClose(fileName string) {
 	// Validate object attributes non-nil and non-empty.
 	minObject, extendedAttr, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	assert.Nil(t.T(), err)
-	AssertNe(nil, extendedAttr)
-	AssertNe(nil, minObject)
+	assert.NotNil(t.T(), extendedAttr)
+	assert.NotNil(t.T(), minObject)
 	ExpectFalse(reflect.DeepEqual(*extendedAttr, gcs.ExtendedObjectAttributes{}))
 	ExpectFalse(reflect.DeepEqual(*minObject, gcs.MinObject{}))
 }
 
 func (t *LocalFileTest) validateNoFileOrDirError(filename string) {
 	_, err := os.Stat(path.Join(mntDir, filename))
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -484,7 +484,7 @@ func (t *LocalFileTest) TestRenameOfLocalFileFails() {
 	err = os.Rename(path.Join(mntDir, FileName), path.Join(mntDir, "newName"))
 
 	// Verify rename operation fails.
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
 	// write more content to local file.
 	_, err = t.f1.WriteString(FileContents)
@@ -511,7 +511,7 @@ func (t *LocalFileTest) TestRenameOfDirectoryWithLocalFileFails() {
 	err = os.Rename(path.Join(mntDir, "foo/"), path.Join(mntDir, "bar/"))
 
 	// Verify rename operation fails.
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "operation not supported"))
 	// write more content to local file.
 	_, err = t.f1.WriteString(FileContents)

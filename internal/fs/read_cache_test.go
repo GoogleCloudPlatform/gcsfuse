@@ -155,7 +155,7 @@ func writeShouldNotPopulateCache(t *fsTest) {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -281,7 +281,7 @@ func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -312,7 +312,7 @@ func (t *FileCacheTest) EvictionWhenFileCacheIsFull() {
 	AssertTrue(reflect.DeepEqual(objectContent2, string(gotObjectContent2)))
 
 	_, err = os.Stat(downloadPath1)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -338,7 +338,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	downloadPath := util.GetDownloadPath(CacheDir, objectPath)
 	// Cache should not be populated
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
@@ -367,7 +367,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	// reading again should throw error
 	_, err = file.Read(buf)
 
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(strings.Contains(err.Error(), "input/output error"))
 }
 
@@ -420,7 +420,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	assert.Nil(t.T(), err)
 
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(os.IsNotExist(err))
 }
 
@@ -447,7 +447,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	assert.Nil(t.T(), err)
 
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(os.IsNotExist(err))
 }
 
@@ -475,7 +475,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	assert.Nil(t.T(), err)
 
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(os.IsNotExist(err))
 }
 
@@ -766,7 +766,7 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopula
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
-	AssertNe(nil, err)
+	assert.NotNil(t.T(), err)
 	AssertTrue(os.IsNotExist(err))
 }
 
