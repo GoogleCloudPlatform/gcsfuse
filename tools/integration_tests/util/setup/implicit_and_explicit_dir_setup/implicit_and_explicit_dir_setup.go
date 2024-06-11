@@ -87,8 +87,8 @@ func CreateImplicitDirectoryStructure(testDir string) {
 
 func CreateUnsupportedImplicitDirectoryStructure(testDir string) {
 	// Unsupported Implicit Directory Structure
-	// testBucket/testDir/../                                                                -- Dir
-	// testBucket/testDir/../fileInUnsupportedImplicitDir1                                   -- File
+	// testBucket/testDir//                                                                  -- Dir
+	// testBucket/testDir//fileInUnsupportedImplicitDir1                                     -- File
 
 	// Create implicit directory in bucket for testing.
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects_in_unsupported_directories.sh", path.Join(setup.TestBucket(), testDir))

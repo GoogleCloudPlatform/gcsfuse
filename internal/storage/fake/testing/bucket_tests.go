@@ -128,9 +128,9 @@ func interestingNames() (names []string) {
 		// Other tricky URL cases.
 		"foo () bar",
 		"foo [] bar",
-		//"foo // bar",
+		//"foo // bar", // removed as GCSFuse ignores object names containing // while listing
 		"foo %?/ bar",
-		//"foo http://google.com/search?q=foo&bar=baz#qux bar",
+		//"foo http://google.com/search?q=foo&bar=baz#qux bar", // removed as GCSFuse ignores object names containing // while listing
 
 		"foo ?bar",
 		"foo? bar",
@@ -4460,7 +4460,6 @@ func (t *cancellationTest) ReadObject() {
 }
 
 func (t *listTest) TestListForUnsupportedNames() {
-	// Create several objects.
 	AssertEq(
 		nil,
 		createEmpty(
@@ -4474,7 +4473,6 @@ func (t *listTest) TestListForUnsupportedNames() {
 			}))
 
 	for _, input := range []struct {
-		// inputs
 		reqPrefix  string
 		maxResults int
 		delim      string

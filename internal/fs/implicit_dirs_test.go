@@ -716,16 +716,9 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 	},
 	}
 
-	maxIters := 100
 	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
-		maxIters--
-
 		if err != nil {
 			return err
-		}
-
-		if maxIters < 0 {
-			return fmt.Errorf("walk went too deep")
 		}
 
 		foundMatchingExpectedWalkingEntry := false
