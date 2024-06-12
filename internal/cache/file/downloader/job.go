@@ -105,13 +105,13 @@ type jobSubscriber struct {
 }
 
 func NewJob(
-	object *gcs.MinObject,
-	bucket gcs.Bucket,
-	fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32,
-	fileSpec data.FileSpec,
-	removeJobCallback func(),
-	fileCacheConfig *config.FileCacheConfig,
+		object *gcs.MinObject,
+		bucket gcs.Bucket,
+		fileInfoCache *lru.Cache,
+		sequentialReadSizeMb int32,
+		fileSpec data.FileSpec,
+		removeJobCallback func(),
+		fileCacheConfig *config.FileCacheConfig,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -140,11 +140,10 @@ func (job *Job) checkInvariants() {
 }
 
 func (job *Job) IsParallelDownloadEnabled() bool {
-	if job.fileCacheConfig != nil {
-		if job.fileCacheConfig.EnableParallelDownloads {
-			return true
-		}
+	if job != nil && job.fileCacheConfig != nil && job.fileCacheConfig.EnableParallelDownloads {
+		return true
 	}
+
 	return false
 }
 
@@ -456,7 +455,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		return job.status, nil
 	}
 
-	if !(waitForDownload || job.fileCacheConfig.EnableParallelDownloads) {
+	if !waitForDownload {
 		defer job.mu.Unlock()
 		return job.status, nil
 	}
