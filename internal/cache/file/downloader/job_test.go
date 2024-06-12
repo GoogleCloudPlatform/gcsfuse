@@ -293,6 +293,32 @@ func (dt *downloaderTest) Test_updateFileInfoCache_Fail() {
 	AssertTrue(strings.Contains(err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
 }
 
+func (dt *downloaderTest) Test_cleanUpDownloadAsyncJob() {
+	dt.job.mu.Lock()
+	var callbackExecuted atomic.Bool
+	removeCallback := func() { callbackExecuted.Store(true) }
+	dt.job.removeJobCallback = removeCallback
+	cancelCtx, cancelFunc := context.WithCancel(context.Background())
+	dt.job.cancelCtx, dt.job.cancelFunc = cancelCtx, cancelFunc
+	dt.job.mu.Unlock()
+
+	dt.job.cleanUpDownloadAsyncJob()
+
+	// Verify context is canceled
+	AssertTrue(errors.Is(cancelCtx.Err(), context.Canceled))
+	dt.job.mu.Lock()
+	defer dt.job.mu.Unlock()
+	// doneCh is closed
+	_, ok := <-dt.job.doneCh
+	AssertFalse(ok)
+	// References to context and cancel function are removed
+	AssertEq(nil, dt.job.cancelCtx)
+	AssertEq(nil, dt.job.cancelFunc)
+	AssertEq(nil, dt.job.removeJobCallback)
+	// Call back function should have been called
+	AssertTrue(callbackExecuted.Load())
+}
+
 // Note: We can't test Test_downloadObjectAsync_MoreThanSequentialReadSize as
 // the fake storage bucket/server in the testing environment doesn't support
 // reading ranges (start and limit in NewReader call)
