@@ -263,16 +263,16 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_fs", "", false, "This flag is currently unused.")
+	flagSet.BoolP("debug_fs", "", false, "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
-	err = flagSet.MarkDeprecated("debug_fs", "This flag is currently unused.")
+	err = flagSet.MarkDeprecated("debug_fs", "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 	if err != nil {
 		return err
 	}
 
-	flagSet.BoolP("debug_fuse", "", false, "This flag is currently unused.")
+	flagSet.BoolP("debug_fuse", "", false, "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
-	err = flagSet.MarkDeprecated("debug_fuse", "This flag is currently unused.")
+	err = flagSet.MarkDeprecated("debug_fuse", "debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 	if err != nil {
 		return err
 	}
@@ -378,6 +378,18 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("experimental-grpc-conn-pool-size", "", 0, "The number of gRPC channel in grpc client.")
+
+	err = flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release.")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size"))
+	if err != nil {
+		return err
+	}
+
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	err = flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release.")
@@ -426,18 +438,6 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	err = viper.BindPFlag("file-system.gid", flagSet.Lookup("gid"))
-	if err != nil {
-		return err
-	}
-
-	flagSet.IntP("grpc-conn-pool-size", "", 0, "The number of gRPC channel in grpc client.")
-
-	err = flagSet.MarkDeprecated("grpc-conn-pool-size", "Experimental flag: can be removed in a minor release.")
-	if err != nil {
-		return err
-	}
-
-	err = viper.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("grpc-conn-pool-size"))
 	if err != nil {
 		return err
 	}
@@ -512,14 +512,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("log-rotate-compress", "", true, "Whether the rotated log files should be gzipped.")
+	flagSet.BoolP("log-rotate-compress", "", true, "Controls whether the rotated log files should be compressed using gzip.")
 
 	err = viper.BindPFlag("logging.log-rotate.compress", flagSet.Lookup("log-rotate-compress"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.IntP("log-rotate-max-log-file-size-mb", "", 512, "the maximum size in megabytes that a log file can reach before it is rotated.")
+	flagSet.IntP("log-rotate-max-log-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
 
 	err = viper.BindPFlag("logging.log-rotate.max-file-size-mb", flagSet.Lookup("log-rotate-max-log-file-size-mb"))
 	if err != nil {
@@ -568,7 +568,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("metadata-cache-ttl", "", math.MinInt64, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
+	flagSet.IntP("metadata-cache-ttl", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
 
 	err = viper.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl"))
 	if err != nil {
@@ -643,7 +643,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("stat-cache-max-size-mb", "", math.MinInt64, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
+	flagSet.IntP("stat-cache-max-size-mb", "", 32, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
 	err = viper.BindPFlag("metadata-cache.stat-cache-max-size-mb", flagSet.Lookup("stat-cache-max-size-mb"))
 	if err != nil {

@@ -2,11 +2,13 @@
   config-path: "app-name"
   type: "string"
   usage: "The application name of this mount."
+  default: ""
 
 - flag-name: "foreground"
   config-path: "foreground"
   type: "bool"
   usage: "Stay in the foreground after mounting."
+  default: false
 
 - flag-name: "o"
   config-path: "file-system.fuse-options"
@@ -41,16 +43,19 @@
   config-path: "implicit-dirs"
   type: "bool"
   usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
+  default: false
 
 - flag-name: "only-dir"
   config-path: "only-dir"
   type: "string"
   usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
+  default: ""
 
 - flag-name: "rename-dir-limit"
   config-path: "file-system.rename-dir-limit"
   type: "int"
   usage: "Allow rename a directory containing fewer descendants than this limit."
+  default: "0"
 
 - flag-name: "ignore-interrupts"
   config-path: "file-system.ignore-interrupts"
@@ -59,6 +64,7 @@
     Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
     by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
     inflight operations.
+  default: false
 
 - flag-name: "custom-endpoint"
   config-path: "gcs-connection.custom-endpoint"
@@ -75,6 +81,7 @@
   config-path: "gcs-auth.anonymous-access"
   type: "bool"
   usage: "Authentication is enabled by default. This flag disables authentication"
+  default: false
 
 - flag-name: "billing-project"
   config-path: "gcs-connection.billing-project"
@@ -82,6 +89,7 @@
   usage: >-
     Project to use for billing when accessing a bucket enabled with "Requester
     Pays". (The default is none)
+  default: ""
 
 - flag-name: "key-file"
   config-path: "gcs-auth.key-file"
@@ -92,6 +100,7 @@
   config-path: "gcs-auth.token-url"
   type: "string"
   usage: "A url for getting an access token when the key-file is absent."
+  default: ""
 
 - flag-name: "reuse-token-from-url"
   config-path: "gcs-auth.reuse-token-from-url"
@@ -132,7 +141,7 @@
   usage: >-
     The maximum size of stat-cache in MiBs. It can also be set to -1 for
     no-size-limit, 0 for no cache. Values below -1 are not supported.
-  default: "math.MinInt64"
+  default: "32"
 
 - flag-name: "type-cache-max-size-mb"
   config-path: "metadata-cache.type-cache-max-size-mb"
@@ -147,7 +156,7 @@
     The ttl value in seconds to be used for expiring items in metadata-cache. It
     can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled
     metadata-cache. Any value set below -1 will throw an error."
-  default: "math.MinInt64"
+  default: "60"
 
 - flag-name: "stat-cache-capacity"
   config-path: "metadata-cache.deprecated-stat-cache-capacity"
@@ -206,6 +215,7 @@
     next opendir (comes in the start, as part of next listing) call. 0 means no
     caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1
     will throw error.
+  default: "0"
 
 - flag-name: "http-client-timeout"
   config-path: "gcs-connection.http-client-timeout"
@@ -213,10 +223,12 @@
   usage: >-
     The time duration that http client will wait to get response from the
     server. The default value 0 indicates no timeout.
+  default: "0s"
 
 - flag-name: "max-retry-duration"
   type: "duration"
   usage: "This is currently unused."
+  default: "0s"
   deprecated: true
   deprecation-warning: "This is currently unused."
 
@@ -232,6 +244,7 @@
   usage: >-
     Path to the temporary directory where writes are staged prior to upload to
     Cloud Storage. (default: system default, likely /tmp)"
+  default: ""
 
 - flag-name: "client-protocol"
   config-path: "gcs-connection.client-protocol"
@@ -265,6 +278,7 @@
     not be seen. For example, if this flag is set, and metadata-cache-ttl-secs
     is set, then if we create the same file/node in the meantime using the same
     mount, since we are not refreshing the cache, it will still return nil.
+  default: false
 
 - flag-name: "stackdriver-export-interval"
   config-path: "metrics.stackdriver-export-interval"
@@ -278,6 +292,7 @@
   config-path: "monitoring.experimental-opentelemetry-collector-address"
   type: "string"
   usage: "Experimental: Export metrics to the OpenTelemetry collector at this address."
+  default: ""
   deprecated: true
   deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
@@ -302,6 +317,7 @@
   usage: >-
     By default, GCSFuse uses the GCS XML API to get and read objects. When this
     flag is specified, GCSFuse uses the GCS JSON API instead."
+  default: false
   deprecated: true
   deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
@@ -314,26 +330,30 @@
 
 - flag-name: "debug_fuse"
   type: "bool"
-  usage: "This flag is currently unused."
+  usage: "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  default: false
   deprecated: true
-  deprecation-warning: "This flag is currently unused."
+  deprecation-warning: "debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
 
 - flag-name: "debug_fs"
   type: "bool"
-  usage: "This flag is currently unused."
+  usage: "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  default: false
   deprecated: true
-  deprecation-warning: "This flag is currently unused."
+  deprecation-warning: "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
 
 - flag-name: "debug_gcs"
   config-path: "debug.gcs"
   type: "bool"
   usage: "This flag is currently unused."
+  default: false
   deprecated: true
   deprecation-warning: "This flag is currently unused."
 
 - flag-name: "debug_http"
   type: "bool"
   usage: "This flag is currently unused."
+  default: false
   deprecated: true
   deprecation-warning: "This flag is currently unused."
 
@@ -341,11 +361,13 @@
   config-path: "debug.exit-on-invariant-violation"
   type: "bool"
   usage: "Exit when internal invariants are violated."
+  default: false
 
 - flag-name: "debug_mutex"
   config-path: "debug.log-mutex"
   type: "bool"
   usage: "Print debug messages when a mutex is held too long."
+  default: false
 
 - flag-name: "experimental-metadata-prefetch-on-mount"
   config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -365,6 +387,7 @@
   type: "bool"
   usage: "For a new file, it creates an empty file in Cloud Storage bucket as a
   hold."
+  default: false
   deprecated: true
   deprecation-warning: "This flag will be deleted soon."
 
@@ -384,6 +407,7 @@
   config-path: "file-cache.cache-file-for-range-read"
   type: "bool"
   usage: "Whether to cache file for range reads."
+  default: false
 
 - flag-name: "enable-crc-check"
   config-path: "file-cache.enable-crc-check"
@@ -395,6 +419,7 @@
   config-path: "file-cache.enable-parallel-downloads"
   type: "bool"
   usage: "Enable parallel downloads."
+  default: false
 
 - flag-name: "download-parallelism-per-file"
   config-path: "file-cache.download-parallelism-per-file"
@@ -412,6 +437,7 @@
   config-path: "file-cache.read-request-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
+  default: "0"
 
 - flag-name: "cache-dir"
   config-path: "cache-dir"
@@ -428,11 +454,13 @@
     (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases.
     (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
     (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
+  default: false
 
-- flag-name: "grpc-conn-pool-size"
+- flag-name: "experimental-grpc-conn-pool-size"
   config-path: "gcs-connection.grpc-conn-pool-size"
   type: "int"
   usage: "The number of gRPC channel in grpc client."
+  default: "0"
   deprecated: true
   deprecation-warning: "Experimental flag: can be removed in a minor release."
 
@@ -440,24 +468,25 @@
   config-path: "enable-hns"
   type: "bool"
   usage: "Enables support for HNS buckets"
+  default: false
 
 - flag-name: "log-rotate-max-log-file-size-mb"
   config-path: "logging.log-rotate.max-file-size-mb"
   type: "int"
+  usage: "The maximum size in megabytes that a log file can reach before it is rotated."
   default: "512"
-  usage: "the maximum size in megabytes that a log file can reach before it is rotated."
 
 - flag-name: "log-rotate-backup-file-count"
   config-path: "logging.log-rotate.backup-file-count"
   type: "int"
-  default: "10"
   usage: >-
     The maximum number of backup log files to retain after they have been
     rotated. The default value is 10. When value is set to 0, all backup files are
     retained.
+  default: "10"
 
 - flag-name: "log-rotate-compress"
   config-path: "logging.log-rotate.compress"
   type: "bool"
+  usage: "Controls whether the rotated log files should be compressed using gzip."
   default: "true"
-  usage: "Whether the rotated log files should be gzipped."
