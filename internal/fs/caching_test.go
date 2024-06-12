@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -34,7 +35,14 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestCaching(t *testing.T) {
+	suite.Run(t, new(CachingTest))
+	suite.Run(t, new(CachingWithImplicitDirsTest))
+	suite.Run(t, new(MultiBucketMountCachingTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Common
@@ -54,7 +62,7 @@ type cachingTestCommon struct {
 	fsTest
 }
 
-func (t *cachingTestCommon) SetUpTestSuite() {
+func (t *cachingTestCommon) SetupSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
@@ -78,14 +86,26 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 type CachingTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	cachingTestCommon
 }
 
-func init() {
-	RegisterTestSuite(&CachingTest{})
+func (t *CachingTest) SetupSuite() {
+	t.cachingTestCommon.SetupSuite()
 }
 
-func (t *CachingTest) EmptyBucket() {
+func (t *CachingTest) TearDownSuite() {
+	t.cachingTestCommon.TearDownSuite()
+}
+
+func (t *CachingTest) TearDownTest() {
+	t.cachingTestCommon.TearDownTest()
+}
+
+func (t *CachingTest) TestEmptyBucket() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
 	assert.Nil(t.T(), err)
@@ -93,7 +113,7 @@ func (t *CachingTest) EmptyBucket() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *CachingTest) FileCreatedRemotely() {
+func (t *CachingTest) TestFileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
 
@@ -138,7 +158,7 @@ func (t *CachingTest) FileCreatedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *CachingTest) FileChangedRemotely() {
+func (t *CachingTest) TestFileChangedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -175,7 +195,7 @@ func (t *CachingTest) FileChangedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *CachingTest) DirectoryRemovedRemotely() {
+func (t *CachingTest) TestDirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -203,7 +223,7 @@ func (t *CachingTest) DirectoryRemovedRemotely() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *CachingTest) ConflictingNames_RemoteModifier() {
+func (t *CachingTest) TestConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -242,7 +262,7 @@ func (t *CachingTest) ConflictingNames_RemoteModifier() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
+func (t *CachingTest) TestTypeOfNameChanges_LocalModifier() {
 	const name = "test"
 	var fi os.FileInfo
 	var err error
@@ -265,7 +285,7 @@ func (t *CachingTest) TypeOfNameChanges_LocalModifier() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
+func (t *CachingTest) TestTypeOfNameChanges_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -308,19 +328,27 @@ func (t *CachingTest) TypeOfNameChanges_RemoteModifier() {
 ////////////////////////////////////////////////////////////////////////
 
 type CachingWithImplicitDirsTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	cachingTestCommon
 }
 
-func init() {
-	RegisterTestSuite(&CachingWithImplicitDirsTest{})
-}
-
-func (t *CachingWithImplicitDirsTest) SetUpTestSuite() {
+func (t *CachingWithImplicitDirsTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.cachingTestCommon.SetUpTestSuite()
+	t.cachingTestCommon.SetupSuite()
 }
 
-func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (t *CachingWithImplicitDirsTest) TearDownSuite() {
+	t.cachingTestCommon.TearDownSuite()
+}
+
+func (t *CachingWithImplicitDirsTest) TearDownTest() {
+	t.cachingTestCommon.TearDownTest()
+}
+
+func (t *CachingWithImplicitDirsTest) TestImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var err error
 
@@ -341,7 +369,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (t *CachingWithImplicitDirsTest) TestImplicitDirectory_DefinedByDirectory() {
 	var fi os.FileInfo
 	var err error
 
@@ -362,7 +390,7 @@ func (t *CachingWithImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *CachingWithImplicitDirsTest) SymlinksWork() {
+func (t *CachingWithImplicitDirsTest) TestSymlinksWork() {
 	var fi os.FileInfo
 	var err error
 
@@ -395,7 +423,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 	ExpectEq(filePerms, fi.Mode())
 }
 
-func (t *CachingWithImplicitDirsTest) SymlinksAreTypeCached() {
+func (t *CachingWithImplicitDirsTest) TestSymlinksAreTypeCached() {
 	var fi os.FileInfo
 	var err error
 
@@ -449,6 +477,10 @@ var (
 )
 
 type MultiBucketMountCachingTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
@@ -456,7 +488,7 @@ func getMultiMountBucketDir(bucketName string) string {
 	return mntDir + "/" + bucketName
 }
 
-func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
+func (t *MultiBucketMountCachingTest) SetupSuite() {
 	sharedCache := newLruCache(uint64(1000 * mount.AverageSizeOfPositiveStatCacheEntry))
 	uncachedBuckets = make(map[string]gcs.Bucket)
 	buckets = make(map[string]gcs.Bucket)
@@ -480,15 +512,17 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 	t.fsTest.SetupSuite()
 }
 
-func init() {
-	RegisterTestSuite(&MultiBucketMountCachingTest{})
+func (t *MultiBucketMountCachingTest) TearDownSuite() {
+	t.fsTest.TearDownSuite()
 }
 
-func (t *MultiBucketMountCachingTest) TearDown() {
+func (t *MultiBucketMountCachingTest) TearDownTest() {
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
 		bucket := buckets[bucketName]
 		AssertEq(nil, storageutil.DeleteAllObjects(context.Background(), bucket))
 	}
+
+	t.fsTest.TearDownTest()
 }
 
 func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
@@ -501,7 +535,7 @@ func (t *MultiBucketMountCachingTest) TestBucketsAreEmptyInitially() {
 	}
 }
 
-func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
+func (t *MultiBucketMountCachingTest) TestFileCreatedRemotely() {
 	const name = "foo"
 	const contents = "taco"
 	bucket1MntDir := getMultiMountBucketDir(bucket1Name)
@@ -554,7 +588,7 @@ func (t *MultiBucketMountCachingTest) FileCreatedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
+func (t *MultiBucketMountCachingTest) TestFileChangedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -593,7 +627,7 @@ func (t *MultiBucketMountCachingTest) FileChangedRemotely() {
 	ExpectEq("burrito", string(b))
 }
 
-func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
+func (t *MultiBucketMountCachingTest) TestDirectoryRemovedRemotely() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -623,7 +657,7 @@ func (t *MultiBucketMountCachingTest) DirectoryRemovedRemotely() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
+func (t *MultiBucketMountCachingTest) TestConflictingNames_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
@@ -664,7 +698,7 @@ func (t *MultiBucketMountCachingTest) ConflictingNames_RemoteModifier() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
+func (t *MultiBucketMountCachingTest) TestTypeOfNameChanges_LocalModifier() {
 	const name = "test"
 	var fi os.FileInfo
 	var err error
@@ -688,7 +722,7 @@ func (t *MultiBucketMountCachingTest) TypeOfNameChanges_LocalModifier() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *MultiBucketMountCachingTest) TypeOfNameChanges_RemoteModifier() {
+func (t *MultiBucketMountCachingTest) TestTypeOfNameChanges_RemoteModifier() {
 	const name = "foo"
 	var fi os.FileInfo
 	var err error
