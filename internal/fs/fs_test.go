@@ -53,8 +53,8 @@ const (
 	SequentialReadSizeMb             = 200
 )
 
-func TestFS(testSuite *testing.T) {
-	suite.Run(testSuite, new(fsTest))
+func TestFS(t *testing.T) {
+	TestImplicitDirs(t)
 }
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
@@ -65,13 +65,11 @@ var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 func init() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-
 	locker.EnableDebugMessages()
 
 	go func() {
 		<-c
-		logger.Info("Received SIGINT; exiting after this test completes.")
-		logger.Errorf("Need to re-enable StopRunningTests()\n")
+		panic("Need to re-enable StopRunningTests()")
 		// StopRunningTests()
 	}()
 }
@@ -110,10 +108,7 @@ var (
 	buckets map[string]gcs.Bucket
 )
 
-// var _ SetUpTestSuiteInterface = &fsTest{}
-// var _ TearDownTestSuiteInterface = &fsTest{}
-
-func (t *fsTest) SetUpTestSuite() {
+func (t *fsTest) SetupSuite() {
 	var err error
 	ctx = context.Background()
 
@@ -180,7 +175,7 @@ func (t *fsTest) SetUpTestSuite() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *fsTest) TearDownTestSuite() {
+func (t *fsTest) TearDownSuite() {
 	var err error
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
@@ -216,7 +211,7 @@ func (t *fsTest) TearDownTestSuite() {
 	bucket = nil
 }
 
-func (t *fsTest) TearDown() {
+func (t *fsTest) TearDownTest() {
 	// Close any files we opened.
 	if t.f1 != nil {
 		assert.Nil(t.T(), t.f1.Close())

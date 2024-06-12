@@ -39,7 +39,7 @@ func init() {
 
 func (t *ReadOnlyTest) SetUpTestSuite() {
 	t.mountCfg.ReadOnly = true
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////

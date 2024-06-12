@@ -48,7 +48,7 @@ func (t *AllBucketsTest) SetUpTestSuite() {
 		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2"),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 	assert.Equal(t.T(), "", t.serverCfg.BucketName)
 }
 

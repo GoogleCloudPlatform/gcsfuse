@@ -44,7 +44,7 @@ func init() {
 func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.DirTypeCacheTTL = time.Minute * 3
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////

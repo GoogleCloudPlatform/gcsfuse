@@ -65,7 +65,7 @@ func (t *LocalFileTest) SetUpTestSuite() {
 		WriteConfig: config.WriteConfig{
 			CreateEmptyFile: false,
 		}}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *LocalFileTest) TearDown() {
@@ -76,7 +76,7 @@ func (t *LocalFileTest) TearDown() {
 	}
 
 	// fsTest Cleanups to clean up mntDir and close t.f1 and t.f2.
-	t.fsTest.TearDown()
+	t.fsTest.TearDownTest()
 }
 
 // //////////////////////////////////////////////////////////////////////

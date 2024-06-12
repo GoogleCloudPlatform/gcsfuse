@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -30,30 +31,32 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestImplicitDirs(t *testing.T) {
+	suite.Run(t, new(ImplicitDirsTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type ImplicitDirsTest struct {
+	suite.Suite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&ImplicitDirsTest{})
-}
-
-func (t *ImplicitDirsTest) SetUpTestSuite() {
+func (t *ImplicitDirsTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ImplicitDirsTest) NothingPresent() {
+func (t *ImplicitDirsTest) TestNothingPresent() {
 	// ReadDir
 	entries, err := fusetesting.ReadDirPicky(mntDir)
 	assert.Nil(t.T(), err)
@@ -61,7 +64,7 @@ func (t *ImplicitDirsTest) NothingPresent() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *ImplicitDirsTest) FileObjectPresent() {
+func (t *ImplicitDirsTest) TestFileObjectPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -94,7 +97,7 @@ func (t *ImplicitDirsTest) FileObjectPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) DirectoryObjectPresent() {
+func (t *ImplicitDirsTest) TestDirectoryObjectPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -125,7 +128,7 @@ func (t *ImplicitDirsTest) DirectoryObjectPresent() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
+func (t *ImplicitDirsTest) TestImplicitDirectory_DefinedByFile() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -155,7 +158,7 @@ func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByFile() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
+func (t *ImplicitDirsTest) TestImplicitDirectory_DefinedByDirectory() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -185,7 +188,7 @@ func (t *ImplicitDirsTest) ImplicitDirectory_DefinedByDirectory() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
+func (t *ImplicitDirsTest) TestConflictingNames_PlaceholderPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -238,7 +241,7 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
+func (t *ImplicitDirsTest) TestConflictingNames_PlaceholderNotPresent() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -291,7 +294,7 @@ func (t *ImplicitDirsTest) ConflictingNames_PlaceholderNotPresent() {
 	ExpectFalse(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
+func (t *ImplicitDirsTest) TestConflictingNames_OneIsSymlink() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
 	var err error
@@ -347,7 +350,7 @@ func (t *ImplicitDirsTest) ConflictingNames_OneIsSymlink() {
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_NoOtherContents() {
+func (t *ImplicitDirsTest) TestStatUnknownName_NoOtherContents() {
 	var err error
 
 	// Stat an unknown name.
@@ -355,7 +358,7 @@ func (t *ImplicitDirsTest) StatUnknownName_NoOtherContents() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_UnrelatedContents() {
+func (t *ImplicitDirsTest) TestStatUnknownName_UnrelatedContents() {
 	var err error
 
 	// Set up contents.
@@ -372,7 +375,7 @@ func (t *ImplicitDirsTest) StatUnknownName_UnrelatedContents() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) StatUnknownName_PrefixOfActualNames() {
+func (t *ImplicitDirsTest) TestStatUnknownName_PrefixOfActualNames() {
 	var err error
 
 	// Set up contents.
@@ -389,7 +392,7 @@ func (t *ImplicitDirsTest) StatUnknownName_PrefixOfActualNames() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
+func (t *ImplicitDirsTest) TestImplicitBecomesExplicit() {
 	var fi os.FileInfo
 	var err error
 
@@ -424,7 +427,7 @@ func (t *ImplicitDirsTest) ImplicitBecomesExplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
+func (t *ImplicitDirsTest) TestExplicitBecomesImplicit() {
 	var fi os.FileInfo
 	var err error
 
@@ -459,7 +462,7 @@ func (t *ImplicitDirsTest) ExplicitBecomesImplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
+func (t *ImplicitDirsTest) TestRmdir_NotEmpty_OnlyImplicit() {
 	var err error
 
 	// Set up an implicit directory.
@@ -484,7 +487,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_OnlyImplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
+func (t *ImplicitDirsTest) TestRmdir_NotEmpty_ImplicitAndExplicit() {
 	var err error
 
 	// Set up an implicit directory that also has a backing object.
@@ -510,7 +513,7 @@ func (t *ImplicitDirsTest) Rmdir_NotEmpty_ImplicitAndExplicit() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *ImplicitDirsTest) Rmdir_Empty() {
+func (t *ImplicitDirsTest) TestRmdir_Empty() {
 	var err error
 	var entries []os.FileInfo
 
@@ -545,7 +548,7 @@ func (t *ImplicitDirsTest) Rmdir_Empty() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
+func (t *ImplicitDirsTest) TestAtimeCtimeAndMtime() {
 	var err error
 	mountTime := mtimeClock.Now()
 

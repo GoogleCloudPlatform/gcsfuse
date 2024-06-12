@@ -70,7 +70,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	t.serverCfg.DirTypeCacheTTL = ttl
 
 	// Call through.
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -477,7 +477,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 	t.serverCfg.DirTypeCacheTTL = ttl
 
 	// Call through.
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func init() {

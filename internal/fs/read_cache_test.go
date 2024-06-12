@@ -74,11 +74,11 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *FileCacheTest) TearDown() {
-	t.fsTest.TearDown()
+	t.fsTest.TearDownTest()
 	err := os.RemoveAll(FileCacheDir)
 	assert.Nil(t.T(), err)
 }
@@ -607,11 +607,11 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *FileCacheWithCacheForRangeRead) TearDown() {
-	t.fsTest.TearDown()
+	t.fsTest.TearDownTest()
 	err := os.RemoveAll(FileCacheDir)
 	assert.Nil(t.T(), err)
 }
@@ -740,11 +740,11 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDown() {
-	t.fsTest.TearDown()
+	t.fsTest.TearDownTest()
 }
 
 func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopulateCache() {
@@ -784,7 +784,7 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *FileCacheDestroyTest) TearDownTestSuite() {
@@ -810,8 +810,8 @@ func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
 	_, err = os.Stat(FileCacheDir)
 	assert.Nil(t.T(), err)
 
-	t.fsTest.TearDown()
-	t.fsTest.TearDownTestSuite()
+	t.fsTest.TearDownTest()
+	t.fsTest.TearDownSuite()
 
 	if err != nil {
 		AddFailure("MountedFileSystem.Unmount: %v", err)

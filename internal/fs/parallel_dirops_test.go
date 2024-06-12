@@ -46,7 +46,7 @@ func (t *ParallelDiropsTest) SetupSuite() {
 			DisableParallelDirops: false,
 		}}
 	t.serverCfg.RenameDirLimit = 10
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *ParallelDiropsWithoutCachesTest) SetupSuite() {
@@ -58,7 +58,7 @@ func (t *ParallelDiropsWithoutCachesTest) SetupSuite() {
 	t.serverCfg.RenameDirLimit = 10
 	t.serverCfg.DirTypeCacheTTL = 0
 	t.serverCfg.InodeAttributeCacheTTL = 0
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 func (t *ParallelDiropsTest) SetupTest() {
@@ -66,11 +66,11 @@ func (t *ParallelDiropsTest) SetupTest() {
 }
 
 func (t *ParallelDiropsTest) TearDownTest() {
-	t.fsTest.TearDown()
+	t.fsTest.TearDownTest()
 }
 
 func (t *ParallelDiropsTest) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
+	t.fsTest.TearDownSuite()
 }
 
 func TestParallelDiropsTestSuite(t *testing.T) {

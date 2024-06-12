@@ -95,7 +95,7 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 	}(t.serverCfg.MountConfig, &t.serverCfg)
 
 	// Call through.
-	t.fsTest.SetUpTestSuite()
+	t.fsTest.SetupSuite()
 }
 
 ////////////////////////////////////////////////////////////////////////
