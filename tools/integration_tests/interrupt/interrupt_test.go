@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
-	
+
 	setup.RunTestsForMountedDirectoryFlag(m)
 
 	// Else run tests for testBucket.
