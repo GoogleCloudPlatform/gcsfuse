@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -26,21 +27,26 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestAllBuckets(t *testing.T) {
+	suite.Run(t, new(AllBucketsTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type AllBucketsTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&AllBucketsTest{})
-}
-
-func (t *AllBucketsTest) SetUpTestSuite() {
+func (t *AllBucketsTest) SetupSuite() {
 	mtimeClock = timeutil.RealClock()
 	buckets = map[string]gcs.Bucket{
 		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0"),
@@ -56,19 +62,19 @@ func (t *AllBucketsTest) SetUpTestSuite() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AllBucketsTest) BaseDir_Ls() {
+func (t *AllBucketsTest) TestBaseDir_Ls() {
 	_, err := ioutil.ReadDir(mntDir)
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
-func (t *AllBucketsTest) BaseDir_Write() {
+func (t *AllBucketsTest) TestBaseDir_Write() {
 	filename := path.Join(mntDir, "foo")
 	err := ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
 
-func (t *AllBucketsTest) BaseDir_Rename() {
+func (t *AllBucketsTest) TestBaseDir_Rename() {
 	err := os.Rename(mntDir+"/bucket-0", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
@@ -85,7 +91,7 @@ func (t *AllBucketsTest) BaseDir_Rename() {
 
 }
 
-func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
+func (t *AllBucketsTest) TestSingleBucket_ReadAfterWrite() {
 	var err error
 	filename := path.Join(mntDir, "bucket-1/foo")
 
