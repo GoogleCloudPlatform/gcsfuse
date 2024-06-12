@@ -113,12 +113,13 @@ func (job *Job) parallelDownloadObjectAsync() {
 			return
 		default:
 			if start < end {
-				// Parallely download different ranges not more than parallelReadRequestSize
+				// Parallely download different ranges not more than maxSingleStepReadSize
 				// and not using go routines more than job.downloadParallelism
 				downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
 				var singleStepReadSize int64 = 0
-				for jobNum := 0; (jobNum < job.fileCacheConfig.DownloadParallelismPerFile) && (singleStepReadSize < maxSingleStepReadSize) && (start < end); jobNum++ {
+				for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.DownloadParallelismPerFile) &&
+						(singleStepReadSize < maxSingleStepReadSize) && (start < end); goRoutineIdx++ {
 					rangeStart := start
 					rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 
