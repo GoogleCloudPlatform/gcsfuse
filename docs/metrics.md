@@ -1,3 +1,4 @@
+
 # GCSFuse Metrics
 GCSFuse supports exporting custom metrics to Google cloud monitoring. 
 Metrics are collected using OpenCensus and exported via Stackdriver exporter.
@@ -15,7 +16,7 @@ can group by op_type.
 
 ## GCS metrics
 * **gcs/download_bytes_count:** Cumulative number of bytes downloaded from GCS along
-with read type. Read type specifies sequential or random read.
+with read type. Read type specifies sequential or random or parallel read.
 * **gcs/read_bytes_count:** Cumulative number of bytes read from GCS objects. This
 is different from download_bytes_count. For eg: we might download x number of
 bytes from GCS but read only <x bytes.

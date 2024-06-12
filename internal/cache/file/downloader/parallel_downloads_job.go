@@ -119,7 +119,7 @@ func (job *Job) parallelDownloadObjectAsync() {
 
 				var singleStepReadSize int64 = 0
 				for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.DownloadParallelismPerFile) &&
-						(singleStepReadSize < maxSingleStepReadSize) && (start < end); goRoutineIdx++ {
+					(singleStepReadSize < maxSingleStepReadSize) && (start < end); goRoutineIdx++ {
 					rangeStart := start
 					rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 
