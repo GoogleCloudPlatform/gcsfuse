@@ -26,6 +26,7 @@ mkdir -p gcs
 GCSFUSE_FLAGS=$1
 UPLOAD_FLAGS=$2
 BUCKET_NAME=$3
+SPREADSHEET_ID=$4
 MOUNT_POINT=gcs
 # The VM will itself exit if the gcsfuse mount fails.
 gcsfuse $GCSFUSE_FLAGS $BUCKET_NAME $MOUNT_POINT
@@ -42,4 +43,4 @@ echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://periodic-perf-tests/creds.json gsheet
 echo Fetching results..
-python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS
+python3 fetch_and_upload_metrics.py "fio-output${EXPERIMENT_NUMBER}.json" $UPLOAD_FLAGS $SPREADSHEET_ID
