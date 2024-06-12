@@ -17,7 +17,6 @@
 package cfg
 
 import (
-	"math"
 	"net/url"
 	"time"
 
