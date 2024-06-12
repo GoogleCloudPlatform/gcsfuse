@@ -55,6 +55,7 @@ const (
 
 func TestFS(t *testing.T) {
 	TestImplicitDirs(t)
+	TestImplicitDirsWithCache(t)
 }
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")

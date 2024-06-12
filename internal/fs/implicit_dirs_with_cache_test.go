@@ -22,29 +22,40 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"testing"
 	"time"
 
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestImplicitDirsWithCache(t *testing.T) {
+	suite.Run(t, new(ImplicitDirsWithCacheTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type ImplicitDirsWithCacheTest struct {
+	suite.Suite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&ImplicitDirsWithCacheTest{})
-}
-
-func (t *ImplicitDirsWithCacheTest) SetUpTestSuite() {
+func (t *ImplicitDirsWithCacheTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.DirTypeCacheTTL = time.Minute * 3
 	t.fsTest.SetupSuite()
+}
+
+func (t *ImplicitDirsWithCacheTest) TearDownSuite() {
+	t.fsTest.TearDownSuite()
+}
+
+func (t *ImplicitDirsWithCacheTest) TearDownTest() {
+	t.fsTest.TearDownTest()
 }
 
 ////////////////////////////////////////////////////////////////////////
