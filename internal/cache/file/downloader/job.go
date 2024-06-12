@@ -447,7 +447,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		return job.status, nil
 	}
 
-	if !waitForDownload {
+	if !(waitForDownload || job.fileCacheConfig.EnableParallelDownloads) {
 		defer job.mu.Unlock()
 		return job.status, nil
 	}

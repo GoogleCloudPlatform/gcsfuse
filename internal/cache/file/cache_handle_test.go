@@ -136,7 +136,15 @@ func (cht *cacheHandleTest) SetupTest() {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCrcCheck: true})
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCrcCheck: true},
+	)
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -818,5 +826,30 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 
 	assert.Equal(cht.T(), n, ReadContentSize)
 	assert.True(cht.T(), cacheHit)
+	assert.Nil(cht.T(), err)
+}
+func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.cacheFileForRangeRead = true
+
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true},
+	)
+
+	cht.cacheHandle.fileDownloadJob = fileDownloadJob
+
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
+	assert.False(cht.T(), cacheHit)
 	assert.Nil(cht.T(), err)
 }
