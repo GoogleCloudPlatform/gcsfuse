@@ -59,7 +59,7 @@ type Job struct {
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
-	// Specifies whether the CRC check needs to be done after the file is
+	fileCacheConfig      *config.FileCacheConfig
 	// downloaded to cache.
 
 	/////////////////////////
@@ -87,8 +87,7 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
-	mu              locker.Locker
-	fileCacheConfig *config.FileCacheConfig
+	mu locker.Locker
 }
 
 // JobStatus represents the status of job.
