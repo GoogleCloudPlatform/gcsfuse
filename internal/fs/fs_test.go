@@ -197,8 +197,7 @@ func (t *fsTest) TearDownTestSuite() {
 			continue
 		}
 
-		AddFailure("MountedFileSystem.Unmount: %v", err)
-		AbortTest()
+		assert.FailNow(t.T(), "MountedFileSystem.Unmount: %v", err)
 	}
 
 	if err := mfs.Join(ctx); err != nil {
@@ -220,11 +219,11 @@ func (t *fsTest) TearDownTestSuite() {
 func (t *fsTest) TearDown() {
 	// Close any files we opened.
 	if t.f1 != nil {
-		ExpectEq(nil, t.f1.Close())
+		assert.Nil(t.T(), t.f1.Close())
 	}
 
 	if t.f2 != nil {
-		ExpectEq(nil, t.f2.Close())
+		assert.Nil(t.T(), t.f2.Close())
 	}
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
@@ -304,7 +303,7 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 	return
 }
 
-func currentUid() uint32 {
+func currentUid(t *fsTest) uint32 {
 	user, err := user.Current()
 	assert.Nil(t.T(), err)
 
@@ -314,7 +313,7 @@ func currentUid() uint32 {
 	return uint32(uid)
 }
 
-func currentGid() uint32 {
+func currentGid(t *fsTest) uint32 {
 	user, err := user.Current()
 	assert.Nil(t.T(), err)
 

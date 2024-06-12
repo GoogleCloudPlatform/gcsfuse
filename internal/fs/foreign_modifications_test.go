@@ -87,8 +87,8 @@ func (t *ForeignModsTest) StatRoot() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *ForeignModsTest) ReadDir_EmptyRoot() {
@@ -133,8 +133,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -144,8 +144,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -155,8 +155,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInRoot() {
 	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *ForeignModsTest) ReadDir_EmptySubDirectory() {
@@ -212,8 +212,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectEq(dirPerms|os.ModeDir, e.Mode())
 	ExpectTrue(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 
 	// baz
 	e = entries[1]
@@ -223,8 +223,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	e = entries[2]
@@ -234,8 +234,8 @@ func (t *ForeignModsTest) ReadDir_ContentsInSubDirectory() {
 	ExpectThat(e, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(e.IsDir())
 	ExpectEq(1, e.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), e.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), e.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), e.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), e.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *ForeignModsTest) UnreachableObjects() {

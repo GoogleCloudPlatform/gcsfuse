@@ -928,8 +928,8 @@ func (t *DirectoryTest) Mkdir_OneLevel() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(dirName)
@@ -970,8 +970,8 @@ func (t *DirectoryTest) Mkdir_TwoLevels() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "parent/dir"))
@@ -1041,8 +1041,8 @@ func (t *DirectoryTest) Stat_Root() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *DirectoryTest) Stat_FirstLevelDirectory() {
@@ -1061,8 +1061,8 @@ func (t *DirectoryTest) Stat_FirstLevelDirectory() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *DirectoryTest) Stat_SecondLevelDirectory() {
@@ -1081,8 +1081,8 @@ func (t *DirectoryTest) Stat_SecondLevelDirectory() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *DirectoryTest) ReadDir_Root() {
@@ -1110,8 +1110,8 @@ func (t *DirectoryTest) ReadDir_Root() {
 	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	fi = entries[1]
@@ -1120,8 +1120,8 @@ func (t *DirectoryTest) ReadDir_Root() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *DirectoryTest) ReadDir_SubDirectory() {
@@ -1154,8 +1154,8 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 
 	// foo
 	fi = entries[1]
@@ -1164,8 +1164,8 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 	ExpectTrue(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *DirectoryTest) Rmdir_NotEmpty() {
@@ -1527,7 +1527,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
 	assert.Equal(t.T(), 4, offset)
 }
 
-func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
+func validateObjectAttributes(t *fsTest, extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAttributes,
 	minObject1, minObject2 *gcs.MinObject) {
 	assert.NotNil(t.T(), extendedAttr1)
 	assert.NotNil(t.T(), extendedAttr2)
@@ -1561,7 +1561,7 @@ func validateObjectAttributes(extendedAttr1, extendedAttr2 *gcs.ExtendedObjectAt
 	assert.Nil(t.T(), extendedAttr1.Acl)
 }
 
-func createFile(filePath string) {
+func createFile(t *fsTest, filePath string) {
 	f, err := os.Create(filePath)
 	assert.Nil(t.T(), err)
 	err = f.Close()
@@ -1571,7 +1571,7 @@ func createFile(filePath string) {
 func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	// Create file.
 	fileName := "foo"
-	createFile(path.Join(mntDir, fileName))
+	createFile(&t.fsTest, path.Join(mntDir, fileName))
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	assert.Nil(t.T(), err)
@@ -1585,13 +1585,13 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	minObject2, extendedAttr2, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	assert.Nil(t.T(), err)
 	// Validate object attributes are as expected.
-	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
+	validateObjectAttributes(&t.fsTest, extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
 func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	// Create file.
 	fileName := "foo"
-	createFile(path.Join(mntDir, fileName))
+	createFile(&t.fsTest, path.Join(mntDir, fileName))
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	assert.Nil(t.T(), err)
@@ -1608,7 +1608,7 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	assert.Nil(t.T(), err)
 
 	// Validate object attributes are as expected.
-	validateObjectAttributes(extendedAttr1, extendedAttr2, minObject1, minObject2)
+	validateObjectAttributes(&t.fsTest, extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
 func (t *FileTest) ReadsPastEndOfFile() {
@@ -1782,8 +1782,8 @@ func (t *FileTest) Stat() {
 	ExpectThat(fi, fusetesting.MtimeIsWithin(writeTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *FileTest) StatUnopenedFile() {
@@ -1808,8 +1808,8 @@ func (t *FileTest) StatUnopenedFile() {
 	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *FileTest) LstatUnopenedFile() {
@@ -1834,8 +1834,8 @@ func (t *FileTest) LstatUnopenedFile() {
 	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
-	ExpectEq(currentUid(), fi.Sys().(*syscall.Stat_t).Uid)
-	ExpectEq(currentGid(), fi.Sys().(*syscall.Stat_t).Gid)
+	ExpectEq(currentUid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Uid)
+	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
 func (t *FileTest) UnlinkFile_Exists() {

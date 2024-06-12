@@ -87,7 +87,7 @@ func generateRandomString(length int) string {
 	return string(testutil.GenerateRandomBytes(length))
 }
 
-func closeFile(file *os.File) {
+func closeFile(t *fsTest, file *os.File) {
 	err := file.Close()
 	assert.Nil(t.T(), err)
 }
@@ -99,7 +99,7 @@ func sequentialReadShouldPopulateCache(t *fsTest, cacheDir string) {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(t, file)
 	assert.Nil(t.T(), err)
 
 	// reading object with cache enabled should cache the object into file.
@@ -122,7 +122,7 @@ func cacheFilePermissionTest(t *fsTest, fileMode os.FileMode) {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(t, file)
 	assert.Nil(t.T(), err)
 
 	// reading object with cache enabled should cache the object into file.
@@ -143,7 +143,7 @@ func writeShouldNotPopulateCache(t *fsTest) {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(t, file)
 	assert.Nil(t.T(), err)
 
 	// writing file with cache enabled should not populate cache.
@@ -166,7 +166,7 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(t, file)
 	assert.Nil(t.T(), err)
 	// Sequential read
 	buf := make([]byte, util.MiB)
@@ -205,13 +205,13 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	// Open and read files for object 1 & 2, filet 1 should be LRU after that.
 	buf := make([]byte, 10)
 	fileHandle1, err := os.OpenFile(path.Join(mntDir, objectName1), os.O_RDONLY|syscall.O_DIRECT, 0644)
-	defer closeFile(fileHandle1)
+	defer closeFile(&t.fsTest, fileHandle1)
 	assert.Nil(t.T(), err)
 	_, err = fileHandle1.ReadAt(buf, 0)
 	assert.Nil(t.T(), err)
 	AssertEq(string(buf), objectContent1[0:len(buf)])
 	fileHandle2, err := os.OpenFile(path.Join(mntDir, objectName2), os.O_RDONLY|syscall.O_DIRECT, 0644)
-	defer closeFile(fileHandle2)
+	defer closeFile(&t.fsTest, fileHandle2)
 	assert.Nil(t.T(), err)
 	_, err = fileHandle2.ReadAt(buf, 0)
 	assert.Nil(t.T(), err)
@@ -232,7 +232,7 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	assert.Nil(t.T(), err)
 	AssertEq(string(buf), objectContent1[0:len(buf)])
 	fileHandle3, err := os.OpenFile(path.Join(mntDir, objectName3), os.O_RDONLY|syscall.O_DIRECT, 0644)
-	defer closeFile(fileHandle3)
+	defer closeFile(&t.fsTest, fileHandle3)
 	assert.Nil(t.T(), err)
 	_, err = fileHandle3.ReadAt(buf, 0)
 	assert.Nil(t.T(), err)
@@ -269,7 +269,7 @@ func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 
 	// reading object with size greater than cache size
@@ -323,7 +323,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 	// randomly read object with cache enabled should not populate cache
 	buf := make([]byte, util.MiB)
@@ -353,7 +353,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	assert.Nil(t.T(), err)
-	closeFile(file)
+	closeFile(&t.fsTest, file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	file, err = os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
@@ -361,7 +361,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	// delete the file in cache
 	err = os.Remove(downloadPath)
 	assert.Nil(t.T(), err)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 
 	// reading again should throw error
@@ -379,7 +379,7 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	assert.Nil(t.T(), err)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	assert.Nil(t.T(), err)
@@ -409,7 +409,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	assert.Nil(t.T(), err)
-	closeFile(file)
+	closeFile(&t.fsTest, file)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	_, err = os.Stat(downloadPath)
@@ -435,7 +435,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	assert.Nil(t.T(), err)
-	closeFile(file)
+	closeFile(&t.fsTest, file)
 	renamedPath := path.Join(mntDir, RenamedObjectName)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
@@ -462,7 +462,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	assert.Nil(t.T(), err)
-	closeFile(file)
+	closeFile(&t.fsTest, file)
 	dir := path.Join(mntDir, DefaultDir)
 	renamedDir := path.Join(mntDir, RenamedDir)
 	objectPath := util.GetObjectPath(bucket.Name(), NestedDefaultObjectName)
@@ -486,7 +486,7 @@ func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 	wg := sync.WaitGroup{}
 	readFunc := func(offset int64, length int64) {
@@ -542,7 +542,7 @@ func (t *FileCacheTest) WriteToFileCachedAndThenReadingItShouldBeCorrect() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 	// Write to file after reading
 	buf := []byte(objectContent)
@@ -570,7 +570,7 @@ func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT|os.O_CREATE, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 	// Write and sync to file after reading
 	buf := []byte(objectContent)
@@ -626,7 +626,7 @@ func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	assert.Nil(t.T(), err)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 
 	// Random read should also download
 	buf := make([]byte, tenKiB)
@@ -642,7 +642,7 @@ func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 	time.Sleep(50 * time.Millisecond)
 	cacheFile, err := os.OpenFile(downloadPath, os.O_RDWR|syscall.O_DIRECT, 0644)
 	assert.Nil(t.T(), err)
-	defer closeFile(cacheFile)
+	defer closeFile(&t.fsTest, cacheFile)
 	cachedContent := make([]byte, hundredKiB)
 	_, err = cacheFile.Read(cachedContent)
 	assert.Nil(t.T(), err)
@@ -717,7 +717,7 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 
 	// read the file again, should give modified content
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, os.FileMode(0655))
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
@@ -754,7 +754,7 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopula
 	assert.Nil(t.T(), err)
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
-	defer closeFile(file)
+	defer closeFile(&t.fsTest, file)
 	assert.Nil(t.T(), err)
 
 	// Reading object with cache disabled should not cache the object into file.
