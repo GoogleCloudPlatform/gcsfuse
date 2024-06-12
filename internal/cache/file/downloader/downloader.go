@@ -105,7 +105,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig.EnableCrcCheck)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig)
 	jm.jobs[objectPath] = job
 	return job
 }
