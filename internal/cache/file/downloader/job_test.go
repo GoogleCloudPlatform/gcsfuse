@@ -848,3 +848,26 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Not_Enabled() {
+	objectName := "path/in/gcs/file1.txt"
+	objectSize := 8 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+
+	result := dt.job.IsParallelDownloadEnabled()
+
+	AssertFalse(result)
+}
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Enabled() {
+	objectName := "path/in/gcs/file1.txt"
+	objectSize := 8 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	dt.job.fileCacheConfig.EnableParallelDownloads = true
+
+	result := dt.job.IsParallelDownloadEnabled()
+
+	AssertTrue(result)
+}
