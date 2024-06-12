@@ -45,20 +45,15 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
-	var cancel context.CancelFunc
-	var err error
-
 	// Create storage client before running tests.
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-
-	// Close storage client and release resources.
-	defer cancel()
-	defer storageClient.Close()
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 

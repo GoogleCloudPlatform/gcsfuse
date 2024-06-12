@@ -92,11 +92,6 @@ const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
-var (
-	storageClient *storage.Client
-	ctx           context.Context
-)
-
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
@@ -147,23 +142,19 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	ctx = context.Background()
-	var cancel context.CancelFunc
-	var err error
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-
-	// Close storage client and release resources.
-	defer cancel()
-	defer storageClient.Close()
-
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -198,7 +189,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, ctx, storageClient, m)
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
 	if successCode == 0 {

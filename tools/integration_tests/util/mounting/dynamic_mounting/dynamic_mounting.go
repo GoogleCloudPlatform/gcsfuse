@@ -146,7 +146,7 @@ func DeleteTestBucketForDynamicMounting(ctx context.Context, client *storage.Cli
 	}
 }
 
-func RunTests(flags [][]string, ctx context.Context, client *storage.Client, m *testing.M) (successCode int) {
+func RunTests(ctx context.Context, client *storage.Client, flags [][]string, m *testing.M) (successCode int) {
 	log.Println("Running dynamic mounting tests...")
 
 	CreateTestBucketForDynamicMounting(ctx, client)

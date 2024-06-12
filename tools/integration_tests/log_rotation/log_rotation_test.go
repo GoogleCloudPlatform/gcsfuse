@@ -71,20 +71,15 @@ func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress b
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	var err error
 	ctx = context.Background()
-	var cancel context.CancelFunc
-
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
-	}
-
-	defer cancel()
-	defer storageClient.Close()
-
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+	
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Run tests for mountedDirectory only if --mountedDirectory flag is set.
