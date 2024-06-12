@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -60,7 +61,6 @@ type Job struct {
 	fileSpec             data.FileSpec
 	// Specifies whether the CRC check needs to be done after the file is
 	// downloaded to cache.
-	enableCrcCheck bool
 
 	/////////////////////////
 	// Mutable state
@@ -87,7 +87,8 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
-	mu locker.Locker
+	mu              locker.Locker
+	fileCacheConfig *config.FileCacheConfig
 }
 
 // JobStatus represents the status of job.
@@ -104,9 +105,15 @@ type jobSubscriber struct {
 	subscribedOffset int64
 }
 
-func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func(),
-	enableCrcCheck bool) (job *Job) {
+func NewJob(
+	object *gcs.MinObject,
+	bucket gcs.Bucket,
+	fileInfoCache *lru.Cache,
+	sequentialReadSizeMb int32,
+	fileSpec data.FileSpec,
+	removeJobCallback func(),
+	fileCacheConfig *config.FileCacheConfig,
+) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
@@ -114,7 +121,7 @@ func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
-		enableCrcCheck:       enableCrcCheck,
+		fileCacheConfig:      fileCacheConfig,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -473,7 +480,7 @@ func (job *Job) GetStatus() JobStatus {
 // Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
 // In case of mismatch deletes the file and corresponding entry from file cache.
 func (job *Job) validateCRC() (err error) {
-	if !job.enableCrcCheck {
+	if !job.fileCacheConfig.EnableCrcCheck {
 		return
 	}
 
