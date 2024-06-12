@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*25)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
