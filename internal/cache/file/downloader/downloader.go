@@ -15,6 +15,7 @@
 package downloader
 
 import (
+	"math"
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -23,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"golang.org/x/sync/semaphore"
 )
 
 // JobManager is responsible for maintaining, getting and removing file download
@@ -57,17 +59,24 @@ type JobManager struct {
 	// "test_bucket/a/b/foo.txt"
 	jobs map[string]*Job
 	mu   locker.Locker
+
+	concurrentDownloadsSemaphore *semaphore.Weighted
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *config.FileCacheConfig) (jm *JobManager) {
+	maxDownloadParallelism := int64(math.MaxInt64)
+	if c.MaxDownloadParallelism > 0 {
+		maxDownloadParallelism = int64(c.MaxDownloadParallelism)
+	}
 	jm = &JobManager{
-		fileInfoCache:        fileInfoCache,
-		filePerm:             filePerm,
-		dirPerm:              dirPerm,
-		cacheDir:             cacheDir,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		fileCacheConfig:      c,
+		fileInfoCache:                fileInfoCache,
+		filePerm:                     filePerm,
+		dirPerm:                      dirPerm,
+		cacheDir:                     cacheDir,
+		sequentialReadSizeMb:         sequentialReadSizeMb,
+		fileCacheConfig:              c,
+		concurrentDownloadsSemaphore: semaphore.NewWeighted(maxDownloadParallelism),
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -105,7 +114,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.concurrentDownloadsSemaphore)
 	jm.jobs[objectPath] = job
 	return job
 }

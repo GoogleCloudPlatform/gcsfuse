@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 type jobStatusName string
@@ -86,7 +87,8 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
-	mu locker.Locker
+	mu                    locker.Locker
+	maxTotalConcurrenySem *semaphore.Weighted
 }
 
 // JobStatus represents the status of job.
@@ -111,15 +113,17 @@ func NewJob(
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
 	fileCacheConfig *config.FileCacheConfig,
+	maxTotalConcurrenySem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{
-		object:               object,
-		bucket:               bucket,
-		fileInfoCache:        fileInfoCache,
-		sequentialReadSizeMb: sequentialReadSizeMb,
-		fileSpec:             fileSpec,
-		removeJobCallback:    removeJobCallback,
-		fileCacheConfig:      fileCacheConfig,
+		object:                object,
+		bucket:                bucket,
+		fileInfoCache:         fileInfoCache,
+		sequentialReadSizeMb:  sequentialReadSizeMb,
+		fileSpec:              fileSpec,
+		removeJobCallback:     removeJobCallback,
+		fileCacheConfig:       fileCacheConfig,
+		maxTotalConcurrenySem: maxTotalConcurrenySem,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -448,7 +452,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
 		if job.fileCacheConfig.EnableParallelDownloads {
-			go job.parallelDownloadObjectAsync()
+			go job.parallelDownloadObjectAsync(job.maxTotalConcurrenySem)
 		} else {
 			go job.downloadObjectAsync()
 		}

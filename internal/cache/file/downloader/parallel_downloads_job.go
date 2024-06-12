@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 // downloadRangeToFile is a helper function to download a given range of object
@@ -76,7 +77,7 @@ func (job *Job) downloadRangeToFile(ctx context.Context, cacheFile *os.File, sta
 // Note: There can only be one async parallel or non-parallel download running
 // for a job at a time.
 // Acquires and releases LOCK(job.mu)
-func (job *Job) parallelDownloadObjectAsync() {
+func (job *Job) parallelDownloadObjectAsync(maxTotalConcurrency *semaphore.Weighted) {
 	// Cleanup the async job in all cases - completion/failure/invalidation.
 	defer job.cleanUpDownloadAsyncJob()
 
@@ -116,14 +117,20 @@ func (job *Job) parallelDownloadObjectAsync() {
 				// Parallely download different ranges not more than maxSingleStepReadSize
 				// and not using go routines more than job.downloadParallelism
 				downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
-
 				var singleStepReadSize int64 = 0
 				for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.DownloadParallelismPerFile) &&
 					(singleStepReadSize < maxSingleStepReadSize) && (start < end); goRoutineIdx++ {
 					rangeStart := start
 					rangeEnd := min(rangeStart+parallelReadRequestSize, end)
-
+					if goRoutineIdx == 0 {
+						maxTotalConcurrency.Acquire(downloadErrGroupCtx, 1)
+					} else {
+						if s := maxTotalConcurrency.TryAcquire(1); !s {
+							break
+						}
+					}
 					downloadErrGroup.Go(func() error {
+						defer maxTotalConcurrency.Release(1)
 						return job.downloadRangeToFile(downloadErrGroupCtx, cacheFile, rangeStart, rangeEnd)
 					})
 
