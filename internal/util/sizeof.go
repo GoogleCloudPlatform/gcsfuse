@@ -251,6 +251,9 @@ func NestedSizeOfGcsMinObject(m *gcs.MinObject) (size int) {
 		size += contentSizeOfString(strPtr)
 	}
 
+	// Account for pointers to built in types.
+	size += UnsafeSizeOf(m.CRC32C)
+
 	// Account for integer members - Size, Generation, MetaGeneration.
 	// Account for time members - Updated.
 	// Nothing to be added for any built-in types - already accounted for in unsafeSizeOf(o).

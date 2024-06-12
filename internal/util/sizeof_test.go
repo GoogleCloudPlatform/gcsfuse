@@ -40,12 +40,15 @@ func TestSizeOfSuite(t *testing.T) {
 
 var (
 	i            int
+	ui32         uint32
 	intArray     []int
 	b            byte
 	stringIntMap map[string]int
 
 	sizeOfInt               int
 	sizeOfIntPtr            int
+	sizeOfUInt32            int
+	sizeOfUInt32Ptr         int
 	sizeOfByte              int
 	sizeOfEmptyIntArray     int
 	sizeOfEmptyStringIntMap int
@@ -58,6 +61,8 @@ func (t *SizeofTest) SetupTest() {
 
 	sizeOfInt = int(unsafe.Sizeof(i))
 	sizeOfIntPtr = int(unsafe.Sizeof(&i))
+	sizeOfUInt32 = int(unsafe.Sizeof(ui32))
+	sizeOfUInt32Ptr = int(unsafe.Sizeof(&ui32))
 	sizeOfByte = int(unsafe.Sizeof(b))
 	sizeOfEmptyIntArray = int(unsafe.Sizeof(intArray))
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
@@ -84,6 +89,14 @@ func (t *SizeofTest) TestUnsafeSizeOf() {
 		{
 			t:             &i,
 			expected_size: sizeOfIntPtr,
+		},
+		{
+			t:             ui32,
+			expected_size: sizeOfUInt32,
+		},
+		{
+			t:             &ui32,
+			expected_size: sizeOfUInt32Ptr,
 		},
 		{
 			t: struct {
@@ -278,6 +291,7 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 	const contentEncoding string = "gzip/none"
 	var generation int64 = 858734898
 	var metaGeneration int64 = 858734899
+	var crc32 uint32 = 1234
 	updated := time.Now()
 	customMetadaField1 := "google-symlink"
 	customMetadaValue1 := "true"
@@ -294,10 +308,11 @@ func (t *SizeofTest) TestNestedSizeOfGcsMinObject() {
 		Generation:      generation,
 		MetaGeneration:  metaGeneration,
 		Updated:         updated,
+		CRC32C:          &crc32,
 	}
 
 	var expectedSize int = sizeOfEmptyMinObject
-	expectedSize += len(name) + len(contentEncoding)
+	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
 	expectedSize += customMetadataFieldsContentSize
 
 	assert.Equal(t.T(), expectedSize, NestedSizeOfGcsMinObject(&m))
