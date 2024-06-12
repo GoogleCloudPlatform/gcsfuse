@@ -846,10 +846,12 @@ func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
 
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
-	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
 
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	assert.False(cht.T(), cacheHit)
-	assert.Nil(cht.T(), err)
+	assert.NotNil(cht.T(), err)
+	assert.Equal(cht.T(), 0, n)
+	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }

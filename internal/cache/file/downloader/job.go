@@ -59,7 +59,7 @@ type Job struct {
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
-	fileCacheConfig      *config.FileCacheConfig
+	FileCacheConfig      *config.FileCacheConfig
 	// downloaded to cache.
 
 	/////////////////////////
@@ -120,7 +120,7 @@ func NewJob(
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
-		fileCacheConfig:      fileCacheConfig,
+		FileCacheConfig:      fileCacheConfig,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -447,7 +447,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		return job.status, nil
 	}
 
-	if !(waitForDownload || job.fileCacheConfig.EnableParallelDownloads) {
+	if !(waitForDownload || job.FileCacheConfig.EnableParallelDownloads) {
 		defer job.mu.Unlock()
 		return job.status, nil
 	}
@@ -479,7 +479,7 @@ func (job *Job) GetStatus() JobStatus {
 // Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
 // In case of mismatch deletes the file and corresponding entry from file cache.
 func (job *Job) validateCRC() (err error) {
-	if !job.fileCacheConfig.EnableCrcCheck {
+	if !job.FileCacheConfig.EnableCrcCheck {
 		return
 	}
 

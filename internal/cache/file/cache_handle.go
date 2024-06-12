@@ -53,7 +53,7 @@ type CacheHandle struct {
 }
 
 func NewCacheHandle(localFileHandle *os.File, fileDownloadJob *downloader.Job,
-	fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
+		fileInfoCache *lru.Cache, cacheFileForRangeRead bool, initialOffset int64) *CacheHandle {
 	return &CacheHandle{
 		fileHandle:            localFileHandle,
 		fileDownloadJob:       fileDownloadJob,
@@ -80,12 +80,17 @@ func (fch *CacheHandle) validateCacheHandle() error {
 // downloaded cache file. Otherwise, it returns an appropriate error message.
 func (fch *CacheHandle) shouldReadFromCache(jobStatus *downloader.JobStatus, requiredOffset int64) (err error) {
 	if jobStatus.Err != nil ||
-		jobStatus.Name == downloader.Invalid ||
-		jobStatus.Name == downloader.Failed {
+			jobStatus.Name == downloader.Invalid ||
+			jobStatus.Name == downloader.Failed {
 		err := fmt.Errorf("%s: jobStatus: %s jobError: %w", util.InvalidFileDownloadJobErrMsg, jobStatus.Name, jobStatus.Err)
 		return err
-	} else if jobStatus.Offset < requiredOffset {
+	}
+	if jobStatus.Offset < requiredOffset {
 		err := fmt.Errorf("%s: jobOffset: %d is less than required offset: %d", util.FallbackToGCSErrMsg, jobStatus.Offset, requiredOffset)
+		return err
+	}
+	if fch.fileDownloadJob.FileCacheConfig.EnableParallelDownloads {
+		err := fmt.Errorf("%s: Parallel Download: true", util.FallbackToGCSErrMsg)
 		return err
 	}
 	return err

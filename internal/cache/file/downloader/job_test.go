@@ -838,7 +838,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
-	dt.job.fileCacheConfig.EnableCrcCheck = false
+	dt.job.FileCacheConfig.EnableCrcCheck = false
 
 	err = dt.job.validateCRC()
 
