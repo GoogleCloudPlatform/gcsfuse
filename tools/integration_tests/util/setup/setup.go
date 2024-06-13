@@ -79,7 +79,7 @@ func TestInstalledPackage() bool {
 	return *testInstalledPackage
 }
 
-func TestOnTPCEndPoint() bool{
+func TestOnTPCEndPoint() bool {
 	return *testOnTPCEndPoint
 }
 
