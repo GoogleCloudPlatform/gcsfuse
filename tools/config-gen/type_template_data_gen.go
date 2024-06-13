@@ -74,6 +74,10 @@ func getGoDataType(dt string) string {
 		return "ResolvedPath"
 	case "duration":
 		return "time.Duration"
+	case "int":
+		return "int64"
+	case "[]int":
+		return "[]int64"
 	default:
 		return dt
 	}
