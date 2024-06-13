@@ -16,11 +16,16 @@
 package operations_test
 
 import (
+	"context"
+	"log"
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -140,6 +145,16 @@ func TestMain(m *testing.M) {
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
+	// Create storage client before running tests.
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as operations tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -174,7 +189,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, m)
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
 	if successCode == 0 {

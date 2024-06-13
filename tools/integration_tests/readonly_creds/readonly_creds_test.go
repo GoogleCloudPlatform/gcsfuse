@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	// Create test directory.
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*2)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -67,6 +67,6 @@ func TestMain(m *testing.M) {
 	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
 	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

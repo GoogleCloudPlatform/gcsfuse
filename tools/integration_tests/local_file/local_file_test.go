@@ -74,19 +74,17 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
-	var cancel context.CancelFunc
-	var err error
-
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.
-	ctx, cancel = context.WithTimeout(ctx, time.Minute*15)
-	storageClient, err = client.CreateStorageClient(ctx)
-	if err != nil {
-		log.Fatalf("client.CreateStorageClient: %v", err)
-	}
-
+	ctx = context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as local_file tests validates content from the bucket.
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
@@ -114,13 +112,10 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
-		successCode = dynamic_mounting.RunTests(flagsSet, m)
+		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	// Close storage client and release resources.
-	storageClient.Close()
-	cancel()
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }
