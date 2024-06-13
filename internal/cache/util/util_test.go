@@ -332,6 +332,7 @@ func (ut *utilTest) Test_TruncateAndRemoveFile_OpenedFileDeleted() {
 	ExpectEq(nil, err)
 	// The size of open file should be 0.
 	fileInfo, err = file.Stat()
+	ExpectEq(nil, err)
 	ExpectEq(0, fileInfo.Size())
 }
 
