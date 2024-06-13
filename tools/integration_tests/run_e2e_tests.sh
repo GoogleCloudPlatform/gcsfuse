@@ -274,11 +274,12 @@ function main(){
 
   set +e
 
-  # TPC tests will run in sequentially due to running gcloud commands in parallel is crashing frequently.
+  # Run test in TPC environment
   if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
        # Clean bucket before testing.
        gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
 
+       # Run Operations e2e tests in TPC to validate all the functionality.
        GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
        exit_code=$?
 
