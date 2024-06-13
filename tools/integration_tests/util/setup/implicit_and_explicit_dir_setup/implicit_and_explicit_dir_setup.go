@@ -42,8 +42,8 @@ const FirstFileInExplicitDirectory = "fileInExplicitDir1"
 const SecondFileInExplicitDirectory = "fileInExplicitDir2"
 const FileInImplicitDirectory = "fileInImplicitDir1"
 const FileInImplicitSubDirectory = "fileInImplicitDir2"
-const UnsupportedImplicitDirectory1 = "/"
 const FileInUnsupportedImplicitDirectory1 = "fileInUnsupportedImplicitDir1"
+const FileInUnsupportedPathInRootDirectory = "fileInUnsupportedPathInRootDirectory"
 
 func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
@@ -76,7 +76,7 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-func createObjectOnGcs(content, completeGcsObjectPath string, t *testing.T) {
+func createObjectOnGcs(content, completeObjectName string, t *testing.T) {
 	ctx := context.Background()
 	sgClient, err := client.CreateStorageClient(ctx)
 	if sgClient == nil || err != nil {
@@ -84,8 +84,8 @@ func createObjectOnGcs(content, completeGcsObjectPath string, t *testing.T) {
 	}
 	defer sgClient.Close()
 
-	if err = client.CreateObjectOnGCS(ctx, sgClient, completeGcsObjectPath, content); err != nil {
-		t.Fatalf("Failed to create object %s on GCS: %v", completeGcsObjectPath, err)
+	if err = client.CreateObjectOnGCS(ctx, sgClient, completeObjectName, content); err != nil {
+		t.Fatalf("Failed to create object %s: %v", completeObjectName, err)
 	}
 }
 
@@ -105,14 +105,16 @@ func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T) {
 	// testBucket/testDir//                                                                  -- Dir
 	// testBucket/testDir//fileInUnsupportedImplicitDir1                                     -- File
 
-	fullGcsTestDirPath := path.Join(setup.TestBucket(), testDir)
+	completeGcsTestDirName := path.Join(testDir, ImplicitDirectory)
 	for _, objectToBeCreated := range []struct {
-		content           string
-		fullObjectGcsPath string
+		content            string
+		completeObjectName string
 	}{{
-		"This is from directory \"\" file fileInUnsupportedImplicitDir1", fullGcsTestDirPath + "//" + FileInUnsupportedImplicitDirectory1,
-	}} {
-		createObjectOnGcs(objectToBeCreated.content, objectToBeCreated.fullObjectGcsPath, t)
+		"This is testBucket/testDir//fileInUnsupportedImplicitDir1", completeGcsTestDirName + "//" + FileInUnsupportedImplicitDirectory1},
+		{
+			"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
+		}} {
+		createObjectOnGcs(objectToBeCreated.content, objectToBeCreated.completeObjectName, t)
 	}
 }
 
