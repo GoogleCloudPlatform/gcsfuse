@@ -1,3 +1,16 @@
+#################################### DOCUMENTATION STARTS ######################
+# Params structure
+# flag-name: Name of the CLI flag.
+# config-path: Location of the param in the config file. A value of "gcs-auth.anonymous-access" indicates that the param will be present under the gcs-auth:anonymous-access.
+# type: data type of the param - supports the following values: ["int", "float64", "bool", "string", "duration", "octal", "[]int",
+#			"[]string", "url", "logSeverity", "protocol", "resolvedPath"]
+# usage: The usage doc that will appear in the helpdoc
+# default: The default value of the param.
+# deprecated: Specifies whether the param is deprecated. This will cause warnings when the user specifies the flag.
+# deprecationWarning: The warning that should be issued when the user specifies a deprecated flag.
+# hide-flag: Whether to hide flag from the helpdoc.
+###################################### DOCUMENTATION ENDS ######################
+
 - flag-name: "app-name"
   config-path: "app-name"
   type: "string"
@@ -352,7 +365,7 @@
 - flag-name: "debug_gcs"
   config-path: "debug.gcs"
   type: "bool"
-  usage: "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  usage: "This flag is unused. Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
   default: false
   deprecated: true
   deprecation-warning: "This flag is currently unused."
