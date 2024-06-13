@@ -16,7 +16,6 @@ package util
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -141,7 +140,7 @@ func calculateCRC32(ctx context.Context, reader io.Reader) (uint32, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return 0, errors.New("CRC computation is cancelled")
+			return 0, fmt.Errorf("CRC computation is cancelled: %w", ctx.Err())
 		default:
 			switch n, err := reader.Read(buf); err {
 			case nil:
