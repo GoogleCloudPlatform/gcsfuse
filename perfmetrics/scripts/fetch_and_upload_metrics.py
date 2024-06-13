@@ -82,7 +82,6 @@ def _parse_arguments(argv):
       '--spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
-      default="",
       required=False,
   )
 
@@ -102,7 +101,7 @@ if __name__ == '__main__':
 
   if args.upload_gs:
     gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
-                                   args.spreadsheet_id)
+                                 args.spreadsheet_id)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:

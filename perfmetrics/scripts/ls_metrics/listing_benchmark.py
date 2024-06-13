@@ -503,7 +503,6 @@ def _parse_arguments(argv):
       '--spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
-      default="",
       required=False,
   )
   # Ignoring the first parameter, as it is the path of this python
@@ -570,7 +569,7 @@ if __name__ == '__main__':
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file --spreadsheet_id')
+                    'python3 listing_benchmark.py [--keep_files] [--upload_gs] [--num_samples NUM_SAMPLES] [--message MESSAGE] --gcsfuse_flags GCSFUSE_FLAGS --command COMMAND config_file --spreadsheet_id SPREADSHEETID')
 
   args = _parse_arguments(argv)
 
