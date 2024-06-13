@@ -242,6 +242,9 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 	job.mu.Unlock()
 }
 
+// updateStatusOffset updates the offset in job's status and in file info cache
+// with the given offset. If the the update is successful, this function also
+// notify the subscribers.
 func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
@@ -376,7 +379,7 @@ func (job *Job) downloadObjectAsync() {
 		}
 	}()
 
-	// Both parallel or non-parallel download functions supports cancellation in
+	// Both parallel and non-parallel download functions supports cancellation in
 	// case of job's cancellation.
 	if job.fileCacheConfig.EnableParallelDownloads {
 		err = job.parallelDownloadObjectToFile(cacheFile)
@@ -400,7 +403,6 @@ func (job *Job) downloadObjectAsync() {
 		err = job.validateCRC()
 		if err != nil {
 			job.updateStatusAndNotifySubscribers(Failed, err)
-			return
 		} else {
 			job.updateStatusAndNotifySubscribers(Completed, err)
 		}
