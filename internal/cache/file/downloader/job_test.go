@@ -850,3 +850,23 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
+
+func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
+	objectName := "path/in/gcs/file2.txt"
+	objectSize := 10 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(10 * util.MiB)
+	_, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	AssertEq(Downloading, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+
+	dt.job.cancelFunc()
+	dt.waitForCrcCheckToBeCompleted()
+
+	AssertEq(Failed, dt.job.status.Name)
+	ExpectTrue(strings.Contains(dt.job.status.Err.Error(), "CRC computation is cancelled"))
+}
