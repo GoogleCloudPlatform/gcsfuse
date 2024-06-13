@@ -591,10 +591,13 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 				"foo//bar": "", // unsupported
 				"foo/1":    "", // supported
 				"a/2":      "", // supported
+				"a//2/6":   "", //unsupported
 				"a//3":     "", // unsupported
 				"4":        "", // supported
+				"/4/7":     "", //unsupported
 				"/bar":     "", // unsupported
 				"bar//5":   "", // unsupported
+				"/":        "", //unsupported
 			}))
 
 	// Statting the mount directory should return a directory entry.
@@ -675,9 +678,10 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 		t.createObjects(
 			map[string]string{
 				"a/b":     "", // supported
+				"a//b/i":  "", // unsupported
 				"foo/c/d": "", // supported
 				"foo//e":  "", // unsupported
-				"f":       "", //supported
+				"f":       "", // supported
 				"/h":      "", // unsupported
 				"/":       "", // unsupported
 			}))
