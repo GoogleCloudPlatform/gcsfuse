@@ -37,9 +37,12 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/explicitFile                                                       -- File
 	// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForImplicitDirTests/explicitDirectory/fileInExplicitDir2                               -- File
+	// testBucket/dirForImplicitDirTests//                                                                  -- Dir
+	// testBucket/dirForImplicitDirTests//fileInUnsupportedImplicitDir1                                     -- File
 
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForImplicitDirTests, t)
+	implicit_and_explicit_dir_setup.CreateUnsupportedImplicitDirectoryStructure(DirForImplicitDirTests)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
@@ -61,7 +64,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 		if path == testDir {
 			// numberOfObjects - 3
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfTotalObjects {
-				t.Errorf("Incorrect number of objects in the bucket.")
+				t.Fatalf("Incorrect number of objects in the bucket: actual=%v, expected=%v.", len(objs), implicit_and_explicit_dir_setup.NumberOfTotalObjects)
 			}
 
 			// testBucket/dirForImplicitDirTests/explicitDir     -- Dir
@@ -83,7 +86,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ExplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory {
-				t.Errorf("Incorrect number of objects in the explicitDirectory.")
+				t.Fatalf("Incorrect number of objects in the explicitDirectory: actual=%v,expected:%v", len(objs), implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory)
 			}
 
 			// testBucket/dirForImplicitDirTests/explicitDir/fileInExplicitDir1   -- File
@@ -102,7 +105,7 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ImplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInImplicitDirectory {
-				t.Errorf("Incorrect number of objects in the implicitDirectory.")
+				t.Fatalf("Incorrect number of objects in the implicitDirectory: actual=%v,expected=%v", len(objs), implicit_and_explicit_dir_setup.NumberOfFilesInImplicitDirectory)
 			}
 
 			// testBucket/dirForImplicitDirTests/implicitDir/fileInImplicitDir1  -- File
