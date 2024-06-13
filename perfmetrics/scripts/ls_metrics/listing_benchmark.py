@@ -500,10 +500,11 @@ def _parse_arguments(argv):
   )
 
   parser.add_argument(
-      'spreadsheet_id',
+      '--spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
       default="",
+      required=False,
   )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
