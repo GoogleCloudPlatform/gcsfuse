@@ -225,45 +225,110 @@ func (job *Job) notifySubscribers() {
 	}
 }
 
-// failWhileDownloading changes the status of job to failed and notifies
-// subscribers about the download error.
+// updateStatusAndNotifySubscribers is a helper function which updates the
+// status's name and err to given name and error and notifies subscribers.
 //
-// Acquires and releases LOCK(job.mu)
-func (job *Job) failWhileDownloading(downloadErr error) {
-	logger.Errorf("Job:%p (%s:/%s) failed with: %v", job, job.bucket.Name(), job.object.Name, downloadErr)
+// Acquires and releases Lock(job.mu)
+func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statusErr error) {
+	if statusName == Failed {
+		logger.Errorf("Job:%p (%s:/%s) Failed with error: %v", job, job.bucket.Name(), job.object.Name, statusErr)
+	} else {
+		logger.Tracef("Job:%p (%s:/%s) status changed to %v with error: %v", job, job.bucket.Name(), job.object.Name, statusName, statusErr)
+	}
 	job.mu.Lock()
-	job.status.Err = downloadErr
-	job.status.Name = Failed
+	job.status.Err = statusErr
+	job.status.Name = statusName
 	job.notifySubscribers()
 	job.mu.Unlock()
 }
 
-// updateFileInfoCache updates the file info cache with latest offset downloaded
-// by job. Returns error in case of failure.
-//
-// Not concurrency safe and requires LOCK(job.mu)
-func (job *Job) updateFileInfoCache() (err error) {
+func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
 		ObjectName: job.object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	if err != nil {
-		err = fmt.Errorf("updateFileInfoCache: error while creating fileInfoKeyName for bucket %s and object %s %w",
+		err = fmt.Errorf("updateStatusOffset: error while creating fileInfoKeyName for bucket %s and object %s %w",
 			fileInfoKey.BucketName, fileInfoKey.ObjectName, err)
 		return
 	}
 
 	updatedFileInfo := data.FileInfo{
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
-		FileSize: job.object.Size, Offset: uint64(job.status.Offset),
+		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
 	}
-
-	logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
+	job.mu.Lock()
+	defer job.mu.Unlock()
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
-	if err != nil {
-		err = fmt.Errorf("updateFileInfoCache: error while inserting into fileInfoCache %s: %w", updatedFileInfo.Key, err)
-		return
+	if err == nil {
+		job.status.Offset = downloadedOffset
+		// Notify subscribers if file cache is updated.
+		logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
+		job.notifySubscribers()
+	} else {
+		err = fmt.Errorf("updateStatusOffset: error while updating offset: %v in fileInfoCache %s: %w", downloadedOffset, updatedFileInfo.Key, err)
+	}
+	return
+}
+
+// downloadObjectToFile downloads the backing object from GCS into the given
+// file and updates the file info cache. It uses gcs.Bucket's NewReader method
+// to download the object.
+func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
+	var newReader io.ReadCloser
+	var start, end, sequentialReadSize, newReaderLimit int64
+	end = int64(job.object.Size)
+	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
+
+	// Each iteration of this for loop, reads ReadChunkSize size of range of the
+	// backing object from reader into the file handle and updates the file info
+	// cache. In case, reader is not present for reading, it creates a
+	// gcs.Bucket's NewReader with size min(sequentialReadSize, object.Size).
+	for start < end {
+		if newReader == nil {
+			newReaderLimit = min(start+sequentialReadSize, end)
+			newReader, err = job.bucket.NewReader(
+				job.cancelCtx,
+				&gcs.ReadObjectRequest{
+					Name:       job.object.Name,
+					Generation: job.object.Generation,
+					Range: &gcs.ByteRange{
+						Start: uint64(start),
+						Limit: uint64(newReaderLimit),
+					},
+					ReadCompressed: job.object.HasContentEncodingGzip(),
+				})
+			if err != nil {
+				err = fmt.Errorf("downloadObjectToFile: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
+				return err
+			}
+			monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
+		}
+
+		maxRead := min(ReadChunkSize, newReaderLimit-start)
+
+		// Copy the contents from NewReader to cache file.
+		offsetWriter := io.NewOffsetWriter(cacheFile, start)
+		_, err = io.CopyN(offsetWriter, newReader, maxRead)
+		if err != nil {
+			err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
+			return err
+		}
+
+		start += maxRead
+		if start == newReaderLimit {
+			err = newReader.Close()
+			if err != nil {
+				logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
+			}
+			newReader = nil
+		}
+
+		err = job.updateStatusOffset(start)
+		if err != nil {
+			return err
+		}
 	}
 	return
 }
@@ -300,109 +365,44 @@ func (job *Job) downloadObjectAsync() {
 	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
-		job.failWhileDownloading(err)
+		job.updateStatusAndNotifySubscribers(Failed, err)
 		return
 	}
 	defer func() {
 		err = cacheFile.Close()
 		if err != nil {
 			err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
-			job.failWhileDownloading(err)
+			job.updateStatusAndNotifySubscribers(Failed, err)
 		}
 	}()
 
-	var newReader io.ReadCloser
-	var start, end, sequentialReadSize, newReaderLimit int64
-	end = int64(job.object.Size)
-	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
+	// Both parallel or non-parallel download functions supports cancellation in
+	// case of job's cancellation.
+	if job.fileCacheConfig.EnableParallelDownloads {
+		err = job.parallelDownloadObjectToFile(cacheFile)
+	} else {
+		err = job.downloadObjectToFile(cacheFile)
+	}
 
-	for {
-		select {
-		case <-job.cancelCtx.Done():
+	if err != nil {
+		// Context cancellation only comes when the job has been invalidated during
+		// eviction.
+		// Also, download job expects entry in file info cache for the file it is
+		// downloading. If the entry is deleted in between which is expected
+		// to happen at the time of eviction, then the job should be
+		// marked Invalid instead of Failed.
+		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
+			job.updateStatusAndNotifySubscribers(Invalid, err)
+		} else {
+			job.updateStatusAndNotifySubscribers(Failed, err)
+		}
+	} else {
+		err = job.validateCRC()
+		if err != nil {
+			job.updateStatusAndNotifySubscribers(Failed, err)
 			return
-		default:
-			if start < end {
-				if newReader == nil {
-					newReaderLimit = min(start+sequentialReadSize, end)
-					newReader, err = job.bucket.NewReader(
-						job.cancelCtx,
-						&gcs.ReadObjectRequest{
-							Name:       job.object.Name,
-							Generation: job.object.Generation,
-							Range: &gcs.ByteRange{
-								Start: uint64(start),
-								Limit: uint64(newReaderLimit),
-							},
-							ReadCompressed: job.object.HasContentEncodingGzip(),
-						})
-					if err != nil {
-						err = fmt.Errorf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
-						job.handleError(err)
-						return
-					}
-					monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
-				}
-
-				maxRead := min(ReadChunkSize, newReaderLimit-start)
-				_, err = cacheFile.Seek(start, 0)
-				if err != nil {
-					err = fmt.Errorf("downloadObjectAsync: error while seeking file handle, seek %d: %w", start, err)
-					job.failWhileDownloading(err)
-					return
-				}
-
-				// Copy the contents from NewReader to cache file.
-				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
-				if readErr != nil {
-					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %w", readErr)
-					job.handleError(err)
-					return
-				}
-				start += maxRead
-				if start == newReaderLimit {
-					err = newReader.Close()
-					if err != nil {
-						logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
-					}
-					newReader = nil
-				}
-
-				job.mu.Lock()
-				job.status.Offset = start
-				err = job.updateFileInfoCache()
-				// Notify subscribers if file cache is updated.
-				if err == nil {
-					job.notifySubscribers()
-				} else if strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
-					// Download job expects entry in file info cache for the file it is
-					// downloading. If the entry is deleted in between which is expected
-					// to happen at the time of eviction, then the job should be
-					// marked Invalid instead of Failed.
-					job.status.Name = Invalid
-					job.notifySubscribers()
-					logger.Tracef("Job:%p (%s:/%s) is no longer valid due to absense of entry in file info cache.", job, job.bucket.Name(), job.object.Name)
-					job.mu.Unlock()
-					return
-				}
-				job.mu.Unlock()
-				// Change status of job in case of error while updating file cache.
-				if err != nil {
-					job.failWhileDownloading(err)
-					return
-				}
-			} else {
-				err = job.validateCRC()
-				if err != nil {
-					job.handleError(err)
-					return
-				}
-
-				job.mu.Lock()
-				job.status.Name = Completed
-				job.notifySubscribers()
-				job.mu.Unlock()
-				return
-			}
+		} else {
+			job.updateStatusAndNotifySubscribers(Completed, err)
 		}
 	}
 }
@@ -428,11 +428,7 @@ func (job *Job) Download(ctx context.Context, offset int64, waitForDownload bool
 		// Start the async download
 		job.status.Name = Downloading
 		job.cancelCtx, job.cancelFunc = context.WithCancel(context.Background())
-		if job.fileCacheConfig.EnableParallelDownloads {
-			go job.parallelDownloadObjectAsync()
-		} else {
-			go job.downloadObjectAsync()
-		}
+		go job.downloadObjectAsync()
 	} else if job.status.Name == Failed || job.status.Name == Invalid || job.status.Offset >= offset {
 		defer job.mu.Unlock()
 		return job.status, nil

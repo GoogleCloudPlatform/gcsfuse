@@ -89,6 +89,11 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	AssertEq(nil, err)
 }
 
+func (dt *downloaderTest) verifyInvalidError(err error) {
+	AssertTrue((nil == err) || (errors.Is(err, context.Canceled)) || (strings.Contains(err.Error(), lru.EntryNotExistErrMsg)),
+		fmt.Sprintf("actual error:%v is not as expected", err))
+}
+
 func (dt *downloaderTest) verifyFile(content []byte) {
 	fileStat, err := os.Stat(dt.fileSpec.Path)
 	AssertEq(nil, err)
@@ -202,7 +207,8 @@ func (dt *downloaderTest) Test_notifySubscriber_SubscribedOffset() {
 	AssertEq(subscriberOffset2, dt.job.subscribers.Front().Value.(jobSubscriber).subscribedOffset)
 }
 
-func (dt *downloaderTest) Test_failWhileDownloading() {
+func (dt *downloaderTest) Test_updateStatusAndNotifySubscribers() {
+	// Failed with error
 	subscriberOffset1 := int64(3)
 	subscriberOffset2 := int64(5)
 	notificationC1 := dt.job.subscribe(subscriberOffset1)
@@ -210,7 +216,7 @@ func (dt *downloaderTest) Test_failWhileDownloading() {
 	dt.job.status = JobStatus{Name: Downloading, Err: nil, Offset: 4}
 
 	customErr := fmt.Errorf("custom error")
-	dt.job.failWhileDownloading(customErr)
+	dt.job.updateStatusAndNotifySubscribers(Failed, customErr)
 
 	AssertEq(0, dt.job.subscribers.Len())
 	notification1, ok1 := <-notificationC1
@@ -221,9 +227,23 @@ func (dt *downloaderTest) Test_failWhileDownloading() {
 	AssertEq(true, ok1)
 	AssertTrue(reflect.DeepEqual(jobStatus, notification2))
 	AssertEq(true, ok2)
+
+	// Complete without error
+	subscriberOffset1 = int64(3)
+	notificationC1 = dt.job.subscribe(subscriberOffset1)
+	dt.job.status = JobStatus{Name: Downloading, Err: nil, Offset: 4}
+
+	dt.job.updateStatusAndNotifySubscribers(Completed, nil)
+
+	AssertEq(0, dt.job.subscribers.Len())
+	notification1, ok1 = <-notificationC1
+	jobStatus = JobStatus{Name: Completed, Err: nil, Offset: 4}
+	// Check subscriber notification
+	AssertTrue(reflect.DeepEqual(jobStatus, notification1))
+	AssertEq(true, ok1)
 }
 
-func (dt *downloaderTest) Test_updateFileInfoCache_UpdateEntry() {
+func (dt *downloaderTest) Test_updateStatusOffset_UpdateEntry() {
 	// Add an entry into
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
@@ -239,21 +259,31 @@ func (dt *downloaderTest) Test_updateFileInfoCache_UpdateEntry() {
 	AssertEq(nil, err)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
-	dt.job.status.Offset = 1
+	dt.job.mu.Lock()
+	dt.job.status.Name = Downloading
+	notificationCh := dt.job.subscribe(5)
+	dt.job.mu.Unlock()
 
-	err = dt.job.updateFileInfoCache()
+	err = dt.job.updateStatusOffset(10)
 
 	AssertEq(nil, err)
 	// Confirm fileInfoCache is updated with new offset.
 	lookupResult := dt.cache.LookUp(fileInfoKeyName)
 	AssertFalse(lookupResult == nil)
 	fileInfo = lookupResult.(data.FileInfo)
-	AssertEq(1, fileInfo.Offset)
+	AssertEq(10, fileInfo.Offset)
 	AssertEq(dt.job.object.Generation, fileInfo.ObjectGeneration)
 	AssertEq(dt.job.object.Size, fileInfo.FileSize)
+	// Confirm job's status offset
+	AssertEq(10, dt.job.status.Offset)
+	// Check the subscriber's notification
+	notification, ok := <-notificationCh
+	AssertEq(true, ok)
+	jobStatus := JobStatus{Name: Downloading, Err: nil, Offset: 10}
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
 }
 
-func (dt *downloaderTest) Test_updateFileInfoCache_InsertNew() {
+func (dt *downloaderTest) Test_updateStatusOffset_InsertNew() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: dt.object.Name,
@@ -263,13 +293,15 @@ func (dt *downloaderTest) Test_updateFileInfoCache_InsertNew() {
 	value := dt.cache.Erase(fileInfoKeyName)
 	AssertTrue(value != nil)
 
-	err = dt.job.updateFileInfoCache()
+	err = dt.job.updateStatusOffset(10)
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), lru.EntryNotExistErrMsg))
+	// Confirm job's status offset
+	AssertEq(0, dt.job.status.Offset)
 }
 
-func (dt *downloaderTest) Test_updateFileInfoCache_Fail() {
+func (dt *downloaderTest) Test_updateStatusOffset_Fail() {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: DefaultObjectName,
@@ -285,12 +317,14 @@ func (dt *downloaderTest) Test_updateFileInfoCache_Fail() {
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	// change the size of object and then try to update file info cache.
+	// Change the size of object and then try to update file info cache.
 	dt.job.object.Size = 10
-	err = dt.job.updateFileInfoCache()
+	err = dt.job.updateStatusOffset(15)
 
 	AssertNe(nil, err)
 	AssertTrue(strings.Contains(err.Error(), lru.InvalidUpdateEntrySizeErrorMsg))
+	// Confirm job's status offset
+	AssertEq(0, dt.job.status.Offset)
 }
 
 func (dt *downloaderTest) Test_cleanUpDownloadAsyncJob() {
@@ -542,7 +576,7 @@ func (dt *downloaderTest) Test_Download_AlreadyInvalid() {
 
 	AssertEq(nil, err)
 	AssertEq(Invalid, jobStatus.Name)
-	AssertEq(nil, jobStatus.Err)
+	dt.verifyInvalidError(jobStatus.Err)
 }
 
 func (dt *downloaderTest) Test_Download_InvalidOffset() {
@@ -680,7 +714,7 @@ func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(nil, dt.job.status.Err)
+	dt.verifyInvalidError(dt.job.status.Err)
 	AssertEq(Invalid, dt.job.status.Name)
 	AssertTrue(callbackExecuted.Load())
 	AssertEq(nil, dt.job.removeJobCallback)
@@ -723,8 +757,8 @@ func (dt *downloaderTest) Test_Invalidate_WhenAlreadyCompleted() {
 
 	dt.job.mu.Lock()
 	defer dt.job.mu.Unlock()
-	AssertEq(nil, dt.job.status.Err)
 	AssertEq(Invalid, dt.job.status.Name)
+	dt.verifyInvalidError(dt.job.status.Err)
 	AssertEq(1, callbackExecutionCount.Load())
 	AssertEq(nil, dt.job.removeJobCallback)
 }
@@ -747,7 +781,7 @@ func (dt *downloaderTest) Test_Invalidate_Concurrent() {
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
 		AssertEq(Invalid, currJobStatus.Name)
-		AssertEq(nil, currJobStatus.Err)
+		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
 	// start concurrent Invalidate
@@ -789,7 +823,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
 		AssertEq(Invalid, currJobStatus.Name)
-		AssertEq(nil, currJobStatus.Err)
+		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
 	// Start concurrent invalidate and download
