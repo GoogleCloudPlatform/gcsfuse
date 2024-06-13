@@ -22,24 +22,18 @@ import (
 
 func TestMakeGcsfuseArgs(t *testing.T) {
 	testCases := []struct {
-		name       string
-		device     string
-		mountPoint string
-		opts       map[string]string
-		expected   []string
+		name          string
+		opts          map[string]string
+		expectedFlags []string
 	}{
 		{
-			name:       "TestMakeGcsfuseArgs with NoOptions",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
-			opts:       map[string]string{},
-			expected:   []string{"gcsfuse", "/mnt/gcs"},
+			name:          "TestMakeGcsfuseArgs with NoOptions",
+			opts:          map[string]string{},
+			expectedFlags: []string{},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs for BooleanFlags with underscore",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
+			name: "TestMakeGcsfuseArgs for BooleanFlags with underscore",
 			opts: map[string]string{"implicit_dirs": "",
 				"foreground":                    "true",
 				"experimental_local_file_cache": "",
@@ -50,7 +44,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"ignore_interrupts":             "",
 				"anonymous_access":              "false",
 				"log_rotate_compress":           "false"},
-			expected: []string{"--implicit-dirs=true",
+			expectedFlags: []string{"--implicit-dirs=true",
 				"--foreground=true",
 				"--experimental-local-file-cache=true",
 				"--reuse-token-from-url=false",
@@ -59,14 +53,11 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"--enable-hns=true",
 				"--ignore-interrupts=true",
 				"--anonymous-access=false",
-				"--log-rotate-compress=false",
-				"gcsfuse", "/mnt/gcs"},
+				"--log-rotate-compress=false"},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs for BooleanFlags with hyphens",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
+			name: "TestMakeGcsfuseArgs for BooleanFlags with hyphens",
 			opts: map[string]string{"implicit_dirs": "",
 				"foreground":                    "true",
 				"experimental-local-file-cache": "",
@@ -77,7 +68,7 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"ignore-interrupts":             "",
 				"anonymous-access":              "false",
 				"log_rotate-compress":           "false"},
-			expected: []string{"--implicit-dirs=true",
+			expectedFlags: []string{"--implicit-dirs=true",
 				"--foreground=true",
 				"--experimental-local-file-cache=true",
 				"--reuse-token-from-url=false",
@@ -86,79 +77,67 @@ func TestMakeGcsfuseArgs(t *testing.T) {
 				"--enable-hns=true",
 				"--ignore-interrupts=true",
 				"--anonymous-access=false",
-				"--log-rotate-compress=false",
-				"gcsfuse", "/mnt/gcs"},
+				"--log-rotate-compress=false"},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs for StringFlags with underscore",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
+			name: "TestMakeGcsfuseArgs for StringFlags with underscore",
 			opts: map[string]string{
 				"dir_mode":                     "0755",
 				"key_file":                     "/path/to/key",
 				"log_rotate_backup_file_count": "2",
 			},
-			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2", "gcsfuse", "/mnt/gcs"},
+			expectedFlags: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2"},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs for StringFlags with hyphen",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
+			name: "TestMakeGcsfuseArgs for StringFlags with hyphen",
 			opts: map[string]string{
 				"dir-mode":                     "0755",
 				"key-file":                     "/path/to/key",
 				"log-rotate-backup-file-count": "2",
 			},
-			expected: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2", "gcsfuse", "/mnt/gcs"},
+			expectedFlags: []string{"--dir-mode", "0755", "--key-file", "/path/to/key", "--log-rotate-backup-file-count", "2"},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs with DebugFlags",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
-			opts:       map[string]string{"debug_fuse": "", "debug_gcs": ""},
-			expected:   []string{"--debug_fuse", "--debug_gcs", "gcsfuse", "/mnt/gcs"},
+			name:          "TestMakeGcsfuseArgs with DebugFlags",
+			opts:          map[string]string{"debug_fuse": "", "debug_gcs": ""},
+			expectedFlags: []string{"--debug_fuse", "--debug_gcs"},
 		},
 
 		// Test ignored options
 		{
-			name:       "TestMakeGcsfuseArgs with IgnoredOptions",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
-			opts:       map[string]string{"user": "nobody", "_netdev": ""},
-			expected:   []string{"gcsfuse", "/mnt/gcs"},
+			name:          "TestMakeGcsfuseArgs with IgnoredOptions",
+			opts:          map[string]string{"user": "nobody", "_netdev": ""},
+			expectedFlags: []string{},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs with RegularOptions",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
-			opts:       map[string]string{"allow_other": "", "ro": ""},
-			expected:   []string{"-o", "allow_other", "-o", "ro", "gcsfuse", "/mnt/gcs"},
+			name:          "TestMakeGcsfuseArgs with RegularOptions",
+			opts:          map[string]string{"allow_other": "", "ro": ""},
+			expectedFlags: []string{"-o", "allow_other", "-o", "ro"},
 		},
 
 		{
-			name:       "TestMakeGcsfuseArgs with MixedOptions",
-			device:     "gcsfuse",
-			mountPoint: "/mnt/gcs",
+			name: "TestMakeGcsfuseArgs with MixedOptions",
 			opts: map[string]string{
 				"implicit_dirs": "", "file_mode": "0644", "debug_fuse": "", "allow_other": "",
 			},
-			expected: []string{"--implicit-dirs=true", "--file-mode", "0644", "--debug_fuse", "-o", "allow_other", "gcsfuse", "/mnt/gcs"},
+			expectedFlags: []string{"--implicit-dirs=true", "--file-mode", "0644", "--debug_fuse", "-o", "allow_other"},
 		},
 	}
+	device := "gcsfuse"
+	mountPoint := "/mnt/gcs"
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			args, err := makeGcsfuseArgs(tc.device, tc.mountPoint, tc.opts)
-			assert.Nil(t, err)
+			args, err := makeGcsfuseArgs(device, mountPoint, tc.opts)
 
-			// Assert that all flags are present (no matter the order).
-			assert.ElementsMatch(t, args[:len(args)-2], tc.expected[:len(tc.expected)-2])
-			// Assert that device and mount-point are present at correct position.
-			assert.Equal(t, args[len(args)-2:], tc.expected[len(tc.expected)-2:])
+			if assert.Nil(t, err) {
+				assert.ElementsMatch(t, args[:len(args)-2], tc.expectedFlags)
+				assert.Equal(t, args[len(args)-2:], []string{device, mountPoint})
+			}
 		})
 	}
 }

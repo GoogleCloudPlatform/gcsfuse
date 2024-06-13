@@ -74,7 +74,7 @@ func makeGcsfuseArgs(
 	opts map[string]string) (args []string, err error) {
 	// Deal with options.
 	for name, value := range opts {
-		switch strings.Replace(name, "-", "_", -1) {
+		switch strings.ReplaceAll(name, "-", "_") {
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
@@ -93,7 +93,7 @@ func makeGcsfuseArgs(
 			if value == "" {
 				value = "true"
 			}
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
+			args = append(args, "--"+strings.ReplaceAll(name, "_", "-")+"="+value)
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
@@ -137,7 +137,7 @@ func makeGcsfuseArgs(
 			"file_cache_max_size_mb",
 			"grpc_conn_pool_size":
 
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
+			args = append(args, "--"+strings.ReplaceAll(name, "_", "-"), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
 		case "debug_fuse",
