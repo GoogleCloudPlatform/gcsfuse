@@ -483,7 +483,7 @@ func (job *Job) validateCRC() (err error) {
 		return
 	}
 
-	crc32Val, err := cacheutil.CalculateFileCRC32(job.fileSpec.Path)
+	crc32Val, err := cacheutil.CalculateFileCRC32(job.cancelCtx, job.fileSpec.Path)
 	if err != nil {
 		return
 	}
