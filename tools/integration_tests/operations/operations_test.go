@@ -188,6 +188,11 @@ func TestMain(m *testing.M) {
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
+	if setup.TestOnTPCEndPoint() {
+		successCodeTPC := static_mounting.RunTests(flagsSet, m)
+		os.Exit(successCodeTPC)
+	}
+
 	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {
@@ -202,9 +207,7 @@ func TestMain(m *testing.M) {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	// These tests require changing service account permissions using a gcloud command,
-	// which is currently not supported on TPC.
-	if successCode == 0 && !setup.TestOnTPCEndPoint() {
+	if successCode == 0 {
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
 	}
 

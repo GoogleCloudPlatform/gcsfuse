@@ -36,13 +36,6 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	if setup.TestOnTPCEndPoint() {
-		// These tests require the creation of 12,000 objects on a bucket using gcloud,
-		// which is failing due to a "database locked" error.
-		log.Print("These tests will not run for TPC endpoint.")
-		return
-	}
-
 	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0"}}
 	if !testing.Short() {
 		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0"})

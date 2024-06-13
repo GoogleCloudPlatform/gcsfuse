@@ -40,8 +40,7 @@ func makePersistentMountingArgs(flags []string) (args []string, err error) {
 }
 
 func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
-	var defaultArg []string
-	defaultArg = append(defaultArg, setup.TestBucket(),
+	defaultArg := []string{setup.TestBucket(),
 		setup.MntDir(),
 		"-o",
 		"debug_gcs",
@@ -50,9 +49,10 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"-o",
 		"debug_fuse",
 		"-o",
-		"log_file="+setup.LogFile(),
+		"log_file=" + setup.LogFile(),
 		"-o",
-		"log_format=text")
+		"log_format=text",
+	}
 
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg, "-o", "custom_endpoint=storage.apis-tpczero.goog:443",

@@ -48,13 +48,6 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	// These tests require changing service account permissions using a gcloud command,
-	// which is currently not supported on TPC.
-	if setup.TestOnTPCEndPoint() {
-		log.Print("These tests will not run for TPC endpoint.")
-		return
-	}
-
 	// Create test directory.
 	ctx := context.Background()
 	var storageClient *storage.Client
