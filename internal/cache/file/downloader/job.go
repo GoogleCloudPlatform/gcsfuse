@@ -489,8 +489,8 @@ func (job *Job) validateCRC() (err error) {
 	}
 
 	job.fileInfoCache.Erase(fileInfoKeyName)
-	removeErr := os.Remove(job.fileSpec.Path)
-	if removeErr != nil {
+	removeErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.Path)
+	if removeErr != nil && !os.IsNotExist(removeErr) {
 		err = errors.Join(err, removeErr)
 	}
 

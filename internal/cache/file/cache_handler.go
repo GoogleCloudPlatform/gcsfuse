@@ -87,24 +87,13 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
 	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
-	// Truncate the file to 0 size, so that even if there are open file handles
-	// and linux doesn't delete the file, the file will not take space.
-	err = os.Truncate(localFilePath, 0)
+	err = util.TruncateAndRemoveFile(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of truncating: %v", err)
+			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
 			return nil
-		} else {
-			return fmt.Errorf("cleanUpEvictedFile: while truncating file: %s, error: %w", localFilePath, err)
 		}
-	}
-	err = os.Remove(localFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logger.Warnf("cleanUpEvictedFile: file was not present at the time of deleting: %v", err)
-		} else {
-			return fmt.Errorf("cleanUpEvictedFile: while deleting file: %s, error: %w", localFilePath, err)
-		}
+		return fmt.Errorf("cleanUpEvictedFile: error while cleaning up file: %s, error: %w", localFilePath, err)
 	}
 
 	return nil
