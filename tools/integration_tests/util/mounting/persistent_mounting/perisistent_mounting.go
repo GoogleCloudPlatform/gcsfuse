@@ -54,11 +54,6 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"log_format=text",
 	}
 
-	if setup.TestOnTPCEndPoint() {
-		defaultArg = append(defaultArg, "-o", "custom_endpoint=storage.apis-tpczero.goog:443",
-			"-o", "key_file=/tmp/sa.key.json")
-	}
-
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)
 	if err != nil {
 		setup.LogAndExit("Error in converting flags for persistent mounting.")
