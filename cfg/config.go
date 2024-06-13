@@ -285,7 +285,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_gcs", "", false, "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_gcs", "", false, "This flag is unused. Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
 	err = flagSet.MarkDeprecated("debug_gcs", "This flag is currently unused.")
 	if err != nil {
