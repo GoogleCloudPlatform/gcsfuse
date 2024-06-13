@@ -9,6 +9,19 @@ on:
       - '*'
 
 jobs:
+  format-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with go-version: "1.22"
+    - name: CodeGen
+      run: go generate ./...
+    - name: Formatting diff
+      run: go fmt ./... && git diff --exit-code --name-only 
+
   linux-tests:
     strategy:
       matrix:
