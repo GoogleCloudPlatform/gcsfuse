@@ -15,11 +15,13 @@
 package implicit_and_explicit_dir_setup
 
 import (
+	"context"
 	"log"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
@@ -74,6 +76,19 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
+func createObjectOnGcs(content, completeGcsObjectPath string, t *testing.T) {
+	ctx := context.Background()
+	sgClient, err := client.CreateStorageClient(ctx)
+	if sgClient == nil || err != nil {
+		t.Errorf("Failed to create storage client: %v", err)
+	}
+	defer sgClient.Close()
+
+	if err = client.CreateObjectOnGCS(ctx, sgClient, completeGcsObjectPath, content); err != nil {
+		t.Fatalf("Failed to create object %s on GCS: %v", completeGcsObjectPath, err)
+	}
+}
+
 func CreateImplicitDirectoryStructure(testDir string) {
 	// Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                  -- Dir
@@ -85,13 +100,20 @@ func CreateImplicitDirectoryStructure(testDir string) {
 	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
 }
 
-func CreateUnsupportedImplicitDirectoryStructure(testDir string) {
+func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T) {
 	// Unsupported Implicit Directory Structure
 	// testBucket/testDir//                                                                  -- Dir
 	// testBucket/testDir//fileInUnsupportedImplicitDir1                                     -- File
 
-	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects_in_unsupported_directories.sh", path.Join(setup.TestBucket(), testDir))
+	fullGcsTestDirPath := path.Join(setup.TestBucket(), testDir)
+	for _, objectToBeCreated := range []struct {
+		content           string
+		fullObjectGcsPath string
+	}{{
+		"This is from directory \"\" file fileInUnsupportedImplicitDir1", fullGcsTestDirPath + "//" + FileInUnsupportedImplicitDirectory1,
+	}} {
+		createObjectOnGcs(objectToBeCreated.content, objectToBeCreated.fullObjectGcsPath, t)
+	}
 }
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
