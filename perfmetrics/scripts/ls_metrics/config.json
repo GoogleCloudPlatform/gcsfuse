@@ -1,5 +1,5 @@
 {
-        "name": "list-benchmark-tests" ,
+        "name": "gcsfuse-hns-list-tests" ,
         "num_folders": 11 ,
         "folders": [
                 {
