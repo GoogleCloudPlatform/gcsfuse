@@ -318,7 +318,9 @@ func (ut *utilTest) Test_TruncateAndRemoveFile_OpenedFileDeleted() {
 	AssertEq(nil, err)
 	// Open the file again
 	file, err = os.Open(fileName)
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 	AssertEq(nil, err)
 	fileInfo, err := file.Stat()
 	AssertEq(nil, err)
