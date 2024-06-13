@@ -308,6 +308,10 @@ func (ts *UtilTest) TestIsUnsupportedObjectName() {
 			name:          "/",
 			isUnsupported: true,
 		},
+		{
+			name:          "/foo",
+			isUnsupported: true,
+		},
 	}
 
 	for _, tc := range cases {

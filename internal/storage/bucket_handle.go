@@ -323,11 +323,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
 			if util.IsUnsupportedObjectName(attrs.Prefix) {
-				// Ignore GCS objects containing `//` in their names.
-				// As an example, GCS can have two different objects a//b and a/b at the same time
-				// in the same bucket. In linux FS however, both paths are same as a/b.
-				// So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in
-				// linux FS.
+				// Ignore GCS prefixes containing `//` in their names.
 				logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", attrs.Prefix)
 			} else {
 				list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)

@@ -624,7 +624,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	_, err = os.Stat(path.Join(mntDir, "a/3"))
 	AssertNe(nil, err)
 
-	// Statting the mount-directory/4 should return a file entry named "a".
+	// Statting the mount-directory/4 should return a file entry named "4".
 	fi, err = os.Stat(path.Join(mntDir, "4"))
 	AssertEq(nil, err)
 	AssertNe(nil, fi)

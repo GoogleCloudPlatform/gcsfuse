@@ -128,9 +128,7 @@ func interestingNames() (names []string) {
 		// Other tricky URL cases.
 		"foo () bar",
 		"foo [] bar",
-		//"foo // bar", // removed as GCSFuse ignores object names containing // while listing
 		"foo %?/ bar",
-		//"foo http://google.com/search?q=foo&bar=baz#qux bar", // removed as GCSFuse ignores object names containing // while listing
 
 		"foo ?bar",
 		"foo? bar",
@@ -4469,7 +4467,10 @@ func (t *listTest) TestListForUnsupportedNames() {
 				"//",
 				"a/b",
 				"foo//e",
+				"foo/c/",
 				"foo/c/d",
+				"/objects/",
+				"/objects/f",
 			}))
 
 	for _, input := range []struct {
