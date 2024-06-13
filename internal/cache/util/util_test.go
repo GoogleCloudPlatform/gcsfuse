@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -247,23 +248,33 @@ func (ut *utilTest) Test_IsCacheHandleValid_False() {
 }
 
 func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnCrcForValidFile() {
-	crc, err := CalculateFileCRC32("testdata/validfile.txt")
+	crc, err := CalculateFileCRC32(context.Background(), "testdata/validfile.txt")
 
 	ExpectEq(nil, err)
 	ExpectEq(515179668, crc)
 }
 
 func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnZeroForEmptyFile() {
-	crc, err := CalculateFileCRC32("testdata/emptyfile.txt")
+	crc, err := CalculateFileCRC32(context.Background(), "testdata/emptyfile.txt")
 
 	ExpectEq(nil, err)
 	ExpectEq(0, crc)
 }
 
 func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorForFileNotExist() {
-	crc, err := CalculateFileCRC32("testdata/nofile.txt")
+	crc, err := CalculateFileCRC32(context.Background(), "testdata/nofile.txt")
 
 	ExpectTrue(strings.Contains(err.Error(), "no such file or directory"))
+	ExpectEq(0, crc)
+}
+
+func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorWhenContextIsCancelled() {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	cancelFunc()
+
+	crc, err := CalculateFileCRC32(ctx, "testdata/validfile.txt")
+
+	ExpectTrue(strings.Contains(err.Error(), "CRC computation is cancelled"))
 	ExpectEq(0, crc)
 }
 
