@@ -74,7 +74,6 @@ func NewFileShouldGetSyncedToGCSAtClose(ctx context.Context, storageClient *stor
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// Create storage client before running tests.

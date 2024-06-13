@@ -42,10 +42,8 @@ const (
 )
 
 var (
-	logDirPath    string
-	logFilePath   string
-	storageClient *storage.Client
-	ctx           context.Context
+	logDirPath  string
+	logFilePath string
 )
 
 func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool,
@@ -71,7 +69,8 @@ func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress b
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
+	var storageClient *storage.Client
+	ctx := context.Background()
 	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
 	defer func() {
 		err := closeStorageClient()

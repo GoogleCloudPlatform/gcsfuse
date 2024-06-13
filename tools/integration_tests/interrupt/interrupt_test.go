@@ -33,11 +33,6 @@ const (
 	testDirName = "InterruptTest"
 )
 
-var (
-	storageClient *storage.Client
-	ctx           context.Context
-)
-
 ////////////////////////////////////////////////////////////////////////
 // TestMain
 ////////////////////////////////////////////////////////////////////////
@@ -45,7 +40,8 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	ctx = context.Background()
+	var storageClient *storage.Client
+	ctx := context.Background()
 	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
 	defer func() {
 		err := closeStorageClient()
