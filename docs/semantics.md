@@ -391,7 +391,11 @@ The above objects cannot be accessed
 through Cloud Storage Fuse, as these names have
 special meanings in linux-based filesystems.
 For example, a file/directory with path `a//b`
-is treated the same as `a/b`.
-
-Any objects having such names are invisible to
-(or in other words, ignored by) Cloud Storage Fuse mounts.
+is treated the same as `a/b` by linux filesystem. However, these two
+are both valid object names in Cloud Storage buckets and
+can co-exist as two separate objects in the same bucket.
+As Cloud Storage Fuse mounts on a linux filesystem, it
+cannot show file/directories corresponding to both these objects, so it simply
+ignores `a//b` while listing objects inside prefix `a`.
+Thus `a//b` and any other objects following the above-defined patterns are
+invisible in Cloud Storage Fuse mounts.
