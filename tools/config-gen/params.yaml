@@ -66,6 +66,13 @@
     inflight operations.
   default: false
 
+- flag-name: "disable-parallel-dirops"
+  config-path: "file-system.disable-parallel-dirops"
+  type: "bool"
+  usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
+  default: false
+  hide-flag: true
+
 - flag-name: "custom-endpoint"
   config-path: "gcs-connection.custom-endpoint"
   type: "url"

@@ -89,6 +89,8 @@ type FileCacheConfig struct {
 type FileSystemConfig struct {
 	DirMode Octal `yaml:"dir-mode"`
 
+	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+
 	FileMode Octal `yaml:"file-mode"`
 
 	FuseOptions []string `yaml:"fuse-options"`
@@ -262,14 +264,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_fs", "", false, "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
 	err = flagSet.MarkDeprecated("debug_fs", "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 	if err != nil {
 		return err
 	}
 
-	flagSet.BoolP("debug_fuse", "", false, "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_fuse", "", false, "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
 	err = flagSet.MarkDeprecated("debug_fuse", "debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 	if err != nil {
@@ -283,7 +285,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_gcs", "", false, "This flag is currently unused.")
+	flagSet.BoolP("debug_gcs", "", false, "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
 	err = flagSet.MarkDeprecated("debug_gcs", "This flag is currently unused.")
 	if err != nil {
@@ -319,6 +321,18 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
 	err = viper.BindPFlag("file-system.dir-mode", flagSet.Lookup("dir-mode"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
+
+	err = flagSet.MarkHidden("disable-parallel-dirops")
+	if err != nil {
+		return err
+	}
+
+	err = viper.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops"))
 	if err != nil {
 		return err
 	}
