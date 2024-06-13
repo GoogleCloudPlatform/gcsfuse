@@ -31,7 +31,7 @@ import (
 // testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, t)
 
 	dirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
@@ -45,7 +45,7 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, t)
 
 	subDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
 
@@ -61,7 +61,7 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
 func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, t)
 
 	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
 
@@ -81,7 +81,7 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
 func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, t)
 	explicitDirPath := path.Join(testDir, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
 	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitSubDir, explicitDirPath, PrefixFileInExplicitDirInImplicitSubDir, t)

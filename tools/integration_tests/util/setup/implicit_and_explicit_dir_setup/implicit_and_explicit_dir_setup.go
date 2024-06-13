@@ -89,7 +89,12 @@ func createObjectOnGcs(content, completeObjectName string, t *testing.T) {
 	}
 }
 
-func CreateImplicitDirectoryStructure(testDir string) {
+func createObjectsInImplicitDir(implicitDirName string, t *testing.T) {
+	createObjectOnGcs("This is from directory fileInImplicitDir1 file implicitDirectory", path.Join(implicitDirName, FileInImplicitDirectory), t)
+	createObjectOnGcs("This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2", path.Join(implicitDirName, ImplicitSubDirectory, FileInImplicitSubDirectory), t)
+}
+
+func CreateImplicitDirectoryStructure(testDir string, t *testing.T) {
 	// Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                  -- Dir
 	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
@@ -97,7 +102,7 @@ func CreateImplicitDirectoryStructure(testDir string) {
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", path.Join(setup.TestBucket(), testDir))
+	createObjectsInImplicitDir(path.Join(testDir, ImplicitDirectory), t)
 }
 
 func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T) {
@@ -148,6 +153,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
 	CreateExplicitDirectoryStructure(testDir, t)
-	dirPathInBucket := path.Join(setup.TestBucket(), testDir, ExplicitDirectory)
-	setup.RunScriptForTestData("../util/setup/implicit_and_explicit_dir_setup/testdata/create_objects.sh", dirPathInBucket)
+	createObjectsInImplicitDir(path.Join(testDir, ExplicitDirectory, ImplicitDirectory), t)
 }
