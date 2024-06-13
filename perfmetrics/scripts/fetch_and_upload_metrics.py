@@ -79,10 +79,11 @@ def _parse_arguments(argv):
   )
 
   parser.add_argument(
-      'spreadsheet_id',
+      '--spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
       default="",
+      required=False,
   )
 
   return parser.parse_args(argv[1:])
@@ -100,8 +101,11 @@ if __name__ == '__main__':
   metrics_data = fio_metrics_obj.get_values_to_upload(temp)
 
   if args.upload_gs:
-    gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
-                                 args.spreadsheet_id)
+    if args.spreadsheet_id:
+      gsheet.write_to_google_sheet(FIO_WORKSHEET_NAME, metrics_data,
+                                   args.spreadsheet_id)
+    else:
+      print("Spreadsheet id is not provided.")
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:
