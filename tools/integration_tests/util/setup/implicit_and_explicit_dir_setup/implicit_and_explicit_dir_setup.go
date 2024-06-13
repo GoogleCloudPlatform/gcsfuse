@@ -76,7 +76,9 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 	}
 }
 
-func createObjectOnGcs(content, completeObjectName string, t *testing.T) {
+type objectCreationMetadata struct{ content, completeObjectName string }
+
+func createObjectsOnGcs(objects []objectCreationMetadata, t *testing.T) {
 	ctx := context.Background()
 	sgClient, err := client.CreateStorageClient(ctx)
 	if sgClient == nil || err != nil {
@@ -84,14 +86,21 @@ func createObjectOnGcs(content, completeObjectName string, t *testing.T) {
 	}
 	defer sgClient.Close()
 
-	if err = client.CreateObjectOnGCS(ctx, sgClient, completeObjectName, content); err != nil {
-		t.Fatalf("Failed to create object %s: %v", completeObjectName, err)
+	for _, object := range objects {
+		if err = client.CreateObjectOnGCS(ctx, sgClient, object.completeObjectName, object.content); err != nil {
+			t.Fatalf("Failed to create object %s: %v", object.completeObjectName, err)
+		}
 	}
 }
 
-func createObjectsInImplicitDir(implicitDirName string, t *testing.T) {
-	createObjectOnGcs("This is from directory fileInImplicitDir1 file implicitDirectory", path.Join(implicitDirName, FileInImplicitDirectory), t)
-	createObjectOnGcs("This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2", path.Join(implicitDirName, ImplicitSubDirectory, FileInImplicitSubDirectory), t)
+func createObjectsInImplicitDir(completeTestDirName string, t *testing.T) {
+	implicitDirName := path.Join(completeTestDirName, ImplicitDirectory)
+	createObjectsOnGcs(
+		[]objectCreationMetadata{
+			{"This is from directory fileInImplicitDir1 file implicitDirectory", path.Join(implicitDirName, FileInImplicitDirectory)},
+			{"This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2", path.Join(implicitDirName, ImplicitSubDirectory, FileInImplicitSubDirectory)},
+		},
+		t)
 }
 
 func CreateImplicitDirectoryStructure(testDir string, t *testing.T) {
@@ -102,25 +111,26 @@ func CreateImplicitDirectoryStructure(testDir string, t *testing.T) {
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	createObjectsInImplicitDir(path.Join(testDir, ImplicitDirectory), t)
+	createObjectsInImplicitDir(testDir, t)
 }
 
 func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T) {
 	// Unsupported Implicit Directory Structure
-	// testBucket/testDir//                                                                  -- Dir
-	// testBucket/testDir//fileInUnsupportedImplicitDir1                                     -- File
+	// testBucket/testDir/implicitDirectory                                                 -- Dir
+	// testBucket/testDir/implicitDirectory//fileInUnsupportedImplicitDir1                  -- File
+	// testBucket//FileInUnsupportedPathInRootDirectory                                     -- File
 
 	completeGcsTestDirName := path.Join(testDir, ImplicitDirectory)
-	for _, objectToBeCreated := range []struct {
-		content            string
-		completeObjectName string
-	}{{
-		"This is testBucket/testDir//fileInUnsupportedImplicitDir1", completeGcsTestDirName + "//" + FileInUnsupportedImplicitDirectory1},
-		{
-			"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
-		}} {
-		createObjectOnGcs(objectToBeCreated.content, objectToBeCreated.completeObjectName, t)
-	}
+	createObjectsOnGcs(
+		[]objectCreationMetadata{
+			{
+				"This is testBucket/testDir//fileInUnsupportedImplicitDir1", completeGcsTestDirName + "//" + FileInUnsupportedImplicitDirectory1,
+			},
+			{
+				"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
+			},
+		},
+		t)
 }
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
@@ -153,5 +163,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
 	CreateExplicitDirectoryStructure(testDir, t)
-	createObjectsInImplicitDir(path.Join(testDir, ExplicitDirectory, ImplicitDirectory), t)
+	createObjectsInImplicitDir(path.Join(testDir, ExplicitDirectory), t)
 }
