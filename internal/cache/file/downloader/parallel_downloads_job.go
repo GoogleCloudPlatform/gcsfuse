@@ -124,10 +124,8 @@ func (job *Job) parallelDownloadObjectAsync(maxTotalConcurrency *semaphore.Weigh
 					rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 					if goRoutineIdx == 0 {
 						maxTotalConcurrency.Acquire(downloadErrGroupCtx, 1)
-					} else {
-						if s := maxTotalConcurrency.TryAcquire(1); !s {
-							break
-						}
+					} else if s := maxTotalConcurrency.TryAcquire(1); !s {
+						break
 					}
 					downloadErrGroup.Go(func() error {
 						defer maxTotalConcurrency.Release(1)
