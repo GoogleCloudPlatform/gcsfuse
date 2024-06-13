@@ -104,15 +104,7 @@ type jobSubscriber struct {
 	subscribedOffset int64
 }
 
-func NewJob(
-		object *gcs.MinObject,
-		bucket gcs.Bucket,
-		fileInfoCache *lru.Cache,
-		sequentialReadSizeMb int32,
-		fileSpec data.FileSpec,
-		removeJobCallback func(),
-		fileCacheConfig *config.FileCacheConfig,
-) (job *Job) {
+func NewJob(object *gcs.MinObject, bucket gcs.Bucket, fileInfoCache *lru.Cache, sequentialReadSizeMb int32, fileSpec data.FileSpec, removeJobCallback func(), fileCacheConfig *config.FileCacheConfig) (job *Job) {
 	job = &Job{
 		object:               object,
 		bucket:               bucket,
