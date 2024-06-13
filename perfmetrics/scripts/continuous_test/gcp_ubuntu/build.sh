@@ -42,8 +42,8 @@ fi
 GCSFUSE_FLAGS="--implicit-dirs  --debug_fuse --debug_gcs --log-format \"text\" "
 LOG_FILE_FIO_TESTS=${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs.txt
 GCSFUSE_FIO_FLAGS="$GCSFUSE_FLAGS --log-file $LOG_FILE_FIO_TESTS --stackdriver-export-interval=30s"
-BUCKET_NAME="periodic-perf-tests"
-SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
+BUCKET_NAME="gcsfuse-e2e-tests-hns-vtvsn"
+SPREADSHEET_ID='19-t0AqmJ_oiUjFRaKf7e_JaL6f6x0KtkgKuxlwsYgoo'
 
 # Executing perf tests
 ./run_load_test_and_fetch_metrics.sh "$GCSFUSE_FIO_FLAGS" "$UPLOAD_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
