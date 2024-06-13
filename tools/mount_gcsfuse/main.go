@@ -135,7 +135,7 @@ func makeGcsfuseArgs(
 			"log_rotate_max_file_size_mb",
 			"log_rotate_backup_file_count",
 			"file_cache_max_size_mb",
-			"grpc_conn_pool_size":
+			"experimental_grpc_conn_pool_size":
 
 			args = append(args, "--"+strings.ReplaceAll(name, "_", "-"), value)
 
