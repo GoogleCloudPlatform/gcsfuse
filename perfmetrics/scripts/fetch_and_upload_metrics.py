@@ -82,6 +82,8 @@ def _parse_arguments(argv):
       'spreadsheet_id',
       help='Provide id of spreadsheet',
       action='store',
+      default="",
+      required=False,
   )
 
   return parser.parse_args(argv[1:])
