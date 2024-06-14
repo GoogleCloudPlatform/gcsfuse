@@ -8,9 +8,6 @@ generate:
 fmt: generate
 	go fmt ./...
 
-lint: fmt
-	golint ./...
-
 vet: fmt
 	go vet ./...
 
