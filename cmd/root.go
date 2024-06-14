@@ -26,10 +26,17 @@ import (
 )
 
 var (
-	cliViper, cfgViper *viper.Viper
-	cfgFileObj, cliObj cfg.Config
-	cfgFile            string
-	err                error
+	// cfgFileViper is intended to support the use-cases where the config-file has
+	// higher precedence over cli. In such cases, one can use cfgFileViper.IsSet(<key>)
+	// to determine whether the config file has the value set. If so use it,
+	// otherwise, use the object unmarshalled from v.
+	v, cfgFileViper *viper.Viper
+
+	// configObj is the config object that is unmarshalled from both CLI and the Config file.
+	// cfgFileConfigObj is the config that is unmarshalled from the Config file alone.
+	configObj, cfgFileConfigObj cfg.Config
+	cfgFile                     string
+	err                         error
 )
 
 var rootCmd = &cobra.Command{
@@ -40,6 +47,9 @@ and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 	Version: getVersion(),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err != nil {
+			return err
+		}
 		// TODO: the following error will be removed once the command is implemented.
 		return fmt.Errorf("unsupported operation")
 	},
@@ -54,36 +64,50 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.cobra.yaml)")
-	if cliViper, err = cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
-		err = fmt.Errorf("error while binding flags for cli-viper: %w", err)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "absolute path to the config file")
+	if v, err = cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
+		err = fmt.Errorf("error while binding flags to viper: %w", err)
 		return
 	}
 	cfgFlagset := flag.NewFlagSet("cfg-flagset", flag.ExitOnError)
-	if cfgViper, err = cfg.BindFlags(cfgFlagset); err != nil {
-		err = fmt.Errorf("error while binding flags for config-viper: %w", err)
+	if cfgFileViper, err = cfg.BindFlags(cfgFlagset); err != nil {
+		err = fmt.Errorf("error while binding flags to config-viper: %w", err)
 		return
 	}
 }
 
-func initConfig() {
-	if err = cliViper.Unmarshal(&cliObj, viper.DecodeHook(cfg.DecodeHook())); err != nil {
-		err = fmt.Errorf("error while unmarshaling the cli flags: %w", err)
-		return
+func ReadConfig(v *viper.Viper) (err error) {
+	if cfgFile == "" {
+		return nil
 	}
+	v.SetConfigFile(cfgFile)
+	v.SetConfigType("yaml")
+	if err = v.ReadInConfig(); err != nil {
+		return fmt.Errorf("error while reading the config file: %w", err)
+	}
+	return nil
+}
+
+func initConfig() {
 	if cfgFile == "" {
 		return
 	}
-	// Use config file from the flag.
-	cfgViper.SetConfigFile(cfgFile)
-	cfgViper.SetConfigType("yaml")
-	if err = cfgViper.ReadInConfig(); err != nil {
-		err = fmt.Errorf("error while reading the config file: %w", err)
+	if err = ReadConfig(cfgFileViper); err != nil {
+		err = fmt.Errorf("error while reading config for the cfg-viper: %w", err)
+	}
+	if err = ReadConfig(v); err != nil {
+		err = fmt.Errorf("error while reading config for viper: %w", err)
+	}
+	decOpts := []viper.DecoderConfigOption{viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		// By default, viper supports mapstructure tags for unmarshaling. Override that to support yaml tag.
+		decoderConfig.TagName = "yaml"
+	}}
+	if err = v.Unmarshal(&configObj, decOpts...); err != nil {
+		err = fmt.Errorf("error while unmarshaling params: %w", err)
 		return
 	}
-	err = cfgViper.Unmarshal(&cfgFileObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
-		decoderConfig.TagName = "yaml"
-	})
+
+	err = cfgFileViper.Unmarshal(&cfgFileConfigObj, decOpts...)
 	if err != nil {
 		err = fmt.Errorf("error while unmarshaling the config-file params: %w", err)
 		return
