@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
@@ -402,6 +403,26 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	}
 	log.Print("Not running mounted directory tests as both --mountedDirectory and --testBucket flags are not set.")
 	return false
+}
+
+func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) (flags [][]string) {
+	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
+	if err != nil {
+		log.Printf("Error in getting bucket attrs: %v", err)
+		return
+	}
+	if attrs.HierarchicalNamespace.Enabled == true {
+		mountConfig4 := config.MountConfig{
+			EnableHNS: true,
+			LogConfig: config.LogConfig{
+				Severity:        config.TRACE,
+				LogRotateConfig: config.DefaultLogRotateConfig(),
+			},
+		}
+		filePath4 := YAMLConfigFile(mountConfig4, "config4.yaml")
+		flags = append(flags, []string{"--config-file=" + filePath4})
+	}
+	return flags
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {
