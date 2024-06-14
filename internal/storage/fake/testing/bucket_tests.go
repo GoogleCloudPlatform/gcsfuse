@@ -128,7 +128,9 @@ func interestingNames() (names []string) {
 		// Other tricky URL cases.
 		"foo () bar",
 		"foo [] bar",
+		"foo // bar",
 		"foo %?/ bar",
+		"foo http://google.com/search?q=foo&bar=baz#qux bar",
 
 		"foo ?bar",
 		"foo? bar",
@@ -4455,111 +4457,4 @@ func (t *cancellationTest) ReadObject() {
 				HasSubstr("transport closed"),
 				HasSubstr("request canceled"))))
 	ExpectLt(time.Since(before), 50*time.Millisecond)
-}
-
-func (t *listTest) TestListForUnsupportedNames() {
-	AssertEq(
-		nil,
-		createEmpty(
-			t.ctx,
-			t.bucket,
-			[]string{
-				"//",
-				"a/b",
-				"foo//e",
-				"foo/c/",
-				"foo/c/d",
-				"/objects/",
-				"/objects/f",
-			}))
-
-	for _, input := range []struct {
-		reqPrefix  string
-		maxResults int
-		delim      string
-
-		// passing []any instead of []string to allow being
-		// passed into ElementsAre utility.
-		expectedCollapsedRuns []any
-		expectedObjectNames   []any
-
-		isExpectedContinuationTokenNotEmpty bool
-	}{
-		{
-			reqPrefix:             "",
-			maxResults:            5000,
-			delim:                 "/",
-			expectedCollapsedRuns: []any{"a/", "foo/"},
-			expectedObjectNames:   []any{},
-		},
-		{
-			reqPrefix:                           "",
-			maxResults:                          1,
-			delim:                               "/",
-			expectedCollapsedRuns:               []any{"a/"},
-			expectedObjectNames:                 []any{},
-			isExpectedContinuationTokenNotEmpty: true,
-		},
-		{
-			reqPrefix:             "foo/",
-			maxResults:            5000,
-			delim:                 "/",
-			expectedCollapsedRuns: []any{"foo/c/"},
-		},
-		{
-			reqPrefix:                           "foo/",
-			maxResults:                          1,
-			delim:                               "/",
-			expectedCollapsedRuns:               []any{"foo/c/"},
-			isExpectedContinuationTokenNotEmpty: true,
-		},
-		{
-			reqPrefix:                           "foo/c/",
-			maxResults:                          1,
-			delim:                               "/",
-			expectedObjectNames:                 []any{"foo/c/"},
-			isExpectedContinuationTokenNotEmpty: true,
-		},
-		{
-			reqPrefix:           "foo/c/",
-			maxResults:          5000,
-			delim:               "/",
-			expectedObjectNames: []any{"foo/c/", "foo/c/d"},
-		},
-		{
-			reqPrefix:           "foo/",
-			maxResults:          5000,
-			expectedObjectNames: []any{"foo/c/", "foo/c/d"},
-		},
-		{
-			reqPrefix:                           "foo/",
-			maxResults:                          1,
-			delim:                               "",
-			expectedObjectNames:                 []any{"foo/c/"},
-			isExpectedContinuationTokenNotEmpty: true,
-		},
-	} {
-		req := &gcs.ListObjectsRequest{
-			Prefix:     input.reqPrefix,
-			Delimiter:  input.delim,
-			MaxResults: input.maxResults,
-		}
-
-		listing, err := t.bucket.ListObjects(t.ctx, req)
-		AssertEq(nil, err)
-		AssertNe(nil, listing)
-
-		// Collapsed runs
-		ExpectThat(listing.CollapsedRuns, ElementsAre(input.expectedCollapsedRuns...))
-
-		// Objects
-		objectNames := []string{}
-		for _, o := range listing.Objects {
-			if o != nil {
-				objectNames = append(objectNames, o.Name)
-			}
-		}
-		ExpectThat(objectNames, ElementsAre(input.expectedObjectNames...))
-		ExpectEq(input.isExpectedContinuationTokenNotEmpty, listing.ContinuationToken != "")
-	}
 }

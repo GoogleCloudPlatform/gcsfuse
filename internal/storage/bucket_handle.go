@@ -33,8 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
-
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -322,25 +320,11 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/storage.go#L1304
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L370
 		if attrs.Prefix != "" {
-			if util.IsUnsupportedObjectName(attrs.Prefix) {
-				// Ignore GCS prefixes containing `//` in their names.
-				logger.Warnf("Ignoring unsupported object-prefix: \"%s\"", attrs.Prefix)
-			} else {
-				list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
-			}
+			list.CollapsedRuns = append(list.CollapsedRuns, attrs.Prefix)
 		} else {
-			// Ignore GCS objects containing `//` in their names.
-			// As an example, GCS can have two different objects a//b and a/b at the same time
-			// in the same bucket. In linux FS however, both paths are same as a/b.
-			// So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in
-			// linux FS.
-			if util.IsUnsupportedObjectName(attrs.Name) {
-				logger.Warnf("Encoutered unsupported object-name: \"%s\". Not adding it to the list of objects", attrs.Name)
-			} else {
-				// Converting attrs to *Object type.
-				currObject := storageutil.ObjectAttrsToBucketObject(attrs)
-				list.Objects = append(list.Objects, currObject)
-			}
+			// Converting attrs to *Object type.
+			currObject := storageutil.ObjectAttrsToBucketObject(attrs)
+			list.Objects = append(list.Objects, currObject)
 		}
 
 		// itr.next returns all the objects present in the bucket. Hence adding a

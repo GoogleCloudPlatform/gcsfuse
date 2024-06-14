@@ -27,10 +27,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 )
@@ -467,44 +465,13 @@ func (b *bucket) ListObjects(
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
-	var indexLimit int
-	checkForUnsupportedObjectNames := true
-	if maxResults == 1 {
-		// If maxResults is set to 1 (generally for LookUpInode), do not let
-		// presence of unsupported objects to make
-		// this ListObjects call return nothing.
-		// If first object in this prefix is unsupported,
-		// try the second, then third and so on,
-		// until a supported object is found.
-		for ; indexStart < prefixLimit; indexStart++ {
-			name := b.objects[indexStart].metadata.Name
-			if util.IsUnsupportedObjectName(name) {
-				logger.Warnf("Ignoring unsupported object-name: %q", name)
-			} else {
-				indexLimit = indexStart + 1
-				checkForUnsupportedObjectNames = false
-				break
-			}
-		}
-		// If there are no supported objects for the requested prefix,
-		// then bypass the for-loop below.
-		if indexStart == prefixLimit {
-			indexLimit = prefixLimit
-		}
-	} else {
-		indexLimit = minInt(indexStart+maxResults, prefixLimit)
-	}
+	indexLimit := minInt(indexStart+maxResults, prefixLimit)
 
 	// Scan the array.
 	var lastResultWasPrefix bool
 	for i := indexStart; i < indexLimit; i++ {
 		var o fakeObject = b.objects[i]
 		name := o.metadata.Name
-
-		if checkForUnsupportedObjectNames && util.IsUnsupportedObjectName(name) {
-			logger.Warnf("Ignoring unsupported object-name: %q", name)
-			continue
-		}
 
 		// Search for a delimiter if necessary.
 		if req.Delimiter != "" {

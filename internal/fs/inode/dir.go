@@ -24,8 +24,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
@@ -344,6 +346,36 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
+func removeUnsupportedObjectsFromListing(listing *gcs.Listing) *gcs.Listing {
+	newListing := &gcs.Listing{}
+	for _, collapsedRun := range listing.CollapsedRuns {
+		// Ignore GCS prefixes containing `//` in their names.
+		if !util.IsUnsupportedObjectName(collapsedRun) {
+			newListing.CollapsedRuns = append(newListing.CollapsedRuns, collapsedRun)
+		} else {
+			logger.Warnf("Encoutered unsupported object-prefix: %q. Not adding it to the list of prefixes", collapsedRun)
+		}
+	}
+	for _, object := range listing.Objects {
+		if object != nil {
+			// Ignore GCS objects containing `//` in their names.
+			// As an example, GCS can have two different objects a//b and a/b at the same time
+			// in the same bucket. In linux FS however, both paths are same as a/b.
+			// So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in
+			// linux FS.
+			if !util.IsUnsupportedObjectName(object.Name) {
+				newListing.Objects = append(newListing.Objects, object)
+			} else {
+				logger.Warnf("Encoutered unsupported object-name: %q. Not adding it to the list of objects", object.Name)
+			}
+		} else {
+			logger.Errorf("Encoutered nil object in the list of objects")
+		}
+	}
+	newListing.ContinuationToken = listing.ContinuationToken
+	return newListing
+}
+
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
 func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
@@ -359,6 +391,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
+
+	listing = removeUnsupportedObjectsFromListing(listing)
 
 	if len(listing.Objects) == 0 {
 		return nil, nil
@@ -559,6 +593,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
+		listing = removeUnsupportedObjectsFromListing(listing)
+
 		for _, o := range listing.Objects {
 			if len(descendants) >= limit {
 				return descendants, nil
@@ -605,6 +641,8 @@ func (d *dirInode) readObjects(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+
+	listing = removeUnsupportedObjectsFromListing(listing)
 
 	cores = make(map[Name]*Core)
 	defer func() {
