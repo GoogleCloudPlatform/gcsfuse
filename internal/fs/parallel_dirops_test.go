@@ -28,14 +28,26 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+func TestParallelDirops(t *testing.T) {
+	TestParallelDiropsTestSuite(t)
+	TestParallelDiropsWithoutCachesTestSuite(t)
+}
+
 type ParallelDiropsTest struct {
 	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
 // ParallelDiropsWithoutCachesTest runs all the unit tests of ParallelDiropsTest
 // but without metadata caches.
 type ParallelDiropsWithoutCachesTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	ParallelDiropsTest
 }
 

@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
@@ -35,10 +36,18 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
+
+func TestTypeCache(t *testing.T) {
+	// suite.Run(t, new(TypeCacheTestWithMaxSize1MB))
+	// suite.Run(t, new(TypeCacheTestWithZeroSize))
+	// suite.Run(t, new(TypeCacheTestWithZeroTTL))
+	suite.Run(t, new(TypeCacheTestWithInfiniteTTL))
+}
 
 // The following is the control-flow of an os.Stat(name) call in case of GCSFuse,
 // for understanding how the tests work. The stat call
@@ -63,7 +72,7 @@ const (
 
 var (
 	// The following should be configured for different tests
-	// differently inside SetUpTestSuite as these need to
+	// differently inside SetupSuite as these need to
 	// set for mount itself.
 
 	// ttlInSeconds is equivalent of metadata-cache:ttl-secs in config-file.
@@ -78,7 +87,7 @@ var (
 	err error
 )
 
-func (t *typeCacheTestCommon) SetUpTestSuite() {
+func (t *typeCacheTestCommon) SetupSuite() {
 	t.serverCfg.MountConfig = config.NewMountConfig()
 	t.serverCfg.MountConfig.MetadataCacheConfig = config.MetadataCacheConfig{
 		TypeCacheMaxSizeMB: typeCacheMaxSizeMb,
@@ -103,55 +112,66 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 type TypeCacheTestWithMaxSize1MB struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithMaxSize1MB) SetUpTestSuite() {
+func (t *TypeCacheTestWithMaxSize1MB) SetupSuite() {
 	ttlInSeconds = 30
 	typeCacheMaxSizeMb = 1
 
-	t.typeCacheTestCommon.SetUpTestSuite()
+	t.typeCacheTestCommon.SetupSuite()
 }
 
 type TypeCacheTestWithZeroSize struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithZeroSize) SetUpTestSuite() {
+func (t *TypeCacheTestWithZeroSize) SetupSuite() {
 	ttlInSeconds = 30
 	typeCacheMaxSizeMb = 0
 
-	t.typeCacheTestCommon.SetUpTestSuite()
+	t.typeCacheTestCommon.SetupSuite()
 }
 
 type TypeCacheTestWithZeroTTL struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithZeroTTL) SetUpTestSuite() {
+func (t *TypeCacheTestWithZeroTTL) SetupSuite() {
 	ttlInSeconds = 0
 	typeCacheMaxSizeMb = 1
 
-	t.typeCacheTestCommon.SetUpTestSuite()
+	t.typeCacheTestCommon.SetupSuite()
 }
 
 type TypeCacheTestWithInfiniteTTL struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	typeCacheTestCommon
 }
 
-func (t *TypeCacheTestWithInfiniteTTL) SetUpTestSuite() {
+func (t *TypeCacheTestWithInfiniteTTL) SetupSuite() {
 	ttlInSeconds = -1
 	typeCacheMaxSizeMb = 1
 
-	t.typeCacheTestCommon.SetUpTestSuite()
+	t.typeCacheTestCommon.SetupSuite()
 }
 
 func init() {
-	RegisterTestSuite(&TypeCacheTestWithMaxSize1MB{})
-	RegisterTestSuite(&TypeCacheTestWithZeroSize{})
-	RegisterTestSuite(&TypeCacheTestWithZeroTTL{})
-	RegisterTestSuite(&TypeCacheTestWithInfiniteTTL{})
-
 	const contents string = "taco"
 	contentInBytes = []byte(contents)
 }

@@ -18,26 +18,32 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestReadOnly(t *testing.T) {
+	suite.Run(t, new(ReadOnlyTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type ReadOnlyTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&ReadOnlyTest{})
-}
-
-func (t *ReadOnlyTest) SetUpTestSuite() {
+func (t *ReadOnlyTest) SetupSuite() {
 	t.mountCfg.ReadOnly = true
 	t.fsTest.SetupSuite()
 }
@@ -46,12 +52,12 @@ func (t *ReadOnlyTest) SetUpTestSuite() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ReadOnlyTest) CreateFile() {
+func (t *ReadOnlyTest) TestCreateFile() {
 	err := ioutil.WriteFile(path.Join(mntDir, "foo"), []byte{}, 0700)
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *ReadOnlyTest) ModifyFile() {
+func (t *ReadOnlyTest) TestModifyFile() {
 	// Create an object in the bucket.
 	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	assert.Nil(t.T(), err)
@@ -63,7 +69,7 @@ func (t *ReadOnlyTest) ModifyFile() {
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
-func (t *ReadOnlyTest) DeleteFile() {
+func (t *ReadOnlyTest) TestDeleteFile() {
 	// Create an object in the bucket.
 	_, err := storageutil.CreateObject(ctx, bucket, "foo", []byte("taco"))
 	assert.Nil(t.T(), err)

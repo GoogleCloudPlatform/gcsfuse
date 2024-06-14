@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
@@ -30,7 +31,15 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestReadCache(t *testing.T) {
+	suite.Run(t, new(FileCacheTest))
+	suite.Run(t, new(FileCacheWithCacheForRangeRead))
+	suite.Run(t, new(FileCacheIsDisabledWithCacheDirAndZeroMaxSize))
+	suite.Run(t, new(FileCacheDestroyTest))
+}
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -49,23 +58,20 @@ const (
 	UserTempLocation = "my/temp"
 )
 
-func init() {
-	RegisterTestSuite(&FileCacheWithCacheForRangeRead{})
-	RegisterTestSuite(&FileCacheTest{})
-	RegisterTestSuite(&FileCacheDestroyTest{})
-	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
-}
-
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
 var FileCacheDir = path.Join(CacheDir, util.FileCache)
 
 // A collection of tests for a file system where the file cache is enabled
 // with cache-file-for-range-read set to False.
 type FileCacheTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func (t *FileCacheTest) SetUpTestSuite() {
+func (t *FileCacheTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -77,7 +83,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 	t.fsTest.SetupSuite()
 }
 
-func (t *FileCacheTest) TearDown() {
+func (t *FileCacheTest) TearDownTest() {
 	t.fsTest.TearDownTest()
 	err := os.RemoveAll(FileCacheDir)
 	assert.Nil(t.T(), err)
@@ -189,7 +195,7 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	AssertTrue(reflect.DeepEqual(cachedContent[offsetForRandom:offsetForRandom+util.MiB], buf))
 }
 
-func (t *FileCacheTest) ReadShouldChangeLRU() {
+func (t *FileCacheTest) TestReadShouldChangeLRU() {
 	objectName1 := DefaultObjectName + "1"
 	objectContent1 := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objectName2 := DefaultObjectName + "2"
@@ -246,23 +252,23 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *FileCacheTest) SequentialReadShouldPopulateCache() {
+func (t *FileCacheTest) TestSequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheDir)
 }
 
-func (t *FileCacheTest) SequentialToRandomReadShouldPopulateCache() {
+func (t *FileCacheTest) TestSequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheTest) CacheFilePermission() {
+func (t *FileCacheTest) TestCacheFilePermission() {
 	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
-func (t *FileCacheTest) WriteShouldNotPopulateCache() {
+func (t *FileCacheTest) TestWriteShouldNotPopulateCache() {
 	writeShouldNotPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
+func (t *FileCacheTest) TestFileSizeGreaterThanCacheSize() {
 	objectContent := generateRandomString((FileCacheSizeInMb + 1) * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -285,7 +291,7 @@ func (t *FileCacheTest) FileSizeGreaterThanCacheSize() {
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *FileCacheTest) EvictionWhenFileCacheIsFull() {
+func (t *FileCacheTest) TestEvictionWhenFileCacheIsFull() {
 	objectName1 := DefaultObjectName + "1"
 	objectContent1 := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objectName2 := DefaultObjectName + "2"
@@ -316,7 +322,7 @@ func (t *FileCacheTest) EvictionWhenFileCacheIsFull() {
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
+func (t *FileCacheTest) TestRandomReadShouldNotPopulateCache() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -342,7 +348,7 @@ func (t *FileCacheTest) RandomReadShouldNotPopulateCache() {
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() {
+func (t *FileCacheTest) TestReadWithNewHandleAfterDeletingFileFromCacheShouldFail() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -371,7 +377,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	AssertTrue(strings.Contains(err.Error(), "input/output error"))
 }
 
-func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail() {
+func (t *FileCacheTest) TestReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -398,7 +404,7 @@ func (t *FileCacheTest) ReadWithOldHandleAfterDeletingFileFromCacheShouldNotFail
 	AssertTrue(reflect.DeepEqual(string(buf), objectContent))
 }
 
-func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
+func (t *FileCacheTest) TestDeletingObjectShouldInvalidateTheCorrespondingCache() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -424,7 +430,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertTrue(os.IsNotExist(err))
 }
 
-func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
+func (t *FileCacheTest) TestRenamingObjectShouldInvalidateTheCorrespondingCache() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -451,7 +457,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	AssertTrue(os.IsNotExist(err))
 }
 
-func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
+func (t *FileCacheTest) TestRenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{NestedDefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -479,7 +485,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	AssertTrue(os.IsNotExist(err))
 }
 
-func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
+func (t *FileCacheTest) TestConcurrentReadsFromSameFileHandle() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -517,7 +523,7 @@ func (t *FileCacheTest) ConcurrentReadsFromSameFileHandle() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheTest) FileSizeEqualToFileCacheSize() {
+func (t *FileCacheTest) TestFileSizeEqualToFileCacheSize() {
 	objectContent := generateRandomString(FileCacheSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -536,7 +542,7 @@ func (t *FileCacheTest) FileSizeEqualToFileCacheSize() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheTest) WriteToFileCachedAndThenReadingItShouldBeCorrect() {
+func (t *FileCacheTest) TestWriteToFileCachedAndThenReadingItShouldBeCorrect() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 	// write content to file that is cached.
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
@@ -564,7 +570,7 @@ func (t *FileCacheTest) WriteToFileCachedAndThenReadingItShouldBeCorrect() {
 	AssertFalse(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
+func (t *FileCacheTest) TestSyncToFileCachedAndThenReadingItShouldBeCorrect() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 	// write and sync content to file that is cached.
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
@@ -595,10 +601,14 @@ func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
 // A collection of tests for a file system where the file cache is enabled
 // with cache-file-for-range-read set to True.
 type FileCacheWithCacheForRangeRead struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
+func (t *FileCacheWithCacheForRangeRead) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -610,13 +620,13 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.fsTest.SetupSuite()
 }
 
-func (t *FileCacheWithCacheForRangeRead) TearDown() {
+func (t *FileCacheWithCacheForRangeRead) TearDownTest() {
 	t.fsTest.TearDownTest()
 	err := os.RemoveAll(FileCacheDir)
 	assert.Nil(t.T(), err)
 }
 
-func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) TestRandomReadShouldPopulateCache() {
 	hundredKiB := 100 * util.KiB
 	tenKiB := 10 * util.KiB
 	objectContent := generateRandomString(hundredKiB)
@@ -649,23 +659,23 @@ func (t *FileCacheWithCacheForRangeRead) RandomReadShouldPopulateCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cachedContent)))
 }
 
-func (t *FileCacheWithCacheForRangeRead) SequentialReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) TestSequentialReadShouldPopulateCache() {
 	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheDir)
 }
 
-func (t *FileCacheWithCacheForRangeRead) CacheFilePermission() {
+func (t *FileCacheWithCacheForRangeRead) TestCacheFilePermission() {
 	cacheFilePermissionTest(&t.fsTest, util.DefaultFilePerm)
 }
 
-func (t *FileCacheWithCacheForRangeRead) WriteShouldNotPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) TestWriteShouldNotPopulateCache() {
 	writeShouldNotPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheWithCacheForRangeRead) SequentialToRandomReadShouldPopulateCache() {
+func (t *FileCacheWithCacheForRangeRead) TestSequentialToRandomReadShouldPopulateCache() {
 	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
 }
 
-func (t *FileCacheWithCacheForRangeRead) NewGenerationShouldRebuildCache() {
+func (t *FileCacheWithCacheForRangeRead) TestNewGenerationShouldRebuildCache() {
 	objectContent := generateRandomString(2 * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -696,7 +706,7 @@ func (t *FileCacheWithCacheForRangeRead) NewGenerationShouldRebuildCache() {
 	AssertTrue(reflect.DeepEqual(objectContent, string(cacheContent)))
 }
 
-func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
+func (t *FileCacheTest) TestModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	objectContent := generateRandomString(util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -728,10 +738,14 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 // Tests for file system where the file cache is disabled if cache-dir is passed
 // but file-cache: max-size-mb is 0.
 type FileCacheIsDisabledWithCacheDirAndZeroMaxSize struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -743,11 +757,15 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 	t.fsTest.SetupSuite()
 }
 
-func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDown() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDownTest() {
 	t.fsTest.TearDownTest()
 }
 
-func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopulateCache() {
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TearDownSuite() {
+	t.fsTest.TearDownSuite()
+}
+
+func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) TestReadingFileDoesNotPopulateCache() {
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	objects := map[string]string{DefaultObjectName: objectContent}
 	err := t.createObjects(objects)
@@ -772,10 +790,14 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) ReadingFileDoesNotPopula
 
 // Test to check cache is not deleted at the time of unmounting.
 type FileCacheDestroyTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func (t *FileCacheDestroyTest) SetUpTestSuite() {
+func (t *FileCacheDestroyTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
@@ -787,17 +809,19 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.fsTest.SetupSuite()
 }
 
-func (t *FileCacheDestroyTest) TearDownTestSuite() {
+func (t *FileCacheDestroyTest) TearDownSuite() {
 	// Do nothing as fs is unmounted in the test itself
+	// t.fsTest.TearDownSuite()
 }
 
-func (t *FileCacheDestroyTest) TearDown() {
+func (t *FileCacheDestroyTest) TearDownTest() {
 	// Do nothing and just delete cache as fs is unmounted in the test itself
 	err := os.RemoveAll(FileCacheDir)
 	assert.Nil(t.T(), err)
+	t.fsTest.TearDownTest()
 }
 
-func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
+func (t *FileCacheDestroyTest) TestCacheIsNotDeletedOnUnmount() {
 	// Read to populate cache
 	objectContent := generateRandomString(50)
 	objects := map[string]string{DefaultObjectName: objectContent}

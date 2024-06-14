@@ -54,8 +54,18 @@ const (
 )
 
 func TestFS(t *testing.T) {
+	TestAllBuckets(t)
+	TestCaching(t)
+	TestForeignMods(t)
 	TestImplicitDirs(t)
 	TestImplicitDirsWithCache(t)
+	TestLocalFile(t)
+	TestLocalModifications(t)
+	TestParallelDirops(t)
+	TestReadCache(t)
+	TestReadOnly(t)
+	TestStress(t)
+	TestTypeCache(t)
 }
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
@@ -70,8 +80,7 @@ func init() {
 
 	go func() {
 		<-c
-		panic("Need to re-enable StopRunningTests()")
-		// StopRunningTests()
+		panic("Received interrupt signal.")
 	}()
 }
 

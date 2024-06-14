@@ -22,6 +22,7 @@ import (
 	"path"
 	"runtime"
 	"sync"
+	"testing"
 	"time"
 
 	"golang.org/x/net/context"
@@ -30,7 +31,12 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestStress(t *testing.T) {
+	suite.Run(t, new(StressTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -82,14 +88,26 @@ func forEachName(names []string, f func(string) error) (err error) {
 ////////////////////////////////////////////////////////////////////////
 
 type StressTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&StressTest{})
+func (t *StressTest) SetupSuite() {
+	t.fsTest.SetupSuite()
 }
 
-func (t *StressTest) CreateAndReadManyFilesInParallel() {
+func (t *StressTest) TearDownSuite() {
+	t.fsTest.TearDownSuite()
+}
+
+func (t *StressTest) TearDownTest() {
+	t.fsTest.TearDownTest()
+}
+
+func (t *StressTest) TestCreateAndReadManyFilesInParallel() {
 	var err error
 
 	// Ensure that we get parallelism for this test.
@@ -134,7 +152,7 @@ func (t *StressTest) CreateAndReadManyFilesInParallel() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *StressTest) TruncateFileManyTimesInParallel() {
+func (t *StressTest) TestTruncateFileManyTimesInParallel() {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
 
@@ -197,22 +215,22 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	ExpectTrue(found, "Unexpected size: %d", fi.Size())
 }
 
-func (t *StressTest) CreateInParallel_NoTruncate() {
+func (t *StressTest) TestCreateInParallel_NoTruncate() {
 	fusetesting.RunCreateInParallelTest_NoTruncate(ctx, mntDir)
 }
 
-func (t *StressTest) CreateInParallel_Truncate() {
+func (t *StressTest) TestCreateInParallel_Truncate() {
 	fusetesting.RunCreateInParallelTest_Truncate(ctx, mntDir)
 }
 
-func (t *StressTest) CreateInParallel_Exclusive() {
+func (t *StressTest) TestCreateInParallel_Exclusive() {
 	fusetesting.RunCreateInParallelTest_Exclusive(ctx, mntDir)
 }
 
-func (t *StressTest) MkdirInParallel() {
+func (t *StressTest) TestMkdirInParallel() {
 	fusetesting.RunMkdirInParallelTest(ctx, mntDir)
 }
 
-func (t *StressTest) SymlinkInParallel() {
+func (t *StressTest) TestSymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(ctx, mntDir)
 }

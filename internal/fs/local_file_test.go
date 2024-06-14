@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -36,7 +37,12 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestLocalFile(t *testing.T) {
+	suite.Run(t, new(LocalFileTest))
+}
 
 // //////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -50,16 +56,16 @@ const FileContentsSize = 10
 const Delta = 30 * time.Minute
 
 type LocalFileTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	// fsTest has f1 *osFile and f2 *osFile which we will reuse here.
 	f3 *os.File
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&LocalFileTest{})
-}
-
-func (t *LocalFileTest) SetUpTestSuite() {
+func (t *LocalFileTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
 		WriteConfig: config.WriteConfig{

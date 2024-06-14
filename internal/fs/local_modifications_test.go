@@ -30,6 +30,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -43,7 +44,18 @@ import (
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestLocalModifications(t *testing.T) {
+	suite.Run(t, new(OpenTest))
+	suite.Run(t, new(MknodTest))
+	suite.Run(t, new(ModesTest))
+	suite.Run(t, new(DirectoryTest))
+	suite.Run(t, new(FileTest))
+	suite.Run(t, new(SymlinkTest))
+	suite.Run(t, new(RenameTest))
+}
 
 // The radius we use for "expect mtime is within"-style assertions. We can't
 // share a synchronized clock with the ultimate source of mtimes because with
@@ -172,14 +184,14 @@ func interestingLegalNames() (names []string) {
 ////////////////////////////////////////////////////////////////////////
 
 type OpenTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&OpenTest{})
-}
-
-func (t *OpenTest) NonExistent_CreateFlagNotSet() {
+func (t *OpenTest) TestNonExistent_CreateFlagNotSet() {
 	var err error
 	t.f1, err = os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0700)
 
@@ -193,7 +205,7 @@ func (t *OpenTest) NonExistent_CreateFlagNotSet() {
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
-func (t *OpenTest) NonExistent_CreateFlagSet() {
+func (t *OpenTest) TestNonExistent_CreateFlagSet() {
 	var err error
 
 	// Open the file.
@@ -234,7 +246,7 @@ func (t *OpenTest) NonExistent_CreateFlagSet() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *OpenTest) ExistingFile() {
+func (t *OpenTest) TestExistingFile() {
 	var err error
 
 	// Create a file.
@@ -275,7 +287,7 @@ func (t *OpenTest) ExistingFile() {
 	ExpectEq("012oburritoenchilada", string(fileContents))
 }
 
-func (t *OpenTest) ExistingFile_Truncate() {
+func (t *OpenTest) TestExistingFile_Truncate() {
 	var err error
 
 	// Create a file.
@@ -322,7 +334,7 @@ func (t *OpenTest) ExistingFile_Truncate() {
 	ExpectEq("012", string(fileContents))
 }
 
-func (t *OpenTest) AlreadyOpenedFile() {
+func (t *OpenTest) TestAlreadyOpenedFile() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -359,7 +371,7 @@ func (t *OpenTest) AlreadyOpenedFile() {
 	ExpectEq("tank", string(contents))
 }
 
-func (t *OpenTest) LegalNames() {
+func (t *OpenTest) TestLegalNames() {
 	var err error
 
 	names := interestingLegalNames()
@@ -395,7 +407,7 @@ func (t *OpenTest) LegalNames() {
 	}
 }
 
-func (t *OpenTest) IllegalNames() {
+func (t *OpenTest) TestIllegalNames() {
 	var err error
 
 	// A collection of interesting names that are illegal to use, and a string we
@@ -423,14 +435,14 @@ func (t *OpenTest) IllegalNames() {
 ////////////////////////////////////////////////////////////////////////
 
 type MknodTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&MknodTest{})
-}
-
-func (t *MknodTest) File() {
+func (t *MknodTest) TestFile() {
 	// mknod(2) only works for root on OS X.
 	if runtime.GOOS == "darwin" {
 		return
@@ -457,7 +469,7 @@ func (t *MknodTest) File() {
 	ExpectEq("", string(contents))
 }
 
-func (t *MknodTest) Directory() {
+func (t *MknodTest) TestDirectory() {
 	// mknod(2) only works for root on OS X.
 	if runtime.GOOS == "darwin" {
 		return
@@ -472,7 +484,7 @@ func (t *MknodTest) Directory() {
 	assert.Equal(t.T(), syscall.EPERM, err)
 }
 
-func (t *MknodTest) AlreadyExists() {
+func (t *MknodTest) TestAlreadyExists() {
 	// mknod(2) only works for root on OS X.
 	if runtime.GOOS == "darwin" {
 		return
@@ -495,7 +507,7 @@ func (t *MknodTest) AlreadyExists() {
 	ExpectEq("taco", string(contents))
 }
 
-func (t *MknodTest) NonExistentParent() {
+func (t *MknodTest) TestNonExistentParent() {
 	// mknod(2) only works for root on OS X.
 	if runtime.GOOS == "darwin" {
 		return
@@ -513,14 +525,14 @@ func (t *MknodTest) NonExistentParent() {
 ////////////////////////////////////////////////////////////////////////
 
 type ModesTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&ModesTest{})
-}
-
-func (t *ModesTest) ReadOnlyMode() {
+func (t *ModesTest) TestReadOnlyMode() {
 	var err error
 
 	// Create a file.
@@ -549,7 +561,7 @@ func (t *ModesTest) ReadOnlyMode() {
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
-func (t *ModesTest) WriteOnlyMode() {
+func (t *ModesTest) TestWriteOnlyMode() {
 	var err error
 
 	// Create a file.
@@ -602,7 +614,7 @@ func (t *ModesTest) WriteOnlyMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *ModesTest) ReadWriteMode() {
+func (t *ModesTest) TestReadWriteMode() {
 	var err error
 
 	// Create a file.
@@ -666,7 +678,7 @@ func (t *ModesTest) ReadWriteMode() {
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }
 
-func (t *ModesTest) FuzzyReadWriteMode() {
+func (t *ModesTest) TestFuzzyReadWriteMode() {
 	var err error
 
 	// Create a file.
@@ -731,7 +743,7 @@ func (t *ModesTest) FuzzyReadWriteMode() {
 	ExpectEq("타코世界\u0041\u030a", string(fileContents))
 }
 
-func (t *ModesTest) AppendMode_SeekAndWrite() {
+func (t *ModesTest) TestAppendMode_SeekAndWrite() {
 	var err error
 
 	// Create a file.
@@ -779,7 +791,7 @@ func (t *ModesTest) AppendMode_SeekAndWrite() {
 	ExpectEq(contents+"222", string(fileContents))
 }
 
-func (t *ModesTest) AppendMode_WriteAt() {
+func (t *ModesTest) TestAppendMode_WriteAt() {
 	var err error
 
 	// Create a file.
@@ -827,7 +839,7 @@ func (t *ModesTest) AppendMode_WriteAt() {
 	ExpectEq("taco111ritoenchilada", string(fileContents))
 }
 
-func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
+func (t *ModesTest) TestAppendMode_WriteAt_PastEOF() {
 	var err error
 
 	// Open a file.
@@ -860,7 +872,7 @@ func (t *ModesTest) AppendMode_WriteAt_PastEOF() {
 	ExpectEq("111\x00\x00\x00222", string(contents))
 }
 
-func (t *ModesTest) ReadFromWriteOnlyFile() {
+func (t *ModesTest) TestReadFromWriteOnlyFile() {
 	var err error
 
 	// Create and open a file for writing.
@@ -878,7 +890,7 @@ func (t *ModesTest) ReadFromWriteOnlyFile() {
 	ExpectThat(err, Error(HasSubstr("bad file descriptor")))
 }
 
-func (t *ModesTest) WriteToReadOnlyFile() {
+func (t *ModesTest) TestWriteToReadOnlyFile() {
 	var err error
 
 	// Create and open a file for reading.
@@ -901,14 +913,14 @@ func (t *ModesTest) WriteToReadOnlyFile() {
 ////////////////////////////////////////////////////////////////////////
 
 type DirectoryTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&DirectoryTest{})
-}
-
-func (t *DirectoryTest) Mkdir_OneLevel() {
+func (t *DirectoryTest) TestMkdir_OneLevel() {
 	var err error
 	var fi os.FileInfo
 	var entries []os.FileInfo
@@ -948,7 +960,7 @@ func (t *DirectoryTest) Mkdir_OneLevel() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
-func (t *DirectoryTest) Mkdir_TwoLevels() {
+func (t *DirectoryTest) TestMkdir_TwoLevels() {
 	var err error
 	var fi os.FileInfo
 	var entries []os.FileInfo
@@ -990,7 +1002,7 @@ func (t *DirectoryTest) Mkdir_TwoLevels() {
 	ExpectEq(dirPerms|os.ModeDir, fi.Mode())
 }
 
-func (t *DirectoryTest) Mkdir_AlreadyExists() {
+func (t *DirectoryTest) TestMkdir_AlreadyExists() {
 	var err error
 	dirName := path.Join(mntDir, "dir")
 
@@ -1005,7 +1017,7 @@ func (t *DirectoryTest) Mkdir_AlreadyExists() {
 	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
-func (t *DirectoryTest) Mkdir_IntermediateIsFile() {
+func (t *DirectoryTest) TestMkdir_IntermediateIsFile() {
 	var err error
 
 	// Create a file.
@@ -1021,7 +1033,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsFile() {
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
-func (t *DirectoryTest) Mkdir_IntermediateIsNonExistent() {
+func (t *DirectoryTest) TestMkdir_IntermediateIsNonExistent() {
 	var err error
 
 	// Attempt to create a sub-directory of a non-existent sub-directory.
@@ -1032,7 +1044,7 @@ func (t *DirectoryTest) Mkdir_IntermediateIsNonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
-func (t *DirectoryTest) Stat_Root() {
+func (t *DirectoryTest) TestStat_Root() {
 	fi, err := os.Stat(mntDir)
 	assert.Nil(t.T(), err)
 
@@ -1045,7 +1057,7 @@ func (t *DirectoryTest) Stat_Root() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *DirectoryTest) Stat_FirstLevelDirectory() {
+func (t *DirectoryTest) TestStat_FirstLevelDirectory() {
 	var err error
 
 	// Create a sub-directory.
@@ -1065,7 +1077,7 @@ func (t *DirectoryTest) Stat_FirstLevelDirectory() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *DirectoryTest) Stat_SecondLevelDirectory() {
+func (t *DirectoryTest) TestStat_SecondLevelDirectory() {
 	var err error
 
 	// Create two levels of directories.
@@ -1085,7 +1097,7 @@ func (t *DirectoryTest) Stat_SecondLevelDirectory() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *DirectoryTest) ReadDir_Root() {
+func (t *DirectoryTest) TestReadDir_Root() {
 	var err error
 	var fi os.FileInfo
 
@@ -1124,7 +1136,7 @@ func (t *DirectoryTest) ReadDir_Root() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *DirectoryTest) ReadDir_SubDirectory() {
+func (t *DirectoryTest) TestReadDir_SubDirectory() {
 	var err error
 	var fi os.FileInfo
 
@@ -1168,7 +1180,7 @@ func (t *DirectoryTest) ReadDir_SubDirectory() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *DirectoryTest) Rmdir_NotEmpty() {
+func (t *DirectoryTest) TestRmdir_NotEmpty() {
 	var err error
 
 	// Create two levels of directories.
@@ -1189,7 +1201,7 @@ func (t *DirectoryTest) Rmdir_NotEmpty() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *DirectoryTest) Rmdir_Empty() {
+func (t *DirectoryTest) TestRmdir_Empty() {
 	var err error
 	var entries []os.FileInfo
 
@@ -1218,7 +1230,7 @@ func (t *DirectoryTest) Rmdir_Empty() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *DirectoryTest) Rmdir_OpenedForReading() {
+func (t *DirectoryTest) TestRmdir_OpenedForReading() {
 	var err error
 
 	// Create a directory.
@@ -1257,7 +1269,7 @@ func (t *DirectoryTest) Rmdir_OpenedForReading() {
 	}
 }
 
-func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
+func (t *DirectoryTest) TestRmdir_ThenRecreateWithSameName() {
 	var err error
 
 	// Create a directory.
@@ -1283,7 +1295,7 @@ func (t *DirectoryTest) Rmdir_ThenRecreateWithSameName() {
 	ExpectTrue(fi.IsDir())
 }
 
-func (t *DirectoryTest) CreateHardLink() {
+func (t *DirectoryTest) TestCreateHardLink() {
 	var err error
 
 	// Write a file.
@@ -1299,7 +1311,7 @@ func (t *DirectoryTest) CreateHardLink() {
 	ExpectThat(err, Error(HasSubstr("not implemented")))
 }
 
-func (t *DirectoryTest) Chmod() {
+func (t *DirectoryTest) TestChmod() {
 	var err error
 
 	// Create a directory.
@@ -1314,7 +1326,7 @@ func (t *DirectoryTest) Chmod() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *DirectoryTest) Chtimes() {
+func (t *DirectoryTest) TestChtimes() {
 	var err error
 
 	// Create a directory.
@@ -1328,7 +1340,7 @@ func (t *DirectoryTest) Chtimes() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *DirectoryTest) AtimeCtimeAndMtime() {
+func (t *DirectoryTest) TestAtimeCtimeAndMtime() {
 	var err error
 
 	// Create a directory.
@@ -1350,7 +1362,7 @@ func (t *DirectoryTest) AtimeCtimeAndMtime() {
 	ExpectThat(mtime, timeutil.TimeNear(createTime, delta))
 }
 
-func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
+func (t *DirectoryTest) TestRootAtimeCtimeAndMtime() {
 	var err error
 	mountTime := mtimeClock.Now()
 
@@ -1367,7 +1379,7 @@ func (t *DirectoryTest) RootAtimeCtimeAndMtime() {
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
 
-func (t *DirectoryTest) ContentTypes() {
+func (t *DirectoryTest) TestContentTypes() {
 	testCases := []string{
 		"foo/",
 		"foo.jpg/",
@@ -1397,14 +1409,14 @@ func (t *DirectoryTest) ContentTypes() {
 ////////////////////////////////////////////////////////////////////////
 
 type FileTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&FileTest{})
-}
-
-func (t *FileTest) WriteOverlapsEndOfFile() {
+func (t *FileTest) TestWriteOverlapsEndOfFile() {
 	var err error
 	var n int
 
@@ -1427,7 +1439,7 @@ func (t *FileTest) WriteOverlapsEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *FileTest) WriteStartsAtEndOfFile() {
+func (t *FileTest) TestWriteStartsAtEndOfFile() {
 	var err error
 	var n int
 
@@ -1450,7 +1462,7 @@ func (t *FileTest) WriteStartsAtEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *FileTest) WriteStartsPastEndOfFile() {
+func (t *FileTest) TestWriteStartsPastEndOfFile() {
 	var err error
 	var n int
 
@@ -1469,7 +1481,7 @@ func (t *FileTest) WriteStartsPastEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *FileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
+func (t *FileTest) TestWriteAtDoesntChangeOffset_NotAppendMode() {
 	var err error
 	var n int
 
@@ -1496,7 +1508,7 @@ func (t *FileTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	assert.Equal(t.T(), 4, offset)
 }
 
-func (t *FileTest) WriteAtDoesntChangeOffset_AppendMode() {
+func (t *FileTest) TestWriteAtDoesntChangeOffset_AppendMode() {
 	var err error
 	var n int
 
@@ -1568,7 +1580,7 @@ func createFile(t *fsTest, filePath string) {
 	assert.Nil(t.T(), err)
 }
 
-func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
+func (t *FileTest) TestAppendFileOperation_ShouldNotChangeObjectAttributes() {
 	// Create file.
 	fileName := "foo"
 	createFile(&t.fsTest, path.Join(mntDir, fileName))
@@ -1588,7 +1600,7 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	validateObjectAttributes(&t.fsTest, extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
-func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
+func (t *FileTest) TestWriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	// Create file.
 	fileName := "foo"
 	createFile(&t.fsTest, path.Join(mntDir, fileName))
@@ -1611,7 +1623,7 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	validateObjectAttributes(&t.fsTest, extendedAttr1, extendedAttr2, minObject1, minObject2)
 }
 
-func (t *FileTest) ReadsPastEndOfFile() {
+func (t *FileTest) TestReadsPastEndOfFile() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -1644,7 +1656,7 @@ func (t *FileTest) ReadsPastEndOfFile() {
 	ExpectEq("", string(buf[:n]))
 }
 
-func (t *FileTest) Truncate_Smaller() {
+func (t *FileTest) TestTruncate_Smaller() {
 	var err error
 	fileName := path.Join(mntDir, "foo")
 
@@ -1671,7 +1683,7 @@ func (t *FileTest) Truncate_Smaller() {
 	ExpectEq("ta", string(contents))
 }
 
-func (t *FileTest) Truncate_SameSize() {
+func (t *FileTest) TestTruncate_SameSize() {
 	var err error
 	fileName := path.Join(mntDir, "foo")
 
@@ -1698,7 +1710,7 @@ func (t *FileTest) Truncate_SameSize() {
 	ExpectEq("taco", string(contents))
 }
 
-func (t *FileTest) Truncate_Larger() {
+func (t *FileTest) TestTruncate_Larger() {
 	var err error
 	fileName := path.Join(mntDir, "foo")
 
@@ -1725,7 +1737,7 @@ func (t *FileTest) Truncate_Larger() {
 	ExpectEq("taco\x00\x00", string(contents))
 }
 
-func (t *FileTest) Seek() {
+func (t *FileTest) TestSeek() {
 	var err error
 	var n int
 	buf := make([]byte, 1024)
@@ -1754,7 +1766,7 @@ func (t *FileTest) Seek() {
 	ExpectEq("txxo", string(buf[:n]))
 }
 
-func (t *FileTest) Stat() {
+func (t *FileTest) TestStat() {
 	var err error
 	var n int
 
@@ -1786,7 +1798,7 @@ func (t *FileTest) Stat() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *FileTest) StatUnopenedFile() {
+func (t *FileTest) TestStatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
@@ -1812,7 +1824,7 @@ func (t *FileTest) StatUnopenedFile() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *FileTest) LstatUnopenedFile() {
+func (t *FileTest) TestLstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
@@ -1838,7 +1850,7 @@ func (t *FileTest) LstatUnopenedFile() {
 	ExpectEq(currentGid(&t.fsTest), fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func (t *FileTest) UnlinkFile_Exists() {
+func (t *FileTest) TestUnlinkFile_Exists() {
 	var err error
 
 	// Write a file.
@@ -1862,14 +1874,14 @@ func (t *FileTest) UnlinkFile_Exists() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *FileTest) UnlinkFile_NonExistent() {
+func (t *FileTest) TestUnlinkFile_NonExistent() {
 	err := os.Remove(path.Join(mntDir, "foo"))
 
 	assert.NotNil(t.T(), err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *FileTest) UnlinkFile_StillOpen() {
+func (t *FileTest) TestUnlinkFile_StillOpen() {
 	var err error
 
 	fileName := path.Join(mntDir, "foo")
@@ -1915,7 +1927,7 @@ func (t *FileTest) UnlinkFile_StillOpen() {
 	assert.Equal(t.T(), len("burrito"), n)
 }
 
-func (t *FileTest) UnlinkFile_NoLongerInBucket() {
+func (t *FileTest) TestUnlinkFile_NoLongerInBucket() {
 	var err error
 
 	// Write a file.
@@ -1939,7 +1951,7 @@ func (t *FileTest) UnlinkFile_NoLongerInBucket() {
 	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
-func (t *FileTest) UnlinkFile_FromSubDirectory() {
+func (t *FileTest) TestUnlinkFile_FromSubDirectory() {
 	var err error
 
 	// Create a sub-directory.
@@ -1968,7 +1980,7 @@ func (t *FileTest) UnlinkFile_FromSubDirectory() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
+func (t *FileTest) TestUnlinkFile_ThenRecreateWithSameName() {
 	var err error
 
 	// Write a file.
@@ -1994,7 +2006,7 @@ func (t *FileTest) UnlinkFile_ThenRecreateWithSameName() {
 	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
-func (t *FileTest) Chmod() {
+func (t *FileTest) TestChmod() {
 	var err error
 
 	// Write a file.
@@ -2009,7 +2021,7 @@ func (t *FileTest) Chmod() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *FileTest) Chtimes_InactiveFile() {
+func (t *FileTest) TestChtimes_InactiveFile() {
 	var err error
 
 	// Create a file.
@@ -2028,7 +2040,7 @@ func (t *FileTest) Chtimes_InactiveFile() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
-func (t *FileTest) Chtimes_OpenFile_Clean() {
+func (t *FileTest) TestChtimes_OpenFile_Clean() {
 	var err error
 
 	// Create a file.
@@ -2065,7 +2077,7 @@ func (t *FileTest) Chtimes_OpenFile_Clean() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
-func (t *FileTest) Chtimes_OpenFile_Dirty() {
+func (t *FileTest) TestChtimes_OpenFile_Dirty() {
 	var err error
 
 	// Create a file.
@@ -2102,7 +2114,7 @@ func (t *FileTest) Chtimes_OpenFile_Dirty() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(newMtime))
 }
 
-func (t *FileTest) Sync_Dirty() {
+func (t *FileTest) TestSync_Dirty() {
 	var err error
 	var n int
 
@@ -2126,7 +2138,7 @@ func (t *FileTest) Sync_Dirty() {
 	ExpectEq("taco", string(contents))
 }
 
-func (t *FileTest) Sync_NotDirty() {
+func (t *FileTest) TestSync_NotDirty() {
 	var err error
 
 	// Create a file.
@@ -2156,7 +2168,7 @@ func (t *FileTest) Sync_NotDirty() {
 	assert.Equal(t.T(), m1.Generation, m2.Generation)
 }
 
-func (t *FileTest) Sync_Clobbered() {
+func (t *FileTest) TestSync_Clobbered() {
 	var err error
 	var n int
 
@@ -2192,7 +2204,7 @@ func (t *FileTest) Sync_Clobbered() {
 	ExpectEq("foobar", string(contents))
 }
 
-func (t *FileTest) Close_Dirty() {
+func (t *FileTest) TestClose_Dirty() {
 	var err error
 	var n int
 
@@ -2216,7 +2228,7 @@ func (t *FileTest) Close_Dirty() {
 	ExpectEq("taco", string(contents))
 }
 
-func (t *FileTest) Close_NotDirty() {
+func (t *FileTest) TestClose_NotDirty() {
 	var err error
 
 	// Create a file.
@@ -2236,7 +2248,7 @@ func (t *FileTest) Close_NotDirty() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *FileTest) Close_Clobbered() {
+func (t *FileTest) TestClose_Clobbered() {
 	var err error
 	var n int
 
@@ -2270,7 +2282,7 @@ func (t *FileTest) Close_Clobbered() {
 	ExpectEq("foobar", string(contents))
 }
 
-func (t *FileTest) AtimeAndCtime() {
+func (t *FileTest) TestAtimeAndCtime() {
 	var err error
 
 	// Create a file.
@@ -2295,7 +2307,7 @@ func (t *FileTest) AtimeAndCtime() {
 	ExpectThat(ctime, timeutil.TimeNear(createTime, delta))
 }
 
-func (t *FileTest) ContentTypes() {
+func (t *FileTest) TestContentTypes() {
 	testCases := map[string]string{
 		"foo.jpg": "image/jpeg",
 		"bar.gif": "image/gif",
@@ -2344,14 +2356,14 @@ func (t *FileTest) ContentTypes() {
 ////////////////////////////////////////////////////////////////////////
 
 type SymlinkTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&SymlinkTest{})
-}
-
-func (t *SymlinkTest) CreateLink() {
+func (t *SymlinkTest) TestCreateLink() {
 	var fi os.FileInfo
 	var err error
 
@@ -2407,7 +2419,7 @@ func (t *SymlinkTest) CreateLink() {
 	ExpectEq(filePerms, fi.Mode())
 }
 
-func (t *SymlinkTest) CreateLink_Exists() {
+func (t *SymlinkTest) TestCreateLink_Exists() {
 	var err error
 
 	// Create a file and a directory.
@@ -2437,7 +2449,7 @@ func (t *SymlinkTest) CreateLink_Exists() {
 	}
 }
 
-func (t *SymlinkTest) RemoveLink() {
+func (t *SymlinkTest) TestRemoveLink() {
 	var err error
 
 	// Create the link.
@@ -2460,14 +2472,14 @@ func (t *SymlinkTest) RemoveLink() {
 ////////////////////////////////////////////////////////////////////////
 
 type RenameTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&RenameTest{})
-}
-
-func (t *RenameTest) DirectoryNamingConflicts() {
+func (t *RenameTest) TestDirectoryNamingConflicts() {
 	var err error
 
 	oldPath := path.Join(mntDir, "foo")
@@ -2492,7 +2504,7 @@ func (t *RenameTest) DirectoryNamingConflicts() {
 	assert.Nil(t.T(), err)
 }
 
-func (t *RenameTest) DirectoryContainingFiles() {
+func (t *RenameTest) TestDirectoryContainingFiles() {
 	var err error
 
 	// Create a directory.
@@ -2521,7 +2533,7 @@ func (t *RenameTest) DirectoryContainingFiles() {
 	ExpectThat(err, Error(HasSubstr("too many open files")))
 }
 
-func (t *RenameTest) DirectoryContainingDirectories() {
+func (t *RenameTest) TestDirectoryContainingDirectories() {
 	var err error
 
 	// Create a directory.
@@ -2558,7 +2570,7 @@ func (t *RenameTest) DirectoryContainingDirectories() {
 	ExpectTrue(files[0].IsDir())
 }
 
-func (t *RenameTest) EmptyDirectory() {
+func (t *RenameTest) TestEmptyDirectory() {
 	var err error
 
 	// Create a directory.
@@ -2579,7 +2591,7 @@ func (t *RenameTest) EmptyDirectory() {
 	ExpectTrue(file.IsDir())
 }
 
-func (t *RenameTest) WithinDir() {
+func (t *RenameTest) TestWithinDir() {
 	var err error
 
 	// Create a parent directory.
@@ -2626,7 +2638,7 @@ func (t *RenameTest) WithinDir() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *RenameTest) AcrossDirs() {
+func (t *RenameTest) TestAcrossDirs() {
 	var err error
 
 	// Create two parent directories.
@@ -2682,7 +2694,7 @@ func (t *RenameTest) AcrossDirs() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *RenameTest) OutOfFileSystem() {
+func (t *RenameTest) TestOutOfFileSystem() {
 	var err error
 
 	// Create a file.
@@ -2700,7 +2712,7 @@ func (t *RenameTest) OutOfFileSystem() {
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
-func (t *RenameTest) IntoFileSystem() {
+func (t *RenameTest) TestIntoFileSystem() {
 	var err error
 
 	// Create a file outside of our file system.
@@ -2716,7 +2728,7 @@ func (t *RenameTest) IntoFileSystem() {
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
-func (t *RenameTest) OverExistingFile() {
+func (t *RenameTest) TestOverExistingFile() {
 	var err error
 
 	// Create two files.
@@ -2747,7 +2759,7 @@ func (t *RenameTest) OverExistingFile() {
 	ExpectEq(len("taco"), fi.Size())
 }
 
-func (t *RenameTest) OverExisting_WrongType() {
+func (t *RenameTest) TestOverExisting_WrongType() {
 	var err error
 
 	// Create a file and a directory.
@@ -2767,7 +2779,7 @@ func (t *RenameTest) OverExisting_WrongType() {
 	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
-func (t *RenameTest) NonExistentFile() {
+func (t *RenameTest) TestNonExistentFile() {
 	var err error
 
 	err = os.Rename(path.Join(mntDir, "foo"), path.Join(mntDir, "bar"))
