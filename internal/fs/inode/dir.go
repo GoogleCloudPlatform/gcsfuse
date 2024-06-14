@@ -854,6 +854,16 @@ func (d *dirInode) DeleteChildDir(
 		err = fmt.Errorf("DeleteObject: %w", err)
 		return
 	}
+
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		// Delete Folder deletes folder (in case of Hierarchical Bucket).
+		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
+	}
+
+	if err != nil {
+		return
+	}
+
 	d.cache.Erase(name)
 
 	return

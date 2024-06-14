@@ -195,6 +195,13 @@ func (mb *monitoringBucket) DeleteObject(
 	return err
 }
 
+func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string) error {
+	startTime := time.Now()
+	err := mb.wrapped.DeleteFolder(ctx, folderName)
+	recordRequest(ctx, "DeleteFolder", startTime)
+	return err
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, ioMethod string) {
 	if err := stats.RecordWithTags(

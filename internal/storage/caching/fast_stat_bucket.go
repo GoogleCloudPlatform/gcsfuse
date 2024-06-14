@@ -270,6 +270,12 @@ func (b *fastStatBucket) DeleteObject(
 	return
 }
 
+func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
+	b.invalidate(folderName)
+	err := b.wrapped.DeleteFolder(ctx, folderName)
+	return err
+}
+
 func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	m, e, err = b.wrapped.StatObject(ctx, req)

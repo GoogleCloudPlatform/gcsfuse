@@ -35,3 +35,11 @@ func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context,
 	args := m.Called(ctx, req, opts)
 	return args.Get(0).(*controlpb.StorageLayout), args.Error(1)
 }
+
+// Implement the DeleteFolder method for the mock.
+func (m *MockStorageControlClient) DeleteFolder(ctx context.Context,
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
+	args := m.Called(ctx, req, opts)
+	return args.Error(0)
+}

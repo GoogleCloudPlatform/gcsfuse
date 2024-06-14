@@ -184,6 +184,19 @@ func (b *throttledBucket) DeleteObject(
 	return
 }
 
+func (b *throttledBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	err = b.wrapped.DeleteFolder(ctx, folderName)
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // readerCloser
 ////////////////////////////////////////////////////////////////////////

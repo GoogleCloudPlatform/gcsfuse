@@ -25,4 +25,8 @@ type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
 		req *controlpb.GetStorageLayoutRequest,
 		opts ...gax.CallOption) (*controlpb.StorageLayout, error)
+
+	DeleteFolder(ctx context.Context,
+		req *controlpb.DeleteFolderRequest,
+		opts ...gax.CallOption) error
 }

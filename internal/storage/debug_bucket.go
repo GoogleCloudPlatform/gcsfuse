@@ -229,3 +229,11 @@ func (b *debugBucket) DeleteObject(
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
 }
+
+func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	id, desc, start := b.startRequest("DeleteFolder(%q)", folderName)
+	defer b.finishRequest(id, desc, start, &err)
+
+	err = b.wrapped.DeleteFolder(ctx, folderName)
+	return err
+}

@@ -140,4 +140,6 @@ type Bucket interface {
 	DeleteObject(
 		ctx context.Context,
 		req *DeleteObjectRequest) error
+
+	DeleteFolder(ctx context.Context, folderName string) error
 }

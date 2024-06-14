@@ -1249,3 +1249,45 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 
 	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
 }
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchicalBucket() {
+	ctx := context.Background()
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", ctx, &controlpb.DeleteFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName}, mock.Anything).
+		Return(nil)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(ctx, TestObjectName)
+
+	mockClient.AssertExpectations(testSuite.T())
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExistButSameObjectNotExistInHierarchicalBucket() {
+	ctx := context.Background()
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", ctx, &controlpb.DeleteFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName}, mock.Anything).
+		Return(nil)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(ctx, missingObjectName)
+
+	mockClient.AssertExpectations(testSuite.T())
+	assert.Nil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarchicalBucket() {
+	ctx := context.Background()
+	mockClient := new(MockStorageControlClient)
+	mockClient.On("DeleteFolder", mock.Anything, &controlpb.DeleteFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName}, mock.Anything).
+		Return(errors.New("mock error"))
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	err := testSuite.bucketHandle.DeleteFolder(ctx, missingObjectName)
+
+	mockClient.AssertExpectations(testSuite.T())
+	assert.Equal(testSuite.T(), "DeleteFolder: mock error", err.Error())
+}

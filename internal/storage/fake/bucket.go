@@ -866,3 +866,19 @@ func (b *bucket) DeleteObject(
 
 	return
 }
+
+func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Do we possess the object with the given name?
+	index := b.objects.find(folderName)
+	if index == len(b.objects) {
+		return
+	}
+
+	// Remove the object.
+	b.objects = append(b.objects[:index], b.objects[index+1:]...)
+
+	return
+}

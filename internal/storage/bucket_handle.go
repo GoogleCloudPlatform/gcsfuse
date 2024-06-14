@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
-
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 )
@@ -466,6 +465,35 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	o = storageutil.ObjectAttrsToBucketObject(attrs)
 
 	return
+}
+
+func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
+	var notfound *gcs.NotFoundError
+	var callOptions []gax.CallOption
+
+	err = b.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{
+			Name:       folderName,
+			Generation: 0, // Delete the latest version of object named after dir.
+		})
+
+	if err != nil {
+		// Ignore err if it is object not found as in HNS bucket object may exist as a folder.
+		if !errors.As(err, &notfound) {
+			return err
+		}
+	}
+
+	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
+		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+	}, callOptions...)
+
+	if err != nil {
+		err = fmt.Errorf("DeleteFolder: %w", err)
+	}
+
+	return err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

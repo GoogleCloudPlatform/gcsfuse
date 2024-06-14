@@ -155,6 +155,27 @@ func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectReques
 	return
 }
 
+func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"DeleteFolder",
+		file,
+		line,
+		[]interface{}{})
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockBucket.DeleteFolder: invalid return values: %v", retVals))
+	}
+	// o0 string
+	if retVals[0] != nil {
+		o0 = retVals[0].(error)
+	}
+	return
+}
+
 func (m *mockBucket) ListObjects(p0 context.Context, p1 *gcs.ListObjectsRequest) (o0 *gcs.Listing, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
