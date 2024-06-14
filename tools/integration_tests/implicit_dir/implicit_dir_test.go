@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
@@ -42,6 +43,20 @@ var (
 	ctx           context.Context
 )
 
+func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	mountConfig4 := config.MountConfig{
+		EnableHNS: true,
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
+	flags = append(flags, []string{"--implicit-dirs", "--config-file=" + filePath4})
+
+	return flags
+}
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
@@ -56,6 +71,9 @@ func TestMain(m *testing.M) {
 	}()
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
+
+	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flagsSet = append(flagsSet, mountConfigFlags...)
 
 	if !testing.Short() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
