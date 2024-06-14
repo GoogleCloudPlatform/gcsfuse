@@ -66,7 +66,7 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
 	err := os.RemoveAll(dirPath)
 	if err != nil {
-		t.Errorf("Error in deleting directory: %v", err)
+		t.Errorf("os.RemoveAll(): %v", err)
 	}
 
 	dir, err := os.Stat(dirPath)
