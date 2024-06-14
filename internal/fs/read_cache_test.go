@@ -34,7 +34,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestReadCache(t *testing.T) {
+func TestReadCacheTestSuite(t *testing.T) {
 	suite.Run(t, new(FileCacheTest))
 	suite.Run(t, new(FileCacheWithCacheForRangeRead))
 	suite.Run(t, new(FileCacheIsDisabledWithCacheDirAndZeroMaxSize))

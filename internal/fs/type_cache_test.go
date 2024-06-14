@@ -42,7 +42,7 @@ import (
 	. "github.com/jacobsa/ogletest"
 )
 
-func TestTypeCache(t *testing.T) {
+func TestTypeCacheTestSuite(t *testing.T) {
 	// suite.Run(t, new(TypeCacheTestWithMaxSize1MB))
 	// suite.Run(t, new(TypeCacheTestWithZeroSize))
 	// suite.Run(t, new(TypeCacheTestWithZeroTTL))

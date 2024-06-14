@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestReadOnly(t *testing.T) {
+func TestReadOnlyTestSuite(t *testing.T) {
 	suite.Run(t, new(ReadOnlyTest))
 }
 

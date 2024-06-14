@@ -40,7 +40,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestLocalFile(t *testing.T) {
+func TestLocalFileTestSuite(t *testing.T) {
 	suite.Run(t, new(LocalFileTest))
 }
 

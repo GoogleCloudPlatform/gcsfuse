@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestImplicitDirsWithCache(t *testing.T) {
+func TestImplicitDirsWithCacheTestSuite(t *testing.T) {
 	suite.Run(t, new(ImplicitDirsWithCacheTest))
 }
 

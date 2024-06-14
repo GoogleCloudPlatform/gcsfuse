@@ -34,7 +34,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestImplicitDirs(t *testing.T) {
+func TestImplicitDirsTestSuite(t *testing.T) {
 	suite.Run(t, new(ImplicitDirsTest))
 }
 

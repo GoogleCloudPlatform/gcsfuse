@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestAllBuckets(t *testing.T) {
+func TestAllBucketsTestSuite(t *testing.T) {
 	suite.Run(t, new(AllBucketsTest))
 }
 

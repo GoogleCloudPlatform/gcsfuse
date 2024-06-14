@@ -38,10 +38,12 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/jacobsa/fuse/fusetesting"
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
 
-func TestForeignMods(t *testing.T) {
+func TestForeignModsTestSuite(t *testing.T) {
 	suite.Run(t, new(ForeignModsTest))
 }
 

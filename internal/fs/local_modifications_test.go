@@ -47,7 +47,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestLocalModifications(t *testing.T) {
+func TestLocalModificationsTestSuite(t *testing.T) {
 	suite.Run(t, new(OpenTest))
 	suite.Run(t, new(MknodTest))
 	suite.Run(t, new(ModesTest))

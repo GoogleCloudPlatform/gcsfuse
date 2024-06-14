@@ -38,7 +38,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestCaching(t *testing.T) {
+func TestCachingTestSuite(t *testing.T) {
 	suite.Run(t, new(CachingTest))
 	suite.Run(t, new(CachingWithImplicitDirsTest))
 	suite.Run(t, new(MultiBucketMountCachingTest))
