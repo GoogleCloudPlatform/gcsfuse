@@ -151,7 +151,7 @@ function run_non_parallel_tests() {
 }
 
 function run_parallel_tests() {
-  local exit_code=0
+  local exit_code2=0
   local -n test_array=$1
   local bucket_name_parallel=$2
   local pids=()
@@ -174,11 +174,11 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      exit_code=$exit_code_parallel
+      exit_code2=$exit_code_parallel
       echo "test fail in parallel on package: " $test_dir_p
     fi
   done
-  return $exit_code
+  return $exit_code2
 }
 
 function print_test_logs() {
