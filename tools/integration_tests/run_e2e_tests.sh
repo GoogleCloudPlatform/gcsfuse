@@ -174,11 +174,11 @@ function run_parallel_tests() {
     wait $pid
     exit_code_parallel=$?
     if [ $exit_code_parallel != 0 ]; then
-      exit_code2=$exit_code_parallel
+      exit_code=$exit_code_parallel
       echo "test fail in parallel on package: " $test_dir_p
     fi
   done
-  return $exit_code2
+  return $exit_code
 }
 
 function print_test_logs() {
