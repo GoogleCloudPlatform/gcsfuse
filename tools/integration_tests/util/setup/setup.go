@@ -405,7 +405,7 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) (flags [][]string) {
+func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) (flags []string) {
 	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
 	if err != nil {
 		log.Printf("Error in getting bucket attrs: %v", err)
@@ -420,7 +420,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 			},
 		}
 		filePath4 := YAMLConfigFile(mountConfig4, "config4.yaml")
-		flags = append(flags, []string{"--config-file=" + filePath4})
+		flags = append(flags, "--config-file=" + filePath4)
 	}
 	return flags
 }
