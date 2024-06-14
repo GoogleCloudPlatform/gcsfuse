@@ -70,10 +70,10 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	flagsSet := [][]string{{"--implicit-dirs"}}
+	//flagsSet := [][]string{{"--implicit-dirs"}}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
+	flagsSet := mountConfigFlags
 
 	if !testing.Short() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
