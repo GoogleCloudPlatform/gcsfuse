@@ -18,7 +18,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
+	"github.com/spf13/viper"
+)
+
+var (
+	cliViper, cfgViper *viper.Viper
+	cfgFileObj, cliObj cfg.Config
+	cfgFile            string
+	err                error
 )
 
 var rootCmd = &cobra.Command{
@@ -42,5 +53,39 @@ func Execute() {
 }
 
 func init() {
-	// TODO: add flags and bind them with viper here.
+	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "config file (default is $HOME/.cobra.yaml)")
+	if cliViper, err = cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
+		err = fmt.Errorf("error while binding flags for cli-viper: %w", err)
+		return
+	}
+	cfgFlagset := flag.NewFlagSet("cfg-flagset", flag.ExitOnError)
+	if cfgViper, err = cfg.BindFlags(cfgFlagset); err != nil {
+		err = fmt.Errorf("error while binding flags for config-viper: %w", err)
+		return
+	}
+}
+
+func initConfig() {
+	if err = cliViper.Unmarshal(&cliObj, viper.DecodeHook(cfg.DecodeHook())); err != nil {
+		err = fmt.Errorf("error while unmarshaling the cli flags: %w", err)
+		return
+	}
+	if cfgFile == "" {
+		return
+	}
+	// Use config file from the flag.
+	cfgViper.SetConfigFile(cfgFile)
+	cfgViper.SetConfigType("yaml")
+	if err = cfgViper.ReadInConfig(); err != nil {
+		err = fmt.Errorf("error while reading the config file: %w", err)
+		return
+	}
+	err = cfgViper.Unmarshal(&cfgFileObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		decoderConfig.TagName = "yaml"
+	})
+	if err != nil {
+		err = fmt.Errorf("error while unmarshaling the config-file params: %w", err)
+		return
+	}
 }
