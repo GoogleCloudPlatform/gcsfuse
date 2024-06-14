@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt lint vet build install test clean clean-all
+.PHONY: generate fmt vet build install test clean clean-all
 
 generate:
 	go generate ./...
