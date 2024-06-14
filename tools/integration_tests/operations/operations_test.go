@@ -184,12 +184,14 @@ func TestMain(m *testing.M) {
 		// By default, creating emptyFile is disabled.
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
-	// gRPC tests will not run in TPC environment
-	if !testing.Short() && !setup.TestOnTPCEndPoint() {
+	if !testing.Short() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
 
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	flagsSet = append(flagsSet, mountConfigFlags...)
+
+	mountConfigFlags = setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient)
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
@@ -213,6 +215,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if successCode == 0 {
+		// Test for admin permission on test bucket.
 		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
 	}
 
