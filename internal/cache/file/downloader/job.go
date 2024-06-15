@@ -509,7 +509,6 @@ func (job *Job) handleError(err error) {
 	}
 
 	job.failWhileDownloading(err)
-	return
 }
 
 // Sets the status as invalid and notifies the subscribers.
