@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -29,6 +28,7 @@ import (
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	. "github.com/jacobsa/ogletest"
+	"golang.org/x/net/context"
 )
 
 func TestUtil(t *testing.T) { RunTests(t) }
@@ -271,9 +271,9 @@ func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorForFileNotExist() {
 func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorWhenContextIsCancelled() {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	cancelFunc()
-
 	crc, err := CalculateFileCRC32(ctx, "testdata/validfile.txt")
 
+	ExpectTrue(errors.Is(err, context.Canceled))
 	ExpectTrue(strings.Contains(err.Error(), "CRC computation is cancelled"))
 	ExpectEq(0, crc)
 }

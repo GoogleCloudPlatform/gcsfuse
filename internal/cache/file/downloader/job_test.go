@@ -867,6 +867,37 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	dt.job.cancelFunc()
 	dt.waitForCrcCheckToBeCompleted()
 
-	AssertEq(Failed, dt.job.status.Name)
-	ExpectTrue(strings.Contains(dt.job.status.Err.Error(), "CRC computation is cancelled"))
+	AssertEq(Invalid, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+}
+
+func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
+	subscriberOffset := int64(1)
+	notificationC := dt.job.subscribe(subscriberOffset)
+	err := errors.Join(context.Canceled)
+
+	err = fmt.Errorf("Wrapping with custom message %w", err)
+	dt.job.handleError(err)
+
+	AssertEq(0, dt.job.subscribers.Len())
+	notification, ok := <-notificationC
+	jobStatus := JobStatus{Name: Invalid, Err: nil, Offset: 0}
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
+}
+
+func (dt *downloaderTest) Test_handleError_SetStatusAsErrorWhenContextIsNotCancelled() {
+	subscriberOffset := int64(1)
+	notificationC := dt.job.subscribe(subscriberOffset)
+	err := errors.New("custom error")
+
+	updatedErr := fmt.Errorf("Custom message %w", err)
+	dt.job.handleError(updatedErr)
+
+	AssertEq(0, dt.job.subscribers.Len())
+	notification, ok := <-notificationC
+	jobStatus := JobStatus{Name: Failed, Err: updatedErr, Offset: 0}
+	fmt.Println(notification)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
 }

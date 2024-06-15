@@ -305,13 +305,6 @@ func (job *Job) downloadObjectAsync() {
 		}
 	}()
 
-	notifyInvalid := func() {
-		job.mu.Lock()
-		job.status.Name = Invalid
-		job.notifySubscribers()
-		job.mu.Unlock()
-	}
-
 	var newReader io.ReadCloser
 	var start, end, sequentialReadSize, newReaderLimit int64
 	end = int64(job.object.Size)
@@ -337,14 +330,8 @@ func (job *Job) downloadObjectAsync() {
 							ReadCompressed: job.object.HasContentEncodingGzip(),
 						})
 					if err != nil {
-						// Context is canceled when job.cancel is called at the time of
-						// invalidation and hence caller should be notified as invalid.
-						if errors.Is(err, context.Canceled) {
-							notifyInvalid()
-							return
-						}
 						err = fmt.Errorf("downloadObjectAsync: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
-						job.failWhileDownloading(err)
+						job.handleError(err)
 						return
 					}
 					monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
@@ -361,14 +348,8 @@ func (job *Job) downloadObjectAsync() {
 				// Copy the contents from NewReader to cache file.
 				_, readErr := io.CopyN(cacheFile, newReader, maxRead)
 				if readErr != nil {
-					// Context is canceled when job.cancel is called at the time of
-					// invalidation and hence caller should be notified as invalid.
-					if errors.Is(readErr, context.Canceled) {
-						notifyInvalid()
-						return
-					}
 					err = fmt.Errorf("downloadObjectAsync: error at the time of copying content to cache file %w", readErr)
-					job.failWhileDownloading(err)
+					job.handleError(err)
 					return
 				}
 				start += maxRead
@@ -406,7 +387,7 @@ func (job *Job) downloadObjectAsync() {
 			} else {
 				err = job.validateCRC()
 				if err != nil {
-					job.failWhileDownloading(err)
+					job.handleError(err)
 					return
 				}
 
@@ -514,4 +495,29 @@ func (job *Job) validateCRC() (err error) {
 	}
 
 	return
+}
+
+// Performs different actions based on the type of error.
+// For context.Canceled it marks the job as invalid and notifies subscribers.
+// For other errors, marks the job as failed and notifies subscribers.
+func (job *Job) handleError(err error) {
+	// Context is canceled when job.cancel is called at the time of
+	// invalidation and hence caller should be notified as invalid.
+	if errors.Is(err, context.Canceled) {
+		job.notifyInvalid()
+		return
+	}
+
+	job.failWhileDownloading(err)
+	return
+}
+
+// Sets the status as invalid and notifies the subscribers.
+//
+// Acquires and releases LOCK(job.mu)
+func (job *Job) notifyInvalid() {
+	job.mu.Lock()
+	job.status.Name = Invalid
+	job.notifySubscribers()
+	job.mu.Unlock()
 }
