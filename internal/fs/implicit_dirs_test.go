@@ -51,7 +51,6 @@ func init() {
 
 func (t *ImplicitDirsTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-
 	t.fsTest.SetUpTestSuite()
 }
 
