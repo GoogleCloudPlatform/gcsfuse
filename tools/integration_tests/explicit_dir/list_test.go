@@ -26,6 +26,15 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
+func DirEntriesToStr(entries []fs.DirEntry) string {
+	var ret string = "[ "
+	for _, entry := range entries {
+		ret += fmt.Sprintf("{%q, isDir=%v},", entry.Name(), entry.IsDir())
+	}
+	ret += " ]"
+	return ret
+}
+
 func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	testDir := setup.SetupTestDirectory(DirForExplicitDirTests)
 	// Directory Structure
@@ -61,7 +70,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 		if path == testDir {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfExplicitObjects {
-				t.Errorf("Incorrect number of objects in the bucket.")
+				t.Fatalf("Incorrect number of objects in the bucket. expected=%v, actual=%v (%s)", implicit_and_explicit_dir_setup.NumberOfExplicitObjects, len(objs), DirEntriesToStr(objs))
 			}
 
 			// testBucket/dirForExplicitDirTests/explicitDir     -- Dir
@@ -78,7 +87,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ExplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory {
-				t.Errorf("Incorrect number of objects in the directoryForListTest.")
+				t.Fatalf("Incorrect number of objects in the directoryForListTest. expected=%v, actual=%v (%s)", implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory, len(objs), DirEntriesToStr(objs))
 			}
 
 			// testBucket/dirForExplicitDirTests/explicitDir/fileInExplicitDir1   -- File
