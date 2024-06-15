@@ -447,8 +447,12 @@ func (b *bucket) ListObjects(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	//fmt.Printf("called fake.List on %#v\n", *req)
+
 	// Set up the result object.
 	listing = new(gcs.Listing)
+
+	//defer fmt.Printf("returned from fake.List on %q with %d objects and %d prefixes and err=%v\n", req.Prefix, len(listing.Objects), len(listing.CollapsedRuns), err)
 
 	// Handle defaults.
 	maxResults := req.MaxResults
@@ -465,7 +469,31 @@ func (b *bucket) ListObjects(
 	// Find the range of indexes within the array to scan.
 	indexStart := b.objects.lowerBound(nameStart)
 	prefixLimit := b.objects.prefixUpperBound(req.Prefix)
-	indexLimit := minInt(indexStart+maxResults, prefixLimit)
+	var indexLimit int
+	//if maxResults == 1 {
+	//// If maxResults is set to 1 (generally for LookUpInode), do not let
+	//// presence of unsupported objects to make
+	//// this ListObjects call return nothing.
+	//// If first object in this prefix is unsupported,
+	//// try the second, then third and so on,
+	//// until a supported object is found.
+	//for ; indexStart < prefixLimit; indexStart++ {
+	//name := b.objects[indexStart].metadata.Name
+	//if util.IsUnsupportedObjectName(name) {
+	//logger.Warnf("Ignoring unsupported object-name: %q", name)
+	//} else {
+	//indexLimit = indexStart + 1
+	//break
+	//}
+	//}
+	//// If there are no supported objects for the requested prefix,
+	//// then bypass the for-loop below.
+	//if indexStart == prefixLimit {
+	//indexLimit = prefixLimit
+	//}
+	//} else {
+	indexLimit = minInt(indexStart+maxResults, prefixLimit)
+	//}
 
 	// Scan the array.
 	var lastResultWasPrefix bool
@@ -714,6 +742,14 @@ func (b *bucket) ComposeObjects(
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	//defer func() {
+	//if m != nil {
+	//fmt.Printf("returned from fake.Stat with minObject=%#v\n", *m)
+	//} else {
+	//fmt.Printf("returned from fake.Stat with minObject=nil\n")
+	//}
+	//}()
+	//fmt.Printf("called fake.Stat on %#v\n", *req)
 	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")

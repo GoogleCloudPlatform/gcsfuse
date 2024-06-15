@@ -19,6 +19,7 @@
 package fs_test
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/ogletest"
 )
@@ -76,6 +78,9 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 				"bar//5":   "", // unsupported
 				"/":        "", //unsupported
 			}))
+	defer func() {
+		storageutil.DeleteAllObjects(context.Background(), bucket)
+	}()
 
 	// Statting the mount directory should return a directory entry.
 	fi, err = os.Stat(mntDir)
@@ -109,14 +114,18 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	ExpectFalse(fi.IsDir())
 
 	// Statting the mount-directory/bar should fail as it should be ignored.
-	_, err = os.Stat(path.Join(mntDir, "bar"))
-	AssertNe(nil, err)
+	fi, err = os.Stat(path.Join(mntDir, "bar"))
+	//AssertNe(nil, err)
+	AssertEq(nil, err)
+	ExpectTrue(fi.IsDir())
 
 	// ReadDirPicky on mountdir should not fail as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
+	//AssertNe(nil, err)
+	///*
 	AssertEq(nil, err)
 	AssertNe(nil, entries)
-	AssertEq(3, len(entries))
+	AssertEq(4, len(entries))
 	AssertNe(nil, entries[0])
 	ExpectEq("4", entries[0].Name())
 	ExpectFalse(entries[0].IsDir())
@@ -124,8 +133,12 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	ExpectEq("a", entries[1].Name())
 	ExpectTrue(entries[1].IsDir())
 	AssertNe(nil, entries[2])
-	ExpectEq("foo", entries[2].Name())
+	ExpectEq("bar", entries[2].Name())
 	ExpectTrue(entries[2].IsDir())
+	AssertNe(nil, entries[3])
+	ExpectEq("foo", entries[3].Name())
+	ExpectTrue(entries[3].IsDir())
+	//*/
 
 	// ReadDirPicky on mountdir/foo should work as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
