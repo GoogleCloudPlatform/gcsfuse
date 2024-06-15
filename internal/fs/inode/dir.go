@@ -392,8 +392,6 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
 
-	//listing = removeUnsupportedObjectsFromListing(listing)
-
 	if len(listing.Objects) == 0 {
 		return nil, nil
 	}
@@ -593,8 +591,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return nil, fmt.Errorf("list objects: %w", err)
 		}
 
-		//listing = removeUnsupportedObjectsFromListing(listing)
-
 		for _, o := range listing.Objects {
 			if len(descendants) >= limit {
 				return descendants, nil
@@ -642,9 +638,7 @@ func (d *dirInode) readObjects(
 		return
 	}
 
-	if req.MaxResults != 1 {
-		listing = removeUnsupportedObjectsFromListing(listing)
-	}
+	listing = removeUnsupportedObjectsFromListing(listing)
 
 	cores = make(map[Name]*Core)
 	defer func() {

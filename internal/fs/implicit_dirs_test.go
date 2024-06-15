@@ -115,14 +115,11 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 
 	// Statting the mount-directory/bar should fail as it should be ignored.
 	fi, err = os.Stat(path.Join(mntDir, "bar"))
-	//AssertNe(nil, err)
 	AssertEq(nil, err)
 	ExpectTrue(fi.IsDir())
 
 	// ReadDirPicky on mountdir should not fail as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
-	//AssertNe(nil, err)
-	///*
 	AssertEq(nil, err)
 	AssertNe(nil, entries)
 	AssertEq(4, len(entries))
@@ -138,7 +135,6 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	AssertNe(nil, entries[3])
 	ExpectEq("foo", entries[3].Name())
 	ExpectTrue(entries[3].IsDir())
-	//*/
 
 	// ReadDirPicky on mountdir/foo should work as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
