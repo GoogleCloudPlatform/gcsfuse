@@ -127,7 +127,7 @@ func CreateUnsupportedImplicitDirectoryStructure(ctx context.Context, testDir st
 		[]objectCreationMetadata{
 			{
 				"This is testBucket/testDir//fileInUnsupportedImplicitDir1", completeGcsTestDirName + "//" + FileInUnsupportedImplicitDirectory1,
-			}, 
+			},
 			{
 				"This is testBucket/testDir/./fileInUnsupportedImplicitDir2", completeGcsTestDirName + "/./" + FileInUnsupportedImplicitDirectory2,
 			},
@@ -136,7 +136,7 @@ func CreateUnsupportedImplicitDirectoryStructure(ctx context.Context, testDir st
 			},
 			{
 				"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
-			}, 
+			},
 			{
 				"This is testBucket/./fileInUnsupportedPathInRootDirectory2", "./" + FileInUnsupportedPathInRootDirectory2,
 			},
