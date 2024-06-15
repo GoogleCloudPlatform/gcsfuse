@@ -19,7 +19,6 @@
 package fs_test
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -30,7 +29,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -600,9 +598,9 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 				"bar//5":   "", // unsupported
 				"/":        "", //unsupported
 			}))
-	defer func() {
-		storageutil.DeleteAllObjects(context.Background(), bucket)
-	}()
+	//defer func() {
+	//storageutil.DeleteAllObjects(context.Background(), bucket)
+	//}()
 
 	// Statting the mount directory should return a directory entry.
 	fi, err = os.Stat(mntDir)
@@ -692,6 +690,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 				"f":       "", // supported
 				"/h":      "", // unsupported
 				"/":       "", // unsupported
+				"bar//j":  "", //unsupported
 			}))
 
 	expectedWalkedEntries := []struct {
@@ -724,6 +723,10 @@ func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 	}, {
 		path: path.Join(mntDir, "foo/c/d"),
 		name: "d",
+	}, {
+		path:  path.Join(mntDir, "bar"),
+		name:  "bar",
+		isDir: true,
 	},
 	}
 
