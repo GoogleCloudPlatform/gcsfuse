@@ -16,18 +16,36 @@
 package explicit_dir_test
 
 import (
+	"context"
+	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 )
 
 const DirForExplicitDirTests = "dirForExplicitDirTests"
 
+var (
+	storageClient *storage.Client
+)
+
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
+	// Create storage client before running tests.
+	ctx := context.Background()
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
 	flags := [][]string{{"--implicit-dirs=false"}}
 
 	if !testing.Short() {
