@@ -353,7 +353,7 @@ func removeUnsupportedObjectsFromListing(listing *gcs.Listing) *gcs.Listing {
 		if !util.IsUnsupportedObjectName(collapsedRun) {
 			newListing.CollapsedRuns = append(newListing.CollapsedRuns, collapsedRun)
 		} else {
-			logger.Warnf("Encoutered unsupported object-prefix: %q. Not adding it to the list of prefixes", collapsedRun)
+			logger.Warnf("Encountered unsupported object-prefix: %q. Not adding it to the list of prefixes", collapsedRun)
 		}
 	}
 	for _, object := range listing.Objects {
@@ -366,10 +366,10 @@ func removeUnsupportedObjectsFromListing(listing *gcs.Listing) *gcs.Listing {
 			if !util.IsUnsupportedObjectName(object.Name) {
 				newListing.Objects = append(newListing.Objects, object)
 			} else {
-				logger.Warnf("Encoutered unsupported object-name: %q. Not adding it to the list of objects", object.Name)
+				logger.Warnf("Encountered unsupported object-name: %q. Not adding it to the list of objects", object.Name)
 			}
 		} else {
-			logger.Errorf("Encoutered nil object in the list of objects")
+			logger.Errorf("Encountered nil object in the list of objects")
 		}
 	}
 	newListing.ContinuationToken = listing.ContinuationToken

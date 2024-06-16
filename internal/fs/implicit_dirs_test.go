@@ -574,9 +574,15 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
 }
 
+func verifyFileInfo(fi fs.FileInfo, name string, isDir bool) {
+	AssertNe(nil, fi)
+	AssertEq(name, fi.Name())
+	AssertEq(isDir, fi.IsDir())
+}
+
 // Create objects in implicit directories with
 // unsupported object names and
-// test that stat and ReadDirPicky on the different directories.
+// test the behavior of stat and ReadDirPicky on the different directories.
 func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	var fi os.FileInfo
 	var entries []os.FileInfo
@@ -598,9 +604,6 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 				"bar//5":   "", // unsupported
 				"/":        "", //unsupported
 			}))
-	//defer func() {
-	//storageutil.DeleteAllObjects(context.Background(), bucket)
-	//}()
 
 	// Statting the mount directory should return a directory entry.
 	fi, err = os.Stat(mntDir)
@@ -611,16 +614,17 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	// Statting the mount-directory/foo should return a directory entry named "foo".
 	fi, err = os.Stat(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectEq("foo", fi.Name())
-	ExpectTrue(fi.IsDir())
+	verifyFileInfo(fi, "foo", true)
 
 	// Statting the mount-directory/a should return a directory entry named "a".
 	fi, err = os.Stat(path.Join(mntDir, "a"))
 	AssertEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectEq("a", fi.Name())
-	ExpectTrue(fi.IsDir())
+	verifyFileInfo(fi, "a", true)
+
+	// Statting the mount-directory/a/2 should be recognized as a file.
+	fi, err = os.Stat(path.Join(mntDir, "a/2"))
+	AssertEq(nil, err)
+	verifyFileInfo(fi, "2", false)
 
 	// Statting the mount-directory/a//3 should fail as it should be ignored.
 	_, err = os.Stat(path.Join(mntDir, "a/3"))
@@ -629,54 +633,40 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	// Statting the mount-directory/4 should return a file entry named "4".
 	fi, err = os.Stat(path.Join(mntDir, "4"))
 	AssertEq(nil, err)
-	AssertNe(nil, fi)
-	ExpectEq("4", fi.Name())
-	ExpectFalse(fi.IsDir())
+	verifyFileInfo(fi, "4", false)
 
 	// Statting the mount-directory/bar should fail as it should be ignored.
 	fi, err = os.Stat(path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
-	ExpectTrue(fi.IsDir())
+	verifyFileInfo(fi, "bar", true)
 
 	// ReadDirPicky on mountdir should not fail as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(mntDir)
 	AssertEq(nil, err)
 	AssertNe(nil, entries)
 	AssertEq(4, len(entries))
-	AssertNe(nil, entries[0])
-	ExpectEq("4", entries[0].Name())
-	ExpectFalse(entries[0].IsDir())
-	AssertNe(nil, entries[1])
-	ExpectEq("a", entries[1].Name())
-	ExpectTrue(entries[1].IsDir())
-	AssertNe(nil, entries[2])
-	ExpectEq("bar", entries[2].Name())
-	ExpectTrue(entries[2].IsDir())
-	AssertNe(nil, entries[3])
-	ExpectEq("foo", entries[3].Name())
-	ExpectTrue(entries[3].IsDir())
+	verifyFileInfo(entries[0], "4", false)
+	verifyFileInfo(entries[1], "a", true)
+	verifyFileInfo(entries[2], "bar", true)
+	verifyFileInfo(entries[3], "foo", true)
 
 	// ReadDirPicky on mountdir/foo should work as the unsupported sub-directories should be ignored.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
 	AssertNe(nil, entries)
 	AssertEq(1, len(entries))
-	AssertNe(nil, entries[0])
-	ExpectEq("1", entries[0].Name())
-	ExpectFalse(entries[0].IsDir())
+	verifyFileInfo(entries[0], "1", false)
 
 	// ReadDirPicky on mntdir/a should work.
 	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "a"))
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
-	AssertNe(nil, entries[0])
-	ExpectEq("2", entries[0].Name())
-	ExpectFalse(entries[0].IsDir())
+	verifyFileInfo(entries[0], "2", false)
 }
 
 // Create objects in implicit directories with
-// unsupported names such as those having // in them
-// and test that stat and ReadDirPicky on the different directories.
+// unsupported names (such as those having `//` in them)
+// and test WalkDir on the mountpath.
 func (t *ImplicitDirsTest) UnsupportedDirNames_WalkDir() {
 	// Set up contents.
 	ExpectEq(
