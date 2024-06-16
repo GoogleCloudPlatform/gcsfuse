@@ -113,7 +113,7 @@ func NewJob(
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
 	fileCacheConfig *config.FileCacheConfig,
-	maxTotalConcurrenySem *semaphore.Weighted,
+	maxTotalConcurrencySem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{
 		object:                object,
@@ -123,7 +123,7 @@ func NewJob(
 		fileSpec:              fileSpec,
 		removeJobCallback:     removeJobCallback,
 		fileCacheConfig:       fileCacheConfig,
-		maxTotalConcurrenySem: maxTotalConcurrenySem,
+		maxTotalConcurrenySem: maxTotalConcurrencySem,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
