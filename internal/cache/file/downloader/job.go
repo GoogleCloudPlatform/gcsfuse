@@ -383,7 +383,7 @@ func (job *Job) downloadObjectAsync() {
 		}
 	}()
 
-	// Both parallel and non-parallel download functions supports cancellation in
+	// Both parallel and non-parallel download functions support cancellation in
 	// case of job's cancellation.
 	if job.fileCacheConfig.EnableParallelDownloads {
 		err = job.parallelDownloadObjectToFile(cacheFile)
