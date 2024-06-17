@@ -625,7 +625,7 @@ func (d *dirInode) readObjects(
 		return
 	}
 
-	// Remove unsupported prefixes/objects such as those 
+	// Remove unsupported prefixes/objects such as those
 	// containing '//' in them.
 	var removedListings *gcs.Listing
 	listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
