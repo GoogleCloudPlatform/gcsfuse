@@ -49,9 +49,12 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 		return err
 	}
 	defer func() {
+		// Reader is closed after the data has been read and the error from closure
+		// is not reported as failure of async job, similar to how it's done for
+		// foreground reads: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/gcsx/random_reader.go#L298.
 		closeErr := newReader.Close()
 		if closeErr != nil {
-			logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, closeErr)
+			logger.Warnf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, closeErr)
 		}
 	}()
 

@@ -928,7 +928,7 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	dt.waitForCrcCheckToBeCompleted()
 
 	AssertEq(Invalid, dt.job.status.Name)
-	AssertEq(nil, dt.job.status.Err)
+	dt.verifyInvalidError(dt.job.status.Err)
 }
 
 func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
@@ -941,8 +941,9 @@ func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancel
 
 	AssertEq(0, dt.job.subscribers.Len())
 	notification, ok := <-notificationC
-	jobStatus := JobStatus{Name: Invalid, Err: nil, Offset: 0}
-	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(Invalid, notification.Name)
+	dt.verifyInvalidError(notification.Err)
+	AssertEq(0, notification.Offset)
 	AssertEq(true, ok)
 }
 

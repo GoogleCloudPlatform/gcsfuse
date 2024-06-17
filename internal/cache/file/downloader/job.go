@@ -254,7 +254,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	if err != nil {
 		err = fmt.Errorf("updateStatusOffset: error while creating fileInfoKeyName for bucket %s and object %s %w",
 			fileInfoKey.BucketName, fileInfoKey.ObjectName, err)
-		return
+		return err
 	}
 
 	updatedFileInfo := data.FileInfo{
@@ -269,10 +269,11 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		// Notify subscribers if file cache is updated.
 		logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 		job.notifySubscribers()
-	} else {
-		err = fmt.Errorf("updateStatusOffset: error while updating offset: %v in fileInfoCache %s: %w", downloadedOffset, updatedFileInfo.Key, err)
+		return err
 	}
-	return
+
+	err = fmt.Errorf("updateStatusOffset: error while updating offset: %v in fileInfoCache %s: %w", downloadedOffset, updatedFileInfo.Key, err)
+	return err
 }
 
 // downloadObjectToFile downloads the backing object from GCS into the given
@@ -321,9 +322,12 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 
 		start += maxRead
 		if start == newReaderLimit {
+			// Reader is closed after the data has been read and the error from closure
+			// is not reported as failure of async job, similar to how it's done for
+			// foreground reads: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/internal/gcsx/random_reader.go#L298.
 			err = newReader.Close()
 			if err != nil {
-				logger.Errorf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
+				logger.Warnf("Job:%p (%s:/%s) error while closing reader: %v", job, job.bucket.Name(), job.object.Name, err)
 			}
 			newReader = nil
 		}
@@ -333,7 +337,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			return err
 		}
 	}
-	return
+	return nil
 }
 
 // cleanUpDownloadAsyncJob is a helper function which performs clean up tasks
@@ -368,14 +372,14 @@ func (job *Job) downloadObjectAsync() {
 	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
-		job.updateStatusAndNotifySubscribers(Failed, err)
+		job.handleError(err)
 		return
 	}
 	defer func() {
 		err = cacheFile.Close()
 		if err != nil {
 			err = fmt.Errorf("downloadObjectAsync: error while closing cache file: %w", err)
-			job.updateStatusAndNotifySubscribers(Failed, err)
+			job.handleError(err)
 		}
 	}()
 
@@ -388,25 +392,26 @@ func (job *Job) downloadObjectAsync() {
 	}
 
 	if err != nil {
-		// Context cancellation only comes when the job has been invalidated during
-		// eviction.
-		// Also, download job expects entry in file info cache for the file it is
+		// Download job expects entry in file info cache for the file it is
 		// downloading. If the entry is deleted in between which is expected
 		// to happen at the time of eviction, then the job should be
 		// marked Invalid instead of Failed.
-		if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
+		if strings.Contains(err.Error(), lru.EntryNotExistErrMsg) {
 			job.updateStatusAndNotifySubscribers(Invalid, err)
-		} else {
-			job.updateStatusAndNotifySubscribers(Failed, err)
+			return
 		}
-	} else {
-		err = job.validateCRC()
-		if err != nil {
-			job.updateStatusAndNotifySubscribers(Failed, err)
-		} else {
-			job.updateStatusAndNotifySubscribers(Completed, err)
-		}
+		job.handleError(err)
+		return
 	}
+
+	err = job.validateCRC()
+	if err != nil {
+		job.handleError(err)
+		return
+	}
+
+	job.updateStatusAndNotifySubscribers(Completed, err)
+	return
 }
 
 // Download downloads object till the given offset and returns the status of
@@ -512,19 +517,9 @@ func (job *Job) handleError(err error) {
 	// Context is canceled when job.cancel is called at the time of
 	// invalidation and hence caller should be notified as invalid.
 	if errors.Is(err, context.Canceled) {
-		job.notifyInvalid()
+		job.updateStatusAndNotifySubscribers(Invalid, err)
 		return
 	}
 
-	job.failWhileDownloading(err)
-}
-
-// Sets the status as invalid and notifies the subscribers.
-//
-// Acquires and releases LOCK(job.mu)
-func (job *Job) notifyInvalid() {
-	job.mu.Lock()
-	job.status.Name = Invalid
-	job.notifySubscribers()
-	job.mu.Unlock()
+	job.updateStatusAndNotifySubscribers(Failed, err)
 }
