@@ -76,7 +76,7 @@ func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
 	// Hence, explicitly waiting till the CRC check is done.
 	for {
 		dt.job.mu.Lock()
-		if dt.job.status.Name == Completed || dt.job.status.Name == Failed {
+		if dt.job.status.Name == Completed || dt.job.status.Name == Failed || dt.job.status.Name == Invalid {
 			dt.job.mu.Unlock()
 			break
 		}

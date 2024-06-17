@@ -807,6 +807,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTr
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
 
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()
 
 	AssertNe(nil, err)
@@ -840,6 +841,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	AssertEq(nil, err)
 	dt.job.fileCacheConfig.EnableCrcCheck = false
 
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()
 
 	AssertEq(nil, err)
@@ -847,4 +849,55 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	dt.verifyFile([]byte("test"))
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
+}
+
+func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
+	objectName := "path/in/gcs/file2.txt"
+	objectSize := 10 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	// Start download
+	offset := int64(10 * util.MiB)
+	_, err := dt.job.Download(context.Background(), offset, true)
+	AssertEq(nil, err)
+	AssertEq(Downloading, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+	AssertGe(dt.job.status.Offset, offset)
+
+	dt.job.cancelFunc()
+	dt.waitForCrcCheckToBeCompleted()
+
+	AssertEq(Invalid, dt.job.status.Name)
+	AssertEq(nil, dt.job.status.Err)
+}
+
+func (dt *downloaderTest) Test_handleError_SetStatusAsInvalidWhenContextIsCancelled() {
+	subscriberOffset := int64(1)
+	notificationC := dt.job.subscribe(subscriberOffset)
+	err := errors.Join(context.Canceled)
+
+	err = fmt.Errorf("Wrapping with custom message %w", err)
+	dt.job.handleError(err)
+
+	AssertEq(0, dt.job.subscribers.Len())
+	notification, ok := <-notificationC
+	jobStatus := JobStatus{Name: Invalid, Err: nil, Offset: 0}
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
+}
+
+func (dt *downloaderTest) Test_handleError_SetStatusAsErrorWhenContextIsNotCancelled() {
+	subscriberOffset := int64(1)
+	notificationC := dt.job.subscribe(subscriberOffset)
+	err := errors.New("custom error")
+
+	updatedErr := fmt.Errorf("Custom message %w", err)
+	dt.job.handleError(updatedErr)
+
+	AssertEq(0, dt.job.subscribers.Len())
+	notification, ok := <-notificationC
+	jobStatus := JobStatus{Name: Failed, Err: updatedErr, Offset: 0}
+	fmt.Println(notification)
+	AssertTrue(reflect.DeepEqual(jobStatus, notification))
+	AssertEq(true, ok)
 }
