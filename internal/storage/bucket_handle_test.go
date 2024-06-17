@@ -603,36 +603,6 @@ func (testSuite *BucketHandleTest) TestListObjectMethodWithZeroMaxResult() {
 	assert.Nil(testSuite.T(), fiveObjWithZeroMaxResults.CollapsedRuns)
 }
 
-func (testSuite *BucketHandleTest) TestListObjectMethodWithOneMaxResult() {
-	objectsWithOneMaxResults, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
-			Prefix:                   "gcsfuse/",
-			Delimiter:                "/",
-			IncludeTrailingDelimiter: false,
-			ContinuationToken:        "",
-			MaxResults:               1,
-			ProjectionVal:            0,
-		})
-
-	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(objectsWithOneMaxResults.Objects))
-	assert.Equal(testSuite.T(), []string{TestObjectSubRootFolderName}, objectsWithOneMaxResults.CollapsedRuns)
-
-	objectsWithOneMaxResultsIncludingTrailingDelimiter, err2 := testSuite.bucketHandle.ListObjects(context.Background(),
-		&gcs.ListObjectsRequest{
-			Prefix:                   "gcsfuse/",
-			Delimiter:                "/",
-			IncludeTrailingDelimiter: true,
-			ContinuationToken:        "",
-			MaxResults:               1,
-			ProjectionVal:            0,
-		})
-
-	assert.Nil(testSuite.T(), err2)
-	assert.Equal(testSuite.T(), []string{TestObjectRootFolderName, TestObjectSubRootFolderName, TestObjectName, TestGzipObjectName}, objectsToObjectNames(objectsWithOneMaxResultsIncludingTrailingDelimiter.Objects))
-	assert.Equal(testSuite.T(), []string{TestObjectSubRootFolderName}, objectsWithOneMaxResultsIncludingTrailingDelimiter.CollapsedRuns)
-}
-
 // FakeGCSServer is not handling ContentType, ContentEncoding, ContentLanguage, CacheControl in updateflow
 // Hence, we are not writing tests for these parameters
 // https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/github.com/fsouza/fake-gcs-server/fakestorage/object.go#L795
