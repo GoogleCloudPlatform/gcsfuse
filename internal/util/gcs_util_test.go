@@ -32,7 +32,7 @@ type GcsUtilTest struct {
 }
 
 func TestGcsUtil(t *testing.T) {
-	suite.Run(t, new(UtilTest))
+	suite.Run(t, new(GcsUtilTest))
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -103,9 +103,8 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 		ContinuationToken: "hfdwefo",
 	}
 	expectedRemovedGcsListing := &gcs.Listing{
-		CollapsedRuns:     []string{"/", "b//", "e//f/", "g/h//"},
-		Objects:           createObjects([]string{"/b", "e//f", "g/h//i"}),
-		ContinuationToken: "hfdwefo",
+		CollapsedRuns: []string{"/", "b//", "e//f/", "g/h//"},
+		Objects:       createObjects([]string{"/b", "e//f", "g/h//i"}),
 	}
 
 	newGcsListing, removedGcsListing := RemoveUnsupportedObjectsFromListing(origGcsListing)
