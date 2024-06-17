@@ -411,7 +411,6 @@ func (job *Job) downloadObjectAsync() {
 	}
 
 	job.updateStatusAndNotifySubscribers(Completed, err)
-	return
 }
 
 // Download downloads object till the given offset and returns the status of
