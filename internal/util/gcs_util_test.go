@@ -56,14 +56,6 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			isUnsupported: true,
 		},
 		{
-			name:          "foo/./bar",
-			isUnsupported: true,
-		},
-		{
-			name:          "foo/../bar",
-			isUnsupported: true,
-		},
-		{
 			name:          "abc/",
 			isUnsupported: false,
 		},
@@ -72,35 +64,11 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			isUnsupported: true,
 		},
 		{
-			name:          "abc/./",
-			isUnsupported: true,
-		},
-		{
-			name:          "abc/../",
-			isUnsupported: true,
-		},
-		{
 			name:          "/foo",
 			isUnsupported: true,
 		},
 		{
-			name:          "./foo",
-			isUnsupported: true,
-		},
-		{
-			name:          "../foo",
-			isUnsupported: true,
-		},
-		{
 			name:          "/",
-			isUnsupported: true,
-		},
-		{
-			name:          ".",
-			isUnsupported: true,
-		},
-		{
-			name:          "..",
 			isUnsupported: true,
 		},
 	}

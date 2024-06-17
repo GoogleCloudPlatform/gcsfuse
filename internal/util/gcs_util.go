@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	unsupportedObjectNameSubstrings = []string{"//", "/./", "/../"}
-	unsupportedObjectNamePrefixes   = []string{"/", "./", "../"}
-	unsupportedObjectNames          = []string{"", ".", ".."}
+	unsupportedObjectNameSubstrings = []string{"//"}
+	unsupportedObjectNamePrefixes   = []string{"/"}
+	unsupportedObjectNames          = []string{""}
 )
 
 // isUnsupportedObjectName returns true if the passed
