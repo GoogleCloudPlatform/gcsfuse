@@ -19,7 +19,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Coverage for all except cache tests
+      - name: Coverage for all except cache tests parallely.
         run: CGO_ENABLED=0 go test -count 1 -v -covermode=atomic -coverprofile=coverage.out `go list ./... | grep -v internal/cache/...`
 
       - name: Coverage  for cache tests
