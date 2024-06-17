@@ -48,7 +48,8 @@ func isUnsupportedObjectName(name string) bool {
 	return false
 }
 
-// RemoveUnsupportedObjectsFromListing is a utility to ignore GCS objects containing `//` in their names.
+// RemoveUnsupportedObjectsFromListing is a utility to ignore unsupported
+// GCS object names such as those containing `//` in their names.
 // As an example, GCS can have two different objects a//b and a/b at the same time
 // in the same bucket. In linux FS however, both paths are same as a/b.
 // So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in

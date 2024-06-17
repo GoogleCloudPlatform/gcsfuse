@@ -116,20 +116,27 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 	createObject := func(name string) *gcs.Object {
 		return &gcs.Object{Name: name}
 	}
+	createObjects := func(names []string) []*gcs.Object {
+		objects := []*gcs.Object{}
+		for _, name := range names {
+			objects = append(objects, createObject(name))
+		}
+		return objects
+	}
 
 	origGcsListing := &gcs.Listing{
 		CollapsedRuns:     []string{"/", "a/", "b//", "c/d/", "e//f/", "g/h//"},
-		Objects:           []*gcs.Object{createObject("a"), createObject("/b"), createObject("c/d"), createObject("e//f"), createObject("g/h//i")},
+		Objects:           createObjects([]string{"a", "/b", "c/d", "e//f", "g/h//i"}),
 		ContinuationToken: "hfdwefo",
 	}
 	expectedNewGcsListing := &gcs.Listing{
 		CollapsedRuns:     []string{"a/", "c/d/"},
-		Objects:           []*gcs.Object{createObject("a"), createObject("c/d")},
+		Objects:           createObjects([]string{"a", "c/d"}),
 		ContinuationToken: "hfdwefo",
 	}
 	expectedRemovedGcsListing := &gcs.Listing{
 		CollapsedRuns:     []string{"/", "b//", "e//f/", "g/h//"},
-		Objects:           []*gcs.Object{createObject("/b"), createObject("e//f"), createObject("g/h//i")},
+		Objects:           createObjects([]string{"/b", "e//f", "g/h//i"}),
 		ContinuationToken: "hfdwefo",
 	}
 
