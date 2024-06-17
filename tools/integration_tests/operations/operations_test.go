@@ -158,7 +158,7 @@ func TestMain(m *testing.M) {
 	// Create storage client before running tests.
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*40)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

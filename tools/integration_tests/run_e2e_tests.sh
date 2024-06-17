@@ -233,9 +233,6 @@ function run_e2e_tests_for_hns_bucket(){
 
    echo "Running tests for HNS bucket"
    run_non_parallel_tests TEST_DIR_HNS_GROUP "$hns_bucket_name"
-   non_parallel_tests_pid_hns_group=$!
-
-   wait $non_parallel_tests_pid_hns_group
    non_parallel_tests_hns_group_exit_code=$?
 
    hns_buckets=("$hns_bucket_name")
