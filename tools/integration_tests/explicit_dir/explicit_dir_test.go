@@ -31,6 +31,7 @@ import (
 const DirForExplicitDirTests = "dirForExplicitDirTests"
 
 var (
+	ctx           context.Context
 	storageClient *storage.Client
 )
 
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	// Create storage client before running tests.
-	ctx := context.Background()
+	ctx = context.Background()
 	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
 	defer func() {
 		err := closeStorageClient()
