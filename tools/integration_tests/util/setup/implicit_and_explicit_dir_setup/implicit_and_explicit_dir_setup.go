@@ -88,7 +88,7 @@ func createObjectsOnGcs(objects []objectCreationMetadata, sgClient *storage.Clie
 	}
 }
 
-func createObjectsInImplicitDir(completeTestDirName string, t *testing.T, storageClient *storage.Client) {
+func createObjectsInImplicitDir(completeTestDirName string, storageClient *storage.Client, t *testing.T) {
 	implicitDirName := path.Join(completeTestDirName, ImplicitDirectory)
 	createObjectsOnGcs(
 		[]objectCreationMetadata{
@@ -106,7 +106,7 @@ func CreateImplicitDirectoryStructure(testDir string, storageClient *storage.Cli
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
 	// Create implicit directory in bucket for testing.
-	createObjectsInImplicitDir(testDir, t, storageClient)
+	createObjectsInImplicitDir(testDir, storageClient, t)
 }
 
 func CreateUnsupportedImplicitDirectoryStructure(testDir string, storageClient *storage.Client, t *testing.T) {
@@ -147,7 +147,7 @@ func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
 	defer operations.CloseFile(file)
 }
 
-func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *testing.T, storageClient *storage.Client) {
+func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, storageClient *storage.Client, t *testing.T) {
 	// testBucket/testDir/explicitDirectory                                                                   -- Dir
 	// testBucket/testDir/explictFile                                                                         -- File
 	// testBucket/testDir/explicitDirectory/fileInExplicitDir1                                                -- File
@@ -158,5 +158,5 @@ func CreateImplicitDirectoryInExplicitDirectoryStructure(testDir string, t *test
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
 
 	CreateExplicitDirectoryStructure(testDir, t)
-	createObjectsInImplicitDir(path.Join(testDir, ExplicitDirectory), t, storageClient)
+	createObjectsInImplicitDir(path.Join(testDir, ExplicitDirectory), storageClient, t)
 }
