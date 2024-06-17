@@ -848,3 +848,29 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Verify fileInfoCache update
 	dt.verifyFileInfoEntry(uint64(jobStatus.Offset))
 }
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Enabled() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = true
+
+	result := dt.job.IsParallelDownloadsEnabled()
+
+	AssertTrue(result)
+}
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = false
+
+	result := dt.job.IsParallelDownloadsEnabled()
+
+	AssertFalse(result)
+}
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Not_Explicitly_Set_In_Config() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+
+	result := dt.job.IsParallelDownloadsEnabled()
+
+	AssertFalse(result)
+}

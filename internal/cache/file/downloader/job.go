@@ -515,3 +515,10 @@ func (job *Job) validateCRC() (err error) {
 
 	return
 }
+
+func (job *Job) IsParallelDownloadsEnabled() bool {
+	if job.fileCacheConfig != nil && job.fileCacheConfig.EnableParallelDownloads {
+		return true
+	}
+	return false
+}
