@@ -30,7 +30,9 @@ jobs:
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
     - name: Test all except caching
-      run: go test -count 1 -v `go list ./... | grep -v internal/cache/...`
+      run: CGO_ENABLED=0 go test -count 1 -v `go list ./... | grep -v internal/cache/...`
+    - name: Test caching
+      run: CGO_ENABLED=0 go test -count 1 -v ./internal/cache/...
     - name: Cache RaceDetector Test
       run: go test -p 1 -count 1 -v -race ./internal/cache/...
   lint:

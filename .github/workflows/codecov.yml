@@ -20,10 +20,10 @@ jobs:
         run: go mod download
 
       - name: Coverage for all except cache tests
-        run: go test -count 1 -v -covermode=atomic -coverprofile=coverage.out `go list ./... | grep -v internal/cache/...`
+        run: CGO_ENABLED=0 go test -count 1 -v -covermode=atomic -coverprofile=coverage.out `go list ./... | grep -v internal/cache/...`
 
       - name: Coverage  for cache tests
-        run: go test -p 1 -count 1 -v -covermode=atomic -coverprofile=coverage_cache.out ./internal/cache/...
+        run: CGO_ENABLED=0 go test -p 1 -count 1 -v -covermode=atomic -coverprofile=coverage_cache.out ./internal/cache/...
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.3.1
