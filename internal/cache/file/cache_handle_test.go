@@ -820,3 +820,31 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	assert.True(cht.T(), cacheHit)
 	assert.Nil(cht.T(), err)
 }
+
+func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.cacheFileForRangeRead = true
+
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true},
+	)
+
+	cht.cacheHandle.fileDownloadJob = fileDownloadJob
+
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
+	assert.False(cht.T(), cacheHit)
+	assert.NotNil(cht.T(), err)
+	assert.Equal(cht.T(), 0, n)
+	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+}
