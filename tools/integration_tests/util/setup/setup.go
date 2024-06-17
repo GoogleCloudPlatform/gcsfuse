@@ -411,7 +411,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 		log.Printf("Error in getting bucket attrs: %v", err)
 		return
 	}
-	if attrs.HierarchicalNamespace.Enabled == true {
+	if attrs.HierarchicalNamespace.Enabled {
 		mountConfig4 := config.MountConfig{
 			EnableHNS: true,
 			LogConfig: config.LogConfig{
@@ -420,7 +420,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 			},
 		}
 		filePath4 := YAMLConfigFile(mountConfig4, "config4.yaml")
-		flags = append(flags, "--config-file=" + filePath4)
+		flags = append(flags, "--config-file="+filePath4)
 	}
 	return flags
 }
