@@ -19,9 +19,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 )
 
-const port uint16 = 8081
-const host string = "127.0.0.1"
-
 const TestBucketName string = "gcsfuse-default-bucket"
 const TestObjectRootFolderName string = "gcsfuse/"
 const TestObjectName string = "gcsfuse/default.txt"
@@ -66,7 +63,10 @@ func (f *fakeStorage) ShutDown() {
 }
 
 func NewFakeStorage() FakeStorage {
-	f, _ := createFakeStorageServer(getTestFakeStorageObject())
+	f, err := createFakeStorageServer(getTestFakeStorageObject())
+	if err != nil {
+		panic(err)
+	}
 	fakeStorage := &fakeStorage{
 		fakeStorageServer: f,
 	}
@@ -134,8 +134,6 @@ func getTestFakeStorageObject() []fakestorage.Object {
 func createFakeStorageServer(objects []fakestorage.Object) (*fakestorage.Server, error) {
 	return fakestorage.NewServerWithOptions(fakestorage.Options{
 		InitialObjects: objects,
-		Host:           host,
-		Port:           port,
 	})
 }
 
