@@ -182,5 +182,10 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return mountConfig, fmt.Errorf("error parsing list config: %w", err)
 	}
 
+	// In case on HNS bucket we are using folder api.
+	if mountConfig.EnableHNS {
+		mountConfig.ListConfig.EnableEmptyManagedFolders = true
+	}
+
 	return
 }
