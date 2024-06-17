@@ -103,6 +103,14 @@ func (job *Job) parallelDownloadObjectAsync(maxTotalConcurrency *semaphore.Weigh
 		job.mu.Unlock()
 	}
 
+	handleError := func(err error) {
+		if errors.Is(err, context.Canceled) {
+			notifyInvalid()
+			return
+		}
+		job.failWhileDownloading(err)
+	}
+
 	var start, end int64
 	end = int64(job.object.Size)
 	var parallelReadRequestSize = int64(job.fileCacheConfig.ReadRequestSizeMB) * cacheutil.MiB
@@ -125,7 +133,8 @@ func (job *Job) parallelDownloadObjectAsync(maxTotalConcurrency *semaphore.Weigh
 					if goRoutineIdx == 0 {
 						if err = maxTotalConcurrency.Acquire(downloadErrGroupCtx, 1); err != nil {
 							logger.Tracef("Error while acquiring semaphore resource: %v", err)
-							break
+							handleError(err)
+							return
 						}
 					} else if s := maxTotalConcurrency.TryAcquire(1); !s {
 						break
@@ -141,11 +150,7 @@ func (job *Job) parallelDownloadObjectAsync(maxTotalConcurrency *semaphore.Weigh
 				// If any of the go routine failed, consider the async job failed.
 				err = downloadErrGroup.Wait()
 				if err != nil {
-					if errors.Is(err, context.Canceled) {
-						notifyInvalid()
-						return
-					}
-					job.failWhileDownloading(err)
+					handleError(err)
 					return
 				}
 
