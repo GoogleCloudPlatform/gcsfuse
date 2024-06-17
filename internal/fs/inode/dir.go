@@ -346,36 +346,6 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func removeUnsupportedObjectsFromListing(listing *gcs.Listing) *gcs.Listing {
-	newListing := &gcs.Listing{}
-	for _, collapsedRun := range listing.CollapsedRuns {
-		// Ignore GCS prefixes containing `//` in their names.
-		if !util.IsUnsupportedObjectName(collapsedRun) {
-			newListing.CollapsedRuns = append(newListing.CollapsedRuns, collapsedRun)
-		} else {
-			logger.Warnf("Encountered unsupported object-prefix: %q. Not adding it to the list of prefixes", collapsedRun)
-		}
-	}
-	for _, object := range listing.Objects {
-		if object != nil {
-			// Ignore GCS objects containing `//` in their names.
-			// As an example, GCS can have two different objects a//b and a/b at the same time
-			// in the same bucket. In linux FS however, both paths are same as a/b.
-			// So, GCSFuse will ignore objects with names like a//b to avoid causing `input/output error` in
-			// linux FS.
-			if !util.IsUnsupportedObjectName(object.Name) {
-				newListing.Objects = append(newListing.Objects, object)
-			} else {
-				logger.Warnf("Encountered unsupported object-name: %q. Not adding it to the list of objects", object.Name)
-			}
-		} else {
-			logger.Errorf("Encountered nil object in the list of objects")
-		}
-	}
-	newListing.ContinuationToken = listing.ContinuationToken
-	return newListing
-}
-
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
 func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
@@ -612,7 +582,24 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return descendants, nil
 		}
 	}
+}
 
+func logUnsupportedListings(removedListings *gcs.Listing) {
+	if removedListings != nil {
+		if len(removedListings.CollapsedRuns) > 0 {
+			logger.Warnf("Ignored following unsupported prefixes: %v", removedListings.CollapsedRuns)
+		}
+		if len(removedListings.Objects) > 0 {
+			objectNames := []string{}
+			for _, object := range removedListings.Objects {
+				if object != nil {
+					objectNames = append(objectNames, object.Name)
+				}
+			}
+
+			logger.Warnf("Ignored following unsupported objects: %v", objectNames)
+		}
+	}
 }
 
 // LOCKS_REQUIRED(d)
@@ -638,7 +625,10 @@ func (d *dirInode) readObjects(
 		return
 	}
 
-	listing = removeUnsupportedObjectsFromListing(listing)
+	var removedListings *gcs.Listing
+	listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
+
+	logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
 	defer func() {

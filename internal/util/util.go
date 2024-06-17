@@ -44,11 +44,6 @@ const (
 	MaxTimeDuration = time.Duration(math.MaxInt64)
 )
 
-var (
-	unsupportedObjectNameSubstrings = []string{"//"}
-	unsupportedObjectNamePrefixes   = []string{"/"}
-)
-
 // 1. Returns the same filepath in case of absolute path or empty filename.
 // 2. For child process, it resolves relative path like, ./test.txt, test.txt
 // ../test.txt etc, with respect to GCSFUSE_PARENT_PROCESS_DIR
@@ -120,21 +115,4 @@ func BytesToHigherMiBs(bytes uint64) uint64 {
 func IsolateContextFromParentContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	ctx = context.WithoutCancel(ctx)
 	return context.WithCancel(ctx)
-}
-
-// IsUnsupportedObjectName returns true if the passed
-// string is a valid GCS object name or prefix,
-// which is unsupported in GCSFuse.
-func IsUnsupportedObjectName(name string) bool {
-	for _, substring := range unsupportedObjectNameSubstrings {
-		if strings.Contains(name, substring) {
-			return true
-		}
-	}
-	for _, prefix := range unsupportedObjectNamePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-	return false
 }
