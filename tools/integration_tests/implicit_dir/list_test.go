@@ -40,9 +40,9 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForImplicitDirTests/implicitDirectory//fileInUnsupportedImplicitDir1                   -- File
 	// testBucket//fileInUnsupportedPathInRootDirectory                                                     -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, t, storageClient)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForImplicitDirTests, storageClient, t)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForImplicitDirTests, t)
-	implicit_and_explicit_dir_setup.CreateUnsupportedImplicitDirectoryStructure(DirForImplicitDirTests, t, storageClient)
+	implicit_and_explicit_dir_setup.CreateUnsupportedImplicitDirectoryStructure(DirForImplicitDirTests, storageClient, t)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {

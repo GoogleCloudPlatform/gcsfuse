@@ -79,7 +79,7 @@ func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) 
 
 type objectCreationMetadata struct{ content, completeObjectName string }
 
-func createObjectsOnGcs(objects []objectCreationMetadata, t *testing.T, sgClient *storage.Client) {
+func createObjectsOnGcs(objects []objectCreationMetadata, sgClient *storage.Client, t *testing.T) {
 	ctx := context.Background()
 	for _, object := range objects {
 		if err := client.CreateObjectOnGCS(ctx, sgClient, object.completeObjectName, object.content); err != nil {
@@ -95,10 +95,10 @@ func createObjectsInImplicitDir(completeTestDirName string, t *testing.T, storag
 			{"This is from directory fileInImplicitDir1 file implicitDirectory", path.Join(implicitDirName, FileInImplicitDirectory)},
 			{"This is from directory implicitDirectory/implicitSubDirectory file fileInImplicitDir2", path.Join(implicitDirName, ImplicitSubDirectory, FileInImplicitSubDirectory)},
 		},
-		t, storageClient)
+		storageClient, t)
 }
 
-func CreateImplicitDirectoryStructure(testDir string, t *testing.T, storageClient *storage.Client) {
+func CreateImplicitDirectoryStructure(testDir string, storageClient *storage.Client, t *testing.T) {
 	// Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                  -- Dir
 	// testBucket/testDir/implicitDirectory/fileInImplicitDir1                               -- File
@@ -109,7 +109,7 @@ func CreateImplicitDirectoryStructure(testDir string, t *testing.T, storageClien
 	createObjectsInImplicitDir(testDir, t, storageClient)
 }
 
-func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T, storageClient *storage.Client) {
+func CreateUnsupportedImplicitDirectoryStructure(testDir string, storageClient *storage.Client, t *testing.T) {
 	// Unsupported Implicit Directory Structure
 	// testBucket/testDir/implicitDirectory                                                 -- Dir
 	// testBucket/testDir/implicitDirectory//fileInUnsupportedImplicitDir1                  -- File
@@ -125,7 +125,7 @@ func CreateUnsupportedImplicitDirectoryStructure(testDir string, t *testing.T, s
 				"This is testBucket//fileInUnsupportedPathInRootDirectory", "/" + FileInUnsupportedPathInRootDirectory,
 			},
 		},
-		t, storageClient)
+		storageClient, t)
 }
 
 func CreateExplicitDirectoryStructure(testDir string, t *testing.T) {
