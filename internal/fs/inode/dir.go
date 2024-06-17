@@ -625,9 +625,10 @@ func (d *dirInode) readObjects(
 		return
 	}
 
+	// Remove unsupported prefixes/objects such as those 
+	// containing '//' in them.
 	var removedListings *gcs.Listing
 	listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
-
 	logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
