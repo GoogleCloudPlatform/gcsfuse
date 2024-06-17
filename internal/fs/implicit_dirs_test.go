@@ -616,6 +616,11 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	AssertEq(nil, err)
 	verifyFileInfo(fi, "foo", true)
 
+	// Statting the mount-directory/foo/1 should return a file entry named "1".
+	fi, err = os.Stat(path.Join(mntDir, "foo/1"))
+	AssertEq(nil, err)
+	verifyFileInfo(fi, "1", false)
+
 	// Statting the mount-directory/a should return a directory entry named "a".
 	fi, err = os.Stat(path.Join(mntDir, "a"))
 	AssertEq(nil, err)
@@ -635,7 +640,7 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	AssertEq(nil, err)
 	verifyFileInfo(fi, "4", false)
 
-	// Statting the mount-directory/bar should fail as it should be ignored.
+	// Statting the mount-directory/bar should return a directory.
 	fi, err = os.Stat(path.Join(mntDir, "bar"))
 	AssertEq(nil, err)
 	verifyFileInfo(fi, "bar", true)
@@ -662,6 +667,11 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 	verifyFileInfo(entries[0], "2", false)
+
+	// ReadDirPicky on mntdir/bar should return an empty directory.
+	entries, err = fusetesting.ReadDirPicky(path.Join(mntDir, "bar"))
+	AssertEq(nil, err)
+	AssertEq(0, len(entries))
 }
 
 // Create objects in implicit directories with
