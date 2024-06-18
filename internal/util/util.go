@@ -32,6 +32,7 @@ const (
 	// Constants for read types - Sequential/Random
 	Sequential = "Sequential"
 	Random     = "Random"
+	Parallel   = "Parallel"
 
 	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 

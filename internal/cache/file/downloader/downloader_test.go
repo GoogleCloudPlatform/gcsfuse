@@ -22,12 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -40,18 +39,19 @@ var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 func TestDownloader(t *testing.T) { RunTests(t) }
 
 type downloaderTest struct {
-	job         *Job
-	bucket      gcs.Bucket
-	object      gcs.MinObject
-	cache       *lru.Cache
-	fakeStorage storage.FakeStorage
-	fileSpec    data.FileSpec
-	jm          *JobManager
+	defaultFileCacheConfig *config.FileCacheConfig
+	job                    *Job
+	bucket                 gcs.Bucket
+	object                 gcs.MinObject
+	cache                  *lru.Cache
+	fakeStorage            storage.FakeStorage
+	fileSpec               data.FileSpec
+	jm                     *JobManager
 }
 
 func init() { RegisterTestSuite(&downloaderTest{}) }
 
-func (dt *downloaderTest) SetUp(*TestInfo) {
+func (dt *downloaderTest) setupHelper() {
 	locker.EnableInvariantsCheck()
 	operations.RemoveDir(cacheDir)
 
@@ -61,9 +61,12 @@ func (dt *downloaderTest) SetUp(*TestInfo) {
 	dt.bucket = storageHandle.BucketHandle(storage.TestBucketName, "")
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, &config.FileCacheConfig{
-		EnableCrcCheck: true,
-	})
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig)
+}
+
+func (dt *downloaderTest) SetUp(*TestInfo) {
+	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableCrcCheck: true}
+	dt.setupHelper()
 }
 
 func (dt *downloaderTest) TearDown() {
