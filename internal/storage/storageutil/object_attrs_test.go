@@ -399,7 +399,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNilMinObject() {
 
 func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	var attrMd5 *[16]byte
-	var crc32C *uint32 = nil
+	var crc32C uint32 = 1234
 	timeAttr := time.Now()
 	minObject := &gcs.MinObject{
 		Name:            "test",
@@ -409,6 +409,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 		Updated:         timeAttr,
 		Metadata:        map[string]string{"test_key": "test_value"},
 		ContentEncoding: "test_encoding",
+		CRC32C:          &crc32C,
 	}
 
 	gcsObject := ConvertMinObjectToObject(minObject)
@@ -426,7 +427,7 @@ func (t objectAttrsTest) Test_ConvertMinObjectToObject_WithNonNilMinObject() {
 	ExpectEq(gcsObject.CacheControl, "")
 	ExpectEq(gcsObject.Owner, "")
 	ExpectEq(gcsObject.MD5, attrMd5)
-	ExpectEq(gcsObject.CRC32C, crc32C)
+	ExpectEq(*gcsObject.CRC32C, crc32C)
 	ExpectEq(gcsObject.MediaLink, "")
 	ExpectEq(gcsObject.StorageClass, "")
 	ExpectEq(0, gcsObject.Deleted.Compare(time.Time{}))
