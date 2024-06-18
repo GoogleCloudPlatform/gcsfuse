@@ -419,7 +419,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 				LogRotateConfig: config.DefaultLogRotateConfig(),
 			},
 		}
-		filePath4 := YAMLConfigFile(mountConfig4, "config4.yaml")
+		filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
 		flags = append(flags, "--config-file="+filePath4)
 	}
 	return flags
