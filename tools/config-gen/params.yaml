@@ -77,7 +77,7 @@
     Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
     by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
     inflight operations.
-  default: false
+  default: true
 
 - flag-name: "disable-parallel-dirops"
   config-path: "file-system.disable-parallel-dirops"

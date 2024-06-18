@@ -144,7 +144,7 @@ func newApp() (app *cli.App) {
 				Usage: "Allow rename a directory containing fewer descendants than this limit.",
 			},
 
-			cli.BoolFlag{
+			cli.BoolTFlag{
 				Name: config.IgnoreInterruptsFlagName,
 				Usage: "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). " +
 					"This prevents those signals from immediately terminating gcsfuse inflight operations.",

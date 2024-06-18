@@ -46,6 +46,7 @@ const (
 	DefaultGrpcConnPoolSize                       = 1
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
+	DefaultIgnoreInterrupts                       = true
 
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
@@ -210,5 +211,8 @@ func NewMountConfig() *MountConfig {
 	mountConfig.ListConfig = ListConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
 	}
+
+	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
+
 	return mountConfig
 }
