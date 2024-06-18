@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -26,16 +27,44 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+	storagev1 "google.golang.org/api/storage/v1"
 )
 
-func CreateStorageClient(ctx context.Context) (*storage.Client, error) {
+func CreateStorageClient(ctx context.Context) (client *storage.Client, err error) {
 	// Create new storage client.
-	client, err := storage.NewClient(ctx)
+	if setup.TestOnTPCEndPoint() {
+		var ts oauth2.TokenSource
+		// Set up the TPC endpoint and provide a token source for authentication.
+		ts, err = getTokenSrc("/tmp/sa.key.json")
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
+		}
+		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
+	} else {
+		client, err = storage.NewClient(ctx)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
 	return client, nil
+}
+
+func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile(%q): %w", path, err)
+	}
+
+	// Create a config struct based on its contents.
+	ts, err := google.JWTAccessTokenSourceWithScope(contents, storagev1.DevstorageFullControlScope)
+	if err != nil {
+		return nil, fmt.Errorf("JWTConfigFromJSON: %w", err)
+	}
+	return ts, err
 }
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.

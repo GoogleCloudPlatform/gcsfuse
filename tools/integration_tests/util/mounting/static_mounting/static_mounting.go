@@ -24,13 +24,19 @@ import (
 )
 
 func MountGcsfuseWithStaticMounting(flags []string) (err error) {
-	defaultArg := []string{"--debug_gcs",
+	var defaultArg []string
+	if setup.TestOnTPCEndPoint() {
+		defaultArg = append(defaultArg, "--custom-endpoint=storage.apis-tpczero.goog:443",
+			"--key-file=/tmp/sa.key.json")
+	}
+
+	defaultArg = append(defaultArg, "--debug_gcs",
 		"--debug_fs",
 		"--debug_fuse",
-		"--log-file=" + setup.LogFile(),
+		"--log-file="+setup.LogFile(),
 		"--log-format=text",
 		setup.TestBucket(),
-		setup.MntDir()}
+		setup.MntDir())
 
 	for i := 0; i < len(defaultArg); i++ {
 		flags = append(flags, defaultArg[i])

@@ -21,13 +21,16 @@ RUN_E2E_TESTS_ON_PACKAGE=$1
 # Pass "true" to skip few non-essential tests.
 # By default, this script runs all the integration tests.
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=$2
-
-# The location (region) where bucket should be created.
 BUCKET_LOCATION=$3
-
+# Pass "true" to run e2e tests on TPC endpoint.
+# The default value will be false.
+RUN_TEST_ON_TPC_ENDPOINT=false
+if [ $4 != "" ]; then
+  RUN_TEST_ON_TPC_ENDPOINT=$4
+fi
 INTEGRATION_TEST_TIMEOUT=60m
 
-if [ "$#" -ne 3 ]
+if [ "$#" -lt 3 ]
 then
   echo "Incorrect number of arguments passed, please refer to the script and pass the three arguments required..."
   exit 1
@@ -245,6 +248,26 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_tpc() {
+  # Clean bucket before testing.
+  gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
+
+  # Run Operations e2e tests in TPC to validate all the functionality.
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  exit_code=$?
+
+  set -e
+
+  # Delete data after testing.
+  gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
+
+  if [ $exit_code != 0 ];
+   then
+     echo "The tests failed."
+  fi
+  exit $exit_code
+}
+
 #commenting it so cleanup and failure check happens for both
 #set -e
 
@@ -270,6 +293,11 @@ function main(){
   install_packages
 
   set +e
+
+  # Run tpc test and exit in case RUN_TEST_ON_TPC_ENDPOINT is true.
+  if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
+       run_e2e_tests_for_tpc
+  fi
 
   #run integration tests
   run_e2e_tests_for_hns_bucket &
