@@ -48,7 +48,7 @@ func convertToPosixArgs(args []string) []string {
 			pArgs = append(pArgs, a)
 		}
 	}
-	return args
+	return pArgs
 }
 
 // Don't remove the comment below. It's used to generate config.go file
