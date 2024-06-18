@@ -962,3 +962,21 @@ func (dt *downloaderTest) Test_handleError_SetStatusAsErrorWhenContextIsNotCance
 	AssertTrue(reflect.DeepEqual(jobStatus, notification))
 	AssertEq(true, ok)
 }
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Enabled() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = true
+
+	result := dt.job.IsParallelDownloadsEnabled()
+
+	AssertTrue(result)
+}
+
+func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
+	//Arrange - initJobTest is being called in setup of downloader.go
+	dt.job.fileCacheConfig.EnableParallelDownloads = false
+
+	result := dt.job.IsParallelDownloadsEnabled()
+
+	AssertFalse(result)
+}

@@ -136,7 +136,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCrcCheck: true})
+	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: false})
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -819,4 +819,57 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	assert.Equal(cht.T(), n, ReadContentSize)
 	assert.True(cht.T(), cacheHit)
 	assert.Nil(cht.T(), err)
+}
+
+func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = true
+	cht.cacheHandle.prevOffset = offset - util.MiB
+	cht.cacheHandle.cacheFileForRangeRead = false
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 2, ReadRequestSizeMB: 2},
+	)
+	cht.cacheHandle.fileDownloadJob = fileDownloadJob
+
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Less(cht.T(), jobStatus.Offset, offset)
+	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
+	assert.Equal(cht.T(), 0, n)
+	assert.False(cht.T(), cacheHit)
+	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+}
+
+func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.cacheFileForRangeRead = true
+	fileDownloadJob := downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2},
+	)
+	cht.cacheHandle.fileDownloadJob = fileDownloadJob
+
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Less(cht.T(), jobStatus.Offset, offset)
+	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
+	assert.Equal(cht.T(), 0, n)
+	assert.False(cht.T(), cacheHit)
+	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
 }

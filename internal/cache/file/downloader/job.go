@@ -522,3 +522,10 @@ func (job *Job) handleError(err error) {
 
 	job.updateStatusAndNotifySubscribers(Failed, err)
 }
+
+func (job *Job) IsParallelDownloadsEnabled() bool {
+	if job.fileCacheConfig != nil && job.fileCacheConfig.EnableParallelDownloads {
+		return true
+	}
+	return false
+}
