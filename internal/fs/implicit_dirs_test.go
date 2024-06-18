@@ -580,9 +580,8 @@ func verifyInvalidPath(path string) {
 	AssertNe(nil, err, "Failed to get error in stat of %q", path)
 }
 
-// Create objects in implicit directories with
-// unsupported object names and
-// test the behavior of stat and ReadDirPicky on the different directories.
+// Create objects with unsupported object names and
+// verify the behavior of mount using os.Stat and WalkDir.
 func (t *ImplicitDirsTest) UnsupportedDirNames() {
 	// Set up contents.
 	AssertEq(
