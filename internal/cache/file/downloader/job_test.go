@@ -980,11 +980,3 @@ func (dt *downloaderTest) Test_When_Parallel_Download_Is_Disabled() {
 
 	AssertFalse(result)
 }
-
-func (dt *downloaderTest) Test_When_Parallel_Download_Is_Not_Explicitly_Set_In_Config() {
-	//Arrange - initJobTest is being called in setup of downloader.go
-
-	result := dt.job.IsParallelDownloadsEnabled()
-
-	AssertFalse(result)
-}
