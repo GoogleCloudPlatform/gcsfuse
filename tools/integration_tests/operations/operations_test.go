@@ -184,6 +184,7 @@ func TestMain(m *testing.M) {
 		// By default, creating emptyFile is disabled.
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
+	// gRPC tests will not run in TPC environment
 	if !testing.Short() && !setup.TestOnTPCEndPoint() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
@@ -191,7 +192,7 @@ func TestMain(m *testing.M) {
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
-	// gRPC tests will not run in TPC environment
+	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
 		successCodeTPC := static_mounting.RunTests(flagsSet, m)
 		os.Exit(successCodeTPC)

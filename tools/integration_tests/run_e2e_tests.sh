@@ -294,7 +294,7 @@ function main(){
 
   set +e
 
-  # Run test in TPC environment
+  # Run tpc test and exist in case RUN_TEST_ON_TPC_ENDPOINT is true.
   if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
        run_e2e_tests_for_tpc
   fi
