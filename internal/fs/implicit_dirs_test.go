@@ -601,13 +601,14 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 				"11/12":    "", // supported
 			}))
 
-	// Statting the mount directory should return a directory entry.
-	verifyInvalidPath(path.Join(mntDir, "foo/1"))
-	verifyInvalidPath(path.Join(mntDir, "foo/3/4"))
-	verifyInvalidPath(path.Join(mntDir, "foo/3/5"))
+	// Verify that the unsupported objects fail os.Stat.
+	verifyInvalidPath(path.Join(mntDir, "foo//1"))
+	verifyInvalidPath(path.Join(mntDir, "foo/3//4"))
+	verifyInvalidPath(path.Join(mntDir, "foo//3/5"))
 	verifyInvalidPath(path.Join(mntDir, "/8"))
 	verifyInvalidPath(path.Join(mntDir, "/9/10"))
 
+	// Verify that the supported objects appear in WalkDir.
 	expectedWalkedEntries := []struct {
 		path  string
 		name  string
