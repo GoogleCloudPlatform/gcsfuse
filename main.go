@@ -36,6 +36,21 @@ func logPanic() {
 	}
 }
 
+// convertToPosixArgs converts a slice of commandline args and transforms them
+// into POSIX compliant args. All it does is that it converts flags specified
+// using a single-hyphen to double-hyphens.
+func convertToPosixArgs(args []string) []string {
+	pArgs := make([]string, 0, len(args))
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") {
+			pArgs = append(pArgs, "-"+a)
+		} else {
+			pArgs = append(pArgs, a)
+		}
+	}
+	return args
+}
+
 // Don't remove the comment below. It's used to generate config.go file
 // which is used for flag and config file parsing.
 // Refer https://go.dev/blog/generate for details.
@@ -47,6 +62,7 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
+		os.Args = convertToPosixArgs(os.Args)
 		cmd.Execute()
 		return
 	}
