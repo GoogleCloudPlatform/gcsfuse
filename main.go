@@ -38,11 +38,12 @@ func logPanic() {
 
 // convertToPosixArgs converts a slice of commandline args and transforms them
 // into POSIX compliant args. All it does is that it converts flags specified
-// using a single-hyphen to double-hyphens.
+// using a single-hyphen to double-hyphens. We are excluding "-v" because it's
+// reserved for showing version in Cobra.
 func convertToPosixArgs(args []string) []string {
 	pArgs := make([]string, 0, len(args))
 	for _, a := range args {
-		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") {
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && a != "-v" {
 			pArgs = append(pArgs, "-"+a)
 		} else {
 			pArgs = append(pArgs, a)

@@ -46,6 +46,11 @@ func TestPosixFlagsConversion(t *testing.T) {
 			input:    []string{"abc", "--flag=\"-test\""},
 			expected: []string{"abc", "--flag=\"-test\""},
 		},
+		{
+			name:     "Version shorthand stays unchanged.",
+			input:    []string{"abc", "-v"},
+			expected: []string{"abc", "-v"},
+		},
 	}
 	for _, tc := range data {
 		t.Run(tc.name, func(t *testing.T) {
