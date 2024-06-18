@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -132,24 +133,29 @@ func CreateCacheDirectoryIfNotPresentAt(dirPath string, dirPerm os.FileMode) err
 	return nil
 }
 
-func calculateCRC32(reader io.Reader) (uint32, error) {
+func calculateCRC32(ctx context.Context, reader io.Reader) (uint32, error) {
 	table := crc32.MakeTable(crc32.Castagnoli)
 	checksum := crc32.Checksum([]byte(""), table)
 	buf := make([]byte, BufferSizeForCRC)
 	for {
-		switch n, err := reader.Read(buf); err {
-		case nil:
-			checksum = crc32.Update(checksum, table, buf[:n])
-		case io.EOF:
-			return checksum, nil
+		select {
+		case <-ctx.Done():
+			return 0, fmt.Errorf("CRC computation is cancelled: %w", ctx.Err())
 		default:
-			return 0, err
+			switch n, err := reader.Read(buf); err {
+			case nil:
+				checksum = crc32.Update(checksum, table, buf[:n])
+			case io.EOF:
+				return checksum, nil
+			default:
+				return 0, err
+			}
 		}
 	}
 }
 
 // CalculateFileCRC32 calculates and returns the CRC-32 checksum of a file.
-func CalculateFileCRC32(filePath string) (uint32, error) {
+func CalculateFileCRC32(ctx context.Context, filePath string) (uint32, error) {
 	// Open file with simplified flags and permissions
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -157,5 +163,5 @@ func CalculateFileCRC32(filePath string) (uint32, error) {
 	}
 	defer file.Close() // Ensure file closure
 
-	return calculateCRC32(file)
+	return calculateCRC32(ctx, file)
 }
