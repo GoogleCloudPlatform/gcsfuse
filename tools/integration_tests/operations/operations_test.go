@@ -137,15 +137,18 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
 
-	mountConfig4 := config.MountConfig{
-		EnableHNS: true,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
+	if !setup.TestOnTPCEndPoint() {
+		mountConfig4 := config.MountConfig{
+			EnableHNS: true,
+			LogConfig: config.LogConfig{
+				Severity:        config.TRACE,
+				LogRotateConfig: config.DefaultLogRotateConfig(),
+			},
+		}
+		filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
+		flags = append(flags, []string{"--config-file=" + filePath4})
 	}
-	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4})
 
 	return flags
 }
