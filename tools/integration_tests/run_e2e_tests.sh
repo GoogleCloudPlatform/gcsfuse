@@ -248,6 +248,26 @@ function run_e2e_tests_for_hns_bucket(){
    return 0
 }
 
+function run_e2e_tests_for_tpc() {
+  # Clean bucket before testing.
+  gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
+
+  # Run Operations e2e tests in TPC to validate all the functionality.
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
+  exit_code=$?
+
+  set -e
+
+  # Delete data after testing.
+  gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
+
+  if [ $exit_code != 0 ];
+   then
+     echo "The tests failed."
+  fi
+  exit $exit_code
+}
+
 #commenting it so cleanup and failure check happens for both
 #set -e
 
@@ -276,23 +296,7 @@ function main(){
 
   # Run test in TPC environment
   if [ $RUN_TEST_ON_TPC_ENDPOINT == true ]; then
-       # Clean bucket before testing.
-       gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
-
-       # Run Operations e2e tests in TPC to validate all the functionality.
-       GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/operations/... --testOnTPCEndPoint=$RUN_TEST_ON_TPC_ENDPOINT $GO_TEST_SHORT_FLAG -p 1 --integrationTest -v --testbucket=gcsfuse-e2e-tests-tpc --testInstalledPackage=$RUN_E2E_TESTS_ON_PACKAGE -timeout $INTEGRATION_TEST_TIMEOUT
-       exit_code=$?
-
-       set -e
-
-       # Delete data after testing.
-       gcloud storage rm -r gs://gcsfuse-e2e-tests-tpc/**
-
-       if [ $exit_code != 0 ];
-       then
-         echo "The tests failed."
-       fi
-       exit $exit_code
+       run_e2e_tests_for_tpc
   fi
 
   #run integration tests
