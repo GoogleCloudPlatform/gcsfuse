@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 type jobStatusName string
@@ -86,7 +87,8 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
-	mu locker.Locker
+	mu                 locker.Locker
+	uberConcurrencySem *semaphore.Weighted
 }
 
 // JobStatus represents the status of job.
@@ -111,6 +113,7 @@ func NewJob(
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
 	fileCacheConfig *config.FileCacheConfig,
+	uberConcurrencySem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -120,6 +123,7 @@ func NewJob(
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
 		fileCacheConfig:      fileCacheConfig,
+		uberConcurrencySem:   uberConcurrencySem,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()

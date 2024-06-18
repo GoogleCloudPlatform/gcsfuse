@@ -85,7 +85,17 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			rangeStart := start
 			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 
+			if goRoutineIdx == 0 {
+				if err = job.uberConcurrencySem.Acquire(downloadErrGroupCtx, 1); err != nil {
+					logger.Tracef("Error while acquiring semaphore resource: %v", err)
+					return err
+				}
+			} else if s := job.uberConcurrencySem.TryAcquire(1); !s {
+				break
+			}
+
 			downloadErrGroup.Go(func() error {
+				defer job.uberConcurrencySem.Release(1)
 				// Copy the contents from NewReader to cache file at appropriate offset.
 				offsetWriter := io.NewOffsetWriter(cacheFile, rangeStart)
 				return job.downloadRange(downloadErrGroupCtx, offsetWriter, rangeStart, rangeEnd)
