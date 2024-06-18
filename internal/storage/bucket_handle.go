@@ -483,6 +483,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 		if !errors.As(err, &notfound) {
 			return err
 		}
+		logger.Infof("Object in DeleteObject not found for delete folder: %v", err)
 	}
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
