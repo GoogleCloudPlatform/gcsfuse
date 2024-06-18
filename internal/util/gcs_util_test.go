@@ -91,7 +91,6 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 		}
 		return objects
 	}
-
 	origGcsListing := &gcs.Listing{
 		CollapsedRuns:     []string{"/", "a/", "b//", "c/d/", "e//f/", "g/h//"},
 		Objects:           createObjects([]string{"a", "/b", "c/d", "e//f", "g/h//i"}),
@@ -108,6 +107,7 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 	}
 
 	newGcsListing, removedGcsListing := RemoveUnsupportedObjectsFromListing(origGcsListing)
+
 	assert.Equal(t.T(), *expectedNewGcsListing, *newGcsListing)
 	assert.Equal(t.T(), *expectedRemovedGcsListing, *removedGcsListing)
 }
