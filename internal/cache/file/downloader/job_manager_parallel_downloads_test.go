@@ -17,7 +17,6 @@ package downloader
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"math"
 	"os"
 	"testing"
@@ -39,7 +38,7 @@ func getMinObject(t *testing.T, objectName string, bucket gcs.Bucket) gcs.MinObj
 	minObject, _, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
 		ForceFetchFromGcs: true})
 	if err != nil {
-		panic(fmt.Errorf("error whlie stating object: %w", err))
+		t.Fatalf("Error occured while stating the object: %v", err)
 	}
 	if minObject != nil {
 		return *minObject
