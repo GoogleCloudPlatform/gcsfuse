@@ -68,6 +68,7 @@ func configureFakeStorage(t *testing.T) storage.StorageHandle {
 }
 
 func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
+	t.Helper()
 	cache := lru.NewCache(uint64(maxSize))
 	cacheDir, err := os.MkdirTemp("", "gcsfuse_test")
 	if err != nil {
