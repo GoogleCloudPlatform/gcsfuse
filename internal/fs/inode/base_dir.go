@@ -242,3 +242,7 @@ func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	// for baseDirInode.
 	return true
 }
+
+func (d *baseDirInode) ListEntries(ctx context.Context, tok string) (dirInodes []*Core, newTok string, err error) {
+	return nil, "nil", nil
+}

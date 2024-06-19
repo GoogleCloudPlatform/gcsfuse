@@ -149,6 +149,8 @@ type DirInode interface {
 
 	// RUnlock readonly unlock.
 	RUnlock()
+
+	ListEntries(ctx context.Context, tok string) (dirInodes []*Core, newTok string, err error)
 }
 
 // An inode that represents a directory from a GCS bucket.
@@ -899,4 +901,21 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 
 	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
+}
+
+func (d *dirInode) ListEntries(ctx context.Context, tok string) (dirInodes []*Core, newTok string, err error) {
+	cores, newTok, err := d.readObjects(ctx, tok)
+	if err != nil {
+		err = fmt.Errorf("read objects: %w", err)
+		return
+	}
+
+	for _, core := range cores {
+		coreType := core.Type()
+		fmt.Println(coreType)
+		if coreType == metadata.ImplicitDirType || coreType == metadata.ExplicitDirType {
+			dirInodes = append(dirInodes, core)
+		}
+	}
+	return
 }

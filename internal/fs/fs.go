@@ -206,6 +206,7 @@ func NewFileSystem(
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
 		root = makeRootForBucket(ctx, fs, syncerBucket)
+
 	}
 	root.Lock()
 	root.IncrementLookupCount()
@@ -215,7 +216,35 @@ func NewFileSystem(
 
 	// Set up invariant checking.
 	fs.mu = locker.New("FS", fs.checkInvariants)
+
+	doListingAndCreateInodes(ctx, fs, root)
 	return fs, nil
+}
+
+func doListingAndCreateInodes(ctx context.Context, fs *fileSystem, dirInode inode.DirInode) {
+	var tok string
+	for {
+		// Read a batch.
+
+		dirCores, tok, err := dirInode.ListEntries(ctx, tok)
+
+		if err != nil {
+			err = fmt.Errorf("ListEntries: %w", err)
+			return
+		}
+
+		for _, value := range dirCores {
+			dirInode := fs.lookUpOrCreateInodeIfNotStale(*value)
+			dirInode.Unlock()
+			doListingAndCreateInodes(ctx, fs, dirInode.(inode.DirInode))
+		}
+		// Are we done?
+		if tok == "" {
+			break
+		}
+	}
+
+	return
 }
 
 func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
@@ -793,9 +822,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}()
 
 	fs.mu.Lock()
-
 	// Handle implicit directories.
 	if ic.MinObject == nil {
+
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
@@ -806,6 +835,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			in, ok = fs.implicitDirInodes[ic.FullName]
 			// If we don't have an entry, create one.
 			if !ok {
+
 				in = fs.mintInode(ic)
 				fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
 				// Since we are creating inode here, there is no chance that something else
@@ -878,6 +908,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// Have we found the correct inode?
 		cmp := oGen.Compare(existingInode.SourceGeneration())
 		if cmp == 0 {
+
 			in = existingInode
 			return
 		}
