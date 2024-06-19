@@ -18,9 +18,17 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
+var (
+	err       error
+	cfgFile   string
+	configObj cfg.Config
+)
 var rootCmd = &cobra.Command{
 	Use:   "gcsfuse [flags] bucket mount_point",
 	Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -42,5 +50,29 @@ func Execute() {
 }
 
 func init() {
-	// TODO: add flags and bind them with viper here.
+	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Absolute path to the config file.")
+
+	// Add all the other flags.
+	err = cfg.BindFlags(rootCmd.PersistentFlags())
+	if err != nil {
+		return
+	}
+}
+
+func initConfig() {
+	if cfgFile == "" {
+		return
+	}
+	viper.SetConfigFile(cfgFile)
+	viper.SetConfigType("yaml")
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
+	}
+	err = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		// By default, viper supports mapstructure tags for unmarshaling. Override that to support yaml tag.
+		decoderConfig.TagName = "yaml"
+	},
+	)
 }
