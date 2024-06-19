@@ -588,24 +588,48 @@ func (t *ImplicitDirsTest) UnsupportedDirNames() {
 		nil,
 		t.createObjects(
 			map[string]string{
-				"foo//1":   "", // unsupported
-				"foo/2":    "", // supported
-				"foo/3//4": "", // unsupported
-				"foo//3/5": "", // unsupported
-				"foo/3/6":  "", // supported
-				"7":        "", // supported
-				"/8":       "", // unsupported
-				"/9/10":    "", // unsupported
-				"/":        "", // unsupported
-				"11/12":    "", // supported
+				"foo//1":     "", // unsupported
+				"foo/./1":    "", // unsupported
+				"foo/../1":   "", // unsupported
+				"foo/2":      "", // supported
+				"foo/3//4":   "", // unsupported
+				"foo/3/./4":  "", // unsupported
+				"foo/3/../4": "", // unsupported
+				"foo//3/5":   "", // unsupported
+				"foo/./3/5":  "", // unsupported
+				"foo/../3/5": "", // unsupported
+				"foo/3/6":    "", // supported
+				"7":          "", // supported
+				"/8":         "", // unsupported
+				"./8":        "", // unsupported
+				"../8":       "", // unsupported
+				"/9/10":      "", // unsupported
+				"./9/10":     "", // unsupported
+				"../9/10":    "", // unsupported
+				"/":          "", // unsupported
+				".":          "", // unsupported
+				"./":         "", // unsupported
+				"..":         "", // unsupported
+				"../":        "", // unsupported
+				"11/12":      "", // supported
 			}))
 
 	// Verify that the unsupported objects fail os.Stat.
 	verifyInvalidPath(path.Join(mntDir, "foo//1"))
+	verifyInvalidPath(path.Join(mntDir, "foo/./1"))
+	verifyInvalidPath(path.Join(mntDir, "foo/../1"))
 	verifyInvalidPath(path.Join(mntDir, "foo/3//4"))
+	verifyInvalidPath(path.Join(mntDir, "foo/3/./4"))
+	verifyInvalidPath(path.Join(mntDir, "foo/3/../4"))
 	verifyInvalidPath(path.Join(mntDir, "foo//3/5"))
+	verifyInvalidPath(path.Join(mntDir, "foo/./3/5"))
+	verifyInvalidPath(path.Join(mntDir, "foo/../3/5"))
 	verifyInvalidPath(path.Join(mntDir, "/8"))
+	verifyInvalidPath(path.Join(mntDir, "./8"))
+	verifyInvalidPath(path.Join(mntDir, "../8"))
 	verifyInvalidPath(path.Join(mntDir, "/9/10"))
+	verifyInvalidPath(path.Join(mntDir, "./9/10"))
+	verifyInvalidPath(path.Join(mntDir, "../9/10"))
 
 	// Verify that the supported objects appear in WalkDir.
 	expectedWalkedEntries := []struct {

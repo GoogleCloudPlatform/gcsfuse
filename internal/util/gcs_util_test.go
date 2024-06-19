@@ -56,6 +56,14 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			isUnsupported: true,
 		},
 		{
+			name:          "foo/./bar",
+			isUnsupported: true,
+		},
+		{
+			name:          "foo/../bar",
+			isUnsupported: true,
+		},
+		{
 			name:          "abc/",
 			isUnsupported: false,
 		},
@@ -64,11 +72,35 @@ func (ts *GcsUtilTest) TestIsUnsupportedObjectName() {
 			isUnsupported: true,
 		},
 		{
+			name:          "abc/./",
+			isUnsupported: true,
+		},
+		{
+			name:          "abc/../",
+			isUnsupported: true,
+		},
+		{
 			name:          "/foo",
 			isUnsupported: true,
 		},
 		{
+			name:          "./foo",
+			isUnsupported: true,
+		},
+		{
+			name:          "../foo",
+			isUnsupported: true,
+		},
+		{
 			name:          "/",
+			isUnsupported: true,
+		},
+		{
+			name:          ".",
+			isUnsupported: true,
+		},
+		{
+			name:          "..",
 			isUnsupported: true,
 		},
 	}
@@ -92,8 +124,8 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 		return objects
 	}
 	origGcsListing := &gcs.Listing{
-		CollapsedRuns:     []string{"/", "a/", "b//", "c/d/", "e//f/", "g/h//"},
-		Objects:           createObjects([]string{"a", "/b", "c/d", "e//f", "g/h//i"}),
+		CollapsedRuns:     []string{"/", "a/", "b//", "c/d/", "e//f/", "g/h//", ".", "..", "./", "../", "i/./", "j/../", "k/./l/", "m/../n/", "o/p/./", "q/r/../"},
+		Objects:           createObjects([]string{"a", "/b", "c/d", "e//f", "g/h//i", ".", "..", "./", "../", "./k", "../l", "m/./n", "o/../p"}),
 		ContinuationToken: "hfdwefo",
 	}
 	expectedNewGcsListing := &gcs.Listing{
@@ -102,8 +134,8 @@ func (t *GcsUtilTest) Test_RemoveUnsupportedObjectsFromListing() {
 		ContinuationToken: "hfdwefo",
 	}
 	expectedRemovedGcsListing := &gcs.Listing{
-		CollapsedRuns: []string{"/", "b//", "e//f/", "g/h//"},
-		Objects:       createObjects([]string{"/b", "e//f", "g/h//i"}),
+		CollapsedRuns: []string{"/", "b//", "e//f/", "g/h//", ".", "..", "./", "../", "i/./", "j/../", "k/./l/", "m/../n/", "o/p/./", "q/r/../"},
+		Objects:       createObjects([]string{"/b", "e//f", "g/h//i", ".", "..", "./", "../", "./k", "../l", "m/./n", "o/../p"}),
 	}
 
 	newGcsListing, removedGcsListing := RemoveUnsupportedObjectsFromListing(origGcsListing)
