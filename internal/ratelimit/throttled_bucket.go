@@ -17,6 +17,7 @@ package ratelimit
 import (
 	"io"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -193,6 +194,21 @@ func (b *throttledBucket) DeleteFolder(ctx context.Context, folderName string) (
 
 	// Call through.
 	err = b.wrapped.DeleteFolder(ctx, folderName)
+
+	return
+}
+
+func (b *throttledBucket) RenameFolder(
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 
 	return
 }

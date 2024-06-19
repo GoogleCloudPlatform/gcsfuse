@@ -20,6 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -215,4 +216,13 @@ func (b *prefixBucket) DeleteObject(
 func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	mFolderName := b.wrappedName(folderName)
 	return b.wrapped.DeleteFolder(ctx, mFolderName)
+}
+
+func (b *prefixBucket) RenameFolder(
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+	mFolderName := b.wrappedName(folderName)
+	o, err = b.wrapped.RenameFolder(ctx, mFolderName, destinationFolderId)
+	return o, err
 }
