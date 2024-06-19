@@ -77,7 +77,7 @@ func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
 	return cache, cacheDir
 }
 
-func createObjectInStoreCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) gcs.MinObject {
+func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) gcs.MinObject {
 	t.Helper()
 	createObjectInStore(t, objectName, objectSize, bucket)
 	minObj := getMinObject(t, objectName, bucket)
@@ -137,7 +137,7 @@ func TestParallelDownloads(t *testing.T) {
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
 			bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
-			minObj := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
+			minObj := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 				DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: tc.readReqSize, EnableCrcCheck: true, MaxDownloadParallelism: tc.maxDownloadParallelism})
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
@@ -167,8 +167,8 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
 	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
-	minObj1 := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
-	minObj2 := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
+	minObj1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
+	minObj2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 		DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 2})
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
