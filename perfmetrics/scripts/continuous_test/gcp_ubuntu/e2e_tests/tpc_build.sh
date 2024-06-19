@@ -33,7 +33,7 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 ## To execute tests for a specific commitId, ensure you've checked out that commitId first.
 git checkout $commitId
 
-sudo gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
+gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 echo "Running e2e tests on installed package...."
 
 # Initiate PRPTST environment to establish a TPC project and associated account.
