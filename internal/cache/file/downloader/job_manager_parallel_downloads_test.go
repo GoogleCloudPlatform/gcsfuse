@@ -47,29 +47,41 @@ func getMinObject(t *testing.T, objectName string, bucket gcs.Bucket) gcs.MinObj
 	return gcs.MinObject{}
 }
 
-func CreateObjectInStoreAndInitCache(t *testing.T, objectSize int64) (gcs.MinObject, gcs.Bucket, *lru.Cache) {
+func createObjectInStore(t *testing.T, objPath string, objSize int64, bucket gcs.Bucket) {
 	t.Helper()
-	fakeStorage := storage.NewFakeStorage()
-	t.Cleanup(func() { fakeStorage.ShutDown() })
-	storageHandle := fakeStorage.CreateStorageHandle()
-	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
-	objectName := "path/in/gcs/foo.txt"
-	objectContent := make([]byte, objectSize)
+	objectContent := make([]byte, objSize)
 	_, err := rand.Read(objectContent)
 	if err != nil {
 		t.Fatalf("Error while generating random object content: %v", err)
 	}
-	_, err = storageutil.CreateObject(context.Background(), bucket, objectName, objectContent)
+	_, err = storageutil.CreateObject(context.Background(), bucket, objPath, objectContent)
 	if err != nil {
 		t.Fatalf("Error while creating object in fakestorage: %v", err)
 	}
-	minObj := getMinObject(t, objectName, bucket)
+}
+
+func configureFakeStorage(t *testing.T) storage.StorageHandle {
+	t.Helper()
+	fakeStorage := storage.NewFakeStorage()
+	t.Cleanup(func() { fakeStorage.ShutDown() })
+	return fakeStorage.CreateStorageHandle()
+}
+
+func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
+	cache := lru.NewCache(uint64(maxSize))
 	cacheDir, err := os.MkdirTemp("", "gcsfuse_test")
 	if err != nil {
 		t.Fatalf("Error while creating the cache directory: %v", err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(cacheDir) })
-	cache := lru.NewCache(uint64(2 * objectSize))
+	return cache, cacheDir
+}
+
+func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, storageHandle storage.StorageHandle, objectName string, objectSize int64) (gcs.MinObject, gcs.Bucket) {
+	t.Helper()
+	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+	createObjectInStore(t, objectName, objectSize, bucket)
+	minObj := getMinObject(t, objectName, bucket)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
@@ -88,7 +100,7 @@ func CreateObjectInStoreAndInitCache(t *testing.T, objectSize int64) (gcs.MinObj
 	if err != nil {
 		t.Fatalf("Error occurred while inserting fileinfo into cache: %v", err)
 	}
-	return minObj, bucket, cache
+	return minObj, bucket
 }
 
 func TestParallelDownloads(t *testing.T) {
@@ -123,27 +135,63 @@ func TestParallelDownloads(t *testing.T) {
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			minObj, bucket, cache := CreateObjectInStoreAndInitCache(t, tc.objectSize)
+			cache, cacheDir := configureCache(t, 2*tc.objectSize)
+			storageHandle := configureFakeStorage(t)
+			minObj, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/foo.txt", tc.objectSize)
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 				DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: tc.readReqSize, EnableCrcCheck: true, MaxDownloadParallelism: tc.maxDownloadParallelism})
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
 			_, err := job.Download(context.Background(), 10, false)
-			if err != nil {
-				t.Fatalf("Error occurred while downloading object: %v", err)
-			}
 
+			timeout := time.After(1 * time.Second)
 			for {
 				select {
 				case jobStatus := <-subscriberC:
-					assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
+					if assert.Nil(t, err) {
+						assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
+					}
 					return
-				case <-time.After(1 * time.Second):
+				case <-timeout:
 					assert.Fail(t, "Test timed out")
 					return
 				}
 			}
 		})
+	}
+}
+
+func TestMultipleDownloads(t *testing.T) {
+	storageHandle := configureFakeStorage(t)
+	cache, cacheDir := configureCache(t, 30*util.MiB)
+	minObj1, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/foo.txt", 10*util.MiB)
+	minObj2, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/bar.txt", 5*util.MiB)
+	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
+		DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 2})
+	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
+	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
+	s1 := job1.subscribe(10 * util.MiB)
+	s2 := job2.subscribe(5 * util.MiB)
+	ctx := context.Background()
+
+	_, err1 := job1.Download(ctx, 10*util.MiB, false)
+	_, err2 := job2.Download(ctx, 5*util.MiB, false)
+
+	notif1, notif2 := false, false
+	timeout := time.After(1000 * time.Second)
+	for {
+		select {
+		case <-s1:
+			notif1 = true
+		case <-s2:
+			notif2 = true
+		case <-timeout:
+			assert.Fail(t, "Test timed out")
+			return
+		}
+		if assert.Nil(t, err1) && assert.Nil(t, err2) && notif1 && notif2 {
+			return
+		}
 	}
 }
