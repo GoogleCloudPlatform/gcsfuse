@@ -17,6 +17,7 @@
 
 set -e
 sudo apt-get update
+sudo gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 
 architecture=$(dpkg --print-architecture)
 # e.g. architecture=arm64 or amd64
