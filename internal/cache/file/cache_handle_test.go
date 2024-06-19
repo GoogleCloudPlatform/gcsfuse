@@ -837,6 +837,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
 		cht.fileSpec,
 		func() {},
 		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 2, ReadRequestSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -863,6 +864,7 @@ func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
 		cht.fileSpec,
 		func() {},
 		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
