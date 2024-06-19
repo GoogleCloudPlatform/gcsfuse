@@ -55,9 +55,6 @@ func init() {
 
 	// Add all the other flags.
 	err = cfg.BindFlags(rootCmd.PersistentFlags())
-	if err != nil {
-		return
-	}
 }
 
 func initConfig() {
