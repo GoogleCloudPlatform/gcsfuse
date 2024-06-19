@@ -25,6 +25,19 @@ readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly BUCKET_LOCATION="u-us-prp1"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
+# Upgrade gcloud version
+gcloud version
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
+gcloud version && rm gcloud.tar.gz
+
+# Copy the key file for the TPC service account to use for authentication.
+gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
+
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
 commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
@@ -32,8 +45,6 @@ commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
 
 ## To execute tests for a specific commitId, ensure you've checked out that commitId first.
 git checkout $commitId
-
-sudo gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 echo "Running e2e tests on installed package...."
 
 # Initiate PRPTST environment to establish a TPC project and associated account.
