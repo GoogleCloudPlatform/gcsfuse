@@ -939,9 +939,10 @@ func (t *DirTest) ReadEntries_IncludingUnsupportedObjects() {
 	// Set up contents.
 	objs := []string{
 		dirInodeName + "supported_dir_explicit/",
-		dirInodeName + "supported_dir_implicit/supported_file",
+		dirInodeName + "supported_dir_implicit1/supported_file",
+		dirInodeName + "supported_dir_implicit2//unsupported_file",
 		dirInodeName + "/unsupported_dir_explicit/",
-		dirInodeName + "/unsupported_dir_implicit/supported_file",
+		dirInodeName + "/unsupport_dir_implicit1/supported_file",
 		dirInodeName + "top_level_supported_file",
 		dirInodeName + "/top_level_unsupported_file",
 	}
@@ -958,7 +959,7 @@ func (t *DirTest) ReadEntries_IncludingUnsupportedObjects() {
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
-	AssertEq(3, len(entries))
+	AssertEq(4, len(entries))
 
 	entry = entries[0]
 	ExpectEq("supported_dir_explicit", entry.Name)
@@ -966,11 +967,16 @@ func (t *DirTest) ReadEntries_IncludingUnsupportedObjects() {
 	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("supported_dir_explicit"))
 
 	entry = entries[1]
-	ExpectEq("supported_dir_implicit", entry.Name)
+	ExpectEq("supported_dir_implicit1", entry.Name)
 	ExpectEq(fuseutil.DT_Directory, entry.Type)
-	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("supported_dir_implicit"))
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("supported_dir_implicit1"))
 
 	entry = entries[2]
+	ExpectEq("supported_dir_implicit2", entry.Name)
+	ExpectEq(fuseutil.DT_Directory, entry.Type)
+	ExpectEq(metadata.ImplicitDirType, t.getTypeFromCache("supported_dir_implicit2"))
+
+	entry = entries[3]
 	ExpectEq("top_level_supported_file", entry.Name)
 	ExpectEq(fuseutil.DT_File, entry.Type)
 	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("top_level_supported_file"))
