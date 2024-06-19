@@ -942,7 +942,7 @@ func (t *DirTest) ReadEntries_IncludingUnsupportedObjects() {
 		dirInodeName + "supported_dir_implicit1/supported_file",
 		dirInodeName + "supported_dir_implicit2//unsupported_file",
 		dirInodeName + "/unsupported_dir_explicit/",
-		dirInodeName + "/unsupport_dir_implicit1/supported_file",
+		dirInodeName + "/unsupported_dir_implicit1/supported_file",
 		dirInodeName + "top_level_supported_file",
 		dirInodeName + "/top_level_unsupported_file",
 	}
