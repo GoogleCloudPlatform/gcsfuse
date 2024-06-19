@@ -122,6 +122,7 @@ func TestParallelDownloads(t *testing.T) {
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			minObj, bucket, cache := CreateObjectInStoreAndInitCache(t, tc.objectSize)
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 				DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: tc.readReqSize, EnableCrcCheck: true, MaxDownloadParallelism: tc.maxDownloadParallelism})
