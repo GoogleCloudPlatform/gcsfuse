@@ -74,7 +74,7 @@ func makeGcsfuseArgs(
 	opts map[string]string) (args []string, err error) {
 	// Deal with options.
 	for name, value := range opts {
-		switch name {
+		switch strings.ReplaceAll(name, "-", "_") {
 		// Don't pass through options that are relevant to mount(8) but not to
 		// gcsfuse, and that fusermount chokes on with "Invalid argument" on Linux.
 		case "user", "nouser", "auto", "noauto", "_netdev", "no_netdev":
@@ -85,11 +85,15 @@ func makeGcsfuseArgs(
 			"experimental_local_file_cache",
 			"reuse_token_from_url",
 			"enable_nonexistent_type_cache",
-			"experimental_enable_json_read":
+			"experimental_enable_json_read",
+			"enable_hns",
+			"ignore_interrupts",
+			"anonymous_access",
+			"log_rotate_compress":
 			if value == "" {
 				value = "true"
 			}
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1)+"="+value)
+			args = append(args, "--"+strings.ReplaceAll(name, "_", "-")+"="+value)
 
 		// Special case: support mount-like formatting for gcsfuse string flags.
 		case "dir_mode",
@@ -123,8 +127,17 @@ func makeGcsfuseArgs(
 			"custom_endpoint",
 			"config_file",
 			"experimental_metadata_prefetch_on_mount",
-			"kernel_list_cache_ttl_secs":
-			args = append(args, "--"+strings.Replace(name, "_", "-", -1), value)
+			"kernel_list_cache_ttl_secs",
+			"stat_cache_max_size_mb",
+			"type_cache_max_size_mb",
+			"metadata_cache_ttl_secs",
+			"log_severity",
+			"log_rotate_max_file_size_mb",
+			"log_rotate_backup_file_count",
+			"file_cache_max_size_mb",
+			"experimental_grpc_conn_pool_size":
+
+			args = append(args, "--"+strings.ReplaceAll(name, "_", "-"), value)
 
 		// Special case: support mount-like formatting for gcsfuse debug flags.
 		case "debug_fuse",
