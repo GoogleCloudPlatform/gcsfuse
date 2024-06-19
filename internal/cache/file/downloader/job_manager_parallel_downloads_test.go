@@ -77,9 +77,8 @@ func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
 	return cache, cacheDir
 }
 
-func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, storageHandle storage.StorageHandle, objectName string, objectSize int64) (gcs.MinObject, gcs.Bucket) {
+func createObjectInStoreCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) gcs.MinObject {
 	t.Helper()
-	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
 	createObjectInStore(t, objectName, objectSize, bucket)
 	minObj := getMinObject(t, objectName, bucket)
 	fileInfoKey := data.FileInfoKey{
@@ -100,7 +99,7 @@ func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, storageHand
 	if err != nil {
 		t.Fatalf("Error occurred while inserting fileinfo into cache: %v", err)
 	}
-	return minObj, bucket
+	return minObj
 }
 
 func TestParallelDownloads(t *testing.T) {
@@ -137,7 +136,8 @@ func TestParallelDownloads(t *testing.T) {
 			t.Parallel()
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
-			minObj, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/foo.txt", tc.objectSize)
+			bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+			minObj := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 				DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: tc.readReqSize, EnableCrcCheck: true, MaxDownloadParallelism: tc.maxDownloadParallelism})
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
@@ -166,8 +166,9 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	t.Parallel()
 	storageHandle := configureFakeStorage(t)
 	cache, cacheDir := configureCache(t, 30*util.MiB)
-	minObj1, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/foo.txt", 10*util.MiB)
-	minObj2, bucket := createObjectInStoreAndInitCache(t, cache, storageHandle, "path/in/gcs/bar.txt", 5*util.MiB)
+	bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
+	minObj1 := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
+	minObj2 := createObjectInStoreCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
 		DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 2})
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
