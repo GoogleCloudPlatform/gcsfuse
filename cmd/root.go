@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/mitchellh/mapstructure"
@@ -25,9 +24,10 @@ import (
 )
 
 var (
-	err       error
-	cfgFile   string
-	configObj cfg.Config
+	cfgSetupErr  error
+	unmarshalErr error
+	cfgFile      string
+	configObj    cfg.Config
 )
 var rootCmd = &cobra.Command{
 	Use:   "gcsfuse [flags] bucket mount_point",
@@ -38,14 +38,19 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 	Version: getVersion(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: the following error will be removed once the command is implemented.
+		if cfgSetupErr != nil {
+			return cfgSetupErr
+		}
+		if unmarshalErr != nil {
+			return unmarshalErr
+		}
 		return fmt.Errorf("unsupported operation")
 	},
 }
 
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
+	if err := rootCmd.Execute(); err != nil {
+		panic(err)
 	}
 }
 
@@ -54,22 +59,27 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Absolute path to the config file.")
 
 	// Add all the other flags.
-	err = cfg.BindFlags(rootCmd.PersistentFlags())
+	if cfgSetupErr = cfg.BindFlags(rootCmd.PersistentFlags()); cfgSetupErr != nil {
+		cfgSetupErr = fmt.Errorf("error while declaring/binding flags: %w", cfgSetupErr)
+	}
 }
 
 func initConfig() {
-	if err != nil || cfgFile == "" {
+	if cfgSetupErr != nil || cfgFile == "" {
 		return
 	}
 	viper.SetConfigFile(cfgFile)
 	viper.SetConfigType("yaml")
-	err = viper.ReadInConfig()
-	if err != nil {
+	if unmarshalErr = viper.ReadInConfig(); unmarshalErr != nil {
+		unmarshalErr = fmt.Errorf("error while reading the config: %w", unmarshalErr)
 		return
 	}
-	err = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
-		// By default, viper supports mapstructure tags for unmarshaling. Override that to support yaml tag.
+	unmarshalErr = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 		decoderConfig.TagName = "yaml"
 	},
 	)
+	if unmarshalErr != nil {
+		unmarshalErr = fmt.Errorf("error while unmarshalling the config: %w", unmarshalErr)
+	}
 }
