@@ -129,7 +129,10 @@ func TestParallelDownloads(t *testing.T) {
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
-			job.Download(context.Background(), 10, false)
+			_, err := job.Download(context.Background(), 10, false)
+			if err != nil {
+				t.Fatalf("Error occurred while downloading object: %v", err)
+			}
 
 			for {
 				select {

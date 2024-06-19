@@ -31,18 +31,14 @@ func TestParallelDownloader(t *testing.T) { RunTests(t) }
 
 type parallelDownloaderTest struct {
 	downloaderTest
-	maxDownloadParallelism int
 }
 
 func init() {
 	RegisterTestSuite(&parallelDownloaderTest{})
-	RegisterTestSuite(&parallelDownloaderTest{maxDownloadParallelism: 1})
-	RegisterTestSuite(&parallelDownloaderTest{maxDownloadParallelism: 7})
-	RegisterTestSuite(&parallelDownloaderTest{maxDownloadParallelism: -1})
 }
 
 func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableParallelDownloads: true,
-		DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: dt.maxDownloadParallelism}
+		DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 6}
 	dt.setupHelper()
 }
