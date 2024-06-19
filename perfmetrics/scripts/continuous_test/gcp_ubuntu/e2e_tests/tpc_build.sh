@@ -25,8 +25,18 @@ readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly BUCKET_LOCATION="u-us-prp1"
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+
+# Upgrade gcloud version
+gcloud version
+wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
+sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
+sudo /usr/local/google-cloud-sdk/install.sh
+export PATH=/usr/local/google-cloud-sdk/bin:$PATH
+echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
+gcloud version && rm gcloud.tar.gz
+
 # Copy the key file for the TPC service account to use for authentication.
-gcloud alpha storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
+gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
