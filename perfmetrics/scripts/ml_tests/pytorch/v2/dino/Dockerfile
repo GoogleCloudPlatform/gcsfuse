@@ -18,7 +18,7 @@ FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-0.py310
 # Allow non-root users to specify the allow_other or allow_root mount options
 RUN echo "user_allow_other" > /etc/fuse.conf
 
-RUN pip3 install timm
+RUN pip3 install timm setuptools==69.5.1
 
 WORKDIR "/pytorch_dino/"
 
