@@ -5,7 +5,7 @@ import output_metrics
 import os
 
 files = []
-directory_path = input("Enter the path to the directory containing log files")
+directory_path = input("Enter the path to the directory containing log files: ")
 for filename in os.listdir(directory_path):
     # Construct the full path to the file
     file_path = os.path.join(directory_path, filename)

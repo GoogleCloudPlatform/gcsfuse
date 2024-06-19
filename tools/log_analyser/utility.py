@@ -78,7 +78,6 @@ def print_in_html(title, html_content, plt, container):
     plt.close()
 
 
-def plot_bar_graphs(title, )
 
 
 
