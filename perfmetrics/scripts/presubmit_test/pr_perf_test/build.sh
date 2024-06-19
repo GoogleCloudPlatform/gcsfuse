@@ -16,7 +16,23 @@
 # This will stop execution when any command will have non-zero status.
 
 set -e
-sudo apt-get update
+
+readonly RUN_E2E_TESTS_ON_INSTALLED_PACKAGE=true
+readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
+readonly RUN_TEST_ON_TPC_ENDPOINT=true
+# TPC project id
+readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
+readonly BUCKET_LOCATION="u-us-prp1"
+
+cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+echo "Building and installing gcsfuse..."
+# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
+commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+
+## To execute tests for a specific commitId, ensure you've checked out that commitId first.
+git checkout $commitId
+
 sudo gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 
 architecture=$(dpkg --print-architecture)
