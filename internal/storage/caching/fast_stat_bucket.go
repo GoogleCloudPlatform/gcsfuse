@@ -281,15 +281,17 @@ func (b *fastStatBucket) RenameFolder(
 	ctx context.Context,
 	folderName string,
 	destinationFolderId string) (o *controlpb.Folder, err error) {
-	b.invalidate(folderName)
+	var tok string
 	list, err := b.ListObjects(ctx, &gcs.ListObjectsRequest{
-		Prefix:    folderName,
-		Delimiter: "/",
+		Prefix:            folderName,
+		Delimiter:         "",
+		ContinuationToken: tok,
 	})
 
 	for _, value := range list.Objects {
 		b.invalidate(value.Name)
 	}
+	b.invalidate(folderName)
 
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
