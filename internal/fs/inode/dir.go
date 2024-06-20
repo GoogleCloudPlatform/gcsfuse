@@ -612,6 +612,8 @@ func (d *dirInode) RenameFolder(ctx context.Context,
 		return nil, err
 	}
 
+	d.cache.Erase(folderName)
+
 	return
 }
 

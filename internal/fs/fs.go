@@ -2167,7 +2167,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 		return fmt.Errorf("lookup new directory: %w", err)
 	}
 	pendingInodes = append(pendingInodes, newDir)
-
+	releaseInodes()
 	// Fail the operation if the new directory is non-empty.
 	//unexpected, err := newDir.ReadDescendants(ctx, 1)
 	//if err != nil {
@@ -2176,10 +2176,10 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	//if len(unexpected) > 0 {
 	//	return fuse.ENOTEMPTY
 	//}
-	//
+
 	//for _, descendant := range descendants {
 	//	nameDiff := strings.TrimPrefix(
-	//		descendant.FullName.GcsObjectName(), newDir.Name().GcsObjectName())
+	//		descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
 	//
 	//	o := descendant.MinObject
 	//
