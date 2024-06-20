@@ -23,6 +23,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -2087,6 +2088,14 @@ func (fs *fileSystem) renameDir(
 	return nil
 }
 
+func isSubdir(p1, p2 string) (bool, error) {
+	rel, err := filepath.Rel(p2, p1)
+	if err != nil {
+		return false, err
+	}
+	return !strings.HasPrefix(rel, "..") && rel != ".", nil
+}
+
 func (fs *fileSystem) renameFolder(ctx context.Context,
 	oldParent inode.DirInode,
 	oldName string,
@@ -2119,14 +2128,32 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
 	}
 
-	oldParent.Lock()
-	//newParent.Lock()
-	_, err = oldParent.RenameFolder(ctx, oldName, newName)
-	if err != nil {
-		return err
+	if oldParent == newParent {
+		// If both parents are the same, lock once
+		oldParent.Lock()
+		_, err = oldParent.RenameFolder(ctx, oldName, path.Join(newParent.Name().GcsObjectName(), newName))
+		if err != nil {
+			return err
+		}
+		oldParent.Unlock()
+	} else {
+		// Determine lock order
+		p1, p2 := oldParent, newParent
+		x, _ := isSubdir(oldParent.Name().GcsObjectName(), newParent.Name().GcsObjectName())
+		if x {
+			p1, p2 = newParent, oldParent
+		}
+
+		// Lock in order
+		p1.Lock()
+		p2.Lock()
+		_, err = oldParent.RenameFolder(ctx, path.Join(oldParent.Name().GcsObjectName(), oldName), path.Join(newParent.Name().GcsObjectName(), newName))
+		if err != nil {
+			return err
+		}
+		p1.Unlock()
+		p2.Unlock()
 	}
-	oldParent.Unlock()
-	//newParent.Unlock()
 
 	// Get the inode of the new directory
 	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)

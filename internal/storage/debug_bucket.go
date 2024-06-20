@@ -243,6 +243,9 @@ func (b *debugBucket) RenameFolder(
 	ctx context.Context,
 	folderName string,
 	destinationFolderId string) (o *controlpb.Folder, err error) {
+	id, desc, start := b.startRequest("RenameFolder(%q)", folderName)
+	defer b.finishRequest(id, desc, start, &err)
+
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
 }
