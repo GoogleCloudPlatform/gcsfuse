@@ -462,7 +462,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations.")
+	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations. (default: true)")
 
 	err = viper.BindPFlag("file-system.ignore-interrupts", flagSet.Lookup("ignore-interrupts"))
 	if err != nil {
