@@ -1,12 +1,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: emu-testing
+  name: emu-testing-${NUM_PODS}-${MAX_PARALLELISM_PER_FILE}-${READ_REQUEST_SIZE}-${ENABLE_CRC_CHECK}
   labels:
     run: emu-testing
 spec:
-  parallelism: 1
-  completions: 1
+  parallelism: ${NUM_PODS}
+  completions: ${NUM_PODS}
   template:
     metadata:
       labels:
@@ -67,7 +67,7 @@ spec:
           volumeAttributes:
             skipCSIBucketAccessCheck: "true"
             bucketName: shiqi-llama-a
-            mountOptions: "implicit-dirs,uid=1001,gid=3003"
+            mountOptions: "implicit-dirs,uid=1001,gid=3003,file-cache:enable-parallel-downloads:true,file-cache:max-download-parallelism-per-file:${MAX_PARALLELISM_PER_FILE},file-cache:max-download-parallelism:160,file-cache:read-request-size-mb:${READ_REQUEST_SIZE},enable-crc-check:${ENABLE_CRC_CHECK}"
             fileCacheCapacity: "-1"
             metadataCacheTTLSeconds: "-1"
             metadataStatCacheCapacity: "-1"
