@@ -468,23 +468,16 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 }
 
 func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
-	var notfound *gcs.NotFoundError
 	var callOptions []gax.CallOption
 
-	err = b.DeleteObject(
+	// We can ignore errors from DeleteObject since the DeleteFolder API will likely report any underlying issues.
+	logger.Tracef("Initiating the deletion of the folder: %s",folderName)
+	_ = b.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
 			Name:       folderName,
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
-
-	if err != nil {
-		// Ignore err if it is object not found as in HNS bucket object may exist as a folder.
-		if !errors.As(err, &notfound) {
-			return err
-		}
-		logger.Infof("Object in DeleteObject not found for delete folder: %v", err)
-	}
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
 		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
