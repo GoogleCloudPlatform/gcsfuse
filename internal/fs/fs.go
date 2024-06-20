@@ -2129,10 +2129,10 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	}
 
 	// Fetch all the descendants of the old directory recursively
-	//descendants, err := oldDir.ReadDescendants(ctx, int(fs.renameDirLimit+1))
-	//if err != nil {
-	//	return fmt.Errorf("read descendants of the old directory %q: %w", oldName, err)
-	//}
+	descendants, err := oldDir.ReadDescendants(ctx, -1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the old directory %q: %w", oldName, err)
+	}
 
 	if oldParent == newParent {
 		// If both parents are the same, lock once
@@ -2169,28 +2169,28 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	pendingInodes = append(pendingInodes, newDir)
 	releaseInodes()
 	// Fail the operation if the new directory is non-empty.
-	//unexpected, err := newDir.ReadDescendants(ctx, 1)
-	//if err != nil {
-	//	return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
-	//}
-	//if len(unexpected) > 0 {
-	//	return fuse.ENOTEMPTY
-	//}
-	//
-	//for _, descendant := range descendants {
-	//	nameDiff := strings.TrimPrefix(
-	//		descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
-	//
-	//	o := descendant.MinObject
-	//
-	//	if _, err := newDir.UpdateCacheWithChildNode(ctx, nameDiff, o); err != nil {
-	//		return fmt.Errorf("copy file %q: %w", o.Name, err)
-	//	}
-	//
-	//	if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
-	//		return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
-	//	}
-	//}
+	unexpected, err := newDir.ReadDescendants(ctx, 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
+	}
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
+
+	for _, descendant := range descendants {
+		nameDiff := strings.TrimPrefix(
+			descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
+
+		o := descendant.MinObject
+
+		if _, err := newDir.UpdateCacheWithChildNode(ctx, nameDiff, o); err != nil {
+			return fmt.Errorf("copy file %q: %w", o.Name, err)
+		}
+
+		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
+			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
+		}
+	}
 
 	return
 }
