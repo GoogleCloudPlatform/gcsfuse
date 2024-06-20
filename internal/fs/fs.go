@@ -2131,7 +2131,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	if oldParent == newParent {
 		// If both parents are the same, lock once
 		oldParent.Lock()
-		_, err = oldParent.RenameFolder(ctx, oldName, path.Join(newParent.Name().GcsObjectName(), newName))
+		_, err = oldParent.RenameFolder(ctx, path.Join(oldParent.Name().GcsObjectName(), oldName), path.Join(newParent.Name().GcsObjectName(), newName))
 		if err != nil {
 			return err
 		}
