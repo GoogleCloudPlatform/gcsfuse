@@ -495,8 +495,17 @@ func (b *bucketHandle) RenameFolder(
 	folderName string,
 	destinationFolderId string) (o *controlpb.Folder, err error) {
 
+	req := &controlpb.RenameFolderRequest{
+		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		DestinationFolderId: destinationFolderId,
+	}
+	op, err := b.controlClient.RenameFolder(ctx, req)
+	if err != nil {
+		fmt.Errorf("RenameFolder: %v", err)
+	}
 
-	return
+	resp, err := op.Wait(ctx)
+	return resp, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

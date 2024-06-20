@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -64,6 +65,9 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	RenameFolder(ctx context.Context,
+		folderName string,
+		destinationFolderId string) (*controlpb.Folder, error)
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -581,6 +585,18 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 		}
 	}
 
+}
+
+func (d *dirInode) RenameFolder(ctx context.Context,
+	folderName string,
+	destinationFolderId string) (op *controlpb.Folder, err error) {
+
+	op, err = d.bucket.RenameFolder(ctx, folderName, destinationFolderId)
+	if err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 // LOCKS_REQUIRED(d)

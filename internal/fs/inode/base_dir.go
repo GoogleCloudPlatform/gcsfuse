@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -228,6 +229,13 @@ func (d *baseDirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
 	isImplicitDir bool) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+func (d *baseDirInode) RenameFolder(ctx context.Context,
+	folderName string,
+	destinationFolderId string) (op *controlpb.Folder, err error) {
 	err = fuse.ENOSYS
 	return
 }
