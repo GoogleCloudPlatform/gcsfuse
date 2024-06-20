@@ -2059,13 +2059,10 @@ func (fs *fileSystem) renameDir(
 		}
 
 		o := descendant.MinObject
-		if _, err := newDir.CloneToChildFile(ctx, nameDiff, o); err != nil {
-			return fmt.Errorf("copy file %q: %w", o.Name, err)
-		}
-		if err := oldDir.DeleteChildFile(ctx, nameDiff, o.Generation, &o.MetaGeneration); err != nil {
-			return fmt.Errorf("delete file %q: %w", o.Name, err)
-		}
 
+		if _, err := newDir.UpdateCacheWithChildNode(ctx, nameDiff, o); err != nil {
+			return fmt.Errorf("Update type cache %q: %w", o.Name, err)
+		}
 		if err = fs.invalidateChildFileCacheIfExist(oldDir, o.Name); err != nil {
 			return fmt.Errorf("Unlink: while invalidating cache for delete file: %w", err)
 		}
@@ -2168,15 +2165,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	}
 	pendingInodes = append(pendingInodes, newDir)
 	releaseInodes()
-	// Fail the operation if the new directory is non-empty.
-	unexpected, err := newDir.ReadDescendants(ctx, 1)
-	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
-	}
-	if len(unexpected) > 0 {
-		return fuse.ENOTEMPTY
-	}
-
+fs.checkInvariantsForImplicitDirs()
 	for _, descendant := range descendants {
 		nameDiff := strings.TrimPrefix(
 			descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
