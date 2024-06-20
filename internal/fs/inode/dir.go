@@ -68,6 +68,8 @@ type DirInode interface {
 	RenameFolder(ctx context.Context,
 		folderName string,
 		destinationFolderId string) (*controlpb.Folder, error)
+
+	UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (*Core, error)
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -585,6 +587,20 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 		}
 	}
 
+}
+
+func (d *dirInode) UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
+	// Erase any existing type information for this name.
+	d.cache.Erase(name)
+	fullName := NewFileName(d.Name(), name)
+
+	c := &Core{
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: src,
+	}
+	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	return c, nil
 }
 
 func (d *dirInode) RenameFolder(ctx context.Context,

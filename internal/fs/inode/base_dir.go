@@ -240,6 +240,11 @@ func (d *baseDirInode) RenameFolder(ctx context.Context,
 	return
 }
 
+func (d *baseDirInode) UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (c *Core, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
 	// Base directory can not contain local files.
 	return nil
