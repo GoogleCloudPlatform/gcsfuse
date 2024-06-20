@@ -79,17 +79,16 @@ type RandomReader interface {
 
 // NewRandomReader create a random reader for the supplied object record that
 // reads using the given bucket.
-func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) RandomReader {
+func NewRandomReader(o *gcs.MinObject, bucket gcs.Bucket, sequentialReadSizeMb int32, fileCacheHandler *file.CacheHandler) RandomReader {
 	return &randomReader{
-		object:                o,
-		bucket:                bucket,
-		start:                 -1,
-		limit:                 -1,
-		seeks:                 0,
-		totalReadBytes:        0,
-		sequentialReadSizeMb:  sequentialReadSizeMb,
-		fileCacheHandler:      fileCacheHandler,
-		cacheFileForRangeRead: cacheFileForRangeRead,
+		object:               o,
+		bucket:               bucket,
+		start:                -1,
+		limit:                -1,
+		seeks:                0,
+		totalReadBytes:       0,
+		sequentialReadSizeMb: sequentialReadSizeMb,
+		fileCacheHandler:     fileCacheHandler,
 	}
 }
 
@@ -121,10 +120,6 @@ type randomReader struct {
 	// fileCacheHandler is used to get file cache handle and read happens using that.
 	// This will be nil if the file cache is disabled.
 	fileCacheHandler *file.CacheHandler
-
-	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
-	// will be downloaded for random reads as well too.
-	cacheFileForRangeRead bool
 
 	// fileCacheHandle is used to read from the cached location. It is created on the fly
 	// using fileCacheHandler for the given object and bucket.
@@ -207,7 +202,7 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 
 	// Create fileCacheHandle if not already.
 	if rr.fileCacheHandle == nil {
-		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, rr.cacheFileForRangeRead, offset)
+		rr.fileCacheHandle, err = rr.fileCacheHandler.GetCacheHandle(rr.object, rr.bucket, offset)
 		if err != nil {
 			// We fall back to GCS if file size is greater than the cache size
 			if strings.Contains(err.Error(), lru.InvalidEntrySizeErrorMsg) {

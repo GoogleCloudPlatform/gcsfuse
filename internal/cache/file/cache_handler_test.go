@@ -84,7 +84,7 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 		})
 
 	// Mocked cached handler object.
-	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	chrT.cacheHandler = NewCacheHandler(chrT.cache, chrT.jobManager, chrT.cacheDir, nil, false, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Follow consistency, local-cache file, entry in fileInfo cache and job should exist initially.
 	chrT.fileInfoKeyName = chrT.addTestFileInfoEntryInCache(storage.TestBucketName, TestObjectName)
@@ -350,7 +350,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneratio
 	// Change the version of the object, but cache still keeps old generation
 	chrT.object.Generation = chrT.object.Generation + 1
 
-	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, newCacheHandle.validateCacheHandle())
@@ -370,7 +370,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(
 	AssertEq(downloader.Failed, jobStatus.Name)
 	chrT.object.Size = correctSize
 
-	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+	newCacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 
 	// New job should be created because the earlier job has failed.
 	ExpectEq(nil, err)
@@ -384,7 +384,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPr
 	// File info and download job are already present for test object.
 	existingJob := chrT.getDownloadJobForTestObject()
 
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle.validateCacheHandle())
@@ -398,7 +398,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreAlreadyPr
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenFileInfoAndJobAreNotPresent() {
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1"))
 
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle.validateCacheHandle())
@@ -417,7 +417,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WithEviction() {
 	// Here, content size is 21.
 	minObject := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
 
-	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, 0)
 
 	ExpectEq(nil, err)
 	ExpectEq(nil, cacheHandle2.validateCacheHandle())
@@ -432,7 +432,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 	AssertEq(nil, err)
 	existingJob := chrT.getDownloadJobForTestObject()
 
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, false, 0)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(chrT.object, chrT.bucket, 0)
 
 	AssertNe(nil, err)
 	ExpectTrue(strings.Contains(err.Error(), util.FileNotPresentInCacheErrMsg))
@@ -446,14 +446,16 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_IfLocalFileGetsDeleted() {
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_CacheForRangeRead() {
+	chrT.cacheHandler.cacheFileForRangeRead = false
 	minObject1 := chrT.getMinObject("object_1", []byte("content of object_1 ..."))
-	cacheHandle1, err1 := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, false, 0)
+	cacheHandle1, err1 := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, 0)
 	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2 ..."))
-	cacheHandle2, err2 := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, false, 5)
+	cacheHandle2, err2 := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, 5)
+	chrT.cacheHandler.cacheFileForRangeRead = true
 	minObject3 := chrT.getMinObject("object_3", []byte("content of object_3 ..."))
-	cacheHandle3, err3 := chrT.cacheHandler.GetCacheHandle(minObject3, chrT.bucket, true, 0)
+	cacheHandle3, err3 := chrT.cacheHandler.GetCacheHandle(minObject3, chrT.bucket, 0)
 	minObject4 := chrT.getMinObject("object_4", []byte("content of object_4 ..."))
-	cacheHandle4, err4 := chrT.cacheHandler.GetCacheHandle(minObject4, chrT.bucket, true, 5)
+	cacheHandle4, err4 := chrT.cacheHandler.GetCacheHandle(minObject4, chrT.bucket, 5)
 
 	ExpectEq(nil, err1)
 	ExpectEq(nil, cacheHandle1.validateCacheHandle())
@@ -477,7 +479,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentSameFile() {
 		minObj := chrT.getMinObject(testObjectName, []byte("content of object_1 ..."))
 
 		var err error
-		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, false, 0)
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
 
 		AssertEq(nil, err)
 		AssertEq(nil, cacheHandle.validateCacheHandle())
@@ -508,7 +510,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
 		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
-		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, false, 0)
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
 
 		AssertEq(nil, err)
 		AssertEq(nil, cacheHandle.validateCacheHandle())
@@ -560,7 +562,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenEntryNotInCache() {
 func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 	objectContent := []byte("content of object_1")
 	minObject := chrT.getMinObject("object_1", objectContent)
-	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, false, 0)
+	cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObject, chrT.bucket, 0)
 	AssertEq(nil, err)
 	buf := make([]byte, 3)
 	ctx := context.Background()
@@ -658,7 +660,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_GetCacheHandle_Concurrent() {
 		objContent := "object content: content#" + strconv.Itoa(index)
 		minObj := chrT.getMinObject(objName, []byte(objContent))
 
-		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, false, 0)
+		cacheHandle, err := chrT.cacheHandler.GetCacheHandle(minObj, chrT.bucket, 0)
 
 		AssertEq(nil, err)
 		AssertEq(nil, cacheHandle.validateCacheHandle())
@@ -677,9 +679,9 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_GetCacheHandle_Concurrent() {
 func (chrT *cacheHandlerTest) Test_Destroy() {
 	minObject1 := chrT.getMinObject("object_1", []byte("content of object_1"))
 	minObject2 := chrT.getMinObject("object_2", []byte("content of object_2"))
-	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, true, 0)
+	cacheHandle1, err := chrT.cacheHandler.GetCacheHandle(minObject1, chrT.bucket, 0)
 	AssertEq(nil, err)
-	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, true, 0)
+	cacheHandle2, err := chrT.cacheHandler.GetCacheHandle(minObject2, chrT.bucket, 0)
 	AssertEq(nil, err)
 	ctx := context.Background()
 	// Read to create and populate file in cache.

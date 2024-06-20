@@ -38,7 +38,7 @@ const (
 	ErrInReadingFileHandleMsg                 = "error while reading file handle"
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
-	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
+	CacheHandleNotRequiredForRandomReadErrMsg = "fileInfo entry is absent and either file is not eligible for download or cacheFileForRangeRead is false with random read type"
 	BufferSizeForCRC                          = 65536
 )
 

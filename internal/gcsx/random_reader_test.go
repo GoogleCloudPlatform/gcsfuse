@@ -178,10 +178,10 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	t.jobManager = downloader.NewJobManager(lruCache, util.DefaultFilePerm, util.DefaultDirPerm, t.cacheDir, sequentialReadSizeInMb, &config.FileCacheConfig{
 		EnableCrcCheck: false,
 	})
-	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, util.DefaultFilePerm, util.DefaultDirPerm)
+	t.cacheHandler = file.NewCacheHandler(lruCache, t.jobManager, t.cacheDir, nil, false, util.DefaultFilePerm, util.DefaultDirPerm)
 
 	// Set up the reader.
-	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, sequentialReadSizeInMb, nil)
 	t.rr.wrapped = rr.(*randomReader)
 }
 
@@ -590,7 +590,7 @@ func (t *RandomReaderTest) UpgradesSequentialReads_NoExistingReader() {
 	t.object.Size = 1 << 40
 	const readSize = 1 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, readSize/MB, nil)
 	t.rr.wrapped = rr.(*randomReader)
 
 	// Simulate a previous exhausted reader that ended at the offset from which
@@ -623,7 +623,7 @@ func (t *RandomReaderTest) SequentialReads_NoExistingReader_requestedSizeGreater
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil)
 	t.rr.wrapped = rr.(*randomReader)
 	// Create readers for each chunk.
 	chunk1Reader := strings.NewReader(strings.Repeat("x", chunkSize))
@@ -670,7 +670,7 @@ func (t *RandomReaderTest) SequentialReads_existingReader_requestedSizeGreaterTh
 	const chunkSize = 1 * MB
 	const readSize = 3 * MB
 	// Set up the custom randomReader.
-	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil, false)
+	rr := NewRandomReader(t.object, t.bucket, chunkSize/MB, nil)
 	t.rr.wrapped = rr.(*randomReader)
 	// Simulate an existing reader at the correct offset, which will be exhausted
 	// by the read below.
@@ -794,7 +794,6 @@ func (t *RandomReaderTest) Test_ReadAt_SequentialSubsequentReadOffsetLessThanRea
 func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRangeReadIsFalse() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	t.rr.wrapped.cacheFileForRangeRead = false
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
@@ -820,7 +819,6 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRangeReadIsTrue() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
 	objectSize := t.object.Size
-	t.rr.wrapped.cacheFileForRangeRead = true
 	testContent := testutil.GenerateRandomBytes(int(objectSize))
 	start := 5
 	end := 10 // not included
@@ -1130,7 +1128,6 @@ func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheHit() {
 
 func (t *RandomReaderTest) Test_tryReadingFromFileCache_CacheMiss() {
 	t.rr.wrapped.fileCacheHandler = t.cacheHandler
-	t.rr.wrapped.cacheFileForRangeRead = false
 	start := 5
 	end := 10
 	ExpectCall(t.bucket, "Name")().WillRepeatedly(Return("test"))

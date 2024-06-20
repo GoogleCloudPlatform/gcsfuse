@@ -17,6 +17,7 @@ package file
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
@@ -43,6 +44,12 @@ type CacheHandler struct {
 	// cacheDir is the local path which contains the cache data i.e. objects stored as file.
 	cacheDir string
 
+	// cacheExcludeRegex is a pattern that excludes files from local cache based on object name.
+	cacheExcludeRegex *regexp.Regexp
+
+	// cacheFileForRangeRead  if true, object content will be downloaded for random reads.
+	cacheFileForRangeRead bool
+
 	// filePerm parameter specifies the permission of file in cache.
 	filePerm os.FileMode
 
@@ -53,14 +60,16 @@ type CacheHandler struct {
 	mu locker.Locker
 }
 
-func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
+func NewCacheHandler(fileInfoCache *lru.Cache, jobManager *downloader.JobManager, cacheDir string, cacheExcludeRegex *regexp.Regexp, cacheFileForRangeRead bool, filePerm os.FileMode, dirPerm os.FileMode) *CacheHandler {
 	return &CacheHandler{
-		fileInfoCache: fileInfoCache,
-		jobManager:    jobManager,
-		cacheDir:      cacheDir,
-		filePerm:      filePerm,
-		dirPerm:       dirPerm,
-		mu:            locker.New("FileCacheHandler", func() {}),
+		fileInfoCache:         fileInfoCache,
+		jobManager:            jobManager,
+		cacheDir:              cacheDir,
+		cacheExcludeRegex:     cacheExcludeRegex,
+		cacheFileForRangeRead: cacheFileForRangeRead,
+		filePerm:              filePerm,
+		dirPerm:               dirPerm,
+		mu:                    locker.New("FileCacheHandler", func() {}),
 	}
 }
 
@@ -199,24 +208,24 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 }
 
 // GetCacheHandle creates an entry in fileInfoCache if it does not already exist. It
-// creates downloader.Job if not already exis and requiredt. Also, creates local
+// creates downloader.Job if not already exists and required. Also, creates local
 // file into which the download job downloads the object content. Finally, it
 // returns a CacheHandle that contains the reference to downloader.Job and the
 // local file handle. This method is atomic, that means all the above-mentioned
 // tasks are completed in one uninterrupted sequence guarded by (CacheHandler.mu).
-// Note: It returns nil if cacheForRangeRead is set to False, initialOffset is
-// non-zero (i.e. random read) and entry for file doesn't already exist in
-// fileInfoCache then no need to create file in cache.
+// Note: It returns nil if the file is not eligible for download and entry for file
+// doesn't already exist in fileInfoCache.
 //
 // Acquires and releases LOCK(CacheHandler.mu)
-func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, cacheForRangeRead bool, initialOffset int64) (*CacheHandle, error) {
+func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket, initialOffset int64) (*CacheHandle, error) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
-	// If cacheForRangeRead is set to False, initialOffset is non-zero (i.e. random read)
-	// and entry for file doesn't already exist in fileInfoCache then no need to
-	// create file in cache.
-	if !cacheForRangeRead && initialOffset != 0 {
+	// If this request is not eligible for a file download and entry for file
+	// doesn't already exist in fileInfoCache then no need to create file in
+	// cache.
+	mayDownload := chr.downloadEligible(object.Name, initialOffset)
+	if !mayDownload {
 		fileInfoKey := data.FileInfoKey{
 			BucketName: bucket.Name(),
 			ObjectName: object.Name,
@@ -242,7 +251,7 @@ func (chr *CacheHandler) GetCacheHandle(object *gcs.MinObject, bucket gcs.Bucket
 		return nil, fmt.Errorf("GetCacheHandle: while creating local-file read handle: %w", err)
 	}
 
-	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object.Name, bucket.Name()), chr.fileInfoCache, cacheForRangeRead, initialOffset), nil
+	return NewCacheHandle(localFileReadHandle, chr.jobManager.GetJob(object.Name, bucket.Name()), chr.fileInfoCache, chr.cacheFileForRangeRead, initialOffset), nil
 }
 
 // InvalidateCache removes the file entry from the fileInfoCache and performs clean
@@ -284,4 +293,14 @@ func (chr *CacheHandler) Destroy() (err error) {
 
 	chr.jobManager.Destroy()
 	return
+}
+
+func (chr *CacheHandler) downloadEligible(name string, initialOffset int64) bool {
+	if chr.cacheExcludeRegex != nil && chr.cacheExcludeRegex.MatchString(name) {
+		return false
+	}
+	if !chr.cacheFileForRangeRead && initialOffset != 0 {
+		return false
+	}
+	return true
 }

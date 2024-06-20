@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -191,7 +192,6 @@ func NewFileSystem(
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
@@ -235,6 +235,15 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	// the future.
 	cacheDir = path.Join(cacheDir, cacheutil.FileCache)
 
+	var cacheExcludeRegex *regexp.Regexp
+	if regex := cfg.MountConfig.FileCacheConfig.CacheExcludeRegex; regex != "" {
+		cacheExcludeRegex, err = regexp.Compile(regex)
+		if err != nil {
+			return nil, fmt.Errorf("createFileCacheHandler: regexp.Compile(cacheExcludeRegex): %w", err)
+		}
+	}
+	cacheFileForRangeRead := cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead
+
 	filePerm := cacheutil.DefaultFilePerm
 	dirPerm := cacheutil.DefaultDirPerm
 
@@ -246,7 +255,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
 		cfg.SequentialReadSizeMb, &cfg.MountConfig.FileCacheConfig)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheDir, filePerm, dirPerm)
+		cacheDir, cacheExcludeRegex, cacheFileForRangeRead, filePerm, dirPerm)
 	return
 }
 
@@ -465,10 +474,6 @@ type fileSystem struct {
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
 	fileCacheHandler *file.CacheHandler
-
-	// cacheFileForRangeRead when true downloads file into cache even for
-	// random file access.
-	cacheFileForRangeRead bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1674,7 +1679,7 @@ func (fs *fileSystem) CreateFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(child.(*inode.FileInode), fs.fileCacheHandler)
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2231,7 +2236,7 @@ func (fs *fileSystem) OpenFile(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler, fs.cacheFileForRangeRead)
+	fs.handles[handleID] = handle.NewFileHandle(in, fs.fileCacheHandler)
 	op.Handle = handleID
 
 	// When we observe object generations that we didn't create, we assign them
