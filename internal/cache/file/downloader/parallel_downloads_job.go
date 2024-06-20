@@ -85,7 +85,16 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			rangeStart := start
 			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 
+			if goRoutineIdx == 0 {
+				if err = job.maxParallelismSem.Acquire(downloadErrGroupCtx, 1); err != nil {
+					return err
+				}
+			} else if s := job.maxParallelismSem.TryAcquire(1); !s {
+				break
+			}
+
 			downloadErrGroup.Go(func() error {
+				defer job.maxParallelismSem.Release(1)
 				// Copy the contents from NewReader to cache file at appropriate offset.
 				offsetWriter := io.NewOffsetWriter(cacheFile, rangeStart)
 				return job.downloadRange(downloadErrGroupCtx, offsetWriter, rangeStart, rangeEnd)

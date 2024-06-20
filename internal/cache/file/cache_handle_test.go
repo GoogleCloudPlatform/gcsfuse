@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -39,6 +40,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 const CacheMaxSize = 100 * util.MiB
@@ -136,7 +138,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: false})
+	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: false}, semaphore.NewWeighted(math.MaxInt64))
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -835,6 +837,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
 		cht.fileSpec,
 		func() {},
 		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 2, ReadRequestSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 
@@ -861,6 +864,7 @@ func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
 		cht.fileSpec,
 		func() {},
 		&config.FileCacheConfig{EnableCrcCheck: true, EnableParallelDownloads: true, DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
 

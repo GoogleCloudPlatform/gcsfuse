@@ -33,6 +33,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
 )
 
 type jobStatusName string
@@ -87,6 +88,9 @@ type Job struct {
 	removeJobCallback func()
 
 	mu locker.Locker
+	// This semaphore is shared across all jobs spawned by the job manager and is
+	// used to limit the download concurrency.
+	maxParallelismSem *semaphore.Weighted
 }
 
 // JobStatus represents the status of job.
@@ -111,6 +115,7 @@ func NewJob(
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
 	fileCacheConfig *config.FileCacheConfig,
+	maxParallelismSem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -120,6 +125,7 @@ func NewJob(
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
 		fileCacheConfig:      fileCacheConfig,
+		maxParallelismSem:    maxParallelismSem,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()

@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"reflect"
@@ -31,10 +32,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
+	"golang.org/x/sync/semaphore"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -45,26 +46,12 @@ const CacheMaxSize = 50
 const DefaultObjectName = "foo"
 const DefaultSequentialReadSizeMb = 100
 
-func (dt *downloaderTest) getMinObject(objectName string) gcs.MinObject {
-	ctx := context.Background()
-	minObject, _, err := dt.bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName,
-		ForceFetchFromGcs: true})
-	if err != nil {
-		panic(fmt.Errorf("error whlie stating object: %w", err))
-	}
-
-	if minObject != nil {
-		return *minObject
-	}
-	return gcs.MinObject{}
-}
-
 func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, sequentialReadSize int32, lruCacheSize uint64, removeCallback func()) {
 	ctx := context.Background()
 	objects := map[string][]byte{objectName: objectContent}
 	err := storageutil.CreateObjects(ctx, dt.bucket, objects)
 	AssertEq(nil, err)
-	dt.object = dt.getMinObject(objectName)
+	dt.object = getMinObject(objectName, dt.bucket)
 	dt.fileSpec = data.FileSpec{
 		Path:     dt.fileCachePath(dt.bucket.Name(), dt.object.Name),
 		FilePerm: util.DefaultFilePerm,
@@ -72,7 +59,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	}
 	dt.cache = lru.NewCache(lruCacheSize)
 
-	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig)
+	dt.job = NewJob(&dt.object, dt.bucket, dt.cache, sequentialReadSize, dt.fileSpec, removeCallback, dt.defaultFileCacheConfig, semaphore.NewWeighted(math.MaxInt64))
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
 		ObjectName: objectName,
