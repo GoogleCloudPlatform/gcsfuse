@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createObjectInStore(t *testing.T, objPath string, objSize int64, bucket gcs.Bucket) []byte {
+func createObjectInBucket(t *testing.T, objPath string, objSize int64, bucket gcs.Bucket) []byte {
 	t.Helper()
 	objectContent := make([]byte, objSize)
 	_, err := rand.Read(objectContent)
@@ -67,7 +67,7 @@ func configureCache(t *testing.T, maxSize int64) (*lru.Cache, string) {
 
 func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.Bucket, objectName string, objectSize int64) (gcs.MinObject, []byte) {
 	t.Helper()
-	content := createObjectInStore(t, objectName, objectSize, bucket)
+	content := createObjectInBucket(t, objectName, objectSize, bucket)
 	minObj := getMinObject(objectName, bucket)
 	fileInfoKey := data.FileInfoKey{
 		BucketName: storage.TestBucketName,
