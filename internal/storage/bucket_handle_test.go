@@ -28,6 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const missingObjectName string = "test/foo"
@@ -1290,4 +1292,40 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Equal(testSuite.T(), "DeleteFolder: mock error", err.Error())
+}
+
+func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalBucket() {
+	ctx := context.Background()
+	mockClient := new(MockStorageControlClient)
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
+	mockFolder := controlpb.Folder{
+		Name: folderPath,
+	}
+	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
+		Return(&mockFolder, nil)
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	result, err := testSuite.bucketHandle.GetFolder(ctx, TestObjectName)
+
+	mockClient.AssertExpectations(testSuite.T())
+	assert.Nil(testSuite.T(), err)
+	assert.Equal(testSuite.T(), folderPath, result.GetName())
+}
+
+func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {
+	ctx := context.Background()
+	mockClient := new(MockStorageControlClient)
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/random"
+
+	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
+		Return(nil, status.Error(codes.NotFound, "folder not found"))
+	testSuite.bucketHandle.controlClient = mockClient
+	testSuite.bucketHandle.bucketType = gcs.Hierarchical
+
+	result, err := testSuite.bucketHandle.GetFolder(ctx, "random")
+
+	mockClient.AssertExpectations(testSuite.T())
+	assert.Nil(testSuite.T(), result)
+	assert.ErrorContains(testSuite.T(), err, "folder not found")
 }

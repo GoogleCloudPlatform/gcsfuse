@@ -513,7 +513,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*contr
 	var callOptions []gax.CallOption
 
 	folder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: folderName,
+		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 	}, callOptions...)
 
 	if err != nil {
