@@ -59,7 +59,9 @@ func TestMain(m *testing.M) {
 		}
 	}()
 	hnsFlagSet := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient)
-	flags = append(flags, hnsFlagSet)
+	if hnsFlagSet != nil {
+		flags = append(flags, hnsFlagSet)
+	}
 
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 

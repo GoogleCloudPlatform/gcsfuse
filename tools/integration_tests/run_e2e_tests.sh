@@ -72,6 +72,7 @@ TEST_DIR_NON_PARALLEL=(
 TEST_DIR_HNS_GROUP=(
   "implicit_dir"
   "operations"
+  "rename_dir_limit"
 )
 
 # Create a temporary file to store the log file name.
