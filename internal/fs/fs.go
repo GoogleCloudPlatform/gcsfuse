@@ -2176,7 +2176,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context,
 	//if len(unexpected) > 0 {
 	//	return fuse.ENOTEMPTY
 	//}
-
+	//
 	//for _, descendant := range descendants {
 	//	nameDiff := strings.TrimPrefix(
 	//		descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())

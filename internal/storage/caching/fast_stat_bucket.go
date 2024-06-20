@@ -278,9 +278,10 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 }
 
 func (b *fastStatBucket) RenameFolder(
-		ctx context.Context,
-		folderName string,
-		destinationFolderId string) (o *controlpb.Folder, err error) {
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+	b.invalidate(folderName)
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
 }
