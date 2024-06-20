@@ -53,7 +53,7 @@ func init() {
 
 	// Add all the other flags.
 	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
-		logger.Fatal("error while declaring/binding flags: %w", err)
+		logger.Fatal("error while declaring/binding flags: %v", err)
 	}
 }
 
@@ -64,7 +64,7 @@ func initConfig() {
 	viper.SetConfigFile(cfgFile)
 	viper.SetConfigType("yaml")
 	if err := viper.ReadInConfig(); err != nil {
-		logger.Fatal("error while reading the config: %w", err)
+		logger.Fatal("error while reading the config: %v", err)
 	}
 	err := viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
@@ -72,6 +72,6 @@ func initConfig() {
 	},
 	)
 	if err != nil {
-		logger.Fatal("error while unmarshalling the config: %w", err)
+		logger.Fatal("error while unmarshalling the config: %v", err)
 	}
 }
