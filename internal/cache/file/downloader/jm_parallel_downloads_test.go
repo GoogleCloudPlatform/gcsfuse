@@ -109,17 +109,15 @@ func TestParallelDownloads(t *testing.T) {
 			downloadOffset:         10,
 			expectedOffset:         12 * util.MiB,
 		},
-		/*
-			{
-				name:                   "download only upto the object size",
-				objectSize:             10 * util.MiB,
-				readReqSize:            4,
-				maxDownloadParallelism: 3,
-				subscribedOffset:       7,
-				downloadOffset:         10,
-				expectedOffset:         10 * util.MiB,
-			},
-		*/
+		{
+			name:                   "download only upto the object size",
+			objectSize:             10 * util.MiB,
+			readReqSize:            4,
+			maxDownloadParallelism: 3,
+			subscribedOffset:       7,
+			downloadOffset:         10,
+			expectedOffset:         10 * util.MiB,
+		},
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
