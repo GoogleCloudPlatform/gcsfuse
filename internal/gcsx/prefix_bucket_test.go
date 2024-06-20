@@ -396,3 +396,25 @@ func (t *PrefixBucketTest) DeleteObject() {
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
+
+func (t *PrefixBucketTest) GetFolder_Prefix() {
+	var err error
+
+	// Create a few objects.
+	err = storageutil.CreateObjects(
+		t.ctx,
+		t.wrapped,
+		map[string][]byte{
+			"something": []byte(""),
+		})
+
+	AssertEq(nil, err)
+
+	result, err := t.bucket.GetFolder(
+		t.ctx,
+		"something")
+
+	AssertEq(nil, err)
+	AssertEq("projects/_/buckets/some_bucket/folders/foo_something", result.GetName())
+
+}

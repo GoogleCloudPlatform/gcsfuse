@@ -884,9 +884,9 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	return
 }
 
-func (b *bucket) GetFolder(ctx context.Context, folderPath string) (*controlpb.Folder, error) {
+func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.Folder, error) {
 	folder := controlpb.Folder{
-		Name: folderPath,
+		Name: "projects/_/buckets/" + b.Name() + "/folders/" + foldername,
 	}
 	return &folder, nil
 }
