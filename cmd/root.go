@@ -19,6 +19,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,6 +60,10 @@ func init() {
 
 func initConfig() {
 	if cfgFile != "" {
+		cfgFile, err := util.GetResolvedPath(cfgFile)
+		if err != nil {
+			logger.Fatal("error while resolving config-file path[%s]: %v", cfgFile, err)
+		}
 		viper.SetConfigFile(cfgFile)
 		viper.SetConfigType("yaml")
 		if err := viper.ReadInConfig(); err != nil {
