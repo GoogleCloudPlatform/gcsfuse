@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: emu-testing-pd
+  name: emu-testing
   labels:
-    run: emu-testing-pd
+    run: emu-testing
 spec:
   parallelism: 1
   completions: 1
   template:
     metadata:
       labels:
-        run: emu-testing-pd
+        run: emu-testing
       annotations: # required for GCSFuse
         gke-gcsfuse/volumes: "true"
         gke-gcsfuse/cpu-limit: "0"
@@ -19,7 +19,7 @@ spec:
     spec:
       initContainers:
       - name: gke-gcsfuse-sidecar
-        image: gcr.io/gcs-tess/gcs-fuse-csi-driver-webhook:v1.4.0-36-gb83e1b73-dirty
+        image: gcr.io/gcs-tess/kislayk-pd-sem/gcs-fuse-csi-driver-sidecar-mounter:v1.4.0-36-gb83e1b73-dirty
         restartPolicy: Always
         env:
         - name: NATIVE_SIDECAR
@@ -50,7 +50,7 @@ spec:
       serviceAccountName: gcs-fuse
       restartPolicy: Never
       containers:
-      - name: emu-testing-pd
+      - name: emu-testing
         image: gcr.io/gcs-tess/shiqi-pd-emu:shengshiqi-6
         volumeMounts:
         - mountPath: /mnt/disks/pd
@@ -67,7 +67,7 @@ spec:
           volumeAttributes:
             skipCSIBucketAccessCheck: "true"
             bucketName: shiqi-llama2-sr-usc1
-            mountOptions: "implicit-dirs,uid=1001,gid=3003,file-cache:read-request-size-mb:100,file-cache:download-parallelism-per-file:8,file-cache:max-download-parallelism:20"
+            mountOptions: "implicit-dirs,uid=1001,gid=3003"
             fileCacheCapacity: "-1"
             metadataCacheTTLSeconds: "-1"
             metadataStatCacheCapacity: "-1"
@@ -79,4 +79,3 @@ spec:
         emptyDir: { }
       - name: gke-gcsfuse-cache
         emptyDir: { }
-
