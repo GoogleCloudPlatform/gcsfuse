@@ -291,6 +291,7 @@ func (b *fastStatBucket) RenameFolder(
 	for _, value := range list.Objects {
 		b.invalidate(value.Name)
 	}
+
 	b.invalidate(folderName)
 
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
