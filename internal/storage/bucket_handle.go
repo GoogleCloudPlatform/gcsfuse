@@ -471,7 +471,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	var callOptions []gax.CallOption
 
 	// We can ignore errors from DeleteObject since the DeleteFolder API will likely report any underlying issues.
-	logger.Tracef("Initiating the deletion of the folder: %s",folderName)
+	logger.Tracef("Initiating the deletion of the folder: %s", folderName)
 	_ = b.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
