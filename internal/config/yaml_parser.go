@@ -81,12 +81,16 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 	if fileCacheConfig.MaxDownloadParallelism < -1 {
 		return fmt.Errorf(MaxDownloadParallelismInvalidValueError)
 	}
+	if fileCacheConfig.EnableParallelDownloads && fileCacheConfig.MaxDownloadParallelism == 0 {
+		return fmt.Errorf("the value of max-download-parallelism for file-cache must not be 0 when enable-parallel-downloads is true")
+	}
 	if fileCacheConfig.DownloadParallelismPerFile < 1 {
 		return fmt.Errorf(DownloadParallelismPerFileInvalidValueError)
 	}
 	if fileCacheConfig.ReadRequestSizeMB < 1 {
 		return fmt.Errorf(ReadRequestSizeMBInvalidValueError)
 	}
+
 	return nil
 }
 
