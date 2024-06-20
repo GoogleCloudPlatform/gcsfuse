@@ -58,14 +58,14 @@ func init() {
 }
 
 func initConfig() {
-	if cfgFile == "" {
-		return
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+		viper.SetConfigType("yaml")
+		if err := viper.ReadInConfig(); err != nil {
+			logger.Fatal("error while reading the config: %v", err)
+		}
 	}
-	viper.SetConfigFile(cfgFile)
-	viper.SetConfigType("yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		logger.Fatal("error while reading the config: %v", err)
-	}
+
 	err := viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 		decoderConfig.TagName = "yaml"
