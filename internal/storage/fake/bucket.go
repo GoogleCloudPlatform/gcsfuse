@@ -27,6 +27,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -881,4 +882,11 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	b.objects = append(b.objects[:index], b.objects[index+1:]...)
 
 	return
+}
+
+func (b *bucket) GetFolder(ctx context.Context, folderPath string) (*controlpb.Folder, error) {
+	folder := controlpb.Folder{
+		Name: folderPath,
+	}
+	return &folder, nil
 }
