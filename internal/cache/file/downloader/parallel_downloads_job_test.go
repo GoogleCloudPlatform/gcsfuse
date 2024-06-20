@@ -33,12 +33,10 @@ type parallelDownloaderTest struct {
 	downloaderTest
 }
 
-func init() {
-	RegisterTestSuite(&parallelDownloaderTest{})
-}
+func init() { RegisterTestSuite(&parallelDownloaderTest{}) }
 
 func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableParallelDownloads: true,
-		DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 6}
+		DownloadParallelismPerFile: 5, ReadRequestSizeMB: 2, EnableCrcCheck: true}
 	dt.setupHelper()
 }

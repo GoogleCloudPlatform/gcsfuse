@@ -57,9 +57,9 @@ type JobManager struct {
 	// concatenation of bucket name, "/", and object name. e.g. object path for an
 	// object named "a/b/foo.txt" in bucket named "test_bucket" would be
 	// "test_bucket/a/b/foo.txt"
-	jobs               map[string]*Job
-	mu                 locker.Locker
-	uberConcurrencySem *semaphore.Weighted
+	jobs              map[string]*Job
+	mu                locker.Locker
+	maxParallelismSem *semaphore.Weighted
 }
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
@@ -75,7 +75,8 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 		cacheDir:             cacheDir,
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileCacheConfig:      c,
-		uberConcurrencySem:   semaphore.NewWeighted(maxDownloadParallelism),
+		// Shared between jobs - Limits the overall concurrency of downloads.
+		maxParallelismSem: semaphore.NewWeighted(maxDownloadParallelism),
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)
@@ -113,7 +114,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	removeJobCallback := func() {
 		jm.removeJob(object.Name, bucket.Name())
 	}
-	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.uberConcurrencySem)
+	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem)
 	jm.jobs[objectPath] = job
 	return job
 }

@@ -87,8 +87,10 @@ type Job struct {
 	// is responsibility of JobManager to pass this function.
 	removeJobCallback func()
 
-	mu                 locker.Locker
-	uberConcurrencySem *semaphore.Weighted
+	mu locker.Locker
+	// This semaphore is shared across all jobs spawned by the job manager and is
+	// used to limit the download concurrency.
+	maxParallelismSem *semaphore.Weighted
 }
 
 // JobStatus represents the status of job.
@@ -123,7 +125,7 @@ func NewJob(
 		fileSpec:             fileSpec,
 		removeJobCallback:    removeJobCallback,
 		fileCacheConfig:      fileCacheConfig,
-		uberConcurrencySem:   uberConcurrencySem,
+		maxParallelismSem:    uberConcurrencySem,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
