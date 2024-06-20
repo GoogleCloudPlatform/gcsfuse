@@ -30,23 +30,23 @@ type MockStorageControlClient struct {
 
 // Implement the GetStorageLayout method for the mock.
 func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context,
-		req *controlpb.GetStorageLayoutRequest,
-		opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
+	req *controlpb.GetStorageLayoutRequest,
+	opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
 	args := m.Called(ctx, req, opts)
 	return args.Get(0).(*controlpb.StorageLayout), args.Error(1)
 }
 
 // Implement the DeleteFolder method for the mock.
 func (m *MockStorageControlClient) DeleteFolder(ctx context.Context,
-		req *controlpb.DeleteFolderRequest,
-		opts ...gax.CallOption) error {
+	req *controlpb.DeleteFolderRequest,
+	opts ...gax.CallOption) error {
 	args := m.Called(ctx, req, opts)
 	return args.Error(0)
 }
 
 func (m *MockStorageControlClient) GetFolder(ctx context.Context,
-		req *controlpb.GetFolderRequest,
-		opts ...gax.CallOption) (*controlpb.Folder, error) {
+	req *controlpb.GetFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
 	args := m.Called(ctx, req, opts)
 
 	if folder, ok := args.Get(0).(*controlpb.Folder); ok {
