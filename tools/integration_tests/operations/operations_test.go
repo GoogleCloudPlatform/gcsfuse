@@ -171,7 +171,8 @@ func TestMain(m *testing.M) {
 		// By default, creating emptyFile is disabled.
 		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
 
-	if !testing.Short() {
+	// gRPC tests will not run in TPC environment
+	if !testing.Short() && !setup.TestOnTPCEndPoint() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
 
