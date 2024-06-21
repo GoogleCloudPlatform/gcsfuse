@@ -550,10 +550,11 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 	descendants := make(map[Name]*Core)
 	for {
 		listing, err := d.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{
-			Delimiter:         "", // recursively
-			Prefix:            d.Name().GcsObjectName(),
-			ContinuationToken: tok,
-			MaxResults:        limit + 1, // to exclude itself
+			Delimiter:                "", // recursively
+			Prefix:                   d.Name().GcsObjectName(),
+			ContinuationToken:        tok,
+			MaxResults:               limit + 1, // to exclude itself
+			IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("list objects: %w", err)
@@ -859,6 +860,7 @@ func (d *dirInode) DeleteChildDir(
 		if err != nil {
 			return fmt.Errorf("DeleteFolder: %w", err)
 		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	if err != nil {
