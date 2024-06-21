@@ -20,10 +20,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
@@ -63,9 +65,21 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
-		os.Args = convertToPosixArgs(os.Args)
-		cmd.Execute()
+		// TODO: implement the mount logic instead of simply returning nil.
+		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config) error { return nil })
+		if err != nil {
+			exitOnError(err)
+		}
+		rootCmd.SetArgs(convertToPosixArgs(os.Args))
+		if err := rootCmd.Execute(); err != nil {
+			exitOnError(err)
+		}
 		return
 	}
 	cmd.ExecuteLegacyMain()
+}
+
+func exitOnError(err error) {
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
 }

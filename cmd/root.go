@@ -27,36 +27,34 @@ import (
 
 var (
 	cfgFile   string
+	cfgErr    error
 	configObj cfg.Config
 )
-var rootCmd = &cobra.Command{
-	Use:   "gcsfuse [flags] bucket mount_point",
-	Short: "Mount a specified GCS bucket or all accessible buckets locally",
-	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
+
+// NewRootCmd accepts the mountFn that it executes with the parsed configuration
+func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
+	rootCmd := &cobra.Command{
+		Use:   "gcsfuse [flags] bucket mount_point",
+		Short: "Mount a specified GCS bucket or all accessible buckets locally",
+		Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-	Version: getVersion(),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: the following error will be removed once the command is implemented.
-		return fmt.Errorf("unsupported operation")
-	},
-}
-
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		Version: getVersion(),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cfgErr != nil {
+				return cfgErr
+			}
+			return mountFn(configObj)
+		},
 	}
-}
-
-func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified."+
-		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
 	// Add all the other flags.
 	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
-		logger.Fatal("error while declaring/binding flags: %v", err)
+		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
 	}
+	return rootCmd, nil
 }
 
 func initConfig() {
@@ -72,12 +70,11 @@ func initConfig() {
 		}
 	}
 
-	err := viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+	cfgErr = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 		decoderConfig.TagName = "yaml"
+		// Reject the config file if any of the fields in the YAML don't map to the struct.
+		decoderConfig.ErrorUnused = true
 	},
 	)
-	if err != nil {
-		logger.Fatal("error while unmarshalling the config: %v", err)
-	}
 }
