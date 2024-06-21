@@ -470,22 +470,9 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	var callOptions []gax.CallOption
 
-	// We can ignore errors from DeleteObject since the DeleteFolder API will likely report any underlying issues.
-	logger.Tracef("Initiating the deletion of the folder with DeleteObject: %s", folderName)
-	_ = b.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       folderName,
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
-
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
 		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 	}, callOptions...)
-
-	if err != nil {
-		err = fmt.Errorf("DeleteFolder: %w", err)
-	}
 
 	return err
 }

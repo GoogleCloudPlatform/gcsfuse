@@ -836,28 +836,33 @@ func (d *dirInode) DeleteChildDir(
 
 	childName := NewDirName(d.Name(), name)
 
+	// if the directory is an implicit directory, then no backing object
+	// exists in the gcs bucket, so returning from here.
+	// Hierarchical bucket there will not be any implicit dir.
+	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
+		return
+	}
+
+	// Delete the backing object. Unfortunately we have no way to precondition
+	// this on the directory being empty.
+	err = d.bucket.DeleteObject(
+		ctx,
+		&gcs.DeleteObjectRequest{
+			Name:       childName.GcsObjectName(),
+			Generation: 0, // Delete the latest version of object named after dir.
+		})
+
 	if d.bucket.BucketType() == gcs.Hierarchical {
 		// In Hierarchical bucket implicit object remains as a folder only.
 		// Delete Folder deletes folder (in case of Hierarchical Bucket).
 		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
-	} else {
-		// if the directory is an implicit directory, then no backing object
-		// exists in the gcs bucket, so returning from here.
-		if isImplicitDir {
-			return
+		if err != nil {
+			return fmt.Errorf("DeleteFolder: %w", err)
 		}
-		// Delete the backing object. Unfortunately we have no way to precondition
-		// this on the directory being empty.
-		err = d.bucket.DeleteObject(
-			ctx,
-			&gcs.DeleteObjectRequest{
-				Name:       childName.GcsObjectName(),
-				Generation: 0, // Delete the latest version of object named after dir.
-			})
 	}
 
 	if err != nil {
-		return
+		return fmt.Errorf("DeleteObject: %w", err)
 	}
 
 	d.cache.Erase(name)
