@@ -111,13 +111,14 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                  int64 `yaml:"max-size-mb"`
-	CacheFileForRangeRead      bool  `yaml:"cache-file-for-range-read"`
-	EnableParallelDownloads    bool  `yaml:"enable-parallel-downloads,omitempty"`
-	DownloadParallelismPerFile int   `yaml:"download-parallelism-per-file,omitempty"`
-	MaxDownloadParallelism     int   `yaml:"max-download-parallelism,omitempty"`
-	ReadRequestSizeMB          int   `yaml:"read-request-size-mb,omitempty"`
-	EnableCrcCheck             bool  `yaml:"enable-crc-check"`
+	MaxSizeMB                  int64  `yaml:"max-size-mb"`
+	CacheFileForRangeRead      bool   `yaml:"cache-file-for-range-read"`
+	CacheExcludeRegex          string `yaml:"cache-file-exclude-regex"`
+	EnableParallelDownloads    bool   `yaml:"enable-parallel-downloads,omitempty"`
+	DownloadParallelismPerFile int    `yaml:"download-parallelism-per-file,omitempty"`
+	MaxDownloadParallelism     int    `yaml:"max-download-parallelism,omitempty"`
+	ReadRequestSizeMB          int    `yaml:"read-request-size-mb,omitempty"`
+	EnableCrcCheck             bool   `yaml:"enable-crc-check"`
 }
 
 type MetadataCacheConfig struct {
