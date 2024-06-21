@@ -418,3 +418,33 @@ func (t *PrefixBucketTest) GetFolder_Prefix() {
 	AssertEq("projects/_/buckets/some_bucket/folders/foo_something", result.GetName())
 
 }
+
+func (t *PrefixBucketTest) DeleteFolder() {
+	var err error
+	suffix := "taco"
+	name := t.prefix + suffix
+	contents := "foobar"
+
+	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
+	// Create an object through the back door.
+	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	AssertEq(nil, err)
+
+	// Delete it.
+	err = t.bucket.DeleteFolder(
+		t.ctx,
+		suffix)
+
+	AssertEq(nil, err)
+
+	// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
+	// It should be gone.
+	_, _, err = t.wrapped.StatObject(
+		t.ctx,
+		&gcs.StatObjectRequest{
+			Name: name,
+		})
+
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
+}
