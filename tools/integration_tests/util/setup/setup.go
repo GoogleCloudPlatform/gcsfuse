@@ -421,7 +421,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 			},
 		}
 		filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-		flags = append(flags, "--config-file="+filePath4)
+		flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
 		return flags
 	}
 	return nil

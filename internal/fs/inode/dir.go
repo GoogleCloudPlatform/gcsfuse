@@ -352,9 +352,8 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 	}
 
 	req := &gcs.ListObjectsRequest{
-		Prefix:                   name.GcsObjectName(),
-		MaxResults:               1,
-		IncludeFoldersAsPrefixes: true,
+		Prefix:     name.GcsObjectName(),
+		MaxResults: 1,
 	}
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
@@ -555,7 +554,6 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			Prefix:                   d.Name().GcsObjectName(),
 			ContinuationToken:        tok,
 			MaxResults:               limit + 1, // to exclude itself
-			IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("list objects: %w", err)
