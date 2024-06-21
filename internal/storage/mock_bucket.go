@@ -349,7 +349,7 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 
 func (m *mockBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (folder *controlpb.Folder, err error) {
+	prefix string) (o0 *controlpb.Folder, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -360,12 +360,18 @@ func (m *mockBucket) GetFolder(
 		file,
 		line,
 		[]interface{}{})
-	if len(retVals) != 1 {
+
+	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.GetFolder: invalid return values: %v", retVals))
 	}
-	// o0 string
+
 	if retVals[0] != nil {
-		err = retVals[0].(error)
+		o0 = retVals[0].(*controlpb.Folder)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
 	}
 	return
 }

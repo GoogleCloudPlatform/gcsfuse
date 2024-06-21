@@ -1316,14 +1316,14 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/random"
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName
 
 	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
 		Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	result, err := testSuite.bucketHandle.GetFolder(ctx, "random")
+	result, err := testSuite.bucketHandle.GetFolder(ctx, missingObjectName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), result)
