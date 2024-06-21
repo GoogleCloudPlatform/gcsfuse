@@ -44,7 +44,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.False(t, mountConfig.FileCacheConfig.EnableParallelDownloads)
 	assert.Equal(t, 10, mountConfig.FileCacheConfig.ParallelDownloadsPerFile)
-	assert.Equal(t, -1, mountConfig.FileCacheConfig.MaxParallelDownloads)
+	assert.GreaterOrEqual(t, mountConfig.FileCacheConfig.MaxParallelDownloads, 16)
 	assert.Equal(t, 25, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
 	assert.True(t, mountConfig.FileCacheConfig.EnableCRC)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
