@@ -26,28 +26,26 @@ import (
 
 var (
 	cfgFile   string
+	err       error
 	configObj cfg.Config
 )
-var rootCmd = &cobra.Command{
-	Use:   "gcsfuse [flags] bucket mount_point",
-	Short: "Mount a specified GCS bucket or all accessible buckets locally",
-	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
+
+func NewRootCmd() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "gcsfuse [flags] bucket mount_point",
+		Short: "Mount a specified GCS bucket or all accessible buckets locally",
+		Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-	Version: getVersion(),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: the following error will be removed once the command is implemented.
-		return fmt.Errorf("unsupported operation")
-	},
-}
-
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		Version: getVersion(),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err != nil {
+				return err
+			}
+			// TODO: the following error will be removed once the command is implemented.
+			return fmt.Errorf("unsupported operation")
+		},
 	}
-}
-
-func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Absolute path to the config file.")
 
@@ -55,6 +53,7 @@ func init() {
 	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
 		logger.Fatal("error while declaring/binding flags: %v", err)
 	}
+	return rootCmd
 }
 
 func initConfig() {
@@ -63,15 +62,14 @@ func initConfig() {
 	}
 	viper.SetConfigFile(cfgFile)
 	viper.SetConfigType("yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		logger.Fatal("error while reading the config: %v", err)
+	if err = viper.ReadInConfig(); err != nil {
+		return
 	}
-	err := viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+	err = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 		decoderConfig.TagName = "yaml"
+		// Reject the config file if any of the fields in the YAML don't map to the struct.
+		decoderConfig.ErrorUnused = true
 	},
 	)
-	if err != nil {
-		logger.Fatal("error while unmarshalling the config: %v", err)
-	}
 }

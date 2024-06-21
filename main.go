@@ -20,6 +20,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -64,7 +65,10 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		os.Args = convertToPosixArgs(os.Args)
-		cmd.Execute()
+		if err := cmd.NewRootCmd().Execute(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 	cmd.ExecuteLegacyMain()
