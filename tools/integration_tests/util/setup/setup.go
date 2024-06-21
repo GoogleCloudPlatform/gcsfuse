@@ -421,6 +421,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 			},
 		}
 		filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
+		// Adding --implicit-dirs flag until GetFolder API got implemented
 		flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
 		return flags
 	}
