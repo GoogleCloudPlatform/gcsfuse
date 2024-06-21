@@ -468,22 +468,16 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 }
 
 func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
-	var notfound *gcs.NotFoundError
 	var callOptions []gax.CallOption
 
-	err = b.DeleteObject(
+	// We can ignore errors from DeleteObject since the DeleteFolder API will likely report any underlying issues.
+	logger.Tracef("Initiating the deletion of the folder with DeleteObject: %s", folderName)
+	_ = b.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
 			Name:       folderName,
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
-
-	if err != nil {
-		// Ignore err if it is object not found as in HNS bucket object may exist as a folder.
-		if !errors.As(err, &notfound) {
-			return err
-		}
-	}
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
 		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
@@ -494,6 +488,24 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	}
 
 	return err
+}
+
+func (b *bucketHandle) RenameFolder(
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+
+	req := &controlpb.RenameFolderRequest{
+		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		DestinationFolderId: destinationFolderId,
+	}
+	op, err := b.controlClient.RenameFolder(ctx, req)
+	if err != nil {
+		fmt.Errorf("RenameFolder: %v", err)
+	}
+
+	resp, err := op.Wait(ctx)
+	return resp, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

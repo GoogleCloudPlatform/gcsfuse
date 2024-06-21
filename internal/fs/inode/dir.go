@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -64,6 +65,11 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	RenameFolder(ctx context.Context,
+		folderName string,
+		destinationFolderId string) (*controlpb.Folder, error)
+
+	UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (*Core, error)
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -583,6 +589,34 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
+func (d *dirInode) UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (*Core, error) {
+	// Erase any existing type information for this name.
+	d.cache.Erase(name)
+	fullName := NewFileName(d.Name(), name)
+
+	c := &Core{
+		Bucket:    d.Bucket(),
+		FullName:  fullName,
+		MinObject: src,
+	}
+	d.cache.Insert(d.cacheClock.Now(), name, c.Type())
+	return c, nil
+}
+
+func (d *dirInode) RenameFolder(ctx context.Context,
+	folderName string,
+	destinationFolderId string) (op *controlpb.Folder, err error) {
+
+	op, err = d.bucket.RenameFolder(ctx, folderName, destinationFolderId)
+	if err != nil {
+		return nil, err
+	}
+
+	d.cache.Erase(folderName)
+
+	return
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
@@ -834,30 +868,26 @@ func (d *dirInode) DeleteChildDir(
 	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
 
-	// if the directory is an implicit directory, then no backing object
-	// exists in the gcs bucket, so returning from here.
-	if isImplicitDir {
-		return
-	}
 	childName := NewDirName(d.Name(), name)
 
-	// Delete the backing object. Unfortunately we have no way to precondition
-	// this on the directory being empty.
-	err = d.bucket.DeleteObject(
-		ctx,
-		&gcs.DeleteObjectRequest{
-			Name:       childName.GcsObjectName(),
-			Generation: 0, // Delete the latest version of object named after dir.
-		})
-
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
-		return
-	}
-
 	if d.bucket.BucketType() == gcs.Hierarchical {
+		// In Hierarchical bucket implicit object remains as a folder only.
 		// Delete Folder deletes folder (in case of Hierarchical Bucket).
 		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
+	} else {
+		// if the directory is an implicit directory, then no backing object
+		// exists in the gcs bucket, so returning from here.
+		if isImplicitDir {
+			return
+		}
+		// Delete the backing object. Unfortunately we have no way to precondition
+		// this on the directory being empty.
+		err = d.bucket.DeleteObject(
+			ctx,
+			&gcs.DeleteObjectRequest{
+				Name:       childName.GcsObjectName(),
+				Generation: 0, // Delete the latest version of object named after dir.
+			})
 	}
 
 	if err != nil {

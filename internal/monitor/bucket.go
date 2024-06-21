@@ -20,6 +20,7 @@ import (
 	"io"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -200,6 +201,16 @@ func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string)
 	err := mb.wrapped.DeleteFolder(ctx, folderName)
 	recordRequest(ctx, "DeleteFolder", startTime)
 	return err
+}
+
+func (mb *monitoringBucket) RenameFolder(
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+	startTime := time.Now()
+	o, err = mb.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+	recordRequest(ctx, "RenameFolder", startTime)
+	return
 }
 
 // recordReader increments the reader count when it's opened or closed.

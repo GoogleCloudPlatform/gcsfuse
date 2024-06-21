@@ -57,6 +57,12 @@ func TestMain(m *testing.M) {
 
 	flagsSet := [][]string{{"--implicit-dirs"}}
 
+	hnsFlagConfig := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient)
+	hnsFlagSet := append(hnsFlagConfig, "--implicit-dirs")
+	if hnsFlagSet != nil {
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
+
 	if !testing.Short() {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}

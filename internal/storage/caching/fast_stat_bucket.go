@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -274,6 +275,27 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 	b.invalidate(folderName)
 	err := b.wrapped.DeleteFolder(ctx, folderName)
 	return err
+}
+
+func (b *fastStatBucket) RenameFolder(
+	ctx context.Context,
+	folderName string,
+	destinationFolderId string) (o *controlpb.Folder, err error) {
+	var tok string
+	list, err := b.ListObjects(ctx, &gcs.ListObjectsRequest{
+		Prefix:            folderName,
+		Delimiter:         "",
+		ContinuationToken: tok,
+	})
+
+	for _, value := range list.Objects {
+		b.invalidate(value.Name)
+	}
+
+	b.invalidate(folderName)
+
+	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+	return o, err
 }
 
 func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
