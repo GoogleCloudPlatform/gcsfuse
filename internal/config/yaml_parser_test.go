@@ -174,6 +174,12 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidMaxDownloadParallelismConfig(
 	assert.ErrorContains(t.T(), err, MaxDownloadParallelismInvalidValueError)
 }
 
+func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxDownloadParallelismConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_download_parallelism.yaml")
+
+	assert.ErrorContains(t.T(), err, "the value of max-download-parallelism for file-cache must not be 0 when enable-parallel-downloads is true")
+}
+
 func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadParallelismPerFileConfig() {
 	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_parallelism_per_file.yaml")
 
