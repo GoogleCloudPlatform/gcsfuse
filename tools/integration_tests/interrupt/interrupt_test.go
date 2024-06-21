@@ -58,13 +58,12 @@ func TestMain(m *testing.M) {
 
 	// Set up flags to run tests on.
 	mountConfig := config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{IgnoreInterrupts: true},
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-	flags := [][]string{{"--implicit-dirs=true", "--ignore-interrupts"},
+	flags := [][]string{{"--implicit-dirs=true"},
 		{"--config-file=" + setup.YAMLConfigFile(mountConfig, "config.yaml")}}
 
 	successCode := static_mounting.RunTests(flags, m)

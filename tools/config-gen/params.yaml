@@ -76,8 +76,8 @@
   usage: >-
     Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered
     by Ctrl+C). This prevents those signals from immediately terminating gcsfuse
-    inflight operations.
-  default: false
+    inflight operations. (default: true)
+  default: true
 
 - flag-name: "disable-parallel-dirops"
   config-path: "file-system.disable-parallel-dirops"

@@ -50,7 +50,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
-	assert.False(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
+	assert.True(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
 	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
 }
@@ -271,7 +271,7 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetIgnoreInterrup
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), false, mountConfig.FileSystemConfig.IgnoreInterrupts)
+	assert.True(t.T(), mountConfig.FileSystemConfig.IgnoreInterrupts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_GCSAuth_InvalidAnonymousAccessValue() {
