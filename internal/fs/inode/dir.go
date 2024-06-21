@@ -834,14 +834,14 @@ func (d *dirInode) DeleteChildDir(
 	isImplicitDir bool) (err error) {
 	d.cache.Erase(name)
 
-	childName := NewDirName(d.Name(), name)
-
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
 	// Hierarchical bucket there will not be any implicit dir.
 	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
 		return
 	}
+
+	childName := NewDirName(d.Name(), name)
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
