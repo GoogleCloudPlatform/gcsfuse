@@ -400,7 +400,7 @@ func (t *PrefixBucketTest) DeleteObject() {
 func (t *PrefixBucketTest) GetFolder_Prefix() {
 	var err error
 
-	// Create a few objects.
+	// Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
 	err = storageutil.CreateObjects(
 		t.ctx,
 		t.wrapped,

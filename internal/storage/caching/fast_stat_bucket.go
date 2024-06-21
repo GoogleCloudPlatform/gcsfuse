@@ -141,7 +141,7 @@ func (b *fastStatBucket) CreateObject(
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
-	// Create the new object.
+	// TODO: create object to be replaced with create folder api once integrated
 	o, err = b.wrapped.CreateObject(ctx, req)
 	if err != nil {
 		return

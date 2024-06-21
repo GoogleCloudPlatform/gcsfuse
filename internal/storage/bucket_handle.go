@@ -518,10 +518,9 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*contr
 
 	if err != nil {
 		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
-		return nil, err
 	}
 
-	return folder, nil
+	return folder, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
