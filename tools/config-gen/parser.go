@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"slices"
@@ -38,17 +39,17 @@ type Param struct {
 }
 
 func parseParamsConfig() ([]Param, error) {
-	yamlFile, err := os.ReadFile(*paramsFile)
+	buf, err := os.ReadFile(*paramsFile)
 	if err != nil {
 		return nil, err
 	}
 	var paramsConfig []Param
-	err = yaml.Unmarshal(yamlFile, &paramsConfig)
-	if err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(buf))
+	dec.KnownFields(true)
+	if err = dec.Decode(&paramsConfig); err != nil {
 		return nil, err
 	}
-	err = validateParams(paramsConfig)
-	if err != nil {
+	if err = validateParams(paramsConfig); err != nil {
 		return nil, err
 	}
 	return paramsConfig, nil
