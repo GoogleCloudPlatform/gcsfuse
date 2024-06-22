@@ -64,12 +64,20 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
-		os.Args = convertToPosixArgs(os.Args)
-		if err := cmd.NewRootCmd().Execute(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		rootCmd, err := cmd.NewRootCmd()
+		if err != nil {
+			exitOnError(err)
+		}
+		rootCmd.SetArgs(convertToPosixArgs(os.Args))
+		if err := rootCmd.Execute(); err != nil {
+			exitOnError(err)
 		}
 		return
 	}
 	cmd.ExecuteLegacyMain()
+}
+
+func exitOnError(err error) {
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
 }
