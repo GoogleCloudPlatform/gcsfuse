@@ -29,7 +29,7 @@ var (
 	configObj cfg.Config
 )
 
-func NewRootCmd() (*cobra.Command, error) {
+func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -42,7 +42,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return cfgErr
 			}
 			// TODO: add mount logic here.
-			return nil
+			return mountFn(cfg)
 		},
 	}
 	cobra.OnInitialize(initConfig)

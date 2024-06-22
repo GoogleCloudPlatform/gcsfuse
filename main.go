@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
@@ -64,7 +65,7 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
-		rootCmd, err := cmd.NewRootCmd()
+		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config) error { return nil })
 		if err != nil {
 			exitOnError(err)
 		}
