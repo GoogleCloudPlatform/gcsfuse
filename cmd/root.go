@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,11 +25,11 @@ import (
 
 var (
 	cfgFile   string
-	err       error
+	cfgErr    error
 	configObj cfg.Config
 )
 
-func NewRootCmd() *cobra.Command {
+func NewRootCmd() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -39,11 +38,11 @@ and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		Version: getVersion(),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err != nil {
-				return err
+			if cfgErr != nil {
+				return cfgErr
 			}
-			// TODO: the following error will be removed once the command is implemented.
-			return fmt.Errorf("unsupported operation")
+			// TODO: add mount logic here.
+			return nil
 		},
 	}
 	cobra.OnInitialize(initConfig)
@@ -51,9 +50,9 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 	// Add all the other flags.
 	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
-		logger.Fatal("error while declaring/binding flags: %v", err)
+		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
 	}
-	return rootCmd
+	return rootCmd, nil
 }
 
 func initConfig() {
@@ -62,10 +61,10 @@ func initConfig() {
 	}
 	viper.SetConfigFile(cfgFile)
 	viper.SetConfigType("yaml")
-	if err = viper.ReadInConfig(); err != nil {
+	if cfgErr = viper.ReadInConfig(); cfgErr != nil {
 		return
 	}
-	err = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+	cfgErr = viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 		decoderConfig.TagName = "yaml"
 		// Reject the config file if any of the fields in the YAML don't map to the struct.

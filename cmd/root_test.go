@@ -22,10 +22,13 @@ import (
 )
 
 func TestInvalidConfig(t *testing.T) {
-	cmd := NewRootCmd()
+	cmd, err := NewRootCmd()
+	if err != nil {
+		t.Fatalf("Error while creating the root command: %v", err)
+	}
 	cmd.SetArgs([]string{"--config-file=testdata/invalid_config.yml", "abc", "pqr"})
 
-	err := cmd.Execute()
+	err = cmd.Execute()
 
 	if assert.NotNil(t, err) {
 		assert.IsType(t, err, &mapstructure.Error{})
@@ -33,14 +36,11 @@ func TestInvalidConfig(t *testing.T) {
 }
 
 func TestValidConfig(t *testing.T) {
-	cmd := NewRootCmd()
+	cmd, err := NewRootCmd()
+	if err != nil {
+		t.Fatalf("Error while creating the root command: %v", err)
+	}
 	cmd.SetArgs([]string{"--config-file=testdata/valid_config.yml", "abc", "pqr"})
 
-	err := cmd.Execute()
-
-	// TODO: The current implementation throws the unsupported operation error which
-	// will go away once it's completely wired to the rest of the code.
-	if assert.NotNil(t, err) {
-		assert.ErrorContains(t, err, "unsupported operation")
-	}
+	assert.Nil(t, cmd.Execute())
 }
