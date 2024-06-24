@@ -31,3 +31,5 @@ enable-hns: true
 file-system:
   ignore-interrupts: true
   disable-parallel-dirops: true
+gcs-retries:
+  max-retry-attempts: 5

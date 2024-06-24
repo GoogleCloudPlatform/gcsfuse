@@ -187,6 +187,9 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 			EnableEmptyManagedFolders: false,
 		},
 		EnableHNS: true,
+		GCSRetries: config.GCSRetries{
+			MaxRetryAttempts: 100,
+		},
 	}
 
 	actual, err := util.Stringify(mountConfig)
@@ -217,7 +220,8 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		`"AnonymousAccess":false`,
 		`"EnableHNS":true`,
 		`"IgnoreInterrupts":false`,
-		`"DisableParallelDirops":false}`,
+		`"DisableParallelDirops":false`,
+		`"MaxRetryAttempts":100}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -255,7 +259,8 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 		`"AnonymousAccess":false`,
 		`"EnableHNS":false`,
 		`"IgnoreInterrupts":false`,
-		`"DisableParallelDirops":false}`,
+		`"DisableParallelDirops":false`,
+		`"MaxRetryAttempts":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -271,6 +276,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		ClientProtocol:            mountpkg.ClientProtocol("http4"),
 		MountOptions:              mountOptions,
 		KernelListCacheTtlSeconds: -1,
+		MaxRetryAttempts:          -1,
 	}
 
 	actual, err := util.Stringify(flags)
@@ -301,6 +307,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		`"SequentialReadSizeMb":10`,
 		`"AnonymousAccess":false`,
 		`"MaxRetrySleep":0`,
+		`"MaxRetryAttempts":-1`,
 		`"StatCacheCapacity":0`,
 		`"StatCacheTTL":0`,
 		`"TypeCacheTTL":0`,
