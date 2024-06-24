@@ -90,7 +90,6 @@ for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (
 ## Writes
 
 ### FIO spec
-
   ```
     [global]
     ioengine=sync
