@@ -42,13 +42,14 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		Version: getVersion(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfgErr != nil {
-				return cfgErr
+				return fmt.Errorf("error while parsing config: %w", cfgErr)
 			}
 			return mountFn(configObj)
 		},
 	}
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
+		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
 	// Add all the other flags.
 	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
