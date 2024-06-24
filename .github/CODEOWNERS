@@ -1,3 +1,9 @@
 # These owners will be the default owners for everything in
 # the repo.
 *           @GoogleCloudPlatform/gcsfuse-codeowners
+
+# Co-owners for config
+tools/config-gen/ @kislaykishore @GoogleCloudPlatform/gcsfuse-codeowners
+cmd/ @kislaykishore @GoogleCloudPlatform/gcsfuse-codeowners
+cfg/ @kislaykishore @GoogleCloudPlatform/gcsfuse-codeowners
+internal/config/ @kislaykishore @GoogleCloudPlatform/gcsfuse-codeowners
