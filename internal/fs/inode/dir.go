@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -202,6 +204,11 @@ type dirInode struct {
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
 	prevDirListingTimeStamp *time.Time
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+	hasObjectsListBeenRead atomic.Bool
 }
 
 var _ DirInode = &dirInode{}
@@ -583,36 +590,118 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
+// shortened from gcs.Object
+// needs to be made private
+type MinObjectForListing struct {
+	Name string
+	Type metadata.Type
+}
+
+// needs to be made private
+func NonLocalObjectToMinObjectForListing(o *gcs.Object) *MinObjectForListing {
+	if o == nil {
+		return nil
+	}
+
+	return &MinObjectForListing{Name: o.Name, Type: TypeFromMinCore(storageutil.ConvertObjToMinObject(o), false, Name{objectName: o.Name})}
+}
+
+// shortened from gcs.Listing
+// needs to be made private
+type MinGcsListing struct {
+	Objects           []*MinObjectForListing
+	CollapsedRuns     []string
+	ContinuationToken string
+}
+
+// needs to be made private
+func GcsListingToMinGcListing(gcsListing *gcs.Listing) *MinGcsListing {
+	if gcsListing == nil {
+		return nil
+	}
+
+	minGcsListing := &MinGcsListing{CollapsedRuns: gcsListing.CollapsedRuns, ContinuationToken: gcsListing.ContinuationToken, Objects: []*MinObjectForListing{}}
+	for _, v := range gcsListing.Objects {
+		minGcsListing.Objects = append(minGcsListing.Objects, NonLocalObjectToMinObjectForListing(v))
+	}
+
+	return minGcsListing
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
-	tok string) (cores map[Name]*Core, newTok string, err error) {
-	// Ask the bucket to list some objects.
-	req := &gcs.ListObjectsRequest{
-		Delimiter:                "/",
-		IncludeTrailingDelimiter: true,
-		Prefix:                   d.Name().GcsObjectName(),
-		ContinuationToken:        tok,
-		MaxResults:               MaxResultsForListObjectsCall,
-		// Setting Projection param to noAcl since fetching owner and acls are not
-		// required.
-		ProjectionVal:            gcs.NoAcl,
-		IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
-	}
+	tok string) (cores map[Name]*MinCoreForListing, newTok string, err error) {
 
-	listing, err := d.bucket.ListObjects(ctx, req)
-	if err != nil {
-		err = fmt.Errorf("ListObjects: %w", err)
-		return
-	}
+	var listing *MinGcsListing
 
-	cores = make(map[Name]*Core)
-	defer func() {
-		now := d.cacheClock.Now()
-		for fullName, c := range cores {
-			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+	if !d.hasObjectsListBeenRead.Load() {
+		var gcsListing *gcs.Listing
+		// Ask the bucket to list some objects.
+		req := &gcs.ListObjectsRequest{
+			Delimiter:                "/",
+			IncludeTrailingDelimiter: true,
+			Prefix:                   d.Name().GcsObjectName(),
+			ContinuationToken:        tok,
+			MaxResults:               MaxResultsForListObjectsCall,
+			// Setting Projection param to noAcl since fetching owner and acls are not
+			// required.
+			ProjectionVal:            gcs.NoAcl,
+			IncludeFoldersAsPrefixes: d.enableManagedFoldersListing,
 		}
-	}()
+
+		gcsListing, err = d.bucket.ListObjects(ctx, req)
+		if err != nil {
+			err = fmt.Errorf("ListObjects: %w", err)
+			return
+		}
+
+		// This probably needs to be moved out of the
+		// if !d.hasObjectsListBeenRead.Load() check,
+		// to always update the type-cache.
+		defer func() {
+			now := d.cacheClock.Now()
+			for fullName, c := range cores {
+				d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+			}
+		}()
+
+		listing = GcsListingToMinGcListing(gcsListing)
+
+		// ContinuationToken token being "" indicates that this is the last
+		// list call on this dirInode in this sequence.
+		if listing.ContinuationToken == "" {
+			d.hasObjectsListBeenRead.Store(true)
+		}
+	} else {
+		// Type-cache supposedly already has the mappings, and we should utilize that for
+		// creating listing output here.
+		listing = &(MinGcsListing{})
+
+		index := d.cache.Index() // entire map for type-cache entries
+		for name, objtype := range index {
+			switch objtype {
+			case metadata.NonexistentType:
+			case metadata.UnknownType:
+				logger.Warnf("Entry of UnknownType in type-cache: %s", name)
+			case metadata.ImplicitDirType:
+				listing.CollapsedRuns = append(listing.CollapsedRuns, name)
+			case metadata.ExplicitDirType:
+				if len(name) != 0 {
+					name += "/"
+				}
+				// There are some cases here which need name to be added to
+				// listing.CollapsedRuns. TODO: figure out those cases here.
+				fallthrough
+			default:
+				listing.Objects = append(listing.Objects, &MinObjectForListing{Name: name, Type: objtype})
+			}
+		}
+	}
+
+	if cores == nil {
+		cores = make(map[Name]*MinCoreForListing)
+	}
 
 	for _, o := range listing.Objects {
 		// Skip empty results or the directory object backing this inode.
@@ -627,18 +716,16 @@ func (d *dirInode) readObjects(
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			explicitDir := &MinCoreForListing{
+				FullName: dirName,
+				ItemType: o.Type,
 			}
 			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
-			file := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  fileName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			file := &MinCoreForListing{
+				FullName: fileName,
+				ItemType: o.Type,
 			}
 			cores[fileName] = file
 		}
@@ -659,10 +746,9 @@ func (d *dirInode) readObjects(
 			continue
 		}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+		implicitDir := &MinCoreForListing{
+			FullName: dirName,
+			ItemType: TypeFromMinCore(nil, false, dirName),
 		}
 		cores[dirName] = implicitDir
 	}
@@ -672,7 +758,7 @@ func (d *dirInode) readObjects(
 func (d *dirInode) ReadEntries(
 	ctx context.Context,
 	tok string) (entries []fuseutil.Dirent, newTok string, err error) {
-	var cores map[Name]*Core
+	var cores map[Name]*MinCoreForListing
 	cores, newTok, err = d.readObjects(ctx, tok)
 	if err != nil {
 		err = fmt.Errorf("read objects: %w", err)
