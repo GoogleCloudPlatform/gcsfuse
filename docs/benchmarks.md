@@ -15,6 +15,7 @@ workloads for the given test setup:
 * GCS Bucket location: us-west1
 * Framework: FIO
 * Bucket location: us-west1
+* GCSFuse version: 2.2.0
 
 ## Reads
 
@@ -26,21 +27,21 @@ workloads for the given test setup:
     direct=1
     fadvise_hint=0
     verify=0
-    # Change this to randread to test random reads.
-    rw=read  
-    # Update the block size value from the table for different experiments.
-    bs=1M  
     iodepth=64
     invalidate=1
     ramp_time=10s
     runtime=60s
     time_based=0
     thread=1
-    # Update the file size value from table(file size) for different experiments.
-    filesize=10M  
     openfiles=1
     group_reporting=1
     allrandrepeat=1
+    # Change this to randread to test random reads.
+    rw=read  
+    # Update the block size value from the table for different experiments.
+    bs=1M  
+    # Update the file size value from table(file size) for different experiments.
+    filesize=10M  
     # Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
     directory=/mnt/1mb  
     filename_format=$jobname.$jobnum.$filenum
@@ -96,29 +97,30 @@ for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (
     direct=1
     fadvise_hint=0
     verify=0
-    # Change this to randwrite to test random writes.
-    rw=write   
-    # Update the block size value from the table for different 
-    bs=1M
     iodepth=64
     invalidate=1
     time_based=0
     file_append=0
     # By default fio creates all files first and then starts writing to them. This option is to disable that behavior. 
     create_on_open=1 
-    # Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. This will vary based on file size. Change the value from table to get provided results.
-    nrfiles=2
     thread=1
     openfiles=1
     group_reporting=1
     allrandrepeat=1
+    # Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min. 
+    # This will vary based on file size. Change the value from table to get provided results.
+    nrfiles=2
     filename_format=$jobname.$jobnum.$filenum
-    [1_thread]
+    # Change this to randwrite to test random writes.
+    rw=write   
+    # Update the block size value from the table for different 
+    bs=1M
+    # Update the file size value from table(file size) for different experiments.
+    filesize=1G  
+    [experiment]
     stonewall
     # Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
     directory=gcs/1gb
-    # Update the file size value from table(file size) for different experiments.
-    filesize=1G  
     numjobs=112
  ```
 
@@ -159,7 +161,7 @@ as sequential writes.
     sudo apt-get install fio
     ```
 
-5. [Install GCSFuse](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md#linux).
+5. [Install GCSFuse](https://cloud.google.com/storage/docs/gcsfuse-install).
 6. Create a directory on the VM and then mount the gcs bucket to that directory.
 
     ```
