@@ -260,7 +260,7 @@
 
 - flag-name: "temp-dir"
   config-path: "file-system.temp-dir"
-  type: "string"
+  type: "resolvedPath"
   usage: >-
     Path to the temporary directory where writes are staged prior to upload to
     Cloud Storage. (default: system default, likely /tmp)"
