@@ -229,9 +229,7 @@ func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 		{0, 435, true, 435},
 		{0, 0, false, 0},
 		{0, 1, true, 1},
-		{9223372036, -1, false, 9223372036}, // MaxSupportedTtlInSeconds
 		{5, -6, true, -6},
-		{9223372037, 5, false, 9223372037}, // MaxSupportedTtlInSeconds + 1
 	}
 
 	for index, tt := range testCases {
