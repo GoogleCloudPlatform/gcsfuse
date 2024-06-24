@@ -30,8 +30,8 @@ type cliContext interface {
 	IsSet(string) bool
 }
 
-func PopulateConfigFromLegacyFlags(c cliContext, flags *flagStorage, legacyConfig *config.MountConfig) (*cfg.Config, error) {
-	// TODO: This method is incomplete. We need to Populate all the configs from flags.
+// PopulateNewConfigFromLegacyFlagsAndConfig takes cliContext, legacy flags and legacy MountConfig and resolves it into new cfg.Config Object.
+func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage, legacyConfig *config.MountConfig) (*cfg.Config, error) {
 	resolvedConfig := &cfg.Config{}
 
 	structuredFlags := &map[string]interface{}{
@@ -42,9 +42,9 @@ func PopulateConfigFromLegacyFlags(c cliContext, flags *flagStorage, legacyConfi
 			"log-mutex":                   flags.DebugMutex,
 		},
 		"file-system": map[string]interface{}{
-			"dir-mode":          flags.DirMode,
-			"file-mode":         flags.FileMode,
-			"fuse-options":      nil, // Todo
+			"dir-mode":  flags.DirMode,
+			"file-mode": flags.FileMode,
+			// Todo: "fuse-options":      nil,
 			"gid":               flags.Gid,
 			"ignore-interrupts": flags.IgnoreInterrupts,
 			"rename-dir-limit":  flags.RenameDirLimit,
@@ -58,8 +58,8 @@ func PopulateConfigFromLegacyFlags(c cliContext, flags *flagStorage, legacyConfi
 			"token-url":            flags.TokenUrl,
 		},
 		"gcs-connection": map[string]interface{}{
-			"billing-project": flags.BillingProject,
-			//todo "client-protocol":               flags.ClientProtocol,
+			"billing-project":               flags.BillingProject,
+			"client-protocol":               string(flags.ClientProtocol),
 			"custom-endpoint":               flags.CustomEndpoint,
 			"experimental-enable-json-read": flags.ExperimentalEnableJsonRead,
 			"http-client-timeout":           flags.HttpClientTimeout,
@@ -80,7 +80,6 @@ func PopulateConfigFromLegacyFlags(c cliContext, flags *flagStorage, legacyConfi
 		"logging": map[string]interface{}{
 			"file-path": flags.LogFile,
 			"format":    flags.LogFormat,
-			//"severity": "INFO",
 		},
 		"metadata-cache": map[string]interface{}{
 			"deprecated-stat-cache-capacity":          flags.StatCacheCapacity,
@@ -147,7 +146,7 @@ func PopulateConfigFromLegacyFlags(c cliContext, flags *flagStorage, legacyConfi
 		return nil, fmt.Errorf("decoder.Decode(config): %v", err)
 	}
 
-	// /Override/Give priority to flags in case of overlap in flags and config.
+	// Override/Give priority to flags in case of overlap in flags and config.
 	for flagName, value := range overlapFlags {
 		if c.IsSet(flagName) {
 			if err := setValueInConfig(resolvedConfig, value.flagPath, value.flagValue); err != nil {

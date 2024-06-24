@@ -22,17 +22,18 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
 )
 
-type ConfigTest struct {
+type LegacyToNewConfigTestSuite struct {
 	suite.Suite
 }
 
-func TestConfigSuite(t *testing.T) {
-	suite.Run(t, new(ConfigTest))
+func TestLegacyToNewConfigTestSuite(t *testing.T) {
+	suite.Run(t, new(LegacyToNewConfigTestSuite))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -48,7 +49,7 @@ func (m *MockContext) IsSet(name string) bool {
 	return m.isFlagSet[name]
 }
 
-func TestPopulateConfigFromLegacyFlags(t *testing.T) {
+func (t *LegacyToNewConfigTestSuite) TestPopulateConfigFromLegacyFlags() {
 	var populateConfigFromLegacyFlags = []struct {
 		testName          string
 		legacyFlagStorage *flagStorage
@@ -100,6 +101,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				DebugInvariants:                     true,
 				DebugMutex:                          true,
 				ExperimentalMetadataPrefetchOnMount: "sync",
+				ClientProtocol:                      mountpkg.HTTP1,
 			},
 			isFlagSet:         map[string]bool{},
 			legacyMountConfig: &config.MountConfig{},
@@ -138,7 +140,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				GcsConnection: cfg.GcsConnectionConfig{
 					CustomEndpoint:             url.URL{},
 					BillingProject:             "billing-project",
-					ClientProtocol:             "",
+					ClientProtocol:             cfg.Protocol("http1"),
 					LimitBytesPerSec:           100,
 					LimitOpsPerSec:             50,
 					SequentialReadSizeMb:       40,
@@ -179,8 +181,10 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 			},
 		},
 		{testName: "Test decode legacy config.",
-			legacyFlagStorage: &flagStorage{},
-			isFlagSet:         map[string]bool{},
+			legacyFlagStorage: &flagStorage{
+				ClientProtocol: mountpkg.GRPC,
+			},
+			isFlagSet: map[string]bool{},
 			legacyMountConfig: &config.MountConfig{
 				WriteConfig: config.WriteConfig{
 					CreateEmptyFile: true,
@@ -253,9 +257,11 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					EnableEmptyManagedFolders: true,
 					KernelListCacheTtlSecs:    30,
 				},
-				GcsConnection: cfg.GcsConnectionConfig{GrpcConnPoolSize: 29},
-				GcsAuth:       cfg.GcsAuthConfig{AnonymousAccess: true},
-				EnableHns:     true,
+				GcsConnection: cfg.GcsConnectionConfig{
+					GrpcConnPoolSize: 29,
+					ClientProtocol:   cfg.Protocol("grpc")},
+				GcsAuth:   cfg.GcsAuthConfig{AnonymousAccess: true},
+				EnableHns: true,
 				FileSystem: cfg.FileSystemConfig{
 					DisableParallelDirops: true,
 					IgnoreInterrupts:      true,
@@ -269,6 +275,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				IgnoreInterrupts:          false,
 				AnonymousAccess:           false,
 				KernelListCacheTtlSeconds: -1,
+				ClientProtocol:            mountpkg.HTTP2,
 			},
 			isFlagSet: map[string]bool{
 				"log-file":                   true,
@@ -308,18 +315,21 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				List: cfg.ListConfig{
 					KernelListCacheTtlSecs: -1,
 				},
+				GcsConnection: cfg.GcsConnectionConfig{
+					ClientProtocol: cfg.Protocol("http2"),
+				},
 			},
 		},
 	}
 
 	for _, tt := range populateConfigFromLegacyFlags {
-		t.Run(tt.testName, func(t *testing.T) {
+		t.T().Run(tt.testName, func(m *testing.T) {
 			testContext := &MockContext{isFlagSet: tt.isFlagSet}
 
-			resolvedConfig, err := PopulateConfigFromLegacyFlags(testContext, tt.legacyFlagStorage, tt.legacyMountConfig)
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(testContext, tt.legacyFlagStorage, tt.legacyMountConfig)
 
-			assert.Nil(t, err)
-			assert.Equal(t, tt.expectedConfig, resolvedConfig)
+			assert.Nil(t.T(), err)
+			assert.Equal(t.T(), tt.expectedConfig, resolvedConfig)
 		})
 	}
 }
