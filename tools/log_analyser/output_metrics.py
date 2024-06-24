@@ -1,11 +1,13 @@
 import utility
 import matplotlib.pyplot as plt
 import statistics as stats
+import numpy as np
 from tabulate import tabulate
 import webbrowser
 from io import StringIO
 import base64
 from io import  BytesIO
+import csv
 import math
 
 
@@ -124,7 +126,7 @@ def open_close_handles(interval, freq, unit, open_tup, close_tup, html_content):
 
 
 
-def gcs_calls_plot(gcs_calls_obj, html_content):
+def gcs_calls_plot(gcs_calls_obj, html_content, type_call):
     x_axis = []
     x_labels = []
     y_made = []
@@ -136,88 +138,99 @@ def gcs_calls_plot(gcs_calls_obj, html_content):
     y_response_max = []
     # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 6))
     # fig, (ax1, ax2) = plt.subplots(1, 2)
-    for i in range(8):
+    # print(len(gcs_calls_obj))
+    for i in range(len(gcs_calls_obj)):
+
         x_axis.append(2*i + 1)
-        x_labels.append(gcs_calls_obj.calls[i].call_name)
-        y_made.append(gcs_calls_obj.calls[i].calls_made)
-        y_ret.append(gcs_calls_obj.calls[i].calls_returned)
-        y_response.append(int(gcs_calls_obj.calls[i].total_response_time))
-        if len(gcs_calls_obj.calls[i].response_times) == 0:
+        x_labels.append(gcs_calls_obj[i].call_name)
+        y_made.append(gcs_calls_obj[i].calls_made)
+        y_ret.append(gcs_calls_obj[i].calls_returned)
+        y_response.append(int(gcs_calls_obj[i].total_response_time))
+        if len(gcs_calls_obj[i].response_times) == 0:
             y_response_avg.append(0)
             y_response_p50.append(0)
             y_response_p10.append(0)
             y_response_max.append(0)
+
         else:
-            y_response_avg.append(int(stats.mean(gcs_calls_obj.calls[i].response_times)))
-            y_response_p50.append(int(stats.median(gcs_calls_obj.calls[i].response_times)))
-            y_response_max.append(int(max(gcs_calls_obj.calls[i].response_times)))
-            sorted_list = sorted(gcs_calls_obj.calls[i].response_times)
-            index_p10 = math.ceil(0.9*len(sorted_list)) - 1
-            # index_p5 = ceil(0.95*len(sorted_list))
-            y_response_p10.append(int(sorted_list[index_p10]))
-            # y_response_p5.append(gcs_calls_obj.calls[i].response_times[index_p5])
+            y_response_avg.append(int(stats.mean(gcs_calls_obj[i].response_times)))
+            y_response_p50.append(int(stats.median(gcs_calls_obj[i].response_times)))
+            y_response_max.append(int(max(gcs_calls_obj[i].response_times)))
+            y_response_p10.append(int(np.percentile(gcs_calls_obj[i].response_times, 90)))
 
-    html_content.write("<div class='graph-container'>")
 
-    bar_width = 0.7
+
+
+
+    # html_content.write("<div class='graph-container'>")
+    bar_width = 0.75
+    plt.figure(figsize=(17, 6))
     plt.bar(x_axis, y_made, width=bar_width, label='sent')
     plt.bar([float(pos) + bar_width for pos in x_axis], y_ret, width=bar_width, label='responded')
     plt.xlabel('call type')
     plt.ylabel('Number of calls')
-    plt.title('Distribution of GCS calls')
-    plt.xticks([x_axis[i] + bar_width / 2 for i in range(len(x_axis))], x_labels, rotation=45)  # Adjust x-axis tick positions
+    plt.title('Distribution of ' + type_call + ' calls')
+    plt.xticks([x_axis[i] + bar_width / 2 for i in range(len(x_axis))], x_labels, rotation=45, fontsize=8)  # Adjust x-axis tick positions
     plt.legend()
+    # plt.figure(figsize=(15, 6))
     for i, value in enumerate(y_made):
         plt.text(x_axis[i], value, str(value), ha='center', va='bottom', fontsize=6)
     for i, value in enumerate(y_ret):
         plt.text(x_axis[i] + bar_width, value, str(value), ha='center', va='bottom', fontsize=6)
-    utility.print_in_html("distribution of gcs calls", html_content, plt, True)
+    utility.print_in_html("distribution of gcs calls", html_content, plt, False)
+    html_content.write("<br>")
 
+    plt.figure(figsize=(17, 6))
     plt.bar(x_axis, y_response, width=bar_width)
     plt.xlabel('call type')
     plt.ylabel('total time')
-    plt.title('Distribution of response time for GCS calls')
-    plt.xticks(x_axis, x_labels, rotation=45)
+    plt.title('Distribution of response time for ' + type_call + ' calls')
+    plt.xticks(x_axis, x_labels, rotation=45, fontsize=8)
+    # plt.figure(figsize=(15, 6))
     for i, value in enumerate(y_response):
         plt.text(x_axis[i], value, str(value), ha='center', va='bottom', fontsize=6)
     # ax2.legend()
-    utility.print_in_html("distribution of gcs calls", html_content, plt, True)
+    utility.print_in_html("distribution of gcs calls", html_content, plt, False)
 
-    html_content.write("</div>")
+    # html_content.write("</div>")
     html_content.write("<br><br>")
 
-    html_content.write("<div class='graph-container'>")
+    # html_content.write("<div class='graph-container'>")
 
-    bar_width = 0.7
+    bar_width = 0.75
+    plt.figure(figsize=(17, 6))
     plt.bar([x_axis[i] for i in range(len(x_axis))], y_response_avg, width=bar_width, label='average', color='blue')
     plt.bar([x_axis[i] + bar_width for i in range(len(x_axis))], y_response_p50, width=bar_width, label='median(p50)', color='green')
     plt.xlabel('call type')
     plt.ylabel('time(ms)')
-    plt.title('avg, p50 of response times for gcs calls')
+    plt.title('avg, p50 of response times for ' + type_call + ' calls')
     plt.legend()
-    plt.xticks([x_axis[i] + bar_width/2 for i in range(len(x_axis))], x_labels, rotation=45)
+    plt.xticks([x_axis[i] + bar_width/2 for i in range(len(x_axis))], x_labels, rotation=45, fontsize=8)
     y_offset = 0.0  # Adjust offset for better positioning
+    # plt.figure(figsize=(15, 6))
     for i, value in enumerate(y_response_avg):
         plt.text(x_axis[i], value + y_offset, str(value), ha='center', va='bottom', fontsize=6)
 
     for i, value in enumerate(y_response_p50):
         plt.text(x_axis[i] + bar_width, value + y_offset, str(value), ha='center', va='bottom', fontsize=6)
 
-    utility.print_in_html("distribution of gcs calls", html_content, plt, True)
+    utility.print_in_html("distribution of gcs calls", html_content, plt, False)
+    html_content.write("<br>")
 
+    plt.figure(figsize=(17, 6))
     plt.bar([x_axis[i] for i in range(len(x_axis))], y_response_p10, width=bar_width, label='p10', color='orange')
     plt.bar([x_axis[i] + bar_width for i in range(len(x_axis))], y_response_max, width=bar_width, label='max', color='blue')
     plt.xlabel('call type')
     plt.ylabel('time(ms)')
-    plt.title('p10, max of response times for gcs calls')
+    plt.title('p10, max of response times for ' + type_call + ' calls')
     plt.legend()
-    plt.xticks([x_axis[i] + bar_width/2 for i in range(len(x_axis))], x_labels, rotation=45)
+    plt.xticks([x_axis[i] + bar_width/2 for i in range(len(x_axis))], x_labels, rotation=45, fontsize=8)
     for i, value in enumerate(y_response_p10):
         plt.text(x_axis[i], value + y_offset, str(value), ha='center', va='bottom', fontsize=6)
     for i, value in enumerate(y_response_max):
         plt.text(x_axis[i] + bar_width, value + y_offset, str(value), ha='center', va='bottom', fontsize=6)
-    utility.print_in_html("distribution of gcs calls", html_content, plt, True)
-    html_content.write("</div>")
+    utility.print_in_html("distribution of gcs calls", html_content, plt, False)
+    # html_content.write("</div>")
 
 
 
@@ -227,13 +240,11 @@ def bytes_to_fro_gcs(bytes_to, bytes_from, html_content):
     labels = ['bytes to gcs', 'bytes from gcs']  # List of labels for each slice
 
     # Create the pie chart with actual values
-    plt.pie(data, labels=labels, autopct=lambda pct: f"{int(pct * sum(data) / 100)}")
-
-    # Customize the plot (optional)
-    # plt.title('')
-    # Display the plot
-    # plt.show()
-
+    if data[0] != 0 or data[1] != 0:
+        plt.pie(data, labels=labels, autopct=lambda pct: f"{int(pct * sum(data) / 100)}")
+    else:
+        html_content.write("<h4><p>No data was trasferred to/from gcs</p></h4>")
+        return
 
     title = "Bytes to/from GCS"
     html_content.write(f"<h4>{title}</h4>")
@@ -247,28 +258,33 @@ def bytes_to_fro_gcs(bytes_to, bytes_from, html_content):
     # html_content.write(f"<img src='data:image/png;base64,{chart_image_data}' alt='{chart_data['title']}' width='500' height='300'>")
 
 
-def kernel_calls_plot(kernel_calls_obj, html_content):
+def kernel_calls_plot(kernel_calls, html_content):
     x_axis = []
     y_axis = []
+    y_axis2 = []
     x_labels = []
-    total = len(kernel_calls_obj.calls)
+    total = len(kernel_calls)
     for i in range(total):
         x_axis.append(i)
-        x_labels.append(kernel_calls_obj.calls[i].call_name)
-        y_axis.append(kernel_calls_obj.calls[i].calls_made)
+        x_labels.append(kernel_calls[i].call_name)
+        y_axis.append(kernel_calls[i].calls_made)
+        y_axis2.append(kernel_calls[i].calls_returned)
 
     bar_offset = 0.4
     # plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(15, 6))
     plt.bar(x_axis, y_axis, width=0.4, label='made')
-    # plt.bar([float(pos) + bar_offset for pos in x_axis], y_ret, width=0.4, label='returned')
+    plt.bar([float(pos) + bar_offset for pos in x_axis], y_axis2, width=0.4, label='returned')
     plt.xlabel('call type')
     plt.ylabel('Number of calls')
     plt.title('Distribution of kernel calls')
-    plt.xticks([x_axis[i] for i in range(len(x_axis))], x_labels, rotation=45)  # Adjust x-axis tick positions
+    plt.xticks([x_axis[i] + bar_offset/2 for i in range(len(x_axis))], x_labels, rotation=90)  # Adjust x-axis tick positions
     # plt.legend()
     # y_offset = 0.0
     for i, value in enumerate(y_axis):
         plt.text(x_axis[i], value, str(value), ha='center', va='bottom', fontsize=10)
+    for i, value in enumerate(y_axis2):
+        plt.text(x_axis[i] + bar_offset, value, str(value), ha='center', va='bottom', fontsize=10)
     # plt.show()
 
     title = "kernel calls"
@@ -276,7 +292,7 @@ def kernel_calls_plot(kernel_calls_obj, html_content):
     buffer = BytesIO()
     plt.savefig(buffer, format='png', bbox_inches='tight')
     chart_data = base64.b64encode(buffer.getvalue()).decode('ascii')
-    html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}' width='500' height='500'>")
+    html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}'>")
     plt.close()
 
 
@@ -296,8 +312,8 @@ def operation_breakdown(handles, html_content):
             # table_string = tabulate(data, tablefmt="fancy_grid")
             title = "Handle " + str(val) + ":"
             html_content.write(f"<h4>{title}</title></head><body>")
-            if len(obj.read_pattern) > 1:
-                html_content.write("<div class='graph-container'>")
+            # if len(obj.read_pattern) > 1:
+                # html_content.write("<div class='graph-container'>")
             html_table_content = "<table style='height: 200px;'>"
             for row in data:
                 html_table_content += "<tr>"
@@ -336,7 +352,7 @@ def operation_breakdown(handles, html_content):
                 plot = utility.plot_pattern(x_axis, y_axis, char_seq)
                 plot.xlim(0, max(num_of_bars*bar_width+1, 10*bar_width))
                 utility.print_in_html("", html_content, plot, True)
-            html_content.write("</div>")
+            # html_content.write("</div>")
 
 
 
@@ -344,38 +360,43 @@ def gen_output(global_data):
     # Generate HTML content
     html_content = StringIO()
     title = "Log Analysis Report"
-    # html_content.write(f"<html><head><title>{title}</title></head><body>")
-    html_content.write(f"""<html><head><title>{title}</title>
-  <style>
-    .graph-container {{
-      display: flex;
-      justify-content: space-around; /* Optional: Adjust horizontal spacing */
-    }}
-    .graph {{
-      width: 40%; /* Adjust width as needed */
-    }}
-    .graph-and-table-container {{
-    display: flex;
-    justify-content: space-around;
-    }}
-  </style>
-  </head><body>""")
+    html_content.write(f"<html><head><title>{title}</title></head><body>")
+  #   html_content.write(f"""<html><head><title>{title}</title>
+  # <style>
+  #   .graph-container {{
+  #     display: flex;
+  #     justify-content: space-around; /* Optional: Adjust horizontal spacing */
+  #   }}
+  #   .graph {{
+  #     width: 40%; /* Adjust width as needed */
+  #   }}
+  #   .graph-and-table-container {{
+  #   display: flex;
+  #   justify-content: space-around;
+  #   }}
+  # </style>
+  # </head><body>""")
     html_content.write(f"<h1>{title}</h1>")
     title = "Global Data:"
     html_content.write(f"<h2>{title}</title></head><body>")
 
+
     bytes_to_fro_gcs(global_data.bytes_to_gcs, global_data.bytes_from_gcs, html_content)
-    kernel_calls_plot(global_data.kernel_calls, html_content)
+    kernel_calls_plot(global_data.gcalls.kernel_calls, html_content)
+    gcs_calls_plot(global_data.gcalls.gcs_calls, html_content, "GCS")
+    # gcs_calls_plot(global_data.gcalls.kernel_calls, html_content, "kernel", global_csv_file)
     title = "File Specific Data:"
     html_content.write(f"<h2>{title}</title></head><body>")
     file = input("Enter file for which you want open handles graph:")
     title = "Filename-" + file + ":"
     html_content.write(f"<h2>{title}</title></head><body>")
-
-    # file = input("Enter file for which you want distribution of gcs calls:")
-    gcs_calls_plot(global_data.name_object_map[file].gcs_calls, html_content)
-    kernel_calls_plot(global_data.name_object_map[file].kernel_calls, html_content)
+    #
+    # # file = input("Enter file for which you want distribution of gcs calls:")
+    # gcs_calls_plot(global_data.name_object_map[file].gcs_calls.calls, html_content)
+    kernel_calls_plot(global_data.name_object_map[file].kernel_calls.calls, html_content)
     html_content.write("<br><br>")
+
+
     # interval = [[0, 0], [0, 0]]
     # interval[0][0] = int(input("Enter start time (sec):"))
     # interval[0][1] = int(input("Enter start time (ms):"))
@@ -386,13 +407,12 @@ def gen_output(global_data):
     # if unit == "ms":
     #     freq = freq*1e6
     # open_close_handles(interval, freq, unit, global_data.name_object_map[file].open_tup, global_data.name_object_map[file].close_tup, html_content)
-    time_series_open_close(global_data.name_object_map[file].open_tup, global_data.name_object_map[file].close_tup, html_content)
+    # time_series_open_close(global_data.name_object_map[file].open_tup, global_data.name_object_map[file].close_tup, html_content)
     title = "Handle Specific Data:"
     html_content.write(f"<h3>{title}</title></head><body>")
-
+    #
     operation_breakdown(global_data.name_object_map[file].handles, html_content)
-
-
+    print(len(global_data.name_object_map[file].handles))
     html_content.write("</body></html>")
     report_html = html_content.getvalue()
     report_path = "/usr/local/google/home/patelvishvesh/tmp/log_analysis_report.html"

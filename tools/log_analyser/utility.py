@@ -6,13 +6,23 @@ import base64
 
 
 def get_val(message, key, delim, direction, offset):
-    # offset contains adjustments needed for spaces and key lengths
-    if direction == "fwd":
-        start_index = message.find(key)+len(key)+offset
-    else:
-        start_index = message.rfind(key)+len(key)+offset
-    end_index = message.find(delim, start_index)
-    return message[start_index:end_index]
+    # offset contains adjustments needed for spaces and key lengths\
+    try:
+        if message.find(key) == -1:
+            print("Error parsing log with message:", message)
+            return None
+        if direction == "fwd":
+            start_index = message.find(key)+len(key)+offset
+        else:
+            start_index = message.rfind(key)+len(key)+offset
+        if message.find(delim, start_index) == -1:
+            print("Error parsing log with message:", message)
+            return None
+        end_index = message.find(delim, start_index)
+        return message[start_index:end_index]
+    except ValueError as e:
+        print("Error parsing log with message:", message)
+        return None
 
 
 def give_dir_tag(global_data, inode):
@@ -46,6 +56,17 @@ def epoch_to_iso(epoch_time):
     return iso_time
 
 
+def iso_to_epoch(timestamp_str):
+    try:
+        datetime_obj = datetime.datetime.fromisoformat(timestamp_str)
+        seconds = int(datetime_obj.timestamp())
+        nanos = datetime_obj.microsecond * 1000
+        return {"seconds": seconds, "nanos": nanos}
+    except ValueError as e:
+        print(f"Error parsing timestamp: {e}")
+        return None
+
+
 def plot_pattern(x_axis, y_axis, char_seq):
     color_map = plt.cm.tab10  # Use a colormap for variety
     colors = color_map(range(2))
@@ -72,10 +93,16 @@ def print_in_html(title, html_content, plt, container):
     plt.savefig(buffer, format='png', bbox_inches='tight')
     chart_data = base64.b64encode(buffer.getvalue()).decode('ascii')
     if container:
-        html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}' width='500' height='500' class='graph'>")
+        html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}' class='graph'>")
     else:
-        html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}' width='500' height='500'>")
+        html_content.write(f"<img src='data:image/png;base64,{chart_data}' alt='{title}'>")
     plt.close()
+
+
+def update_global_kernel_calls(obj, end_time, start_time):
+    obj.calls_returned += 1
+    obj.total_response_time += 1e3*((end_time[0] - start_time[0]) + 1e-9*(end_time[1] - start_time[1]))
+    obj.response_times.append(1e3*((end_time[0] - start_time[0]) + 1e-9*(end_time[1] - start_time[1])))
 
 
 

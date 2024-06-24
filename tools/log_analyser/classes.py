@@ -10,12 +10,30 @@ class Calls:
 
 class GlobalCalls:
     def __init__(self):
-        self.calls = [Calls("unlink"),
-                      Calls("rename"),
-                      Calls("mkdir"),
-                      Calls("releasedirhandle"),
-                      Calls("createfile"),
-                      Calls("rmdir")]
+        self.kernel_calls = [Calls("Unlink"),#1
+                             Calls("Rename"),#2
+                             Calls("MkDir"),#3
+                             Calls("ReleaseDirHandle"),#4
+                             Calls("CreateFile"),#5
+                             Calls("RmDir"),#6
+                             Calls("LookUpInode"),#7
+                             Calls("ReadFile"),#8
+                             Calls("OpenFile"),#9
+                             Calls("FlushFile"),#10
+                             Calls("WriteFile"),#11
+                             Calls("CreateSymLink"),#12
+                             Calls("ReadSymLink"),#13
+                             Calls("ReleaseFileHandle"),#14
+                             Calls("OpenDir"),#15
+                             Calls("ReadDir")]#16
+        self.gcs_calls = [Calls("StatObject"),
+                          Calls("ListObjects"),
+                          Calls("CopyObject"),
+                          Calls("ComposeObjects"),
+                          Calls("UpdateObject"),
+                          Calls("DeleteObject"),
+                          Calls("CreateObject"),
+                          Calls("Read")]
 
 
 class GlobalData:
@@ -25,7 +43,7 @@ class GlobalData:
     name_object_map = {}
     inode_name_map = {}
     handle_name_map = {}
-    kernel_calls = GlobalCalls()
+    gcalls = GlobalCalls()
 
 
 class Handle:
@@ -75,16 +93,16 @@ class Object:
 
 class KernelCalls:
     def __init__(self):
-        self.calls = [Calls("lookup"),
-                      Calls("readfile"),
-                      Calls("openfile"),
-                      Calls("flushfile"),
-                      Calls("writefile"),
-                      Calls("createsymlink"),
-                      Calls("readsymlink"),
-                      Calls("releasefilehandle"),
-                      Calls("opendir"),
-                      Calls("readdir")]
+        self.calls = [Calls("LookUpInode"),
+                      Calls("ReadFile"),
+                      Calls("OpenFile"),
+                      Calls("FlushFile"),
+                      Calls("WriteFile"),
+                      Calls("CreateSymLink"),
+                      Calls("ReadSymLink"),
+                      Calls("ReleaseFileHandle"),
+                      Calls("OpenDir"),
+                      Calls("ReadDir")]
 
 
 class Request:
@@ -98,4 +116,6 @@ class Request:
         self.timestamp_sec = 0
         self.timestamp_nano = 0
         self.keyword = ""
+        self.is_valid = True
+        self.is_lookup_call_added = False
 
