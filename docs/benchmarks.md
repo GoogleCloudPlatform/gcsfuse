@@ -45,8 +45,7 @@ workloads for the given test setup:
     # Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
     directory=/mnt/1mb  
     filename_format=$jobname.$jobnum.$filenum
-    
-    [128_thread]
+    [experiment]
     stonewall
     # Number of threads
     numjobs=128 
