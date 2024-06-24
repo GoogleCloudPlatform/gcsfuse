@@ -19,27 +19,34 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestAllBucketsTestSuite(t *testing.T) {
+	suite.Run(t, new(AllBucketsTest))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type AllBucketsTest struct {
+	suite.Suite
+	suite.SetupAllSuite
+	suite.TearDownAllSuite
+	suite.TearDownTestSuite
 	fsTest
 }
 
-func init() {
-	RegisterTestSuite(&AllBucketsTest{})
-}
-
-func (t *AllBucketsTest) SetUpTestSuite() {
+func (t *AllBucketsTest) SetupSuite() {
 	mtimeClock = timeutil.RealClock()
 	buckets = map[string]gcs.Bucket{
 		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0"),
@@ -47,34 +54,34 @@ func (t *AllBucketsTest) SetUpTestSuite() {
 		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2"),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
-	t.fsTest.SetUpTestSuite()
-	AssertEq("", t.serverCfg.BucketName)
+	t.fsTest.SetupSuite()
+	assert.Equal(t.T(), "", t.serverCfg.BucketName)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *AllBucketsTest) BaseDir_Ls() {
+func (t *AllBucketsTest) TestBaseDir_Ls() {
 	_, err := ioutil.ReadDir(mntDir)
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 }
 
-func (t *AllBucketsTest) BaseDir_Write() {
+func (t *AllBucketsTest) TestBaseDir_Write() {
 	filename := path.Join(mntDir, "foo")
 	err := ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
 	ExpectThat(err, Error(HasSubstr("input/output error")))
 }
 
-func (t *AllBucketsTest) BaseDir_Rename() {
+func (t *AllBucketsTest) TestBaseDir_Rename() {
 	err := os.Rename(mntDir+"/bucket-0", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
 
 	filename := path.Join(mntDir + "/bucket-0/foo")
 	err = ioutil.WriteFile(
 		filename, []byte("content"), os.FileMode(0644))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	err = os.Rename(mntDir+"/bucket-0/foo", mntDir+"/bucket-1/foo")
 	ExpectThat(err, Error(HasSubstr("operation not supported")))
@@ -84,7 +91,7 @@ func (t *AllBucketsTest) BaseDir_Rename() {
 
 }
 
-func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
+func (t *AllBucketsTest) TestSingleBucket_ReadAfterWrite() {
 	var err error
 	filename := path.Join(mntDir, "bucket-1/foo")
 
@@ -99,43 +106,43 @@ func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 
 	// Open the file.
 	t.f1, err = os.OpenFile(filename, os.O_RDWR, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the start of the file using File.Write.
 	_, err = t.f1.Write([]byte("000"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Write to the middle of the file using File.WriteAt.
 	_, err = t.f1.WriteAt([]byte("111"), 4)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Seek and write past the end of the file.
 	_, err = t.f1.Seek(int64(len(contents)), 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	_, err = t.f1.Write([]byte("222"))
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Check the size now.
 	fi, err := t.f1.Stat()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq(len(contents)+len("222"), fi.Size())
 
 	// Read some contents with Seek and Read.
 	_, err = t.f1.Seek(4, 0)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(t.f1, buf)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("111r", string(buf))
 
 	// Read the full contents with ReadAt.
 	buf = make([]byte, len(contents)+len("222"))
 	_, err = t.f1.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("000o111ritoenchilada222", string(buf))
 
 	// Close the file.
@@ -145,6 +152,6 @@ func (t *AllBucketsTest) SingleBucket_ReadAfterWrite() {
 	// Read back its contents.
 	fileContents, err := ioutil.ReadFile(filename)
 
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 	ExpectEq("000o111ritoenchilada222", string(fileContents))
 }

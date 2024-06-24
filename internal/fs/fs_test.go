@@ -40,8 +40,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 )
 
@@ -52,7 +53,20 @@ const (
 	SequentialReadSizeMb             = 200
 )
 
-func TestFS(t *testing.T) { RunTests(t) }
+func TestFS(t *testing.T) {
+	TestAllBucketsTestSuite(t)
+	TestCachingTestSuite(t)
+	TestForeignModsTestSuite(t)
+	TestImplicitDirsTestSuite(t)
+	TestImplicitDirsWithCacheTestSuite(t)
+	TestLocalFileTestSuite(t)
+	TestLocalModificationsTestSuite(t)
+	TestParallelDirops(t)
+	TestReadCacheTestSuite(t)
+	TestReadOnlyTestSuite(t)
+	TestStressTestSuite(t)
+	TestTypeCacheTestSuite(t)
+}
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
@@ -62,13 +76,11 @@ var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 func init() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-
 	locker.EnableDebugMessages()
 
 	go func() {
 		<-c
-		logger.Info("Received SIGINT; exiting after this test completes.")
-		StopRunningTests()
+		panic("Received interrupt signal.")
 	}()
 }
 
@@ -78,6 +90,8 @@ func init() {
 
 // A struct that can be embedded to inherit common file system test behaviors.
 type fsTest struct {
+	suite.Suite
+
 	// Configuration
 	serverCfg fs.ServerConfig
 	mountCfg  fuse.MountConfig
@@ -104,10 +118,7 @@ var (
 	buckets map[string]gcs.Bucket
 )
 
-var _ SetUpTestSuiteInterface = &fsTest{}
-var _ TearDownTestSuiteInterface = &fsTest{}
-
-func (t *fsTest) SetUpTestSuite() {
+func (t *fsTest) SetupSuite() {
 	var err error
 	ctx = context.Background()
 
@@ -144,7 +155,7 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up ownership.
 	t.serverCfg.Uid, t.serverCfg.Gid, err = perms.MyUserAndGroup()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Set up permissions.
 	t.serverCfg.FilePerms = filePerms
@@ -152,11 +163,11 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Set up a temporary directory for mounting.
 	mntDir, err = ioutil.TempDir("", "fs_test")
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Create a file system server.
 	server, err := fs.NewServer(ctx, &t.serverCfg)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	// Mount the file system.
 	mountCfg := t.mountCfg
@@ -171,10 +182,10 @@ func (t *fsTest) SetUpTestSuite() {
 	}
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 }
 
-func (t *fsTest) TearDownTestSuite() {
+func (t *fsTest) TearDownSuite() {
 	var err error
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
@@ -191,12 +202,11 @@ func (t *fsTest) TearDownTestSuite() {
 			continue
 		}
 
-		AddFailure("MountedFileSystem.Unmount: %v", err)
-		AbortTest()
+		assert.FailNow(t.T(), "MountedFileSystem.Unmount: %v", err)
 	}
 
 	if err := mfs.Join(ctx); err != nil {
-		AssertEq(nil, err)
+		assert.Nil(t.T(), err)
 	}
 
 	// Unlink the mount point.
@@ -211,14 +221,14 @@ func (t *fsTest) TearDownTestSuite() {
 	bucket = nil
 }
 
-func (t *fsTest) TearDown() {
+func (t *fsTest) TearDownTest() {
 	// Close any files we opened.
 	if t.f1 != nil {
-		ExpectEq(nil, t.f1.Close())
+		assert.Nil(t.T(), t.f1.Close())
 	}
 
 	if t.f2 != nil {
-		ExpectEq(nil, t.f2.Close())
+		assert.Nil(t.T(), t.f2.Close())
 	}
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
@@ -298,22 +308,22 @@ func readRange(r io.ReadSeeker, offset int64, n int) (s string, err error) {
 	return
 }
 
-func currentUid() uint32 {
+func currentUid(t *fsTest) uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	uid, err := strconv.ParseUint(user.Uid, 10, 32)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	return uint32(uid)
 }
 
-func currentGid() uint32 {
+func currentGid(t *fsTest) uint32 {
 	user, err := user.Current()
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	gid, err := strconv.ParseUint(user.Gid, 10, 32)
-	AssertEq(nil, err)
+	assert.Nil(t.T(), err)
 
 	return uint32(gid)
 }
