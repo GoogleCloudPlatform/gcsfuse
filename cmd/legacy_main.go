@@ -251,10 +251,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	if _, err := PopulateConfigFromLegacyFlags(c, flags, mountConfig); err != nil {
-		return fmt.Errorf("PopulateConfigFromLegacyFlags: %v", err)
-	}
-
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
