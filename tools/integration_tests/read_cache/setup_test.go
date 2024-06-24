@@ -109,13 +109,13 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeMB:                  cacheSize,
-			CacheFileForRangeRead:      cacheFileForRangeRead,
-			EnableParallelDownloads:    enableParallelDownloads,
-			DownloadParallelismPerFile: downloadParallelismPerFile,
-			MaxDownloadParallelism:     maxDownloadParallelism,
-			ReadRequestSizeMB:          readRequestSizeMB,
-			EnableCrcCheck:             enableCrcCheck,
+			MaxSizeMB:                cacheSize,
+			CacheFileForRangeRead:    cacheFileForRangeRead,
+			EnableParallelDownloads:  enableParallelDownloads,
+			ParallelDownloadsPerFile: downloadParallelismPerFile,
+			MaxDownloadParallelism:   maxDownloadParallelism,
+			ReadRequestSizeMB:        readRequestSizeMB,
+			EnableCrcCheck:           enableCrcCheck,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
