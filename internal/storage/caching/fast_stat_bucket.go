@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -140,7 +141,7 @@ func (b *fastStatBucket) CreateObject(
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
-	// Create the new object.
+	// TODO: create object to be replaced with create folder api once integrated
 	o, err = b.wrapped.CreateObject(ctx, req)
 	if err != nil {
 		return
@@ -291,6 +292,21 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 	// Put the object in cache.
 	o := storageutil.ConvertMinObjectToObject(m)
 	b.insert(o)
+
+	return
+}
+
+func (b *fastStatBucket) GetFolder(
+	ctx context.Context,
+	prefix string) (folder *controlpb.Folder, err error) {
+	// Fetch the listing.
+	folder, err = b.wrapped.GetFolder(ctx, prefix)
+	if err != nil {
+		return
+	}
+
+	// TODO: add folder metadata in stat cache
+	// b.insertFolder(folder)
 
 	return
 }

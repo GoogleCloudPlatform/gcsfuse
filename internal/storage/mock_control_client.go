@@ -43,3 +43,16 @@ func (m *MockStorageControlClient) DeleteFolder(ctx context.Context,
 	args := m.Called(ctx, req, opts)
 	return args.Error(0)
 }
+
+func (m *MockStorageControlClient) GetFolder(ctx context.Context,
+	req *controlpb.GetFolderRequest,
+	opts ...gax.CallOption) (*controlpb.Folder, error) {
+	args := m.Called(ctx, req, opts)
+
+	// Needed to assert folder in only those cases where folder is present
+	if folder, ok := args.Get(0).(*controlpb.Folder); ok {
+		return folder, nil
+	}
+
+	return nil, args.Error(1)
+}

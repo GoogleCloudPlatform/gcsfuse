@@ -12,6 +12,7 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -343,5 +344,34 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 		o1 = retVals[1].(error)
 	}
 
+	return
+}
+
+func (m *mockBucket) GetFolder(
+	ctx context.Context,
+	prefix string) (o0 *controlpb.Folder, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"GetFolder",
+		file,
+		line,
+		[]interface{}{})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.GetFolder: invalid return values: %v", retVals))
+	}
+
+	if retVals[0] != nil {
+		o0 = retVals[0].(*controlpb.Folder)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
 	return
 }
