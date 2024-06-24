@@ -104,12 +104,15 @@ func TestParallelDownloads(t *testing.T) {
 		{
 			name:                       "download in chunks of concurrency * readReqSize",
 			objectSize:                 15 * util.MiB,
-			readReqSize:                4,
+			readReqSize:                3,
 			downloadParallelismPerFile: math.MaxInt,
 			maxDownloadParallelism:     3,
 			subscribedOffset:           7,
 			downloadOffset:             10,
-			expectedOffset:             12 * util.MiB,
+			// Concurrency can go to (maxDownloadParallelism + 1) in case
+			// downloadParallelismPerFile > maxDownloadParallelism because we always
+			// spawn minimum of 1 go routine per async job.
+			expectedOffset: 12 * util.MiB,
 		},
 		{
 			name:                       "download only upto the object size",
