@@ -257,6 +257,12 @@ func newApp() (app *cli.App) {
 				Usage: "This flag is currently unused.",
 			},
 
+			cli.Int64Flag{
+				Name:  "max-retry-attempts",
+				Value: -1,
+				Usage: "Set max retry attempts in case of retryable errors. Default value is -1.",
+			},
+
 			cli.Float64Flag{
 				Name:  "retry-multiplier",
 				Value: 2,
@@ -418,6 +424,7 @@ type flagStorage struct {
 
 	// Tuning
 	MaxRetrySleep              time.Duration
+	MaxRetryAttempts           int64
 	StatCacheCapacity          int
 	StatCacheTTL               time.Duration
 	TypeCacheTTL               time.Duration
@@ -567,6 +574,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 		// Tuning,
 		MaxRetrySleep:             c.Duration("max-retry-sleep"),
+		MaxRetryAttempts:          c.Int64(config.MaxRetryAttempts),
 		StatCacheCapacity:         c.Int("stat-cache-capacity"),
 		StatCacheTTL:              c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:              c.Duration("type-cache-ttl"),

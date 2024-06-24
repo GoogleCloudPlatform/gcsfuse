@@ -91,6 +91,7 @@ func (t *FlagsTest) Defaults() {
 	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	assert.Equal(t.T(), 0, f.HttpClientTimeout)
 	assert.Equal(t.T(), "", f.TempDir)
+	assert.Equal(t.T(), config.DefaultMaxRetryAttempts, f.MaxRetryAttempts)
 	assert.Equal(t.T(), 2, f.RetryMultiplier)
 	assert.False(t.T(), f.EnableNonexistentTypeCache)
 	assert.Equal(t.T(), 0, f.MaxConnsPerHost)
@@ -188,6 +189,7 @@ func (t *FlagsTest) DecimalNumbers() {
 		"--max-idle-conns-per-host=100",
 		"--max-conns-per-host=100",
 		"--kernel-list-cache-ttl-secs=234",
+		"--max-retry-attempts=100",
 	}
 
 	f := parseArgs(t, args)
@@ -199,6 +201,8 @@ func (t *FlagsTest) DecimalNumbers() {
 	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
 	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
 	assert.Equal(t.T(), 234, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), 234, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), 100, f.MaxRetryAttempts)
 }
 
 func (t *FlagsTest) OctalNumbers() {

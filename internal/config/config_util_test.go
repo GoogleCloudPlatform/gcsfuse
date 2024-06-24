@@ -35,6 +35,7 @@ type flags struct {
 	DebugMutex       bool
 	IgnoreInterrupts bool
 	AnonymousAccess  bool
+	MaxRetryAttempts int64
 }
 type ConfigTest struct {
 	suite.Suite
@@ -184,6 +185,34 @@ func TestOverrideWithAnonymousAccessFlag(t *testing.T) {
 			OverrideWithAnonymousAccessFlag(testContext, mountConfig, tt.anonymousAccessFlagValue)
 
 			assert.Equal(t, tt.expectedAnonymousAccess, mountConfig.GCSAuth.AnonymousAccess)
+		})
+	}
+}
+
+func TestOverrideWithMaxRetryAttemptsFlag(t *testing.T) {
+	var testCases = []struct {
+		configValue   int64
+		flagValue     int64
+		isFlagSet     bool
+		expectedValue int64
+	}{
+		{34, -1, true, -1},
+		{34, -1, false, 34},
+		{0, 435, true, 435},
+		{0, 0, false, 0},
+		{0, 1, true, 1},
+		{9223372036, -1, false, 9223372036}, // MaxSupportedTtlInSeconds
+		{5, -6, true, -6},
+		{9223372037, 5, false, 9223372037}, // MaxSupportedTtlInSeconds + 1	}
+	}
+	for index, tt := range testCases {
+		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{GCSRetries: GCSRetries{MaxRetryAttempts: tt.configValue}}
+
+			OverrideWithMaxRetryAttemptFlag(testContext, mountConfig, tt.flagValue)
+
+			assert.Equal(t, tt.expectedValue, mountConfig.GCSRetries.MaxRetryAttempts)
 		})
 	}
 }

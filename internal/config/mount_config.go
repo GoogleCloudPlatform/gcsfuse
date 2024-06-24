@@ -64,6 +64,7 @@ const (
 	DefaultReadRequestSizeMB          = 25
 	DefaultDownloadParallelismPerFile = 10
 	DefaultMaxDownloadParallelism     = -1
+	DefaultMaxRetryAttempts           = int64(-1)
 )
 
 type WriteConfig struct {
@@ -99,6 +100,11 @@ type GCSAuth struct {
 	// Authentication is enabled by default. The skip flag disables authentication. For users of the --custom-endpoint flag,
 	// please pass anonymous-access flag explicitly if you do not want authentication enabled for your workflow.
 	AnonymousAccess bool `yaml:"anonymous-access"`
+}
+
+type GCSRetries struct {
+	// Set max retry attempts in case of retryable errors. Default value is -1.
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 }
 
 // Enable the storage control client flow on HNS buckets to utilize new APIs.
@@ -151,6 +157,7 @@ type MountConfig struct {
 	GCSAuth             `yaml:"gcs-auth"`
 	EnableHNS           `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
+	GCSRetries          `yaml:"gcs-retries"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -210,6 +217,9 @@ func NewMountConfig() *MountConfig {
 
 	mountConfig.ListConfig = ListConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
+	}
+	mountConfig.GCSRetries = GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
 	}
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
