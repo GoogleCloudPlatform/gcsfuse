@@ -20,7 +20,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -68,18 +67,13 @@ func main() {
 		// TODO: implement the mount logic instead of simply returning nil.
 		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config) error { return nil })
 		if err != nil {
-			exitOnError(err)
+			log.Fatalf("Error occurred while creating the root command: %v", err)
 		}
 		rootCmd.SetArgs(convertToPosixArgs(os.Args))
 		if err := rootCmd.Execute(); err != nil {
-			exitOnError(err)
+			log.Fatalf("Error occurred during command execution: %v", err)
 		}
 		return
 	}
 	cmd.ExecuteLegacyMain()
-}
-
-func exitOnError(err error) {
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(1)
 }
