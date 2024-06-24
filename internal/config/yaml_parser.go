@@ -25,15 +25,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type LogSeverity string
-
 const (
-	TRACE   LogSeverity = "TRACE"
-	DEBUG   LogSeverity = "DEBUG"
-	INFO    LogSeverity = "INFO"
-	WARNING LogSeverity = "WARNING"
-	ERROR   LogSeverity = "ERROR"
-	OFF     LogSeverity = "OFF"
+	TRACE   string = "TRACE"
+	DEBUG   string = "DEBUG"
+	INFO    string = "INFO"
+	WARNING string = "WARNING"
+	ERROR   string = "ERROR"
+	OFF     string = "OFF"
 
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 
@@ -50,7 +48,7 @@ const (
 	ReadRequestSizeMBInvalidValueError          = "the value of read-request-size-mb for file-cache can't be less than 1"
 )
 
-func IsValidLogSeverity(severity LogSeverity) bool {
+func IsValidLogSeverity(severity string) bool {
 	switch severity {
 	case
 		TRACE,
@@ -159,7 +157,7 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	}
 
 	// convert log severity to upper-case
-	mountConfig.LogConfig.Severity = LogSeverity(strings.ToUpper(string(mountConfig.LogConfig.Severity)))
+	mountConfig.LogConfig.Severity = strings.ToUpper(mountConfig.LogConfig.Severity)
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
 		return

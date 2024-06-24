@@ -71,7 +71,7 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity        LogSeverity     `yaml:"severity"`
+	Severity        string          `yaml:"severity"`
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
@@ -103,7 +103,6 @@ type GCSAuth struct {
 
 // Enable the storage control client flow on HNS buckets to utilize new APIs.
 type EnableHNS bool
-type CacheDir string
 
 type FileSystemConfig struct {
 	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
@@ -144,7 +143,7 @@ type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheDir            `yaml:"cache-dir"`
+	CacheDir            string `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GCSConnection       `yaml:"gcs-connection"`
