@@ -274,23 +274,18 @@ func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
 	currentWorkingDir, err := os.Getwd()
 	assert.Equal(t.T(), nil, err)
 	app.Action = func(appCtx *cli.Context) {
-		err = resolvePathForTheFlagInContext("log-file", appCtx)
-		assert.Equal(t.T(), nil, err)
 		err = resolvePathForTheFlagInContext("key-file", appCtx)
 		assert.Equal(t.T(), nil, err)
 		err = resolvePathForTheFlagInContext("config-file", appCtx)
 		assert.Equal(t.T(), nil, err)
 
 		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("log-file"))
-		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("key-file"))
 		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "config.yaml"),
 			appCtx.String("config-file"))
 	}
 	// Simulate argv.
-	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt", "--config-file=config.yaml"}
+	fullArgs := []string{"some_app", "--key-file=test.txt", "--config-file=config.yaml"}
 
 	err = app.Run(fullArgs)
 
@@ -303,13 +298,12 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 	app.Action = func(appCtx *cli.Context) {
 		resolvePathForTheFlagsInContext(appCtx)
-		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("log-file"))
+
 		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "config.yaml"),
 			appCtx.String("config-file"))
 	}
 	// Simulate argv.
-	fullArgs := []string{"some_app", "--log-file=test.txt", "--config-file=config.yaml"}
+	fullArgs := []string{"some_app", "--config-file=config.yaml"}
 
 	err = app.Run(fullArgs)
 
@@ -417,9 +411,6 @@ func (t *FlagsTest) TestValidateFlagsForUnsupportedExperimentalMetadataPrefetchO
 
 func (t *FlagsTest) Test_resolveConfigFilePaths() {
 	mountConfig := &config.MountConfig{}
-	mountConfig.LogConfig = config.LogConfig{
-		FilePath: "~/test.txt",
-	}
 	mountConfig.CacheDir = "~/cache-dir"
 
 	err := resolveConfigFilePaths(mountConfig)
@@ -427,7 +418,6 @@ func (t *FlagsTest) Test_resolveConfigFilePaths() {
 	assert.Equal(t.T(), nil, err)
 	homeDir, err := os.UserHomeDir()
 	assert.Equal(t.T(), nil, err)
-	assert.Equal(t.T(), filepath.Join(homeDir, "test.txt"), mountConfig.LogConfig.FilePath)
 	assert.EqualValues(t.T(), filepath.Join(homeDir, "cache-dir"), mountConfig.CacheDir)
 }
 
@@ -437,7 +427,6 @@ func (t *FlagsTest) Test_resolveConfigFilePaths_WithoutSettingPaths() {
 	err := resolveConfigFilePaths(mountConfig)
 
 	assert.Equal(t.T(), nil, err)
-	assert.Equal(t.T(), "", mountConfig.LogConfig.FilePath)
 	assert.EqualValues(t.T(), "", mountConfig.CacheDir)
 }
 

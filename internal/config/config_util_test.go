@@ -59,17 +59,15 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
 		Severity: ERROR,
-		FilePath: "/tmp/hello.txt",
 		Format:   "text",
 	}
 	mountConfig.WriteConfig = WriteConfig{
 		CreateEmptyFile: true,
 	}
 
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
+	OverrideWithLoggingFlags(mountConfig, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
 
 	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), "/tmp/hello.txt", mountConfig.LogConfig.FilePath)
 	assert.Equal(t.T(), TRACE, mountConfig.LogConfig.Severity)
 }
 
@@ -81,17 +79,15 @@ func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
 		Severity: INFO,
-		FilePath: "",
 		Format:   "",
 	}
 	mountConfig.WriteConfig = WriteConfig{
 		CreateEmptyFile: true,
 	}
 
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
+	OverrideWithLoggingFlags(mountConfig, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
 
 	assert.Equal(t.T(), "json", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), "a.txt", mountConfig.LogConfig.FilePath)
 	assert.Equal(t.T(), INFO, mountConfig.LogConfig.Severity)
 }
 

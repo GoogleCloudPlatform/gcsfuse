@@ -39,6 +39,7 @@ func (m *mockCLIContext) IsSet(name string) bool {
 }
 
 func TestPopulateConfigFromLegacyFlags(t *testing.T) {
+	currentWorkingDir, _ := os.Getwd()
 	var populateConfigFromLegacyFlags = []struct {
 		testName          string
 		legacyFlagStorage *flagStorage
@@ -201,7 +202,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				LogConfig: config.LogConfig{
 					Severity: "info",
 					Format:   "text",
-					FilePath: "~/Documents/log-file.txt",
+					FilePath: "log-file.txt",
 					LogRotateConfig: config.LogRotateConfig{
 						MaxFileSizeMB:   20,
 						BackupFileCount: 2,
@@ -240,7 +241,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				Logging: cfg.LoggingConfig{
 					Severity: "INFO",
 					Format:   "text",
-					FilePath: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/log-file.txt")),
+					FilePath: cfg.ResolvedPath(path.Join(currentWorkingDir, "log-file.txt")),
 					LogRotate: cfg.LogRotateLoggingConfig{
 						MaxFileSizeMb:   20,
 						BackupFileCount: 2,
