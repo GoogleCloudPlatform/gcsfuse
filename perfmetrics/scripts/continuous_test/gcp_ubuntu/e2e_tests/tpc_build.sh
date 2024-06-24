@@ -29,7 +29,7 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 # Upgrade gcloud version
 gcloud version
 wget -O gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz -q
-sudo tar xzf gcloud.tar.gz && sudo mv google-cloud-sdk /usr/local
+sudo tar xzf gcloud.tar.gz && sudo cp -r google-cloud-sdk /usr/local && sudo rm -r google-cloud-sdk
 sudo /usr/local/google-cloud-sdk/install.sh
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 echo 'export PATH=/usr/local/google-cloud-sdk/bin:$PATH' >> ~/.bashrc
@@ -49,6 +49,7 @@ echo "Running e2e tests on installed package...."
 
 # Initiate PRPTST environment to establish a TPC project and associated account.
 gcloud config configurations create prptst
+gcloud config configurations activate prptst
 gcloud config set universe_domain apis-tpczero.goog
 gcloud config set api_endpoint_overrides/compute https://compute.apis-tpczero.goog/compute/v1/
 gcloud auth activate-service-account --key-file=/tmp/sa.key.json
@@ -57,7 +58,12 @@ gcloud config set project $PROJECT_ID
 set +e
 # $1 argument is refering to value of testInstalledPackage
 ./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT
+exit_code=$?
 set -e
 
 # Activate default environment after testing.
 gcloud config configurations activate default
+gcloud config unset universe_domain
+gcloud config unset api_endpoint_overrides/compute
+gcloud config unset project
+exit $exit_code
