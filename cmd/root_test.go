@@ -32,7 +32,8 @@ func TestInvalidConfig(t *testing.T) {
 	err = cmd.Execute()
 
 	if assert.NotNil(t, err) {
-		assert.IsType(t, err, &mapstructure.Error{})
+		expectedErr := &mapstructure.Error{}
+		assert.ErrorAs(t, err, &expectedErr)
 	}
 }
 
