@@ -101,7 +101,7 @@ type FileSystemConfig struct {
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
-	TempDir string `yaml:"temp-dir"`
+	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
 }
