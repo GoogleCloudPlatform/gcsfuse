@@ -53,6 +53,7 @@ func init() {
 	RegisterTestSuite(&FileCacheTest{})
 	RegisterTestSuite(&FileCacheDestroyTest{})
 	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
+	RegisterTestSuite(&FileCacheWithParallelDownloads{})
 }
 
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
@@ -70,6 +71,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
+			EnableCrcCheck:        true,
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
@@ -168,10 +170,10 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	defer closeFile(file)
 	AssertEq(nil, err)
 	// Sequential read
-	buf := make([]byte, util.MiB)
+	buf := make([]byte, 2*util.MiB)
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
-	AssertTrue(reflect.DeepEqual(objectContent[:util.MiB], string(buf)))
+	AssertTrue(reflect.DeepEqual(objectContent[:len(buf)], string(buf)))
 
 	// random read
 	offsetForRandom := int64(3)
@@ -180,12 +182,13 @@ func sequentialToRandomReadShouldPopulateCache(t *fsTest) {
 	_, err = file.Read(buf)
 
 	AssertEq(nil, err)
-	AssertTrue(reflect.DeepEqual(objectContent[offsetForRandom:offsetForRandom+util.MiB], string(buf)))
+	AssertTrue(reflect.DeepEqual(objectContent[offsetForRandom:offsetForRandom+int64(len(buf))], string(buf)))
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
 	downloadPath := util.GetDownloadPath(FileCacheDir, objectPath)
 	cachedContent, err := os.ReadFile(downloadPath)
 	AssertEq(nil, err)
-	AssertTrue(reflect.DeepEqual(cachedContent[offsetForRandom:offsetForRandom+util.MiB], buf))
+	// There should be some data populated into the cache
+	AssertTrue(reflect.DeepEqual(string(cachedContent[:100]), objectContent[:100]))
 }
 
 func (t *FileCacheTest) ReadShouldChangeLRU() {
@@ -202,7 +205,7 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	err := t.createObjects(objects)
 	AssertEq(nil, err)
 	// Open and read files for object 1 & 2, filet 1 should be LRU after that.
-	buf := make([]byte, 10)
+	buf := make([]byte, len(objectContent1))
 	fileHandle1, err := os.OpenFile(path.Join(mntDir, objectName1), os.O_RDONLY|syscall.O_DIRECT, 0644)
 	defer closeFile(fileHandle1)
 	AssertEq(nil, err)
@@ -212,6 +215,7 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 	fileHandle2, err := os.OpenFile(path.Join(mntDir, objectName2), os.O_RDONLY|syscall.O_DIRECT, 0644)
 	defer closeFile(fileHandle2)
 	AssertEq(nil, err)
+	buf = make([]byte, len(objectContent2))
 	_, err = fileHandle2.ReadAt(buf, 0)
 	AssertEq(nil, err)
 	AssertEq(string(buf), objectContent2[0:len(buf)])
@@ -564,7 +568,7 @@ func (t *FileCacheTest) WriteToFileCachedAndThenReadingItShouldBeCorrect() {
 }
 
 func (t *FileCacheTest) SyncToFileCachedAndThenReadingItShouldBeCorrect() {
-	sequentialToRandomReadShouldPopulateCache(&t.fsTest)
+	sequentialReadShouldPopulateCache(&t.fsTest, FileCacheDir)
 	// write and sync content to file that is cached.
 	objectContent := generateRandomString(DefaultObjectSizeInMb * util.MiB)
 	filePath := path.Join(mntDir, DefaultObjectName)
@@ -819,4 +823,27 @@ func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
 	// Check the cache location is not deleted
 	_, err = os.Stat(FileCacheDir)
 	AssertEq(nil, err)
+}
+
+// A collection of tests for a file system where the file cache is enabled
+// with parallel downloads.
+type FileCacheWithParallelDownloads struct {
+	FileCacheTest
+}
+
+func (t *FileCacheWithParallelDownloads) SetUpTestSuite() {
+	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.MountConfig = &config.MountConfig{
+		FileCacheConfig: config.FileCacheConfig{
+			MaxSizeMB:                  FileCacheSizeInMb,
+			CacheFileForRangeRead:      false,
+			EnableParallelDownloads:    true,
+			DownloadParallelismPerFile: 4,
+			ReadRequestSizeMB:          2,
+			MaxDownloadParallelism:     -1,
+			EnableCrcCheck:             true,
+		},
+		CacheDir: config.CacheDir(CacheDir),
+	}
+	t.fsTest.SetUpTestSuite()
 }
