@@ -51,7 +51,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
   {{end}}
   {{if .HideShorthand}}flagSet.ShorthandLookup("{{ .Shorthand}}").Hidden = true{{end}}
   {{if ne .ConfigPath ""}}
-  err = viper.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}"))
+  err = viper.BindPFlag("{{ .ConfigName}}", flagSet.Lookup("{{ .FlagName}}"))
   if err != nil {
     return err
   }

@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,9 @@ type flagTemplateData struct {
 	Param
 	// The pFlag function to invoke in order to add the flag.
 	Fn string
+	// The leaf config name for the flag - to be used as a key to bind cobra flag
+	// with viper config (using BindPFlag).
+	ConfigName string
 }
 
 func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
@@ -93,8 +97,10 @@ func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
 	p.DefaultValue = defaultValue
 	// Usage string safely escaped with Go syntax.
 	p.Usage = fmt.Sprintf("%q", p.Usage)
+	configParts := strings.Split(p.ConfigPath, ".")
 	return flagTemplateData{
-		Param: p,
-		Fn:    fn,
+		Param:      p,
+		Fn:         fn,
+		ConfigName: configParts[len(configParts)-1],
 	}, nil
 }
