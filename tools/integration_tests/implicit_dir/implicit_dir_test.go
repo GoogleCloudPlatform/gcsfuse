@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 
 	hnsFlagSet := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient)
 	if hnsFlagSet != nil {
+		hnsFlagSet = append(hnsFlagSet, "--implicit-dirs")
 		flagsSet = append(flagsSet, hnsFlagSet)
 	}
 
