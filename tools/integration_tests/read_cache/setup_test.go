@@ -65,6 +65,10 @@ const (
 	offsetEndOfFile                     = veryLargeFileSize - 1*util.MiB
 	cacheDirName                        = "cache-dir"
 	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_read_cache_test_logs/log.json"
+	downloadParallelismPerFile          = 4
+	maxDownloadParallelism              = -1
+	readRequestSizeMB                   = 2
+	enableCrcCheck                      = true
 )
 
 var (
@@ -97,7 +101,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
+func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string, enableParallelDownloads bool) string {
 	cacheDirPath = path.Join(setup.TestDir(), cacheDirName)
 
 	// Set up config file for file cache.
@@ -105,8 +109,13 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeMB:             cacheSize,
-			CacheFileForRangeRead: cacheFileForRangeRead,
+			MaxSizeMB:                  cacheSize,
+			CacheFileForRangeRead:      cacheFileForRangeRead,
+			EnableParallelDownloads:    enableParallelDownloads,
+			DownloadParallelismPerFile: downloadParallelismPerFile,
+			MaxDownloadParallelism:     maxDownloadParallelism,
+			ReadRequestSizeMB:          readRequestSizeMB,
+			EnableCrcCheck:             enableCrcCheck,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{

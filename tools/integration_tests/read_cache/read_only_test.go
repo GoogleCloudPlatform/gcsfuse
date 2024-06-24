@@ -166,12 +166,13 @@ func TestReadOnlyTest(t *testing.T) {
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
 		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1"),
-		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2"))
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false))
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
+	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--o=ro", "--config-file=" + createConfigFile(cacheCapacityInMB,
+		false, configFileName+"3", true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {
