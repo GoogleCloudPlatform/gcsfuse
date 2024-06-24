@@ -63,4 +63,7 @@ set -e
 
 # Activate default environment after testing.
 gcloud config configurations activate default
+gcloud config unset universe_domain
+gcloud config unset api_endpoint_overrides/compute
+gcloud config unset project
 exit $exit_code
