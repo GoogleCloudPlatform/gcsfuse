@@ -20,20 +20,24 @@ import (
 )
 
 var cfgOutputPath string
-var genConfigCmd = &cobra.Command{
-	Use:   "genConfig",
-	Short: "Generate config file from the available configuration",
-	Long: `Generate the effective config file from the available configuration
+
+func NewGenConfigCmd() *cobra.Command {
+	var genConfigCmd = &cobra.Command{
+		Use:   "genConfig",
+		Short: "Generate config file from the available configuration",
+		Long: `Generate the effective config file from the available configuration
          after resolving the params passed through CLI flags and config file.
          This config file can then be used as the sole input to GCSFuse using
          the --config-file CLI flag to achieve the same effect.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return viper.SafeWriteConfigAs(cfgOutputPath)
-	},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return viper.SafeWriteConfigAs(cfgOutputPath)
+		},
+	}
+	genConfigCmd.Flags().StringVar(&cfgOutputPath, "output-path", "", "Path where the output config file will be generated.")
+	genConfigCmd.MarkFlagRequired("output-path")
+	return genConfigCmd
 }
 
 func init() {
-	rootCmd.AddCommand(genConfigCmd)
-	genConfigCmd.Flags().StringVar(&cfgOutputPath, "output-path", "", "Help message for toggle")
-	genConfigCmd.MarkFlagRequired("output-path")
+	rootCmd.AddCommand(NewGenConfigCmd())
 }
