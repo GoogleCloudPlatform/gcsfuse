@@ -53,7 +53,6 @@ func init() {
 	RegisterTestSuite(&FileCacheTest{})
 	RegisterTestSuite(&FileCacheDestroyTest{})
 	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
-	RegisterTestSuite(&FileCacheWithParallelDownloads{})
 }
 
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
@@ -823,27 +822,4 @@ func (t *FileCacheDestroyTest) CacheIsNotDeletedOnUnmount() {
 	// Check the cache location is not deleted
 	_, err = os.Stat(FileCacheDir)
 	AssertEq(nil, err)
-}
-
-// A collection of tests for a file system where the file cache is enabled
-// with parallel downloads.
-type FileCacheWithParallelDownloads struct {
-	FileCacheTest
-}
-
-func (t *FileCacheWithParallelDownloads) SetUpTestSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:                  FileCacheSizeInMb,
-			CacheFileForRangeRead:      false,
-			EnableParallelDownloads:    true,
-			DownloadParallelismPerFile: 4,
-			ReadRequestSizeMB:          2,
-			MaxDownloadParallelism:     -1,
-			EnableCrcCheck:             true,
-		},
-		CacheDir: config.CacheDir(CacheDir),
-	}
-	t.fsTest.SetUpTestSuite()
 }

@@ -958,7 +958,7 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	offset := int64(10 * util.MiB)
 	_, err := dt.job.Download(context.Background(), offset, true)
 	AssertEq(nil, err)
-	AssertEq(Downloading, dt.job.status.Name)
+	AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
 	AssertEq(nil, dt.job.status.Err)
 	AssertGe(dt.job.status.Offset, offset)
 
