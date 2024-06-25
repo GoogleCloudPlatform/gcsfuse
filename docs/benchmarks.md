@@ -14,11 +14,10 @@ workloads for the given test setup:
 * Disk Type: SSD persistent disk
 * GCS Bucket location: us-west1
 * Framework: FIO
-* Bucket location: us-west1
 * GCSFuse version: 2.2.0
 
 **Note:** The final results are determined by averaging the outcomes of
-multiple (2-3) experimental runs.
+multiple runs.
 
 ## Reads
 
@@ -87,8 +86,7 @@ multiple (2-3) experimental runs.
 ### Recommendation for reads
 
 GCSFuse performs well for sequential reads and recommendation is to use GCSFuse
-for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (
-`--client-protocol=http1`, enabled by default) gives better throughput.
+for doing sequential reads on file sizes > 10MB and < 1GB.
 
 ## Writes
 
