@@ -169,12 +169,12 @@ type loggerFactory struct {
 	file            *os.File
 	sysWriter       *syslog.Writer
 	format          string
-	level           config.LogSeverity
+	level           string
 	logRotateConfig config.LogRotateConfig
 	fileWriter      *lumberjack.Logger
 }
 
-func (f *loggerFactory) newLogger(level config.LogSeverity) *slog.Logger {
+func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	// create a new logger
 	var programLevel = new(slog.LevelVar)
 	logger := slog.New(f.handler(programLevel, ""))
