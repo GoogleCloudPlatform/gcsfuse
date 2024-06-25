@@ -15,7 +15,7 @@ build: vet
 	go build main.go
 
 buildTest: vet
-	go test -run=XXX_SHOULD_NEVER_MATCH_XXX ./...
+	go test -run=PATTERN_THAT_DOES_NOT_MATCH_ANYTHING ./...
 
 install: fmt
 	go install -v ./...
@@ -28,4 +28,3 @@ clean:
 
 clean-all:
 	go clean -i ./...
-
