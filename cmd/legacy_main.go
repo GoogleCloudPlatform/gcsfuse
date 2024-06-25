@@ -107,6 +107,7 @@ func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, us
 		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
 		HttpClientTimeout:          flags.HttpClientTimeout,
 		MaxRetrySleep:              flags.MaxRetrySleep,
+		MaxRetryAttempts:           int(flags.MaxRetryAttempts),
 		RetryMultiplier:            flags.RetryMultiplier,
 		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,

@@ -42,6 +42,7 @@ type StorageClientConfig struct {
 	TokenUrl          string
 	ReuseTokenFromUrl bool
 	MaxRetrySleep     time.Duration
+	MaxRetryAttempts  int
 	RetryMultiplier   float64
 
 	/** HTTP client parameters. */

@@ -424,7 +424,7 @@ type flagStorage struct {
 
 	// Tuning
 	MaxRetrySleep              time.Duration
-	MaxRetryAttempts           int64
+	MaxRetryAttempts           int
 	StatCacheCapacity          int
 	StatCacheTTL               time.Duration
 	TypeCacheTTL               time.Duration
@@ -574,7 +574,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 		// Tuning,
 		MaxRetrySleep:             c.Duration("max-retry-sleep"),
-		MaxRetryAttempts:          c.Int64(config.MaxRetryAttempts),
+		MaxRetryAttempts:          c.Int(config.MaxRetryAttempts),
 		StatCacheCapacity:         c.Int("stat-cache-capacity"),
 		StatCacheTTL:              c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:              c.Duration("type-cache-ttl"),
