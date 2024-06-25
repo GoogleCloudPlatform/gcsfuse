@@ -24,21 +24,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
 )
-
-type LegacyToNewConfigTestSuite struct {
-	suite.Suite
-}
-
-func TestLegacyToNewConfigTestSuite(t *testing.T) {
-	suite.Run(t, new(LegacyToNewConfigTestSuite))
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
 
 type MockContext struct {
 	cli.Context
@@ -49,7 +36,7 @@ func (m *MockContext) IsSet(name string) bool {
 	return m.isFlagSet[name]
 }
 
-func (t *LegacyToNewConfigTestSuite) TestPopulateConfigFromLegacyFlags() {
+func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 	var populateConfigFromLegacyFlags = []struct {
 		testName          string
 		legacyFlagStorage *flagStorage
@@ -323,13 +310,14 @@ func (t *LegacyToNewConfigTestSuite) TestPopulateConfigFromLegacyFlags() {
 	}
 
 	for _, tt := range populateConfigFromLegacyFlags {
-		t.T().Run(tt.testName, func(m *testing.T) {
+		t.Run(tt.testName, func(m *testing.T) {
 			testContext := &MockContext{isFlagSet: tt.isFlagSet}
 
 			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(testContext, tt.legacyFlagStorage, tt.legacyMountConfig)
 
-			assert.Nil(t.T(), err)
-			assert.Equal(t.T(), tt.expectedConfig, resolvedConfig)
+			if assert.Nil(t, err) {
+				assert.Equal(t, tt.expectedConfig, resolvedConfig)
+			}
 		})
 	}
 }

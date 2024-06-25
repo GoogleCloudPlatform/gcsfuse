@@ -17,7 +17,6 @@ package cmd
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -49,7 +48,8 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"ignore-interrupts": flags.IgnoreInterrupts,
 			"rename-dir-limit":  flags.RenameDirLimit,
 			"temp-dir":          flags.TempDir,
-			"uid":               flags.Uid},
+			"uid":               flags.Uid,
+		},
 		"foreground": flags.Foreground,
 		"gcs-auth": map[string]interface{}{
 			"anonymous-access":     flags.AnonymousAccess,
@@ -118,26 +118,13 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		return resolvedConfig, nil
 	}
 
-	// Save overlapping flags in map to override.
-	overlapFlags := map[string]struct {
-		flagPath  string
-		flagValue interface{}
-	}{
-		"log-file": {flagPath: "Logging.FilePath",
-			flagValue: resolvedConfig.Logging.FilePath,
-		},
-		"log-format": {flagPath: "Logging.Format",
-			flagValue: resolvedConfig.Logging.Format,
-		},
-		"ignore-interrupts": {flagPath: "FileSystem.IgnoreInterrupts",
-			flagValue: resolvedConfig.FileSystem.IgnoreInterrupts,
-		},
-		"anonymous-access": {flagPath: "GcsAuth.AnonymousAccess",
-			flagValue: resolvedConfig.GcsAuth.AnonymousAccess,
-		},
-		"kernel-list-cache-ttl-secs": {flagPath: "List.KernelListCacheTtlSecs",
-			flagValue: resolvedConfig.List.KernelListCacheTtlSecs,
-		},
+	// Save overlapping flags in a map to override the config value later.
+	overlapFlags := map[string]interface{}{
+		"log-file":                   resolvedConfig.Logging.FilePath,
+		"log-format":                 resolvedConfig.Logging.Format,
+		"ignore-interrupts":          resolvedConfig.FileSystem.IgnoreInterrupts,
+		"anonymous-access":           resolvedConfig.GcsAuth.AnonymousAccess,
+		"kernel-list-cache-ttl-secs": resolvedConfig.List.KernelListCacheTtlSecs,
 	}
 
 	// Decoding config to the same config structure.
@@ -149,40 +136,20 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	// Override/Give priority to flags in case of overlap in flags and config.
 	for flagName, value := range overlapFlags {
 		if c.IsSet(flagName) {
-			if err := setValueInConfig(resolvedConfig, value.flagPath, value.flagValue); err != nil {
-				return nil,
-					fmt.Errorf("error setting overlap flag [%s] in config: %v", flagName, err)
+			switch flagName {
+			case "log-file":
+				resolvedConfig.Logging.FilePath = value.(cfg.ResolvedPath)
+			case "log-format":
+				resolvedConfig.Logging.Format = value.(string)
+			case "ignore-interrupts":
+				resolvedConfig.FileSystem.IgnoreInterrupts = value.(bool)
+			case "anonymous-access":
+				resolvedConfig.GcsAuth.AnonymousAccess = value.(bool)
+			case "kernel-list-cache-ttl-secs":
+				resolvedConfig.List.KernelListCacheTtlSecs = value.(int64)
 			}
 		}
 	}
 
 	return resolvedConfig, nil
-}
-
-func setValueInConfig(config *cfg.Config, configPath string, flagValue interface{}) error {
-	// Split the configPath into segments
-	pathSegments := strings.Split(configPath, ".")
-	if len(pathSegments) == 0 {
-		return fmt.Errorf("empty configPath")
-	}
-
-	// Navigate through the struct hierarchy using reflection
-	v := reflect.ValueOf(config)
-	for _, segment := range pathSegments {
-		if v.Kind() == reflect.Ptr {
-			v = v.Elem()
-		}
-		if v.Kind() != reflect.Struct {
-			return fmt.Errorf("invalid configPath: %s", configPath)
-		}
-		v = v.FieldByName(segment)
-	}
-
-	// Set the flagValue if the field is found and settable
-	if v.IsValid() && v.CanSet() {
-		v.Set(reflect.ValueOf(flagValue))
-		return nil
-	}
-
-	return fmt.Errorf("field not found or not settable: %s", configPath)
 }
