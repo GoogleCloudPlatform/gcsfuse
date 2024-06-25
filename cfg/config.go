@@ -73,17 +73,17 @@ type DebugConfig struct {
 type FileCacheConfig struct {
 	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
 
-	DownloadParallelismPerFile int64 `yaml:"download-parallelism-per-file"`
+	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb"`
 
-	EnableCrcCheck bool `yaml:"enable-crc-check"`
+	EnableCrc bool `yaml:"enable-crc"`
 
 	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
 
-	MaxDownloadParallelism int64 `yaml:"max-download-parallelism"`
+	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
 
 	MaxSizeMb int64 `yaml:"max-size-mb"`
 
-	ReadRequestSizeMb int64 `yaml:"read-request-size-mb"`
+	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
 }
 
 type FileSystemConfig struct {
@@ -337,16 +337,16 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("download-parallelism-per-file", "", 10, "Number of concurrent download requests per file.")
+	flagSet.IntP("download-chunk-size-mb", "", 25, "Size of chunks in MiB that each concurrent request downloads.")
 
-	err = viper.BindPFlag("file-cache.download-parallelism-per-file", flagSet.Lookup("download-parallelism-per-file"))
+	err = viper.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.BoolP("enable-crc-check", "", true, "Performs CRC check to ensure that file is correctly downloaded into cache.")
+	flagSet.BoolP("enable-crc", "", true, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
-	err = viper.BindPFlag("file-cache.enable-crc-check", flagSet.Lookup("enable-crc-check"))
+	err = viper.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc"))
 	if err != nil {
 		return err
 	}
@@ -553,16 +553,16 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-download-parallelism", "", -1, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	err = viper.BindPFlag("file-cache.max-download-parallelism", flagSet.Lookup("max-download-parallelism"))
+	err = viper.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
+	flagSet.IntP("max-parallel-downloads", "", -1, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
-	err = viper.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host"))
+	err = viper.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
 	if err != nil {
 		return err
 	}
@@ -602,9 +602,9 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("read-request-size-mb", "", 0, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("parallel-downloads-per-file", "", 10, "Number of concurrent download requests per file.")
 
-	err = viper.BindPFlag("file-cache.read-request-size-mb", flagSet.Lookup("read-request-size-mb"))
+	err = viper.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
 	if err != nil {
 		return err
 	}

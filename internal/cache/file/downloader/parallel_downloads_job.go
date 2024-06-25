@@ -73,15 +73,15 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	var start, end int64
 	end = int64(job.object.Size)
-	var parallelReadRequestSize = int64(job.fileCacheConfig.ReadRequestSizeMB) * cacheutil.MiB
+	var parallelReadRequestSize = int64(job.fileCacheConfig.DownloadChunkSizeMB) * cacheutil.MiB
 
-	// Each iteration of this for loop downloads job.fileCacheConfig.ReadRequestSizeMB * job.fileCacheConfig.DownloadParallelismPerFile
+	// Each iteration of this for loop downloads job.fileCacheConfig.DownloadChunkSizeMB * job.fileCacheConfig.ParallelDownloadsPerFile
 	// size of range of object from GCS into given file handle and updates the
 	// file info cache.
 	for start < end {
 		downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
-		for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.DownloadParallelismPerFile) && (start < end); goRoutineIdx++ {
+		for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < end); goRoutineIdx++ {
 			rangeStart := start
 			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 			currGoRoutineIdx := goRoutineIdx

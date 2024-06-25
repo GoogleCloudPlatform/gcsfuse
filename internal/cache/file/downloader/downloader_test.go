@@ -65,7 +65,7 @@ func (dt *downloaderTest) setupHelper() {
 }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {
-	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableCrcCheck: true}
+	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableCRC: true}
 	dt.setupHelper()
 }
 

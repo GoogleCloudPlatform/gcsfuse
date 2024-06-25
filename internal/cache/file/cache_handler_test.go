@@ -80,7 +80,7 @@ func (chrT *cacheHandlerTest) SetUp(*TestInfo) {
 	// Job manager
 	chrT.jobManager = downloader.NewJobManager(chrT.cache, util.DefaultFilePerm,
 		util.DefaultDirPerm, chrT.cacheDir, DefaultSequentialReadSizeMb, &config.FileCacheConfig{
-			EnableCrcCheck: true,
+			EnableCRC: true,
 		})
 
 	// Mocked cached handler object.

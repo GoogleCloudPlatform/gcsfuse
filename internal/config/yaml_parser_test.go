@@ -43,10 +43,10 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.False(t, mountConfig.FileCacheConfig.EnableParallelDownloads)
-	assert.Equal(t, 10, mountConfig.FileCacheConfig.DownloadParallelismPerFile)
-	assert.Equal(t, -1, mountConfig.FileCacheConfig.MaxDownloadParallelism)
-	assert.Equal(t, 25, mountConfig.FileCacheConfig.ReadRequestSizeMB)
-	assert.True(t, mountConfig.FileCacheConfig.EnableCrcCheck)
+	assert.Equal(t, 10, mountConfig.FileCacheConfig.ParallelDownloadsPerFile)
+	assert.Equal(t, -1, mountConfig.FileCacheConfig.MaxParallelDownloads)
+	assert.Equal(t, 25, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
+	assert.True(t, mountConfig.FileCacheConfig.EnableCRC)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -138,10 +138,10 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.True(t.T(), mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.True(t.T(), mountConfig.FileCacheConfig.EnableParallelDownloads)
-	assert.Equal(t.T(), 10, mountConfig.DownloadParallelismPerFile)
-	assert.Equal(t.T(), -1, mountConfig.MaxDownloadParallelism)
-	assert.Equal(t.T(), 100, mountConfig.ReadRequestSizeMB)
-	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCrcCheck)
+	assert.Equal(t.T(), 10, mountConfig.ParallelDownloadsPerFile)
+	assert.Equal(t.T(), -1, mountConfig.MaxParallelDownloads)
+	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
+	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -168,28 +168,28 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	assert.ErrorContains(t.T(), err, FileCacheMaxSizeMBInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidMaxDownloadParallelismConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_download_parallelism.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidMaxParallelDownloadsConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_parallel_downloads.yaml")
 
-	assert.ErrorContains(t.T(), err, MaxDownloadParallelismInvalidValueError)
+	assert.ErrorContains(t.T(), err, MaxParallelDownloadsInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxDownloadParallelismConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_download_parallelism.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxParallelDownloadsConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml")
 
-	assert.ErrorContains(t.T(), err, "the value of max-download-parallelism for file-cache must not be 0 when enable-parallel-downloads is true")
+	assert.ErrorContains(t.T(), err, "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadParallelismPerFileConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_parallelism_per_file.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidParallelDownloadsPerFileConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml")
 
-	assert.ErrorContains(t.T(), err, DownloadParallelismPerFileInvalidValueError)
+	assert.ErrorContains(t.T(), err, ParallelDownloadsPerFileInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidReadRequestSizeMBConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_read_request_size_mb.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadChunkSizeMBConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_chunk_size_mb.yaml")
 
-	assert.ErrorContains(t.T(), err, ReadRequestSizeMBInvalidValueError)
+	assert.ErrorContains(t.T(), err, DownloadChunkSizeMBInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {

@@ -59,11 +59,11 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 
-	DefaultEnableCrcCheck             = true
-	DefaultEnableParallelDownloads    = false
-	DefaultReadRequestSizeMB          = 25
-	DefaultDownloadParallelismPerFile = 10
-	DefaultMaxDownloadParallelism     = -1
+	DefaultEnableCRC                = true
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 25
+	DefaultParallelDownloadsPerFile = 10
+	DefaultMaxParallelDownloads     = -1
 )
 
 type WriteConfig struct {
@@ -111,13 +111,13 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                  int64 `yaml:"max-size-mb"`
-	CacheFileForRangeRead      bool  `yaml:"cache-file-for-range-read"`
-	EnableParallelDownloads    bool  `yaml:"enable-parallel-downloads,omitempty"`
-	DownloadParallelismPerFile int   `yaml:"download-parallelism-per-file,omitempty"`
-	MaxDownloadParallelism     int   `yaml:"max-download-parallelism,omitempty"`
-	ReadRequestSizeMB          int   `yaml:"read-request-size-mb,omitempty"`
-	EnableCrcCheck             bool  `yaml:"enable-crc-check"`
+	MaxSizeMB                int64 `yaml:"max-size-mb"`
+	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
+	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
+	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
+	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
+	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCRC                bool  `yaml:"enable-crc"`
 }
 
 type MetadataCacheConfig struct {
@@ -185,12 +185,12 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:                  DefaultFileCacheMaxSizeMB,
-		EnableParallelDownloads:    DefaultEnableParallelDownloads,
-		DownloadParallelismPerFile: DefaultDownloadParallelismPerFile,
-		MaxDownloadParallelism:     DefaultMaxDownloadParallelism,
-		ReadRequestSizeMB:          DefaultReadRequestSizeMB,
-		EnableCrcCheck:             DefaultEnableCrcCheck,
+		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:  DefaultEnableParallelDownloads,
+		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
+		MaxParallelDownloads:     DefaultMaxParallelDownloads,
+		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
+		EnableCRC:                DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
