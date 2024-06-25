@@ -309,14 +309,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		},
 	}
 
-	for _, tt := range populateConfigFromLegacyFlags {
-		t.Run(tt.testName, func(m *testing.T) {
-			testContext := &MockContext{isFlagSet: tt.isFlagSet}
+	for _, tc := range populateConfigFromLegacyFlags {
+		t.Run(tc.testName, func(t *testing.T) {
+			testContext := &MockContext{isFlagSet: tc.isFlagSet}
 
-			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(testContext, tt.legacyFlagStorage, tt.legacyMountConfig)
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(testContext, tc.legacyFlagStorage, tc.legacyMountConfig)
 
 			if assert.Nil(t, err) {
-				assert.Equal(t, tt.expectedConfig, resolvedConfig)
+				assert.Equal(t, tc.expectedConfig, resolvedConfig)
 			}
 		})
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-// cliContext is abstraction over the IsSet() method of cli.Context, Specially
+// cliContext is abstraction over the IsSet() method of cli.Context, specially
 // added to keep OverrideWithIgnoreInterruptsFlag method's unit test simple.
 type cliContext interface {
 	IsSet(string) bool
@@ -105,12 +105,12 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	}
 	decoder, err := mapstructure.NewDecoder(decoderConfig)
 	if err != nil {
-		return nil, fmt.Errorf("mapstructure.NewDecoder: %v", err)
+		return nil, fmt.Errorf("mapstructure.NewDecoder: %w", err)
 	}
 	// Decoding flags.
 	err = decoder.Decode(structuredFlags)
 	if err != nil {
-		return nil, fmt.Errorf("decoder.Decode(structuredFlags): %v", err)
+		return nil, fmt.Errorf("decoder.Decode(structuredFlags): %w", err)
 	}
 
 	// If config file is not present, no need to decode it.
@@ -130,26 +130,26 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	// Decoding config to the same config structure.
 	err = decoder.Decode(legacyConfig)
 	if err != nil {
-		return nil, fmt.Errorf("decoder.Decode(config): %v", err)
+		return nil, fmt.Errorf("decoder.Decode(config): %w", err)
 	}
 
 	// Override/Give priority to flags in case of overlap in flags and config.
 	for flagName, value := range overlapFlags {
-		if c.IsSet(flagName) {
-			switch flagName {
-			case "log-file":
-				resolvedConfig.Logging.FilePath = value.(cfg.ResolvedPath)
-			case "log-format":
-				resolvedConfig.Logging.Format = value.(string)
-			case "ignore-interrupts":
-				resolvedConfig.FileSystem.IgnoreInterrupts = value.(bool)
-			case "anonymous-access":
-				resolvedConfig.GcsAuth.AnonymousAccess = value.(bool)
-			case "kernel-list-cache-ttl-secs":
-				resolvedConfig.List.KernelListCacheTtlSecs = value.(int64)
-			}
+		if !c.IsSet(flagName) {
+			continue
+		}
+		switch flagName {
+		case "log-file":
+			resolvedConfig.Logging.FilePath = value.(cfg.ResolvedPath)
+		case "log-format":
+			resolvedConfig.Logging.Format = value.(string)
+		case "ignore-interrupts":
+			resolvedConfig.FileSystem.IgnoreInterrupts = value.(bool)
+		case "anonymous-access":
+			resolvedConfig.GcsAuth.AnonymousAccess = value.(bool)
+		case "kernel-list-cache-ttl-secs":
+			resolvedConfig.List.KernelListCacheTtlSecs = value.(int64)
 		}
 	}
-
 	return resolvedConfig, nil
 }
