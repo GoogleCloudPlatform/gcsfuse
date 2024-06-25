@@ -70,7 +70,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 		FileCacheConfig: config.FileCacheConfig{
 			MaxSizeMB:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
-			EnableCrcCheck:        true,
+			EnableCRC:             true,
 		},
 		CacheDir: config.CacheDir(CacheDir),
 	}
