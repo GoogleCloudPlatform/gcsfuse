@@ -46,3 +46,50 @@ func TestValidConfig(t *testing.T) {
 
 	assert.Nil(t, cmd.Execute())
 }
+
+func TestTooManyCobraArgs(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		expectError bool
+	}{
+		{
+			name:        "Too many args",
+			args:        []string{"abc", "pqr", "xyz"},
+			expectError: true,
+		},
+		{
+			name:        "Too few args",
+			args:        []string{},
+			expectError: true,
+		},
+		{
+			name:        "One arg is okay",
+			args:        []string{"abc"},
+			expectError: false,
+		},
+		{
+			name:        "Two args is okay",
+			args:        []string{"abc", "pqr"},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+			if err != nil {
+				t.Fatalf("Error while creating the root command: %v", err)
+			}
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if tc.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
