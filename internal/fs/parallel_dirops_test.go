@@ -377,6 +377,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 	} else {
 		assert.True(t.T(), os.IsNotExist(lookUpErr))
 	}
+	assert.Nil(t.T(), file.Close())
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {

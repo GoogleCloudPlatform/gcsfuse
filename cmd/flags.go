@@ -512,7 +512,7 @@ func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
 
 	// Resolve cache-dir path
 	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
-	mountConfig.CacheDir = config.CacheDir(resolvedPath)
+	mountConfig.CacheDir = resolvedPath
 	if err != nil {
 		return
 	}
