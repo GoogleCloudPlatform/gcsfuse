@@ -17,6 +17,9 @@ workloads for the given test setup:
 * Bucket location: us-west1
 * GCSFuse version: 2.2.0
 
+**Note:** The final results are determined by averaging the outcomes of
+multiple (2-3) experimental runs.
+
 ## Reads
 
 ### FIO spec
@@ -55,31 +58,31 @@ workloads for the given test setup:
 
 #### Sequential Reads
 
-| File Size | BlockSize | Bandwidth in (MiB/sec) | Avg Latency (msec) |
-|-----------|-----------|------------------------|--------------------|
-| 128KB     | 128K      | 862                    | 18.54              |
-| 256KB     | 128K      | 1548                   | 10.325             |
-| 1MB       | 1M        | 5108                   | 24.99              |
-| 5MB       | 1M        | 7282                   | 17.505             |
-| 10MB      | 1M        | 7946                   | 16.092             |
-| 50MB      | 1M        | 7810                   | 16.356             |
-| 100MB     | 1M        | 7839                   | 16.295             |
-| 200MB     | 1M        | 7879                   | 16.217             |
-| 1GB       | 1M        | 7911                   | 16.162             |
+| File Size | BlockSize | Bandwidth in (MiB/sec) | Avg Latency (msec) | IOPs     |
+|-----------|-----------|------------------------|--------------------|----------|
+| 128KB     | 128K      | 862                    | 18.54              | 6898.27  |
+| 256KB     | 128K      | 1548                   | 10.325             | 12386.03 |
+| 1MB       | 1M        | 5108                   | 24.99              | 5113.21  |
+| 5MB       | 1M        | 7282                   | 17.505             | 7308.51  |
+| 10MB      | 1M        | 7946                   | 16.092             | 7946.63  |
+| 50MB      | 1M        | 7810                   | 16.356             | 7818.17  |
+| 100MB     | 1M        | 7839                   | 16.295             | 7840.17  |
+| 200MB     | 1M        | 7879                   | 16.217             | 7884.45  |
+| 1GB       | 1M        | 7911                   | 16.162             | 7910.19  |
 
 #### Random Reads
 
-| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) |
-|-----------|-----------|----------------------|--------------------|
-| 128KB     | 128K      | 808                  | 19.80              |
-| 256KB     | 128K      | 1045                 | 15.214             |
-| 1MB       | 1M        | 4843                 | 26.40              |
-| 5MB       | 1M        | 7887                 | 16.117             |
-| 10MB      | 1M        | 4243                 | 30.061             |
-| 50MB      | 1M        | 3740                 | 34.102             |
-| 100MB     | 1M        | 3156                 | 40.481             |
-| 200MB     | 1M        | 2894                 | 44.030             |
-| 1GB       | 1M        | 2119                 | 60.313             |
+| File Size | BlockSize | Bandwidth in MiB/sec | Avg Latency (msec) | IOPs    |
+|-----------|-----------|----------------------|--------------------|---------|
+| 128KB     | 128K      | 808                  | 19.80              | 6466.07 |
+| 256KB     | 128K      | 1045                 | 15.214             | 8459.35 |
+| 1MB       | 1M        | 4843                 | 26.40              | 4837.09 |
+| 5MB       | 1M        | 7887                 | 16.117             | 7972.42 |
+| 10MB      | 1M        | 4243                 | 30.061             | 4256.19 |
+| 50MB      | 1M        | 3740                 | 34.102             | 3742.98 |
+| 100MB     | 1M        | 3156                 | 40.481             | 3151.17 |
+| 200MB     | 1M        | 2894                 | 44.030             | 2897.83 |
+| 1GB       | 1M        | 2119                 | 60.313             | 2113.16 |
 
 ### Recommendation for reads
 
@@ -90,6 +93,7 @@ for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (
 ## Writes
 
 ### FIO spec
+
   ```
     [global]
     ioengine=sync
@@ -123,9 +127,12 @@ for doing sequential reads on file sizes > 10MB and < 1GB. Always use http1 (
     numjobs=112
  ```
 
-**Note:** Performance will be better if you experiment on scenarios where files do not exist,
-compared to scenarios where files already exist. This is because writing to an existing
-file requires reading the existing content first, before the new data can be written.
+**Note:** Performance will be better if you experiment on scenarios where files
+do not exist,
+compared to scenarios where files already exist. This is because writing to an
+existing
+file requires reading the existing content first, before the new data can be
+written.
 
 ### Results
 
