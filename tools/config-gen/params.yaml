@@ -429,10 +429,10 @@
   usage: "Whether to cache file for range reads."
   default: false
 
-- flag-name: "enable-crc-check"
-  config-path: "file-cache.enable-crc-check"
+- flag-name: "enable-crc"
+  config-path: "file-cache.enable-crc"
   type: "bool"
-  usage: "Performs CRC check to ensure that file is correctly downloaded into cache."
+  usage: "Performs CRC to ensure that file is correctly downloaded into cache."
   default: true
 
 - flag-name: "enable-parallel-downloads"
@@ -441,23 +441,23 @@
   usage: "Enable parallel downloads."
   default: false
 
-- flag-name: "download-parallelism-per-file"
-  config-path: "file-cache.download-parallelism-per-file"
+- flag-name: "parallel-downloads-per-file"
+  config-path: "file-cache.parallel-downloads-per-file"
   type: "int"
   usage: "Number of concurrent download requests per file."
   default: "10"
 
-- flag-name: "max-download-parallelism"
-  config-path: "file-cache.max-download-parallelism"
+- flag-name: "max-parallel-downloads"
+  config-path: "file-cache.max-parallel-downloads"
   type: "int"
   usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
   default: "-1"
 
-- flag-name: "read-request-size-mb"
-  config-path: "file-cache.read-request-size-mb"
+- flag-name: "download-chunk-size-mb"
+  config-path: "file-cache.download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "0"
+  default: "25"
 
 - flag-name: "cache-dir"
   config-path: "cache-dir"

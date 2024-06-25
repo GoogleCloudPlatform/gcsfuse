@@ -92,37 +92,37 @@ func createObjectInStoreAndInitCache(t *testing.T, cache *lru.Cache, bucket gcs.
 
 func TestParallelDownloads(t *testing.T) {
 	tbl := []struct {
-		name                       string
-		objectSize                 int64
-		readReqSize                int
-		downloadParallelismPerFile int
-		maxDownloadParallelism     int
-		downloadOffset             int64
-		expectedOffset             int64
-		subscribedOffset           int64
+		name                     string
+		objectSize               int64
+		readReqSize              int
+		parallelDownloadsPerFile int
+		maxParallelDownloads     int
+		downloadOffset           int64
+		expectedOffset           int64
+		subscribedOffset         int64
 	}{
 		{
-			name:                       "download in chunks of concurrency * readReqSize",
-			objectSize:                 15 * util.MiB,
-			readReqSize:                3,
-			downloadParallelismPerFile: math.MaxInt,
-			maxDownloadParallelism:     3,
-			subscribedOffset:           7,
-			downloadOffset:             10,
-			// Concurrency can go to (maxDownloadParallelism + 1) in case
-			// downloadParallelismPerFile > maxDownloadParallelism because we always
-			// spawn minimum of 1 go routine per async job.
+			name:                     "download in chunks of concurrency * readReqSize",
+			objectSize:               15 * util.MiB,
+			readReqSize:              3,
+			parallelDownloadsPerFile: math.MaxInt,
+			maxParallelDownloads:     3,
+			subscribedOffset:         7,
+			downloadOffset:           10,
+			// Concurrency can go to (maxParallelDownloads + 1) in case
+			// parallelDownloadsPerFile > maxParallelDownloads because we always
+			// spawn a minimum of 1 go routine per async job.
 			expectedOffset: 12 * util.MiB,
 		},
 		{
-			name:                       "download only upto the object size",
-			objectSize:                 10 * util.MiB,
-			readReqSize:                4,
-			downloadParallelismPerFile: math.MaxInt,
-			maxDownloadParallelism:     3,
-			subscribedOffset:           7,
-			downloadOffset:             10,
-			expectedOffset:             10 * util.MiB,
+			name:                     "download only upto the object size",
+			objectSize:               10 * util.MiB,
+			readReqSize:              4,
+			parallelDownloadsPerFile: math.MaxInt,
+			maxParallelDownloads:     3,
+			subscribedOffset:         7,
+			downloadOffset:           10,
+			expectedOffset:           10 * util.MiB,
 		},
 	}
 	for _, tc := range tbl {
@@ -133,7 +133,7 @@ func TestParallelDownloads(t *testing.T) {
 			bucket := storageHandle.BucketHandle(storage.TestBucketName, "")
 			minObj, content := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", tc.objectSize)
 			jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
-				DownloadParallelismPerFile: tc.downloadParallelismPerFile, ReadRequestSizeMB: tc.readReqSize, EnableCrcCheck: true, MaxDownloadParallelism: tc.maxDownloadParallelism})
+				ParallelDownloadsPerFile: tc.parallelDownloadsPerFile, DownloadChunkSizeMB: tc.readReqSize, EnableCRC: true, MaxParallelDownloads: tc.maxParallelDownloads})
 			job := jm.CreateJobIfNotExists(&minObj, bucket)
 			subscriberC := job.subscribe(tc.subscribedOffset)
 
@@ -167,7 +167,7 @@ func TestMultipleConcurrentDownloads(t *testing.T) {
 	minObj1, content1 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/foo.txt", 10*util.MiB)
 	minObj2, content2 := createObjectInStoreAndInitCache(t, cache, bucket, "path/in/gcs/bar.txt", 5*util.MiB)
 	jm := NewJobManager(cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, 2, &config.FileCacheConfig{EnableParallelDownloads: true,
-		DownloadParallelismPerFile: math.MaxInt, ReadRequestSizeMB: 2, EnableCrcCheck: true, MaxDownloadParallelism: 2})
+		ParallelDownloadsPerFile: math.MaxInt, DownloadChunkSizeMB: 2, EnableCRC: true, MaxParallelDownloads: 2})
 	job1 := jm.CreateJobIfNotExists(&minObj1, bucket)
 	job2 := jm.CreateJobIfNotExists(&minObj2, bucket)
 	s1 := job1.subscribe(10 * util.MiB)

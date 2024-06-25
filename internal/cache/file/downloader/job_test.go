@@ -883,7 +883,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	AssertEq(nil, dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTrue() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue() {
 	objectName := "path/in/gcs/file1.txt"
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -916,7 +916,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTr
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFalse() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse() {
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -937,7 +937,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
-	dt.job.fileCacheConfig.EnableCrcCheck = false
+	dt.job.fileCacheConfig.EnableCRC = false
 
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()

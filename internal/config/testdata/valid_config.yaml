@@ -13,10 +13,10 @@ file-cache:
   max-size-mb: 100
   cache-file-for-range-read: true
   enable-parallel-downloads: true
-  download-parallelism-per-file: 10
-  max-download-parallelism: -1
-  read-request-size-mb: 100
-  enable-crc-check: false
+  parallel-downloads-per-file: 10
+  max-parallel-downloads: -1
+  download-chunk-size-mb: 100
+  enable-crc: false
 metadata-cache:
   ttl-secs: 5
   type-cache-max-size-mb: 1

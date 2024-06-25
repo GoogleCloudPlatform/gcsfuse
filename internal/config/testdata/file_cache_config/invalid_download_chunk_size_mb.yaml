@@ -1,0 +1,4 @@
+file-cache:
+  cache-file-for-range-read: true
+  parallel-downloads-per-file: 100
+  download-chunk-size-mb: 0
