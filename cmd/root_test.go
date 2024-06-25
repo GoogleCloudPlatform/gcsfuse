@@ -20,6 +20,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInvalidConfig(t *testing.T) {
@@ -45,4 +46,49 @@ func TestValidConfig(t *testing.T) {
 	cmd.SetArgs([]string{"--config-file=testdata/valid_config.yml", "abc", "pqr"})
 
 	assert.Nil(t, cmd.Execute())
+}
+
+func TestTooManyCobraArgs(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		expectError bool
+	}{
+		{
+			name:        "Too many args",
+			args:        []string{"gcsfuse", "abc", "pqr", "xyz"},
+			expectError: true,
+		},
+		{
+			name:        "Too few args",
+			args:        []string{"gcsfuse"},
+			expectError: true,
+		},
+		{
+			name:        "Two args is okay",
+			args:        []string{"gcsfuse", "abc"},
+			expectError: false,
+		},
+		{
+			name:        "Three args is okay",
+			args:        []string{"gcsfuse", "abc", "pqr"},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if tc.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
 }
