@@ -111,7 +111,7 @@ func TestParallelDownloads(t *testing.T) {
 			downloadOffset:           10,
 			// Concurrency can go to (maxParallelDownloads + 1) in case
 			// parallelDownloadsPerFile > maxParallelDownloads because we always
-			// spawn minimum of 1 go routine per async job.
+			// spawn a minimum of 1 go routine per async job.
 			expectedOffset: 12 * util.MiB,
 		},
 		{
