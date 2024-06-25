@@ -21,6 +21,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/prefetch"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -45,6 +47,8 @@ type FileHandle struct {
 	// cacheFileForRangeRead is also valid for cache workflow, if true, object content
 	// will be downloaded for random reads as well too.
 	cacheFileForRangeRead bool
+
+	prefetcher *prefetch.Prefetcher
 }
 
 func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, cacheFileForRangeRead bool) (fh *FileHandle) {
@@ -55,6 +59,7 @@ func NewFileHandle(inode *inode.FileInode, fileCacheHandler *file.CacheHandler, 
 	}
 
 	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
+	fh.prefetcher = prefetch.NewPrefetcher(prefetch.GetDefaultPrefetchConfiguration(), inode.Bucket(), inode.Source())
 
 	return
 }
@@ -120,6 +125,29 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	// Otherwise we must fall through to the inode.
 	defer fh.inode.Unlock()
 	n, err = fh.inode.Read(ctx, dst, offset)
+
+	return
+}
+
+func (fh *FileHandle) ReadViaPrefetcher(ctx context.Context, dst []byte, offset int64) (n int, err error) {
+	objSize := fh.inode.Source().Size
+	bufferLen := len(dst)
+	remainigContent := objSize - uint64(offset)
+
+	if uint64(bufferLen) > remainigContent {
+		logger.Tracef("fileHandle: changing buffer length from %d to %d", bufferLen, remainigContent)
+		bufferLen = int(remainigContent)
+	}
+
+	n, err = fh.prefetcher.Read(ctx, dst[:bufferLen], offset)
+	switch {
+	case err == io.EOF:
+		return
+
+	case err != nil:
+		err = fmt.Errorf("fh.reader.ReadAt: %w", err)
+		return
+	}
 
 	return
 }
