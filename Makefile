@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt vet build install test clean clean-all
+.PHONY: generate fmt vet build buildTest install test clean clean-all
 
 generate:
 	go generate ./...
@@ -13,6 +13,9 @@ vet: fmt
 
 build: vet
 	go build main.go
+
+buildTest: vet
+	go test -run=XXX_SHOULD_NEVER_MATCH_XXX ./...
 
 install: fmt
 	go install -v ./...
