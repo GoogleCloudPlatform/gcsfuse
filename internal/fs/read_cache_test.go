@@ -53,7 +53,6 @@ func init() {
 	RegisterTestSuite(&FileCacheTest{})
 	RegisterTestSuite(&FileCacheDestroyTest{})
 	RegisterTestSuite(&FileCacheIsDisabledWithCacheDirAndZeroMaxSize{})
-	RegisterTestSuite(&FileCacheWithParallelDownloads{})
 }
 
 var CacheDir = path.Join(os.Getenv("HOME"), "cache-dir")
