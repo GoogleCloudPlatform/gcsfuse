@@ -40,7 +40,7 @@ func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		Version: getVersion(),
-		Args:    cobra.RangeArgs(1, 2),
+		Args:    cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)

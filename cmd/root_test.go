@@ -20,6 +20,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInvalidConfig(t *testing.T) {
@@ -55,22 +56,22 @@ func TestTooManyCobraArgs(t *testing.T) {
 	}{
 		{
 			name:        "Too many args",
-			args:        []string{"abc", "pqr", "xyz"},
+			args:        []string{"gcsfuse", "abc", "pqr", "xyz"},
 			expectError: true,
 		},
 		{
 			name:        "Too few args",
-			args:        []string{},
+			args:        []string{"gcsfuse"},
 			expectError: true,
 		},
 		{
-			name:        "One arg is okay",
-			args:        []string{"abc"},
+			name:        "Two args is okay",
+			args:        []string{"gcsfuse", "abc"},
 			expectError: false,
 		},
 		{
-			name:        "Two args is okay",
-			args:        []string{"abc", "pqr"},
+			name:        "Three args is okay",
+			args:        []string{"gcsfuse", "abc", "pqr"},
 			expectError: false,
 		},
 	}
@@ -78,9 +79,7 @@ func TestTooManyCobraArgs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
-			if err != nil {
-				t.Fatalf("Error while creating the root command: %v", err)
-			}
+			require.Nil(t, err)
 			cmd.SetArgs(tc.args)
 
 			err = cmd.Execute()
