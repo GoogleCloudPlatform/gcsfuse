@@ -317,13 +317,16 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)
-
-		// Copy the contents from NewReader to cache file.
-		offsetWriter := io.NewOffsetWriter(cacheFile, start)
-		_, err = io.CopyN(offsetWriter, newReader, maxRead)
-		if err != nil {
-			err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
-			return err
+		buf := make([]byte, 65536)
+		for i := int64(0); i < maxRead; {
+			// Copy the contents from NewReader to cache file.
+			offsetWriter := io.NewOffsetWriter(cacheFile, start)
+			readN, err := io.CopyBuffer(offsetWriter, newReader, buf)
+			if err != nil {
+				err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
+				return err
+			}
+			i = i + readN
 		}
 
 		start += maxRead
