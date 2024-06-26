@@ -861,7 +861,7 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	// Ignoring delete object error here, as in case of hns there is no way of knowing
-	// if underlying placeholder object exists or not.
+	// if underlying placeholder object exists or not in Hierarchical bucket.
 	// The DeleteFolder operation handles removing empty folders.
 	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
 		return fmt.Errorf("DeleteFolder: %w", err)
