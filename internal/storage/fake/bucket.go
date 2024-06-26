@@ -27,6 +27,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -889,4 +890,9 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.F
 		Name: "projects/_/buckets/" + b.Name() + "/folders/" + foldername,
 	}
 	return &folder, nil
+}
+
+func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+	// TODO: Implement.
+	return
 }

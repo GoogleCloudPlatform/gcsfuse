@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -309,4 +310,12 @@ func (b *fastStatBucket) GetFolder(
 	// b.insertFolder(folder)
 
 	return
+}
+
+func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+
+	// TODO: Invalidate cache
+
+	return o, err
 }
