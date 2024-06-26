@@ -122,13 +122,13 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	}
 
 	// Save overlapping flags in a map to override the config value later.
-	overlapFlags := map[string]interface{}{
-		"log-file":                   resolvedConfig.Logging.FilePath,
-		"log-format":                 resolvedConfig.Logging.Format,
-		"ignore-interrupts":          resolvedConfig.FileSystem.IgnoreInterrupts,
-		"anonymous-access":           resolvedConfig.GcsAuth.AnonymousAccess,
-		"kernel-list-cache-ttl-secs": resolvedConfig.List.KernelListCacheTtlSecs,
-	}
+	var (
+		logFile                = resolvedConfig.Logging.FilePath
+		logFormat              = resolvedConfig.Logging.Format
+		ignoreInterrupts       = resolvedConfig.FileSystem.IgnoreInterrupts
+		anonymousAccess        = resolvedConfig.GcsAuth.AnonymousAccess
+		kernelListCacheTTLSecs = resolvedConfig.List.KernelListCacheTtlSecs
+	)
 
 	// Decoding config to the same config structure (resolvedConfig).
 	if err = decoder.Decode(legacyConfig); err != nil {
@@ -136,22 +136,20 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	}
 
 	// Override/Give priority to flags in case of overlap in flags and config.
-	for flagName, value := range overlapFlags {
-		if !c.IsSet(flagName) {
-			continue
-		}
-		switch flagName {
-		case "log-file":
-			resolvedConfig.Logging.FilePath = value.(cfg.ResolvedPath)
-		case "log-format":
-			resolvedConfig.Logging.Format = value.(string)
-		case "ignore-interrupts":
-			resolvedConfig.FileSystem.IgnoreInterrupts = value.(bool)
-		case "anonymous-access":
-			resolvedConfig.GcsAuth.AnonymousAccess = value.(bool)
-		case "kernel-list-cache-ttl-secs":
-			resolvedConfig.List.KernelListCacheTtlSecs = value.(int64)
-		}
-	}
+	overrideWithFlag(c, "log-file", &resolvedConfig.Logging.FilePath, logFile)
+	overrideWithFlag(c, "log-format", &resolvedConfig.Logging.Format, logFormat)
+	overrideWithFlag(c, "ignore-interrupts", &resolvedConfig.FileSystem.IgnoreInterrupts, ignoreInterrupts)
+	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
+	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.List.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
+
 	return resolvedConfig, nil
+}
+
+// overrideWithFlag function overrides the toUpdate value with updateValue if
+// the flag is set in cliCOntext.
+func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue T) {
+	if !c.IsSet(flag) {
+		return
+	}
+	*toUpdate = updateValue
 }
