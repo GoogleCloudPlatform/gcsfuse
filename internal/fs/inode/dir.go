@@ -853,8 +853,9 @@ func (d *dirInode) DeleteChildDir(
 		})
 
 	if d.bucket.BucketType() == gcs.Hierarchical {
-		// In Hierarchical bucket implicit object remains as a folder only.
-		// Delete Folder deletes folder (in case of Hierarchical Bucket).
+		// Ignoring delete object error here, as in case hns there is no way of knowing
+		// if underlying placeholder object exists or not
+		// The DeleteFolder operation handles removing empty folders.
 		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
 		if err != nil {
 			return fmt.Errorf("DeleteFolder: %w", err)
