@@ -34,7 +34,7 @@ const (
 )
 
 // Base of the all tests:
-// How do we detect if the ReadDir() is responded from gcsfuse-filesystem or kernel?
+// How do we detect if the ReadDir() is responded from gcsfuse-filesystem or kernel page-cache?
 // By ensuring different response of same ReadDir() call from gcsfuse-filesystem.
 // So, if the current ReadDir() response is matching with previous one then
 // we can clearly say it is served from kernel cache. If not matching then served
@@ -47,8 +47,7 @@ type KernelListCacheTestCommon struct {
 func (t *KernelListCacheTestCommon) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
-			DisableParallelDirops:     false,
+		ListConfig: config.ListConfig{
 			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
 		}}
 	t.serverCfg.RenameDirLimit = 10
@@ -63,7 +62,6 @@ func (t *KernelListCacheTestCommon) SetupTest() {
 func (t *KernelListCacheTestCommon) TearDownTest() {
 	cacheClock.AdvanceTime(util.MaxTimeDuration)
 	t.fsTest.TearDown()
-	//os.RemoveAll(path.Join(mntDir))
 }
 
 func (t *KernelListCacheTestCommon) TearDownSuite() {
@@ -96,55 +94,21 @@ func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
 type KernelListCacheTestWithPositiveTtl struct {
 	suite.Suite
 	fsTest
+	KernelListCacheTestCommon
 }
 
 func (t *KernelListCacheTestWithPositiveTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
-			DisableParallelDirops:     false,
+		ListConfig: config.ListConfig{
 			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
 		}}
 	t.serverCfg.RenameDirLimit = 10
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *KernelListCacheTestWithPositiveTtl) SetupTest() {
-	t.createFilesAndDirStructureInBucket()
-	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-}
-
-func (t *KernelListCacheTestWithPositiveTtl) TearDownTest() {
-	cacheClock.AdvanceTime(util.MaxTimeDuration)
-	t.fsTest.TearDown()
-	//os.RemoveAll(path.Join(mntDir))
-}
-
-func (t *KernelListCacheTestWithPositiveTtl) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
-}
-
-func TestKernelListCacheTestSuite(t *testing.T) {
+func TestKernelListCacheTestWithPositiveTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithPositiveTtl))
-}
-
-// createFilesAndDirStructureInBucket creates the following files and directory
-// structure.
-// bucket
-//
-//	explicitDir/
-//	explicitDir/file1.txt
-//	explicitDir/file2.txt
-//	implicitDir/file1.txt
-//	implicitDir/file2.txt
-func (t *KernelListCacheTestWithPositiveTtl) createFilesAndDirStructureInBucket() {
-	assert.Nil(t.T(), t.createObjects(map[string]string{
-		"explicitDir/":          "",
-		"explicitDir/file1.txt": "12345",
-		"explicitDir/file2.txt": "6789101112",
-		"implicitDir/file1.txt": "-1234556789",
-		"implicitDir/file2.txt": "kdfkdj9",
-	}))
 }
 
 // TestKernelListCache_SimpleCacheWorking:
@@ -297,29 +261,17 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 type KernelListCacheTestWithInfiniteTtl struct {
 	suite.Suite
 	fsTest
+	KernelListCacheTestCommon
 }
 
 func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
-			DisableParallelDirops:     false,
+		ListConfig: config.ListConfig{
 			KernelListCacheTtlSeconds: -1,
 		}}
 	t.serverCfg.RenameDirLimit = 10
 	t.fsTest.SetUpTestSuite()
-}
-
-func (t *KernelListCacheTestWithInfiniteTtl) SetupTest() {
-	t.createFilesAndDirStructureInBucket()
-}
-
-func (t *KernelListCacheTestWithInfiniteTtl) TearDownTest() {
-	t.fsTest.TearDown()
-}
-
-func (t *KernelListCacheTestWithInfiniteTtl) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
 }
 
 func TestKernelListCacheTestInfiniteTtlSuite(t *testing.T) {
@@ -366,74 +318,24 @@ func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_CacheHit() {
 	assert.Nil(t.T(), err)
 }
 
-// createFilesAndDirStructureInBucket creates the following files and directory
-// structure.
-// bucket
-//
-//	explicitDir/
-//	explicitDir/file1.txt
-//	explicitDir/file2.txt
-//	implicitDir/file1.txt
-//	implicitDir/file2.txt
-func (t *KernelListCacheTestWithInfiniteTtl) createFilesAndDirStructureInBucket() {
-	assert.Nil(t.T(), t.createObjects(map[string]string{
-		"explicitDir/":          "",
-		"explicitDir/file1.txt": "12345",
-		"explicitDir/file2.txt": "6789101112",
-		"implicitDir/file1.txt": "-1234556789",
-		"implicitDir/file2.txt": "kdfkdj9",
-	}))
-}
-
 type KernelListCacheTestWithZeroTtl struct {
 	suite.Suite
 	fsTest
+	KernelListCacheTestCommon
 }
 
 func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
-			DisableParallelDirops:     false,
+		ListConfig: config.ListConfig{
 			KernelListCacheTtlSeconds: 0,
 		}}
 	t.serverCfg.RenameDirLimit = 10
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *KernelListCacheTestWithZeroTtl) SetupTest() {
-	t.createFilesAndDirStructureInBucket()
-}
-
-func (t *KernelListCacheTestWithZeroTtl) TearDownTest() {
-	t.fsTest.TearDown()
-}
-
-func (t *KernelListCacheTestWithZeroTtl) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
-}
-
 func TestKernelListCacheTestZeroTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithZeroTtl))
-}
-
-// createFilesAndDirStructureInBucket creates the following files and directory
-// structure.
-// bucket
-//
-//	explicitDir/
-//	explicitDir/file1.txt
-//	explicitDir/file2.txt
-//	implicitDir/file1.txt
-//	implicitDir/file2.txt
-func (t *KernelListCacheTestWithZeroTtl) createFilesAndDirStructureInBucket() {
-	assert.Nil(t.T(), t.createObjects(map[string]string{
-		"explicitDir/":          "",
-		"explicitDir/file1.txt": "12345",
-		"explicitDir/file2.txt": "6789101112",
-		"implicitDir/file1.txt": "-1234556789",
-		"implicitDir/file2.txt": "kdfkdj9",
-	}))
 }
 
 // TestKernelListCache_CacheMissWithZeroTtl
