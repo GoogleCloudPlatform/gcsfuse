@@ -186,7 +186,7 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return mountConfig, fmt.Errorf("error parsing list config: %w", err)
 	}
 
-	// In this scenario, the value for HNS should be overridden to true.
+	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
 	if mountConfig.EnableHNS {
 		mountConfig.ListConfig.EnableEmptyManagedFolders = true
 	}
