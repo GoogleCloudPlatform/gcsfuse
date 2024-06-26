@@ -187,7 +187,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
 		EnableParallelDownloads:  DefaultEnableParallelDownloads,
 		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
-		MaxParallelDownloads:     DefaultMaxDownloadParallelism(),
+		MaxParallelDownloads:     DefaultMaxParallelDownloads(),
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 	}

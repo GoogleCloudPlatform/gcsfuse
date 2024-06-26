@@ -268,6 +268,6 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 	ListCacheTtlSecsToDuration(-3)
 }
 
-func Test_DefaultMaxDownloadParallelism(t *testing.T) {
-	assert.GreaterOrEqual(t, DefaultMaxDownloadParallelism(), 16)
+func Test_DefaultMaxParallelDownloads(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }

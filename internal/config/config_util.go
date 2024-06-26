@@ -114,6 +114,6 @@ func ListCacheTtlSecsToDuration(secs int64) time.Duration {
 	return time.Duration(secs * int64(time.Second))
 }
 
-func DefaultMaxDownloadParallelism() int {
+func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
 }
