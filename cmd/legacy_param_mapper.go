@@ -31,6 +31,10 @@ type cliContext interface {
 
 // PopulateNewConfigFromLegacyFlagsAndConfig takes cliContext, legacy flags and legacy MountConfig and resolves it into new cfg.Config Object.
 func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage, legacyConfig *config.MountConfig) (*cfg.Config, error) {
+	if flags == nil || legacyConfig == nil {
+		return nil, fmt.Errorf("PopulateNewConfigFromLegacyFlagsAndConfig: unexpected nil flags or mount config")
+	}
+
 	resolvedConfig := &cfg.Config{}
 
 	structuredFlags := &map[string]interface{}{
@@ -108,13 +112,12 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		return nil, fmt.Errorf("mapstructure.NewDecoder: %w", err)
 	}
 	// Decoding flags.
-	err = decoder.Decode(structuredFlags)
-	if err != nil {
+	if err = decoder.Decode(structuredFlags); err != nil {
 		return nil, fmt.Errorf("decoder.Decode(structuredFlags): %w", err)
 	}
 
-	// If config file is not present, no need to decode it.
-	if legacyConfig == nil || reflect.DeepEqual(*legacyConfig, config.MountConfig{}) {
+	// If config file does not have any values, no need to decode it.
+	if reflect.ValueOf(*legacyConfig).IsZero() {
 		return resolvedConfig, nil
 	}
 
@@ -127,9 +130,8 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		"kernel-list-cache-ttl-secs": resolvedConfig.List.KernelListCacheTtlSecs,
 	}
 
-	// Decoding config to the same config structure.
-	err = decoder.Decode(legacyConfig)
-	if err != nil {
+	// Decoding config to the same config structure (resolvedConfig).
+	if err = decoder.Decode(legacyConfig); err != nil {
 		return nil, fmt.Errorf("decoder.Decode(config): %w", err)
 	}
 

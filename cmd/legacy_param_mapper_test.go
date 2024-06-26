@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path"
@@ -24,15 +25,16 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
-type MockContext struct {
+type mockCLIContext struct {
 	cli.Context
 	isFlagSet map[string]bool
 }
 
-func (m *MockContext) IsSet(name string) bool {
+func (m *mockCLIContext) IsSet(name string) bool {
 	return m.isFlagSet[name]
 }
 
@@ -40,11 +42,29 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 	var populateConfigFromLegacyFlags = []struct {
 		testName          string
 		legacyFlagStorage *flagStorage
-		isFlagSet         map[string]bool
+		mockCLICtx        *mockCLIContext
 		legacyMountConfig *config.MountConfig
 		expectedConfig    *cfg.Config
+		expectedErr       error
 	}{
-		{testName: "Test decode legacy flags.",
+		{
+			testName:          "nil flags",
+			legacyFlagStorage: nil,
+			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
+			legacyMountConfig: &config.MountConfig{},
+			expectedConfig:    nil,
+			expectedErr:       fmt.Errorf("PopulateNewConfigFromLegacyFlagsAndConfig: unexpected nil flags or mount config"),
+		},
+		{
+			testName:          "nil config",
+			legacyFlagStorage: &flagStorage{},
+			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
+			legacyMountConfig: nil,
+			expectedConfig:    nil,
+			expectedErr:       fmt.Errorf("PopulateNewConfigFromLegacyFlagsAndConfig: unexpected nil flags or mount config"),
+		},
+		{
+			testName: "Test decode legacy flags.",
 			legacyFlagStorage: &flagStorage{
 				AppName:                             "vertex",
 				Foreground:                          false,
@@ -90,7 +110,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				ExperimentalMetadataPrefetchOnMount: "sync",
 				ClientProtocol:                      mountpkg.HTTP1,
 			},
-			isFlagSet:         map[string]bool{},
+			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{},
 			expectedConfig: &cfg.Config{
 				AppName:    "vertex",
@@ -166,12 +186,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					LogMutex:                 true,
 				},
 			},
+			expectedErr: nil,
 		},
-		{testName: "Test decode legacy config.",
+		{
+			testName: "Test decode legacy config.",
 			legacyFlagStorage: &flagStorage{
 				ClientProtocol: mountpkg.GRPC,
 			},
-			isFlagSet: map[string]bool{},
+			mockCLICtx: &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{
 				WriteConfig: config.WriteConfig{
 					CreateEmptyFile: true,
@@ -254,8 +276,10 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					IgnoreInterrupts:      true,
 				},
 			},
+			expectedErr: nil,
 		},
-		{testName: "Test overlapping flags and configs set.",
+		{
+			testName: "Test overlapping flags and configs set.",
 			legacyFlagStorage: &flagStorage{
 				LogFile:                   "~/Documents/log-flag.txt",
 				LogFormat:                 "json",
@@ -264,12 +288,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				KernelListCacheTtlSeconds: -1,
 				ClientProtocol:            mountpkg.HTTP2,
 			},
-			isFlagSet: map[string]bool{
-				"log-file":                   true,
-				"log-format":                 true,
-				"ignore-interrupts":          true,
-				"anonymous-access":           true,
-				"kernel-list-cache-ttl-secs": true,
+			mockCLICtx: &mockCLIContext{
+				isFlagSet: map[string]bool{
+					"log-file":                   true,
+					"log-format":                 true,
+					"ignore-interrupts":          true,
+					"anonymous-access":           true,
+					"kernel-list-cache-ttl-secs": true,
+				},
 			},
 			legacyMountConfig: &config.MountConfig{
 				LogConfig: config.LogConfig{
@@ -306,18 +332,16 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ClientProtocol: cfg.Protocol("http2"),
 				},
 			},
+			expectedErr: nil,
 		},
 	}
 
 	for _, tc := range populateConfigFromLegacyFlags {
 		t.Run(tc.testName, func(t *testing.T) {
-			testContext := &MockContext{isFlagSet: tc.isFlagSet}
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(tc.mockCLICtx, tc.legacyFlagStorage, tc.legacyMountConfig)
 
-			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(testContext, tc.legacyFlagStorage, tc.legacyMountConfig)
-
-			if assert.Nil(t, err) {
-				assert.Equal(t, tc.expectedConfig, resolvedConfig)
-			}
+			require.Equal(t, tc.expectedErr, err)
+			assert.Equal(t, tc.expectedConfig, resolvedConfig)
 		})
 	}
 }
