@@ -33,11 +33,11 @@ const (
 	kernelListCacheTtlSeconds = 1000
 )
 
-// Base of the all tests:
+// Base of the all the tests:
 // How do we detect if the ReadDir() is responded from gcsfuse-filesystem or kernel page-cache?
-// By ensuring different response of same ReadDir() call from gcsfuse-filesystem.
+// By ensuring different consecutive response of ReadDir() for the same directory from GCSFuse filesystem.
 // So, if the current ReadDir() response is matching with previous one then
-// we can clearly say it is served from kernel cache. If not matching then served
+// we can clearly say it is served from the kernel page-cache. If not matching then served
 // from gcsfuse filesystem.
 type KernelListCacheTestCommon struct {
 	suite.Suite
@@ -60,6 +60,7 @@ func (t *KernelListCacheTestCommon) SetupTest() {
 }
 
 func (t *KernelListCacheTestCommon) TearDownTest() {
+	// Make sure to expire the cache for different test in the same suite.
 	cacheClock.AdvanceTime(util.MaxTimeDuration)
 	t.fsTest.TearDown()
 }
@@ -89,6 +90,10 @@ func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
 		"implicitDir/file1.txt": "-1234556789",
 		"implicitDir/file2.txt": "kdfkdj9",
 	}))
+}
+
+func (t *KernelListCacheTestCommon) deleteObjectOrFail(objectName string) {
+	assert.Nil(t.T(), t.deleteObject(objectName))
 }
 
 type KernelListCacheTestWithPositiveTtl struct {
@@ -133,7 +138,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHit() {
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file3.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file3.txt")
+	defer t.deleteObjectOrFail("explicitDir/file3.txt")
 
 	// Advancing the clock within time.
 	cacheClock.AdvanceTime(kernelListCacheTtlSeconds * time.Second / 2)
@@ -173,7 +178,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMiss() {
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file3.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file3.txt")
+	defer t.deleteObjectOrFail("explicitDir/file3.txt")
 
 	// Advancing the time more than ttl.
 	cacheClock.AdvanceTime(kernelListCacheTtlSeconds*time.Second + time.Second)
@@ -216,7 +221,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file3.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file3.txt")
+	defer t.deleteObjectOrFail("explicitDir/file3.txt")
 
 	// Advancing the time more than ttl.
 	cacheClock.AdvanceTime(kernelListCacheTtlSeconds*time.Second + time.Second)
@@ -239,7 +244,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file4.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file4.txt")
+	defer t.deleteObjectOrFail("explicitDir/file4.txt")
 
 	// Advancing the time within ttl.
 	cacheClock.AdvanceTime(kernelListCacheTtlSeconds * time.Second / 2)
@@ -300,7 +305,7 @@ func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_CacheHit() {
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file3.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file3.txt")
+	defer t.deleteObjectOrFail("explicitDir/file3.txt")
 
 	// Advancing time by 5 years (157800000 seconds).
 	cacheClock.AdvanceTime(157800000 * time.Second)
@@ -338,10 +343,10 @@ func TestKernelListCacheTestZeroTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithZeroTtl))
 }
 
-// TestKernelListCache_CacheMissWithZeroTtl
+// TestKernelListCache_AlwaysCacheMiss
 // (a) First ReadDir() will be served from GCSFuse filesystem.
 // (b) Second ReadDir() will also be served from GCSFuse filesystem.
-func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_CacheMiss() {
+func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(mntDir, "explicitDir"))
 	assert.Nil(t.T(), err)
@@ -360,7 +365,7 @@ func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_CacheMiss() {
 	assert.Nil(t.T(), t.createObjects(map[string]string{
 		"explicitDir/file3.txt": "123456",
 	}))
-	defer t.deleteObject("explicitDir/file3.txt")
+	defer t.deleteObjectOrFail("explicitDir/file3.txt")
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(path.Join(mntDir, "explicitDir"))
