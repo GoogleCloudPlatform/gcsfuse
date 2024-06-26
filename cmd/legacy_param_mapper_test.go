@@ -388,49 +388,8 @@ func TestOverrideWithFlag(t *testing.T) {
 	}
 }
 
-func TestOverrideWithFlag(t *testing.T) {
-	tests := []struct {
-		name         string
-		flag         string
-		isFlagSet    bool
-		initialValue any
-		updateValue  any
-		expected     any
-	}{
-		{
-			name:         "flagSet",
-			flag:         "log-file",
-			isFlagSet:    true,
-			initialValue: "/tmp/log.txt",
-			updateValue:  "/tmp/newLog.txt",
-			expected:     "/tmp/newLog.txt",
-		},
-		{
-			name:         "flagNotSet",
-			flag:         "ignore-interrupts",
-			isFlagSet:    false,
-			initialValue: false,
-			updateValue:  true,
-			expected:     false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			toUpdate := tc.initialValue
-			mockC := &mockCLIContext{
-				isFlagSet: map[string]bool{tc.flag: tc.isFlagSet},
-			}
-
-			overrideWithFlag(mockC, tc.flag, &toUpdate, tc.updateValue)
-
-			assert.Equal(t, tc.expected, toUpdate)
-		})
-	}
-}
-
 func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
-	currentWorkdingDir, err := os.Getwd()
+	currentWorkingDir, err := os.Getwd()
 	require.Equal(t, nil, err)
 	var keyFileTests = []struct {
 		testName        string
@@ -450,7 +409,7 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 		{
 			testName:        "current working directory",
 			givenKeyFile:    "key-file.json",
-			expectedKeyFile: cfg.ResolvedPath(path.Join(currentWorkdingDir, "key-file.json")),
+			expectedKeyFile: cfg.ResolvedPath(path.Join(currentWorkingDir, "key-file.json")),
 		},
 		{
 			testName:        "empty path",
@@ -470,8 +429,9 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 
 			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
 
-			require.Equal(t, nil, err)
-			assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
+			if assert.Equal(t, nil, err) {
+				assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
+			}
 		})
 	}
 }
