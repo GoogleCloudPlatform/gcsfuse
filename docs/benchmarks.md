@@ -33,7 +33,7 @@ multiple runs.
     invalidate=1
     ramp_time=10s
     runtime=60s
-    time_based=0
+    time_based=1
     thread=1
     openfiles=1
     group_reporting=1
