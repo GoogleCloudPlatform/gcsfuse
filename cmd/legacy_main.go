@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -100,7 +101,7 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
-func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             flags.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
@@ -110,7 +111,7 @@ func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, us
 		RetryMultiplier:            flags.RetryMultiplier,
 		UserAgent:                  userAgent,
 		CustomEndpoint:             flags.CustomEndpoint,
-		KeyFile:                    flags.KeyFile,
+		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
 		TokenUrl:                   flags.TokenUrl,
 		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
@@ -132,7 +133,8 @@ func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	mountConfig *config.MountConfig) (mfs *fuse.MountedFileSystem, err error) {
+	mountConfig *config.MountConfig,
+	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if flags.DebugInvariants {
 		locker.EnableInvariantsCheck()
@@ -149,7 +151,7 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(flags, mountConfig, userAgent)
+		storageHandle, err = createStorageHandle(newConfig, flags, mountConfig, userAgent)
 		if err != nil {
 			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -249,6 +251,11 @@ func runCLIApp(c *cli.Context) (err error) {
 	mountConfig, err := config.ParseConfigFile(flags.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("parsing config file failed: %w", err)
+	}
+
+	newConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(c, flags, mountConfig)
+	if err != nil {
+		return fmt.Errorf("error resolving flags and configs: %w", err)
 	}
 
 	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
@@ -404,7 +411,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, newConfig)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply

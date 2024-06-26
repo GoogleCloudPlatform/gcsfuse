@@ -490,11 +490,6 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 		return fmt.Errorf("resolving for log-file: %w", err)
 	}
 
-	err = resolvePathForTheFlagInContext("key-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for key-file: %w", err)
-	}
-
 	err = resolvePathForTheFlagInContext("config-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for config-file: %w", err)

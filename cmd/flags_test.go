@@ -303,17 +303,13 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 	app.Action = func(appCtx *cli.Context) {
 		resolvePathForTheFlagsInContext(appCtx)
-
 		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
 			appCtx.String("log-file"))
-		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "test.txt"),
-			appCtx.String("key-file"))
 		assert.Equal(t.T(), filepath.Join(currentWorkingDir, "config.yaml"),
 			appCtx.String("config-file"))
 	}
 	// Simulate argv.
-	fullArgs := []string{"some_app", "--log-file=test.txt",
-		"--key-file=test.txt", "--config-file=config.yaml"}
+	fullArgs := []string{"some_app", "--log-file=test.txt", "--config-file=config.yaml"}
 
 	err = app.Run(fullArgs)
 

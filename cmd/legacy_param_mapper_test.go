@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
@@ -383,6 +384,94 @@ func TestOverrideWithFlag(t *testing.T) {
 			overrideWithFlag(mockC, tc.flag, &toUpdate, tc.updateValue)
 
 			assert.Equal(t, tc.expected, toUpdate)
+		})
+	}
+}
+
+func TestOverrideWithFlag(t *testing.T) {
+	tests := []struct {
+		name         string
+		flag         string
+		isFlagSet    bool
+		initialValue any
+		updateValue  any
+		expected     any
+	}{
+		{
+			name:         "flagSet",
+			flag:         "log-file",
+			isFlagSet:    true,
+			initialValue: "/tmp/log.txt",
+			updateValue:  "/tmp/newLog.txt",
+			expected:     "/tmp/newLog.txt",
+		},
+		{
+			name:         "flagNotSet",
+			flag:         "ignore-interrupts",
+			isFlagSet:    false,
+			initialValue: false,
+			updateValue:  true,
+			expected:     false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			toUpdate := tc.initialValue
+			mockC := &mockCLIContext{
+				isFlagSet: map[string]bool{tc.flag: tc.isFlagSet},
+			}
+
+			overrideWithFlag(mockC, tc.flag, &toUpdate, tc.updateValue)
+
+			assert.Equal(t, tc.expected, toUpdate)
+		})
+	}
+}
+
+func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
+	currentWorkdingDir, err := os.Getwd()
+	require.Equal(t, nil, err)
+	var keyFileTests = []struct {
+		testName        string
+		givenKeyFile    string
+		expectedKeyFile cfg.ResolvedPath
+	}{
+		{
+			testName:        "absolute path",
+			givenKeyFile:    "/tmp/key-file.json",
+			expectedKeyFile: "/tmp/key-file.json",
+		},
+		{
+			testName:        "relative path",
+			givenKeyFile:    "~/Documents/key-file.json",
+			expectedKeyFile: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "/Documents/key-file.json")),
+		},
+		{
+			testName:        "current working directory",
+			givenKeyFile:    "key-file.json",
+			expectedKeyFile: cfg.ResolvedPath(path.Join(currentWorkdingDir, "key-file.json")),
+		},
+		{
+			testName:        "empty path",
+			givenKeyFile:    "",
+			expectedKeyFile: "",
+		},
+	}
+
+	for _, tc := range keyFileTests {
+		t.Run(tc.testName, func(t *testing.T) {
+			mockCLICtx := &mockCLIContext{}
+			legacyFlagStorage := &flagStorage{
+				ClientProtocol: mountpkg.HTTP2,
+				KeyFile:        tc.givenKeyFile,
+			}
+			legacyMountCfg := &config.MountConfig{}
+
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
+
+			require.Equal(t, nil, err)
+			assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
 		})
 	}
 }
