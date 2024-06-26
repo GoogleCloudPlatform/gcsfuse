@@ -420,14 +420,13 @@ func (t *PrefixBucketTest) GetFolder_Prefix() {
 }
 
 func (t *PrefixBucketTest) DeleteFolder() {
-	var err error
 	suffix := "taco"
 	name := t.prefix + suffix
 	contents := "foobar"
 
 	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
 	// Create an object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
+	_, err := storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(contents))
 	AssertEq(nil, err)
 	// Delete it.
 	err = t.bucket.DeleteFolder(
