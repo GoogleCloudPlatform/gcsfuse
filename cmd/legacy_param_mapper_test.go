@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
@@ -340,8 +339,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(tc.mockCLICtx, tc.legacyFlagStorage, tc.legacyMountConfig)
 
-			require.Equal(t, tc.expectedErr, err)
-			assert.Equal(t, tc.expectedConfig, resolvedConfig)
+			if assert.Equal(t, tc.expectedErr, err) {
+				assert.Equal(t, tc.expectedConfig, resolvedConfig)
+			}
 		})
 	}
 }
