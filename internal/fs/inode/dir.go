@@ -836,7 +836,7 @@ func (d *dirInode) DeleteChildDir(
 
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
-	// Hierarchical bucket there will not be any implicit dir.
+	// Hierarchical buckets don't have implicit dirs.
 	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
 		return
 	}
@@ -853,14 +853,12 @@ func (d *dirInode) DeleteChildDir(
 		})
 
 	if d.bucket.BucketType() == gcs.Hierarchical {
-		// Ignoring delete object error here, as in case hns there is no way of knowing
-		// if underlying placeholder object exists or not
+		// Ignoring delete object error here, as in case of hns there is no way of knowing
+		// if underlying placeholder object exists or not.
 		// The DeleteFolder operation handles removing empty folders.
-		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
-		if err != nil {
+		if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
 			return fmt.Errorf("DeleteFolder: %w", err)
 		}
-		time.Sleep(50 * time.Millisecond)
 	}
 
 	if err != nil {
