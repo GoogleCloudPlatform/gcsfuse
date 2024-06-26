@@ -323,19 +323,19 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 		for i := int64(0); i < maxRead; {
 			// Copy the contents from NewReader to cache file.
 			offsetWriter := io.NewOffsetWriter(cacheFile, start)
-			_, err = newReader.Read(readBuf)
+			readN, err := newReader.Read(readBuf)
 			if err != nil && err != io.EOF {
 				err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 				return err
 			}
-			tempReader := bytes.NewReader(readBuf)
+			tempReader := bytes.NewReader(readBuf[:readN])
 			writtenN, err := io.CopyBuffer(offsetWriter, tempReader, writeBuf)
 			if err != nil {
 				err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 				return err
 			}
 			i = i + writtenN
-			logger.Errorf(fmt.Sprintf("downloaded till %v: %v", i, writtenN))
+			//logger.Errorf(fmt.Sprintf("downloaded till %v: %v", i, writtenN))
 		}
 
 		start += maxRead
