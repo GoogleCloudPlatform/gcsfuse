@@ -15,7 +15,6 @@
 package downloader
 
 import (
-	"bytes"
 	"container/list"
 	"errors"
 	"fmt"
@@ -318,24 +317,24 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)
-		readBuf := make([]byte, 65536)
-		writeBuf := make([]byte, 65536)
+
+		//writeBuf := make([]byte, 32*1024)
 		for i := int64(0); i < maxRead; {
 			// Copy the contents from NewReader to cache file.
-			offsetWriter := io.NewOffsetWriter(cacheFile, start)
-			readN, err := newReader.Read(readBuf)
-			if err != nil && err != io.EOF {
+			offsetWriter := io.NewOffsetWriter(cacheFile, start+i)
+			readBuf := make([]byte, min(64*1024, maxRead-i))
+			_, err = io.ReadFull(newReader, readBuf)
+			if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 				err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 				return err
 			}
-			tempReader := bytes.NewReader(readBuf[:readN])
-			writtenN, err := io.CopyBuffer(offsetWriter, tempReader, writeBuf)
+			writtenN, err := offsetWriter.Write(readBuf)
 			if err != nil {
 				err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 				return err
 			}
-			i = i + writtenN
-			//logger.Errorf(fmt.Sprintf("downloaded till %v: %v", i, writtenN))
+			i = i + int64(writtenN)
+			//logger.Errorf(fmt.Sprintf("downloaded till %v: %v: %v: %v", i, writtenN, maxRead, readN))
 		}
 
 		start += maxRead
