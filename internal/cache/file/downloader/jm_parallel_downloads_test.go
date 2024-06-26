@@ -127,6 +127,7 @@ func TestParallelDownloads(t *testing.T) {
 	}
 	for _, tc := range tbl {
 		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
 			t.Parallel()
 			cache, cacheDir := configureCache(t, 2*tc.objectSize)
 			storageHandle := configureFakeStorage(t)
