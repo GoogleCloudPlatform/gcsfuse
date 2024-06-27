@@ -90,6 +90,7 @@ func TestParsingSuccess(t *testing.T) {
 		setupFn func()
 		testFn  func(*testing.T, TestConfig)
 	}{
+		t.Parallel()
 		{
 			name: "Octal",
 			args: []string{"--octalParam=755"},
@@ -230,6 +231,7 @@ func TestParsingSuccess(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if tc.setupFn != nil {
@@ -304,8 +306,8 @@ func TestParsingError(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			fs := declareFlags()
 			v := bindFlags(fs)
 			c := TestConfig{}
