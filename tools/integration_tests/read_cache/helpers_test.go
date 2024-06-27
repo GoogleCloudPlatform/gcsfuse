@@ -121,13 +121,16 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
-	// Validate CRC of cached file matches GCS CRC.
+	//Validate CRC of cached file matches GCS CRC.
 	cachedFilePath := getCachedFilePath(fileName)
 	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
 	if err != nil {
 		t.Errorf("CalculateFileCRC32 Failed: %v", err)
 	}
-	client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient, t)
+	err = client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient)
+	if err != nil {
+		t.Errorf("Cache file CRC mismatch: %v", err)
+	}
 }
 
 func validateFileIsNotCached(fileName string, t *testing.T) {
@@ -162,7 +165,10 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	if err != nil {
 		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}
-	client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient, t)
+	err = client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient)
+	if err != nil {
+		t.Errorf("Content served CRC mismatch: %v", err)
+	}
 
 	return expectedOutcome
 }

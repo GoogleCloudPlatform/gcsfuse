@@ -65,9 +65,9 @@ const (
 	offsetEndOfFile                     = veryLargeFileSize - 1*util.MiB
 	cacheDirName                        = "cache-dir"
 	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_read_cache_test_logs/log.json"
-	downloadParallelismPerFile          = 4
-	maxDownloadParallelism              = -1
-	readRequestSizeMB                   = 2
+	parallelDownloadsPerFile            = 4
+	maxParallelDownloads                = -1
+	downloadChunkSizeMB                 = 2
 	enableCrcCheck                      = true
 )
 
@@ -112,10 +112,10 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 			MaxSizeMB:                cacheSize,
 			CacheFileForRangeRead:    cacheFileForRangeRead,
 			EnableParallelDownloads:  enableParallelDownloads,
-			ParallelDownloadsPerFile: downloadParallelismPerFile,
-			MaxDownloadParallelism:   maxDownloadParallelism,
-			ReadRequestSizeMB:        readRequestSizeMB,
-			EnableCrcCheck:           enableCrcCheck,
+			ParallelDownloadsPerFile: parallelDownloadsPerFile,
+			MaxParallelDownloads:     maxParallelDownloads,
+			DownloadChunkSizeMB:      downloadChunkSizeMB,
+			EnableCRC:                enableCrcCheck,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{

@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -155,12 +156,13 @@ func CreateNFilesInDir(ctx context.Context, storageClient *storage.Client, numFi
 	return fileNames
 }
 
-func ValidateCRCWithGCS(gotCRC32Value uint32, objectPath string, ctx context.Context, storageClient *storage.Client, t *testing.T) {
+func ValidateCRCWithGCS(gotCRC32Value uint32, objectPath string, ctx context.Context, storageClient *storage.Client) error {
 	attr, err := StatObject(ctx, storageClient, objectPath)
 	if err != nil {
-		t.Errorf("Failed to fetch object attributes: %v", err)
+		return fmt.Errorf("Failed to fetch object attributes: %v", err)
 	}
 	if attr.CRC32C != gotCRC32Value {
-		t.Errorf("CRC32 mismatch. Expected %d, Got %d", attr.CRC32C, gotCRC32Value)
+		return fmt.Errorf("CRC32 mismatch. Expected %d, Got %d", attr.CRC32C, gotCRC32Value)
 	}
+	return nil
 }
