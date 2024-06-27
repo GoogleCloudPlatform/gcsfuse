@@ -39,7 +39,6 @@ func (m *mockCLIContext) IsSet(name string) bool {
 }
 
 func TestPopulateConfigFromLegacyFlags(t *testing.T) {
-	currentWorkingDir, _ := os.Getwd()
 	var populateConfigFromLegacyFlags = []struct {
 		testName          string
 		legacyFlagStorage *flagStorage
@@ -202,7 +201,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				LogConfig: config.LogConfig{
 					Severity: "info",
 					Format:   "text",
-					FilePath: "log-file.txt",
+					FilePath: "~/Documents/log-file.txt",
 					LogRotateConfig: config.LogRotateConfig{
 						MaxFileSizeMB:   20,
 						BackupFileCount: 2,
@@ -241,7 +240,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				Logging: cfg.LoggingConfig{
 					Severity: "INFO",
 					Format:   "text",
-					FilePath: cfg.ResolvedPath(path.Join(currentWorkingDir, "log-file.txt")),
+					FilePath: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/log-file.txt")),
 					LogRotate: cfg.LogRotateLoggingConfig{
 						MaxFileSizeMb:   20,
 						BackupFileCount: 2,
@@ -391,6 +390,54 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 
 			if assert.Nil(t, err) {
 				assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
+			}
+		})
+	}
+}
+
+func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
+	currentWorkingDir, err := os.Getwd()
+	require.Nil(t, err)
+	var logFileTests = []struct {
+		testName        string
+		givenLogFile    string
+		expectedLogFile cfg.ResolvedPath
+	}{
+		{
+			testName:        "absolute path",
+			givenLogFile:    "/tmp/log-file.json",
+			expectedLogFile: "/tmp/log-file.json",
+		},
+		{
+			testName:        "relative path",
+			givenLogFile:    "~/Documents/log-file.json",
+			expectedLogFile: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/log-file.json")),
+		},
+		{
+			testName:        "current working directory",
+			givenLogFile:    "log-file.json",
+			expectedLogFile: cfg.ResolvedPath(path.Join(currentWorkingDir, "log-file.json")),
+		},
+		{
+			testName:        "empty path",
+			givenLogFile:    "",
+			expectedLogFile: "",
+		},
+	}
+
+	for _, tc := range logFileTests {
+		t.Run(tc.testName, func(t *testing.T) {
+			mockCLICtx := &mockCLIContext{}
+			legacyFlagStorage := &flagStorage{
+				ClientProtocol: mountpkg.HTTP2,
+				LogFile:        tc.givenLogFile,
+			}
+			legacyMountCfg := &config.MountConfig{}
+
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
+
+			if assert.Nil(t, err) {
+				assert.Equal(t, tc.expectedLogFile, resolvedConfig.Logging.FilePath)
 			}
 		})
 	}
