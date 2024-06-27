@@ -298,15 +298,29 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (folder *controlpb.Folder, err error) {
-	// Fetch the listing.
-	folder, err = b.wrapped.GetFolder(ctx, prefix)
-	if err != nil {
-		return
+	prefix string) (*controlpb.Folder, error) {
+	// Do we have an entry in the cache?
+	if hit, entry := b.lookUp(prefix); hit {
+		// Negative entries result in NotFoundError.
+		if entry == nil {
+			err := &gcs.NotFoundError{
+				Err: fmt.Errorf("Negative cache entry for %v", prefix),
+			}
+			return nil, err
+		}
+
+		// TODO: return folder from here, create new lookup for folder
+		return nil, nil
 	}
 
-	// TODO: add folder metadata in stat cache
-	// b.insertFolder(folder)
+	folder, err := b.wrapped.GetFolder(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	// Add folder metadata in stat cache
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.InsertFolder(folder, expiration)
+
+	return folder, nil
 }
