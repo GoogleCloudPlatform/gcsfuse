@@ -26,5 +26,6 @@ type userAgentRoundTripper struct {
 
 func (ug *userAgentRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("User-Agent", ug.UserAgent)
+	r.Header.Set("x-goog-emulator-instructions", "stall-always")
 	return ug.wrapped.RoundTrip(r)
 }

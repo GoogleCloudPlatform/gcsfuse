@@ -406,26 +406,27 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 }
 
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) (flags []string) {
+func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
 	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
 	if err != nil {
-		log.Printf("Error in getting bucket attrs: %v", err)
-		return
+		return nil, fmt.Errorf("Error in getting bucket attrs: %w", err)
 	}
-	if attrs.HierarchicalNamespace.Enabled {
-		mountConfig4 := config.MountConfig{
-			EnableHNS: true,
-			LogConfig: config.LogConfig{
-				Severity:        config.TRACE,
-				LogRotateConfig: config.DefaultLogRotateConfig(),
-			},
-		}
-		filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-		// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.
-		flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
-		return flags
+	if !attrs.HierarchicalNamespace.Enabled {
+		return nil, fmt.Errorf("Bucket is not Hierarchical")
 	}
-	return nil
+
+	var flags []string
+	mountConfig4 := config.MountConfig{
+		EnableHNS: true,
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
+	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.
+	flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
+	return flags, nil
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {

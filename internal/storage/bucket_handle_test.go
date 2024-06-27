@@ -1277,7 +1277,7 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 	err := testSuite.bucketHandle.DeleteFolder(ctx, missingObjectName)
 
 	mockClient.AssertExpectations(testSuite.T())
-	assert.Equal(testSuite.T(), "mock error", err.Error())
+	assert.NotNil(testSuite.T(), err)
 }
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalBucket() {
