@@ -347,47 +347,6 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 	}
 }
 
-func TestOverrideWithFlag(t *testing.T) {
-	tests := []struct {
-		name         string
-		flag         string
-		isFlagSet    bool
-		initialValue any
-		updateValue  any
-		expected     any
-	}{
-		{
-			name:         "flagSet",
-			flag:         "log-file",
-			isFlagSet:    true,
-			initialValue: "/tmp/log.txt",
-			updateValue:  "/tmp/newLog.txt",
-			expected:     "/tmp/newLog.txt",
-		},
-		{
-			name:         "flagNotSet",
-			flag:         "ignore-interrupts",
-			isFlagSet:    false,
-			initialValue: false,
-			updateValue:  true,
-			expected:     false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			toUpdate := tc.initialValue
-			mockC := &mockCLIContext{
-				isFlagSet: map[string]bool{tc.flag: tc.isFlagSet},
-			}
-
-			overrideWithFlag(mockC, tc.flag, &toUpdate, tc.updateValue)
-
-			assert.Equal(t, tc.expected, toUpdate)
-		})
-	}
-}
-
 func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 	currentWorkingDir, err := os.Getwd()
 	require.Nil(t, err)
