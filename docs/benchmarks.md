@@ -81,11 +81,6 @@ multiple runs.
 | 200MB     | 1M        | 3048                 | 41.919             | 3044.43  |
 | 1GB       | 1M        | 2120                 | 60.246             | 2114.33  |
 
-### Recommendation for reads
-
-GCSFuse performs well for sequential reads and recommendation is to use GCSFuse
-for doing sequential reads on file sizes > 10MB and < 1GB.
-
 ## Writes
 
 ### FIO spec
