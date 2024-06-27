@@ -429,7 +429,7 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 
 			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
 
-			if assert.Equal(t, nil, err) {
+			if assert.Nil(t, err) {
 				assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
 			}
 		})
