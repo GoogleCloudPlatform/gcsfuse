@@ -63,7 +63,6 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 25
 	DefaultParallelDownloadsPerFile = 10
-	DefaultMaxParallelDownloads     = -1
 )
 
 type WriteConfig struct {
@@ -187,7 +186,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
 		EnableParallelDownloads:  DefaultEnableParallelDownloads,
 		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
-		MaxParallelDownloads:     DefaultMaxParallelDownloads,
+		MaxParallelDownloads:     DefaultMaxParallelDownloads(),
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 	}

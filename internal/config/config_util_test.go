@@ -267,3 +267,7 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 	// Calling with invalid argument to trigger panic.
 	ListCacheTtlSecsToDuration(-3)
 }
+
+func Test_DefaultMaxParallelDownloads(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
+}
