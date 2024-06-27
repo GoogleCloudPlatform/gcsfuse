@@ -18,6 +18,7 @@ import (
 	"math"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -49,6 +50,15 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
+
+	// Insert an entry for the given folder resource.
+	//
+	// In order to help cope with caching of arbitrarily out of date (i.e.
+	// inconsistent) object listings, entry will not replace any positive entry
+	// with a newer meta generation number.
+	//
+	// The entry will expire after the supplied time.
+	InsertFolder(f *controlpb.Folder, expiration time.Time)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -80,6 +90,7 @@ type statCacheBucketView struct {
 // entry. Nil object means negative entry.
 type entry struct {
 	m          *gcs.MinObject
+	f          *controlpb.Folder
 	expiration time.Time
 	key        string
 }
@@ -202,4 +213,27 @@ func (sc *statCacheBucketView) LookUp(
 	m = e.m
 
 	return
+}
+
+func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
+	name := sc.key(f.Name)
+
+	// Return if there is already a better entry?
+	existing := sc.sharedCache.LookUp(name)
+	if existing != nil && existing.(entry).f != nil {
+		existingFolder := existing.(entry).f
+		if f.Metageneration != existingFolder.Metageneration && f.Metageneration < existingFolder.Metageneration {
+			return
+		}
+	}
+
+	e := entry{
+		f:          f,
+		expiration: expiration,
+		key:        name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }
