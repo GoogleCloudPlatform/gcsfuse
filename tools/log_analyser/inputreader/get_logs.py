@@ -67,7 +67,7 @@ class GetLogs:
         return ordered_list
 
 
-    def get_json_logs(self, files, log_type):
+    def get_json_logs(self, files, log_type, interval):
         ordered_files = self.get_sorted_files(files, log_type)
         logs = []
         for file in ordered_files:
@@ -77,10 +77,10 @@ class GetLogs:
                         data = line.strip()
                         try:
                             json_object = json.loads(data)
-                            # if json_object["timestamp"]["seconds"] < start_time:
-                            #     continue
-                            # elif json_object["timestamp"]["seconds"] > end_time:
-                            #     break
+                            if json_object["timestamp"]["seconds"] < interval[0]:
+                                continue
+                            elif json_object["timestamp"]["seconds"] > interval[1]:
+                                break
                             logs.append(json_object)
                         except json.JSONDecodeError:
                             print(f"Error parsing line: {line}")
@@ -94,9 +94,9 @@ class GetLogs:
                     for row in reader:
                         timestamp = self.iso_to_epoch(row[0])
                         message = row[1]
-                        # if timestamp["seconds"] < start_time:
-                        #     continue
-                        # elif timestamp["seconds"] > end_time:
-                        #     break
+                        if timestamp["seconds"] < interval[0]:
+                            continue
+                        elif timestamp["seconds"] > interval[1]:
+                            break
                         logs.append({"timestamp": timestamp, "message": message})
         return logs

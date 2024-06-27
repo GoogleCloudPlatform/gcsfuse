@@ -15,7 +15,6 @@
 package gcsx
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
+	"golang.org/x/net/context"
 )
 
 // MB is 1 Megabyte. (Silly comment to make the lint warning go away)
@@ -482,8 +482,7 @@ func (rr *randomReader) startRead(
 	}
 
 	// Begin the read.
-	ctx = context.WithoutCancel(ctx)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	rc, err := rr.bucket.NewReader(
 		ctx,
 		&gcs.ReadObjectRequest{

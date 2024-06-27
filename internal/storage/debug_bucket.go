@@ -27,7 +27,7 @@ import (
 
 // Wrap the supplied bucket in a layer that prints debug messages.
 func NewDebugBucket(
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+		wrapped gcs.Bucket) (b gcs.Bucket) {
 	b = &debugBucket{
 		wrapped: wrapped,
 	}
@@ -51,15 +51,15 @@ func (b *debugBucket) mintRequestID() (id uint64) {
 }
 
 func (b *debugBucket) requestLogf(
-	id uint64,
-	format string,
-	v ...interface{}) {
+		id uint64,
+		format string,
+		v ...interface{}) {
 	logger.Tracef("gcs: Req %#16x: %s", id, fmt.Sprintf(format, v...))
 }
 
 func (b *debugBucket) startRequest(
-	format string,
-	v ...interface{}) (id uint64, desc string, start time.Time) {
+		format string,
+		v ...interface{}) (id uint64, desc string, start time.Time) {
 	start = time.Now()
 	id = b.mintRequestID()
 	desc = fmt.Sprintf(format, v...)
@@ -69,10 +69,10 @@ func (b *debugBucket) startRequest(
 }
 
 func (b *debugBucket) finishRequest(
-	id uint64,
-	desc string,
-	start time.Time,
-	err *error) {
+		id uint64,
+		desc string,
+		start time.Time,
+		err *error) {
 	duration := time.Since(start)
 
 	errDesc := "OK"
@@ -130,11 +130,10 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 }
 
 func (b *debugBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
-	//extraInfo := ctx.Value("extraInfo").(wrappers.ExtraInfo)
-	//id, desc, start := b.startRequest("Read(%q, %v), Handle: %d, Inode: %d, PID: %d", req.Name, req.Range, extraInfo.Handle, extraInfo.Inode, extraInfo.OpContext.Pid)
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	id, desc, start := b.startRequest("Read(%q, %v)", req.Name, req.Range)
+
 	// Call through.
 	rc, err = b.wrapped.NewReader(ctx, req)
 	if err != nil {
@@ -155,8 +154,8 @@ func (b *debugBucket) NewReader(
 }
 
 func (b *debugBucket) CreateObject(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest("CreateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -165,8 +164,8 @@ func (b *debugBucket) CreateObject(
 }
 
 func (b *debugBucket) CopyObject(
-	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest(
 		"CopyObject(%q, %q)",
 		req.SrcName,
@@ -179,8 +178,8 @@ func (b *debugBucket) CopyObject(
 }
 
 func (b *debugBucket) ComposeObjects(
-	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest(
 		"ComposeObjects(%q)",
 		req.DstName)
@@ -192,8 +191,8 @@ func (b *debugBucket) ComposeObjects(
 }
 
 func (b *debugBucket) StatObject(
-	ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		ctx context.Context,
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	id, desc, start := b.startRequest("StatObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -202,8 +201,8 @@ func (b *debugBucket) StatObject(
 }
 
 func (b *debugBucket) ListObjects(
-	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+		ctx context.Context,
+		req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	id, desc, start := b.startRequest("ListObjects(%q)", req.Prefix)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -212,8 +211,8 @@ func (b *debugBucket) ListObjects(
 }
 
 func (b *debugBucket) UpdateObject(
-	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	id, desc, start := b.startRequest("UpdateObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
@@ -222,8 +221,8 @@ func (b *debugBucket) UpdateObject(
 }
 
 func (b *debugBucket) DeleteObject(
-	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+		ctx context.Context,
+		req *gcs.DeleteObjectRequest) (err error) {
 	id, desc, start := b.startRequest("DeleteObject(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 
