@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 )
 
@@ -346,43 +347,50 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 	}
 }
 
-func TestOverrideWithFlag(t *testing.T) {
-	tests := []struct {
-		name         string
-		flag         string
-		isFlagSet    bool
-		initialValue any
-		updateValue  any
-		expected     any
+func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
+	currentWorkingDir, err := os.Getwd()
+	require.Nil(t, err)
+	var keyFileTests = []struct {
+		testName        string
+		givenKeyFile    string
+		expectedKeyFile cfg.ResolvedPath
 	}{
 		{
-			name:         "flagSet",
-			flag:         "log-file",
-			isFlagSet:    true,
-			initialValue: "/tmp/log.txt",
-			updateValue:  "/tmp/newLog.txt",
-			expected:     "/tmp/newLog.txt",
+			testName:        "absolute path",
+			givenKeyFile:    "/tmp/key-file.json",
+			expectedKeyFile: "/tmp/key-file.json",
 		},
 		{
-			name:         "flagNotSet",
-			flag:         "ignore-interrupts",
-			isFlagSet:    false,
-			initialValue: false,
-			updateValue:  true,
-			expected:     false,
+			testName:        "relative path",
+			givenKeyFile:    "~/Documents/key-file.json",
+			expectedKeyFile: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "/Documents/key-file.json")),
+		},
+		{
+			testName:        "current working directory",
+			givenKeyFile:    "key-file.json",
+			expectedKeyFile: cfg.ResolvedPath(path.Join(currentWorkingDir, "key-file.json")),
+		},
+		{
+			testName:        "empty path",
+			givenKeyFile:    "",
+			expectedKeyFile: "",
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			toUpdate := tc.initialValue
-			mockC := &mockCLIContext{
-				isFlagSet: map[string]bool{tc.flag: tc.isFlagSet},
+	for _, tc := range keyFileTests {
+		t.Run(tc.testName, func(t *testing.T) {
+			mockCLICtx := &mockCLIContext{}
+			legacyFlagStorage := &flagStorage{
+				ClientProtocol: mountpkg.HTTP2,
+				KeyFile:        tc.givenKeyFile,
 			}
+			legacyMountCfg := &config.MountConfig{}
 
-			overrideWithFlag(mockC, tc.flag, &toUpdate, tc.updateValue)
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
 
-			assert.Equal(t, tc.expected, toUpdate)
+			if assert.Nil(t, err) {
+				assert.Equal(t, tc.expectedKeyFile, resolvedConfig.GcsAuth.KeyFile)
+			}
 		})
 	}
 }
