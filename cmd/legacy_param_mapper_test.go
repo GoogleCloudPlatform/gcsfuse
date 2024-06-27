@@ -390,7 +390,7 @@ func TestOverrideWithFlag(t *testing.T) {
 
 func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 	currentWorkingDir, err := os.Getwd()
-	require.Equal(t, nil, err)
+	require.Nil(t, err)
 	var keyFileTests = []struct {
 		testName        string
 		givenKeyFile    string
