@@ -60,36 +60,13 @@ func capitalizeIdentifier(name string) (string, error) {
 	return buf.String(), nil
 }
 
-func getGoDataType(dt string) string {
-	switch dt {
-	case "octal":
-		return "Octal"
-	case "url":
-		return "url.URL"
-	case "logSeverity":
-		return "LogSeverity"
-	case "protocol":
-		return "Protocol"
-	case "resolvedPath":
-		return "ResolvedPath"
-	case "duration":
-		return "time.Duration"
-	case "int":
-		return "int64"
-	case "[]int":
-		return "[]int64"
-	default:
-		return dt
-	}
-}
-
 // Returns a flat list with one entry for each field that needs to be created and the corresponding type.
 // A config path of x.y.z for a param of type int would return the follow entries
 // 1. {TypeName: Config, FieldName: X, DataType: XConfig, ConfigPath: x}
 // 2. {TypeName: XConfig, FieldName: Y, DataType: YXConfig, ConfigPath: y}
 // 3. {TypeName: YXConfig, FieldName: Z, DataType: int, ConfigPath: z}
-func computeFields(param Param) ([]fieldInfo, error) {
-	segments := strings.Split(param.ConfigPath, ".")
+func computeFields(d datatype) ([]fieldInfo, error) {
+	segments := strings.Split(d.param().ConfigPath, ".")
 	fieldInfos := make([]fieldInfo, 0, len(segments))
 	typeName := "Config"
 	for idx, s := range segments {
@@ -101,7 +78,7 @@ func computeFields(param Param) ([]fieldInfo, error) {
 		var dt string
 		if idx == len(segments)-1 {
 			// Dealing with leaf field here.
-			dt = getGoDataType(param.Type)
+			dt = d.goType()
 		} else {
 			// Not a leaf field.
 			tn, err := capitalizeIdentifier(s)
@@ -123,11 +100,11 @@ func computeFields(param Param) ([]fieldInfo, error) {
 	return fieldInfos, nil
 }
 
-func constructTypeTemplateData(paramsConfig []Param) ([]typeTemplateData, error) {
+func constructTypeTemplateData(paramsConfig []datatype) ([]typeTemplateData, error) {
 	var fields []fieldInfo
 	for _, p := range paramsConfig {
 		// ConfigPath can be empty for deprecated flags.
-		if p.ConfigPath == "" {
+		if p.param().ConfigPath == "" {
 			continue
 		}
 		f, err := computeFields(p)

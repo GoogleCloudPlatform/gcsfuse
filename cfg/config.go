@@ -540,7 +540,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
+	flagSet.StringP("log-severity", "", "INFO", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
 	err = v.BindPFlag("logging.severity", flagSet.Lookup("log-severity"))
 	if err != nil {

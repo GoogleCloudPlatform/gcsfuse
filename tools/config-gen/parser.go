@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,6 +39,20 @@ type Param struct {
 	Usage              string
 	HideFlag           bool `yaml:"hide-flag"`
 	HideShorthand      bool `yaml:"hide-shorthand"`
+}
+
+func (p Param) accessor() string {
+	var buf strings.Builder
+	for idx, path := range strings.Split(p.ConfigPath, ".") {
+		if idx != 0 {
+			buf.WriteString(".")
+		}
+		for _, seg := range strings.Split(cases.Title(language.English).String(path), "-") {
+			buf.WriteString(cases.Title(language.English).String(seg))
+		}
+	}
+
+	return buf.String()
 }
 
 func parseParamsConfig() ([]Param, error) {

@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 type flagTemplateData struct {
@@ -27,9 +26,9 @@ type flagTemplateData struct {
 	Fn string
 }
 
-func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
+func computeFlagTemplateData(dtypes []datatype) ([]flagTemplateData, error) {
 	var flgTemplate []flagTemplateData
-	for _, p := range paramsConfig {
+	for _, p := range dtypes {
 		td, err := computeFlagTemplateDataForParam(p)
 		if err != nil {
 			return nil, err
@@ -39,58 +38,10 @@ func computeFlagTemplateData(paramsConfig []Param) ([]flagTemplateData, error) {
 	return flgTemplate, nil
 }
 
-func computeFlagTemplateDataForParam(p Param) (flagTemplateData, error) {
-	var defaultValue string
-	var fn string
-	switch p.Type {
-	case "int":
-		if p.DefaultValue == "" {
-			defaultValue = "0"
-		} else {
-			defaultValue = p.DefaultValue
-		}
-		fn = "IntP"
-	case "float64":
-		if p.DefaultValue == "" {
-			defaultValue = "0.0"
-		} else {
-			defaultValue = p.DefaultValue
-		}
-		fn = "Float64P"
-	case "bool":
-		if p.DefaultValue == "" {
-			defaultValue = "false"
-		} else {
-			defaultValue = p.DefaultValue
-		}
-		fn = "BoolP"
-	case "duration":
-		if p.DefaultValue == "" {
-			defaultValue = "0s"
-		} else {
-			defaultValue = p.DefaultValue
-		}
-		dur, err := time.ParseDuration(defaultValue)
-		if err != nil {
-			return flagTemplateData{}, err
-		}
-		defaultValue = fmt.Sprintf("%d * time.Nanosecond", dur.Nanoseconds())
-		fn = "DurationP"
-	case "octal", "url", "logSeverity", "protocol", "resolvedPath":
-		fallthrough
-	case "string":
-		defaultValue = fmt.Sprintf("%q", p.DefaultValue)
-		fn = "StringP"
-	case "[]int":
-		defaultValue = fmt.Sprintf("[]int{%s}", p.DefaultValue)
-		fn = "IntSliceP"
-	case "[]string":
-		defaultValue = fmt.Sprintf("[]string{%s}", p.DefaultValue)
-		fn = "StringSliceP"
-	default:
-		return flagTemplateData{}, fmt.Errorf("unhandled type: %s", p.Type)
-	}
-	p.DefaultValue = defaultValue
+func computeFlagTemplateDataForParam(d datatype) (flagTemplateData, error) {
+	p := d.param()
+	p.DefaultValue = d.flagDefaultValue()
+	fn := d.flagFn()
 	// Usage string safely escaped with Go syntax.
 	p.Usage = fmt.Sprintf("%q", p.Usage)
 	return flagTemplateData{

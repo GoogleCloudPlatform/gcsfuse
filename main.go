@@ -58,6 +58,8 @@ func convertToPosixArgs(args []string) []string {
 // Refer https://go.dev/blog/generate for details.
 //
 //go:generate go run -C tools/config-gen . --paramsFile=params.yaml --outFile=../../cfg/config.go --templateFile=config.tpl
+//go:generate go run -C tools/config-gen . --paramsFile=params.yaml --testDefaultsTemplateFile=config_test_defaults.tpl --testDefaultsOutFile=../../cmd/config_defaults_test.go
+//go:generate go run -C tools/config-gen . --paramsFile=params.yaml --testFlagParsingTemplateFile=config_test_flag_parsing.tpl --testFlagParsingOutFile=../../cmd/flag_parsing_test.go
 func main() {
 	// Common configuration for all commands
 	defer logPanic()
