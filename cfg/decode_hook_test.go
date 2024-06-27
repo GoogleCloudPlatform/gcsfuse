@@ -35,6 +35,7 @@ func bindFlag(t *testing.T, v *viper.Viper, key string, f *flag.Flag) {
 }
 
 func TestParsingSuccess(t *testing.T) {
+	t.Parallel()
 	type TestConfig struct {
 		OctalParam       Octal
 		URLParam         url.URL
@@ -90,7 +91,6 @@ func TestParsingSuccess(t *testing.T) {
 		setupFn func()
 		testFn  func(*testing.T, TestConfig)
 	}{
-		t.Parallel()
 		{
 			name: "Octal",
 			args: []string{"--octalParam=755"},
@@ -257,6 +257,7 @@ func TestParsingSuccess(t *testing.T) {
 }
 
 func TestParsingError(t *testing.T) {
+	t.Parallel()
 	type TestConfig struct {
 		OctalParam       Octal
 		URLParam         url.URL
@@ -308,6 +309,7 @@ func TestParsingError(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			fs := declareFlags()
 			v := bindFlags(fs)
 			c := TestConfig{}
