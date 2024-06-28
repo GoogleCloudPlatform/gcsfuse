@@ -115,7 +115,8 @@ workloads for the given test setup:
     numjobs=112
  ```
 
-**Note:** Benchmarking is done writing out new files. Performance will be different for writes to existing files, 
+**Note:** Benchmarking is done writing out new files. Performance will be
+different for writes to existing files,
 as this first requires a full file download first.
 
 ### Results
@@ -132,11 +133,9 @@ as this first requires a full file download first.
 
 #### Random Write
 
-In case of random writes, only offset will change in calls issued by fio.
-GCSFuse behaviour will
-remain the same and there are no changes in the way gcs calls are being made.
-Hence the bandwidth will be same
-as sequential writes.
+Random writes and sequential write performance will generally be the same, as
+all writes are first staged to a local temporary directory before being written
+to GCS on close/fsync.
 
 ## Steps to benchmark GCSFuse performance
 
