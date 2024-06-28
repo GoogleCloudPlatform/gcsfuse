@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -337,14 +338,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("download-chunk-size-mb", "", 25, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
 
 	err = viper.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.BoolP("enable-crc", "", true, "Performs CRC to ensure that file is correctly downloaded into cache.")
+	flagSet.BoolP("enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
 	err = viper.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc"))
 	if err != nil {
@@ -560,7 +561,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-parallel-downloads", "", -1, "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("max-parallel-downloads", "", config.DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	err = viper.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
 	if err != nil {
@@ -602,7 +603,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("parallel-downloads-per-file", "", 10, "Number of concurrent download requests per file.")
+	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
 	err = viper.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
 	if err != nil {

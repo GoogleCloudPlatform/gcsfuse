@@ -165,3 +165,19 @@ func CalculateFileCRC32(ctx context.Context, filePath string) (uint32, error) {
 
 	return calculateCRC32(ctx, file)
 }
+
+// TruncateAndRemoveFile first truncates the file to 0 and then remove (delete)
+// the file at given path.
+func TruncateAndRemoveFile(filePath string) error {
+	// Truncate the file to 0 size, so that even if there are open file handles
+	// and linux doesn't delete the file, the file will not take space.
+	err := os.Truncate(filePath, 0)
+	if err != nil {
+		return err
+	}
+	err = os.Remove(filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
