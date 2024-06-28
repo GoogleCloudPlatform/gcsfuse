@@ -16,9 +16,6 @@ workloads for the given test setup:
 * Framework: FIO
 * GCSFuse version: 2.2.0
 
-**Note:** The final results are determined by averaging the outcomes of
-multiple runs.
-
 ## Reads
 
 ### FIO spec
