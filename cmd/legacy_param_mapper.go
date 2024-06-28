@@ -43,6 +43,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"exit-on-invariant-violation": flags.DebugInvariants,
 			"gcs":                         flags.DebugGCS,
 			"log-mutex":                   flags.DebugMutex,
+			"fuse":                        flags.DebugFuse,
 		},
 		"file-system": map[string]interface{}{
 			"dir-mode":  flags.DirMode,

@@ -66,6 +66,8 @@ type Config struct {
 type DebugConfig struct {
 	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation"`
 
+	Fuse bool `yaml:"fuse"`
+
 	Gcs bool `yaml:"gcs"`
 
 	LogMutex bool `yaml:"log-mutex"`
@@ -267,7 +269,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("debug_fs", "", false, "This flag is unused.")
 
-	err = flagSet.MarkDeprecated("debug_fs", "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	err = flagSet.MarkDeprecated("debug_fs", "Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 	if err != nil {
 		return err
 	}
@@ -279,6 +281,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	err = viper.BindPFlag("debug.fuse", flagSet.Lookup("debug_fuse"))
+	if err != nil {
+		return err
+	}
+
 	flagSet.BoolP("debug_fuse_errors", "", true, "This flag is currently unused.")
 
 	err = flagSet.MarkDeprecated("debug_fuse_errors", "This flag is currently unused.")
@@ -286,7 +293,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("debug_gcs", "", false, "This flag is unused. Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
+	flagSet.BoolP("debug_gcs", "", false, "Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs.")
 
 	err = flagSet.MarkDeprecated("debug_gcs", "This flag is currently unused.")
 	if err != nil {
