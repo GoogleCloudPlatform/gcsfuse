@@ -411,7 +411,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 	if err != nil {
 		return nil, fmt.Errorf("Error in getting bucket attrs: %w", err)
 	}
-	if !attrs.HierarchicalNamespace.Enabled {
+	if attrs.HierarchicalNamespace != nil && !attrs.HierarchicalNamespace.Enabled {
 		return nil, fmt.Errorf("Bucket is not Hierarchical")
 	}
 
