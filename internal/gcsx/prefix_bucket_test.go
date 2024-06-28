@@ -23,6 +23,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -417,4 +419,33 @@ func (t *PrefixBucketTest) GetFolder_Prefix() {
 	AssertEq(nil, err)
 	AssertEq("projects/_/buckets/some_bucket/folders/foo_something", result.GetName())
 
+}
+
+func TestDeleteFolder(t *testing.T) {
+	prefix := "foo_"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.Nil(t, err)
+	objectName := "taco"
+	name := "foo_" + objectName
+	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
+	// Create an object through the back door.
+	ctx := context.Background()
+	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte("foobar"))
+	require.Nil(t, err)
+
+	err = bucket.DeleteFolder(
+		ctx,
+		objectName)
+
+	if assert.Nil(t, err) {
+		// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
+		_, _, err = wrapped.StatObject(
+			ctx,
+			&gcs.StatObjectRequest{
+				Name: name,
+			})
+		var notFoundErr *gcs.NotFoundError
+		assert.ErrorAs(t, err, &notFoundErr)
+	}
 }

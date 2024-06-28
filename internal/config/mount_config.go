@@ -59,10 +59,10 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 
-	DefaultEnableCRC                = true
+	DefaultEnableCRC                = false
 	DefaultEnableParallelDownloads  = false
-	DefaultDownloadChunkSizeMB      = 25
-	DefaultParallelDownloadsPerFile = 10
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
 )
 
 type WriteConfig struct {

@@ -433,7 +433,7 @@
   config-path: "file-cache.enable-crc"
   type: "bool"
   usage: "Performs CRC to ensure that file is correctly downloaded into cache."
-  default: true
+  default: false
 
 - flag-name: "enable-parallel-downloads"
   config-path: "file-cache.enable-parallel-downloads"
@@ -445,7 +445,7 @@
   config-path: "file-cache.parallel-downloads-per-file"
   type: "int"
   usage: "Number of concurrent download requests per file."
-  default: "10"
+  default: "16"
 
 - flag-name: "max-parallel-downloads"
   config-path: "file-cache.max-parallel-downloads"
@@ -457,7 +457,7 @@
   config-path: "file-cache.download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "25"
+  default: "50"
 
 - flag-name: "cache-dir"
   config-path: "cache-dir"

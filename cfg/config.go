@@ -338,14 +338,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("download-chunk-size-mb", "", 25, "Size of chunks in MiB that each concurrent request downloads.")
+	flagSet.IntP("download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
 
 	err = viper.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb"))
 	if err != nil {
 		return err
 	}
 
-	flagSet.BoolP("enable-crc", "", true, "Performs CRC to ensure that file is correctly downloaded into cache.")
+	flagSet.BoolP("enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
 	err = viper.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc"))
 	if err != nil {
@@ -603,7 +603,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("parallel-downloads-per-file", "", 10, "Number of concurrent download requests per file.")
+	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
 	err = viper.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
 	if err != nil {
