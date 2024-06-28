@@ -25,14 +25,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	cfgFile   string
-	cfgErr    error
-	configObj cfg.Config
-)
-
 // NewRootCmd accepts the mountFn that it executes with the parsed configuration
 func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
+	var (
+		configObj cfg.Config
+		cfgFile   string
+		cfgErr    error
+		v         = viper.New()
+	)
 	rootCmd := &cobra.Command{
 		Use:   "gcsfuse [flags] bucket mount_point",
 		Short: "Mount a specified GCS bucket or all accessible buckets locally",
@@ -48,24 +48,10 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			return mountFn(configObj)
 		},
 	}
-	v := viper.New()
-	cobra.OnInitialize(initConfig(v))
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
-		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
-
-	// Add all the other flags.
-	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
-		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
-	}
-	return rootCmd, nil
-}
-
-func initConfig(v *viper.Viper) func() {
-	// Returning a function instead of using a package-level variable since it
-	// allows for the viper instance to be garbage-collected.
-	return func() {
+	initConfig := func() {
 		if cfgFile != "" {
-			cfgFile, err := util.GetResolvedPath(cfgFile)
+			var err error
+			cfgFile, err = util.GetResolvedPath(cfgFile)
 			if err != nil {
 				logger.Fatal("error while resolving config-file path[%s]: %v", cfgFile, err)
 			}
@@ -84,4 +70,13 @@ func initConfig(v *viper.Viper) func() {
 		},
 		)
 	}
+	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
+		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
+
+	// Add all the other flags.
+	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
+		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
+	}
+	return rootCmd, nil
 }
