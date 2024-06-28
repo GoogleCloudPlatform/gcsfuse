@@ -118,12 +118,8 @@ multiple runs.
     numjobs=112
  ```
 
-**Note:** Performance will be better if you experiment on scenarios where files
-do not exist,
-compared to scenarios where files already exist. This is because writing to an
-existing
-file requires reading the existing content first, before the new data can be
-written.
+**Note:** Benchmarking is done writing out new files. Performance will be different for writes to existing files, 
+as this first requires a full file download first.
 
 ### Results
 
