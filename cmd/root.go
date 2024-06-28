@@ -50,8 +50,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 	}
 	initConfig := func() {
 		if cfgFile != "" {
-			var err error
-			cfgFile, err = util.GetResolvedPath(cfgFile)
+			cfgFile, err := util.GetResolvedPath(cfgFile)
 			if err != nil {
 				logger.Fatal("error while resolving config-file path[%s]: %v", cfgFile, err)
 			}
