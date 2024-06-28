@@ -62,7 +62,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 
 func initConfig(v *viper.Viper) func() {
 	// Returning a function instead of using a package-level variable since it
-	// allows for the viper instance to be GC'ed.
+	// allows for the viper instance to be garbage-collected.
 	return func() {
 		if cfgFile != "" {
 			cfgFile, err := util.GetResolvedPath(cfgFile)
