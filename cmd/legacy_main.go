@@ -258,7 +258,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("error resolving flags and configs: %w", err)
 	}
 
-	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
+	config.OverrideWithLoggingFlags(mountConfig, flags.LogFormat,
 		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
@@ -276,7 +276,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	if flags.Foreground {
-		err = logger.InitLogFile(mountConfig.LogConfig)
+		err = logger.InitLogFile(mountConfig.LogConfig, newConfig.Logging)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -296,7 +296,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// Do not log these in stdout in case of daemonized run
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
-	if flags.Foreground || mountConfig.LogConfig.FilePath == "" {
+	if flags.Foreground || newConfig.Logging.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
 			logger.Warnf("failed to stringify cli flags: %v", err)
