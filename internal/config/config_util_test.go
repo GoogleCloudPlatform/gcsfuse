@@ -48,49 +48,6 @@ func TestConfigSuite(t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
-	f := &flags{
-		LogFile:    "a.txt",
-		LogFormat:  "json",
-		DebugFuse:  true,
-		DebugGCS:   false,
-		DebugMutex: false,
-	}
-	mountConfig := &MountConfig{}
-	mountConfig.LogConfig = LogConfig{
-		Severity: ERROR,
-		Format:   "text",
-	}
-	mountConfig.WriteConfig = WriteConfig{
-		CreateEmptyFile: true,
-	}
-
-	OverrideWithLoggingFlags(mountConfig, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
-
-	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), TRACE, mountConfig.LogConfig.Severity)
-}
-
-func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
-	f := &flags{
-		LogFile:   "a.txt",
-		LogFormat: "json",
-	}
-	mountConfig := &MountConfig{}
-	mountConfig.LogConfig = LogConfig{
-		Severity: INFO,
-		Format:   "",
-	}
-	mountConfig.WriteConfig = WriteConfig{
-		CreateEmptyFile: true,
-	}
-
-	OverrideWithLoggingFlags(mountConfig, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
-
-	assert.Equal(t.T(), "json", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), INFO, mountConfig.LogConfig.Severity)
-}
-
 func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig := &MountConfig{
 		CacheDir: "/tmp/folder/",

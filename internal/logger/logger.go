@@ -91,11 +91,11 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 		file:            f,
 		sysWriter:       sysWriter,
 		fileWriter:      fileWriter,
-		format:          legacyLogConfig.Format,
-		level:           legacyLogConfig.Severity,
+		format:          newLogConfig.Format,
+		level:           string(newLogConfig.Severity),
 		logRotateConfig: legacyLogConfig.LogRotateConfig,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(legacyLogConfig.Severity)
+	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
 	return nil
 }
