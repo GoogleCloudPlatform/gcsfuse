@@ -34,7 +34,7 @@ type {{ .TypeName}} struct {
 }
 {{end}}
 
-func BindFlags(flagSet *pflag.FlagSet) error {
+func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
   var err error
   {{range .FlagTemplateData}}
   flagSet.{{ .Fn}}("{{ .FlagName}}", "{{ .Shorthand}}", {{ .DefaultValue}}, {{ .Usage}})
@@ -52,7 +52,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
   {{end}}
   {{if .HideShorthand}}flagSet.ShorthandLookup("{{ .Shorthand}}").Hidden = true{{end}}
   {{if ne .ConfigPath ""}}
-  err = viper.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}"))
+  err = v.BindPFlag("{{ .ConfigPath}}", flagSet.Lookup("{{ .FlagName}}"))
   if err != nil {
     return err
   }
