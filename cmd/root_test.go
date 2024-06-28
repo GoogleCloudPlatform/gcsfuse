@@ -62,7 +62,7 @@ func TestDefaultMaxParallelDownloads(t *testing.T) {
 	}
 }
 
-func TestTooManyCobraArgs(t *testing.T) {
+func TestCobraArgsNumInRange(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string

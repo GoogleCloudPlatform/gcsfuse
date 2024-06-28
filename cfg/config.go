@@ -201,47 +201,47 @@ type WriteConfig struct {
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 }
 
-func BindFlags(flagSet *pflag.FlagSet) error {
+func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	var err error
 
 	flagSet.BoolP("anonymous-access", "", false, "Authentication is enabled by default. This flag disables authentication")
 
-	err = viper.BindPFlag("gcs-auth.anonymous-access", flagSet.Lookup("anonymous-access"))
+	err = v.BindPFlag("gcs-auth.anonymous-access", flagSet.Lookup("anonymous-access"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("app-name", "", "", "The application name of this mount.")
 
-	err = viper.BindPFlag("app-name", flagSet.Lookup("app-name"))
+	err = v.BindPFlag("app-name", flagSet.Lookup("app-name"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("billing-project", "", "", "Project to use for billing when accessing a bucket enabled with \"Requester Pays\". (The default is none)")
 
-	err = viper.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project"))
+	err = v.BindPFlag("gcs-connection.billing-project", flagSet.Lookup("billing-project"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("cache-dir", "", "", "Enables file-caching. Specifies the directory to use for file-cache.")
 
-	err = viper.BindPFlag("cache-dir", flagSet.Lookup("cache-dir"))
+	err = v.BindPFlag("cache-dir", flagSet.Lookup("cache-dir"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
-	err = viper.BindPFlag("file-cache.cache-file-for-range-read", flagSet.Lookup("cache-file-for-range-read"))
+	err = v.BindPFlag("file-cache.cache-file-for-range-read", flagSet.Lookup("cache-file-for-range-read"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
 
-	err = viper.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol"))
+	err = v.BindPFlag("gcs-connection.client-protocol", flagSet.Lookup("client-protocol"))
 	if err != nil {
 		return err
 	}
@@ -253,14 +253,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("write.create-empty-file", flagSet.Lookup("create-empty-file"))
+	err = v.BindPFlag("write.create-empty-file", flagSet.Lookup("create-empty-file"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("custom-endpoint", "", "", "Specifies an alternative custom endpoint for fetching data. Should only be used for testing.  The custom endpoint must support the equivalent resources and operations as the GCS  JSON endpoint, https://storage.googleapis.com/storage/v1. If a custom endpoint is not specified,  GCSFuse uses the global GCS JSON API endpoint, https://storage.googleapis.com/storage/v1.")
 
-	err = viper.BindPFlag("gcs-connection.custom-endpoint", flagSet.Lookup("custom-endpoint"))
+	err = v.BindPFlag("gcs-connection.custom-endpoint", flagSet.Lookup("custom-endpoint"))
 	if err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("debug.gcs", flagSet.Lookup("debug_gcs"))
+	err = v.BindPFlag("debug.gcs", flagSet.Lookup("debug_gcs"))
 	if err != nil {
 		return err
 	}
@@ -307,21 +307,21 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("debug_invariants", "", false, "Exit when internal invariants are violated.")
 
-	err = viper.BindPFlag("debug.exit-on-invariant-violation", flagSet.Lookup("debug_invariants"))
+	err = v.BindPFlag("debug.exit-on-invariant-violation", flagSet.Lookup("debug_invariants"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("debug_mutex", "", false, "Print debug messages when a mutex is held too long.")
 
-	err = viper.BindPFlag("debug.log-mutex", flagSet.Lookup("debug_mutex"))
+	err = v.BindPFlag("debug.log-mutex", flagSet.Lookup("debug_mutex"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("dir-mode", "", "0755", "Permissions bits for directories, in octal.")
 
-	err = viper.BindPFlag("file-system.dir-mode", flagSet.Lookup("dir-mode"))
+	err = v.BindPFlag("file-system.dir-mode", flagSet.Lookup("dir-mode"))
 	if err != nil {
 		return err
 	}
@@ -333,49 +333,49 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops"))
+	err = v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("download-chunk-size-mb", "", 50, "Size of chunks in MiB that each concurrent request downloads.")
 
-	err = viper.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb"))
+	err = v.BindPFlag("file-cache.download-chunk-size-mb", flagSet.Lookup("download-chunk-size-mb"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("enable-crc", "", false, "Performs CRC to ensure that file is correctly downloaded into cache.")
 
-	err = viper.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc"))
+	err = v.BindPFlag("file-cache.enable-crc", flagSet.Lookup("enable-crc"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("enable-empty-managed-folders", "", false, "This handles the corner case in listing managed folders. There are two corner cases (a) empty managed folder (b) nested managed folder which doesn't contain any descendent as object. This flag always works in conjunction with --implicit-dirs flag. (a) If only ImplicitDirectories is true, all managed folders are listed other than above two mentioned cases. (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case. (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.")
 
-	err = viper.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders"))
+	err = v.BindPFlag("list.enable-empty-managed-folders", flagSet.Lookup("enable-empty-managed-folders"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("enable-hns", "", false, "Enables support for HNS buckets")
 
-	err = viper.BindPFlag("enable-hns", flagSet.Lookup("enable-hns"))
+	err = v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil.")
 
-	err = viper.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache"))
+	err = v.BindPFlag("metadata-cache.enable-nonexistent-type-cache", flagSet.Lookup("enable-nonexistent-type-cache"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("enable-parallel-downloads", "", false, "Enable parallel downloads.")
 
-	err = viper.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("enable-parallel-downloads"))
+	err = v.BindPFlag("file-cache.enable-parallel-downloads", flagSet.Lookup("enable-parallel-downloads"))
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read"))
+	err = v.BindPFlag("gcs-connection.experimental-enable-json-read", flagSet.Lookup("experimental-enable-json-read"))
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size"))
+	err = v.BindPFlag("gcs-connection.grpc-conn-pool-size", flagSet.Lookup("experimental-grpc-conn-pool-size"))
 	if err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount"))
+	err = v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount"))
 	if err != nil {
 		return err
 	}
@@ -423,147 +423,147 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address"))
+	err = v.BindPFlag("monitoring.experimental-opentelemetry-collector-address", flagSet.Lookup("experimental-opentelemetry-collector-address"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("file-cache-max-size-mb", "", -1, "Maximum size of the file-cache in MiBs")
 
-	err = viper.BindPFlag("file-cache.max-size-mb", flagSet.Lookup("file-cache-max-size-mb"))
+	err = v.BindPFlag("file-cache.max-size-mb", flagSet.Lookup("file-cache-max-size-mb"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("file-mode", "", "0644", "Permissions bits for files, in octal.")
 
-	err = viper.BindPFlag("file-system.file-mode", flagSet.Lookup("file-mode"))
+	err = v.BindPFlag("file-system.file-mode", flagSet.Lookup("file-mode"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	err = viper.BindPFlag("foreground", flagSet.Lookup("foreground"))
+	err = v.BindPFlag("foreground", flagSet.Lookup("foreground"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
-	err = viper.BindPFlag("file-system.gid", flagSet.Lookup("gid"))
+	err = v.BindPFlag("file-system.gid", flagSet.Lookup("gid"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.DurationP("http-client-timeout", "", 0*time.Nanosecond, "The time duration that http client will wait to get response from the server. The default value 0 indicates no timeout.")
 
-	err = viper.BindPFlag("gcs-connection.http-client-timeout", flagSet.Lookup("http-client-timeout"))
+	err = v.BindPFlag("gcs-connection.http-client-timeout", flagSet.Lookup("http-client-timeout"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("ignore-interrupts", "", true, "Instructs gcsfuse to ignore system interrupt signals (like SIGINT, triggered by Ctrl+C). This prevents those signals from immediately terminating gcsfuse inflight operations. (default: true)")
 
-	err = viper.BindPFlag("file-system.ignore-interrupts", flagSet.Lookup("ignore-interrupts"))
+	err = v.BindPFlag("file-system.ignore-interrupts", flagSet.Lookup("ignore-interrupts"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("implicit-dirs", "", false, "Implicitly define directories based on content. See files and directories in docs/semantics for more information")
 
-	err = viper.BindPFlag("implicit-dirs", flagSet.Lookup("implicit-dirs"))
+	err = v.BindPFlag("implicit-dirs", flagSet.Lookup("implicit-dirs"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
-	err = viper.BindPFlag("list.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs"))
+	err = v.BindPFlag("list.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. (The default is none, Google application default credentials used)")
 
-	err = viper.BindPFlag("gcs-auth.key-file", flagSet.Lookup("key-file"))
+	err = v.BindPFlag("gcs-auth.key-file", flagSet.Lookup("key-file"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
 
-	err = viper.BindPFlag("gcs-connection.limit-bytes-per-sec", flagSet.Lookup("limit-bytes-per-sec"))
+	err = v.BindPFlag("gcs-connection.limit-bytes-per-sec", flagSet.Lookup("limit-bytes-per-sec"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
 
-	err = viper.BindPFlag("gcs-connection.limit-ops-per-sec", flagSet.Lookup("limit-ops-per-sec"))
+	err = v.BindPFlag("gcs-connection.limit-ops-per-sec", flagSet.Lookup("limit-ops-per-sec"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run  in the foreground, or to syslog when Cloud Storage FUSE is run in the  background.")
 
-	err = viper.BindPFlag("logging.file-path", flagSet.Lookup("log-file"))
+	err = v.BindPFlag("logging.file-path", flagSet.Lookup("log-file"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("log-format", "", "json", "The format of the log file: 'text' or 'json'.")
 
-	err = viper.BindPFlag("logging.format", flagSet.Lookup("log-format"))
+	err = v.BindPFlag("logging.format", flagSet.Lookup("log-format"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("log-rotate-backup-file-count", "", 10, "The maximum number of backup log files to retain after they have been rotated. The default value is 10. When value is set to 0, all backup files are retained.")
 
-	err = viper.BindPFlag("logging.log-rotate.backup-file-count", flagSet.Lookup("log-rotate-backup-file-count"))
+	err = v.BindPFlag("logging.log-rotate.backup-file-count", flagSet.Lookup("log-rotate-backup-file-count"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("log-rotate-compress", "", true, "Controls whether the rotated log files should be compressed using gzip.")
 
-	err = viper.BindPFlag("logging.log-rotate.compress", flagSet.Lookup("log-rotate-compress"))
+	err = v.BindPFlag("logging.log-rotate.compress", flagSet.Lookup("log-rotate-compress"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("log-rotate-max-log-file-size-mb", "", 512, "The maximum size in megabytes that a log file can reach before it is rotated.")
 
-	err = viper.BindPFlag("logging.log-rotate.max-file-size-mb", flagSet.Lookup("log-rotate-max-log-file-size-mb"))
+	err = v.BindPFlag("logging.log-rotate.max-file-size-mb", flagSet.Lookup("log-rotate-max-log-file-size-mb"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("log-severity", "", "info", "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]")
 
-	err = viper.BindPFlag("logging.severity", flagSet.Lookup("log-severity"))
+	err = v.BindPFlag("logging.severity", flagSet.Lookup("log-severity"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. The default value 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
-	err = viper.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host"))
+	err = v.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	err = viper.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host"))
+	err = v.BindPFlag("gcs-connection.max-idle-conns-per-host", flagSet.Lookup("max-idle-conns-per-host"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("max-parallel-downloads", "", config.DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
-	err = viper.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
+	err = v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
 	if err != nil {
 		return err
 	}
@@ -577,70 +577,70 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 
 	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
 
-	err = viper.BindPFlag("gcs-retries.max-retry-sleep", flagSet.Lookup("max-retry-sleep"))
+	err = v.BindPFlag("gcs-retries.max-retry-sleep", flagSet.Lookup("max-retry-sleep"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("metadata-cache-ttl", "", 60, "The ttl value in seconds to be used for expiring items in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled metadata-cache. Any value set below -1 will throw an error.\"")
 
-	err = viper.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl"))
+	err = v.BindPFlag("metadata-cache.ttl-secs", flagSet.Lookup("metadata-cache-ttl"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
-	err = viper.BindPFlag("file-system.fuse-options", flagSet.Lookup("o"))
+	err = v.BindPFlag("file-system.fuse-options", flagSet.Lookup("o"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	err = viper.BindPFlag("only-dir", flagSet.Lookup("only-dir"))
+	err = v.BindPFlag("only-dir", flagSet.Lookup("only-dir"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
-	err = viper.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
+	err = v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
-	err = viper.BindPFlag("file-system.rename-dir-limit", flagSet.Lookup("rename-dir-limit"))
+	err = v.BindPFlag("file-system.rename-dir-limit", flagSet.Lookup("rename-dir-limit"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.Float64P("retry-multiplier", "", 2, "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.")
 
-	err = viper.BindPFlag("gcs-retries.multiplier", flagSet.Lookup("retry-multiplier"))
+	err = v.BindPFlag("gcs-retries.multiplier", flagSet.Lookup("retry-multiplier"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.BoolP("reuse-token-from-url", "", true, "If false, the token acquired from token-url is not reused.")
 
-	err = viper.BindPFlag("gcs-auth.reuse-token-from-url", flagSet.Lookup("reuse-token-from-url"))
+	err = v.BindPFlag("gcs-auth.reuse-token-from-url", flagSet.Lookup("reuse-token-from-url"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
-	err = viper.BindPFlag("gcs-connection.sequential-read-size-mb", flagSet.Lookup("sequential-read-size-mb"))
+	err = v.BindPFlag("gcs-connection.sequential-read-size-mb", flagSet.Lookup("sequential-read-size-mb"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. The default value 0 indicates no exporting.")
 
-	err = viper.BindPFlag("metrics.stackdriver-export-interval", flagSet.Lookup("stackdriver-export-interval"))
+	err = v.BindPFlag("metrics.stackdriver-export-interval", flagSet.Lookup("stackdriver-export-interval"))
 	if err != nil {
 		return err
 	}
@@ -652,14 +652,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("metadata-cache.deprecated-stat-cache-capacity", flagSet.Lookup("stat-cache-capacity"))
+	err = v.BindPFlag("metadata-cache.deprecated-stat-cache-capacity", flagSet.Lookup("stat-cache-capacity"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("stat-cache-max-size-mb", "", 32, "The maximum size of stat-cache in MiBs. It can also be set to -1 for no-size-limit, 0 for no cache. Values below -1 are not supported.")
 
-	err = viper.BindPFlag("metadata-cache.stat-cache-max-size-mb", flagSet.Lookup("stat-cache-max-size-mb"))
+	err = v.BindPFlag("metadata-cache.stat-cache-max-size-mb", flagSet.Lookup("stat-cache-max-size-mb"))
 	if err != nil {
 		return err
 	}
@@ -671,28 +671,28 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl"))
+	err = v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)\"")
 
-	err = viper.BindPFlag("file-system.temp-dir", flagSet.Lookup("temp-dir"))
+	err = v.BindPFlag("file-system.temp-dir", flagSet.Lookup("temp-dir"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
 
-	err = viper.BindPFlag("gcs-auth.token-url", flagSet.Lookup("token-url"))
+	err = v.BindPFlag("gcs-auth.token-url", flagSet.Lookup("token-url"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("type-cache-max-size-mb", "", 4, "Max size of type-cache maps which are maintained at a per-directory level.")
 
-	err = viper.BindPFlag("metadata-cache.type-cache-max-size-mb", flagSet.Lookup("type-cache-max-size-mb"))
+	err = v.BindPFlag("metadata-cache.type-cache-max-size-mb", flagSet.Lookup("type-cache-max-size-mb"))
 	if err != nil {
 		return err
 	}
@@ -704,14 +704,14 @@ func BindFlags(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("metadata-cache.deprecated-type-cache-ttl", flagSet.Lookup("type-cache-ttl"))
+	err = v.BindPFlag("metadata-cache.deprecated-type-cache-ttl", flagSet.Lookup("type-cache-ttl"))
 	if err != nil {
 		return err
 	}
 
 	flagSet.IntP("uid", "", -1, "UID owner of all inodes.")
 
-	err = viper.BindPFlag("file-system.uid", flagSet.Lookup("uid"))
+	err = v.BindPFlag("file-system.uid", flagSet.Lookup("uid"))
 	if err != nil {
 		return err
 	}
