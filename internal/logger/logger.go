@@ -23,6 +23,7 @@ import (
 	"os"
 	"runtime/debug"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -51,14 +52,14 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(logConfig config.LogConfig) error {
+func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
 	var err error
-	if logConfig.FilePath != "" {
+	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
-			logConfig.FilePath,
+			string(newLogConfig.FilePath),
 			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 			0644,
 		)
@@ -67,9 +68,9 @@ func InitLogFile(logConfig config.LogConfig) error {
 		}
 		fileWriter = &lumberjack.Logger{
 			Filename:   f.Name(),
-			MaxSize:    logConfig.LogRotateConfig.MaxFileSizeMB,
-			MaxBackups: logConfig.LogRotateConfig.BackupFileCount,
-			Compress:   logConfig.LogRotateConfig.Compress,
+			MaxSize:    legacyLogConfig.LogRotateConfig.MaxFileSizeMB,
+			MaxBackups: legacyLogConfig.LogRotateConfig.BackupFileCount,
+			Compress:   legacyLogConfig.LogRotateConfig.Compress,
 		}
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
@@ -90,11 +91,11 @@ func InitLogFile(logConfig config.LogConfig) error {
 		file:            f,
 		sysWriter:       sysWriter,
 		fileWriter:      fileWriter,
-		format:          logConfig.Format,
-		level:           logConfig.Severity,
-		logRotateConfig: logConfig.LogRotateConfig,
+		format:          legacyLogConfig.Format,
+		level:           legacyLogConfig.Severity,
+		logRotateConfig: legacyLogConfig.LogRotateConfig,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(logConfig.Severity)
+	defaultLogger = defaultLoggerFactory.newLogger(legacyLogConfig.Severity)
 
 	return nil
 }

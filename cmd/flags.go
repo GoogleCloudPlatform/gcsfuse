@@ -485,11 +485,6 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 // GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
 // is disabled.
 func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagInContext("log-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for log-file: %w", err)
-	}
-
 	err = resolvePathForTheFlagInContext("config-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for config-file: %w", err)
@@ -500,11 +495,6 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 
 // resolveConfigFilePaths resolves the config file paths specified in the config file.
 func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
-	mountConfig.LogConfig.FilePath, err = resolveFilePath(mountConfig.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-
 	// Resolve cache-dir path
 	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
 	mountConfig.CacheDir = resolvedPath

@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -274,18 +275,18 @@ func (t *LoggerTest) TestInitLogFile() {
 	filePath += "/log.txt"
 	fileSize := 100
 	backupFileCount := 2
-	logConfig := config.LogConfig{
+	legacyLogConfig := config.LogConfig{
 		Severity: config.DEBUG,
 		Format:   format,
-		FilePath: filePath,
 		LogRotateConfig: config.LogRotateConfig{
 			MaxFileSizeMB:   fileSize,
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
 	}
+	newLogConfig := cfg.LoggingConfig{FilePath: cfg.ResolvedPath(filePath)}
 
-	err := InitLogFile(logConfig)
+	err := InitLogFile(legacyLogConfig, newLogConfig)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())

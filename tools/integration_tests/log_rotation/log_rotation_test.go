@@ -94,6 +94,7 @@ func TestMain(m *testing.M) {
 	// Set up directory for logs.
 	logDirPath = setup.SetUpLogDirForTestDirTests(logDirName)
 	logFilePath = path.Join(logDirPath, logFileName)
+	setup.SetLogFile(logFilePath)
 
 	// Set up config files.
 	// TODO: add tests for backupLogFileCount = 0.

@@ -394,3 +394,51 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 		})
 	}
 }
+
+func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
+	currentWorkingDir, err := os.Getwd()
+	require.Nil(t, err)
+	var logFileTests = []struct {
+		testName        string
+		givenLogFile    string
+		expectedLogFile cfg.ResolvedPath
+	}{
+		{
+			testName:        "absolute path",
+			givenLogFile:    "/tmp/log-file.json",
+			expectedLogFile: "/tmp/log-file.json",
+		},
+		{
+			testName:        "relative path",
+			givenLogFile:    "~/Documents/log-file.json",
+			expectedLogFile: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/log-file.json")),
+		},
+		{
+			testName:        "current working directory",
+			givenLogFile:    "log-file.json",
+			expectedLogFile: cfg.ResolvedPath(path.Join(currentWorkingDir, "log-file.json")),
+		},
+		{
+			testName:        "empty path",
+			givenLogFile:    "",
+			expectedLogFile: "",
+		},
+	}
+
+	for _, tc := range logFileTests {
+		t.Run(tc.testName, func(t *testing.T) {
+			mockCLICtx := &mockCLIContext{}
+			legacyFlagStorage := &flagStorage{
+				ClientProtocol: mountpkg.HTTP2,
+				LogFile:        tc.givenLogFile,
+			}
+			legacyMountCfg := &config.MountConfig{}
+
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(mockCLICtx, legacyFlagStorage, legacyMountCfg)
+
+			if assert.Nil(t, err) {
+				assert.Equal(t, tc.expectedLogFile, resolvedConfig.Logging.FilePath)
+			}
+		})
+	}
+}
