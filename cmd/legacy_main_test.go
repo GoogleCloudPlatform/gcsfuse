@@ -212,12 +212,12 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		`"TypeCacheMaxSizeMB":0`,
 		`"StatCacheMaxSizeMB":0`,
 		`"EnableEmptyManagedFolders":false`,
-		`"KernelListCacheTtlSeconds":0`,
 		`"GRPCConnPoolSize":0`,
 		`"AnonymousAccess":false`,
 		`"EnableHNS":true`,
 		`"IgnoreInterrupts":false`,
-		`"DisableParallelDirops":false}`,
+		`"DisableParallelDirops":false`,
+		`"KernelListCacheTtlSeconds":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -250,12 +250,12 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 		`"TypeCacheMaxSizeMB":0`,
 		`"StatCacheMaxSizeMB":0`,
 		`"EnableEmptyManagedFolders":false`,
-		`"KernelListCacheTtlSeconds":0`,
 		`"GRPCConnPoolSize":0`,
 		`"AnonymousAccess":false`,
 		`"EnableHNS":false`,
 		`"IgnoreInterrupts":false`,
-		`"DisableParallelDirops":false}`,
+		`"DisableParallelDirops":false`,
+		`"KernelListCacheTtlSeconds":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
