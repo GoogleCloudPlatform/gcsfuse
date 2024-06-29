@@ -48,11 +48,12 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"dir-mode":  flags.DirMode,
 			"file-mode": flags.FileMode,
 			// Todo: "fuse-options":      nil,
-			"gid":               flags.Gid,
-			"ignore-interrupts": flags.IgnoreInterrupts,
-			"rename-dir-limit":  flags.RenameDirLimit,
-			"temp-dir":          flags.TempDir,
-			"uid":               flags.Uid,
+			"gid":                        flags.Gid,
+			"ignore-interrupts":          flags.IgnoreInterrupts,
+			"rename-dir-limit":           flags.RenameDirLimit,
+			"temp-dir":                   flags.TempDir,
+			"uid":                        flags.Uid,
+			"kernel-list-cache-ttl-secs": flags.KernelListCacheTtlSeconds,
 		},
 		"foreground": flags.Foreground,
 		"gcs-auth": map[string]interface{}{
@@ -78,9 +79,6 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"multiplier":      flags.RetryMultiplier,
 		},
 		"implicit-dirs": flags.ImplicitDirs,
-		"list": map[string]interface{}{
-			"kernel-list-cache-ttl-secs": flags.KernelListCacheTtlSeconds,
-		},
 		"logging": map[string]interface{}{
 			"file-path": flags.LogFile,
 			"format":    flags.LogFormat,
@@ -127,7 +125,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		logFormat              = resolvedConfig.Logging.Format
 		ignoreInterrupts       = resolvedConfig.FileSystem.IgnoreInterrupts
 		anonymousAccess        = resolvedConfig.GcsAuth.AnonymousAccess
-		kernelListCacheTTLSecs = resolvedConfig.List.KernelListCacheTtlSecs
+		kernelListCacheTTLSecs = resolvedConfig.FileSystem.KernelListCacheTtlSecs
 	)
 
 	// Decoding config to the same config structure (resolvedConfig).
@@ -140,7 +138,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "log-format", &resolvedConfig.Logging.Format, logFormat)
 	overrideWithFlag(c, "ignore-interrupts", &resolvedConfig.FileSystem.IgnoreInterrupts, ignoreInterrupts)
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
-	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.List.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
+	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
 
 	return resolvedConfig, nil
 }

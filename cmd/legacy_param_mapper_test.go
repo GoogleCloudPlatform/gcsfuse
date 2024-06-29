@@ -116,15 +116,16 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				AppName:    "vertex",
 				Foreground: false,
 				FileSystem: cfg.FileSystemConfig{
-					DirMode:               493, // Octal(755) converted to decimal
-					FileMode:              457, // Octal(711) converted to decimal
-					Uid:                   -1,
-					Gid:                   17,
-					RenameDirLimit:        10,
-					IgnoreInterrupts:      false,
-					DisableParallelDirops: false,
-					FuseOptions:           []string(nil),
-					TempDir:               cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "/temp")),
+					DirMode:                493, // Octal(755) converted to decimal
+					FileMode:               457, // Octal(711) converted to decimal
+					Uid:                    -1,
+					Gid:                    17,
+					RenameDirLimit:         10,
+					IgnoreInterrupts:       false,
+					DisableParallelDirops:  false,
+					FuseOptions:            []string(nil),
+					TempDir:                cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "/temp")),
+					KernelListCacheTtlSecs: 30,
 				},
 				ImplicitDirs: true,
 				OnlyDir:      "abc",
@@ -159,9 +160,6 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					MaxRetrySleep: 10,
 					Multiplier:    2,
-				},
-				List: cfg.ListConfig{
-					KernelListCacheTtlSecs: 30,
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
@@ -225,14 +223,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				ListConfig: config.ListConfig{
 					EnableEmptyManagedFolders: true,
-					KernelListCacheTtlSeconds: 30,
 				},
 				GCSConnection: config.GCSConnection{GRPCConnPoolSize: 29},
 				GCSAuth:       config.GCSAuth{AnonymousAccess: true},
 				EnableHNS:     true,
 				FileSystemConfig: config.FileSystemConfig{
-					IgnoreInterrupts:      true,
-					DisableParallelDirops: true,
+					IgnoreInterrupts:          true,
+					DisableParallelDirops:     true,
+					KernelListCacheTtlSeconds: 30,
 				},
 			},
 			expectedConfig: &cfg.Config{
@@ -264,7 +262,6 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				List: cfg.ListConfig{
 					EnableEmptyManagedFolders: true,
-					KernelListCacheTtlSecs:    30,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					GrpcConnPoolSize: 29,
@@ -272,8 +269,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				GcsAuth:   cfg.GcsAuthConfig{AnonymousAccess: true},
 				EnableHns: true,
 				FileSystem: cfg.FileSystemConfig{
-					DisableParallelDirops: true,
-					IgnoreInterrupts:      true,
+					DisableParallelDirops:  true,
+					IgnoreInterrupts:       true,
+					KernelListCacheTtlSecs: 30,
 				},
 			},
 			expectedErr: nil,
@@ -304,13 +302,11 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					Severity: "INFO",
 				},
 				FileSystemConfig: config.FileSystemConfig{
-					IgnoreInterrupts: true,
+					IgnoreInterrupts:          true,
+					KernelListCacheTtlSeconds: 100,
 				},
 				GCSAuth: config.GCSAuth{
 					AnonymousAccess: true,
-				},
-				ListConfig: config.ListConfig{
-					KernelListCacheTtlSeconds: 100,
 				},
 			},
 			expectedConfig: &cfg.Config{
@@ -320,13 +316,11 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					Severity: "INFO",
 				},
 				FileSystem: cfg.FileSystemConfig{
-					IgnoreInterrupts: false,
+					IgnoreInterrupts:       false,
+					KernelListCacheTtlSecs: -1,
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					AnonymousAccess: false,
-				},
-				List: cfg.ListConfig{
-					KernelListCacheTtlSecs: -1,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					ClientProtocol: cfg.Protocol("http2"),

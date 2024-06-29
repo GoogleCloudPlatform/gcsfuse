@@ -100,6 +100,8 @@ type FileSystemConfig struct {
 
 	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
 
+	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
@@ -149,8 +151,6 @@ type GcsRetriesConfig struct {
 
 type ListConfig struct {
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
-
-	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type LogRotateLoggingConfig struct {
@@ -479,7 +479,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("kernel-list-cache-ttl-secs", "", 0, "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache. If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. Use -1 to cache for lifetime (no ttl). Negative value other than -1 will throw error.")
 
-	err = v.BindPFlag("list.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs"))
+	err = v.BindPFlag("file-system.kernel-list-cache-ttl-secs", flagSet.Lookup("kernel-list-cache-ttl-secs"))
 	if err != nil {
 		return err
 	}
