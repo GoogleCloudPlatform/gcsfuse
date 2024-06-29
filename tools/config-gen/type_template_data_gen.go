@@ -65,7 +65,7 @@ func capitalizeIdentifier(name string) (string, error) {
 // 1. {TypeName: Config, FieldName: X, DataType: XConfig, ConfigPath: x}
 // 2. {TypeName: XConfig, FieldName: Y, DataType: YXConfig, ConfigPath: y}
 // 3. {TypeName: YXConfig, FieldName: Z, DataType: int, ConfigPath: z}
-func computeFields(d datatype) ([]fieldInfo, error) {
+func computeFields(d datatypeSpec) ([]fieldInfo, error) {
 	segments := strings.Split(d.param().ConfigPath, ".")
 	fieldInfos := make([]fieldInfo, 0, len(segments))
 	typeName := "Config"
@@ -100,7 +100,7 @@ func computeFields(d datatype) ([]fieldInfo, error) {
 	return fieldInfos, nil
 }
 
-func constructTypeTemplateData(paramsConfig []datatype) ([]typeTemplateData, error) {
+func constructTypeTemplateData(paramsConfig []datatypeSpec) ([]typeTemplateData, error) {
 	var fields []fieldInfo
 	for _, p := range paramsConfig {
 		// ConfigPath can be empty for deprecated flags.

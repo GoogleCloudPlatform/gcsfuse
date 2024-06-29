@@ -23,17 +23,44 @@ import (
 )
 
 type testCase struct {
+	// Args represents the list of args that are to be passed to the command in
+	// the test-case
 	Args []string
-	Repr string
+
+	// Expected is the expected value that will be compared as-is with the
+	// corresponding field in config for that set of args.
+	Expected string
 }
 
-type datatype interface {
+type datatypeSpec interface {
+	// Returns the underlying param object.
 	param() Param
+
+	// The corresponding Golang type for the datatype e.g. for int flag types, it's int64
 	goType() string
+
+	// Returns how the default value in the flag declaration should be represented.
+	// For instance, for int flags, the default value specified in the param definition
+	// should be directly replaced in the flag declaration.
+	// However, for a string flag, the string needs to be escaped properly.
 	flagDefaultValue() string
+
+	// The method that should be called on the flagset to declare the flag. It's
+	// IntP to declare an int flag.
 	flagFn() string
+
+	// For custom types, the flag is declared and formatted as int. However,
+	// for testing the default values, the assertion needs to be done against
+	// the actual type. This method formats the default value in such a way that
+	// it can be compared with the type of the corresponding field in Config.
 	testDefaultValue() string
+
+	// handleErrorInDefaultTest returns true if the method that parses the default
+	// value into the applicable type returns error as the second return value.
 	handleErrorInDefaultTest() bool
+
+	// testCases returns the test-cases that are to be associated with the
+	// datatype
 	testCases() []testCase
 }
 
@@ -44,16 +71,16 @@ type intDatatype struct {
 func (d intDatatype) testCases() []testCase {
 	return []testCase{
 		{
-			Args: []string{fmt.Sprintf("--%s=11", d.Param.FlagName)},
-			Repr: "11",
+			Args:     []string{fmt.Sprintf("--%s=11", d.Param.FlagName)},
+			Expected: "int64(11)",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "3478923"},
-			Repr: "int64(3478923)",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "3478923"},
+			Expected: "int64(3478923)",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "-123"},
-			Repr: "int64(-123)",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "-123"},
+			Expected: "int64(-123)",
 		},
 	}
 }
@@ -119,12 +146,12 @@ func (d float64Datatype) handleErrorInDefaultTest() bool {
 func (d float64Datatype) testCases() []testCase {
 	return []testCase{
 		{
-			Args: []string{fmt.Sprintf("--%s=2.5", d.Param.FlagName)},
-			Repr: "2.5",
+			Args:     []string{fmt.Sprintf("--%s=2.5", d.Param.FlagName)},
+			Expected: "2.5",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "3.5"},
-			Repr: "3.5",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "3.5"},
+			Expected: "3.5",
 		},
 	}
 }
@@ -163,16 +190,16 @@ func (d boolDatatype) handleErrorInDefaultTest() bool {
 func (d boolDatatype) testCases() []testCase {
 	return []testCase{
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName)},
-			Repr: "true",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName)},
+			Expected: "true",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s=true", d.Param.FlagName)},
-			Repr: "true",
+			Args:     []string{fmt.Sprintf("--%s=true", d.Param.FlagName)},
+			Expected: "true",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s=false", d.Param.FlagName)},
-			Repr: "false",
+			Args:     []string{fmt.Sprintf("--%s=false", d.Param.FlagName)},
+			Expected: "false",
 		},
 	}
 }
@@ -214,28 +241,28 @@ func (d durationDatatype) handleErrorInDefaultTest() bool {
 func (d durationDatatype) testCases() []testCase {
 	return []testCase{
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "2h45m"},
-			Repr: "2*time.Hour + 45*time.Minute",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "2h45m"},
+			Expected: "2*time.Hour + 45*time.Minute",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "300ms"},
-			Repr: "300 * time.Millisecond",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "300ms"},
+			Expected: "300 * time.Millisecond",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s", d.Param.FlagName), "1h49m12s11ms"},
-			Repr: "1*time.Hour + 49*time.Minute + 12*time.Second + 11*time.Millisecond",
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "1h49m12s11ms"},
+			Expected: "1*time.Hour + 49*time.Minute + 12*time.Second + 11*time.Millisecond",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s=2h45m", d.Param.FlagName)},
-			Repr: "2*time.Hour + 45*time.Minute",
+			Args:     []string{fmt.Sprintf("--%s=2h45m", d.Param.FlagName)},
+			Expected: "2*time.Hour + 45*time.Minute",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s=300ms", d.Param.FlagName)},
-			Repr: "300 * time.Millisecond",
+			Args:     []string{fmt.Sprintf("--%s=300ms", d.Param.FlagName)},
+			Expected: "300 * time.Millisecond",
 		},
 		{
-			Args: []string{fmt.Sprintf("--%s=25h49m12s", d.Param.FlagName)},
-			Repr: "25*time.Hour + 49*time.Minute + 12*time.Second",
+			Args:     []string{fmt.Sprintf("--%s=25h49m12s", d.Param.FlagName)},
+			Expected: "25*time.Hour + 49*time.Minute + 12*time.Second",
 		},
 	}
 }
@@ -269,7 +296,12 @@ func (d octalDatatype) handleErrorInDefaultTest() bool {
 }
 
 func (d octalDatatype) testCases() []testCase {
-	return []testCase{}
+	return []testCase{
+		{
+			Args:     []string{fmt.Sprintf("--%s", d.Param.FlagName), "764"},
+			Expected: "cfg.Octal(0764)",
+		},
+	}
 }
 
 type urlDatatype struct {

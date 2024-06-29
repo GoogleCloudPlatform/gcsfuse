@@ -53,10 +53,24 @@ func TestArgParsing(t *testing.T) {
 		},
 
 		{
+			name:     "Test flag: dir-mode parsing #0",
+			args:     []string{"gcsfuse", "abc", "--dir-mode", "764"},
+			actualFn: func(config cfg.Config) any { return config.FileSystem.DirMode },
+			expected: cfg.Octal(0764),
+		},
+
+		{
+			name:     "Test flag: file-mode parsing #0",
+			args:     []string{"gcsfuse", "abc", "--file-mode", "764"},
+			actualFn: func(config cfg.Config) any { return config.FileSystem.FileMode },
+			expected: cfg.Octal(0764),
+		},
+
+		{
 			name:     "Test flag: uid parsing #0",
 			args:     []string{"gcsfuse", "abc", "--uid=11"},
 			actualFn: func(config cfg.Config) any { return config.FileSystem.Uid },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -77,7 +91,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: gid parsing #0",
 			args:     []string{"gcsfuse", "abc", "--gid=11"},
 			actualFn: func(config cfg.Config) any { return config.FileSystem.Gid },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -119,7 +133,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: rename-dir-limit parsing #0",
 			args:     []string{"gcsfuse", "abc", "--rename-dir-limit=11"},
 			actualFn: func(config cfg.Config) any { return config.FileSystem.RenameDirLimit },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -252,7 +266,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: sequential-read-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--sequential-read-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.GcsConnection.SequentialReadSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -315,7 +329,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: stat-cache-max-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--stat-cache-max-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.MetadataCache.StatCacheMaxSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -336,7 +350,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: type-cache-max-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--type-cache-max-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.MetadataCache.TypeCacheMaxSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -357,7 +371,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: metadata-cache-ttl parsing #0",
 			args:     []string{"gcsfuse", "abc", "--metadata-cache-ttl=11"},
 			actualFn: func(config cfg.Config) any { return config.MetadataCache.TtlSecs },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -378,7 +392,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: stat-cache-capacity parsing #0",
 			args:     []string{"gcsfuse", "abc", "--stat-cache-capacity=11"},
 			actualFn: func(config cfg.Config) any { return config.MetadataCache.DeprecatedStatCacheCapacity },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -483,7 +497,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: kernel-list-cache-ttl-secs parsing #0",
 			args:     []string{"gcsfuse", "abc", "--kernel-list-cache-ttl-secs=11"},
 			actualFn: func(config cfg.Config) any { return config.List.KernelListCacheTtlSecs },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -560,7 +574,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: max-conns-per-host parsing #0",
 			args:     []string{"gcsfuse", "abc", "--max-conns-per-host=11"},
 			actualFn: func(config cfg.Config) any { return config.GcsConnection.MaxConnsPerHost },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -581,7 +595,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: max-idle-conns-per-host parsing #0",
 			args:     []string{"gcsfuse", "abc", "--max-idle-conns-per-host=11"},
 			actualFn: func(config cfg.Config) any { return config.GcsConnection.MaxIdleConnsPerHost },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -770,7 +784,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: file-cache-max-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--file-cache-max-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.FileCache.MaxSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -854,7 +868,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: parallel-downloads-per-file parsing #0",
 			args:     []string{"gcsfuse", "abc", "--parallel-downloads-per-file=11"},
 			actualFn: func(config cfg.Config) any { return config.FileCache.ParallelDownloadsPerFile },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -875,7 +889,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: max-parallel-downloads parsing #0",
 			args:     []string{"gcsfuse", "abc", "--max-parallel-downloads=11"},
 			actualFn: func(config cfg.Config) any { return config.FileCache.MaxParallelDownloads },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -896,7 +910,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: download-chunk-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--download-chunk-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.FileCache.DownloadChunkSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -938,7 +952,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: experimental-grpc-conn-pool-size parsing #0",
 			args:     []string{"gcsfuse", "abc", "--experimental-grpc-conn-pool-size=11"},
 			actualFn: func(config cfg.Config) any { return config.GcsConnection.GrpcConnPoolSize },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -980,7 +994,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: log-rotate-max-log-file-size-mb parsing #0",
 			args:     []string{"gcsfuse", "abc", "--log-rotate-max-log-file-size-mb=11"},
 			actualFn: func(config cfg.Config) any { return config.Logging.LogRotate.MaxFileSizeMb },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -1001,7 +1015,7 @@ func TestArgParsing(t *testing.T) {
 			name:     "Test flag: log-rotate-backup-file-count parsing #0",
 			args:     []string{"gcsfuse", "abc", "--log-rotate-backup-file-count=11"},
 			actualFn: func(config cfg.Config) any { return config.Logging.LogRotate.BackupFileCount },
-			expected: 11,
+			expected: int64(11),
 		},
 
 		{
@@ -1051,7 +1065,7 @@ func TestArgParsing(t *testing.T) {
 			cmd.SetArgs(tc.args)
 
 			if assert.Nil(t, cmd.Execute()) {
-				assert.EqualValues(t, tc.expected, tc.actualFn(actual))
+				assert.Equal(t, tc.expected, tc.actualFn(actual))
 			}
 		})
 	}

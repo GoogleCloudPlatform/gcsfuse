@@ -25,7 +25,7 @@ type defaultsTestTemplateData struct {
 	Data   []defaultsTestParamData
 }
 
-func computeDefaultsTestTemplateData(dt []datatype) defaultsTestTemplateData {
+func computeDefaultsTestTemplateData(dt []datatypeSpec) defaultsTestTemplateData {
 	td := make([]defaultsTestParamData, 0, len(dt))
 	for _, d := range dt {
 		if d.param().ConfigPath == "" {

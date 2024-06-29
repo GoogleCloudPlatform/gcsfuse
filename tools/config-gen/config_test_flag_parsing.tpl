@@ -52,7 +52,7 @@ func TestArgParsing(t *testing.T) {
 			cmd.SetArgs(tc.args)
 
 			if assert.Nil(t, cmd.Execute()) {
-				assert.EqualValues(t, tc.expected, tc.actualFn(actual))
+				assert.Equal(t, tc.expected, tc.actualFn(actual))
 			}
 		})
 	}

@@ -125,7 +125,7 @@ func main() {
 	}
 }
 
-func resolveDataType(p Param) (datatype, error) {
+func resolveDataType(p Param) (datatypeSpec, error) {
 	switch p.Type {
 	case "int":
 		return intDatatype{Param: p}, nil
@@ -156,8 +156,8 @@ func resolveDataType(p Param) (datatype, error) {
 	}
 }
 
-func dataTypesFromParams(params []Param) ([]datatype, error) {
-	d := make([]datatype, 0, len(params))
+func dataTypesFromParams(params []Param) ([]datatypeSpec, error) {
+	d := make([]datatypeSpec, 0, len(params))
 	for _, p := range params {
 		dt, err := resolveDataType(p)
 		if err != nil {

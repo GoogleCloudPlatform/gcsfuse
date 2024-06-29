@@ -26,7 +26,7 @@ type flagTemplateData struct {
 	Fn string
 }
 
-func computeFlagTemplateData(dtypes []datatype) ([]flagTemplateData, error) {
+func computeFlagTemplateData(dtypes []datatypeSpec) ([]flagTemplateData, error) {
 	var flgTemplate []flagTemplateData
 	for _, p := range dtypes {
 		td, err := computeFlagTemplateDataForParam(p)
@@ -38,7 +38,7 @@ func computeFlagTemplateData(dtypes []datatype) ([]flagTemplateData, error) {
 	return flgTemplate, nil
 }
 
-func computeFlagTemplateDataForParam(d datatype) (flagTemplateData, error) {
+func computeFlagTemplateDataForParam(d datatypeSpec) (flagTemplateData, error) {
 	p := d.param()
 	p.DefaultValue = d.flagDefaultValue()
 	fn := d.flagFn()

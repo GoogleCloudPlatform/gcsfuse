@@ -31,12 +31,12 @@ type flagParsingTestTemplate struct {
 	Assign string
 }
 
-func computeFlagParsingTestTemplateData(datatypes []datatype) flagParsingTestTemplate {
+func computeFlagParsingTestTemplateData(dtype []datatypeSpec) flagParsingTestTemplate {
 	tmplData := flagParsingTestTemplate{
 		Data:   []flagParsingTestParamData{},
 		Assign: ":=",
 	}
-	for _, d := range datatypes {
+	for _, d := range dtype {
 		if d.param().ConfigPath == "" {
 			continue
 		}
@@ -49,7 +49,7 @@ func computeFlagParsingTestTemplateData(datatypes []datatype) flagParsingTestTem
 				TestName: fmt.Sprintf("Test flag: %s parsing #%d", d.param().FlagName, idx),
 				Args:     fmt.Sprintf("[]string{\"gcsfuse\", \"abc\", %s}", strings.Join(escapedArgs, ", ")),
 				Accessor: d.param().accessor(),
-				Expected: tc.Repr,
+				Expected: tc.Expected,
 			}
 			tmplData.Data = append(tmplData.Data, td)
 		}
