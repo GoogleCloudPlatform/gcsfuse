@@ -125,8 +125,8 @@ func (grpcClientConfig *GCSConnection) validate() error {
 	return nil
 }
 
-func (listConfig *ListConfig) validate() error {
-	err := IsTtlInSecsValid(listConfig.KernelListCacheTtlSeconds)
+func (fileSystemConfig *FileSystemConfig) validate() error {
+	err := IsTtlInSecsValid(fileSystemConfig.KernelListCacheTtlSeconds)
 	if err != nil {
 		return fmt.Errorf("invalid kernelListCacheTtlSecs: %w", err)
 	}
@@ -182,8 +182,8 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 		return mountConfig, fmt.Errorf("error parsing gcs-connection configs: %w", err)
 	}
 
-	if err = mountConfig.ListConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing list config: %w", err)
+	if err = mountConfig.FileSystemConfig.validate(); err != nil {
+		return mountConfig, fmt.Errorf("error parsing file-system config: %w", err)
 	}
 
 	return
