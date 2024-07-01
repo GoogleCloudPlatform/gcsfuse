@@ -147,7 +147,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					AnonymousAccess:   false,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
-					CustomEndpoint:             url.URL{},
+					CustomEndpoint:             nil,
 					BillingProject:             "billing-project",
 					ClientProtocol:             cfg.Protocol("http1"),
 					LimitBytesPerSec:           100,
@@ -436,5 +436,20 @@ func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
 				assert.Equal(t, tc.expectedLogFile, resolvedConfig.Logging.FilePath)
 			}
 		})
+	}
+}
+
+func TestURLResolutionFromFlags(t *testing.T) {
+	u, err := url.Parse("http://abc.xyz")
+	require.Nil(t, err)
+	legacyFlagStorage := &flagStorage{
+		ClientProtocol: mountpkg.HTTP2,
+		CustomEndpoint: u,
+	}
+
+	resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, legacyFlagStorage, &config.MountConfig{})
+
+	if assert.Nil(t, err) && assert.NotNil(t, resolvedConfig.GcsConnection.CustomEndpoint) {
+		assert.Equal(t, *resolvedConfig.GcsConnection.CustomEndpoint, *u)
 	}
 }

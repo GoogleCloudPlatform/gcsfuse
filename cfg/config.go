@@ -126,7 +126,7 @@ type GcsConnectionConfig struct {
 
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
-	CustomEndpoint url.URL `yaml:"custom-endpoint"`
+	CustomEndpoint *url.URL `yaml:"custom-endpoint"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 
