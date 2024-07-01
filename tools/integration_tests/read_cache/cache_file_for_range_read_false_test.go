@@ -95,6 +95,7 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	wg.Wait()
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	ogletest.AssertEq(2, len(structuredReadLogs))
 	// Goroutine execution order isn't guaranteed.
 	// If the object name in expected outcome doesn't align with the logs, swap
 	// the expected outcome objects and file names at positions 0 and 1.
