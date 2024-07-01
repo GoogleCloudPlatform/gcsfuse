@@ -25,6 +25,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -227,8 +228,8 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	// Assert both readDirs passed and give correct information
 	assert.NoError(t.T(), err1)
 	assert.NoError(t.T(), err2)
-	assert.Equal(t.T(), 2, len(dirEntries1))
-	assert.Equal(t.T(), 2, len(dirEntries2))
+	require.Equal(t.T(), 2, len(dirEntries1))
+	require.Equal(t.T(), 2, len(dirEntries2))
 	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
 	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
 	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
@@ -249,6 +250,8 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	// Assert both readDirs passed and give correct information
 	assert.NoError(t.T(), err1)
 	assert.NoError(t.T(), err2)
+	require.Equal(t.T(), 1, len(dirEntries1))
+	require.Equal(t.T(), 1, len(dirEntries2))
 	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
 	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
 
@@ -268,8 +271,8 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	// Assert both readDirs passed and give correct information
 	assert.NoError(t.T(), err1)
 	assert.NoError(t.T(), err2)
-	assert.Equal(t.T(), 2, len(dirEntries1))
-	assert.Equal(t.T(), 4, len(dirEntries2))
+	require.Equal(t.T(), 2, len(dirEntries1))
+	require.Equal(t.T(), 4, len(dirEntries2))
 	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
 	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
 	assert.Contains(t.T(), dirEntries2[0].Name(), "explicitDir1")
@@ -687,8 +690,8 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForDifferentDirs() {
 	// Assert both readDirs passed and give correct information
 	assert.NoError(t.T(), err1)
 	assert.NoError(t.T(), err2)
-	assert.Equal(t.T(), 2, len(dirEntries1))
-	assert.Equal(t.T(), 1, len(dirEntries2))
+	require.Equal(t.T(), 2, len(dirEntries1))
+	require.Equal(t.T(), 1, len(dirEntries2))
 	assert.Contains(t.T(), dirEntries1[0].Name(), "file1.txt")
 	assert.Contains(t.T(), dirEntries1[1].Name(), "file2.txt")
 	assert.Contains(t.T(), dirEntries2[0].Name(), "file1.txt")
