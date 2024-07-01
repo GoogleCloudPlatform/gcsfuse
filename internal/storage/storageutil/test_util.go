@@ -18,7 +18,7 @@ import (
 	"net/url"
 	"time"
 
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 )
 
 const CustomEndpoint = "https://localhost:9000"
@@ -28,7 +28,7 @@ const CustomTokenUrl = "http://custom-token-url"
 // GetDefaultStorageClientConfig is only for test.
 func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 	return StorageClientConfig{
-		ClientProtocol:             mountpkg.HTTP1,
+		ClientProtocol:             cfg.HTTP1,
 		MaxConnsPerHost:            10,
 		MaxIdleConnsPerHost:        100,
 		HttpClientTimeout:          800 * time.Millisecond,

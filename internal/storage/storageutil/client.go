@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -35,7 +35,7 @@ type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol    mountpkg.ClientProtocol
+	ClientProtocol    cfg.Protocol
 	UserAgent         string
 	CustomEndpoint    *url.URL
 	KeyFile           string
@@ -61,7 +61,7 @@ type StorageClientConfig struct {
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
-	if storageClientConfig.ClientProtocol == mountpkg.HTTP1 {
+	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,

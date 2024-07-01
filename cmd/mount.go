@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
@@ -38,16 +39,17 @@ func mountWithStorageHandle(
 	ctx context.Context,
 	bucketName string,
 	mountPoint string,
+	newConfig *cfg.Config,
 	flags *flagStorage,
 	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
-	if flags.TempDir != "" {
+	if newConfig.FileSystem.TempDir != "" {
 		logger.Infof("Creating a temporary directory at %q\n", flags.TempDir)
 		var f *os.File
-		f, err = fsutil.AnonymousFile(flags.TempDir)
+		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
 		f.Close()
 
 		if err != nil {
@@ -68,7 +70,7 @@ func mountWithStorageHandle(
 		return
 	}
 
-	if uid == 0 && flags.Uid < 0 {
+	if newConfig.FileSystem.Uid == 0 && newConfig.FileSystem.Uid < 0 {
 		fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
@@ -76,12 +78,12 @@ be interacting with the file system.`)
 	}
 
 	// Choose UID and GID.
-	if flags.Uid >= 0 {
-		uid = uint32(flags.Uid)
+	if newConfig.FileSystem.Uid >= 0 {
+		uid = uint32(newConfig.FileSystem.Uid)
 	}
 
-	if flags.Gid >= 0 {
-		gid = uint32(flags.Gid)
+	if newConfig.FileSystem.Gid >= 0 {
+		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
 	metadataCacheTTL := mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
@@ -91,10 +93,10 @@ be interacting with the file system.`)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
-		BillingProject:                     flags.BillingProject,
-		OnlyDir:                            flags.OnlyDir,
-		EgressBandwidthLimitBytesPerSecond: flags.EgressBandwidthLimitBytesPerSecond,
-		OpRateLimitHz:                      flags.OpRateLimitHz,
+		BillingProject:                     newConfig.GcsConnection.BillingProject,
+		OnlyDir:                            newConfig.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
+		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
 		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
@@ -111,17 +113,17 @@ be interacting with the file system.`)
 		BucketName:                 bucketName,
 		LocalFileCache:             flags.LocalFileCache,
 		DebugFS:                    flags.DebugFS,
-		TempDir:                    flags.TempDir,
+		TempDir:                    string(newConfig.FileSystem.TempDir),
 		ImplicitDirectories:        flags.ImplicitDirs,
 		InodeAttributeCacheTTL:     metadataCacheTTL,
 		DirTypeCacheTTL:            metadataCacheTTL,
 		Uid:                        uid,
 		Gid:                        gid,
-		FilePerms:                  os.FileMode(flags.FileMode),
-		DirPerms:                   os.FileMode(flags.DirMode),
-		RenameDirLimit:             flags.RenameDirLimit,
+		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),
+		DirPerms:                   os.FileMode(newConfig.FileSystem.DirMode),
+		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
-		EnableNonexistentTypeCache: flags.EnableNonexistentTypeCache,
+		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
 	}
 

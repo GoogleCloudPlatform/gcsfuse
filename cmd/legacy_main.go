@@ -103,7 +103,7 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 }
 func createStorageHandle(newConfig *cfg.Config, flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
-		ClientProtocol:             flags.ClientProtocol,
+		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            flags.MaxConnsPerHost,
 		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
 		HttpClientTimeout:          flags.HttpClientTimeout,
@@ -113,9 +113,9 @@ func createStorageHandle(newConfig *cfg.Config, flags *flagStorage, mountConfig 
 		CustomEndpoint:             flags.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
-		TokenUrl:                   flags.TokenUrl,
-		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
-		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
+		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
+		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           mountConfig.GCSConnection.GRPCConnPoolSize,
 		EnableHNS:                  mountConfig.EnableHNS,
 	}
@@ -149,11 +149,11 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, flags, mountConfig, userAgent)
 		if err != nil {
-			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
+			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
 		}
 	}
@@ -164,6 +164,7 @@ func mountWithArgs(
 		context.Background(),
 		bucketName,
 		mountPoint,
+		newConfig,
 		flags,
 		mountConfig,
 		storageHandle)
@@ -274,7 +275,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	if flags.Foreground {
+	if newConfig.Foreground {
 		err = logger.InitLogFile(mountConfig.LogConfig, newConfig.Logging)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
@@ -295,7 +296,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	// Do not log these in stdout in case of daemonized run
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
-	if flags.Foreground || newConfig.Logging.FilePath == "" {
+	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
 			logger.Warnf("failed to stringify cli flags: %v", err)
@@ -323,7 +324,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
-	if !flags.Foreground {
+	if !newConfig.Foreground {
 		// Find the executable.
 		var path string
 		path, err = osext.Executable()
@@ -403,8 +404,8 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
-	_ = monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
-	_ = monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
+	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
+	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.

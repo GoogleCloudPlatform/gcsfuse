@@ -390,57 +390,92 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
-	AppName    string
+	// Deprecated: Use the param from cfg/config.go
+	AppName string
+	// Deprecated: Use the param from cfg/config.go
 	Foreground bool
 	ConfigFile string
 
 	// File system
-	MountOptions     map[string]string
-	DirMode          os.FileMode
-	FileMode         os.FileMode
-	Uid              int64
-	Gid              int64
-	ImplicitDirs     bool
-	OnlyDir          string
+	MountOptions map[string]string
+
+	// Deprecated: Use the param from cfg/config.go
+	DirMode os.FileMode
+
+	// Deprecated: Use the param from cfg/config.go
+	FileMode os.FileMode
+
+	// Deprecated: Use the param from cfg/config.go
+	Uid int64
+
+	// Deprecated: Use the param from cfg/config.go
+	Gid          int64
+	ImplicitDirs bool
+	OnlyDir      string
+
+	// Deprecated: Use the param from cfg/config.go
 	RenameDirLimit   int64
 	IgnoreInterrupts bool
 
 	// GCS
-	CustomEndpoint                     *url.URL
-	BillingProject                     string
-	KeyFile                            string
-	TokenUrl                           string
-	ReuseTokenFromUrl                  bool
+	CustomEndpoint *url.URL
+
+	// Deprecated: Use the param from cfg/config.go
+	BillingProject string
+
+	// Deprecated: Use the param from cfg/config.go
+	KeyFile string
+
+	// Deprecated: Use the param from cfg/config.go
+	TokenUrl string
+
+	// Deprecated: Use the param from cfg/config.go
+	ReuseTokenFromUrl bool
+
+	// Deprecated: Use the param from cfg/config.go
 	EgressBandwidthLimitBytesPerSecond float64
-	OpRateLimitHz                      float64
-	SequentialReadSizeMb               int32
-	AnonymousAccess                    bool
+
+	// Deprecated: Use the param from cfg/config.go
+	OpRateLimitHz        float64
+	SequentialReadSizeMb int32
+	AnonymousAccess      bool
 
 	// Tuning
-	MaxRetrySleep              time.Duration
-	StatCacheCapacity          int
-	StatCacheTTL               time.Duration
-	TypeCacheTTL               time.Duration
-	KernelListCacheTtlSeconds  int64
-	HttpClientTimeout          time.Duration
-	MaxRetryDuration           time.Duration
-	RetryMultiplier            float64
-	LocalFileCache             bool
-	TempDir                    string
-	ClientProtocol             mountpkg.ClientProtocol
-	MaxConnsPerHost            int
-	MaxIdleConnsPerHost        int
+	MaxRetrySleep             time.Duration
+	StatCacheCapacity         int
+	StatCacheTTL              time.Duration
+	TypeCacheTTL              time.Duration
+	KernelListCacheTtlSeconds int64
+	HttpClientTimeout         time.Duration
+	MaxRetryDuration          time.Duration
+	RetryMultiplier           float64
+	LocalFileCache            bool
+
+	// Deprecated: Use the param from cfg/config.go
+	TempDir             string
+	ClientProtocol      mountpkg.ClientProtocol
+	MaxConnsPerHost     int
+	MaxIdleConnsPerHost int
+
+	// Deprecated: Use the param from cfg/config.go
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval  time.Duration
-	OtelCollectorAddress       string
-	LogFile                    string
-	LogFormat                  string
+	// Deprecated: Use the param from cfg/config.go
+	StackdriverExportInterval time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	OtelCollectorAddress string
+	LogFile              string
+	LogFormat            string
+
+	// Deprecated: Use the param from cfg/config.go
 	ExperimentalEnableJsonRead bool
 	DebugFuseErrors            bool
 
 	// Debugging
+
+	// Deprecated: Use the param from cfg/config.go
 	DebugFuse       bool
 	DebugFS         bool
 	DebugGCS        bool
