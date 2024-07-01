@@ -12,7 +12,7 @@ vet: fmt
 	go vet ./...
 
 build: vet
-	go build main.go
+	go build .
 
 buildTest: vet
 	go test -run=PATTERN_THAT_DOES_NOT_MATCH_ANYTHING ./...
