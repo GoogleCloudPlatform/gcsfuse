@@ -32,7 +32,7 @@ func TestOverrideWithLoggingFlags(t *testing.T) {
 		{
 			name:        "No debug flags",
 			mountConfig: &Config{Logging: LoggingConfig{Severity: "DEBUG"}}, // Initial severity
-			expected:    "INFO",                                             // Should remain unchanged
+			expected:    "DEBUG",                                            // Should remain unchanged
 		},
 		{
 			name:        "debugFuse true",
