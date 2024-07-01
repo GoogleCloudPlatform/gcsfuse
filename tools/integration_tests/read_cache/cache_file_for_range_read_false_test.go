@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -95,6 +96,7 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	wg.Wait()
 
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
+	require.Equal(t, 2, len(structuredReadLogs))
 	// Goroutine execution order isn't guaranteed.
 	// If the object name in expected outcome doesn't align with the logs, swap
 	// the expected outcome objects and file names at positions 0 and 1.
