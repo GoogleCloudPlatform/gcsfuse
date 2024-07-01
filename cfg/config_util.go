@@ -14,11 +14,9 @@
 
 package cfg
 
-// OverrideWithLoggingFlags is for backward compatability with old flags.
+// OverrideWithLoggingFlags is for backward compatibility with old flags.
 func OverrideWithLoggingFlags(mountConfig *Config, debugFuse bool,
 	debugGCS bool, debugMutex bool) {
-	// If debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
-	// severity to TRACE.
 	if debugFuse || debugGCS || debugMutex {
 		mountConfig.Logging.Severity = LogSeverity("TRACE")
 	}

@@ -281,7 +281,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	err = viper.BindPFlag("debug.fuse", flagSet.Lookup("debug_fuse"))
+	err = v.BindPFlag("debug.fuse", flagSet.Lookup("debug_fuse"))
 	if err != nil {
 		return err
 	}

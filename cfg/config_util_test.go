@@ -20,10 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
 func TestOverrideWithLoggingFlags(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -35,8 +31,8 @@ func TestOverrideWithLoggingFlags(t *testing.T) {
 	}{
 		{
 			name:        "No debug flags",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "INFO"}}, // Initial severity
-			expected:    "INFO",                                            // Should remain unchanged
+			mountConfig: &Config{Logging: LoggingConfig{Severity: "DEBUG"}}, // Initial severity
+			expected:    "INFO",                                             // Should remain unchanged
 		},
 		{
 			name:        "debugFuse true",
@@ -46,13 +42,13 @@ func TestOverrideWithLoggingFlags(t *testing.T) {
 		},
 		{
 			name:        "debugGCS true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "INFO"}},
+			mountConfig: &Config{Logging: LoggingConfig{Severity: "WARNING"}},
 			debugGCS:    true,
 			expected:    "TRACE",
 		},
 		{
 			name:        "debugMutex true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "INFO"}},
+			mountConfig: &Config{Logging: LoggingConfig{Severity: "OFF"}},
 			debugMutex:  true,
 			expected:    "TRACE",
 		},
@@ -68,6 +64,7 @@ func TestOverrideWithLoggingFlags(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			OverrideWithLoggingFlags(tc.mountConfig, tc.debugFuse, tc.debugGCS, tc.debugMutex)
+
 			assert.Equal(t, tc.expected, tc.mountConfig.Logging.Severity)
 		})
 	}
