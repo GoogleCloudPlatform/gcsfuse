@@ -552,6 +552,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	}
 
+	fmt.Println("Error...", err)
+
 	if err := b.Join(); err != nil {
 		return nil, err
 	}
