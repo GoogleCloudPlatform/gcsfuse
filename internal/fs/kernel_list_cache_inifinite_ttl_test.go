@@ -36,7 +36,7 @@ type KernelListCacheTestWithInfiniteTtl struct {
 func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		ListConfig: config.ListConfig{
+		FileSystemConfig: config.FileSystemConfig{
 			KernelListCacheTtlSeconds: -1,
 		},
 		MetadataCacheConfig: config.MetadataCacheConfig{

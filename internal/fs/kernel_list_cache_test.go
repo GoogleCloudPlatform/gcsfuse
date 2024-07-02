@@ -106,7 +106,7 @@ type KernelListCacheTestWithPositiveTtl struct {
 func (t *KernelListCacheTestWithPositiveTtl) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
 	t.serverCfg.MountConfig = &config.MountConfig{
-		ListConfig: config.ListConfig{
+		FileSystemConfig: config.FileSystemConfig{
 			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
 		},
 		MetadataCacheConfig: config.MetadataCacheConfig{
