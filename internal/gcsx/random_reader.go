@@ -165,8 +165,8 @@ func (rr *randomReader) CheckInvariants() {
 // fileHandle to file in cache. So, we will get the correct data from fileHandle
 // because Linux does not delete a file until open fileHandle count for a file is zero.
 func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
 
 	if rr.fileCacheHandler == nil {
 		return
@@ -249,9 +249,9 @@ func (rr *randomReader) tryReadingFromFileCache(ctx context.Context,
 }
 
 func (rr *randomReader) ReadAt(
-	ctx context.Context,
-	p []byte,
-	offset int64) (n int, cacheHit bool, err error) {
+		ctx context.Context,
+		p []byte,
+		offset int64) (n int, cacheHit bool, err error) {
 
 	if offset >= int64(rr.object.Size) {
 		err = io.EOF
@@ -269,6 +269,13 @@ func (rr *randomReader) ReadAt(
 	}
 	// Data was served from cache.
 	if cacheHit || n == len(p) || (n < len(p) && uint64(offset)+uint64(n) == rr.object.Size) {
+		// Clean up foreground GCS reader if cache hit. This should be fine because
+		// the async job downloads the object sequentially, so it's highly likely that
+		// the cacheHit will occur for next maxReadSize of data, which means the
+		// reader will be closed in anyways.
+		if rr.reader != nil {
+			rr.cleanUpGCSReader()
+		}
 		return
 	}
 
@@ -295,10 +302,7 @@ func (rr *randomReader) ReadAt(
 		// If we have an existing reader but it's positioned at the wrong place,
 		// clean it up and throw it away.
 		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
-			rr.reader = nil
-			rr.cancel = nil
-			rr.seeks++
+			rr.cleanUpGCSReader()
 		}
 
 		// If we don't have a reader, start a read operation.
@@ -395,8 +399,8 @@ func (rr *randomReader) Destroy() {
 //
 // REQUIRES: rr.reader != nil
 func (rr *randomReader) readFull(
-	ctx context.Context,
-	p []byte) (n int, err error) {
+		ctx context.Context,
+		p []byte) (n int, err error) {
 	// Start a goroutine that will cancel the read operation we block on below if
 	// the calling context is cancelled, but only if this method has not already
 	// returned (to avoid souring the reader for the next read if this one is
@@ -426,13 +430,20 @@ func (rr *randomReader) readFull(
 	return
 }
 
+func (rr *randomReader) cleanUpGCSReader() {
+	rr.reader.Close()
+	rr.reader = nil
+	rr.cancel = nil
+	rr.seeks++
+}
+
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
 // a prefix. Irrespective of the size requested, we try to fetch more data
 // from GCS defined by sequentialReadSizeMb flag to serve future read requests.
 func (rr *randomReader) startRead(
-	ctx context.Context,
-	start int64,
-	size int64) (err error) {
+		ctx context.Context,
+		start int64,
+		size int64) (err error) {
 	// Make sure start and size are legal.
 	if start < 0 || uint64(start) > rr.object.Size || size < 0 {
 		err = fmt.Errorf(
