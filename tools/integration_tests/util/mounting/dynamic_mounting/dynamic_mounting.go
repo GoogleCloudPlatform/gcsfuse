@@ -40,7 +40,6 @@ func MountGcsfuseWithDynamicMounting(flags []string) (err error) {
 		"--debug_fs",
 		"--debug_fuse",
 		"--log-file=" + setup.LogFile(),
-		"--log-format=text",
 		setup.MntDir()}
 
 	for i := 0; i < len(defaultArg); i++ {

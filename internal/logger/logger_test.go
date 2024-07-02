@@ -276,15 +276,17 @@ func (t *LoggerTest) TestInitLogFile() {
 	fileSize := 100
 	backupFileCount := 2
 	legacyLogConfig := config.LogConfig{
-		Severity: config.DEBUG,
-		Format:   format,
 		LogRotateConfig: config.LogRotateConfig{
 			MaxFileSizeMB:   fileSize,
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
 	}
-	newLogConfig := cfg.LoggingConfig{FilePath: cfg.ResolvedPath(filePath)}
+	newLogConfig := cfg.LoggingConfig{
+		FilePath: cfg.ResolvedPath(filePath),
+		Severity: "DEBUG",
+		Format:   format,
+	}
 
 	err := InitLogFile(legacyLogConfig, newLogConfig)
 
