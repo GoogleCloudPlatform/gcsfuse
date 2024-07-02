@@ -30,7 +30,7 @@ func stringToURLHookFunc() mapstructure.DecodeHookFuncType {
 		if f.Kind() != reflect.String {
 			return data, nil
 		}
-		if t != reflect.TypeOf(url.URL{}) {
+		if t != reflect.TypeOf(&url.URL{}) {
 			return data, nil
 		}
 		s := data.(string)
@@ -38,7 +38,7 @@ func stringToURLHookFunc() mapstructure.DecodeHookFuncType {
 		if err != nil {
 			return nil, err
 		}
-		return *u, nil
+		return u, nil
 	}
 }
 

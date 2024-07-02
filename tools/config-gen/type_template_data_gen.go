@@ -65,7 +65,7 @@ func getGoDataType(dt string) string {
 	case "octal":
 		return "Octal"
 	case "url":
-		return "url.URL"
+		return "*url.URL"
 	case "logSeverity":
 		return "LogSeverity"
 	case "protocol":
