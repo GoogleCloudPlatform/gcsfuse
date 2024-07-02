@@ -115,9 +115,8 @@ workloads for the given test setup:
     numjobs=112
  ```
 
-**Note:** Benchmarking is done writing out new files. Performance will be
-different for writes to existing files,
-as this first requires a full file download first.
+**Note:** Benchmarking is done by writing out new files to GCS. Performance
+numbers will be different for edits/appends to existing files.
 
 ### Results
 
