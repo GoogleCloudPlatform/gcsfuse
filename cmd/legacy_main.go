@@ -263,6 +263,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
+	config.OverrideWithPrometheusPortFlag(c, mountConfig, flags.PrometheusPort)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
@@ -405,6 +406,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	// The returned error is ignored as we do not enforce monitoring exporters
 	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
+	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
 
 	// Mount, writing information about our progress to the writer that package

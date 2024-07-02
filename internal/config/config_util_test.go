@@ -170,6 +170,33 @@ func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 	}
 }
 
+func Test_OverrideWithPrometheusPortFlag(t *testing.T) {
+	var testCases = []struct {
+		configValue   int
+		flagValue     int
+		isFlagSet     bool
+		expectedValue int
+	}{
+		{8080, 0, true, 0},
+		{8080, 0, false, 8080},
+		{0, 8080, true, 8080},
+		{0, 8080, false, 0},
+		{8080, 8888, true, 8888},
+		{8080, 8888, false, 8080},
+	}
+
+	for index, tt := range testCases {
+		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{MetricsConfig: MetricsConfig{PrometheusPort: tt.configValue}}
+
+			OverrideWithPrometheusPortFlag(testContext, mountConfig, tt.flagValue)
+
+			assert.Equal(t, tt.expectedValue, mountConfig.MetricsConfig.PrometheusPort)
+		})
+	}
+}
+
 func Test_IsTtlInSecsValid(t *testing.T) {
 	var testCases = []struct {
 		testName    string
