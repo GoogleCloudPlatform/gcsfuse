@@ -15,7 +15,6 @@
 package metadata
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -187,7 +186,6 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, exp
 	if m != nil {
 		e.m = m
 	}
-	fmt.Println("Cache: ", e)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
