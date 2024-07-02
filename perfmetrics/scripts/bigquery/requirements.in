@@ -13,3 +13,4 @@
 # limitations under the License.
 google-cloud-bigquery==3.11.1
 argparse
+urllib3==1.26.19
