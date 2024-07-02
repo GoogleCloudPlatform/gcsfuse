@@ -50,8 +50,6 @@ func mountGcsfuseWithPersistentMounting(flags []string) (err error) {
 		"debug_fuse",
 		"-o",
 		"log_file=" + setup.LogFile(),
-		"-o",
-		"log_format=text",
 	}
 
 	persistentMountingArgs, err := makePersistentMountingArgs(flags)

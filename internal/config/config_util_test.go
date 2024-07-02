@@ -48,53 +48,6 @@ func TestConfigSuite(t *testing.T) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ConfigTest) TestOverrideLoggingFlags_WithNonEmptyLogConfigs() {
-	f := &flags{
-		LogFile:    "a.txt",
-		LogFormat:  "json",
-		DebugFuse:  true,
-		DebugGCS:   false,
-		DebugMutex: false,
-	}
-	mountConfig := &MountConfig{}
-	mountConfig.LogConfig = LogConfig{
-		Severity: ERROR,
-		FilePath: "/tmp/hello.txt",
-		Format:   "text",
-	}
-	mountConfig.WriteConfig = WriteConfig{
-		CreateEmptyFile: true,
-	}
-
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
-
-	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), "/tmp/hello.txt", mountConfig.LogConfig.FilePath)
-	assert.Equal(t.T(), TRACE, mountConfig.LogConfig.Severity)
-}
-
-func (t *ConfigTest) TestOverrideLoggingFlags_WithEmptyLogConfigs() {
-	f := &flags{
-		LogFile:   "a.txt",
-		LogFormat: "json",
-	}
-	mountConfig := &MountConfig{}
-	mountConfig.LogConfig = LogConfig{
-		Severity: INFO,
-		FilePath: "",
-		Format:   "",
-	}
-	mountConfig.WriteConfig = WriteConfig{
-		CreateEmptyFile: true,
-	}
-
-	OverrideWithLoggingFlags(mountConfig, f.LogFile, f.LogFormat, f.DebugFuse, f.DebugGCS, f.DebugMutex)
-
-	assert.Equal(t.T(), "json", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), "a.txt", mountConfig.LogConfig.FilePath)
-	assert.Equal(t.T(), INFO, mountConfig.LogConfig.Severity)
-}
-
 func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig := &MountConfig{
 		CacheDir: "/tmp/folder/",
@@ -208,11 +161,11 @@ func Test_OverrideWithKernelListCacheTtlFlag(t *testing.T) {
 	for index, tt := range testCases {
 		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
 			testContext := &TestCliContext{isSet: tt.isFlagSet}
-			mountConfig := &MountConfig{ListConfig: ListConfig{KernelListCacheTtlSeconds: tt.configValue}}
+			mountConfig := &MountConfig{FileSystemConfig: FileSystemConfig{KernelListCacheTtlSeconds: tt.configValue}}
 
 			OverrideWithKernelListCacheTtlFlag(testContext, mountConfig, tt.flagValue)
 
-			assert.Equal(t, tt.expectedValue, mountConfig.ListConfig.KernelListCacheTtlSeconds)
+			assert.Equal(t, tt.expectedValue, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 		})
 	}
 }
@@ -266,4 +219,8 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 
 	// Calling with invalid argument to trigger panic.
 	ListCacheTtlSecsToDuration(-3)
+}
+
+func Test_DefaultMaxParallelDownloads(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }

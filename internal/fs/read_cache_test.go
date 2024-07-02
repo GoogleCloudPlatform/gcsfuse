@@ -72,7 +72,7 @@ func (t *FileCacheTest) SetUpTestSuite() {
 			CacheFileForRangeRead: false,
 			EnableCRC:             true,
 		},
-		CacheDir: config.CacheDir(CacheDir),
+		CacheDir: CacheDir,
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -607,7 +607,7 @@ func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: config.CacheDir(CacheDir),
+		CacheDir: CacheDir,
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -740,7 +740,7 @@ func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 			MaxSizeMB:             0,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: config.CacheDir(CacheDir),
+		CacheDir: CacheDir,
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -784,7 +784,7 @@ func (t *FileCacheDestroyTest) SetUpTestSuite() {
 			MaxSizeMB:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: config.CacheDir(CacheDir),
+		CacheDir: CacheDir,
 	}
 	t.fsTest.SetUpTestSuite()
 }

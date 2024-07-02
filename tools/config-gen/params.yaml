@@ -226,7 +226,7 @@
     metadata-cache-ttl-secs.
 
 - flag-name: "kernel-list-cache-ttl-secs"
-  config-path: "list.kernel-list-cache-ttl-secs"
+  config-path: "file-system.kernel-list-cache-ttl-secs"
   type: "int"
   usage: >-
     How long the directory listing (output of ls <dir>) should be cached in the
@@ -282,7 +282,7 @@
     client-protocol is set to 'http1'. The default value 0 indicates no limit on
     TCP connections (limited by the machine specifications).
   default: "0"
-  
+
 - flag-name: "max-idle-conns-per-host"
   config-path: "gcs-connection.max-idle-conns-per-host"
   type: "int"
@@ -349,6 +349,7 @@
   deprecation-warning: "This flag is currently unused."
 
 - flag-name: "debug_fuse"
+  config-path: "debug.fuse"
   type: "bool"
   usage: "This flag is unused. Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
   default: false
@@ -360,12 +361,12 @@
   usage: "This flag is unused."
   default: false
   deprecated: true
-  deprecation-warning: "This flag is  unused. debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  deprecation-warning: "Debug fuse logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
 
 - flag-name: "debug_gcs"
   config-path: "debug.gcs"
   type: "bool"
-  usage: "This flag is unused. Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
+  usage: "Debug GCS logs are now controlled by log-severity flag, please use log-severity trace to view the logs."
   default: false
   deprecated: true
   deprecation-warning: "This flag is currently unused."
@@ -433,7 +434,7 @@
   config-path: "file-cache.enable-crc"
   type: "bool"
   usage: "Performs CRC to ensure that file is correctly downloaded into cache."
-  default: true
+  default: false
 
 - flag-name: "enable-parallel-downloads"
   config-path: "file-cache.enable-parallel-downloads"
@@ -445,19 +446,19 @@
   config-path: "file-cache.parallel-downloads-per-file"
   type: "int"
   usage: "Number of concurrent download requests per file."
-  default: "10"
+  default: "16"
 
 - flag-name: "max-parallel-downloads"
   config-path: "file-cache.max-parallel-downloads"
   type: "int"
   usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
-  default: "-1"
+  default: "config.DefaultMaxParallelDownloads()"
 
 - flag-name: "download-chunk-size-mb"
   config-path: "file-cache.download-chunk-size-mb"
   type: "int"
   usage: "Size of chunks in MiB that each concurrent request downloads."
-  default: "25"
+  default: "50"
 
 - flag-name: "cache-dir"
   config-path: "cache-dir"

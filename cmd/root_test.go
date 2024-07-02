@@ -48,7 +48,21 @@ func TestValidConfig(t *testing.T) {
 	assert.Nil(t, cmd.Execute())
 }
 
-func TestTooManyCobraArgs(t *testing.T) {
+func TestDefaultMaxParallelDownloads(t *testing.T) {
+	var actual cfg.Config
+	cmd, err := NewRootCmd(func(c cfg.Config) error {
+		actual = c
+		return nil
+	})
+	require.Nil(t, err)
+	cmd.SetArgs([]string{"abc", "pqr"})
+
+	if assert.Nil(t, cmd.Execute()) {
+		assert.LessOrEqual(t, int64(16), actual.FileCache.MaxParallelDownloads)
+	}
+}
+
+func TestCobraArgsNumInRange(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string

@@ -108,7 +108,7 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 			MaxSizeMB:             cacheSize,
 			CacheFileForRangeRead: cacheFileForRangeRead,
 		},
-		CacheDir: config.CacheDir(cacheDirPath),
+		CacheDir: cacheDirPath,
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			Format:          "json",

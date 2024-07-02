@@ -17,6 +17,7 @@ package config
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"time"
 )
 
@@ -31,25 +32,6 @@ const (
 	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
 	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
 )
-
-// OverrideWithLoggingFlags overwrites the configs with the flag values if the
-// config values are empty.
-func OverrideWithLoggingFlags(mountConfig *MountConfig, logFile string, logFormat string,
-	debugFuse bool, debugGCS bool, debugMutex bool) {
-	// If log file is not set in config file, override it with flag value.
-	if mountConfig.LogConfig.FilePath == "" {
-		mountConfig.LogConfig.FilePath = logFile
-	}
-	// If log format is not set in config file, override it with flag value.
-	if mountConfig.LogConfig.Format == "" {
-		mountConfig.LogConfig.Format = logFormat
-	}
-	// If debug_fuse, debug_gcsfuse or debug_mutex flag is set, override log
-	// severity to TRACE.
-	if debugFuse || debugGCS || debugMutex {
-		mountConfig.LogConfig.Severity = TRACE
-	}
-}
 
 // cliContext is abstraction over the IsSet() method of cli.Context, Specially
 // added to keep OverrideWithIgnoreInterruptsFlag method's unit test simple.
@@ -79,7 +61,7 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 // with the kernel-list-cache-ttl-secs cli-flag value if the cli-flag is set by user.
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
 	if c.IsSet(KernelListCacheTtlFlagName) {
-		mountConfig.ListConfig.KernelListCacheTtlSeconds = ttl
+		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
 	}
 }
 
@@ -111,4 +93,8 @@ func ListCacheTtlSecsToDuration(secs int64) time.Duration {
 	}
 
 	return time.Duration(secs * int64(time.Second))
+}
+
+func DefaultMaxParallelDownloads() int {
+	return max(16, 2*runtime.NumCPU())
 }

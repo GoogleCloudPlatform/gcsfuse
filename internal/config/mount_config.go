@@ -59,11 +59,10 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 
-	DefaultEnableCRC                = true
+	DefaultEnableCRC                = false
 	DefaultEnableParallelDownloads  = false
-	DefaultDownloadChunkSizeMB      = 25
-	DefaultParallelDownloadsPerFile = 10
-	DefaultMaxParallelDownloads     = -1
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
 )
 
 type WriteConfig struct {
@@ -71,7 +70,7 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity        LogSeverity     `yaml:"severity"`
+	Severity        string          `yaml:"severity"`
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
@@ -86,8 +85,6 @@ type ListConfig struct {
 	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
-
-	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type GCSConnection struct {
@@ -103,11 +100,11 @@ type GCSAuth struct {
 
 // Enable the storage control client flow on HNS buckets to utilize new APIs.
 type EnableHNS bool
-type CacheDir string
 
 type FileSystemConfig struct {
-	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
-	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
+	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
+	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type FileCacheConfig struct {
@@ -144,7 +141,7 @@ type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheDir            `yaml:"cache-dir"`
+	CacheDir            string `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GCSConnection       `yaml:"gcs-connection"`
@@ -188,7 +185,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
 		EnableParallelDownloads:  DefaultEnableParallelDownloads,
 		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
-		MaxParallelDownloads:     DefaultMaxParallelDownloads,
+		MaxParallelDownloads:     DefaultMaxParallelDownloads(),
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 	}
@@ -208,7 +205,7 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 
-	mountConfig.ListConfig = ListConfig{
+	mountConfig.FileSystemConfig = FileSystemConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
 	}
 
