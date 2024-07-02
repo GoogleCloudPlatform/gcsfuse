@@ -111,7 +111,7 @@ be interacting with the file system.`)
 		CacheClock:                 timeutil.RealClock(),
 		BucketManager:              bm,
 		BucketName:                 bucketName,
-		LocalFileCache:             flags.LocalFileCache,
+		LocalFileCache:             false,
 		DebugFS:                    flags.DebugFS,
 		TempDir:                    string(newConfig.FileSystem.TempDir),
 		ImplicitDirectories:        flags.ImplicitDirs,

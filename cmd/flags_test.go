@@ -95,13 +95,9 @@ func (t *FlagsTest) Defaults() {
 	assert.False(t.T(), f.EnableNonexistentTypeCache)
 	assert.Equal(t.T(), 0, f.MaxConnsPerHost)
 
-	// Logging
-	assert.True(t.T(), f.DebugFuseErrors)
-
 	// Debugging
 	assert.False(t.T(), f.DebugFuse)
 	assert.False(t.T(), f.DebugGCS)
-	assert.False(t.T(), f.DebugHTTP)
 	assert.False(t.T(), f.DebugInvariants)
 
 	// Post-mount actions
@@ -135,10 +131,8 @@ func (t *FlagsTest) Bools() {
 	f = parseArgs(t, args)
 	assert.True(t.T(), f.ImplicitDirs)
 	assert.True(t.T(), f.ReuseTokenFromUrl)
-	assert.True(t.T(), f.DebugFuseErrors)
 	assert.True(t.T(), f.DebugFuse)
 	assert.True(t.T(), f.DebugGCS)
-	assert.True(t.T(), f.DebugHTTP)
 	assert.True(t.T(), f.DebugInvariants)
 	assert.True(t.T(), f.EnableNonexistentTypeCache)
 	assert.True(t.T(), f.ExperimentalEnableJsonRead)
@@ -154,10 +148,8 @@ func (t *FlagsTest) Bools() {
 	f = parseArgs(t, args)
 	assert.False(t.T(), f.ImplicitDirs)
 	assert.False(t.T(), f.ReuseTokenFromUrl)
-	assert.False(t.T(), f.DebugFuseErrors)
 	assert.False(t.T(), f.DebugFuse)
 	assert.False(t.T(), f.DebugGCS)
-	assert.False(t.T(), f.DebugHTTP)
 	assert.False(t.T(), f.DebugInvariants)
 	assert.False(t.T(), f.EnableNonexistentTypeCache)
 
@@ -170,10 +162,8 @@ func (t *FlagsTest) Bools() {
 	f = parseArgs(t, args)
 	assert.True(t.T(), f.ImplicitDirs)
 	assert.True(t.T(), f.ReuseTokenFromUrl)
-	assert.True(t.T(), f.DebugFuseErrors)
 	assert.True(t.T(), f.DebugFuse)
 	assert.True(t.T(), f.DebugGCS)
-	assert.True(t.T(), f.DebugHTTP)
 	assert.True(t.T(), f.DebugInvariants)
 	assert.True(t.T(), f.EnableNonexistentTypeCache)
 }
@@ -242,7 +232,6 @@ func (t *FlagsTest) Durations() {
 	assert.Equal(t.T(), time.Minute+17*time.Second+100*time.Millisecond, f.StatCacheTTL)
 	assert.Equal(t.T(), 50*time.Second+900*time.Millisecond, f.TypeCacheTTL)
 	assert.Equal(t.T(), 800*time.Millisecond, f.HttpClientTimeout)
-	assert.Equal(t.T(), -1*time.Second, f.MaxRetryDuration)
 	assert.Equal(t.T(), 30*time.Second, f.MaxRetrySleep)
 }
 

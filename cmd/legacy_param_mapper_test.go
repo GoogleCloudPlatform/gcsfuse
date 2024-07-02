@@ -93,8 +93,6 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				TypeCacheTTL:                        70,
 				KernelListCacheTtlSeconds:           30,
 				HttpClientTimeout:                   100,
-				MaxRetryDuration:                    10,
-				LocalFileCache:                      false,
 				TempDir:                             "~/temp",
 				MaxConnsPerHost:                     200,
 				MaxIdleConnsPerHost:                 150,
