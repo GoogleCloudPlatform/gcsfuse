@@ -49,7 +49,6 @@ func (t *MainTest) TestCreateStorageHandle() {
 		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
 		AppName:             "app",
-		KeyFile:             "testdata/test_creds.json",
 	}
 	mountConfig := &config.MountConfig{}
 	newConfig := &cfg.Config{

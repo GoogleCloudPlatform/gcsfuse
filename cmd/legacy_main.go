@@ -289,7 +289,7 @@ func runCLIApp(c *cli.Context) (err error) {
 		return
 	}
 
-	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), newConfig.AppName, mountPoint)
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.

@@ -47,7 +47,7 @@ func mountWithStorageHandle(
 	// currently. This gives a better user experience than harder to debug EIO
 	// errors when reading files in the future.
 	if newConfig.FileSystem.TempDir != "" {
-		logger.Infof("Creating a temporary directory at %q\n", flags.TempDir)
+		logger.Infof("Creating a temporary directory at %q\n", newConfig.FileSystem.TempDir)
 		var f *os.File
 		f, err = fsutil.AnonymousFile(string(newConfig.FileSystem.TempDir))
 		f.Close()
@@ -70,7 +70,7 @@ func mountWithStorageHandle(
 		return
 	}
 
-	if newConfig.FileSystem.Uid == 0 && newConfig.FileSystem.Uid < 0 {
+	if uid == 0 && newConfig.FileSystem.Uid < 0 {
 		fmt.Fprintln(os.Stdout, `
 WARNING: gcsfuse invoked as root. This will cause all files to be owned by
 root. If this is not what you intended, invoke gcsfuse as the user that will
@@ -99,7 +99,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
 		StatCacheTTL:                       metadataCacheTTL,
-		EnableMonitoring:                   flags.StackdriverExportInterval > 0,
+		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           flags.DebugGCS,
