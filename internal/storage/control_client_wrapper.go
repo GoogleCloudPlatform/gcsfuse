@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 )
@@ -31,4 +32,6 @@ type StorageControlClient interface {
 		opts ...gax.CallOption) error
 
 	GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error)
+
+	RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error)
 }

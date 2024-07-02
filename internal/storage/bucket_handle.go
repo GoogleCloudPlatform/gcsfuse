@@ -477,6 +477,11 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	return err
 }
 
+func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (resp *control.RenameFolderOperation, err error) {
+	// TODO: Implement
+	return
+}
+
 // TODO: Consider adding this method to the bucket interface if additional
 // layout options are needed in the future.
 func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {

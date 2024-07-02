@@ -17,6 +17,7 @@ package gcs
 import (
 	"io"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"golang.org/x/net/context"
 )
@@ -145,4 +146,7 @@ type Bucket interface {
 	DeleteFolder(ctx context.Context, folderName string) error
 
 	GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error)
+
+	// Atomically rename folder for Hierarchical bucket.
+	RenameFolder(ctx context.Context, folderName string, pdestinationFolderId string) (*control.RenameFolderOperation, error)
 }
