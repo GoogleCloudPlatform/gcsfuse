@@ -167,7 +167,10 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, exp
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(m, existing.(entry)) && !shouldReplaceFolder(f, existing.(entry)) {
+		if f != nil && !shouldReplaceFolder(f, existing.(entry)) {
+			return
+		}
+		if m != nil && !shouldReplace(m, existing.(entry)) {
 			return
 		}
 	}
@@ -213,8 +216,8 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 }
 
 func (sc *statCacheBucketView) LookUp(
-		objectName string,
-		now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
+	objectName string,
+	now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
 	// Look up in the LRU cache.
 	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {
