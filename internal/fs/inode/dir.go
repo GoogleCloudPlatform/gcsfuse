@@ -24,8 +24,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
@@ -580,7 +582,24 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 			return descendants, nil
 		}
 	}
+}
 
+func logUnsupportedListings(removedListings *gcs.Listing) {
+	if removedListings != nil {
+		if len(removedListings.CollapsedRuns) > 0 {
+			logger.Warnf("Ignored following unsupported prefixes: %v", removedListings.CollapsedRuns)
+		}
+		if len(removedListings.Objects) > 0 {
+			objectNames := []string{}
+			for _, object := range removedListings.Objects {
+				if object != nil {
+					objectNames = append(objectNames, object.Name)
+				}
+			}
+
+			logger.Warnf("Ignored following unsupported objects: %v", objectNames)
+		}
+	}
 }
 
 // LOCKS_REQUIRED(d)
@@ -605,6 +624,12 @@ func (d *dirInode) readObjects(
 		err = fmt.Errorf("ListObjects: %w", err)
 		return
 	}
+
+	// Remove unsupported prefixes/objects such as those
+	// containing '//' in them.
+	var removedListings *gcs.Listing
+	listing, removedListings = util.RemoveUnsupportedObjectsFromListing(listing)
+	logUnsupportedListings(removedListings)
 
 	cores = make(map[Name]*Core)
 	defer func() {

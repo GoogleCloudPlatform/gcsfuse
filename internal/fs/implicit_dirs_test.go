@@ -19,8 +19,12 @@
 package fs_test
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -568,4 +572,106 @@ func (t *ImplicitDirsTest) AtimeCtimeAndMtime() {
 	ExpectThat(atime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(ctime, timeutil.TimeNear(mountTime, delta))
 	ExpectThat(mtime, timeutil.TimeNear(mountTime, delta))
+}
+
+func verifyInvalidPath(path string) {
+	_, err := os.Stat(path)
+
+	AssertNe(nil, err, "Failed to get error in stat of %q", path)
+}
+
+// Create objects with unsupported object names and
+// verify the behavior of mount using os.Stat and WalkDir.
+func (t *ImplicitDirsTest) UnsupportedDirNames() {
+	// Set up contents.
+	AssertEq(
+		nil,
+		t.createObjects(
+			map[string]string{
+				"foo//1":   "", // unsupported
+				"foo/2":    "", // supported
+				"foo/3//4": "", // unsupported
+				"foo//3/5": "", // unsupported
+				"foo/3/6":  "", // supported
+				"7":        "", // supported
+				"/8":       "", // unsupported
+				"/9/10":    "", // unsupported
+				"/":        "", // unsupported
+				"11/12":    "", // supported
+			}))
+
+	// Verify that the unsupported objects fail os.Stat.
+	verifyInvalidPath(path.Join(mntDir, "foo//1"))
+	verifyInvalidPath(path.Join(mntDir, "foo/3//4"))
+	verifyInvalidPath(path.Join(mntDir, "foo//3/5"))
+	verifyInvalidPath(path.Join(mntDir, "/8"))
+	verifyInvalidPath(path.Join(mntDir, "/9/10"))
+
+	// Verify that the supported objects appear in WalkDir.
+	expectedWalkedEntries := []struct {
+		path  string
+		name  string
+		isDir bool
+		found bool
+	}{{
+		path:  mntDir,
+		name:  mntDir[strings.LastIndex(mntDir, "/")+1:],
+		isDir: true,
+	}, {
+		path:  path.Join(mntDir, "foo"),
+		name:  "foo",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "foo/2"),
+		name: "2",
+	}, {
+		path:  path.Join(mntDir, "foo/3"),
+		name:  "3",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "foo/3/6"),
+		name: "6",
+	}, {
+		path: path.Join(mntDir, "7"),
+		name: "7",
+	}, {
+		path:  path.Join(mntDir, "11"),
+		name:  "11",
+		isDir: true,
+	}, {
+		path: path.Join(mntDir, "11/12"),
+		name: "12",
+	},
+	}
+
+	AssertEq(nil, filepath.WalkDir(mntDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		foundMatchingExpectedWalkingEntry := false
+		for i := range expectedWalkedEntries {
+			expectedWalkedEntry := &expectedWalkedEntries[i]
+			if expectedWalkedEntry.path == path && expectedWalkedEntry.name == d.Name() && d.IsDir() == expectedWalkedEntry.isDir {
+				if expectedWalkedEntry.found {
+					return fmt.Errorf("found duplicate walked entry: path=%s, name=%s, isDir=%v", path, d.Name(), d.IsDir())
+				}
+
+				foundMatchingExpectedWalkingEntry = true
+				expectedWalkedEntry.found = true
+			}
+		}
+
+		if !foundMatchingExpectedWalkingEntry {
+			return fmt.Errorf("got unexpected walk entry: path=%s, name=%s, isDir=%v", path, d.Name(), d.IsDir())
+		}
+
+		return nil
+	}))
+
+	for _, expectedWalkedEntry := range expectedWalkedEntries {
+		if !expectedWalkedEntry.found {
+			AddFailure("Missing walked entry: path=%s, name=%s, isDir=%v", expectedWalkedEntry.path, expectedWalkedEntry.name, expectedWalkedEntry.isDir)
+		}
+	}
 }
