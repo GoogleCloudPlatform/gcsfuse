@@ -432,6 +432,8 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
 
+	folderInodes map[inode.Name]inode.DirInode
+
 	// A map from object name to the local fileInode that represents
 	// that name. There can be at most one local file inode for a
 	// given name accessible to us at any given time.
@@ -840,71 +842,118 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		return
 	}
 
-	oGen := inode.Generation{
-		Object:   ic.MinObject.Generation,
-		Metadata: ic.MinObject.MetaGeneration,
-	}
+	if ic.MinObject != nil {
+		oGen := inode.Generation{
+			Object:   ic.MinObject.Generation,
+			Metadata: ic.MinObject.MetaGeneration,
+		}
 
-	// Retry loop for the stale index entry case below. On entry, we hold fs.mu
-	// but no inode lock.
-	for {
-		// Look at the current index entry.
-		existingInode, ok := fs.generationBackedInodes[ic.FullName]
+		// Retry loop for the stale index entry case below. On entry, we hold fs.mu
+		// but no inode lock.
+		for {
+			// Look at the current index entry.
+			existingInode, ok := fs.generationBackedInodes[ic.FullName]
 
-		// If we have no existing record, mint an inode and return it.
-		if !ok {
+			// If we have no existing record, mint an inode and return it.
+			if !ok {
+				in = fs.mintInode(ic)
+				fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
+
+				in.Lock()
+				return
+			}
+
+			// Otherwise we need to read the inode's source generation below, which
+			// requires the inode's lock. We must not hold the inode lock while
+			// acquiring the file system lock, so drop it while acquiring the inode's
+			// lock, then reacquire.
+			fs.mu.Unlock()
+			existingInode.Lock()
+			fs.mu.Lock()
+
+			// Check that the index still points at this inode. If not, it's possible
+			// that the inode is in the process of being destroyed and is unsafe to
+			// use. Go around and try again.
+			if fs.generationBackedInodes[ic.FullName] != existingInode {
+				existingInode.Unlock()
+				continue
+			}
+
+			// Have we found the correct inode?
+			cmp := oGen.Compare(existingInode.SourceGeneration())
+			if cmp == 0 {
+				in = existingInode
+				return
+			}
+
+			// The existing inode is newer than the backing object. The caller
+			// should call again with a newer backing object.
+			if cmp == -1 {
+				existingInode.Unlock()
+				return
+			}
+
+			// The backing object is newer than the existing inode, while
+			// holding the inode lock, excluding concurrent actions by the inode (in
+			// particular concurrent calls to Sync, which changes generation numbers).
+			// This means we've proven that the record cannot have been caused by the
+			// inode's actions, and therefore this is not the inode we want.
+			//
+			// Replace it with a newly-mintend inode and then go around, acquiring its
+			// lock in accordance with our lock ordering rules.
+			existingInode.Unlock()
+
 			in = fs.mintInode(ic)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
-			in.Lock()
-			return
-		}
-
-		// Otherwise we need to read the inode's source generation below, which
-		// requires the inode's lock. We must not hold the inode lock while
-		// acquiring the file system lock, so drop it while acquiring the inode's
-		// lock, then reacquire.
-		fs.mu.Unlock()
-		existingInode.Lock()
-		fs.mu.Lock()
-
-		// Check that the index still points at this inode. If not, it's possible
-		// that the inode is in the process of being destroyed and is unsafe to
-		// use. Go around and try again.
-		if fs.generationBackedInodes[ic.FullName] != existingInode {
-			existingInode.Unlock()
 			continue
 		}
-
-		// Have we found the correct inode?
-		cmp := oGen.Compare(existingInode.SourceGeneration())
-		if cmp == 0 {
-			in = existingInode
-			return
-		}
-
-		// The existing inode is newer than the backing object. The caller
-		// should call again with a newer backing object.
-		if cmp == -1 {
-			existingInode.Unlock()
-			return
-		}
-
-		// The backing object is newer than the existing inode, while
-		// holding the inode lock, excluding concurrent actions by the inode (in
-		// particular concurrent calls to Sync, which changes generation numbers).
-		// This means we've proven that the record cannot have been caused by the
-		// inode's actions, and therefore this is not the inode we want.
-		//
-		// Replace it with a newly-mintend inode and then go around, acquiring its
-		// lock in accordance with our lock ordering rules.
-		existingInode.Unlock()
-
-		in = fs.mintInode(ic)
-		fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
-
-		continue
 	}
+
+	if ic.Folder != nil {
+		if !ic.FullName.IsDir() {
+			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
+		}
+
+		var ok bool
+		var maxTriesToCreateInode = 3
+		for n := 0; n < maxTriesToCreateInode; n++ {
+			in, ok = fs.folderInodes[ic.FullName]
+			// If we don't have an entry, create one.
+			if !ok {
+				in = fs.mintInode(ic)
+				fs.folderInodes[in.Name()] = in.(inode.DirInode)
+				// Since we are creating inode here, there is no chance that something else
+				// is holding the lock for inode. Hence its safe to take lock on inode
+				// without releasing fs.mu.lock.
+				in.Lock()
+				return
+			}
+
+			// If the inode already exists, we need to follow the lock ordering rules
+			// to get the lock. First get inode lock and then fs lock.
+			fs.mu.Unlock()
+			in.Lock()
+			fs.mu.Lock()
+
+			// Check if inode is still valid by the time we got the lock. If not,
+			// its means inode is in the process of getting destroyed. Try creating it
+			// again.
+			if fs.folderInodes[ic.FullName] != in {
+				in.Unlock()
+				continue
+			}
+
+			return
+		}
+
+		// Incase we exhausted the number of tries to createInode, we will return
+		// nil object. Returning nil is handled by callers to throw appropriate
+		// errors back to kernel.
+		in = nil
+		return
+	}
+	return
 }
 
 // Look up the child with the given name within the parent, then return an
