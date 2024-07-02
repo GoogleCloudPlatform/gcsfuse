@@ -184,9 +184,9 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, exp
 	if m != nil {
 		e.m = m
 	}
+	fmt.Println("Cache: ", e)
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
-		fmt.Println("Cache: ", e)
 		panic(err)
 	}
 }
@@ -213,8 +213,8 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 }
 
 func (sc *statCacheBucketView) LookUp(
-	objectName string,
-	now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
+		objectName string,
+		now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
 	// Look up in the LRU cache.
 	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {
