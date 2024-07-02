@@ -80,13 +80,21 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	expiration := b.clock.Now().Add(b.ttl)
 	for _, o := range objs {
 		m := storageutil.ConvertObjToMinObject(o)
-		b.cache.Insert(m, expiration)
+		b.cache.Insert(m, nil, expiration)
 	}
 }
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
+}
+
+func (b *fastStatBucket) insertFolder(f *controlpb.Folder) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.Insert(nil, f, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -107,11 +115,11 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
+func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, m = b.cache.LookUp(name, b.clock.Now())
+	hit, m, f = b.cache.LookUp(name, b.clock.Now())
 	return
 }
 
@@ -209,7 +217,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
+	if hit, entry, _ := b.lookUp(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
@@ -306,7 +314,7 @@ func (b *fastStatBucket) GetFolder(
 	}
 
 	// TODO: add folder metadata in stat cache
-	// b.insertFolder(folder)
+	b.insertFolder(folder)
 
 	return
 }

@@ -18,6 +18,7 @@ import (
 	"math"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -35,7 +36,7 @@ type StatCache interface {
 	// replace negative entries.
 	//
 	// The entry will expire after the supplied time.
-	Insert(m *gcs.MinObject, expiration time.Time)
+	Insert(m *gcs.MinObject, f *controlpb.Folder, expiration time.Time)
 
 	// Set up a negative entry for the given name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -48,7 +49,7 @@ type StatCache interface {
 	// Return the current entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
+	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -80,6 +81,7 @@ type statCacheBucketView struct {
 // entry. Nil object means negative entry.
 type entry struct {
 	m          *gcs.MinObject
+	f          *controlpb.Folder
 	expiration time.Time
 	key        string
 }
@@ -95,7 +97,7 @@ func (e entry) Size() (size uint64) {
 	// First, calculate size on heap.
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m) + util.UnsafeSizeOf(e.f))
 	if e.m != nil {
 		size += 515
 	}
@@ -128,6 +130,21 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	return true
 }
 
+func shouldReplaceFolder(f *controlpb.Folder, existing entry) bool {
+	// Negative entries should always be replaced with positive entries.
+	if existing.f == nil {
+		return true
+	}
+
+	// Break ties on metadata generation.
+	if f.Metageneration != existing.f.Metageneration {
+		return f.Metageneration > existing.f.Metageneration
+	}
+
+	// Break ties by preferring fresher entries.
+	return true
+}
+
 func (sc *statCacheBucketView) key(objectName string) string {
 	// path.Join(sc.bucketName, objectName) does not work
 	// because that normalizes the trailing "/"
@@ -139,12 +156,12 @@ func (sc *statCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
-func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, expiration time.Time) {
 	name := sc.key(m.Name)
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(m, existing.(entry)) {
+		if !shouldReplace(m, existing.(entry)) && !shouldReplaceFolder(f, existing.(entry)) {
 			return
 		}
 	}
@@ -152,6 +169,7 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	// Insert an entry.
 	e := entry{
 		m:          m,
+		f:          f,
 		expiration: expiration,
 		key:        name,
 	}
@@ -167,6 +185,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	// Insert a negative entry.
 	e := entry{
 		m:          nil,
+		f:          nil,
 		expiration: expiration,
 		key:        name,
 	}
@@ -183,7 +202,7 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
-	now time.Time) (hit bool, m *gcs.MinObject) {
+	now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
 	// Look up in the LRU cache.
 	value := sc.sharedCache.LookUp(sc.key(objectName))
 	if value == nil {
@@ -200,6 +219,7 @@ func (sc *statCacheBucketView) LookUp(
 
 	hit = true
 	m = e.m
+	f = e.f
 
 	return
 }
