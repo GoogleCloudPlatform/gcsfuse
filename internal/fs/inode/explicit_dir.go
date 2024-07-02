@@ -17,6 +17,7 @@ package inode
 import (
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
@@ -36,6 +37,7 @@ func NewExplicitDirInode(
 	id fuseops.InodeID,
 	name Name,
 	m *gcs.MinObject,
+	f *controlpb.Folder,
 	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	enableManagedFoldersListing bool,
@@ -58,12 +60,22 @@ func NewExplicitDirInode(
 		cacheClock,
 		typeCacheMaxSizeMB)
 
-	d = &explicitDirInode{
-		dirInode: wrapped.(*dirInode),
-		generation: Generation{
-			Object:   m.Generation,
-			Metadata: m.MetaGeneration,
-		},
+	if f != nil {
+		d = &explicitDirInode{
+			dirInode: wrapped.(*dirInode),
+			generation: Generation{
+				Metadata: f.Metageneration,
+			},
+		}
+	}
+	if m != nil {
+		d = &explicitDirInode{
+			dirInode: wrapped.(*dirInode),
+			generation: Generation{
+				Object:   m.Generation,
+				Metadata: m.MetaGeneration,
+			},
+		}
 	}
 
 	return
