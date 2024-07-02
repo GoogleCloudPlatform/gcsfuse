@@ -310,7 +310,6 @@ func (b *fastStatBucket) GetFolder(
 	prefix string) (folder *controlpb.Folder, err error) {
 	// Fetch the listing.
 	folder, err = b.wrapped.GetFolder(ctx, prefix)
-	fmt.Println("Error: ", err)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if ok := strings.Contains(err.Error(), "The folder does not exist"); ok {
