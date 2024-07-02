@@ -500,6 +500,8 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*contr
 	if err != nil {
 		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
 	}
+
+	fmt.Println("Folder: ", folder)
 	if folder != nil {
 		folder.Name = folderName
 	}
