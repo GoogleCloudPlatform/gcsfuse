@@ -173,10 +173,15 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, exp
 
 	// Insert an entry.
 	e := entry{
-		m:          m,
-		f:          f,
 		expiration: expiration,
 		key:        name,
+	}
+
+	if f != nil {
+		e.f = f
+	}
+	if m != nil {
+		e.m = m
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
