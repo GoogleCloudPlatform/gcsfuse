@@ -17,6 +17,7 @@ package caching
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -309,9 +310,10 @@ func (b *fastStatBucket) GetFolder(
 	prefix string) (folder *controlpb.Folder, err error) {
 	// Fetch the listing.
 	folder, err = b.wrapped.GetFolder(ctx, prefix)
+	fmt.Println("Error: ", err)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
-		if _, ok := err.(*gcs.NotFoundError); ok {
+		if ok := strings.Contains(err.Error(), "The folder does not exist"); ok {
 			b.addNegativeEntry(prefix)
 		}
 		return
