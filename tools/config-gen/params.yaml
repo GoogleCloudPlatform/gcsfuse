@@ -226,7 +226,7 @@
     metadata-cache-ttl-secs.
 
 - flag-name: "kernel-list-cache-ttl-secs"
-  config-path: "list.kernel-list-cache-ttl-secs"
+  config-path: "file-system.kernel-list-cache-ttl-secs"
   type: "int"
   usage: >-
     How long the directory listing (output of ls <dir>) should be cached in the
