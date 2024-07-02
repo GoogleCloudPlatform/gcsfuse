@@ -344,6 +344,22 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
+func getFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+	if !name.IsDir() {
+		return nil, fmt.Errorf("%q is not directory", name)
+	}
+	folder, err := bucket.GetFolder(ctx, name.objectName)
+	if err != nil {
+		return nil, fmt.Errorf("get folder objects: %w", err)
+	}
+	result := &Core{
+		Bucket:   bucket,
+		FullName: name,
+	}
+	result.Folder = folder
+	return result, nil
+}
+
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
 func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
@@ -498,6 +514,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
+	getFolder := func(ctx context.Context) (err error) {
+		dirResult, err = getFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		return
+	}
 
 	b := syncutil.NewBundle(ctx)
 
@@ -517,10 +537,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.implicitDirs {
-			b.Add(lookUpImplicitOrExplicitDir)
+		if d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(getFolder)
 		} else {
-			b.Add(lookUpExplicitDir)
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		}
 	}
 
@@ -647,7 +671,7 @@ func (d *dirInode) readObjects(
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
-	if !d.implicitDirs {
+	if !d.implicitDirs && d.bucket.BucketType() != gcs.Hierarchical {
 		return
 	}
 
@@ -655,7 +679,7 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType && d.bucket.BucketType() != gcs.Hierarchical {
 			continue
 		}
 
@@ -663,6 +687,7 @@ func (d *dirInode) readObjects(
 			Bucket:    d.Bucket(),
 			FullName:  dirName,
 			MinObject: nil,
+			Folder:    nil,
 		}
 		cores[dirName] = implicitDir
 	}
