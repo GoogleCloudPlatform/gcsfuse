@@ -48,7 +48,6 @@ func (t *MainTest) TestCreateStorageHandle() {
 		HttpClientTimeout:   5,
 		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
-		AppName:             "app",
 	}
 	mountConfig := &config.MountConfig{}
 	newConfig := &cfg.Config{
@@ -69,7 +68,6 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		HttpClientTimeout:   5,
 		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
-		AppName:             "app",
 	}
 	mountConfig := &config.MountConfig{
 		GCSConnection: config.GCSConnection{GRPCConnPoolSize: 1},
