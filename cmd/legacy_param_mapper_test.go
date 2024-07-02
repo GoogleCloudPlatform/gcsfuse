@@ -439,7 +439,7 @@ func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
 	}
 }
 
-func TestURLResolutionFromFlags(t *testing.T) {
+func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 	u, err := url.Parse("http://abc.xyz")
 	require.Nil(t, err)
 	legacyFlagStorage := &flagStorage{
