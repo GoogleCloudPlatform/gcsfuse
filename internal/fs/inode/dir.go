@@ -530,7 +530,11 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		b.Add(lookUpExplicitDir)
+		if d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(getFolder)
+		} else {
+			b.Add(lookUpExplicitDir)
+		}
 	case metadata.RegularFileType, metadata.SymlinkType:
 		b.Add(lookUpFile)
 	case metadata.NonexistentType:
