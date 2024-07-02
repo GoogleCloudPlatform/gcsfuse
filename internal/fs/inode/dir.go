@@ -564,6 +564,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	if result != nil {
+		fmt.Println("Result: ", result)
 		d.cache.Insert(d.cacheClock.Now(), name, result.Type())
 	} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
 		d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
