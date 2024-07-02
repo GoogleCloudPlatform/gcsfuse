@@ -253,6 +253,15 @@ func (t *fsTest) deleteObject(name string) error {
 	return bucket.DeleteObject(ctx, &gcs.DeleteObjectRequest{Name: name})
 }
 
+func (t *fsTest) deleteObjects(names []string) error {
+	for _, name := range names {
+		if err := t.deleteObject(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (t *fsTest) createEmptyObjects(names []string) error {
 	err := storageutil.CreateEmptyObjects(ctx, bucket, names)
 	return err

@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,22 +44,14 @@ type KernelListCacheTestCommon struct {
 	fsTest
 }
 
-func (t *KernelListCacheTestCommon) SetupSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		ListConfig: config.ListConfig{
-			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
-		}}
-	t.serverCfg.RenameDirLimit = 10
-	t.fsTest.SetUpTestSuite()
-}
-
 func (t *KernelListCacheTestCommon) SetupTest() {
 	t.createFilesAndDirStructureInBucket()
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 }
 
 func (t *KernelListCacheTestCommon) TearDownTest() {
+	cacheClock.AdvanceTime(util.MaxTimeDuration)
+	t.deleteFilesAndDirStructureInBucket()
 	t.fsTest.TearDown()
 }
 
@@ -70,23 +63,34 @@ func TestKernelListCacheTestSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestCommon))
 }
 
-// createFilesAndDirStructureInBucket creates the following files and directory
-// structure.
-// bucket
+// getFilesAndDirStructureObjects returns the following files and directory
+// objects.
 //
 //	explicitDir/
 //	explicitDir/file1.txt
 //	explicitDir/file2.txt
 //	implicitDir/file1.txt
 //	implicitDir/file2.txt
-func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
-	assert.Nil(t.T(), t.createObjects(map[string]string{
+func getFilesAndDirStructureObjects() map[string]string {
+	return map[string]string{
 		"explicitDir/":          "",
 		"explicitDir/file1.txt": "12345",
 		"explicitDir/file2.txt": "6789101112",
 		"implicitDir/file1.txt": "-1234556789",
 		"implicitDir/file2.txt": "kdfkdj9",
-	}))
+	}
+}
+func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
+	assert.Nil(t.T(), t.createObjects(getFilesAndDirStructureObjects()))
+}
+
+func (t *KernelListCacheTestCommon) deleteFilesAndDirStructureInBucket() {
+	filesOrDirStructure := getFilesAndDirStructureObjects()
+	keys := make([]string, len(filesOrDirStructure))
+	for k := range filesOrDirStructure {
+		keys = append(keys, k)
+	}
+	assert.Nil(t.T(), t.deleteObjects(keys))
 }
 
 func (t *KernelListCacheTestCommon) deleteObjectOrFail(objectName string) {
@@ -104,7 +108,11 @@ func (t *KernelListCacheTestWithPositiveTtl) SetupSuite() {
 	t.serverCfg.MountConfig = &config.MountConfig{
 		ListConfig: config.ListConfig{
 			KernelListCacheTtlSeconds: kernelListCacheTtlSeconds,
-		}}
+		},
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds: 0,
+		},
+	}
 	t.serverCfg.RenameDirLimit = 10
 	t.fsTest.SetUpTestSuite()
 }
@@ -125,8 +133,8 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHit() {
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 2, len(names1))
-	assert.Equal(t.T(), names1[0], "file1.txt")
-	assert.Equal(t.T(), names1[1], "file2.txt")
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
 	assert.Nil(t.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
@@ -145,8 +153,44 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHit() {
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 2, len(names2))
-	assert.Equal(t.T(), names1[0], names2[0])
-	assert.Equal(t.T(), names1[1], names2[1])
+	assert.Equal(t.T(), "file1.txt", names2[0])
+	assert.Equal(t.T(), "file2.txt", names2[1])
+}
+
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() within ttl will be served from kernel page cache.
+func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitWithImplicitDir() {
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(mntDir, "implicitDir"))
+	assert.Nil(t.T(), err)
+	defer func() {
+		assert.Nil(t.T(), f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 2, len(names1))
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t.T(), err)
+	// Adding one object to make sure to change the ReadDir() response.
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"implicitDir/file3.txt": "123456",
+	}))
+	defer t.deleteObjectOrFail("implicitDir/file3.txt")
+	// Advancing the clock within time.
+	cacheClock.AdvanceTime(kernelListCacheTtlSeconds * time.Second / 2)
+
+	// 2nd read, ReadDir() will be served from page-cache, that means no change in
+	// response.
+	f, err = os.Open(path.Join(mntDir, "implicitDir"))
+	assert.Nil(t.T(), err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 2, len(names2))
+	assert.Equal(t.T(), "file1.txt", names2[0])
+	assert.Equal(t.T(), "file2.txt", names2[1])
 }
 
 // (a) First ReadDir() will be served from GCSFuse filesystem.
@@ -161,8 +205,8 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMiss() {
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 2, len(names1))
-	assert.Equal(t.T(), names1[0], "file1.txt")
-	assert.Equal(t.T(), names1[1], "file2.txt")
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
 	assert.Nil(t.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
@@ -181,9 +225,46 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMiss() {
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 3, len(names2))
-	assert.Equal(t.T(), names2[0], "file1.txt")
-	assert.Equal(t.T(), names2[1], "file2.txt")
-	assert.Equal(t.T(), names2[2], "file3.txt")
+	assert.Equal(t.T(), "file1.txt", names2[0])
+	assert.Equal(t.T(), "file2.txt", names2[1])
+	assert.Equal(t.T(), "file3.txt", names2[2])
+}
+
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() out of ttl will also be served from GCSFuse filesystem.
+func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMissWithImplicitDir() {
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(mntDir, "implicitDir"))
+	assert.Nil(t.T(), err)
+	defer func() {
+		assert.Nil(t.T(), f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 2, len(names1))
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t.T(), err)
+	// Adding one object to make sure to change the ReadDir() response.
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"implicitDir/file3.txt": "123456",
+	}))
+	defer t.deleteObjectOrFail("implicitDir/file3.txt")
+	// Advancing the time more than ttl.
+	cacheClock.AdvanceTime(kernelListCacheTtlSeconds*time.Second + time.Second)
+
+	// Since out of ttl, so invalidation happens and ReadDir() will be served from
+	// gcsfuse filesystem.
+	f, err = os.Open(path.Join(mntDir, "implicitDir"))
+	assert.Nil(t.T(), err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), 3, len(names2))
+	assert.Equal(t.T(), "file1.txt", names2[0])
+	assert.Equal(t.T(), "file2.txt", names2[1])
+	assert.Equal(t.T(), "file3.txt", names2[2])
 }
 
 // TestKernelListCache_CacheHitAfterInvalidation:
@@ -200,8 +281,8 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 2, len(names1))
-	assert.Equal(t.T(), names1[0], "file1.txt")
-	assert.Equal(t.T(), names1[1], "file2.txt")
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
 	assert.Nil(t.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
@@ -218,9 +299,9 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	names2, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 3, len(names2))
-	assert.Equal(t.T(), names2[0], "file1.txt")
-	assert.Equal(t.T(), names2[1], "file2.txt")
-	assert.Equal(t.T(), names2[2], "file3.txt")
+	assert.Equal(t.T(), "file1.txt", names2[0])
+	assert.Equal(t.T(), "file2.txt", names2[1])
+	assert.Equal(t.T(), "file3.txt", names2[2])
 	err = f.Close()
 	assert.Nil(t.T(), err)
 	// Adding one object to make sure to change the ReadDir() response.
@@ -238,116 +319,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 3, len(names3))
-	assert.Equal(t.T(), names2[0], names3[0])
-	assert.Equal(t.T(), names2[1], names3[1])
-	assert.Equal(t.T(), names2[2], names3[2])
-}
-
-type KernelListCacheTestWithInfiniteTtl struct {
-	suite.Suite
-	fsTest
-	KernelListCacheTestCommon
-}
-
-func (t *KernelListCacheTestWithInfiniteTtl) SetupSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		ListConfig: config.ListConfig{
-			KernelListCacheTtlSeconds: -1,
-		}}
-	t.serverCfg.RenameDirLimit = 10
-	t.fsTest.SetUpTestSuite()
-}
-
-func TestKernelListCacheTestInfiniteTtlSuite(t *testing.T) {
-	suite.Run(t, new(KernelListCacheTestWithInfiniteTtl))
-}
-
-// (a) First ReadDir() will be served from GCSFuse filesystem.
-// (b) Second ReadDir() will also be served from GCSFuse filesystem.
-func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_AlwaysCacheHit() {
-	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(mntDir, "explicitDir"))
-	assert.Nil(t.T(), err)
-	defer func() {
-		assert.Nil(t.T(), f.Close())
-	}()
-	names1, err := f.Readdirnames(-1)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
-	assert.Equal(t.T(), names1[0], "file1.txt")
-	assert.Equal(t.T(), names1[1], "file2.txt")
-	err = f.Close()
-	assert.Nil(t.T(), err)
-	// Adding one object to make sure to change the ReadDir() response.
-	assert.Nil(t.T(), t.createObjects(map[string]string{
-		"explicitDir/file3.txt": "123456",
-	}))
-	defer t.deleteObjectOrFail("explicitDir/file3.txt")
-	// Advancing time by 5 years (157800000 seconds).
-	cacheClock.AdvanceTime(157800000 * time.Second)
-
-	// No invalidation since infinite ttl.
-	f, err = os.Open(path.Join(mntDir, "explicitDir"))
-	assert.Nil(t.T(), err)
-	names2, err := f.Readdirnames(-1)
-
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names2))
-	assert.Equal(t.T(), names1[0], names2[0])
-	assert.Equal(t.T(), names1[1], names2[1])
-}
-
-type KernelListCacheTestWithZeroTtl struct {
-	suite.Suite
-	fsTest
-	KernelListCacheTestCommon
-}
-
-func (t *KernelListCacheTestWithZeroTtl) SetupSuite() {
-	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		ListConfig: config.ListConfig{
-			KernelListCacheTtlSeconds: 0,
-		}}
-	t.serverCfg.RenameDirLimit = 10
-	t.fsTest.SetUpTestSuite()
-}
-
-func TestKernelListCacheTestZeroTtlSuite(t *testing.T) {
-	suite.Run(t, new(KernelListCacheTestWithZeroTtl))
-}
-
-// (a) First ReadDir() will be served from GCSFuse filesystem.
-// (b) Second ReadDir() will also be served from GCSFuse filesystem.
-func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
-	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(mntDir, "explicitDir"))
-	assert.Nil(t.T(), err)
-	defer func() {
-		assert.Nil(t.T(), f.Close())
-	}()
-	names1, err := f.Readdirnames(-1)
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
-	assert.Equal(t.T(), names1[0], "file1.txt")
-	assert.Equal(t.T(), names1[1], "file2.txt")
-	err = f.Close()
-	assert.Nil(t.T(), err)
-	// Adding one object to make sure to change the ReadDir() response.
-	assert.Nil(t.T(), t.createObjects(map[string]string{
-		"explicitDir/file3.txt": "123456",
-	}))
-	defer t.deleteObjectOrFail("explicitDir/file3.txt")
-
-	// Zero ttl, means readdir will always be served from gcsfuse.
-	f, err = os.Open(path.Join(mntDir, "explicitDir"))
-	assert.Nil(t.T(), err)
-	names2, err := f.Readdirnames(-1)
-
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names2))
-	assert.Equal(t.T(), names2[0], "file1.txt")
-	assert.Equal(t.T(), names2[1], "file2.txt")
-	assert.Equal(t.T(), names2[2], "file3.txt")
+	assert.Equal(t.T(), "file1.txt", names3[0])
+	assert.Equal(t.T(), "file2.txt", names3[1])
+	assert.Equal(t.T(), "file3.txt", names3[2])
 }
