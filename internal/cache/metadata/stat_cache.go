@@ -157,7 +157,12 @@ func (sc *statCacheBucketView) key(objectName string) string {
 }
 
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, f *controlpb.Folder, expiration time.Time) {
-	name := sc.key(m.Name)
+	var name string
+	if f != nil {
+		name = sc.key(f.Name)
+	} else {
+		name = sc.key(m.Name)
+	}
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
