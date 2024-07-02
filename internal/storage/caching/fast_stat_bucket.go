@@ -34,10 +34,10 @@ import (
 // bucket. Records are invalidated when modifications are made through this
 // bucket, and after the supplied TTL.
 func NewFastStatBucket(
-	ttl time.Duration,
-	cache metadata.StatCache,
-	clock timeutil.Clock,
-	wrapped gcs.Bucket) (b gcs.Bucket) {
+		ttl time.Duration,
+		cache metadata.StatCache,
+		clock timeutil.Clock,
+		wrapped gcs.Bucket) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
 		cache:   cache,
 		clock:   clock,
@@ -137,16 +137,16 @@ func (b *fastStatBucket) BucketType() gcs.BucketType {
 }
 
 func (b *fastStatBucket) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (rc io.ReadCloser, err error) {
 	rc, err = b.wrapped.NewReader(ctx, req)
 	return
 }
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CreateObject(
-	ctx context.Context,
-	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -164,8 +164,8 @@ func (b *fastStatBucket) CreateObject(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) CopyObject(
-	ctx context.Context,
-	req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -183,8 +183,8 @@ func (b *fastStatBucket) CopyObject(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ComposeObjects(
-	ctx context.Context,
-	req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for the destination name.
 	b.invalidate(req.DstName)
 
@@ -202,8 +202,8 @@ func (b *fastStatBucket) ComposeObjects(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) StatObject(
-	ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		ctx context.Context,
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	// If ExtendedObjectAttributes are requested without fetching from gcs enabled, panic.
 	if !req.ForceFetchFromGcs && req.ReturnExtendedObjectAttributes {
 		panic("invalid StatObjectRequest: ForceFetchFromGcs: false and ReturnExtendedObjectAttributes: true")
@@ -238,8 +238,8 @@ func (b *fastStatBucket) StatObject(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) ListObjects(
-	ctx context.Context,
-	req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+		ctx context.Context,
+		req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Fetch the listing.
 	listing, err = b.wrapped.ListObjects(ctx, req)
 	if err != nil {
@@ -254,8 +254,8 @@ func (b *fastStatBucket) ListObjects(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) UpdateObject(
-	ctx context.Context,
-	req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+		ctx context.Context,
+		req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
 	// Throw away any existing record for this object.
 	b.invalidate(req.Name)
 
@@ -273,8 +273,8 @@ func (b *fastStatBucket) UpdateObject(
 
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) DeleteObject(
-	ctx context.Context,
-	req *gcs.DeleteObjectRequest) (err error) {
+		ctx context.Context,
+		req *gcs.DeleteObjectRequest) (err error) {
 	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
 	return
@@ -287,7 +287,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 }
 
 func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	m, e, err = b.wrapped.StatObject(ctx, req)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
@@ -306,8 +306,23 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(
-	ctx context.Context,
-	prefix string) (folder *controlpb.Folder, err error) {
+		ctx context.Context,
+		prefix string) (folder *controlpb.Folder, err error) {
+	// Do we have an entry in the cache?
+	if hit, _, entry := b.lookUp(prefix); hit {
+		// Negative entries result in NotFoundError.
+		if entry == nil {
+			err = &gcs.NotFoundError{
+				Err: fmt.Errorf("Negative cache entry for %v", prefix),
+			}
+			return
+		}
+
+		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
+		folder = entry
+		return
+	}
+
 	// Fetch the listing.
 	folder, err = b.wrapped.GetFolder(ctx, prefix)
 	if err != nil {
@@ -318,7 +333,6 @@ func (b *fastStatBucket) GetFolder(
 		return
 	}
 
-	// TODO: add folder metadata in stat cache
 	b.insertFolder(folder)
 
 	return
