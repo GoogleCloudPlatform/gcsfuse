@@ -1002,6 +1002,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		var core *inode.Core
 		core, err = getLookupResult()
 
+		fmt.Println("Error in getting core...", core)
 		if err != nil {
 			return
 		}
