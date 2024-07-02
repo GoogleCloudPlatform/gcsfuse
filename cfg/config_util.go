@@ -18,6 +18,6 @@ package cfg
 func OverrideWithLoggingFlags(mountConfig *Config, debugFuse bool,
 	debugGCS bool, debugMutex bool) {
 	if debugFuse || debugGCS || debugMutex {
-		mountConfig.Logging.Severity = LogSeverity("TRACE")
+		mountConfig.Logging.Severity = "TRACE"
 	}
 }
