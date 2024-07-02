@@ -43,16 +43,16 @@ type MainTest struct {
 
 func (t *MainTest) TestCreateStorageHandle() {
 	flags := &flagStorage{
-		ClientProtocol:      mountpkg.HTTP1,
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,
 		HttpClientTimeout:   5,
 		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
-		AppName:             "app",
 	}
 	mountConfig := &config.MountConfig{}
-	newConfig := &cfg.Config{GcsAuth: cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
+	newConfig := &cfg.Config{
+		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.HTTP1},
+		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
 
 	userAgent := "AppName"
 	storageHandle, err := createStorageHandle(newConfig, flags, mountConfig, userAgent)
@@ -63,18 +63,19 @@ func (t *MainTest) TestCreateStorageHandle() {
 
 func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 	flags := &flagStorage{
-		ClientProtocol:      mountpkg.GRPC,
 		MaxConnsPerHost:     5,
 		MaxIdleConnsPerHost: 100,
 		HttpClientTimeout:   5,
 		MaxRetrySleep:       7,
 		RetryMultiplier:     2,
-		AppName:             "app",
 	}
 	mountConfig := &config.MountConfig{
 		GCSConnection: config.GCSConnection{GRPCConnPoolSize: 1},
 	}
-	newConfig := &cfg.Config{GcsAuth: cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
+	newConfig := &cfg.Config{
+		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.GRPC},
+		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
+	}
 
 	userAgent := "AppName"
 	storageHandle, err := createStorageHandle(newConfig, flags, mountConfig, userAgent)

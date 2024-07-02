@@ -22,8 +22,8 @@ import (
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
 	option "google.golang.org/api/option"
@@ -84,7 +84,7 @@ func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConf
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
-	if clientConfig.ClientProtocol != mountpkg.GRPC {
+	if clientConfig.ClientProtocol != cfg.GRPC {
 		return nil, fmt.Errorf("client-protocol requested is not GRPC: %s", clientConfig.ClientProtocol)
 	}
 
@@ -115,7 +115,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 
 	// Add WithHttpClient option.
-	if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
+	if clientConfig.ClientProtocol == cfg.HTTP1 || clientConfig.ClientProtocol == cfg.HTTP2 {
 		var httpClient *http.Client
 		httpClient, err = storageutil.CreateHttpClient(clientConfig)
 		if err != nil {
@@ -154,9 +154,9 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient *control.StorageControlClient
-	if clientConfig.ClientProtocol == mountpkg.GRPC {
+	if clientConfig.ClientProtocol == cfg.GRPC {
 		sc, err = createGRPCClientHandle(ctx, &clientConfig)
-	} else if clientConfig.ClientProtocol == mountpkg.HTTP1 || clientConfig.ClientProtocol == mountpkg.HTTP2 {
+	} else if clientConfig.ClientProtocol == cfg.HTTP1 || clientConfig.ClientProtocol == cfg.HTTP2 {
 		sc, err = createHTTPClientHandle(ctx, &clientConfig)
 	} else {
 		err = fmt.Errorf("invalid client-protocol requested: %s", clientConfig.ClientProtocol)
