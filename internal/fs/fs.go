@@ -765,6 +765,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Place it in our map of IDs to inodes.
 	fs.inodes[in.ID()] = in
 
+	fmt.Println("Inode ID: ", in.ID())
 	fmt.Println("Inode: ", in)
 	return
 }
@@ -812,7 +813,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			// If we don't have an entry, create one.
 			if !ok {
 				in = fs.mintInode(ic)
-				fmt.Println("Inode in lookUpOrCreateInodeIfNotStale: ", in)
+				fmt.Println("Inode in lookUpOrCreateInodeIfNotStale: ", in.ID())
 				fs.folderInodes[in.Name()] = in.(inode.DirInode)
 				// Since we are creating inode here, there is no chance that something else
 				// is holding the lock for inode. Hence its safe to take lock on inode

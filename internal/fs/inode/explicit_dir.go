@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"fmt"
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
@@ -78,8 +77,6 @@ func NewExplicitDirInode(
 			},
 		}
 	}
-
-	fmt.Println("Dir Inode: ", d)
 
 	return
 }
