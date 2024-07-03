@@ -618,6 +618,12 @@ func (d *dirInode) readFolders(ctx context.Context,
 			continue
 		}
 
+		fmt.Println("Folder: ", f.Name)
+		// Skip empty results or the directory object backing this inode.
+		if f.Name == d.Name().GcsObjectName() || f.Name == "" {
+			continue
+		}
+
 		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
 
 		dirName := NewDirName(d.Name(), nameBase)
@@ -663,13 +669,14 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.Objects {
+
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
 		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
-
+		fmt.Println("Folder: ", o.Name)
 		// Given the alphabetical order of the objects, if a file "foo" and
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
