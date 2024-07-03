@@ -845,7 +845,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	// Handle implicit directories.
-	if ic.MinObject == nil {
+	if ic.MinObject == nil && ic.Folder != nil {
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
