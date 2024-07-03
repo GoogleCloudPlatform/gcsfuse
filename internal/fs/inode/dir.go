@@ -619,9 +619,9 @@ func (d *dirInode) readFolders(ctx context.Context,
 			continue
 		}
 
-		fmt.Println("Folder: ", objectName)
+		fmt.Println("Folder: ", f.Name)
 
-		nameBase := path.Base(objectName) // ie. "bar" from "foo/bar/" or "foo/bar"
+		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
 
 		dirName := NewDirName(d.Name(), nameBase)
 		explicitDir := &Core{
