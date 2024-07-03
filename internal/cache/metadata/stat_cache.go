@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -218,6 +219,7 @@ func (sc *statCacheBucketView) LookUp(
 	now time.Time) (hit bool, m *gcs.MinObject, f *controlpb.Folder) {
 	// Look up in the LRU cache.
 	value := sc.sharedCache.LookUp(sc.key(objectName))
+	fmt.Println("Object Name: ", value)
 	if value == nil {
 		return
 	}
