@@ -526,7 +526,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
-	getFolder := func(ctx context.Context) (err error) {
+	l := func(ctx context.Context) (err error) {
 		dirResult, err = getFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
@@ -554,7 +554,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
 		if d.bucket.BucketType() == gcs.Hierarchical {
-			b.Add(getFolder)
+			b.Add(l)
 		} else {
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
@@ -569,6 +569,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	var result *Core
+	fmt.Println(fileResult, " ", dirResult)
 	if dirResult != nil {
 		result = dirResult
 	} else if fileResult != nil {
