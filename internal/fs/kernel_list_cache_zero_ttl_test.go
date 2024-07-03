@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -61,7 +62,7 @@ func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -78,7 +79,7 @@ func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
 	names2, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names2))
+	require.Equal(t.T(), 3, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 	assert.Equal(t.T(), "file3.txt", names2[2])

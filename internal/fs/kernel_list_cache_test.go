@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -85,12 +86,10 @@ func (t *KernelListCacheTestCommon) createFilesAndDirStructureInBucket() {
 }
 
 func (t *KernelListCacheTestCommon) deleteFilesAndDirStructureInBucket() {
-	filesOrDirStructure := getFilesAndDirStructureObjects()
-	keys := make([]string, len(filesOrDirStructure))
-	for k := range filesOrDirStructure {
-		keys = append(keys, k)
+	filesAndDirStructure := getFilesAndDirStructureObjects()
+	for k := range filesAndDirStructure {
+		assert.Nil(t.T(), t.deleteObject(k))
 	}
-	assert.Nil(t.T(), t.deleteObjects(keys))
 }
 
 func (t *KernelListCacheTestCommon) deleteObjectOrFail(objectName string) {
@@ -132,7 +131,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHit() {
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -152,7 +151,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHit() {
 	names2, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names2))
+	require.Equal(t.T(), 2, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 }
@@ -168,7 +167,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitWithImp
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -188,7 +187,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitWithImp
 	names2, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names2))
+	require.Equal(t.T(), 2, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 }
@@ -204,7 +203,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMiss() {
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -224,7 +223,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMiss() {
 	names2, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names2))
+	require.Equal(t.T(), 3, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 	assert.Equal(t.T(), "file3.txt", names2[2])
@@ -241,7 +240,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMissWithIm
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -261,7 +260,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheMissWithIm
 	names2, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names2))
+	require.Equal(t.T(), 3, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 	assert.Equal(t.T(), "file3.txt", names2[2])
@@ -280,7 +279,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 2, len(names1))
+	require.Equal(t.T(), 2, len(names1))
 	assert.Equal(t.T(), "file1.txt", names1[0])
 	assert.Equal(t.T(), "file2.txt", names1[1])
 	err = f.Close()
@@ -298,7 +297,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	assert.Nil(t.T(), err)
 	names2, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names2))
+	require.Equal(t.T(), 3, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 	assert.Equal(t.T(), "file3.txt", names2[2])
@@ -318,7 +317,7 @@ func (t *KernelListCacheTestWithPositiveTtl) TestKernelListCache_CacheHitAfterIn
 	names3, err := f.Readdirnames(-1)
 
 	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), 3, len(names3))
+	require.Equal(t.T(), 3, len(names3))
 	assert.Equal(t.T(), "file1.txt", names3[0])
 	assert.Equal(t.T(), "file2.txt", names3[1])
 	assert.Equal(t.T(), "file3.txt", names3[2])
