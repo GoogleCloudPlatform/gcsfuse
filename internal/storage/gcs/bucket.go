@@ -145,4 +145,6 @@ type Bucket interface {
 	DeleteFolder(ctx context.Context, folderName string) error
 
 	GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error)
+
+	ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) ([]*controlpb.Folder, error)
 }

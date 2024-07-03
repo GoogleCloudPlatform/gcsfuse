@@ -375,3 +375,30 @@ func (m *mockBucket) GetFolder(
 	}
 	return
 }
+
+func (m *mockBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (o0 []*controlpb.Folder, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"ListFolder",
+		file,
+		line,
+		[]interface{}{})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.List: invalid return values: %v", retVals))
+	}
+
+	if retVals[0] != nil {
+		o0 = retVals[0].([]*controlpb.Folder)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+	return
+}

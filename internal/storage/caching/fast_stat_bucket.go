@@ -310,3 +310,16 @@ func (b *fastStatBucket) GetFolder(
 
 	return
 }
+
+func (b *fastStatBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+	// Fetch the listing.
+	folders, err = b.wrapped.ListFolders(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Note anything we found.
+	//b.insertMultiple(folders)
+
+	return
+}

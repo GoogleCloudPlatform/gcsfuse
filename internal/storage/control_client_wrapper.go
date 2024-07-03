@@ -17,18 +17,21 @@ package storage
 import (
 	"context"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 )
 
 type StorageControlClient interface {
 	GetStorageLayout(ctx context.Context,
-		req *controlpb.GetStorageLayoutRequest,
-		opts ...gax.CallOption) (*controlpb.StorageLayout, error)
+			req *controlpb.GetStorageLayoutRequest,
+			opts ...gax.CallOption) (*controlpb.StorageLayout, error)
 
 	DeleteFolder(ctx context.Context,
-		req *controlpb.DeleteFolderRequest,
-		opts ...gax.CallOption) error
+			req *controlpb.DeleteFolderRequest,
+			opts ...gax.CallOption) error
 
 	GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error)
+
+	ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest, opts ...gax.CallOption) control.FolderIterator
 }

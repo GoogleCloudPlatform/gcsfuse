@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/mock"
@@ -55,4 +56,10 @@ func (m *MockStorageControlClient) GetFolder(ctx context.Context,
 	}
 
 	return nil, args.Error(1)
+}
+
+func (m *MockStorageControlClient) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest, opts ...gax.CallOption) control.FolderIterator {
+	args := m.Called(ctx, req, opts)
+
+	return args.Get(0).(control.FolderIterator)
 }

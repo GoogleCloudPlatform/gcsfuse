@@ -83,8 +83,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-	ctx context.Context,
-	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+		ctx context.Context,
+		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -146,7 +146,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context,
-	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -502,6 +502,11 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*contr
 	}
 
 	return folder, err
+}
+
+func (b *bucketHandle) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (list []*controlpb.Folder, err error) {
+
+	return
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

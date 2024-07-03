@@ -246,3 +246,11 @@ func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder 
 	folder, err = b.wrapped.GetFolder(ctx, folderName)
 	return
 }
+
+func (b *debugBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+	id, desc, start := b.startRequest("GetFolder(%q)", req.Prefix)
+	defer b.finishRequest(id, desc, start, &err)
+
+	folders, err = b.wrapped.ListFolders(ctx, req)
+	return
+}

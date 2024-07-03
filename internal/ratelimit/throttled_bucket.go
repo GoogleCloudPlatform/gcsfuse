@@ -198,6 +198,19 @@ func (b *throttledBucket) DeleteFolder(ctx context.Context, folderName string) (
 	return
 }
 
+func (b *throttledBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	folders, err = b.wrapped.ListFolders(ctx, req)
+
+	return
+}
+
 func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (folder *controlpb.Folder, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
