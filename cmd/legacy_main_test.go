@@ -42,43 +42,25 @@ type MainTest struct {
 }
 
 func (t *MainTest) TestCreateStorageHandle() {
-	flags := &flagStorage{
-		MaxConnsPerHost:     5,
-		MaxIdleConnsPerHost: 100,
-		HttpClientTimeout:   5,
-		MaxRetrySleep:       7,
-		RetryMultiplier:     2,
-	}
-	mountConfig := &config.MountConfig{}
 	newConfig := &cfg.Config{
 		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.HTTP1},
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"}}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, flags, mountConfig, userAgent)
+	storageHandle, err := createStorageHandle(newConfig, &config.MountConfig{}, userAgent)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)
 }
 
 func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
-	flags := &flagStorage{
-		MaxConnsPerHost:     5,
-		MaxIdleConnsPerHost: 100,
-		HttpClientTimeout:   5,
-		MaxRetrySleep:       7,
-		RetryMultiplier:     2,
-	}
-	mountConfig := &config.MountConfig{
-		GCSConnection: config.GCSConnection{GRPCConnPoolSize: 1},
-	}
 	newConfig := &cfg.Config{
 		GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: cfg.GRPC},
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
 	userAgent := "AppName"
-	storageHandle, err := createStorageHandle(newConfig, flags, mountConfig, userAgent)
+	storageHandle, err := createStorageHandle(newConfig, &config.MountConfig{}, userAgent)
 
 	assert.Equal(t.T(), nil, err)
 	assert.NotEqual(t.T(), nil, storageHandle)

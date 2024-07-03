@@ -299,22 +299,9 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                10,
-		ClientProtocol:                      mountpkg.ClientProtocol("http1"),
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
-	}
-
-	err := validateFlags(flags)
-
-	assert.Equal(t.T(), nil, err)
-}
-
-func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                0,
-		ClientProtocol:                      mountpkg.ClientProtocol("http2"),
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
 	}
 
@@ -324,10 +311,9 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProt
 	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
-func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                2048,
-		ClientProtocol:                      mountpkg.ClientProtocol("http1"),
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
 	}
 
@@ -337,22 +323,9 @@ func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndVali
 	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndInValidClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                10,
-		ClientProtocol:                      mountpkg.ClientProtocol("http4"),
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
-	}
-
-	err := validateFlags(flags)
-
-	assert.Equal(t.T(), "client protocol: http4 is not valid", err.Error())
-}
-
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                10,
-		ClientProtocol:                      mountpkg.ClientProtocol("http2"),
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
 	}
 
@@ -368,7 +341,6 @@ func (t *FlagsTest) TestValidateFlagsForSupportedExperimentalMetadataPrefetchOnM
 		flags := &flagStorage{
 			// Unrelated fields, not being tested here, so set to sane values.
 			SequentialReadSizeMb: 200,
-			ClientProtocol:       mountpkg.ClientProtocol("http2"),
 			// The flag being tested.
 			ExperimentalMetadataPrefetchOnMount: input,
 		}
@@ -386,7 +358,6 @@ func (t *FlagsTest) TestValidateFlagsForUnsupportedExperimentalMetadataPrefetchO
 		flags := &flagStorage{
 			// Unrelated fields, not being tested here, so set to sane values.
 			SequentialReadSizeMb: 200,
-			ClientProtocol:       mountpkg.ClientProtocol("http2"),
 			// The flag being tested.
 			ExperimentalMetadataPrefetchOnMount: input,
 		}

@@ -410,15 +410,20 @@ type flagStorage struct {
 	Uid int64
 
 	// Deprecated: Use the param from cfg/config.go
-	Gid          int64
+	Gid int64
+
+	// Deprecated: Use the param from cfg/config.go
 	ImplicitDirs bool
-	OnlyDir      string
+
+	// Deprecated: Use the param from cfg/config.go
+	OnlyDir string
 
 	// Deprecated: Use the param from cfg/config.go
 	RenameDirLimit   int64
 	IgnoreInterrupts bool
 
 	// GCS
+	// Deprecated: Use the param from cfg/config.go
 	CustomEndpoint *url.URL
 
 	// Deprecated: Use the param from cfg/config.go
@@ -442,18 +447,35 @@ type flagStorage struct {
 	AnonymousAccess      bool
 
 	// Tuning
-	MaxRetrySleep             time.Duration
-	StatCacheCapacity         int
-	StatCacheTTL              time.Duration
-	TypeCacheTTL              time.Duration
-	KernelListCacheTtlSeconds int64
-	HttpClientTimeout         time.Duration
-	RetryMultiplier           float64
+	// Deprecated: Use the param from cfg/config.go
+	MaxRetrySleep time.Duration
 
 	// Deprecated: Use the param from cfg/config.go
-	TempDir             string
-	ClientProtocol      mountpkg.ClientProtocol
-	MaxConnsPerHost     int
+	StatCacheCapacity int
+
+	// Deprecated: Use the param from cfg/config.go
+	StatCacheTTL time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	TypeCacheTTL              time.Duration
+	KernelListCacheTtlSeconds int64
+
+	// Deprecated: Use the param from cfg/config.go
+	HttpClientTimeout time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	RetryMultiplier float64
+
+	// Deprecated: Use the param from cfg/config.go
+	TempDir string
+
+	// Deprecated: Use the param from cfg/config.go
+	ClientProtocol mountpkg.ClientProtocol
+
+	// Deprecated: Use the param from cfg/config.go
+	MaxConnsPerHost int
+
+	// Deprecated: Use the param from cfg/config.go
 	MaxIdleConnsPerHost int
 
 	// Deprecated: Use the param from cfg/config.go
@@ -478,10 +500,16 @@ type flagStorage struct {
 	// Debugging
 
 	// Deprecated: Use the param from cfg/config.go
-	DebugFuse       bool
-	DebugGCS        bool
+	DebugFuse bool
+
+	// Deprecated: Use the param from cfg/config.go
+	DebugGCS bool
+
+	// Deprecated: Use the param from cfg/config.go
 	DebugInvariants bool
-	DebugMutex      bool
+
+	// Deprecated: Use the param from cfg/config.go
+	DebugMutex bool
 
 	// Post-mount actions
 
@@ -642,10 +670,6 @@ func validateExperimentalMetadataPrefetchOnMount(mode string) error {
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-	}
-
-	if !flags.ClientProtocol.IsValid() {
-		return fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
 
 	if err = validateExperimentalMetadataPrefetchOnMount(flags.ExperimentalMetadataPrefetchOnMount); err != nil {

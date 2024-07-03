@@ -451,3 +451,25 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 		assert.Equal(t, *resolvedConfig.GcsConnection.CustomEndpoint, *u)
 	}
 }
+
+func TestValidClientProtocol(t *testing.T) {
+	flags := &flagStorage{
+		ClientProtocol: mountpkg.ClientProtocol("http1"),
+	}
+
+	v, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, &config.MountConfig{})
+
+	if assert.Nil(t, err) {
+		assert.Equal(t, v.GcsConnection.ClientProtocol, cfg.Protocol("http1"))
+	}
+}
+
+func TestInvalidClientProtocol(t *testing.T) {
+	flags := &flagStorage{
+		ClientProtocol: mountpkg.ClientProtocol("http3"),
+	}
+
+	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, &config.MountConfig{})
+
+	assert.NotNil(t, err)
+}

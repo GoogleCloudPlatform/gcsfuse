@@ -101,16 +101,16 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
-		MaxConnsPerHost:            flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
-		HttpClientTimeout:          flags.HttpClientTimeout,
-		MaxRetrySleep:              flags.MaxRetrySleep,
-		RetryMultiplier:            flags.RetryMultiplier,
+		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
+		MaxIdleConnsPerHost:        int(newConfig.GcsConnection.MaxIdleConnsPerHost),
+		HttpClientTimeout:          newConfig.GcsConnection.HttpClientTimeout,
+		MaxRetrySleep:              newConfig.GcsRetries.MaxRetrySleep,
+		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		UserAgent:                  userAgent,
-		CustomEndpoint:             flags.CustomEndpoint,
+		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
@@ -136,10 +136,10 @@ func mountWithArgs(
 	mountConfig *config.MountConfig,
 	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
-	if flags.DebugInvariants {
+	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
 	}
-	if flags.DebugMutex {
+	if newConfig.Debug.LogMutex {
 		locker.EnableDebugMessages()
 	}
 
@@ -151,7 +151,7 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, flags, mountConfig, userAgent)
+		storageHandle, err = createStorageHandle(newConfig, mountConfig, userAgent)
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -313,12 +313,12 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
-	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
+	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
 		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
-	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
+	if newConfig.MetadataCache.DeprecatedStatCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 

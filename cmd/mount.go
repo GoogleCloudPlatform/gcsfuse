@@ -86,10 +86,11 @@ be interacting with the file system.`)
 		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
-	metadataCacheTTL := mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
+	metadataCacheTTL := mount.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
 	if err != nil {
-		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-ttl=%v, metadata-cache:stat-cache-max-size-mb=%v: %w", flags.StatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
+		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
+			newConfig.MetadataCache.DeprecatedStatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
@@ -102,7 +103,7 @@ be interacting with the file system.`)
 		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		DebugGCS:                           flags.DebugGCS,
+		DebugGCS:                           newConfig.Debug.Gcs,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
@@ -113,7 +114,7 @@ be interacting with the file system.`)
 		BucketName:                 bucketName,
 		LocalFileCache:             false,
 		TempDir:                    string(newConfig.FileSystem.TempDir),
-		ImplicitDirectories:        flags.ImplicitDirs,
+		ImplicitDirectories:        newConfig.ImplicitDirs,
 		InodeAttributeCacheTTL:     metadataCacheTTL,
 		DirTypeCacheTTL:            metadataCacheTTL,
 		Uid:                        uid,
