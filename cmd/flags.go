@@ -392,6 +392,7 @@ func newApp() (app *cli.App) {
 type flagStorage struct {
 	// Deprecated: Use the param from cfg/config.go
 	AppName string
+
 	// Deprecated: Use the param from cfg/config.go
 	Foreground bool
 	ConfigFile string
@@ -447,9 +448,7 @@ type flagStorage struct {
 	TypeCacheTTL              time.Duration
 	KernelListCacheTtlSeconds int64
 	HttpClientTimeout         time.Duration
-	MaxRetryDuration          time.Duration
 	RetryMultiplier           float64
-	LocalFileCache            bool
 
 	// Deprecated: Use the param from cfg/config.go
 	TempDir             string
@@ -466,20 +465,21 @@ type flagStorage struct {
 
 	// Deprecated: Use the param from cfg/config.go
 	OtelCollectorAddress string
-	LogFile              string
-	LogFormat            string
+
+	// Deprecated: Use the param from cfg/config.go
+	LogFile string
+
+	// Deprecated: Use the param from cfg/config.go
+	LogFormat string
 
 	// Deprecated: Use the param from cfg/config.go
 	ExperimentalEnableJsonRead bool
-	DebugFuseErrors            bool
 
 	// Debugging
 
 	// Deprecated: Use the param from cfg/config.go
 	DebugFuse       bool
-	DebugFS         bool
 	DebugGCS        bool
-	DebugHTTP       bool
 	DebugInvariants bool
 	DebugMutex      bool
 
@@ -586,16 +586,13 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:             c.Duration("max-retry-sleep"),
-		StatCacheCapacity:         c.Int("stat-cache-capacity"),
-		StatCacheTTL:              c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:              c.Duration("type-cache-ttl"),
-		KernelListCacheTtlSeconds: c.Int64(config.KernelListCacheTtlFlagName),
-		HttpClientTimeout:         c.Duration("http-client-timeout"),
-		MaxRetryDuration:          c.Duration("max-retry-duration"),
-		RetryMultiplier:           c.Float64("retry-multiplier"),
-		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
-		LocalFileCache:             false,
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		KernelListCacheTtlSeconds:  c.Int64(config.KernelListCacheTtlFlagName),
+		HttpClientTimeout:          c.Duration("http-client-timeout"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
@@ -610,11 +607,8 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
-		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugHTTP:       c.Bool("debug_http"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
 
