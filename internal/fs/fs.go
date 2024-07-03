@@ -800,6 +800,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	if ic.Folder != nil {
+		fmt.Println("In Folder: ")
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
@@ -845,7 +846,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 
 	// Handle implicit directories.
-	if ic.MinObject == nil && ic.Folder != nil {
+	if ic.MinObject == nil {
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
