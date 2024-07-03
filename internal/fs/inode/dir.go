@@ -708,12 +708,12 @@ func (d *dirInode) readObjects(
 		}
 
 		nameBase := path.Base(o.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
-		fmt.Println("Folder: ", o.Name)
 		// Given the alphabetical order of the objects, if a file "foo" and
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
 			if d.bucket.BucketType() != gcs.Hierarchical {
+				fmt.Println("Objects: ", o.Name)
 				dirName := NewDirName(d.Name(), nameBase)
 				explicitDir := &Core{
 					Bucket:    d.Bucket(),
@@ -723,6 +723,7 @@ func (d *dirInode) readObjects(
 				cores[dirName] = explicitDir
 			}
 		} else {
+			fmt.Println("Objects: ", o.Name)
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
 				Bucket:    d.Bucket(),

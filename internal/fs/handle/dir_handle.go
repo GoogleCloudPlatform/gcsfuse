@@ -175,6 +175,7 @@ func readAllEntries(
 			return
 		}
 
+		fmt.Println("readAllEntries object: ", batch)
 		// Accumulate.
 		entries = append(entries, batch...)
 
@@ -196,6 +197,7 @@ func readAllEntries(
 			return
 		}
 
+		fmt.Println("readAllEntries folders: ", batch)
 		// Accumulate.
 		entries = append(entries, batch...)
 
