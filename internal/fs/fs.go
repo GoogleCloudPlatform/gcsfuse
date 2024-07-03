@@ -795,7 +795,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	if ic.Folders != nil {
-		fmt.Println("Folder: ", ic.Folders)
+		fmt.Println("Folder Inode: ", ic.Folders)
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
@@ -841,7 +841,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	}
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		fmt.Println("Came in MinObject")
+		fmt.Println("Came in Implicit dir")
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
@@ -884,6 +884,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		in = nil
 		return
 	}
+
+	fmt.Println("Came in MinObject")
 
 	oGen := inode.Generation{
 		Object:   ic.MinObject.Generation,
