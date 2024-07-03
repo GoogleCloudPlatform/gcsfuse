@@ -112,7 +112,6 @@ be interacting with the file system.`)
 		BucketManager:              bm,
 		BucketName:                 bucketName,
 		LocalFileCache:             false,
-		DebugFS:                    flags.DebugFS,
 		TempDir:                    string(newConfig.FileSystem.TempDir),
 		ImplicitDirectories:        flags.ImplicitDirs,
 		InodeAttributeCacheTTL:     metadataCacheTTL,

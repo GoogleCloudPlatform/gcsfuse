@@ -479,7 +479,6 @@ type flagStorage struct {
 
 	// Deprecated: Use the param from cfg/config.go
 	DebugFuse       bool
-	DebugFS         bool
 	DebugGCS        bool
 	DebugInvariants bool
 	DebugMutex      bool
@@ -610,7 +609,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Debugging,
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
 
