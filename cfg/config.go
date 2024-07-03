@@ -399,7 +399,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("experimental-grpc-conn-pool-size", "", 0, "The number of gRPC channel in grpc client.")
+	flagSet.IntP("experimental-grpc-conn-pool-size", "", 1, "The number of gRPC channel in grpc client.")
 
 	err = flagSet.MarkDeprecated("experimental-grpc-conn-pool-size", "Experimental flag: can be removed in a minor release.")
 	if err != nil {
