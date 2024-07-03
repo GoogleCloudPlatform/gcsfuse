@@ -82,7 +82,7 @@ def main_csv_generator(global_data):
     gc = gspread.service_account(filename=cred_file)
     sheet = gc.create('sample_sheet2')
     sheet.share(ldap + '@google.com', perm_type='user', role='writer')
-    worksheet1 = sheet.add_worksheet(title='call_type', rows='1', cols='1')
+    worksheet1 = sheet.add_worksheet(title='call_data', rows='1', cols='1')
     worksheet2 = sheet.add_worksheet(title='handle_data', rows='1', cols='1')
     worksheet3 = sheet.add_worksheet(title='read_pattern', rows='1', cols='1')
     try:

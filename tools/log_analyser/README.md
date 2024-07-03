@@ -39,7 +39,7 @@ If yes, enter the start and end time (epoch)
 
 Enter the type of logs (gke/gcsfuse)
 
-Enter your ldap.
+Enter your ldap (to give access of the created sheet)
 
 Exp- `patelvishvesh`
 
