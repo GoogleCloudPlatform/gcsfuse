@@ -223,7 +223,7 @@ func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder
 	return b.wrapped.GetFolder(ctx, mFolderName)
 }
 
-func (b *prefixBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) ([]*controlpb.Folder, error) {
+func (b *prefixBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (gcs.FolderListing, error) {
 	// Modify the request and call through.
 	mReq := new(controlpb.ListFoldersRequest)
 	*mReq = *req

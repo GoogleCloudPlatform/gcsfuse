@@ -27,7 +27,6 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
-	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
@@ -50,7 +49,7 @@ func (bh *bucketHandle) Name() string {
 }
 
 func (bh *bucketHandle) BucketType() gcs.BucketType {
-	var nilControlClient *control.StorageControlClient = nil
+	var nilControlClient StorageControlClient = nil
 	// Note: The first invocation of this method will be slower due to a required Google Cloud Storage (GCS) fetch.
 	// Subsequent calls will be significantly faster as the results are cached in memory.
 	// While this operation is thread-safe, parallel calls during the initial fetch can result in redundant GCS requests.
@@ -83,8 +82,8 @@ func (bh *bucketHandle) BucketType() gcs.BucketType {
 }
 
 func (bh *bucketHandle) NewReader(
-		ctx context.Context,
-		req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
+	ctx context.Context,
+	req *gcs.ReadObjectRequest) (io.ReadCloser, error) {
 	// Initialising the starting offset and the length to be read by the reader.
 	start := int64(0)
 	length := int64(-1)
@@ -146,7 +145,7 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context,
-		req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
+	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
@@ -504,8 +503,33 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*contr
 	return folder, err
 }
 
-func (b *bucketHandle) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (list []*controlpb.Folder, err error) {
+func (b *bucketHandle) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folderList gcs.FolderListing, err error) {
+	var callOptions []gax.CallOption
 
+	folderIterator := b.controlClient.ListFolders(ctx, req, callOptions...)
+
+	pi := folderIterator.PageInfo()
+	// Iterating through all the objects in the bucket and one by one adding them to the list.
+	for {
+		var attrs *controlpb.Folder
+		attrs, err = folderIterator.Next()
+		if err == iterator.Done {
+			err = nil
+			break
+		}
+		if err != nil {
+			err = fmt.Errorf("Error in iterating through folders: %w", err)
+			return
+		}
+
+		folderList.Folders = append(folderList.Folders, attrs)
+
+		if pi.Remaining() == 0 {
+			break
+		}
+	}
+
+	folderList.ContinuationToken = folderIterator.PageInfo().Token
 	return
 }
 

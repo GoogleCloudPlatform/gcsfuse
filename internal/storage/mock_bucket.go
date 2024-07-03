@@ -376,7 +376,7 @@ func (m *mockBucket) GetFolder(
 	return
 }
 
-func (m *mockBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (o0 []*controlpb.Folder, o1 error) {
+func (m *mockBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (o0 gcs.FolderListing, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -393,7 +393,7 @@ func (m *mockBucket) ListFolders(ctx context.Context, req *controlpb.ListFolders
 	}
 
 	if retVals[0] != nil {
-		o0 = retVals[0].([]*controlpb.Folder)
+		o0 = retVals[0].(gcs.FolderListing)
 	}
 
 	// o1 error

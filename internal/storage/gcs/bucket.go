@@ -146,5 +146,5 @@ type Bucket interface {
 
 	GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error)
 
-	ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) ([]*controlpb.Folder, error)
+	ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (FolderListing, error)
 }

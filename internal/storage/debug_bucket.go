@@ -247,10 +247,10 @@ func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder 
 	return
 }
 
-func (b *debugBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+func (b *debugBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folderList gcs.FolderListing, err error) {
 	id, desc, start := b.startRequest("GetFolder(%q)", req.Prefix)
 	defer b.finishRequest(id, desc, start, &err)
 
-	folders, err = b.wrapped.ListFolders(ctx, req)
+	folderList, err = b.wrapped.ListFolders(ctx, req)
 	return
 }

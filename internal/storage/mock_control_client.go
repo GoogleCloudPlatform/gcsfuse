@@ -58,8 +58,8 @@ func (m *MockStorageControlClient) GetFolder(ctx context.Context,
 	return nil, args.Error(1)
 }
 
-func (m *MockStorageControlClient) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest, opts ...gax.CallOption) control.FolderIterator {
+func (m *MockStorageControlClient) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest, opts ...gax.CallOption) *control.FolderIterator {
 	args := m.Called(ctx, req, opts)
 
-	return args.Get(0).(control.FolderIterator)
+	return args.Get(0).(*control.FolderIterator)
 }

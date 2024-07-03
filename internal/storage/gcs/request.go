@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -375,4 +376,33 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+}
+
+type FolderListing struct {
+	// Records for objects matching the listing criteria.
+	//
+	// Guaranteed to be strictly increasing under a lexicographical comparison on
+	// (name, generation) pairs.
+	Folders []*controlpb.Folder
+
+	// A continuation token, for fetching more results.
+	//
+	// If non-empty, this listing does not represent the full set of matching
+	// objects in the bucket. Call ListObjects again with the request's
+	// ContinuationToken field set to this value to continue where you left off.
+	//
+	// Guarantees, for replies R1 and R2, with R2 continuing from R1:
+	//
+	//  *  All of R1's object names are strictly less than all object names and
+	//     collapsed runs in R2.
+	//
+	//  *  All of R1's collapsed runs are strictly less than all object names and
+	//     prefixes in R2.
+	//
+	// (Cf. Google-internal bug 19286144)
+	//
+	// Note that there is no guarantee of atomicity of listings. Objects written
+	// and deleted concurrently with a single or multiple listing requests may or
+	// may not be returned.
+	ContinuationToken string
 }

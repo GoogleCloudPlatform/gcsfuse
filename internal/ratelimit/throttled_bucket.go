@@ -198,7 +198,7 @@ func (b *throttledBucket) DeleteFolder(ctx context.Context, folderName string) (
 	return
 }
 
-func (b *throttledBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+func (b *throttledBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folderList gcs.FolderListing, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {
@@ -206,7 +206,7 @@ func (b *throttledBucket) ListFolders(ctx context.Context, req *controlpb.ListFo
 	}
 
 	// Call through.
-	folders, err = b.wrapped.ListFolders(ctx, req)
+	folderList, err = b.wrapped.ListFolders(ctx, req)
 
 	return
 }

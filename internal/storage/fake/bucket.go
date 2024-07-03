@@ -891,7 +891,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.F
 	return &folder, nil
 }
 
-func (b *bucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+func (b *bucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folderList gcs.FolderListing, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// Implement

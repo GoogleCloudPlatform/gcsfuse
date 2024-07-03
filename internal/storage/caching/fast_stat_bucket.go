@@ -311,9 +311,9 @@ func (b *fastStatBucket) GetFolder(
 	return
 }
 
-func (b *fastStatBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folders []*controlpb.Folder, err error) {
+func (b *fastStatBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (folderList gcs.FolderListing, err error) {
 	// Fetch the listing.
-	folders, err = b.wrapped.ListFolders(ctx, req)
+	folderList, err = b.wrapped.ListFolders(ctx, req)
 	if err != nil {
 		return
 	}
