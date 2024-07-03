@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -100,7 +101,8 @@ var expiration = someTime.Add(time.Second)
 
 type StatCacheTest struct {
 	suite.Suite
-	cache testHelperCache
+	cache               testHelperCache
+	statCacheBucketView metadata.StatCacheBucketView
 }
 
 type MultiBucketStatCacheTest struct {
@@ -407,4 +409,18 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	assert.Equal(t.T(), apple, fruits.LookUpOrNil("apple", someTime))
 	assert.Equal(t.T(), cardamom, spices.LookUpOrNil("cardamom", someTime))
 	assert.Equal(t.T(), saffron, spices.LookUpOrNil("saffron", someTime))
+}
+
+func (t *StatCacheTest) Test_Create_Entry_When_No_Entry_Is_Present() {
+	const name = "key1"
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+
+	t.statCacheBucketView.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCacheBucketView.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "test", entry.Name)
 }

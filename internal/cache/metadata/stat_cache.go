@@ -65,19 +65,19 @@ type StatCache interface {
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
-	return &statCacheBucketView{
+	return &StatCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
 	}
 }
 
-// statCacheBucketView is a special type of StatCache which
+// StatCacheBucketView is a special type of StatCache which
 // shares its underlying cache map object with other
-// statCacheBucketView objects (for dynamically mounts) through
+// StatCacheBucketView objects (for dynamically mounts) through
 // a specific bucket-name. It does so by prepending its
 // bucket-name to its entry keys to make them unique
 // to it.
-type statCacheBucketView struct {
+type StatCacheBucketView struct {
 	sharedCache *lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
@@ -139,7 +139,7 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	return true
 }
 
-func (sc *statCacheBucketView) key(objectName string) string {
+func (sc *StatCacheBucketView) key(objectName string) string {
 	// path.Join(sc.bucketName, objectName) does not work
 	// because that normalizes the trailing "/"
 	// which breaks functionality by removing
@@ -150,7 +150,7 @@ func (sc *statCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
-func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+func (sc *StatCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	name := sc.key(m.Name)
 
 	// Is there already a better entry?
@@ -172,7 +172,7 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	}
 }
 
-func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+func (sc *StatCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	name := sc.key(objectName)
 
 	// Insert a negative entry.
@@ -187,12 +187,12 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	}
 }
 
-func (sc *statCacheBucketView) Erase(objectName string) {
+func (sc *StatCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
 }
 
-func (sc *statCacheBucketView) LookUp(
+func (sc *StatCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (hit bool, m *gcs.MinObject) {
 	// Look up in the LRU cache.
@@ -215,7 +215,27 @@ func (sc *statCacheBucketView) LookUp(
 	return
 }
 
-func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
+func (sc *StatCacheBucketView) LookUpFolder(
+	folderName string,
+	now time.Time) (bool, *controlpb.Folder) {
+	// Look up in the LRU cache.
+	value := sc.sharedCache.LookUp(sc.key(folderName))
+	if value == nil {
+		return false, nil
+	}
+
+	e := value.(entry)
+
+	// Has this entry expired?
+	if e.expiration.Before(now) {
+		sc.Erase(folderName)
+		return false, nil
+	}
+
+	return true, e.f
+}
+
+func (sc *StatCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
 	// Return if there is already a better entry?
