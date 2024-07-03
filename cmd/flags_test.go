@@ -299,18 +299,7 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 	assert.Equal(t.T(), nil, err)
 }
 
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP1ClientProtocol() {
-	flags := &flagStorage{
-		SequentialReadSizeMb:                10,
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
-	}
-
-	err := validateFlags(flags)
-
-	assert.Equal(t.T(), nil, err)
-}
-
-func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                0,
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
@@ -322,7 +311,7 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSizeAndValidClientProt
 	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
-func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndValidClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                2048,
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
@@ -334,7 +323,7 @@ func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024AndVali
 	assert.Equal(t.T(), "SequentialReadSizeMb should be less than 1024", err.Error())
 }
 
-func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSizeAndHTTP2ClientProtocol() {
+func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                10,
 		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
