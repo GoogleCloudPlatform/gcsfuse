@@ -68,7 +68,7 @@ func NewExplicitDirInode(
 			},
 		}
 	}
-	if m != nil && f != nil {
+	if m != nil && f == nil {
 		d = &explicitDirInode{
 			dirInode: wrapped.(*dirInode),
 			generation: Generation{
