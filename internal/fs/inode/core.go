@@ -17,6 +17,7 @@ package inode
 import (
 	"fmt"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -34,6 +35,8 @@ type Core struct {
 	// The GCS object in the bucket above that backs up the inode. Can be empty
 	// if the inode is the base directory or an implicit directory.
 	MinObject *gcs.MinObject
+
+	Folders *controlpb.Folder
 
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool

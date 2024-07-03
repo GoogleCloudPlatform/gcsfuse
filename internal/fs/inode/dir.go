@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -81,6 +82,10 @@ type DirInode interface {
 	// The contents of the Offset and Inode fields for returned entries is
 	// undefined.
 	ReadEntries(
+		ctx context.Context,
+		tok string) (entries []fuseutil.Dirent, newTok string, err error)
+
+	ReadFolderEntries(
 		ctx context.Context,
 		tok string) (entries []fuseutil.Dirent, newTok string, err error)
 
@@ -583,6 +588,49 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 }
 
+func (d *dirInode) readFolders(ctx context.Context,
+	tok string) (cores map[Name]*Core, newTok string, err error) {
+	var folderList gcs.FolderListing
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		folderList, err = d.bucket.ListFolders(ctx, &controlpb.ListFoldersRequest{
+			Parent:    "projects/_/buckets/" + d.bucket.Name(),
+			PageSize:  MaxResultsForListObjectsCall,
+			PageToken: tok,
+			Prefix:    d.Name().GcsObjectName(),
+			Delimiter: "/",
+		})
+		if err != nil {
+			err = fmt.Errorf("ListFolders: %w", err)
+			return
+		}
+	}
+	cores = make(map[Name]*Core)
+	defer func() {
+		now := d.cacheClock.Now()
+		for fullName, c := range cores {
+			d.cache.Insert(now, path.Base(fullName.LocalName()), c.Type())
+		}
+	}()
+
+	for _, f := range folderList.Folders {
+		// Skip empty results or the directory object backing this inode.
+		if f.Name == d.Name().GcsObjectName() || f.Name == "" {
+			continue
+		}
+
+		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+
+		dirName := NewDirName(d.Name(), nameBase)
+		explicitDir := &Core{
+			Bucket:   d.Bucket(),
+			FullName: dirName,
+			Folders:  f,
+		}
+		cores[dirName] = explicitDir
+	}
+	return
+}
+
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
 	ctx context.Context,
@@ -626,13 +674,15 @@ func (d *dirInode) readObjects(
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
-			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			if d.bucket.BucketType() != gcs.Hierarchical {
+				dirName := NewDirName(d.Name(), nameBase)
+				explicitDir := &Core{
+					Bucket:    d.Bucket(),
+					FullName:  dirName,
+					MinObject: storageutil.ConvertObjToMinObject(o),
+				}
+				cores[dirName] = explicitDir
 			}
-			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
@@ -647,7 +697,7 @@ func (d *dirInode) readObjects(
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
-	if !d.implicitDirs {
+	if !d.implicitDirs || d.bucket.BucketType() == gcs.Hierarchical {
 		return
 	}
 
@@ -666,6 +716,29 @@ func (d *dirInode) readObjects(
 		}
 		cores[dirName] = implicitDir
 	}
+	return
+}
+
+func (d *dirInode) ReadFolderEntries(ctx context.Context, tok string) (entries []fuseutil.Dirent, newTok string, err error) {
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		var folderCores map[Name]*Core
+		folderCores, newTok, err = d.readFolders(ctx, tok)
+		if err != nil {
+			err = fmt.Errorf("read objects: %w", err)
+			return
+		}
+		for fullName, _ := range folderCores {
+			entry := fuseutil.Dirent{
+				Name: path.Base(fullName.LocalName()),
+				Type: fuseutil.DT_Unknown,
+			}
+			entry.Type = fuseutil.DT_Directory
+
+			entries = append(entries, entry)
+		}
+	}
+	nowTime := d.cacheClock.Now()
+	d.prevDirListingTimeStamp = &nowTime
 	return
 }
 

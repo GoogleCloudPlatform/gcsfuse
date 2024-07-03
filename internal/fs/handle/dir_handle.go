@@ -184,6 +184,27 @@ func readAllEntries(
 		}
 	}
 
+	// Folders
+
+	for {
+		// Read a batch.
+		var batch []fuseutil.Dirent
+
+		batch, tok, err = in.ReadFolderEntries(ctx, tok)
+		if err != nil {
+			err = fmt.Errorf("ReadFolderEntries: %w", err)
+			return
+		}
+
+		// Accumulate.
+		entries = append(entries, batch...)
+
+		// Are we done?
+		if tok == "" {
+			break
+		}
+	}
+
 	// Append local file entries (not synced to GCS).
 	entries = append(entries, localEntries...)
 
