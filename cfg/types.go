@@ -42,6 +42,12 @@ func (o *Octal) String() string {
 // Protocol is the datatype that specifies the type of connection: http1/http2/grpc.
 type Protocol string
 
+const (
+	HTTP1 Protocol = "http1"
+	HTTP2 Protocol = "http2"
+	GRPC  Protocol = "grpc"
+)
+
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
 	protocol := strings.ToLower(txtStr)

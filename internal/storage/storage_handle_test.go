@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"testing"
 
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/stretchr/testify/assert"
@@ -92,7 +92,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2EnabledAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.HTTP2
+	sc.ClientProtocol = cfg.HTTP2
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
@@ -203,7 +203,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithInvalidClientProtoco
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.GRPC
+	sc.ClientProtocol = cfg.GRPC
 
 	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
@@ -222,7 +222,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.GRPC
+	sc.ClientProtocol = cfg.GRPC
 
 	storageClient, err := NewStorageHandle(context.Background(), sc)
 
@@ -232,31 +232,31 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol()
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithHTTPClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.HTTP1
+	sc.ClientProtocol = cfg.HTTP1
 
 	storageClient, err := createGRPCClientHandle(context.Background(), &sc)
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), storageClient)
-	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", mountpkg.HTTP1))
+	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not GRPC: %s", cfg.HTTP1))
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientProtocol() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.ClientProtocol = mountpkg.GRPC
+	sc.ClientProtocol = cfg.GRPC
 
 	storageClient, err := createHTTPClientHandle(context.Background(), &sc)
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), storageClient)
-	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", mountpkg.GRPC))
+	assert.Contains(testSuite.T(), err.Error(), fmt.Sprintf("client-protocol requested is not HTTP1 or HTTP2: %s", cfg.GRPC))
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = nil
 	sc.AnonymousAccess = false
-	sc.ClientProtocol = mountpkg.GRPC
+	sc.ClientProtocol = cfg.GRPC
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
@@ -271,7 +271,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	sc := storageutil.GetDefaultStorageClientConfig()
 	sc.CustomEndpoint = url
 	sc.AnonymousAccess = false
-	sc.ClientProtocol = mountpkg.GRPC
+	sc.ClientProtocol = cfg.GRPC
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
