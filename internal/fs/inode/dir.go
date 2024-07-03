@@ -321,6 +321,29 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 	return result, nil
 }
 
+func getFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+	if !name.IsDir() {
+		return nil, fmt.Errorf("%q is not directory", name)
+	}
+	folder, err := bucket.GetFolder(ctx, name.objectName)
+
+	if err != nil {
+		if ok := strings.Contains(err.Error(), "The folder does not exist"); ok {
+			return nil, nil
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("get folder objects: %w", err)
+	}
+	result := &Core{
+		Bucket:   bucket,
+		FullName: name,
+	}
+	result.Folders = folder
+	return result, nil
+}
+
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
 func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
@@ -503,6 +526,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
+	getFolder := func(ctx context.Context) (err error) {
+		dirResult, err = getFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		return
+	}
 
 	b := syncutil.NewBundle(ctx)
 
@@ -515,17 +542,25 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		b.Add(lookUpExplicitDir)
+		if d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(getFolder)
+		} else {
+			b.Add(lookUpExplicitDir)
+		}
 	case metadata.RegularFileType, metadata.SymlinkType:
 		b.Add(lookUpFile)
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.implicitDirs {
-			b.Add(lookUpImplicitOrExplicitDir)
+		if d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(getFolder)
 		} else {
-			b.Add(lookUpExplicitDir)
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		}
 	}
 
