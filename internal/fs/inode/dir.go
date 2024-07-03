@@ -543,7 +543,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 	case metadata.ExplicitDirType:
 		if d.bucket.BucketType() == gcs.Hierarchical {
-			b.Add(getFolder)
+			b.Add(l)
 		} else {
 			b.Add(lookUpExplicitDir)
 		}
