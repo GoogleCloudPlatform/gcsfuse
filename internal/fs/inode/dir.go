@@ -656,6 +656,7 @@ func (d *dirInode) readFolders(ctx context.Context,
 
 		fmt.Println("Folder: ", f.Name)
 
+		fmt.Println("Folder struct: ", f)
 		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
 
 		dirName := NewDirName(d.Name(), nameBase)
@@ -764,7 +765,7 @@ func (d *dirInode) ReadFolderEntries(ctx context.Context, tok string) (entries [
 		var folderCores map[Name]*Core
 		folderCores, newTok, err = d.readFolders(ctx, tok)
 		if err != nil {
-			err = fmt.Errorf("read objects: %w", err)
+			err = fmt.Errorf("read folders: %w", err)
 			return
 		}
 		for fullName, _ := range folderCores {
