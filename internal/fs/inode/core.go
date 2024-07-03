@@ -65,6 +65,10 @@ func (c *Core) Type() metadata.Type {
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
 func (c Core) SanityCheck() error {
+	if c.Folders != nil && c.FullName.objectName != c.Folders.Name {
+		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
+	}
+
 	if c.MinObject != nil && c.FullName.objectName != c.MinObject.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
 	}

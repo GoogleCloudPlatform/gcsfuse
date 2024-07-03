@@ -184,6 +184,7 @@ func NewFileSystem(
 		nextInodeID:                fuseops.RootInodeID + 1,
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		folderDirInodes:            make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
@@ -428,6 +429,7 @@ type fileSystem struct {
 	//
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
+	folderDirInodes   map[inode.Name]inode.DirInode
 
 	// A map from object name to the local fileInode that represents
 	// that name. There can be at most one local file inode for a
@@ -679,11 +681,12 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	// Create the inode.
 	switch {
 	// Explicit directories
-	case ic.MinObject != nil && ic.FullName.IsDir():
+	case (ic.MinObject != nil || ic.Folders != nil) && ic.FullName.IsDir():
 		in = inode.NewExplicitDirInode(
 			id,
 			ic.FullName,
 			ic.MinObject,
+			ic.Folders,
 			fuseops.InodeAttributes{
 				Uid:  fs.uid,
 				Gid:  fs.gid,
@@ -791,6 +794,49 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	fs.mu.Lock()
 
+	if ic.Folders != nil {
+		if !ic.FullName.IsDir() {
+			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
+		}
+
+		var ok bool
+		var maxTriesToCreateInode = 3
+		for n := 0; n < maxTriesToCreateInode; n++ {
+			in, ok = fs.folderDirInodes[ic.FullName]
+			// If we don't have an entry, create one.
+			if !ok {
+				in = fs.mintInode(ic)
+				fs.folderDirInodes[in.Name()] = in.(inode.DirInode)
+				// Since we are creating inode here, there is no chance that something else
+				// is holding the lock for inode. Hence its safe to take lock on inode
+				// without releasing fs.mu.lock.
+				in.Lock()
+				return
+			}
+
+			// If the inode already exists, we need to follow the lock ordering rules
+			// to get the lock. First get inode lock and then fs lock.
+			fs.mu.Unlock()
+			in.Lock()
+			fs.mu.Lock()
+
+			// Check if inode is still valid by the time we got the lock. If not,
+			// its means inode is in the process of getting destroyed. Try creating it
+			// again.
+			if fs.folderDirInodes[ic.FullName] != in {
+				in.Unlock()
+				continue
+			}
+
+			return
+		}
+
+		// Incase we exhausted the number of tries to createInode, we will return
+		// nil object. Returning nil is handled by callers to throw appropriate
+		// errors back to kernel.
+		in = nil
+		return
+	}
 	// Handle implicit directories.
 	if ic.MinObject == nil {
 		if !ic.FullName.IsDir() {
