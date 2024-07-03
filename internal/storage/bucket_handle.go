@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
@@ -522,6 +523,9 @@ func (b *bucketHandle) ListFolders(ctx context.Context, req *controlpb.ListFolde
 			return
 		}
 
+		prefix := "projects/_/buckets/" + b.Bucket.Name() + "/"
+		objectName := strings.TrimPrefix(attrs.Name, prefix)
+		attrs.Name = objectName
 		folderList.Folders = append(folderList.Folders, attrs)
 
 		if pi.Remaining() == 0 {

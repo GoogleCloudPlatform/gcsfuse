@@ -613,18 +613,15 @@ func (d *dirInode) readFolders(ctx context.Context,
 	}()
 
 	for _, f := range folderList.Folders {
+
 		// Skip empty results or the directory object backing this inode.
 		if f.Name == d.Name().GcsObjectName() || f.Name == "" {
 			continue
 		}
 
-		fmt.Println("Folder: ", f.Name)
-		// Skip empty results or the directory object backing this inode.
-		if f.Name == d.Name().GcsObjectName() || f.Name == "" {
-			continue
-		}
+		fmt.Println("Folder: ", objectName)
 
-		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
+		nameBase := path.Base(objectName) // ie. "bar" from "foo/bar/" or "foo/bar"
 
 		dirName := NewDirName(d.Name(), nameBase)
 		explicitDir := &Core{
