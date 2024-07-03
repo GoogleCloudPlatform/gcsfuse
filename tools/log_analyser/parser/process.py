@@ -5,7 +5,7 @@ from parser.requests import Request
 
 
 def get_val(message, key, delim, direction, offset):
-    # offset contains adjustments needed for spaces and key lengths\
+    # offset contains adjustments needed for spaces and key lengths
     try:
         if message.find(key) == -1:
             print("Error parsing log with message:", message)
@@ -14,10 +14,13 @@ def get_val(message, key, delim, direction, offset):
             start_index = message.find(key)+len(key)+offset
         else:
             start_index = message.rfind(key)+len(key)+offset
-        if message.find(delim, start_index) == -1:
-            print("Error parsing log with message:", message, "can't find key: ", key)
-            return None
-        end_index = message.find(delim, start_index)
+        if delim != "end_line":
+            if message.find(delim, start_index) == -1:
+                print("Error parsing log with message:", message)
+                return None
+            end_index = message.find(delim, start_index)
+        else:
+            end_index = len(message) - 1
         return message[start_index:end_index]
     except ValueError as e:
         print("Error parsing log with message:", message)
@@ -142,7 +145,6 @@ def open_file_processor(log, global_data):
 
 def release_file_handle_processor(log, global_data):
     message = log["message"]
-    # handle = int(get_val(message, ", handle", ")", "fwd", 1))
     handle_temp = get_val(message, "handle", ")", "fwd", 1)
     if handle_temp is not None:
         try:
@@ -228,8 +230,11 @@ def read_file_processor(log, global_data):
     global_data.requests[req_id].timestamp_sec = log["timestamp"]["seconds"]
     global_data.requests[req_id].timestamp_nano = log["timestamp"]["nanos"]
 
+
 def kernel_call_processor(log, global_data):
     message = log["message"]
+    if message.find("(") == -1:
+        return
     name = None
     req_id = get_val(message, "Op 0x", " ", "fwd", 0)
     req_name = get_val(message, "<-", " ", "fwd", 1)
@@ -295,11 +300,9 @@ def response_processor(log, global_data):
                 obj = global_data.name_object_map[req.object_name]
             else:
                 global_data.name_object_map[req.object_name] = Object(req.inode, req.parent, "", req.object_name)
-                # print(req.object_name, req.inode)
                 obj = global_data.name_object_map[req.object_name]
             if req_name in obj.kernel_calls.callname_index_map.keys():
                 obj.kernel_calls.calls[obj.kernel_calls.callname_index_map[req_name]].calls_returned += 1
-                # print(req_name)
             if req_name == "ReadFile":
                 obj.handles[req.handle].read_times.append(time_sec + 1e-9*time_nano - req.timestamp_sec - 1e-9*req.timestamp_nano)
             elif req_name == "WriteFile":
@@ -349,15 +352,15 @@ def gen_processor(logs):
     global_data.inode_name_map[1] = ""
     for log in logs:
         message = log["message"]
-        if message.find("LookUpInode") != -1:
+        if message.find("LookUpInode") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
             lookup_processor(log, global_data)
         elif message.find("gcs: Req") != -1:
             gcs_call_processor(log, global_data)
-        elif message.find("OpenFile") != -1:
+        elif message.find("OpenFile") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
             open_file_processor(log, global_data)
-        elif message.find("ReleaseFileHandle") != -1:
+        elif message.find("ReleaseFileHandle") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
             release_file_handle_processor(log, global_data)
-        elif message.find("ReadFile") != -1 or message.find("WriteFile") != -1:
+        elif (message.find("ReadFile") != -1 or message.find("WriteFile") != -1) and message.find("fuse_debug") != -1 and message.find("<-") != -1:
             read_file_processor(log, global_data)
         elif message.find("fuse_debug") != -1 and message.find("<-") != -1:
             kernel_call_processor(log, global_data)

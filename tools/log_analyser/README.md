@@ -2,7 +2,26 @@ This log analyzer takes log files and a few filters and outputs the analysis.
 
 Install python if not installed already.
 
-Run the code using command- 
+Create a python environment using the following steps-
+
+
+(Replace python3 with python if you don't have python3)
+
+1. Run this command to install python3-venv, `sudo apt install python3-venv`
+
+2. Run `python3 -m venv /path`, replace path with the location you want to create virtual environment (preferably outside the repo, to avoid creating unwanted files)
+3. Activate the environment using command `source venv_name/bin/activate`, replace venv_name with the location where you created the environment
+
+(Deactivate the environment using the command `deactivate`, once you finish running the code)
+
+
+
+Install numpy using command- `pip install numpy`
+
+Install gspread using command - `pip install gspread`
+
+
+Run the code using command-
 `python3 main.py` ,if python3 is installed,
 else use `python main.py`
 
@@ -20,15 +39,21 @@ If yes, enter the start and end time (epoch)
 
 Enter the type of logs (gke/gcsfuse)
 
+Enter your ldap.
 
-Enter the location where you want to save the csv files.
+Exp- `patelvishvesh`
 
-Exp- `/usr/local/google/home/patelvishvesh/mount-folder/`
 
-After this csv file(s) will be saved on the given location.
+Enter the name and location of the credential file
+
+Exp- `/usr/local/google/home/patelvishvesh/Downloads/credentials.json`
+
+After this a google sheet link will be generated, take this link and follow the instructions given in the below doc-
+
+[Steps to get PLX dashboard](https://docs.google.com/document/d/1G5JYRVBi92GQ2Se5vpW5dAgGj_Bs5sjTXEzw6adeO3E/edit?usp=sharing&resourcekey=0-qgJv2mpIK_EAralYG5Zo3A)
 
 
 Please refer to the below document to see an instance of the code run.
 
-[https://docs.google.com/document/d/1Z8XkKoSEDwGN-X_KVY0T--itNJvHp02BoDRRVzaBJks/edit?usp=sharing&resourcekey=0-18aMKC7pPcTp_6TuriNwrA](https://docs.google.com/document/d/1Z8XkKoSEDwGN-X_KVY0T--itNJvHp02BoDRRVzaBJks/edit?usp=sharing&resourcekey=0-18aMKC7pPcTp_6TuriNwrA)
+[Demo run of Log Analyzer](https://docs.google.com/document/d/1Z8XkKoSEDwGN-X_KVY0T--itNJvHp02BoDRRVzaBJks/edit?usp=sharing&resourcekey=0-18aMKC7pPcTp_6TuriNwrA)
 
