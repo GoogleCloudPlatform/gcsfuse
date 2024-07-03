@@ -523,7 +523,7 @@ func (b *bucketHandle) ListFolders(ctx context.Context, req *controlpb.ListFolde
 			return
 		}
 
-		prefix := "projects/_/buckets/" + b.Bucket.Name() + "/"
+		prefix := "projects/_/buckets/" + b.bucketName + "/"
 		objectName := strings.TrimPrefix(attrs.Name, prefix)
 		attrs.Name = objectName
 		folderList.Folders = append(folderList.Folders, attrs)
