@@ -795,6 +795,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	if ic.Folders != nil {
+		fmt.Println("Folder: ", ic.Folders)
 		if !ic.FullName.IsDir() {
 			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
 		}
