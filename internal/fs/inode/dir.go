@@ -656,7 +656,6 @@ func (d *dirInode) readFolders(ctx context.Context,
 
 		fmt.Println("Folder: ", f.Name)
 
-		fmt.Println("Folder struct: ", f)
 		nameBase := path.Base(f.Name) // ie. "bar" from "foo/bar/" or "foo/bar"
 
 		dirName := NewDirName(d.Name(), nameBase)
@@ -666,6 +665,7 @@ func (d *dirInode) readFolders(ctx context.Context,
 			Folders:  f,
 		}
 		cores[dirName] = explicitDir
+		fmt.Println("Core of explicitDir: ", cores[dirName])
 	}
 	return
 }
