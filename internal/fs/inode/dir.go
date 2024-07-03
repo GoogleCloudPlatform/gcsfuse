@@ -341,6 +341,8 @@ func getFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core
 		FullName: name,
 		Folders:  folder,
 	}
+
+	fmt.Println("Result: ", result)
 	return result, nil
 }
 
