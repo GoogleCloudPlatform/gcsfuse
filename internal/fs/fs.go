@@ -806,6 +806,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			// If we don't have an entry, create one.
 			if !ok {
 				in = fs.mintInode(ic)
+				fmt.Println("Inode: ", in)
 				fs.folderDirInodes[in.Name()] = in.(inode.DirInode)
 				// Since we are creating inode here, there is no chance that something else
 				// is holding the lock for inode. Hence its safe to take lock on inode
