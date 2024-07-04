@@ -198,8 +198,8 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 }
 
 func (sc *statCacheBucketView) LookUp(
-		objectName string,
-		now time.Time) (bool, *gcs.MinObject) {
+	objectName string,
+	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
 	entry := sc.lruCacheLookup(objectName, now)
 	if entry == nil {
@@ -210,8 +210,8 @@ func (sc *statCacheBucketView) LookUp(
 }
 
 func (sc *statCacheBucketView) LookUpFolder(
-		folderName string,
-		now time.Time) (bool, *controlpb.Folder) {
+	folderName string,
+	now time.Time) (bool, *controlpb.Folder) {
 	// Look up in the LRU cache.
 	entry := sc.lruCacheLookup(folderName, now)
 	if entry == nil {
