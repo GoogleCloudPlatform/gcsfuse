@@ -774,6 +774,7 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // LOCK_FUNCTION(in)
 func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Inode) {
 
+	logger.Info("Entering lookUpOrCreateInodeIfNotStale: ", ic.FullName)
 	// Sanity check.
 	if err := ic.SanityCheck(); err != nil {
 		panic(err.Error())
@@ -836,6 +837,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		return
 	}
 
+	logger.Info("Calling lookUpOrCreateInodeIfNotStale: Midway")
+
 	oGen := inode.Generation{
 		Object:   ic.MinObject.Generation,
 		Metadata: ic.MinObject.MetaGeneration,
@@ -852,6 +855,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 			in = fs.mintInode(ic)
 			fs.generationBackedInodes[in.Name()] = in.(inode.GenerationBackedInode)
 
+			logger.Info("Minting")
 			in.Lock()
 			return
 		}
@@ -861,6 +865,8 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 		// acquiring the file system lock, so drop it while acquiring the inode's
 		// lock, then reacquire.
 		fs.mu.Unlock()
+		logger.Info("Sleeping for 5 sec")
+		time.Sleep(time.Second * 5)
 		existingInode.Lock()
 		fs.mu.Lock()
 
@@ -916,6 +922,8 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	logger.Info("Entering lookUpOrCreateChildInode: ", childName)
+
 	// First check if the requested child is a localFileInode.
 	child = fs.lookUpLocalFileInode(parent, childName)
 	if child != nil {
@@ -948,11 +956,14 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 		core, err = getLookupResult()
 
 		if err != nil {
+			logger.Info("Returning because of error")
+
 			return
 		}
 
 		if core == nil {
 			err = fuse.ENOENT
+			logger.Info("Returning because of nil core for: ", childName)
 			return
 		}
 
@@ -1325,6 +1336,7 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
+	logger.Infof("Entering LookUpInode for ID: %d, %s", op.OpContext.FuseID, op.Name)
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
@@ -2137,6 +2149,9 @@ func (fs *fileSystem) Unlink(
 func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
+	logger.Info("Entrying for openDir call...: ", op.Inode)
+	logger.Info("sleeping for 4 sec")
+	time.Sleep(time.Second * 4)
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -2154,10 +2169,16 @@ func (fs *fileSystem) OpenDir(
 
 	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
-
+		logger.Info("sleeping for 3 sec")
+		time.Sleep(time.Second * 3)
+		// Following lock ordering rules to get the dirInode lock. First get inode
+		// lock and then fs lock.
+		fs.mu.Unlock()
 		// Taking RLock() since ShouldInvalidateKernelListCache only reads the DirInode
 		// properties, no modification.
 		in.RLock()
+		// Acquiring fs lock early to use common defer function.
+		fs.mu.Lock()
 		// Invalidates the kernel list-cache once the last cached response is out of
 		// kernelListCacheTTL.
 		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)

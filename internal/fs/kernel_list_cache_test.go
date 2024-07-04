@@ -26,6 +26,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,8 +53,8 @@ func (t *KernelListCacheTestCommon) SetupTest() {
 
 func (t *KernelListCacheTestCommon) TearDownTest() {
 	cacheClock.AdvanceTime(util.MaxTimeDuration)
-	t.deleteFilesAndDirStructureInBucket()
-	t.fsTest.TearDown()
+	//t.deleteFilesAndDirStructureInBucket()
+	//t.fsTest.TearDown()
 }
 
 func (t *KernelListCacheTestCommon) TearDownSuite() {
@@ -118,6 +119,31 @@ func (t *KernelListCacheTestWithPositiveTtl) SetupSuite() {
 
 func TestKernelListCacheTestWithPositiveTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithPositiveTtl))
+}
+
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() within ttl will be served from kernel page cache.
+func (t *KernelListCacheTestWithPositiveTtl) Test_Debug_HangIssue() {
+	// Make sure, inode is created.
+	os.Stat(path.Join(mntDir, "explicitDir"))
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(6 * time.Second)
+		os.Stat(path.Join(mntDir, "explicitDir"))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		f, _ := os.Open(path.Join(mntDir, "explicitDir"))
+		f.Close()
+	}()
+
+	wg.Wait()
+
 }
 
 // (a) First ReadDir() will be served from GCSFuse filesystem.
