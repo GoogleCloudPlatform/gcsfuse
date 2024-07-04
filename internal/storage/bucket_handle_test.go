@@ -1319,12 +1319,12 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 func (testSuite *BucketHandleTest) TestRenameFolder() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameObject}, mock.Anything).
+	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameFolder}, mock.Anything).
 		Return(&control.RenameFolderOperation{}, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	o, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameObject)
+	o, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameFolder)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
@@ -1334,12 +1334,12 @@ func (testSuite *BucketHandleTest) TestRenameFolder() {
 func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameObject}, mock.Anything).
+	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameFolder}, mock.Anything).
 		Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameObject)
+	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameFolder)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
