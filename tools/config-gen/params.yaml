@@ -481,7 +481,7 @@
   config-path: "gcs-connection.grpc-conn-pool-size"
   type: "int"
   usage: "The number of gRPC channel in grpc client."
-  default: "0"
+  default: "1"
   deprecated: true
   deprecation-warning: "Experimental flag: can be removed in a minor release."
 
