@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
@@ -52,12 +51,14 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgFile != "" {
 			cfgFile, err := util.GetResolvedPath(cfgFile)
 			if err != nil {
-				logger.Fatal("error while resolving config-file path[%s]: %v", cfgFile, err)
+				cfgErr = fmt.Errorf("error while resolving config-file path[%s]: %w", cfgFile, err)
+				return
 			}
 			v.SetConfigFile(cfgFile)
 			v.SetConfigType("yaml")
 			if err := v.ReadInConfig(); err != nil {
-				logger.Fatal("error while reading the config: %v", err)
+				cfgErr = fmt.Errorf("error while reading the config: %w", err)
+				return
 			}
 		}
 

@@ -1,0 +1,3 @@
+file-cache:
+  enable-parallel-downloads: true
+  max-parallel-downloads: 0
