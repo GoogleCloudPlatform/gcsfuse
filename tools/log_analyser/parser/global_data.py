@@ -8,3 +8,6 @@ class GlobalData:
     inode_name_map = {}
     handle_name_map = {}
     gcalls = GlobalCalls()
+    max_read_entries = []
+    max_listobjects_entries = []
+    max_createobject_entries = []

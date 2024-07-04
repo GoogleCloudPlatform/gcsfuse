@@ -2,22 +2,22 @@ from parser.calls import Calls
 
 class GlobalCalls:
     def __init__(self):
-        self.kernel_calls = [Calls("Unlink"),#1
-                             Calls("Rename"),#2
-                             Calls("MkDir"),#3
-                             Calls("ReleaseDirHandle"),#4
-                             Calls("CreateFile"),#5
-                             Calls("RmDir"),#6
-                             Calls("LookUpInode"),#7
-                             Calls("ReadFile"),#8
-                             Calls("OpenFile"),#9
-                             Calls("FlushFile"),#10
-                             Calls("WriteFile"),#11
-                             Calls("CreateSymLink"),#12
-                             Calls("ReadSymLink"),#13
-                             Calls("ReleaseFileHandle"),#14
-                             Calls("OpenDir"),#15
-                             Calls("ReadDir")]#16
+        self.kernel_calls = [Calls("Unlink"),
+                             Calls("Rename"),
+                             Calls("MkDir"),
+                             Calls("ReleaseDirHandle"),
+                             Calls("CreateFile"),
+                             Calls("RmDir"),
+                             Calls("LookUpInode"),
+                             Calls("ReadFile"),
+                             Calls("OpenFile"),
+                             Calls("FlushFile"),
+                             Calls("WriteFile"),
+                             Calls("CreateSymLink"),
+                             Calls("ReadSymLink"),
+                             Calls("ReleaseFileHandle"),
+                             Calls("OpenDir"),
+                             Calls("ReadDir")]
         self.gcs_calls = [Calls("StatObject"),
                           Calls("ListObjects"),
                           Calls("CopyObject"),

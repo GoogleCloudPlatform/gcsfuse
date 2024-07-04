@@ -2,6 +2,7 @@ from parser.object import Object
 from parser.handle import Handle
 from parser.global_data import GlobalData
 from parser.requests import Request
+import heapq
 
 
 def get_val(message, key, delim, direction, offset):
@@ -27,7 +28,7 @@ def get_val(message, key, delim, direction, offset):
         return None
 
 
-def lookup_processor(log, global_data):
+def lookup_parser(log, global_data):
     message = log["message"]
     req_id = get_val(message, "Op 0x", " ", "fwd", 0)
     name = get_val(message, "name", "\"", "fwd", 2)
@@ -59,7 +60,7 @@ def lookup_processor(log, global_data):
     request_obj.timestamp_nano = log["timestamp"]["nanos"]
 
 
-def gcs_call_processor(log, global_data):
+def gcs_call_parser(log, global_data):
     message = log["message"]
     name = get_val(message, "(", "\"", "fwd", 1)
     if name is None:
@@ -81,18 +82,6 @@ def gcs_call_processor(log, global_data):
         file_obj = global_data.name_object_map[name]
         file_obj.gcs_calls.calls[file_obj.gcs_calls.callname_index_map[req_name]].calls_made += 1
         global_data.gcalls.gcs_calls[global_data.gcalls.gcs_index_map[req_name]].calls_made += 1
-        if message.find("Read") != -1 and message.find("nil") == -1:
-            start_temp = get_val(message, "[", ",", "fwd", 0)
-            final_temp = get_val(message, ",", ")", "bck", 1)
-            if start_temp is None or final_temp is None:
-                return
-            try:
-                start = int(start_temp)
-                final = int(final_temp)
-            except ValueError as e:
-                print("Error parsing bytes:", start_temp, "or", final_temp)
-                return
-            global_data.bytes_from_gcs += final-start
 
     elif message.find("->") != -1:
         req = get_val(message, "0x", " ", "fwd", 0)
@@ -116,11 +105,45 @@ def gcs_call_processor(log, global_data):
             if message.find("StatObject") != -1:
                 if message.find("gcs.NotFoundError: storage: object doesn't exist") != -1:
                     global_data.name_object_map[name].is_dir = True
+            elif message.find("CreateObject") != -1:
+                heapq.heappush(global_data.max_createobject_entries, (req_response_time, name))
+                if len(global_data.max_createobject_entries) > 10:
+                    heapq.heappop(global_data.max_createobject_entries)
+            elif message.find("ListObjects") != -1:
+                heapq.heappush(global_data.max_listobjects_entries, (req_response_time, name))
+                if len(global_data.max_listobjects_entries) > 10:
+                    heapq.heappop(global_data.max_listobjects_entries)
+            elif message.find("Read") != -1:
+                heapq.heappush(global_data.max_read_entries, (req_response_time, name))
+                if len(global_data.max_read_entries) > 10:
+                    heapq.heappop(global_data.max_read_entries)
+                if message.find("nil") == -1:
+                    start_temp = get_val(message, "[", ",", "fwd", 0)
+                    final_temp = get_val(message, ",", ")", "bck", 1)
+                    if start_temp is None or final_temp is None:
+                        return
+                    try:
+                        start = int(start_temp)
+                        final = int(final_temp)
+                    except ValueError as e:
+                        print("Error parsing bytes:", start_temp, "or", final_temp)
+                        return
+                    global_data.bytes_from_gcs += final-start
+                    file_obj = global_data.name_object_map[name]
+                    if file_obj.last_read_offset == -1:
+                        file_obj.read_pattern += "_"
+                    elif file_obj.last_read_offset == start:
+                        file_obj.read_pattern += "s"
+                    else:
+                        file_obj.read_pattern += "r"
+                    file_obj.last_read_offset = final
+                    file_obj.read_ranges.append([start, final])
+                    file_obj.read_bytes.append(final-start)
 
             global_data.requests.pop(req)
 
 
-def open_file_processor(log, global_data):
+def open_file_parser(log, global_data):
     message = log["message"]
     inode_temp = get_val(message, "inode", ",", "fwd", 1)
     req_id = get_val(message, "Op 0x", " ", "fwd", 0)
@@ -143,7 +166,7 @@ def open_file_processor(log, global_data):
     global_data.gcalls.kernel_calls[8].calls_made += 1
 
 
-def release_file_handle_processor(log, global_data):
+def release_file_handle_parser(log, global_data):
     message = log["message"]
     handle_temp = get_val(message, "handle", ")", "fwd", 1)
     if handle_temp is not None:
@@ -172,7 +195,7 @@ def release_file_handle_processor(log, global_data):
         obj.kernel_calls.calls[7].calls_made += 1
 
 
-def read_file_processor(log, global_data):
+def read_file_parser(log, global_data):
     message = log["message"]
     inode_temp = get_val(message, "inode", ",", "fwd", 1)
     handle_temp = get_val(message, "handle", ",", "fwd", 1)
@@ -205,6 +228,8 @@ def read_file_processor(log, global_data):
             else:
                 handle_obj.read_pattern += "r"
             handle_obj.last_read_offset = offset + byts
+            handle_obj.read_ranges.append([offset, offset + byts])
+            handle_obj.read_bytes.append(byts)
             handle_obj.total_read_size += byts
             handle_obj.total_reads += 1
             obj.kernel_calls.calls[1].calls_made += 1
@@ -212,10 +237,19 @@ def read_file_processor(log, global_data):
         else:
             global_data.gcalls.kernel_calls[10].calls_made += 1
             global_data.requests[req_id] = Request("WriteFile", global_data.inode_name_map[inode])
-            handle_obj.total_writes += 1
+            if handle_obj.last_write_offset == -1:
+                handle_obj.write_pattern += "_"
+            elif handle_obj.last_write_offset == offset:
+                handle_obj.write_pattern += "s"
+            else:
+                handle_obj.write_pattern += "r"
+            handle_obj.last_write_offset = offset + byts
+            handle_obj.write_ranges.append([offset, offset + byts])
+            handle_obj.write_bytes.append(byts)
             handle_obj.total_write_size += byts
-            global_data.bytes_to_gcs += byts
+            handle_obj.total_writes += 1
             obj.kernel_calls.calls[4].calls_made += 1
+            global_data.bytes_to_gcs += byts
     else:
         if message.find("ReadFile") != -1:
             global_data.requests[req_id] = Request("ReadFile", "")
@@ -231,7 +265,7 @@ def read_file_processor(log, global_data):
     global_data.requests[req_id].timestamp_nano = log["timestamp"]["nanos"]
 
 
-def kernel_call_processor(log, global_data):
+def kernel_call_parser(log, global_data):
     message = log["message"]
     if message.find("(") == -1:
         return
@@ -283,7 +317,7 @@ def kernel_call_processor(log, global_data):
         global_data.requests[req_id].parent = parent
 
 
-def response_processor(log, global_data):
+def response_parser(log, global_data):
     message = log["message"]
     time_sec = log["timestamp"]["seconds"]
     time_nano = log["timestamp"]["nanos"]
@@ -304,9 +338,9 @@ def response_processor(log, global_data):
             if req_name in obj.kernel_calls.callname_index_map.keys():
                 obj.kernel_calls.calls[obj.kernel_calls.callname_index_map[req_name]].calls_returned += 1
             if req_name == "ReadFile":
-                obj.handles[req.handle].read_times.append(time_sec + 1e-9*time_nano - req.timestamp_sec - 1e-9*req.timestamp_nano)
+                obj.handles[req.handle].read_times.append(1e3*(time_sec + 1e-9*time_nano - req.timestamp_sec - 1e-9*req.timestamp_nano))
             elif req_name == "WriteFile":
-                obj.handles[req.handle].write_times.append(time_sec + 1e-9*time_nano - req.timestamp_sec - 1e-9*req.timestamp_nano)
+                obj.handles[req.handle].write_times.append(1e3*(time_sec + 1e-9*time_nano - req.timestamp_sec - 1e-9*req.timestamp_nano))
             elif req_name == "LookUpInode" or req_name == "CreateFile":
                 if message.find("Error") != -1:
                     obj.is_dir = False
@@ -345,7 +379,7 @@ def response_processor(log, global_data):
         global_data.requests.pop(req_id)
 
 
-def gen_processor(logs):
+def general_parser(logs):
     global_data = GlobalData()
     global_data.name_object_map[""] = Object(1, 0, "", "")
     global_data.name_object_map[""].is_dir = True
@@ -353,18 +387,18 @@ def gen_processor(logs):
     for log in logs:
         message = log["message"]
         if message.find("LookUpInode") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
-            lookup_processor(log, global_data)
+            lookup_parser(log, global_data)
         elif message.find("gcs: Req") != -1:
-            gcs_call_processor(log, global_data)
+            gcs_call_parser(log, global_data)
         elif message.find("OpenFile") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
-            open_file_processor(log, global_data)
+            open_file_parser(log, global_data)
         elif message.find("ReleaseFileHandle") != -1 and message.find("fuse_debug") != -1 and message.find("<-") != -1:
-            release_file_handle_processor(log, global_data)
+            release_file_handle_parser(log, global_data)
         elif (message.find("ReadFile") != -1 or message.find("WriteFile") != -1) and message.find("fuse_debug") != -1 and message.find("<-") != -1:
-            read_file_processor(log, global_data)
+            read_file_parser(log, global_data)
         elif message.find("fuse_debug") != -1 and message.find("<-") != -1:
-            kernel_call_processor(log, global_data)
+            kernel_call_parser(log, global_data)
         elif message.find("fuse_debug") != -1 and message.find("->") != -1:
-            response_processor(log, global_data)
+            response_parser(log, global_data)
 
     return global_data

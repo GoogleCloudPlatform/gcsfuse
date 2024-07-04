@@ -15,3 +15,7 @@ class Object:
         self.open_tup = []
         self.closed_handles = 0
         self.close_tup = []
+        self.read_pattern = ""
+        self.read_bytes = []
+        self.read_ranges = []
+        self.last_read_offset = -1
