@@ -121,29 +121,39 @@ func TestKernelListCacheTestWithPositiveTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithPositiveTtl))
 }
 
-// (a) First ReadDir() will be served from GCSFuse filesystem.
-// (b) Second ReadDir() within ttl will be served from kernel page cache.
-func (t *KernelListCacheTestWithPositiveTtl) Test_Debug_HangIssue() {
-	// Make sure, inode is created.
-	os.Stat(path.Join(mntDir, "explicitDir"))
-
+// Test_Parallel_OpenDirAndLookUpInode detects deadlock if openDir and LookUpInode
+// is happening concurrently.
+func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode() {
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
+	// Fail if the operation takes more than timeout.
+	timeout := 5 * time.Second
+
 	go func() {
 		defer wg.Done()
-		time.Sleep(6 * time.Second)
-		os.Stat(path.Join(mntDir, "explicitDir"))
+		for i := 0; i < 100; i++ {
+			f, _ := os.Open(path.Join(mntDir, "explicitDir"))
+			f.Close()
+		}
 	}()
-
-	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		f, _ := os.Open(path.Join(mntDir, "explicitDir"))
-		f.Close()
+		for i := 0; i < 100; i++ {
+			os.Stat(path.Join(mntDir, "explicitDir"))
+		}
 	}()
 
-	wg.Wait()
-
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+	select {
+	case <-done:
+		// Operation completed successfully before timeout.
+	case <-time.After(timeout):
+		assert.FailNow(t.T(), "Possible deadlock")
+	}
 }
 
 // (a) First ReadDir() will be served from GCSFuse filesystem.
