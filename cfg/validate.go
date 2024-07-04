@@ -26,11 +26,11 @@ func VetConfig(v *viper.Viper, config *Config) {
 		config.List.EnableEmptyManagedFolders = true
 	}
 	// Handle metadatacache ttl
-	ResolveMetadataCacheTTL(v, config)
+	resolveMetadataCacheTTL(v, config)
 }
 
-// ResolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
-func ResolveMetadataCacheTTL(v *viper.Viper, config *Config) {
+// RresolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func resolveMetadataCacheTTL(v *viper.Viper, config *Config) {
 	// If metadata-cache:ttl-secs has been set in config-file, then
 	// it overrides both stat-cache-ttl and type-cache-tll.
 	if v.IsSet("metadata-cache.ttl-secs") {
