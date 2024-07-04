@@ -148,3 +148,75 @@ func TestEnableEmptyManagedFoldersResolution(t *testing.T) {
 		})
 	}
 }
+
+func TestStatCacheCapacityResolution(t *testing.T) {
+	testcases := []struct {
+		name     string
+		args     []string
+		expected int64
+	}{
+		{
+			name:     "Default behavior",
+			args:     []string{},
+			expected: 32,
+		},
+		{
+			name:     "stat-cache-max-size-mb specified as -1",
+			args:     []string{"--stat-cache-max-size-mb=-1"},
+			expected: int64(config.MaxSupportedStatCacheMaxSizeMB),
+		},
+		{
+			name:     "stat-cache-max-size-mb set to 0",
+			args:     []string{"--stat-cache-max-size-mb=0"},
+			expected: 0,
+		},
+		{
+			name:     "--stat-cache-max-size-mb set to a positive value",
+			args:     []string{"--stat-cache-max-size-mb=100"},
+			expected: 100,
+		},
+		{
+			name:     "highest possible value",
+			args:     []string{fmt.Sprintf("--stat-cache-max-size-mb=%d", config.MaxSupportedStatCacheMaxSizeMB)},
+			expected: int64(config.MaxSupportedStatCacheMaxSizeMB),
+		},
+		{
+			name:     "highest possible value of stat-cache-max-size-mb",
+			args:     []string{fmt.Sprintf("--stat-cache-max-size-mb=%d", config.MaxSupportedStatCacheMaxSizeMB)},
+			expected: int64(config.MaxSupportedStatCacheMaxSizeMB),
+		},
+		{
+			name:     "both stat-cache-max-size-mb and stat-cache-capacity set",
+			args:     []string{"--stat-cache-max-size-mb=100", "--stat-cache-capacity=10000"},
+			expected: 100,
+		},
+		{
+			name:     "both stat-cache-max-size-mb and stat-cache-capacity set, stat-cache-capacity set to 0",
+			args:     []string{"--stat-cache-max-size-mb=100", "--stat-cache-capacity=0"},
+			expected: 100,
+		},
+		{
+			name:     "both stat-cache-max-size-mb and stat-cache-capacity set, stat-cache-max-size-mb set to 0",
+			args:     []string{"--stat-cache-max-size-mb=0", "--stat-cache-capacity=10000"},
+			expected: 0,
+		},
+		{
+			name:     "stat-cache-capacity set to 0",
+			args:     []string{"--stat-cache-capacity=0"},
+			expected: 0,
+		},
+		{
+			name:     "stat-cache-capacity set",
+			args:     []string{"--stat-cache-capacity=10000"},
+			expected: 16,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := getConfigObject(t, tc.args)
+			if assert.Nil(t, err) {
+				assert.Equal(t, tc.expected, config.MetadataCache.StatCacheMaxSizeMb)
+			}
+		})
+	}
+}

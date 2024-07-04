@@ -15,18 +15,30 @@
 package cfg
 
 import (
+	"fmt"
 	"math"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/spf13/viper"
 )
 
-func VetConfig(v *viper.Viper, config *Config) {
+func Validate(c *Config) error {
+	if c.MetadataCache.DeprecatedStatCacheCapacity < 0 {
+		return fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", c.MetadataCache.DeprecatedStatCacheCapacity)
+	}
+	return nil
+}
+
+func VetConfig(v *viper.Viper, c *Config) {
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
-	if config.EnableHns {
-		config.List.EnableEmptyManagedFolders = true
+	if c.EnableHns {
+		c.List.EnableEmptyManagedFolders = true
 	}
 	// Handle metadatacache ttl
-	resolveMetadataCacheTTL(v, config)
+	resolveMetadataCacheTTL(v, c)
+	resolveMetadataCacheCapacity(v, c)
 }
 
 // RresolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
@@ -42,4 +54,19 @@ func resolveMetadataCacheTTL(v *viper.Viper, config *Config) {
 	}
 	config.MetadataCache.TtlSecs = int64(math.Ceil(math.Min(config.MetadataCache.DeprecatedStatCacheTtl.Seconds(),
 		config.MetadataCache.DeprecatedTypeCacheTtl.Seconds())))
+}
+
+func resolveMetadataCacheCapacity(v *viper.Viper, c *Config) {
+	if v.IsSet("metadata-cache.stat-cache-max-size-mb") {
+		if c.MetadataCache.StatCacheMaxSizeMb != -1 {
+			return
+		}
+		c.MetadataCache.StatCacheMaxSizeMb = int64(config.MaxSupportedStatCacheMaxSizeMB)
+		return
+	}
+	if v.IsSet("metadata-cache.deprecated-stat-cache-capacity") {
+		avgTotalStatCacheEntrySize := mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry
+		c.MetadataCache.StatCacheMaxSizeMb = int64(util.BytesToHigherMiBs(
+			uint64(c.MetadataCache.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	}
 }

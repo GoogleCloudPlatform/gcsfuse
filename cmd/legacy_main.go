@@ -254,6 +254,11 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
+	maxStatCacheSizeMb, err := mount.ResolveStatCacheMaxSizeMB(
+		mountConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
+	mountConfig.StatCacheMaxSizeMB = int64(maxStatCacheSizeMb)
+	mountConfig.MetadataCacheConfig.TtlInSeconds = int64(mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, mountConfig.TtlInSeconds))
+
 	newConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(c, flags, mountConfig)
 	if err != nil {
 		return fmt.Errorf("error resolving flags and configs: %w", err)

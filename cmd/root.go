@@ -61,16 +61,19 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 		}
 
-		cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 			decoderConfig.TagName = "yaml"
 			// Reject the config file if any of the fields in the YAML don't map to the struct.
 			decoderConfig.ErrorUnused = true
 		},
-		)
-		if cfgErr == nil {
-			cfg.VetConfig(v, &configObj)
+		); cfgErr != nil {
+			return
 		}
+		if cfgErr = cfg.Validate(&configObj); cfgErr != nil {
+			return
+		}
+		cfg.VetConfig(v, &configObj)
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
