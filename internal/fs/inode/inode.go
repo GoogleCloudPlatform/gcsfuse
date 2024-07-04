@@ -73,6 +73,13 @@ type GenerationBackedInode interface {
 	SourceGeneration() Generation
 }
 
+type MetaGenerationFolderBackedInode interface {
+	Inode
+
+	// Requires the inode lock.
+	SourceMetaGenerationFolder() MetagenerationFolder
+}
+
 // A particular generation of a GCS object, consisting of both a GCS object
 // generation number and meta-generation number. Lexicographically ordered on
 // the two.
@@ -81,6 +88,11 @@ type GenerationBackedInode interface {
 type Generation struct {
 	Object   int64
 	Metadata int64
+}
+
+type MetagenerationFolder struct {
+	Object               int64
+	MetagenerationFolder int64
 }
 
 // Compare returns -1, 0, or 1 according to whether g is less than, equal to, or greater
@@ -101,6 +113,19 @@ func (g Generation) Compare(other Generation) int {
 		return -1
 
 	case g.Metadata > other.Metadata:
+		return 1
+	}
+
+	return 0
+}
+
+func (g MetagenerationFolder) Compare(other MetagenerationFolder) int {
+	// Break ties on meta-generation.
+	switch {
+	case g.MetagenerationFolder < other.MetagenerationFolder:
+		return -1
+
+	case g.MetagenerationFolder > other.MetagenerationFolder:
 		return 1
 	}
 

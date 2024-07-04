@@ -29,6 +29,7 @@ import (
 type ExplicitDirInode interface {
 	DirInode
 	SourceGeneration() Generation
+	SourceMetaGenerationFolder() MetagenerationFolder
 }
 
 // Create an explicit dir inode backed by the supplied object. See notes on
@@ -84,10 +85,16 @@ func NewExplicitDirInode(
 
 type explicitDirInode struct {
 	*dirInode
-	generation Generation
+	generation           Generation
+	metagenerationFolder MetagenerationFolder
 }
 
 func (d *explicitDirInode) SourceGeneration() (gen Generation) {
 	gen = d.generation
+	return
+}
+
+func (d *explicitDirInode) SourceMetaGenerationFolder() (gen MetagenerationFolder) {
+	gen = d.metagenerationFolder
 	return
 }
