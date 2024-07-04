@@ -226,6 +226,7 @@ func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder
 
 func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*control.RenameFolderOperation, error) {
 	mFolderName := b.wrappedName(folderName)
-	o, err := b.wrapped.RenameFolder(ctx, mFolderName, destinationFolderId)
+	mDestinationFolderId := b.wrappedName(destinationFolderId)
+	o, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)
 	return o, err
 }
