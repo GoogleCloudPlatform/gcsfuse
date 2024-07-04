@@ -46,7 +46,7 @@ type StatCache interface {
 	// Erase the entry for the given object name, if any.
 	Erase(name string)
 
-	// Return the current entry for the given name, or nil if there is a negative
+	// Return the current object entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
@@ -59,25 +59,30 @@ type StatCache interface {
 	//
 	// The entry will expire after the supplied time.
 	InsertFolder(f *controlpb.Folder, expiration time.Time)
+
+	// Return the current folder entry for the given name, or nil if there is a negative
+	// entry. Return hit == false when there is neither a positive nor a negative
+	// entry, or the entry has expired according to the supplied current time.
+	LookUpFolder(folderName string, now time.Time) (bool, *controlpb.Folder)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
-	return &StatCacheBucketView{
+	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
 	}
 }
 
-// StatCacheBucketView is a special type of StatCache which
+// statCacheBucketView is a special type of StatCache which
 // shares its underlying cache map object with other
-// StatCacheBucketView objects (for dynamically mounts) through
+// statCacheBucketView objects (for dynamically mounts) through
 // a specific bucket-name. It does so by prepending its
 // bucket-name to its entry keys to make them unique
 // to it.
-type StatCacheBucketView struct {
+type statCacheBucketView struct {
 	sharedCache *lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
@@ -139,7 +144,7 @@ func shouldReplace(m *gcs.MinObject, existing entry) bool {
 	return true
 }
 
-func (sc *StatCacheBucketView) key(objectName string) string {
+func (sc *statCacheBucketView) key(objectName string) string {
 	// path.Join(sc.bucketName, objectName) does not work
 	// because that normalizes the trailing "/"
 	// which breaks functionality by removing
@@ -150,7 +155,7 @@ func (sc *StatCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
-func (sc *StatCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	name := sc.key(m.Name)
 
 	// Is there already a better entry?
@@ -172,7 +177,7 @@ func (sc *StatCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	}
 }
 
-func (sc *StatCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
 	name := sc.key(objectName)
 
 	// Insert a negative entry.
@@ -187,12 +192,12 @@ func (sc *StatCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	}
 }
 
-func (sc *StatCacheBucketView) Erase(objectName string) {
+func (sc *statCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
 }
 
-func (sc *StatCacheBucketView) LookUp(
+func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (hit bool, m *gcs.MinObject) {
 	// Look up in the LRU cache.
@@ -215,7 +220,7 @@ func (sc *StatCacheBucketView) LookUp(
 	return
 }
 
-func (sc *StatCacheBucketView) LookUpFolder(
+func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *controlpb.Folder) {
 	// Look up in the LRU cache.
@@ -235,7 +240,7 @@ func (sc *StatCacheBucketView) LookUpFolder(
 	return true, e.f
 }
 
-func (sc *StatCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
+func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
 	// Return if there is already a better entry?

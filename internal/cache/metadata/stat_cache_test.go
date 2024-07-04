@@ -101,8 +101,8 @@ var expiration = someTime.Add(time.Second)
 
 type StatCacheTest struct {
 	suite.Suite
-	cache               testHelperCache
-	statCacheBucketView metadata.StatCacheBucketView
+	cache     testHelperCache
+	statCache metadata.StatCache
 }
 
 type MultiBucketStatCacheTest struct {
@@ -113,6 +113,7 @@ type MultiBucketStatCacheTest struct {
 func (t *StatCacheTest) SetupTest() {
 	cache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
+	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
 	// its prepending bucketName can be left empty("") without any problem.
 }
@@ -418,9 +419,64 @@ func (t *StatCacheTest) Test_Create_Entry_When_No_Entry_Is_Present() {
 		Metageneration: 1,
 	}
 
-	t.statCacheBucketView.InsertFolder(newEntry, expiration)
+	t.statCache.InsertFolder(newEntry, expiration)
 
-	hit, entry := t.statCacheBucketView.LookUpFolder(name, someTime)
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
 	assert.True(t.T(), hit)
-	assert.Equal(t.T(), "test", entry.Name)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(1), entry.Metageneration)
+}
+
+func (t *StatCacheTest) Test_Override_Entry_Old_Entry_Is_Already_Present() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+
+	t.statCache.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(2), entry.Metageneration)
+}
+
+func (t *StatCacheTest) Test_Lookup_Return_False_If_Expiration_Is_Passed() {
+	const name = "key1"
+	entry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+	t.statCache.InsertFolder(entry, expiration)
+
+	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), result)
+}
+
+func (t *StatCacheTest) Test_Should_Not_Override_Entry_If_Metageneration_Is_Old() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+
+	t.statCache.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(2), entry.Metageneration)
 }
