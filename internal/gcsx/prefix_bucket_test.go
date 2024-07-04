@@ -439,7 +439,6 @@ func TestDeleteFolder(t *testing.T) {
 		objectName)
 
 	if assert.Nil(t, err) {
-		// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
 		_, err = wrapped.GetFolder(
 			ctx,
 			name)
