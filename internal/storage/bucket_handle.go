@@ -478,8 +478,13 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 }
 
 func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (resp *control.RenameFolderOperation, err error) {
-	// TODO: Implement
-	return
+	req := &controlpb.RenameFolderRequest{
+		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		DestinationFolderId: destinationFolderId,
+	}
+	resp, err = b.controlClient.RenameFolder(ctx, req)
+
+	return resp, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

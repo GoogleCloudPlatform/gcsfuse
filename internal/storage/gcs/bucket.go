@@ -148,5 +148,5 @@ type Bucket interface {
 	GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error)
 
 	// Atomically rename folder for Hierarchical bucket.
-	RenameFolder(ctx context.Context, folderName string, pdestinationFolderId string) (*control.RenameFolderOperation, error)
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*control.RenameFolderOperation, error)
 }
