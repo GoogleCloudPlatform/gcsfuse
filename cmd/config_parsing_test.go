@@ -16,9 +16,11 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,6 +213,77 @@ func TestReadConfigFile_MetatadaCacheConfig_InvalidTTL(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestMetadataCacheTTLResolution(t *testing.T) {
+	testcases := []struct {
+		name            string
+		args            []string
+		expectedTTLSecs int64
+	}{
+		{
+			name:            "Most common scenario, when user doesn't set any of the TTL config parameters.",
+			args:            []string{},
+			expectedTTLSecs: 60,
+		},
+		{
+			name:            "user sets only metadata-cache:ttl-secs and sets it to -1",
+			args:            []string{"--metadata-cache-ttl=-1"},
+			expectedTTLSecs: math.MaxInt64,
+		},
+		{
+			name:            "user sets only metadata-cache:ttl-secs and sets it to 0.",
+			args:            []string{"--metadata-cache-ttl=0"},
+			expectedTTLSecs: 0,
+		},
+		{
+			name:            "user sets only metadata-cache:ttl-secs and sets it to a positive value.",
+			args:            []string{"--metadata-cache-ttl=30"},
+			expectedTTLSecs: 30,
+		},
+		{
+			name:            "user sets only metadata-cache:ttl-secs and sets it to its highest supported value.",
+			args:            []string{fmt.Sprintf("--metadata-cache-ttl=%d", config.MaxSupportedTtlInSeconds)},
+			expectedTTLSecs: config.MaxSupportedTtlInSeconds,
+		},
+		{
+			name:            "user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags.",
+			args:            []string{"--stat-cache-ttl=5m", "--type-cache-ttl=1h", "--metadata-cache-ttl=10800"},
+			expectedTTLSecs: 10800,
+		},
+		{
+			name:            "user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs.",
+			args:            []string{"--stat-cache-ttl=0s", "--type-cache-ttl=0s"},
+			expectedTTLSecs: 0,
+		},
+		{
+			name:            "stat-cache enabled, but not type-cache.",
+			args:            []string{"--stat-cache-ttl=1h", "--type-cache-ttl=0s"},
+			expectedTTLSecs: 0,
+		},
+		{
+			name:            "type-cache enabled, but not stat-cache.",
+			args:            []string{"--type-cache-ttl=1h", "--stat-cache-ttl=0s"},
+			expectedTTLSecs: 0,
+		},
+		{
+			name:            "both type-cache and stat-cache enabled.",
+			args:            []string{"--type-cache-ttl=1h", "--stat-cache-ttl=30s"},
+			expectedTTLSecs: 30,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := getConfigObject(t, tc.args)
+
+			if assert.Nil(t, err) {
+				config.MetadataCache.TtlSecs = tc.expectedTTLSecs
+			}
+		})
+	}
+}
+
+/*
+
 
 func TestReadConfigFile_MetatadaCacheConfig_TtlNotSet(t *testing.T) {
 	_, err := getConfigObjectWithConfigFile(t, "testdata/metadata_cache_config_ttl-unset.yaml")

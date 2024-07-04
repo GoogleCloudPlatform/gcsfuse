@@ -73,7 +73,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			cfgErr = cfg.IsValidConfig(&configObj)
 		}
 		if cfgErr == nil {
-			cfg.VetConfig(&configObj)
+			cfg.VetConfig(v, &configObj)
 		}
 	}
 	cobra.OnInitialize(initConfig)

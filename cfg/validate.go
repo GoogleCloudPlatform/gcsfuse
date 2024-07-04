@@ -16,9 +16,11 @@ package cfg
 
 import (
 	"fmt"
+	"math"
 
 	oldconfig "github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/spf13/viper"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -109,9 +111,26 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	return nil
 }
 
-func VetConfig(config *Config) {
+func VetConfig(v *viper.Viper, config *Config) {
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
 	if config.EnableHns {
 		config.List.EnableEmptyManagedFolders = true
 	}
+	// Handle metadatacache ttl
+	ResolveMetadataCacheTTL(v, config)
+}
+
+// ResolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func ResolveMetadataCacheTTL(v *viper.Viper, config *Config) {
+	// If metadata-cache:ttl-secs has been set in config-file, then
+	// it overrides both stat-cache-ttl and type-cache-tll.
+	if v.IsSet("metadata-cache.ttl-secs") {
+		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
+		if config.MetadataCache.TtlSecs == -1 {
+			config.MetadataCache.TtlSecs = math.MaxInt64
+		}
+		return
+	}
+	config.MetadataCache.TtlSecs = int64(math.Ceil(math.Min(config.MetadataCache.DeprecatedStatCacheTtl.Seconds(),
+		config.MetadataCache.DeprecatedTypeCacheTtl.Seconds())))
 }
