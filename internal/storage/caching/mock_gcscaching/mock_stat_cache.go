@@ -12,6 +12,7 @@ import (
 	time "time"
 	unsafe "unsafe"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
@@ -119,6 +120,52 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 	// o1 *gcs.MinObject
 	if retVals[1] != nil {
 		o1 = retVals[1].(*gcs.MinObject)
+	}
+
+	return
+}
+
+func (m *mockStatCache) InsertFolder(p0 *controlpb.Folder, p1 time.Time) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"InsertFolder",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.InsertFolder: invalid return values: %v", retVals))
+	}
+}
+
+func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *controlpb.Folder) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"LookUpFolder",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
+	}
+
+	// o0 bool
+	if retVals[0] != nil {
+		o0 = retVals[0].(bool)
+	}
+
+	// o1 *controlpb.Folder
+	if retVals[1] != nil {
+		o1 = retVals[1].(*controlpb.Folder)
 	}
 
 	return
