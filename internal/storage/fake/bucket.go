@@ -886,10 +886,19 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 }
 
 func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.Folder, error) {
-	folder := controlpb.Folder{
-		Name: "projects/_/buckets/" + b.Name() + "/folders/" + foldername,
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Does the object exist?
+	index := b.objects.find(foldername)
+	if index == len(b.objects) {
+		err := &gcs.NotFoundError{
+			Err: fmt.Errorf("Object %s not found", foldername),
+		}
+		return nil, err
 	}
-	return &folder, nil
+
+	return &controlpb.Folder{Name: foldername}, nil
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {

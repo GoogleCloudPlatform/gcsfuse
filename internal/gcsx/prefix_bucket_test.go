@@ -401,24 +401,24 @@ func (t *PrefixBucketTest) DeleteObject() {
 
 func (t *PrefixBucketTest) GetFolder_Prefix() {
 	var err error
+	suffix := "something"
+	object_name := t.prefix + suffix
 
 	// Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
 	err = storageutil.CreateObjects(
 		t.ctx,
 		t.wrapped,
 		map[string][]byte{
-			"something": []byte(""),
+			object_name: []byte(""),
 		})
-
 	AssertEq(nil, err)
 
 	result, err := t.bucket.GetFolder(
 		t.ctx,
-		"something")
+		suffix)
 
 	AssertEq(nil, err)
-	AssertEq("projects/_/buckets/some_bucket/folders/foo_something", result.GetName())
-
+	AssertEq(object_name, result.GetName())
 }
 
 func TestDeleteFolder(t *testing.T) {
@@ -440,11 +440,9 @@ func TestDeleteFolder(t *testing.T) {
 
 	if assert.Nil(t, err) {
 		// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-		_, _, err = wrapped.StatObject(
+		_, err = wrapped.GetFolder(
 			ctx,
-			&gcs.StatObjectRequest{
-				Name: name,
-			})
+			name)
 		var notFoundErr *gcs.NotFoundError
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
@@ -463,21 +461,11 @@ func (t *PrefixBucketTest) TestRenameFolder() {
 	_, err = t.bucket.RenameFolder(t.ctx, old_suffix, new_suffix)
 	AssertEq(nil, err)
 
-	// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-	// New Object should get created
-	_, _, err = t.wrapped.StatObject(
-		t.ctx,
-		&gcs.StatObjectRequest{
-			Name: new_suffix,
-		})
+	// New folder should get created
+	_, err = t.wrapped.GetFolder(t.ctx, new_suffix)
 	AssertEq(nil, err)
-	// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-	// Old object should be gone.
-	_, _, err = t.wrapped.StatObject(
-		t.ctx,
-		&gcs.StatObjectRequest{
-			Name: old_suffix,
-		})
+	// Old folder should be gone.
+	_, err = t.wrapped.GetFolder(t.ctx, old_suffix)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
