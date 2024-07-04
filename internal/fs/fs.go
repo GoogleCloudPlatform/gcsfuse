@@ -2154,14 +2154,14 @@ func (fs *fileSystem) OpenDir(
 
 	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
-		// Following lock ordering rules: first taking dirInode.lock() and then fs.lock().
+		// Following lock ordering rules: first taking dirInode.RLock() and then fs.lock().
 		fs.mu.Unlock()
 
 		// Taking RLock() since ShouldInvalidateKernelListCache only reads the DirInode
 		// properties, no modification.
 		in.RLock()
 
-		// Acquiring fs lock use common defer function.
+		// Acquiring fs lock to use common defer function.
 		fs.mu.Lock()
 
 		// Invalidates the kernel list-cache once the last cached response is out of
