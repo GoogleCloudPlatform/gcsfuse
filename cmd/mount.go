@@ -153,7 +153,8 @@ be interacting with the file system.`)
 		// users experience the performance gains. E.g. if a user workload tries to
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
-		EnableParallelDirOps: !(mountConfig.FileSystemConfig.DisableParallelDirops),
+		EnableParallelDirOps:    !(mountConfig.FileSystemConfig.DisableParallelDirops),
+		DisableWritebackCaching: true,
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
