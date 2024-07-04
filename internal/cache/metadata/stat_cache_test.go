@@ -461,6 +461,15 @@ func (t *StatCacheTest) Test_Lookup_Return_False_If_Expiration_Is_Passed() {
 	assert.Nil(t.T(), result)
 }
 
+func (t *StatCacheTest) Test_Lookup_Return_False_When_Is_Not_Present() {
+	const name = "key1"
+
+	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), result)
+}
+
 func (t *StatCacheTest) Test_Should_Not_Override_Entry_If_Metageneration_Is_Old() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
