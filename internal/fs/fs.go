@@ -795,6 +795,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	if ic.Folders != nil {
+		fmt.Println("Came in folder generation...")
 		folderMetaGeneration := inode.MetagenerationFolder{
 			MetagenerationFolder: ic.Folders.Metageneration,
 		}
