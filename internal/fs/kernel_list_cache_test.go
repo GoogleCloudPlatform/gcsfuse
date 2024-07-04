@@ -53,8 +53,8 @@ func (t *KernelListCacheTestCommon) SetupTest() {
 
 func (t *KernelListCacheTestCommon) TearDownTest() {
 	cacheClock.AdvanceTime(util.MaxTimeDuration)
-	//t.deleteFilesAndDirStructureInBucket()
-	//t.fsTest.TearDown()
+	t.deleteFilesAndDirStructureInBucket()
+	t.fsTest.TearDown()
 }
 
 func (t *KernelListCacheTestCommon) TearDownSuite() {
@@ -121,8 +121,8 @@ func TestKernelListCacheTestWithPositiveTtlSuite(t *testing.T) {
 	suite.Run(t, new(KernelListCacheTestWithPositiveTtl))
 }
 
-// Test_Parallel_OpenDirAndLookUpInode detects deadlock if openDir and LookUpInode
-// is happening concurrently.
+// Test_Parallel_OpenDirAndLookUpInode helps in detecting the deadlock when
+// OpenDir() and LookUpInode() request for same directory comes in parallel.
 func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode() {
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -132,14 +132,18 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 100; i++ {
-			f, _ := os.Open(path.Join(mntDir, "explicitDir"))
-			f.Close()
+			f, err := os.Open(path.Join(mntDir, "explicitDir"))
+			assert.Nil(t.T(), err)
+
+			err = f.Close()
+			assert.Nil(t.T(), err)
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 100; i++ {
-			os.Stat(path.Join(mntDir, "explicitDir"))
+			_, err := os.Stat(path.Join(mntDir, "explicitDir"))
+			assert.Nil(t.T(), err)
 		}
 	}()
 
