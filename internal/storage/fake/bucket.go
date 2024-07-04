@@ -893,47 +893,6 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.F
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
-	// Check that the destination name is legal.
-	err = checkName(destinationFolderId)
-	if err != nil {
-		return
-	}
-
-	// Does the folder exist?
-	srcIndex := b.objects.find(folderName)
-	if srcIndex == len(b.objects) {
-		err = &gcs.NotFoundError{
-			Err: fmt.Errorf("Object %q not found", folderName),
-		}
-		return
-	}
-
-	// Copy it and assign a new generation number, to ensure that the generation
-	// number for the destination name is strictly increasing.
-	dst := b.objects[srcIndex]
-	dst.metadata.Name = destinationFolderId
-	dst.metadata.MediaLink = "http://localhost/download/storage/fake/" + destinationFolderId
-
-	b.prevGeneration++
-	dst.metadata.Generation = b.prevGeneration
-
-	// Insert into our array.
-	existingIndex := b.objects.find(folderName)
-	if existingIndex < len(b.objects) {
-		b.objects[existingIndex] = dst
-	} else {
-		b.objects = append(b.objects, dst)
-		sort.Sort(b.objects)
-	}
-
-	// Delete the src folder?
-	index := b.objects.find(folderName)
-	if index == len(b.objects) {
-		return
-	}
-
-	// Remove the folder.
-	b.objects = append(b.objects[:index], b.objects[index+1:]...)
-
+	// TODO: Implement.
 	return
 }

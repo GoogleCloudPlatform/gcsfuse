@@ -449,35 +449,3 @@ func TestDeleteFolder(t *testing.T) {
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
 }
-
-func (t *PrefixBucketTest) TestRenameFolder() {
-	var err error
-	old_suffix := "test"
-	name := t.prefix + old_suffix
-	new_suffix := "new_test"
-	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	// Create an object through the back door.
-	_, err = storageutil.CreateObject(t.ctx, t.wrapped, name, []byte(""))
-	AssertEq(nil, err)
-
-	_, err = t.bucket.RenameFolder(t.ctx, old_suffix, new_suffix)
-	AssertEq(nil, err)
-
-	// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-	// New Object should get created
-	_, _, err = t.wrapped.StatObject(
-		t.ctx,
-		&gcs.StatObjectRequest{
-			Name: new_suffix,
-		})
-	AssertEq(nil, err)
-	// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-	// Old object should be gone.
-	_, _, err = t.wrapped.StatObject(
-		t.ctx,
-		&gcs.StatObjectRequest{
-			Name: old_suffix,
-		})
-	var notFoundErr *gcs.NotFoundError
-	ExpectTrue(errors.As(err, &notFoundErr))
-}
