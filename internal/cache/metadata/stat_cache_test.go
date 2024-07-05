@@ -419,7 +419,7 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	assert.Equal(t.T(), saffron, spices.LookUpOrNil("saffron", someTime))
 }
 
-func (t *StatCacheTest) Test_Create_Entry_When_No_Entry_Is_Present() {
+func (t *StatCacheTest) Test_InsertFolder_Create_Entry_When_No_Entry_Is_Present() {
 	const name = "key1"
 	newEntry := &controlpb.Folder{
 		Name:           name,
@@ -434,7 +434,7 @@ func (t *StatCacheTest) Test_Create_Entry_When_No_Entry_Is_Present() {
 	assert.Equal(t.T(), int64(1), entry.Metageneration)
 }
 
-func (t *StatCacheTest) Test_Override_Entry_Old_Entry_Is_Already_Present() {
+func (t *StatCacheTest) Test_InsertFolder_Override_Entry_Old_Entry_Is_Already_Present() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -477,7 +477,7 @@ func (t *StatCacheTest) Test_Lookup_Return_False_When_Is_Not_Present() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *StatCacheTest) Test_Should_Not_Override_Entry_If_Metageneration_Is_Old() {
+func (t *StatCacheTest) Test_InsertFolder_Should_Not_Override_Entry_If_Metageneration_Is_Old() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -497,7 +497,7 @@ func (t *StatCacheTest) Test_Should_Not_Override_Entry_If_Metageneration_Is_Old(
 	assert.Equal(t.T(), int64(2), entry.Metageneration)
 }
 
-func (t *StatCacheTest) Test_Should_Add_Negative_Entry_For_Folder() {
+func (t *StatCacheTest) Test_AddNegativeEntryForFolder_Should_Add_Negative_Entry_For_Folder() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -535,10 +535,13 @@ func (t *StatCacheTest) Test_Should_Evict_Entry_On_Full_Capacity_Including_Folde
 	t.statCache.InsertFolder(folderEntry, expiration) //adds size of 220 and exceeds capacity
 
 	hit1, entry1 = t.statCache.LookUp("1", someTime)
+	hit2, entry2 = t.statCache.LookUp("2", someTime)
 	hit3, entry3 := t.statCache.LookUpFolder("3", someTime)
 
 	assert.False(t.T(), hit1)
 	assert.Nil(t.T(), entry1)
+	assert.True(t.T(), hit2)
+	assert.Equal(t.T(), "2", entry2.Name)
 	assert.True(t.T(), hit3)
 	assert.Equal(t.T(), "3", entry3.Name)
 

@@ -122,7 +122,7 @@ func (e entry) Size() (size uint64) {
 	}
 
 	if e.f != nil {
-		size = size + uint64(util.UnsafeSizeOf(&e.f))
+		size += uint64(util.UnsafeSizeOf(&e.f))
 	}
 
 	// Convert heap-size to RSS (resident set size).
@@ -225,7 +225,7 @@ func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
-	entry := sc.lruCacheLookup(objectName, now)
+	entry := sc.sharedcachelookup(objectName, now)
 	if entry == nil {
 		return false, nil
 	}
@@ -237,7 +237,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *controlpb.Folder) {
 	// Look up in the LRU cache.
-	entry := sc.lruCacheLookup(folderName, now)
+	entry := sc.sharedcachelookup(folderName, now)
 	if entry == nil {
 		return false, nil
 	}
@@ -245,7 +245,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	return true, entry.f
 }
 
-func (sc *statCacheBucketView) lruCacheLookup(key string, now time.Time) *entry {
+func (sc *statCacheBucketView) sharedcachelookup(key string, now time.Time) *entry {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
 		return nil
