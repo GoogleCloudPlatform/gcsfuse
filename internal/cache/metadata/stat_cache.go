@@ -225,30 +225,30 @@ func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
-	entry := sc.sharedcachelookup(objectName, now)
-	if entry == nil {
-		return false, nil
+	hit, entry := sc.sharedcachelookup(objectName, now)
+	if hit {
+		return hit, entry.m
 	}
 
-	return true, entry.m
+	return false, nil
 }
 
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *controlpb.Folder) {
 	// Look up in the LRU cache.
-	entry := sc.sharedcachelookup(folderName, now)
-	if entry == nil {
-		return false, nil
+	hit, entry := sc.sharedcachelookup(folderName, now)
+	if hit {
+		return hit, entry.f
 	}
 
-	return true, entry.f
+	return false, nil
 }
 
-func (sc *statCacheBucketView) sharedcachelookup(key string, now time.Time) *entry {
+func (sc *statCacheBucketView) sharedcachelookup(key string, now time.Time) (bool, *entry) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
-		return nil
+		return false, nil
 	}
 
 	e := value.(entry)
@@ -256,10 +256,10 @@ func (sc *statCacheBucketView) sharedcachelookup(key string, now time.Time) *ent
 	// Has this entry expired?
 	if e.expiration.Before(now) {
 		sc.Erase(key)
-		return nil
+		return false, nil
 	}
 
-	return &e
+	return true, &e
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
