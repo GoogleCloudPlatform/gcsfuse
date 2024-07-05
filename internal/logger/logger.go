@@ -52,7 +52,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfig) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -68,9 +68,9 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 		}
 		fileWriter = &lumberjack.Logger{
 			Filename:   f.Name(),
-			MaxSize:    legacyLogConfig.LogRotateConfig.MaxFileSizeMB,
-			MaxBackups: legacyLogConfig.LogRotateConfig.BackupFileCount,
-			Compress:   legacyLogConfig.LogRotateConfig.Compress,
+			MaxSize:    int(newLogConfig.LogRotate.MaxFileSizeMb),
+			MaxBackups: int(newLogConfig.LogRotate.BackupFileCount),
+			Compress:   newLogConfig.LogRotate.Compress,
 		}
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
@@ -93,7 +93,7 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 		fileWriter:      fileWriter,
 		format:          newLogConfig.Format,
 		level:           string(newLogConfig.Severity),
-		logRotateConfig: legacyLogConfig.LogRotateConfig,
+		logRotateConfig: newLogConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -103,10 +103,14 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 // init initializes the logger factory to use stdout and stderr.
 func init() {
 	defaultLoggerFactory = &loggerFactory{
-		file:            nil,
-		format:          defaultFormat,
-		level:           config.INFO, // setting log level to INFO by default
-		logRotateConfig: config.DefaultLogRotateConfig(),
+		file:   nil,
+		format: "json",
+		level:  "INFO", // setting log level to INFO by default
+		logRotateConfig: cfg.LogRotateLoggingConfig{
+			BackupFileCount: 10,
+			Compress:        true,
+			MaxFileSizeMb:   512,
+		},
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }
@@ -171,7 +175,7 @@ type loggerFactory struct {
 	sysWriter       *syslog.Writer
 	format          string
 	level           string
-	logRotateConfig config.LogRotateConfig
+	logRotateConfig cfg.LogRotateLoggingConfig
 	fileWriter      *lumberjack.Logger
 }
 
