@@ -178,6 +178,8 @@ type tempFile struct {
 	//
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	mtime *time.Time
+
+	size int
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -259,13 +261,13 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 	sr.DirtyThreshold = tf.dirtyThreshold
 	sr.Mtime = tf.mtime
 
-	// Get the size from the file.
-	fileInfo, err := tf.f.Stat()
-	if err != nil {
-		err = fmt.Errorf("Seek: %w", err)
-		return
-	}
-	sr.Size = fileInfo.Size()
+	/*	// Get the size from the file.
+		fileInfo, err := tf.f.Stat()
+		if err != nil {
+			err = fmt.Errorf("Seek: %w", err)
+			return
+		}*/
+	sr.Size = int64(tf.size)
 
 	return
 }
@@ -285,7 +287,9 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 	tf.mtime = &newMtime
 
 	// Call through.
-	return tf.f.WriteAt(p, offset)
+	n, err := tf.f.WriteAt(p, offset)
+	tf.size += n
+	return n, err
 }
 
 func (tf *tempFile) Truncate(n int64) error {
