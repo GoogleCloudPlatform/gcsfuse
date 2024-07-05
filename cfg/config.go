@@ -577,7 +577,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-retry-attempts", "", 6, "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops.")
+	flagSet.IntP("max-retry-attempts", "", 6, "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.")
 
 	err = v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts"))
 	if err != nil {

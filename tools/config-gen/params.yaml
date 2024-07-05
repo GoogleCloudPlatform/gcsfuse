@@ -159,7 +159,7 @@
 - flag-name: "max-retry-attempts"
   config-path: "gcs-retries.max-retry-attempts"
   type: "int"
-  usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops."
+  usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6."
   default: "6"
 
 - flag-name: "stat-cache-max-size-mb"
