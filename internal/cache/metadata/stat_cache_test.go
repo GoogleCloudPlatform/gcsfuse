@@ -489,3 +489,18 @@ func (t *StatCacheTest) Test_Should_Not_Override_Entry_If_Metageneration_Is_Old(
 	assert.Equal(t.T(), "key1", entry.Name)
 	assert.Equal(t.T(), int64(2), entry.Metageneration)
 }
+
+func (t *StatCacheTest) Test_Should_Add_Negative_Entry_For_Folder() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+
+	t.statCache.AddNegativeEntryForFolder(name, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), entry)
+}

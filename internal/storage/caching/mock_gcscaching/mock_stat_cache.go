@@ -28,6 +28,23 @@ type mockStatCache struct {
 	description string
 }
 
+func (m *mockStatCache) AddNegativeEntryForFolder(p0 string, p1 time.Time) {
+	// Get a folder name and line number for the caller.
+	_, name, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"AddNegativeEntryForFolder",
+		name,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.AddNegativeEntryforFolder: invalid return values: %v", retVals))
+	}
+}
+
 func NewMockStatCache(
 	c oglemock.Controller,
 	desc string) MockStatCache {

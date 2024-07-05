@@ -64,6 +64,11 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUpFolder(folderName string, now time.Time) (bool, *controlpb.Folder)
+
+	// Set up a negative entry for the given folder name, indicating that the name
+	// doesn't exist. Overwrite any existing entry for the name, positive or
+	// negative.
+	AddNegativeEntryForFolder(folderName string, expiration time.Time)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -108,10 +113,10 @@ type entry struct {
 // benchmark runs) to heap-size per positive stat-cache entry
 // to calculate a size closer to the actual memory utilization.
 func (e entry) Size() (size uint64) {
-	// First, calculate size on heap.
+	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m) + util.UnsafeSizeOf(&e.f))
 	if e.m != nil {
 		size += 515
 	}
@@ -183,6 +188,21 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	// Insert a negative entry.
 	e := entry{
 		m:          nil,
+		expiration: expiration,
+		key:        name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
+}
+
+func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
+	name := sc.key(folderName)
+
+	// Insert a negative entry.
+	e := entry{
+		f:          nil,
 		expiration: expiration,
 		key:        name,
 	}
