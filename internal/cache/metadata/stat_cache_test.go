@@ -504,3 +504,35 @@ func (t *StatCacheTest) Test_Should_Add_Negative_Entry_For_Folder() {
 	assert.True(t.T(), hit)
 	assert.Nil(t.T(), entry)
 }
+
+func (t *StatCacheTest) Test_Should_Evict_Entry_On_Full_Capacity_Including_Folder_Size() {
+	localCache := lru.NewCache(uint64(3000))
+	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
+	objectEntry1 := &gcs.MinObject{Name: "1"}
+	objectEntry2 := &gcs.MinObject{Name: "2"}
+	folderEntry := &controlpb.Folder{
+		Name:           "3",
+		Metageneration: 1,
+	}
+	t.statCache.Insert(objectEntry1, expiration) // adds size of 1428
+	t.statCache.Insert(objectEntry2, expiration) // adds size of 1428
+
+	hit1, entry1 := t.statCache.LookUp("1", someTime)
+	hit2, entry2 := t.statCache.LookUp("2", someTime)
+
+	assert.True(t.T(), hit1)
+	assert.Equal(t.T(), "1", entry1.Name)
+	assert.True(t.T(), hit2)
+	assert.Equal(t.T(), "2", entry2.Name)
+
+	t.statCache.InsertFolder(folderEntry, expiration) //adds size of 220 and exceeds capacity
+
+	hit1, entry1 = t.statCache.LookUp("1", someTime)
+	hit3, entry3 := t.statCache.LookUpFolder("3", someTime)
+
+	assert.False(t.T(), hit1)
+	assert.Nil(t.T(), entry1)
+	assert.True(t.T(), hit3)
+	assert.Equal(t.T(), "3", entry3.Name)
+
+}
