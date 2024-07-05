@@ -142,11 +142,18 @@ be interacting with the file system.`)
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
+
+	// Handle the repeated "-o" flag.
+	parsedOptions := make(map[string]string)
+	for _, o := range newConfig.FileSystem.FuseOptions {
+		mount.ParseOptions(parsedOptions, o)
+	}
+
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
 		Subtype:    "gcsfuse",
 		VolumeName: "gcsfuse",
-		Options:    flags.MountOptions,
+		Options:    parsedOptions,
 		// Allows parallel LookUpInode & ReadDir calls from Kernel's FUSE driver.
 		// GCSFuse takes exclusive lock on directory inodes during ReadDir call,
 		// hence there is no effect of parallelization of incoming ReadDir calls
