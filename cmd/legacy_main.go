@@ -101,7 +101,7 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
-func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -112,12 +112,12 @@ func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig,
 		UserAgent:                  userAgent,
 		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
-		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
+		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
 		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
 		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
 		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
-		GrpcConnPoolSize:           mountConfig.GCSConnection.GRPCConnPoolSize,
-		EnableHNS:                  mountConfig.EnableHNS,
+		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
+		EnableHNS:                  newConfig.EnableHns,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -151,7 +151,7 @@ func mountWithArgs(
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, mountConfig, userAgent)
+		storageHandle, err = createStorageHandle(newConfig, userAgent)
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return

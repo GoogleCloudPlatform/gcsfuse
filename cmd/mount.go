@@ -41,8 +41,6 @@ func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
-	flags *flagStorage,
-	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -119,7 +117,7 @@ be interacting with the file system.`)
 		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),
 		DirPerms:                   os.FileMode(newConfig.FileSystem.DirMode),
 		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
-		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
+		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		NewConfig:                  newConfig,
 	}
