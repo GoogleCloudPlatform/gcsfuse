@@ -116,9 +116,13 @@ func (e entry) Size() (size uint64) {
 	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
-	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m) + util.UnsafeSizeOf(&e.f))
+	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
+	}
+
+	if e.f != nil {
+		size = size + uint64(util.UnsafeSizeOf(&e.f))
 	}
 
 	// Convert heap-size to RSS (resident set size).
