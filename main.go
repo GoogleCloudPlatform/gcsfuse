@@ -65,7 +65,9 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		// TODO: implement the mount logic instead of simply returning nil.
-		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config) error { return nil })
+		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config, bucketName, mountPoint string) error {
+			return cmd.ExecutePipeline(&config, bucketName, mountPoint)
+		})
 		if err != nil {
 			log.Fatalf("Error occurred while creating the root command: %v", err)
 		}

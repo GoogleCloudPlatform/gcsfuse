@@ -28,7 +28,7 @@ import (
 func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 	t.Helper()
 	var c cfg.Config
-	cmd, err := NewRootCmd(func(config cfg.Config) error {
+	cmd, err := NewRootCmd(func(config cfg.Config, _, _ string) error {
 		c = config
 		return nil
 	})
@@ -102,10 +102,10 @@ func TestMetadataCacheTTLResolution(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := getConfigObject(t, tc.args)
+			c, err := getConfigObject(t, tc.args)
 
 			if assert.Nil(t, err) {
-				config.MetadataCache.TtlSecs = tc.expectedTTLSecs
+				c.MetadataCache.TtlSecs = tc.expectedTTLSecs
 			}
 		})
 	}
@@ -140,10 +140,10 @@ func TestEnableEmptyManagedFoldersResolution(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := getConfigObject(t, tc.args)
+			c, err := getConfigObject(t, tc.args)
 
 			if assert.Nil(t, err) {
-				config.List.EnableEmptyManagedFolders = tc.expected
+				c.List.EnableEmptyManagedFolders = tc.expected
 			}
 		})
 	}
@@ -213,9 +213,9 @@ func TestStatCacheCapacityResolution(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			config, err := getConfigObject(t, tc.args)
+			c, err := getConfigObject(t, tc.args)
 			if assert.Nil(t, err) {
-				assert.Equal(t, tc.expected, config.MetadataCache.StatCacheMaxSizeMb)
+				assert.Equal(t, tc.expected, c.MetadataCache.StatCacheMaxSizeMb)
 			}
 		})
 	}
