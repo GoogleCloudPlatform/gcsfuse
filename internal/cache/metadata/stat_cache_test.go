@@ -101,7 +101,14 @@ var expiration = someTime.Add(time.Second)
 
 type StatCacheTest struct {
 	suite.Suite
-	cache     testHelperCache
+	cache testHelperCache
+	//t.cache is the wrapper class on top of metadata.StatCache.
+	//This approach tests wrapper methods instead of directly testing actual functionality, compromising the safety net.
+	//For instance: If the helper class changes internally and stops calling stat cache methods, tests won't fail,
+	//hence tests are not being safety net capturing behaviour change of actual functionality.
+	//added stat cache to test metadata.StatCache directly, removing unnecessary wrappers for accurate unit testing.
+	//Changing every test will increase the scope and actual hns work will be affected, so taking cautious call to just add new test in refactored way in first go,
+	//we can update rest of tests slowly later.
 	statCache metadata.StatCache
 }
 
