@@ -399,26 +399,25 @@ func (t *PrefixBucketTest) DeleteObject() {
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
 
-func (t *PrefixBucketTest) GetFolder_Prefix() {
-	var err error
+func TestGetFolder_Prefix(t *testing.T) {
+	prefix := "foo_"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.Nil(t, err)
+	objectName := "taco"
+	name := "foo_" + objectName
+	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
+	// Create an object through the back door.
+	ctx := context.Background()
+	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	require.Nil(t, err)
 
-	// Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	err = storageutil.CreateObjects(
-		t.ctx,
-		t.wrapped,
-		map[string][]byte{
-			"something": []byte(""),
-		})
+	result, err := bucket.GetFolder(
+		ctx,
+		objectName)
 
-	AssertEq(nil, err)
-
-	result, err := t.bucket.GetFolder(
-		t.ctx,
-		"something")
-
-	AssertEq(nil, err)
-	AssertEq("projects/_/buckets/some_bucket/folders/foo_something", result.GetName())
-
+	assert.Nil(nil, err)
+	assert.Equal(t, name, result.GetName())
 }
 
 func TestDeleteFolder(t *testing.T) {
@@ -439,13 +438,35 @@ func TestDeleteFolder(t *testing.T) {
 		objectName)
 
 	if assert.Nil(t, err) {
-		// TODO: Replace the use of StatObject with GetFolder once the GetFolder API has been successfully implemented.
-		_, _, err = wrapped.StatObject(
+		_, err = wrapped.GetFolder(
 			ctx,
-			&gcs.StatObjectRequest{
-				Name: name,
-			})
+			objectName)
 		var notFoundErr *gcs.NotFoundError
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
+}
+
+func TestRenameFolder(t *testing.T) {
+	prefix := "foo_"
+	var err error
+	old_suffix := "test"
+	name := prefix + old_suffix
+	new_suffix := "new_test"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.Nil(t, err)
+	ctx := context.Background()
+	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	assert.Nil(t, err)
+
+	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)
+	assert.Nil(t, err)
+
+	// New folder should get created
+	_, err = bucket.GetFolder(ctx, new_suffix)
+	assert.Nil(t, err)
+	// Old folder should be gone.
+	_, err = bucket.GetFolder(ctx, old_suffix)
+	var notFoundErr *gcs.NotFoundError
+	assert.True(t, errors.As(err, &notFoundErr))
 }
