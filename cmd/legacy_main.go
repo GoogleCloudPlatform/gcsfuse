@@ -130,11 +130,11 @@ func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig,
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
-	bucketName string,
-	mountPoint string,
-	flags *flagStorage,
-	mountConfig *config.MountConfig,
-	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
+		bucketName string,
+		mountPoint string,
+		flags *flagStorage,
+		mountConfig *config.MountConfig,
+		newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -178,9 +178,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-	bucketName string,
-	mountPoint string,
-	err error) {
+		bucketName string,
+		mountPoint string,
+		err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:
@@ -315,16 +315,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		} else {
 			logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
 		}
-	}
-
-	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
-	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
-		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
-	}
-
-	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
-	if newConfig.MetadataCache.DeprecatedStatCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL {
-		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
