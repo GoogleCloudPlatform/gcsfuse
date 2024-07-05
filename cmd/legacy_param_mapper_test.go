@@ -16,10 +16,12 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -472,4 +474,99 @@ func TestInvalidClientProtocol(t *testing.T) {
 	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, &config.MountConfig{})
 
 	assert.NotNil(t, err)
+}
+
+func TestMetadataStatCacheResolution(t *testing.T) {
+	testcases := []struct {
+		flagValue     int
+		configValue   int64
+		expectedValue int64
+	}{
+		{
+			flagValue:     10000,
+			configValue:   100,
+			expectedValue: 100,
+		},
+		{
+			flagValue:     10000,
+			configValue:   100,
+			expectedValue: 100,
+		},
+		{
+			flagValue:     20460,
+			configValue:   math.MinInt64,
+			expectedValue: 32,
+		},
+	}
+	for idx, tt := range testcases {
+		t.Run(fmt.Sprintf("metadata-stat-cache-size-mb resolution: %d", idx), func(t *testing.T) {
+			newCfg, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{},
+				&flagStorage{
+					StatCacheCapacity: tt.flagValue,
+					ClientProtocol:    "http1",
+				},
+				&config.MountConfig{
+					MetadataCacheConfig: config.MetadataCacheConfig{
+						StatCacheMaxSizeMB: tt.configValue,
+					},
+					LogConfig: config.LogConfig{Severity: "INFO"},
+				})
+			require.Nil(t, err)
+
+			assert.Equal(t, tt.expectedValue, newCfg.MetadataCache.StatCacheMaxSizeMb)
+		})
+	}
+}
+
+func TestMetadataCacheTtlResolution(t *testing.T) {
+	testcases := []struct {
+		statCacheTTL  time.Duration
+		typeCacheTTL  time.Duration
+		configTTLSecs int64
+		expectedValue int64
+	}{
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  60 * time.Second,
+			configTTLSecs: config.TtlInSecsUnsetSentinel,
+			expectedValue: 60,
+		},
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  50 * time.Second,
+			configTTLSecs: config.TtlInSecsUnsetSentinel,
+			expectedValue: 50,
+		},
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  60 * time.Second,
+			configTTLSecs: -1,
+			expectedValue: int64(time.Duration(math.MaxInt64).Seconds()),
+		},
+		{
+			statCacheTTL:  5 * time.Minute,
+			typeCacheTTL:  time.Hour,
+			configTTLSecs: 10800,
+			expectedValue: 10800,
+		},
+	}
+	for idx, tt := range testcases {
+		t.Run(fmt.Sprintf("metadata-stat-cache-ttl resolution: %d", idx), func(t *testing.T) {
+			newCfg, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{},
+				&flagStorage{
+					StatCacheTTL:   tt.statCacheTTL,
+					TypeCacheTTL:   tt.typeCacheTTL,
+					ClientProtocol: "http1",
+				},
+				&config.MountConfig{
+					MetadataCacheConfig: config.MetadataCacheConfig{
+						TtlInSeconds: tt.configTTLSecs,
+					},
+					LogConfig: config.LogConfig{Severity: "INFO"},
+				})
+			require.Nil(t, err)
+
+			assert.Equal(t, tt.expectedValue, newCfg.MetadataCache.TtlSecs)
+		})
+	}
 }

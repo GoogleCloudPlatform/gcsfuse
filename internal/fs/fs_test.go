@@ -29,7 +29,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	c "github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -139,7 +139,30 @@ func (t *fsTest) SetUpTestSuite() {
 	t.serverCfg.RenameDirLimit = RenameDirLimit
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 	if t.serverCfg.NewConfig == nil {
-		t.serverCfg.NewConfig = &cfg.Config{}
+		t.serverCfg.NewConfig = &c.Config{
+			Logging: c.LoggingConfig{
+				Severity: "INFO",
+				LogRotate: c.LogRotateLoggingConfig{
+					BackupFileCount: 10,
+					Compress:        true,
+					MaxFileSizeMb:   512,
+				},
+			},
+			FileCache: c.FileCacheConfig{
+				MaxSizeMb: -1,
+			},
+			MetadataCache: c.MetadataCacheConfig{
+				TtlSecs:            60,
+				TypeCacheMaxSizeMb: 4,
+				StatCacheMaxSizeMb: 32,
+			},
+			GcsConnection: c.GcsConnectionConfig{
+				GrpcConnPoolSize: 1,
+			},
+			FileSystem: c.FileSystemConfig{
+				IgnoreInterrupts: true,
+			},
+		}
 	}
 
 	// Set up ownership.
