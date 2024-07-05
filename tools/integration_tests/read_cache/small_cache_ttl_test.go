@@ -128,7 +128,7 @@ func TestSmallCacheTTLTest(t *testing.T) {
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec))
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
 	flagsSet = append(flagsSet, []string{fmt.Sprintf("--stat-cache-ttl=%ds", metadataCacheTTlInSec), "--config-file=" + createConfigFile(cacheCapacityInMB,
-		false, configFileName+"3", true)})
+		false, configFileName+"ForReadCacheWithParallelDownload", true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {

@@ -27,7 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
-	"github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,11 +107,11 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
 	// Validate last chunk was considered non-sequential and cache hit false for first read.
-	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
-	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
 	// Validate last chunk was considered sequential and cache hit true for second read.
-	ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
-	ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
 
 	validateFileIsNotCached(testFileNames[0], t)
 	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, t)
@@ -143,9 +143,9 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 		{"--implicit-dirs=true"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false))
+		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName+"ForReadCache", false))
 	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB,
-		false, configFileName, true)})
+		false, configFileName+"ForReadCacheWithParallelDownload", true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {

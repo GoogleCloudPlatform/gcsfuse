@@ -29,6 +29,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
@@ -110,13 +112,10 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 	// Validate that the file is present in cache location.
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
 	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
-	if err != nil {
-		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
-	}
+	require.Nil(t, err, "Failed to find cached file %s", expectedPathOfCachedFile)
+	require.NotNil(t, fileInfo, "Received nil FileInfo %s", expectedPathOfCachedFile)
 	// Validate file size in cache directory matches actual file size.
-	if (*fileInfo).Size() != filesize {
-		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", filesize, (*fileInfo).Size())
-	}
+	assert.Equal(t, filesize, (*fileInfo).Size(), "Incorrect cached file size")
 }
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {

@@ -172,7 +172,7 @@ func TestReadOnlyTest(t *testing.T) {
 		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false))
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
 	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--o=ro", "--config-file=" + createConfigFile(cacheCapacityInMB,
-		false, configFileName+"3", true)})
+		false, configFileName+"ForReadCacheWithParallelDownload", true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {

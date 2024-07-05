@@ -108,7 +108,7 @@ func TestRangeReadTest(t *testing.T) {
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, false, configFileName+"1", false),
 		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, true, configFileName+"2", false))
 	flagSet = append(flagSet, []string{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForVeryLargeFileInMiB,
-		false, configFileName+"3", true)})
+		false, configFileName+"ForReadCacheWithParallelDownload", true)})
 
 	// Run tests.
 	for _, flags := range flagSet {
