@@ -245,11 +245,7 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 }
 
 func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshalledString() {
-	mountOptions := map[string]string{
-		"1": "one",
-		"2": "two",
-		"3": "three",
-	}
+	mountOptions := []string{"1=one", "2=two", "3=three"}
 	flags := &flagStorage{
 		SequentialReadSizeMb:      10,
 		ClientProtocol:            mountpkg.ClientProtocol("http4"),
@@ -264,9 +260,9 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		`{"AppName":""`,
 		`"Foreground":false`,
 		`"ConfigFile":""`,
-		`"MountOptions":{"1":"one"`,
-		`"2":"two"`,
-		`"3":"three"}`,
+		`"MountOptions":["1=one"`,
+		`"2=two"`,
+		`"3=three"]`,
 		`"DirMode":0`,
 		`"FileMode":0`,
 		`"Uid":0`,
