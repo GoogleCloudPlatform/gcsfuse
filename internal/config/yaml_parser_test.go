@@ -145,7 +145,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
 
 	// gcs-retries
-	assert.Equal(t.T(), int64(5), mountConfig.GCSRetries.MaxRetryAttempts)
+	assert.Equal(t.T(), 6, mountConfig.GCSRetries.MaxRetryAttempts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
