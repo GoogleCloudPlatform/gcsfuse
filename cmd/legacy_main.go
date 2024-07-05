@@ -265,7 +265,6 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	cfg.OverrideWithLoggingFlags(newConfig, newConfig.Debug.Fuse, newConfig.Debug.Gcs, newConfig.Debug.LogMutex)
-	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
 

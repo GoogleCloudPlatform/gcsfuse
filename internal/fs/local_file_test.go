@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -60,8 +60,8 @@ func init() {
 
 func (t *LocalFileTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		WriteConfig: config.WriteConfig{
+	t.serverCfg.NewConfig = &cfg.Config{
+		Write: cfg.WriteConfig{
 			CreateEmptyFile: false,
 		}}
 	t.fsTest.SetUpTestSuite()

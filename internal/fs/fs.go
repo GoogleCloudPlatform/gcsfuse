@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	c "github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -122,8 +123,8 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
-	// MountConfig has all the config specified by the user using configFile flag.
-	MountConfig *config.MountConfig
+	// NewConfig has all the config specified by the user using configFile flag.
+	NewConfig *c.Config
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -154,7 +155,7 @@ func NewFileSystem(
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if config.IsFileCacheEnabled(cfg.MountConfig) {
+	if c.IsFileCacheEnabled(cfg.NewConfig) {
 		var err error
 		fileCacheHandler, err = createFileCacheHandler(cfg)
 		if err != nil {
@@ -173,7 +174,7 @@ func NewFileSystem(
 		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
 		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
 		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
+		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(cfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             cfg.RenameDirLimit,
 		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
 		uid:                        cfg.Uid,
@@ -186,9 +187,9 @@ func NewFileSystem(
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
-		mountConfig:                cfg.MountConfig,
+		newConfig:                  cfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+		cacheFileForRangeRead:      cfg.NewConfig.FileCache.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
@@ -219,14 +220,14 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
+	if cfg.NewConfig.FileCache.MaxSizeMb == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * cacheutil.MiB
+		sizeInBytes = uint64(cfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	cacheDir := string(cfg.MountConfig.CacheDir)
+	cacheDir := string(cfg.NewConfig.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
 	// the future.
@@ -241,7 +242,7 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	}
 
 	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
-		cfg.SequentialReadSizeMb, &cfg.MountConfig.FileCacheConfig)
+		cfg.SequentialReadSizeMb, &cfg.NewConfig.FileCache)
 	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
 		cacheDir, filePerm, dirPerm)
 	return
@@ -265,13 +266,13 @@ func makeRootForBucket(
 			Mtime: fs.mtimeClock.Now(),
 		},
 		fs.implicitDirs,
-		fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
+		fs.newConfig.List.EnableEmptyManagedFolders,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
 		&syncerBucket,
 		fs.mtimeClock,
 		fs.cacheClock,
-		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+		int(fs.newConfig.MetadataCache.TypeCacheMaxSizeMb),
 	)
 }
 
@@ -456,8 +457,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
 
-	// Config specified by the user using configFile flag.
-	mountConfig *config.MountConfig
+	newConfig *c.Config
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
@@ -695,13 +695,13 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
+			fs.newConfig.List.EnableEmptyManagedFolders,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			int(fs.newConfig.MetadataCache.TypeCacheMaxSizeMb))
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -719,13 +719,13 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 				Mtime: fs.mtimeClock.Now(),
 			},
 			fs.implicitDirs,
-			fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
+			fs.newConfig.List.EnableEmptyManagedFolders,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			int(fs.newConfig.MetadataCache.TypeCacheMaxSizeMb))
 
 	case inode.IsSymlink(ic.MinObject):
 		in = inode.NewSymlinkInode(
@@ -928,7 +928,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
-		if fs.mountConfig.FileSystemConfig.DisableParallelDirops {
+		if fs.newConfig.FileSystem.DisableParallelDirops {
 			parent.Lock()
 			defer parent.Unlock()
 		} else {
@@ -1325,7 +1325,7 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1361,7 +1361,7 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1389,7 +1389,7 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1455,7 +1455,7 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1514,7 +1514,7 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1644,7 +1644,7 @@ func (fs *fileSystem) createLocalFile(
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1653,7 +1653,7 @@ func (fs *fileSystem) CreateFile(
 	}
 	// Create the child.
 	var child inode.Inode
-	if fs.mountConfig.CreateEmptyFile {
+	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
 		child, err = fs.createLocalFile(op.Parent, op.Name)
@@ -1693,7 +1693,7 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1763,7 +1763,7 @@ func (fs *fileSystem) RmDir(
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1865,7 +1865,7 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2084,7 +2084,7 @@ func (fs *fileSystem) renameDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2172,7 +2172,7 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2244,7 +2244,7 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2295,7 +2295,7 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2322,7 +2322,7 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -2355,7 +2355,7 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
-	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
