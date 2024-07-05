@@ -130,11 +130,11 @@ func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig,
 
 // Mount the file system according to arguments in the supplied context.
 func mountWithArgs(
-		bucketName string,
-		mountPoint string,
-		flags *flagStorage,
-		mountConfig *config.MountConfig,
-		newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
+	bucketName string,
+	mountPoint string,
+	flags *flagStorage,
+	mountConfig *config.MountConfig,
+	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
 	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
@@ -178,9 +178,9 @@ func mountWithArgs(
 }
 
 func populateArgs(c *cli.Context) (
-		bucketName string,
-		mountPoint string,
-		err error) {
+	bucketName string,
+	mountPoint string,
+	err error) {
 	// Extract arguments.
 	switch len(c.Args()) {
 	case 1:

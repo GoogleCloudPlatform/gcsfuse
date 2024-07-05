@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"golang.org/x/net/context"
 
