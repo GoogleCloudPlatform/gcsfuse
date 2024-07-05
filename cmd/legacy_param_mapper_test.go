@@ -87,6 +87,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				SequentialReadSizeMb:                40,
 				AnonymousAccess:                     false,
 				MaxRetrySleep:                       10,
+				MaxRetryAttempts:                    100,
 				RetryMultiplier:                     2,
 				StatCacheCapacity:                   200,
 				StatCacheTTL:                        50,
@@ -157,8 +158,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ExperimentalEnableJsonRead: true,
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
-					MaxRetrySleep: 10,
-					Multiplier:    2,
+					MaxRetrySleep:    10,
+					MaxRetryAttempts: 100,
+					Multiplier:       2,
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
