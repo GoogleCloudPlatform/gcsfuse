@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli"
 )
@@ -249,19 +250,10 @@ func (t *FlagsTest) TestMaps() {
 
 	f := parseArgs(t, args)
 
-	var keys sort.StringSlice
-	for k := range f.MountOptions {
-		keys = append(keys, k)
-	}
-
-	sort.Sort(keys)
-	assert.ElementsMatch(t.T(),
-		keys, []string{"noauto", "nodev", "rw", "user"})
-
-	assert.Equal(t.T(), "", f.MountOptions["noauto"])
-	assert.Equal(t.T(), "", f.MountOptions["nodev"])
-	assert.Equal(t.T(), "", f.MountOptions["rw"])
-	assert.Equal(t.T(), "jacobsa", f.MountOptions["user"])
+	sort.Strings(f.MountOptions)
+	require.Equal(t.T(), 2, len(f.MountOptions))
+	assert.Equal(t.T(), "rw,nodev", f.MountOptions[0])
+	assert.Equal(t.T(), "user=jacobsa,noauto", f.MountOptions[1])
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {
