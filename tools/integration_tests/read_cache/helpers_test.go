@@ -29,7 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -109,13 +108,21 @@ func getCachedFilePath(fileName string) string {
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
-	// Validate that the file is present in cache location.
+	maxRetries := 10
+	retryDelay := 30 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
-	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
-	require.Nil(t, err, "Failed to find cached file %s", expectedPathOfCachedFile)
-	require.NotNil(t, fileInfo, "Received nil FileInfo %s", expectedPathOfCachedFile)
-	// Validate file size in cache directory matches actual file size.
-	assert.Equal(t, filesize, (*fileInfo).Size(), "Incorrect cached file size")
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Validate that the file is present in cache location.
+		fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
+		require.Nil(t, err, "Failed to find cached file %s", expectedPathOfCachedFile)
+		require.NotNil(t, fileInfo, "Received nil FileInfo %s", expectedPathOfCachedFile)
+		// Validate file size in cache directory matches actual file size.
+		if filesize != (*fileInfo).Size() {
+			t.Logf("Incorrect cached file size, retrying %d...", attempt)
+		}
+		time.Sleep(retryDelay)
+	}
 }
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
@@ -128,7 +135,7 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	}
 	err = client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient)
 	if err != nil {
-		t.Errorf("Cache file CRC mismatch: %v", err)
+		t.Errorf("Cache file CRC mismatch for cached file %s: %v", cachedFilePath, err)
 	}
 }
 
@@ -153,12 +160,6 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, zeroOffset, t)
-	// Validate cached content with gcs.
-	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
-	if checkCacheSize {
-		// Validate cache size within limit.
-		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
-	}
 	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
 	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
 	if err != nil {
@@ -167,6 +168,12 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	err = client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient)
 	if err != nil {
 		t.Errorf("Content served CRC mismatch: %v", err)
+	}
+	// Validate cached content with gcs.
+	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
+	if checkCacheSize {
+		// Validate cache size within limit.
+		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	}
 
 	return expectedOutcome

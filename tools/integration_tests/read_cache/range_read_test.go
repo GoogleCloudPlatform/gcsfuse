@@ -55,7 +55,7 @@ func (s *rangeReadTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, largeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	expectedOutcome2 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, offsetForRangeReadWithin8MB, t)
@@ -66,7 +66,7 @@ func (s *rangeReadTest) TestRangeReadsWithinReadChunkSize(t *testing.T) {
 }
 
 func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *testing.T) {
-	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, veryLargeFileSize, t)
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, largeFileSize, t)
 
 	expectedOutcome1 := readChunkAndValidateObjectContentsFromGCS(s.ctx, s.storageClient, testFileName, zeroOffset, t)
 	time.Sleep(2 * time.Second)
@@ -75,7 +75,7 @@ func (s *rangeReadTest) TestRangeReadsBeyondReadChunkSizeWithChunkDownloaded(t *
 	structuredReadLogs := read_logs.GetStructuredLogsSortedByTimestamp(setup.LogFile(), t)
 	validate(expectedOutcome1, structuredReadLogs[0], true, false, 1, t)
 	validate(expectedOutcome2, structuredReadLogs[1], false, true, 1, t)
-	validateCacheSizeWithinLimit(cacheCapacityForVeryLargeFileInMiB, t)
+	validateCacheSizeWithinLimit(largeFileCacheCapacity, t)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,16 +99,13 @@ func TestRangeReadTest(t *testing.T) {
 		return
 	}
 
-	setup.RunTestsOnlyForStaticMount(mountDir, t)
 	// Define flag set to run the tests.
 	flagSet := [][]string{
 		{"--implicit-dirs=true"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagSet,
-		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, false, configFileName+"1", false),
-		"--config-file="+createConfigFile(cacheCapacityForVeryLargeFileInMiB, true, configFileName+"2", false))
-	flagSet = append(flagSet, []string{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForVeryLargeFileInMiB,
-		false, configFileName+"ForReadCacheWithParallelDownload", true)})
+		"--config-file="+createConfigFile(largeFileCacheCapacity, false, configFileName+"1", false),
+		"--config-file="+createConfigFile(largeFileCacheCapacity, true, configFileName+"2", false))
 
 	// Run tests.
 	for _, flags := range flagSet {

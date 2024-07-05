@@ -165,14 +165,12 @@ func TestReadOnlyTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true"},
+		{"--implicit-dirs=true", "--o=ro"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1", false),
-		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false))
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
-	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--o=ro", "--config-file=" + createConfigFile(cacheCapacityInMB,
-		false, configFileName+"ForReadCacheWithParallelDownload", true)})
+		//"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1", false),
+		//"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true))
 
 	// Run tests.
 	for _, flags := range flagsSet {

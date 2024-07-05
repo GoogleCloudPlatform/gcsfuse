@@ -100,7 +100,7 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
 		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName+"ForReadCache", false))
 	flagsSet = append(flagsSet, []string{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB,
-		true, configFileName+"ForReadCacheWithParallelDownload", true)})
+		true, configFileNameForParallelDownloadTests, true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {

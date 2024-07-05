@@ -82,6 +82,10 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 }
 
 func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
+	if isParallelDownloadsEnabled(s.flags) {
+		// This test is not valid when Parallel Downloads are enabled.
+		t.SkipNow()
+	}
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
@@ -145,7 +149,7 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
 		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName+"ForReadCache", false))
 	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB,
-		false, configFileName+"ForReadCacheWithParallelDownload", true)})
+		false, configFileNameForParallelDownloadTests, true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {

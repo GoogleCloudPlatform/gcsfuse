@@ -96,14 +96,11 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true"},
+		{"--implicit-dirs=true", "--stat-cache-ttl=0s"},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"ForReadCache",
-		false))
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--stat-cache-ttl=0s")
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
-	flagsSet = append(flagsSet, []string{"--implicit-dirs", "--stat-cache-ttl=0s", "--config-file=" + createConfigFile(cacheCapacityInMB,
-		false, configFileName+"ForReadCacheWithParallelDownload", true)})
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"ForReadCache", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true))
 
 	// Run tests.
 	for _, flags := range flagsSet {
