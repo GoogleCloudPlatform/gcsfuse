@@ -260,11 +260,12 @@ func (tf *tempFile) Stat() (sr StatResult, err error) {
 	sr.Mtime = tf.mtime
 
 	// Get the size from the file.
-	sr.Size, err = tf.f.Seek(0, 2)
+	fileInfo, err := tf.f.Stat()
 	if err != nil {
 		err = fmt.Errorf("Seek: %w", err)
 		return
 	}
+	sr.Size = fileInfo.Size()
 
 	return
 }

@@ -1392,7 +1392,7 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
-	/*if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
+	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
 		var cancel context.CancelFunc
@@ -1433,7 +1433,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
-	}*/
+	}
 
 	return
 }
