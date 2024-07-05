@@ -35,6 +35,7 @@ type flags struct {
 	DebugMutex       bool
 	IgnoreInterrupts bool
 	AnonymousAccess  bool
+	MaxRetryAttempts int
 }
 type ConfigTest struct {
 	suite.Suite
@@ -223,4 +224,32 @@ func Test_ListCacheTtlSecsToDuration_InvalidCall(t *testing.T) {
 
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
+}
+
+func TestOverrideWithMaxRetryAttemptsFlag(t *testing.T) {
+	var testCases = []struct {
+		configValue   int
+		flagValue     int
+		isFlagSet     bool
+		expectedValue int
+	}{
+		{34, -1, true, -1},
+		{34, -1, false, 34},
+		{0, 435, true, 435},
+		{0, 0, false, 0},
+		{0, 1, true, 1},
+		{9223372036, -1, false, 9223372036}, // MaxSupportedTtlInSeconds
+		{5, -6, true, -6},
+		{9223372037, 5, false, 9223372037}, // MaxSupportedTtlInSeconds + 1	}
+	}
+	for index, tt := range testCases {
+		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
+			testContext := &TestCliContext{isSet: tt.isFlagSet}
+			mountConfig := &MountConfig{GCSRetries: GCSRetries{MaxRetryAttempts: tt.configValue}}
+
+			OverrideWithMaxRetryAttemptFlag(testContext, mountConfig, tt.flagValue)
+
+			assert.Equal(t, tt.expectedValue, mountConfig.GCSRetries.MaxRetryAttempts)
+		})
+	}
 }

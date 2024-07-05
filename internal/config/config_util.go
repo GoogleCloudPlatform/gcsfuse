@@ -31,6 +31,7 @@ const (
 	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
 	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
+	MaxRetryAttempts         = "max-retry-attempts"
 )
 
 // cliContext is abstraction over the IsSet() method of cli.Context, Specially
@@ -62,6 +63,14 @@ func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, ano
 func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, ttl int64) {
 	if c.IsSet(KernelListCacheTtlFlagName) {
 		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
+	}
+}
+
+// OverrideWithMaxRetryAttemptFlag overwrites the max-retry-attempts config with
+// the max-retry-attempts flag value if the flag is set.
+func OverrideWithMaxRetryAttemptFlag(c cliContext, mountConfig *MountConfig, retries int) {
+	if c.IsSet(MaxRetryAttempts) {
+		mountConfig.GCSRetries.MaxRetryAttempts = retries
 	}
 }
 
