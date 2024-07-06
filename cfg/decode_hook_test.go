@@ -109,6 +109,13 @@ func TestParsingSuccess(t *testing.T) {
 			},
 		},
 		{
+			name: "Empty URL",
+			args: []string{""},
+			testFn: func(t *testing.T, c TestConfig) {
+				assert.Nil(t, c.URLParam)
+			},
+		},
+		{
 			name: "Bool1",
 			args: []string{"--boolParam"},
 			testFn: func(t *testing.T, c TestConfig) {
