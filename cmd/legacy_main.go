@@ -276,7 +276,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	if newConfig.Foreground {
-		err = logger.InitLogFile(mountConfig.LogConfig, newConfig.Logging)
+		err = logger.InitLogFile(newConfig.Logging)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
