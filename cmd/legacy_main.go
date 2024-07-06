@@ -177,19 +177,19 @@ func mountWithArgs(
 	return
 }
 
-func populateArgs(c *cli.Context) (
+func populateArgs(args []string) (
 	bucketName string,
 	mountPoint string,
 	err error) {
 	// Extract arguments.
-	switch len(c.Args()) {
+	switch len(args) {
 	case 1:
 		bucketName = ""
-		mountPoint = c.Args()[0]
+		mountPoint = args[0]
 
 	case 2:
-		bucketName = c.Args()[0]
-		mountPoint = c.Args()[1]
+		bucketName = args[0]
+		mountPoint = args[1]
 
 	default:
 		err = fmt.Errorf(
@@ -284,7 +284,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	var bucketName string
 	var mountPoint string
-	bucketName, mountPoint, err = populateArgs(c)
+	bucketName, mountPoint, err = populateArgs(c.Args())
 	if err != nil {
 		return
 	}

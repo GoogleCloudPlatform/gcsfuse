@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -24,7 +26,7 @@ import (
 )
 
 func TestInvalidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+	cmd, err := NewRootCmd(func(*cfg.Config, string, string) error { return nil })
 	if err != nil {
 		t.Fatalf("Error while creating the root command: %v", err)
 	}
@@ -39,7 +41,7 @@ func TestInvalidConfig(t *testing.T) {
 }
 
 func TestValidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+	cmd, err := NewRootCmd(func(*cfg.Config, string, string) error { return nil })
 	if err != nil {
 		t.Fatalf("Error while creating the root command: %v", err)
 	}
@@ -49,8 +51,8 @@ func TestValidConfig(t *testing.T) {
 }
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
-	var actual cfg.Config
-	cmd, err := NewRootCmd(func(c cfg.Config) error {
+	var actual *cfg.Config
+	cmd, err := NewRootCmd(func(c *cfg.Config, _, _ string) error {
 		actual = c
 		return nil
 	})
@@ -92,7 +94,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+			cmd, err := NewRootCmd(func(*cfg.Config, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(tc.args)
 
@@ -102,6 +104,66 @@ func TestCobraArgsNumInRange(t *testing.T) {
 				assert.NotNil(t, err)
 			} else {
 				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestArgsParsing(t *testing.T) {
+	wd, err := os.Getwd()
+	require.Nil(t, err)
+	hd, err := os.UserHomeDir()
+	require.Nil(t, err)
+	tests := []struct {
+		name               string
+		args               []string
+		expectedBucket     string
+		expectedMountpoint string
+	}{
+		{
+			name:               "Both bucket and mountpoint specified.",
+			args:               []string{"gcsfuse", "abc", "pqr"},
+			expectedBucket:     "abc",
+			expectedMountpoint: path.Join(wd, "pqr"),
+		},
+		{
+			name:               "Only mountpoint specified",
+			args:               []string{"gcsfuse", "pqr"},
+			expectedBucket:     "",
+			expectedMountpoint: path.Join(wd, "pqr"),
+		},
+		{
+			name:               "Absolute path for mountpoint specified",
+			args:               []string{"gcsfuse", "/pqr"},
+			expectedBucket:     "",
+			expectedMountpoint: "/pqr",
+		},
+		{
+			name:               "Relative path from user's home specified as mountpoint",
+			args:               []string{"gcsfuse", "~/pqr"},
+			expectedBucket:     "",
+			expectedMountpoint: path.Join(hd, "pqr"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var bucketName, mountPoint string
+			cmd, err := NewRootCmd(func(_ *cfg.Config, b string, m string) error {
+				bucketName = b
+				mountPoint = m
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.Nil(t, err) {
+				assert.Equal(t, tc.expectedBucket, bucketName)
+				if assert.Nil(t, err) {
+					assert.Equal(t, tc.expectedMountpoint, mountPoint)
+				}
 			}
 		})
 	}
