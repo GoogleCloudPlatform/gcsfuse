@@ -302,7 +302,7 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 	defaultLoggerFactory = &loggerFactory{
 		file:            nil,
 		level:           config.INFO, // setting log level to INFO by default
-		logRotateConfig: cfg.DefaultConfig.Logging.LogRotate,
+		logRotateConfig: cfg.GetDefaultConfig().Logging.LogRotate,
 	}
 
 	testData := []struct {

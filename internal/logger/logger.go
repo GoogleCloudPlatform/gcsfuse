@@ -106,7 +106,7 @@ func init() {
 		file:            nil,
 		format:          defaultFormat,
 		level:           "INFO", // setting log level to INFO by default
-		logRotateConfig: cfg.DefaultConfig.Logging.LogRotate,
+		logRotateConfig: cfg.GetDefaultConfig().Logging.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
 }

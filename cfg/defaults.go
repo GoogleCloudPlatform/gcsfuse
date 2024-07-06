@@ -14,27 +14,29 @@
 
 package cfg
 
-var DefaultConfig = Config{
-	Logging: LoggingConfig{
-		Severity: "INFO",
-		LogRotate: LogRotateLoggingConfig{
-			BackupFileCount: 10,
-			Compress:        true,
-			MaxFileSizeMb:   512,
+func GetDefaultConfig() Config {
+	return Config{
+		Logging: LoggingConfig{
+			Severity: "INFO",
+			LogRotate: LogRotateLoggingConfig{
+				BackupFileCount: 10,
+				Compress:        true,
+				MaxFileSizeMb:   512,
+			},
 		},
-	},
-	FileCache: FileCacheConfig{
-		MaxSizeMb: -1,
-	},
-	MetadataCache: MetadataCacheConfig{
-		TtlSecs:            60,
-		TypeCacheMaxSizeMb: 4,
-		StatCacheMaxSizeMb: 32,
-	},
-	GcsConnection: GcsConnectionConfig{
-		GrpcConnPoolSize: 1,
-	},
-	FileSystem: FileSystemConfig{
-		IgnoreInterrupts: true,
-	},
+		FileCache: FileCacheConfig{
+			MaxSizeMb: -1,
+		},
+		MetadataCache: MetadataCacheConfig{
+			TtlSecs:            60,
+			TypeCacheMaxSizeMb: 4,
+			StatCacheMaxSizeMb: 32,
+		},
+		GcsConnection: GcsConnectionConfig{
+			GrpcConnPoolSize: 1,
+		},
+		FileSystem: FileSystemConfig{
+			IgnoreInterrupts: true,
+		},
+	}
 }
