@@ -25,8 +25,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	testutil "github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	. "github.com/jacobsa/ogletest"
 )
@@ -66,13 +66,13 @@ type FileCacheTest struct {
 
 func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             FileCacheSizeInMb,
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileCache: cfg.FileCacheConfig{
+			MaxSizeMb:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
-			EnableCRC:             true,
+			EnableCrc:             true,
 		},
-		CacheDir: CacheDir,
+		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -602,12 +602,12 @@ type FileCacheWithCacheForRangeRead struct {
 
 func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileCache: cfg.FileCacheConfig{
+			MaxSizeMb:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: CacheDir,
+		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -735,12 +735,12 @@ type FileCacheIsDisabledWithCacheDirAndZeroMaxSize struct {
 
 func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             0,
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileCache: cfg.FileCacheConfig{
+			MaxSizeMb:             0,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: CacheDir,
+		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }
@@ -779,12 +779,12 @@ type FileCacheDestroyTest struct {
 
 func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileCache: cfg.FileCacheConfig{
+			MaxSizeMb:             -1,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: CacheDir,
+		CacheDir: cfg.ResolvedPath(CacheDir),
 	}
 	t.fsTest.SetUpTestSuite()
 }

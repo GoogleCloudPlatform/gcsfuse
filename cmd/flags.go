@@ -398,7 +398,8 @@ type flagStorage struct {
 	ConfigFile string
 
 	// File system
-	MountOptions map[string]string
+	// Deprecated: Use the param from cfg/config.go
+	MountOptions []string
 
 	// Deprecated: Use the param from cfg/config.go
 	DirMode os.FileMode
@@ -592,7 +593,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		ConfigFile: c.String("config-file"),
 
 		// File system
-		MountOptions:     make(map[string]string),
+		MountOptions:     c.StringSlice("o"),
 		DirMode:          os.FileMode(*c.Generic("dir-mode").(*OctalInt)),
 		FileMode:         os.FileMode(*c.Generic("file-mode").(*OctalInt)),
 		Uid:              int64(c.Int("uid")),
@@ -643,12 +644,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Post-mount actions
 		ExperimentalMetadataPrefetchOnMount: c.String(ExperimentalMetadataPrefetchOnMountFlag),
 	}
-
-	// Handle the repeated "-o" flag.
-	for _, o := range c.StringSlice("o") {
-		mountpkg.ParseOptions(flags.MountOptions, o)
-	}
-
 	err = validateFlags(flags)
 
 	return

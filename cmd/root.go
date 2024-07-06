@@ -26,7 +26,7 @@ import (
 )
 
 // NewRootCmd accepts the mountFn that it executes with the parsed configuration
-func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
+func NewRootCmd(mountFn func(config cfg.Config, bucketName, mountPoint string) error) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
@@ -45,7 +45,11 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)
 			}
-			return mountFn(configObj)
+			if bucketName, mountPoint, err := populateArgs(args[1:]); err != nil {
+				return err
+			} else {
+				return mountFn(configObj, bucketName, mountPoint)
+			}
 		},
 	}
 	initConfig := func() {
@@ -61,13 +65,19 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 		}
 
-		cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
 			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
 			decoderConfig.TagName = "yaml"
 			// Reject the config file if any of the fields in the YAML don't map to the struct.
 			decoderConfig.ErrorUnused = true
 		},
-		)
+		); cfgErr != nil {
+			return
+		}
+		if cfgErr = cfg.Validate(&configObj); cfgErr != nil {
+			return
+		}
+		cfg.VetConfig(v, &configObj)
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+

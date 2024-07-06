@@ -24,7 +24,7 @@ import (
 )
 
 func TestInvalidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+	cmd, err := NewRootCmd(func(config cfg.Config, _, _ string) error { return nil })
 	if err != nil {
 		t.Fatalf("Error while creating the root command: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestInvalidConfig(t *testing.T) {
 }
 
 func TestValidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+	cmd, err := NewRootCmd(func(config cfg.Config, _, _ string) error { return nil })
 	if err != nil {
 		t.Fatalf("Error while creating the root command: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestValidConfig(t *testing.T) {
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual cfg.Config
-	cmd, err := NewRootCmd(func(c cfg.Config) error {
+	cmd, err := NewRootCmd(func(c cfg.Config, _, _ string) error {
 		actual = c
 		return nil
 	})
@@ -92,7 +92,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
+			cmd, err := NewRootCmd(func(config cfg.Config, _, _ string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(tc.args)
 

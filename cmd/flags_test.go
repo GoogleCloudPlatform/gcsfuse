@@ -244,7 +244,11 @@ func (t *FlagsTest) Maps() {
 	f := parseArgs(t, args)
 
 	var keys sort.StringSlice
-	for k := range f.MountOptions {
+	parsedOptions := make(map[string]string)
+	for _, o := range f.MountOptions {
+		mount.ParseOptions(parsedOptions, o)
+	}
+	for k := range parsedOptions {
 		keys = append(keys, k)
 	}
 
@@ -252,10 +256,10 @@ func (t *FlagsTest) Maps() {
 	assert.ElementsMatch(t.T(),
 		keys, []string{"noauto", "nodev", "rw", "user"})
 
-	assert.Equal(t.T(), "", f.MountOptions["noauto"])
-	assert.Equal(t.T(), "", f.MountOptions["nodev"])
-	assert.Equal(t.T(), "", f.MountOptions["rw"])
-	assert.Equal(t.T(), "jacobsa", f.MountOptions["user"])
+	assert.Equal(t.T(), "", parsedOptions["noauto"])
+	assert.Equal(t.T(), "", parsedOptions["nodev"])
+	assert.Equal(t.T(), "", parsedOptions["rw"])
+	assert.Equal(t.T(), "jacobsa", parsedOptions["user"])
 }
 
 func (t *FlagsTest) TestResolvePathForTheFlagInContext() {

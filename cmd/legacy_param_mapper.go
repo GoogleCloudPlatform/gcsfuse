@@ -20,6 +20,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -46,9 +47,9 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"fuse":                        flags.DebugFuse,
 		},
 		"file-system": map[string]interface{}{
-			"dir-mode":  flags.DirMode,
-			"file-mode": flags.FileMode,
-			// Todo: "fuse-options":      nil,
+			"dir-mode":                   flags.DirMode,
+			"file-mode":                  flags.FileMode,
+			"fuse-options":               flags.MountOptions,
 			"gid":                        flags.Gid,
 			"ignore-interrupts":          flags.IgnoreInterrupts,
 			"rename-dir-limit":           flags.RenameDirLimit,
@@ -141,6 +142,14 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
 	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
 
+	// Derive the value:
+	maxStatCacheSizeMb, err := mount.ResolveStatCacheMaxSizeMB(
+		legacyConfig.StatCacheMaxSizeMB, flags.StatCacheCapacity)
+	if err != nil {
+		return nil, err
+	}
+	resolvedConfig.MetadataCache.StatCacheMaxSizeMb = int64(maxStatCacheSizeMb)
+	resolvedConfig.MetadataCache.TtlSecs = int64(mount.ResolveMetadataCacheTTL(flags.StatCacheTTL, flags.TypeCacheTTL, legacyConfig.TtlInSeconds).Seconds())
 	return resolvedConfig, nil
 }
 
