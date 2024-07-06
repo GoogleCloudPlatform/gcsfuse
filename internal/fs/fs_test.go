@@ -143,7 +143,8 @@ func (t *fsTest) SetUpTestSuite() {
 		t.serverCfg.MountConfig = config.NewMountConfig()
 	}
 	if t.serverCfg.NewConfig == nil {
-		t.serverCfg.NewConfig = &cfg.DefaultConfig
+		conf := cfg.GetDefaultConfig()
+		t.serverCfg.NewConfig = &conf
 	}
 
 	// Set up ownership.
