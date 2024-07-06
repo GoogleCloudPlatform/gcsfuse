@@ -18,10 +18,12 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"os"
+	"strconv"
+	"syscall"
 	"time"
 
-	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -83,7 +85,11 @@ func NewTempFile(
 	clock timeutil.Clock) (tf TempFile, err error) {
 	// Create an anonymous file to wrap. When we close it, its resources will be
 	// magically cleaned up.
-	f, err := fsutil.AnonymousFile(dir)
+	prefix := dir + "gcsfuse"
+
+	name := prefix + strconv.Itoa(rand.Int())
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL|syscall.O_DIRECT, 0600)
+	//f, err := fsutil.AnonymousFile(dir)
 	if err != nil {
 		err = fmt.Errorf("AnonymousFile: %w", err)
 		return
