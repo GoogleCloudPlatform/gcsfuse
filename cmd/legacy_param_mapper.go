@@ -141,6 +141,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
 	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
 
+	cfg.OverrideWithLoggingFlags(resolvedConfig, resolvedConfig.Debug.Fuse, resolvedConfig.Debug.Gcs, resolvedConfig.Debug.LogMutex)
 	return resolvedConfig, nil
 }
 
