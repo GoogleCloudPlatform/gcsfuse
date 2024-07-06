@@ -22,6 +22,7 @@ package main
 import (
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -44,7 +45,8 @@ func logPanic() {
 func convertToPosixArgs(args []string) []string {
 	pArgs := make([]string, 0, len(args))
 	for _, a := range args {
-		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && a != "-v" {
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") &&
+			!slices.Contains([]string{"-v", "-h"}, a) {
 			pArgs = append(pArgs, "-"+a)
 		} else {
 			pArgs = append(pArgs, a)
