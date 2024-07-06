@@ -505,6 +505,80 @@ func TestInvalidClientProtocol(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestLogSeverityRationalization(t *testing.T) {
+	testCases := []struct {
+		name       string
+		cfgSev     string
+		debugFuse  bool
+		debugGCS   bool
+		debugMutex bool
+		expected   cfg.LogSeverity
+	}{
+		{
+			name:       "debugFuse set to true",
+			cfgSev:     "INFO",
+			debugFuse:  true,
+			debugGCS:   false,
+			debugMutex: false,
+			expected:   "TRACE",
+		},
+		{
+			name:       "debugGCS set to true",
+			cfgSev:     "ERROR",
+			debugFuse:  false,
+			debugGCS:   true,
+			debugMutex: false,
+			expected:   "TRACE",
+		},
+		{
+			name:       "debugMutex set to true",
+			cfgSev:     "WARNING",
+			debugFuse:  false,
+			debugGCS:   false,
+			debugMutex: true,
+			expected:   "TRACE",
+		},
+		{
+			name:       "multiple debug flags set to true",
+			cfgSev:     "INFO",
+			debugFuse:  true,
+			debugGCS:   false,
+			debugMutex: true,
+			expected:   "TRACE",
+		},
+		{
+			name:       "no debug flags set to true",
+			cfgSev:     "INFO",
+			debugFuse:  false,
+			debugGCS:   false,
+			debugMutex: false,
+			expected:   "INFO",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			flags := &flagStorage{
+				ClientProtocol: mountpkg.ClientProtocol("http1"),
+				DebugFuse:      tc.debugFuse,
+				DebugGCS:       tc.debugGCS,
+				DebugMutex:     tc.debugMutex,
+			}
+			c := config.NewMountConfig()
+			c.Severity = tc.cfgSev
+
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{isFlagSet: map[string]bool{
+				"debug_fuse":  true,
+				"debug_gcs":   true,
+				"debug_mutex": true,
+			}}, flags, c)
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expected, resolvedConfig.Logging.Severity)
+			}
+		})
+	}
+}
+
 func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 	testcases := []struct {
 		name                              string

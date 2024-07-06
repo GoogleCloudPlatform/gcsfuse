@@ -128,3 +128,74 @@ func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
 		})
 	}
 }
+
+func TestLoggingSeverityRationalization(t *testing.T) {
+	testcases := []struct {
+		name       string
+		cfgSev     string
+		debugFuse  bool
+		debugGCS   bool
+		debugMutex bool
+		expected   LogSeverity
+	}{
+		{
+			name:       "no debug flags",
+			cfgSev:     "INFO",
+			debugFuse:  false,
+			debugGCS:   false,
+			debugMutex: false,
+			expected:   "INFO",
+		},
+		{
+			name:       "debugFuse true",
+			cfgSev:     "INFO",
+			debugFuse:  true,
+			debugGCS:   false,
+			debugMutex: false,
+			expected:   "TRACE",
+		},
+		{
+			name:       "debugGCS true",
+			cfgSev:     "INFO",
+			debugFuse:  false,
+			debugGCS:   true,
+			debugMutex: false,
+			expected:   "TRACE",
+		},
+		{
+			name:       "debugMutex true",
+			cfgSev:     "INFO",
+			debugFuse:  false,
+			debugGCS:   false,
+			debugMutex: true,
+			expected:   "TRACE",
+		},
+		{
+			name:       "multiple debug flags true",
+			cfgSev:     "INFO",
+			debugFuse:  true,
+			debugGCS:   false,
+			debugMutex: true,
+			expected:   "TRACE",
+		},
+	}
+
+	for _, tc := range testcases {
+		c := Config{
+			Logging: LoggingConfig{
+				Severity: LogSeverity(tc.cfgSev),
+			},
+			Debug: DebugConfig{
+				Fuse:     tc.debugFuse,
+				Gcs:      tc.debugGCS,
+				LogMutex: tc.debugMutex,
+			},
+		}
+
+		err := Rationalize(&c)
+
+		if assert.NoError(t, err) {
+			assert.Equal(t, LogSeverity(tc.expected), c.Logging.Severity)
+		}
+	}
+}

@@ -260,7 +260,6 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("error resolving flags and configs: %w", err)
 	}
 
-	cfg.OverrideWithLoggingFlags(newConfig, newConfig.Debug.Fuse, newConfig.Debug.Gcs, newConfig.Debug.LogMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
@@ -277,7 +276,7 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	if newConfig.Foreground {
-		err = logger.InitLogFile(mountConfig.LogConfig, newConfig.Logging)
+		err = logger.InitLogFile(newConfig.Logging)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
