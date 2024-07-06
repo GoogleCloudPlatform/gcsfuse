@@ -112,8 +112,7 @@ func TestParsingSuccess(t *testing.T) {
 			name: "URL2",
 			args: []string{""},
 			testFn: func(t *testing.T, c TestConfig) {
-				var url *url.URL
-				assert.Equal(t, url, c.URLParam)
+				assert.Nil(t, c.URLParam)
 			},
 		},
 		{
