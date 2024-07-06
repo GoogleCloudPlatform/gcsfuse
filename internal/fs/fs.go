@@ -1659,6 +1659,7 @@ func (fs *fileSystem) CreateFile(
 	if fs.mountConfig.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
+		fmt.Println("creating local file")
 		child, err = fs.createLocalFile(op.Parent, op.Name)
 	}
 

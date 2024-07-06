@@ -88,6 +88,8 @@ func NewTempFile(
 	prefix := dir + "gcsfuse"
 
 	name := prefix + strconv.Itoa(rand.Int())
+	fmt.Println("printing name")
+	fmt.Print(name)
 	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL|syscall.O_DIRECT, 0600)
 	//f, err := fsutil.AnonymousFile(dir)
 	if err != nil {
