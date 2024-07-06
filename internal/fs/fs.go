@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	newcfg "github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -124,6 +125,10 @@ type ServerConfig struct {
 
 	// MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
+
+	// NewConfig provides the required configuration. It combines the
+	// functionalities of flagstorage and MountConfig into one entity and replaces them.
+	NewConfig *newcfg.Config
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -187,6 +192,7 @@ func NewFileSystem(
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
+		newConfig:                  cfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
 	}
@@ -458,6 +464,10 @@ type fileSystem struct {
 
 	// Config specified by the user using configFile flag.
 	mountConfig *config.MountConfig
+
+	// NewConfig provides the required configuration. It combines the
+	// functionalities of flagstorage and MountConfig into one entity and replaces them.
+	newConfig *newcfg.Config
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when
 	// file cache is enabled at the time of mounting.
@@ -1653,7 +1663,7 @@ func (fs *fileSystem) CreateFile(
 	}
 	// Create the child.
 	var child inode.Inode
-	if fs.mountConfig.CreateEmptyFile {
+	if fs.newConfig.Write.CreateEmptyFile {
 		child, err = fs.createFile(ctx, op.Parent, op.Name, op.Mode)
 	} else {
 		child, err = fs.createLocalFile(op.Parent, op.Name)
