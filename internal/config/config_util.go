@@ -39,15 +39,6 @@ type cliContext interface {
 	IsSet(string) bool
 }
 
-// OverrideWithIgnoreInterruptsFlag overwrites the ignore-interrupts config with
-// the ignore-interrupts flag value if the flag is set.
-func OverrideWithIgnoreInterruptsFlag(c cliContext, mountConfig *MountConfig, ignoreInterruptsFlag bool) {
-	// If the ignore-interrupts flag is set, give it priority over the value in config file.
-	if c.IsSet(IgnoreInterruptsFlagName) {
-		mountConfig.FileSystemConfig.IgnoreInterrupts = ignoreInterruptsFlag
-	}
-}
-
 // OverrideWithAnonymousAccessFlag overwrites the anonymous-access config with
 // the anonymous-access flag value if the flag is set.
 func OverrideWithAnonymousAccessFlag(c cliContext, mountConfig *MountConfig, anonymousAccess bool) {
