@@ -938,7 +938,7 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	// Set up a function that will find a lookup result for the child with the
 	// given name. Expects no locks to be held.
 	getLookupResult := func() (*inode.Core, error) {
-		if fs.mountConfig.FileSystemConfig.DisableParallelDirops {
+		if fs.newConfig.FileSystem.DisableParallelDirops {
 			parent.Lock()
 			defer parent.Unlock()
 		} else {
