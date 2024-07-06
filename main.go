@@ -44,9 +44,14 @@ func logPanic() {
 func convertToPosixArgs(args []string) []string {
 	pArgs := make([]string, 0, len(args))
 	for _, a := range args {
-		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && a != "-v" {
+		switch {
+		case a == "--v", a == "-v":
+			pArgs = append(pArgs, "-v")
+		case a == "--h", a == "-h":
+			pArgs = append(pArgs, "-h")
+		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
 			pArgs = append(pArgs, "-"+a)
-		} else {
+		default:
 			pArgs = append(pArgs, a)
 		}
 	}

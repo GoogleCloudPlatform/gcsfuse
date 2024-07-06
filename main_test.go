@@ -51,6 +51,26 @@ func TestPosixFlagsConversion(t *testing.T) {
 			input:    []string{"abc", "-v"},
 			expected: []string{"abc", "-v"},
 		},
+		{
+			name:     "Help shorthand stays unchanged.",
+			input:    []string{"abc", "-h"},
+			expected: []string{"abc", "-h"},
+		},
+		{
+			name:     "Version shorthand stays unchanged.",
+			input:    []string{"abc", "-v"},
+			expected: []string{"abc", "-v"},
+		},
+		{
+			name:     "Help flag becomes help shorthand.",
+			input:    []string{"abc", "--h"},
+			expected: []string{"abc", "-h"},
+		},
+		{
+			name:     "Version flag becomes version shorthand.",
+			input:    []string{"abc", "--v"},
+			expected: []string{"abc", "-v"},
+		},
 	}
 	for _, tc := range data {
 		t.Run(tc.name, func(t *testing.T) {
