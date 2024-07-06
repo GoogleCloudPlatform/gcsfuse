@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt vet build buildTest install test clean clean-all
+.PHONY: generate fmt vet build buildTest install test clean-gen clean clean-all
 
 generate:
 	go generate ./...
@@ -23,8 +23,11 @@ install: fmt
 test: fmt
 	CGO_ENABLED=0 go test -count 1 -v `go list ./... | grep -v internal/cache/...` && CGO_ENABLED=0 go test -p 1 -count 1 -v ./internal/cache/...
 
-clean:
-	go clean
+clean-gen:
+	rm -rf cfg/config.go
 
-clean-all:
+clean: clean-gen
+	go clean && rm -rf cfg/config.go
+
+clean-all: clean-gen
 	go clean -i ./...
