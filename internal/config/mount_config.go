@@ -98,9 +98,6 @@ type GCSAuth struct {
 	AnonymousAccess bool `yaml:"anonymous-access"`
 }
 
-// Enable the storage control client flow on HNS buckets to utilize new APIs.
-type EnableHNS bool
-
 type FileSystemConfig struct {
 	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
 	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
@@ -146,7 +143,7 @@ type MountConfig struct {
 	ListConfig          `yaml:"list"`
 	GCSConnection       `yaml:"gcs-connection"`
 	GCSAuth             `yaml:"gcs-auth"`
-	EnableHNS           `yaml:"enable-hns"`
+	EnableHNS           bool `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
 }
 

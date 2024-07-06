@@ -28,11 +28,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -138,7 +138,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)
 
-	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: false}, semaphore.NewWeighted(math.MaxInt64))
+	fileDownloadJob := downloader.NewJob(cht.object, cht.bucket, cht.cache, DefaultSequentialReadSizeMb, cht.fileSpec, func() {}, &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}, semaphore.NewWeighted(math.MaxInt64))
 
 	cht.cacheHandle = NewCacheHandle(readLocalFileHandle, fileDownloadJob, cht.cache, false, 0)
 }
@@ -836,7 +836,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
 		DefaultSequentialReadSizeMb,
 		cht.fileSpec,
 		func() {},
-		&config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 2, DownloadChunkSizeMB: 2},
+		&cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 2, DownloadChunkSizeMb: 2},
 		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob
@@ -863,7 +863,7 @@ func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
 		DefaultSequentialReadSizeMb,
 		cht.fileSpec,
 		func() {},
-		&config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMB: 2},
+		&cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMb: 2},
 		semaphore.NewWeighted(math.MaxInt64),
 	)
 	cht.cacheHandle.fileDownloadJob = fileDownloadJob

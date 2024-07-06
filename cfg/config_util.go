@@ -21,3 +21,7 @@ func OverrideWithLoggingFlags(mountConfig *Config, debugFuse bool,
 		mountConfig.Logging.Severity = "TRACE"
 	}
 }
+
+func IsFileCacheEnabled(mountConfig *Config) bool {
+	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
+}

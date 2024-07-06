@@ -275,36 +275,38 @@ func (t *LoggerTest) TestInitLogFile() {
 	filePath += "/log.txt"
 	fileSize := 100
 	backupFileCount := 2
-	legacyLogConfig := config.LogConfig{
-		LogRotateConfig: config.LogRotateConfig{
-			MaxFileSizeMB:   fileSize,
-			BackupFileCount: backupFileCount,
-			Compress:        true,
-		},
-	}
 	newLogConfig := cfg.LoggingConfig{
 		FilePath: cfg.ResolvedPath(filePath),
 		Severity: "DEBUG",
 		Format:   format,
+		LogRotate: cfg.LogRotateLoggingConfig{
+			MaxFileSizeMb:   int64(fileSize),
+			BackupFileCount: int64(backupFileCount),
+			Compress:        true,
+		},
 	}
 
-	err := InitLogFile(legacyLogConfig, newLogConfig)
+	err := InitLogFile(newLogConfig)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())
 	assert.Nil(t.T(), defaultLoggerFactory.sysWriter)
 	assert.Equal(t.T(), format, defaultLoggerFactory.format)
 	assert.Equal(t.T(), config.DEBUG, defaultLoggerFactory.level)
-	assert.Equal(t.T(), fileSize, defaultLoggerFactory.logRotateConfig.MaxFileSizeMB)
-	assert.Equal(t.T(), backupFileCount, defaultLoggerFactory.logRotateConfig.BackupFileCount)
+	assert.Equal(t.T(), int64(fileSize), defaultLoggerFactory.logRotateConfig.MaxFileSizeMb)
+	assert.Equal(t.T(), int64(backupFileCount), defaultLoggerFactory.logRotateConfig.BackupFileCount)
 	assert.True(t.T(), defaultLoggerFactory.logRotateConfig.Compress)
 }
 
 func (t *LoggerTest) TestSetLogFormatToText() {
 	defaultLoggerFactory = &loggerFactory{
-		file:            nil,
-		level:           config.INFO, // setting log level to INFO by default
-		logRotateConfig: config.DefaultLogRotateConfig(),
+		file:  nil,
+		level: config.INFO, // setting log level to INFO by default
+		logRotateConfig: cfg.LogRotateLoggingConfig{
+			BackupFileCount: 10,
+			Compress:        true,
+			MaxFileSizeMb:   512,
+		},
 	}
 
 	testData := []struct {

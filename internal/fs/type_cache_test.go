@@ -27,8 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -78,20 +78,20 @@ var (
 )
 
 func (t *typeCacheTestCommon) SetUpTestSuite() {
-	t.serverCfg.MountConfig = config.NewMountConfig()
-	t.serverCfg.MountConfig.MetadataCacheConfig = config.MetadataCacheConfig{
-		TypeCacheMaxSizeMB: typeCacheMaxSizeMb,
-		TtlInSeconds:       ttlInSeconds,
+	t.serverCfg.NewConfig = &cfg.Config{}
+	t.serverCfg.NewConfig.MetadataCache = cfg.MetadataCacheConfig{
+		TypeCacheMaxSizeMb: int64(typeCacheMaxSizeMb),
+		TtlSecs:            ttlInSeconds,
 	}
 
 	// Fill server-cfg from mount-config.
-	func(mountConfig *config.MountConfig, serverCfg *gcsfusefs.ServerConfig) {
+	func(newConfig *cfg.Config, serverCfg *gcsfusefs.ServerConfig) {
 		serverCfg.DirTypeCacheTTL = mount.ResolveMetadataCacheTTL(mount.DefaultStatOrTypeCacheTTL, mount.DefaultStatOrTypeCacheTTL,
-			mountConfig.TtlInSeconds)
+			newConfig.MetadataCache.TtlSecs)
 		serverCfg.InodeAttributeCacheTTL = serverCfg.DirTypeCacheTTL
 		// We can add more logic here to fill other fileds in serverCfg
 		// from mountConfig here as needed.
-	}(t.serverCfg.MountConfig, &t.serverCfg)
+	}(t.serverCfg.NewConfig, &t.serverCfg)
 
 	// Call through.
 	t.fsTest.SetUpTestSuite()

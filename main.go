@@ -22,6 +22,7 @@ package main
 import (
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -44,7 +45,8 @@ func logPanic() {
 func convertToPosixArgs(args []string) []string {
 	pArgs := make([]string, 0, len(args))
 	for _, a := range args {
-		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && a != "-v" {
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") &&
+			!slices.Contains([]string{"-v", "-h"}, a) {
 			pArgs = append(pArgs, "-"+a)
 		} else {
 			pArgs = append(pArgs, a)
@@ -65,7 +67,9 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
 		// TODO: implement the mount logic instead of simply returning nil.
-		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config) error { return nil })
+		rootCmd, err := cmd.NewRootCmd(func(config cfg.Config, bucketName, mountPoint string) error {
+			return cmd.ExecutePipeline(&config, bucketName, mountPoint)
+		})
 		if err != nil {
 			log.Fatalf("Error occurred while creating the root command: %v", err)
 		}

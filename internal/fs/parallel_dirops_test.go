@@ -23,7 +23,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -42,8 +42,8 @@ type ParallelDiropsWithoutCachesTest struct {
 
 func (t *ParallelDiropsTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
 			DisableParallelDirops: false,
 		}}
 	t.serverCfg.RenameDirLimit = 10
@@ -52,8 +52,8 @@ func (t *ParallelDiropsTest) SetupSuite() {
 
 func (t *ParallelDiropsWithoutCachesTest) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.MountConfig = &config.MountConfig{
-		FileSystemConfig: config.FileSystemConfig{
+	t.serverCfg.NewConfig = &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{
 			DisableParallelDirops: false,
 		}}
 	t.serverCfg.RenameDirLimit = 10

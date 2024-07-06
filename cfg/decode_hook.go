@@ -34,6 +34,9 @@ func stringToURLHookFunc() mapstructure.DecodeHookFuncType {
 			return data, nil
 		}
 		s := data.(string)
+		if s == "" {
+			return nil, nil
+		}
 		u, err := url.Parse(s)
 		if err != nil {
 			return nil, err
@@ -46,8 +49,8 @@ func stringToURLHookFunc() mapstructure.DecodeHookFuncType {
 func DecodeHook() mapstructure.DecodeHookFunc {
 	return mapstructure.ComposeDecodeHookFunc(
 		mapstructure.TextUnmarshallerHookFunc(),
-		stringToURLHookFunc(),
 		mapstructure.StringToTimeDurationHookFunc(), // default hook
 		mapstructure.StringToSliceHookFunc(","),     // default hook
+		stringToURLHookFunc(),
 	)
 }

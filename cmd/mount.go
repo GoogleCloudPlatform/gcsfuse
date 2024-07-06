@@ -17,9 +17,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"golang.org/x/net/context"
@@ -40,8 +40,6 @@ func mountWithStorageHandle(
 	bucketName string,
 	mountPoint string,
 	newConfig *cfg.Config,
-	flags *flagStorage,
-	mountConfig *config.MountConfig,
 	storageHandle storage.StorageHandle) (mfs *fuse.MountedFileSystem, err error) {
 	// Sanity check: make sure the temporary directory exists and is writable
 	// currently. This gives a better user experience than harder to debug EIO
@@ -86,19 +84,15 @@ be interacting with the file system.`)
 		gid = uint32(newConfig.FileSystem.Gid)
 	}
 
-	metadataCacheTTL := mount.ResolveMetadataCacheTTL(newConfig.MetadataCache.DeprecatedStatCacheTtl, newConfig.MetadataCache.DeprecatedTypeCacheTtl, mountConfig.MetadataCacheConfig.TtlInSeconds)
-	statCacheMaxSizeMB, err := mount.ResolveStatCacheMaxSizeMB(mountConfig.StatCacheMaxSizeMB, int(newConfig.MetadataCache.DeprecatedStatCacheCapacity))
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate StatCacheMaxSizeMB from stat-cache-capacity=%v, metadata-cache:stat-cache-max-size-mb=%v: %w",
-			newConfig.MetadataCache.DeprecatedStatCacheCapacity, mountConfig.StatCacheMaxSizeMB, err)
-	}
+	metadataCacheTTL := time.Second * time.Duration(newConfig.MetadataCache.TtlSecs)
+	statCacheMaxSizeMB := newConfig.MetadataCache.StatCacheMaxSizeMb
 
 	bucketCfg := gcsx.BucketConfig{
 		BillingProject:                     newConfig.GcsConnection.BillingProject,
 		OnlyDir:                            newConfig.OnlyDir,
 		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
-		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
+		StatCacheMaxSizeMB:                 uint64(statCacheMaxSizeMB),
 		StatCacheTTL:                       metadataCacheTTL,
 		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
@@ -122,9 +116,9 @@ be interacting with the file system.`)
 		FilePerms:                  os.FileMode(newConfig.FileSystem.FileMode),
 		DirPerms:                   os.FileMode(newConfig.FileSystem.DirMode),
 		RenameDirLimit:             newConfig.FileSystem.RenameDirLimit,
-		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
+		SequentialReadSizeMb:       int32(newConfig.GcsConnection.SequentialReadSizeMb),
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
-		MountConfig:                mountConfig,
+		NewConfig:                  newConfig,
 	}
 
 	logger.Infof("Creating a new server...\n")
@@ -142,11 +136,18 @@ be interacting with the file system.`)
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
+
+	// Handle the repeated "-o" flag.
+	parsedOptions := make(map[string]string)
+	for _, o := range newConfig.FileSystem.FuseOptions {
+		mount.ParseOptions(parsedOptions, o)
+	}
+
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
 		Subtype:    "gcsfuse",
 		VolumeName: "gcsfuse",
-		Options:    flags.MountOptions,
+		Options:    parsedOptions,
 		// Allows parallel LookUpInode & ReadDir calls from Kernel's FUSE driver.
 		// GCSFuse takes exclusive lock on directory inodes during ReadDir call,
 		// hence there is no effect of parallelization of incoming ReadDir calls
@@ -155,7 +156,7 @@ be interacting with the file system.`)
 		// users experience the performance gains. E.g. if a user workload tries to
 		// access two files under same directory parallely, then the lookups also
 		// happen parallely.
-		EnableParallelDirOps: !(mountConfig.FileSystemConfig.DisableParallelDirops),
+		EnableParallelDirOps: !(newConfig.FileSystem.DisableParallelDirops),
 	}
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
