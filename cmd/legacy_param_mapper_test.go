@@ -16,10 +16,12 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -482,4 +484,278 @@ func TestInvalidClientProtocol(t *testing.T) {
 	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, &config.MountConfig{})
 
 	assert.NotNil(t, err)
+}
+
+func TestMetadataStatCacheResolution(t *testing.T) {
+	testcases := []struct {
+		flagValue     int
+		configValue   int64
+		expectedValue int64
+	}{
+		{
+			flagValue:     10000,
+			configValue:   100,
+			expectedValue: 100,
+		},
+		{
+			flagValue:     10000,
+			configValue:   100,
+			expectedValue: 100,
+		},
+		{
+			flagValue:     20460,
+			configValue:   math.MinInt64,
+			expectedValue: 32,
+		},
+	}
+	for idx, tt := range testcases {
+		t.Run(fmt.Sprintf("metadata-stat-cache-size-mb resolution: %d", idx), func(t *testing.T) {
+			newCfg, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{},
+				&flagStorage{
+					StatCacheCapacity: tt.flagValue,
+					ClientProtocol:    "http1",
+				},
+				&config.MountConfig{
+					MetadataCacheConfig: config.MetadataCacheConfig{
+						StatCacheMaxSizeMB: tt.configValue,
+					},
+					LogConfig: config.LogConfig{Severity: "INFO"},
+				})
+
+			if assert.Nil(t, err) {
+				assert.Equal(t, tt.expectedValue, newCfg.MetadataCache.StatCacheMaxSizeMb)
+			}
+		})
+	}
+}
+
+func TestMetadataCacheTtlResolution(t *testing.T) {
+	testcases := []struct {
+		statCacheTTL  time.Duration
+		typeCacheTTL  time.Duration
+		configTTLSecs int64
+		expectedValue int64
+	}{
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  60 * time.Second,
+			configTTLSecs: config.TtlInSecsUnsetSentinel,
+			expectedValue: 60,
+		},
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  50 * time.Second,
+			configTTLSecs: config.TtlInSecsUnsetSentinel,
+			expectedValue: 50,
+		},
+		{
+			statCacheTTL:  60 * time.Second,
+			typeCacheTTL:  60 * time.Second,
+			configTTLSecs: -1,
+			expectedValue: int64(time.Duration(math.MaxInt64).Seconds()),
+		},
+		{
+			statCacheTTL:  5 * time.Minute,
+			typeCacheTTL:  time.Hour,
+			configTTLSecs: 10800,
+			expectedValue: 10800,
+		},
+	}
+	for idx, tt := range testcases {
+		t.Run(fmt.Sprintf("metadata-stat-cache-ttl resolution: %d", idx), func(t *testing.T) {
+			newCfg, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{},
+				&flagStorage{
+					StatCacheTTL:   tt.statCacheTTL,
+					TypeCacheTTL:   tt.typeCacheTTL,
+					ClientProtocol: "http1",
+				},
+				&config.MountConfig{
+					MetadataCacheConfig: config.MetadataCacheConfig{
+						TtlInSeconds: tt.configTTLSecs,
+					},
+					LogConfig: config.LogConfig{Severity: "INFO"},
+				})
+
+			if assert.Nil(t, err) {
+				assert.Equal(t, tt.expectedValue, newCfg.MetadataCache.TtlSecs)
+			}
+		})
+	}
+}
+
+func TestResolveMetadataCacheTTL(t *testing.T) {
+	inputs := []struct {
+		// Equivalent of user-setting of --stat-cache-ttl.
+		statCacheTTL time.Duration
+
+		// Equivalent of user-setting of --type-cache-ttl.
+		typeCacheTTL time.Duration
+
+		// Equivalent of user-setting of metadata-cache:ttl-secs in --config-file.
+		ttlInSeconds             int64
+		expectedMetadataCacheTTL time.Duration
+	}{
+		{
+			// Most common scenario, when user doesn't set any of the TTL config parameters.
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: DefaultStatOrTypeCacheTTL,
+		},
+		{
+			// Scenario where user sets only metadata-cache:ttl-secs and sets it to -1.
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             -1,
+			expectedMetadataCacheTTL: time.Duration(math.MaxInt64),
+		},
+		{
+			// Scenario where user sets only metadata-cache:ttl-secs and sets it to 0.
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             0,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// Scenario where user sets only metadata-cache:ttl-secs and sets it to a positive value.
+			statCacheTTL:             DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			ttlInSeconds:             30,
+			expectedMetadataCacheTTL: 30 * time.Second,
+		},
+		{
+			// Scenario where user sets only metadata-cache:ttl-secs and sets it to its highest supported value.
+			statCacheTTL: DefaultStatOrTypeCacheTTL,
+			typeCacheTTL: DefaultStatOrTypeCacheTTL,
+			ttlInSeconds: config.MaxSupportedTtlInSeconds,
+
+			expectedMetadataCacheTTL: time.Second * time.Duration(config.MaxSupportedTtlInSeconds),
+		},
+		{
+			// Scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 1.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             10800,
+			expectedMetadataCacheTTL: 10800 * time.Second,
+		},
+		{
+			// Scenario where user sets both the old flags and the metadata-cache:ttl-secs. Here ttl-secs overrides both flags. case 2.
+			statCacheTTL:             5 * time.Minute,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             1800,
+			expectedMetadataCacheTTL: 1800 * time.Second,
+		},
+		{
+			// Old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 1.
+			statCacheTTL:             0,
+			typeCacheTTL:             0,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// Old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 2. Stat-cache enabled, but not type-cache.
+			statCacheTTL:             time.Hour,
+			typeCacheTTL:             0,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// Old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 3. Type-cache enabled, but not stat-cache.
+			statCacheTTL:             0,
+			typeCacheTTL:             time.Hour,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: 0,
+		},
+		{
+			// Old-scenario where user sets only stat/type-cache-ttl flag(s), and not metadata-cache:ttl-secs. Case 4. Both Type-cache and stat-cache enabled. The lower of the two TTLs is taken.
+			statCacheTTL:             time.Second,
+			typeCacheTTL:             time.Minute,
+			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
+			expectedMetadataCacheTTL: time.Second,
+		},
+	}
+	for _, input := range inputs {
+		assert.Equal(t, input.expectedMetadataCacheTTL, resolveMetadataCacheTTL(input.statCacheTTL, input.typeCacheTTL, input.ttlInSeconds))
+	}
+}
+
+func TestResolveStatCacheMaxSizeMB(t *testing.T) {
+	testCases := []struct {
+		// Equivalent of user-setting of flag --stat-cache-capacity.
+		flagStatCacheCapacity int
+
+		// Equivalent of user-setting of metadata-cache:stat-cache-max-size-mb in --config-file.
+		mountConfigStatCacheMaxSizeMB int64
+
+		// Expected output
+		expectedStatCacheMaxSizeMB uint64
+	}{
+		{
+			// Most common scenario, when user doesn't set either the flag or the config.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    DefaultStatCacheMaxSizeMB,
+		},
+		{
+			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to -1.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: -1,
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
+		},
+		{
+			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to 0.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: 0,
+			expectedStatCacheMaxSizeMB:    0,
+		},
+		{
+			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to a positive value.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: 100,
+			expectedStatCacheMaxSizeMB:    100,
+		},
+		{
+			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to its highest user-input value.
+			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			mountConfigStatCacheMaxSizeMB: int64(config.MaxSupportedStatCacheMaxSizeMB),
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
+		},
+		{
+			// Scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 1.
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: 100,
+			expectedStatCacheMaxSizeMB:    100,
+		},
+		{
+			// Scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 2.
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: -1,
+			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
+		},
+		{
+			// Scenario where user sets both stat-cache-capacity and the metadata-cache:stat-cache-max-size-mb. Here stat-cache-max-size-mb overrides stat-cache-capacity. case 3.
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: 0,
+			expectedStatCacheMaxSizeMB:    0,
+		},
+		{
+			// Old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 1: stat-cache-capacity is 0.
+			flagStatCacheCapacity:         0,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    0,
+		},
+		{
+			// Old-scenario where user sets only stat-cache-capacity flag(s), and not metadata-cache:stat-cache-max-size-mb. Case 2: stat-cache-capacity is non-zero.
+			flagStatCacheCapacity:         10000,
+			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
+			expectedStatCacheMaxSizeMB:    16, // 16 MiB = MiB ceiling (10k entries * 1640 bytes (AssumedSizeOfPositiveStatCacheEntry + AssumedSizeOfNegativeStatCacheEntry))
+		},
+	}
+	for _, tc := range testCases {
+		statCacheMaxSizeMB, err := resolveStatCacheMaxSizeMB(tc.mountConfigStatCacheMaxSizeMB, tc.flagStatCacheCapacity)
+
+		if assert.Nil(t, err) {
+			assert.Equal(t, tc.expectedStatCacheMaxSizeMB, statCacheMaxSizeMB)
+		}
+	}
 }
