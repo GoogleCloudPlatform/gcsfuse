@@ -168,8 +168,8 @@ func TestReadOnlyTest(t *testing.T) {
 		{"--implicit-dirs=true", "--o=ro"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		//"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1", false),
-		//"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"1", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, true, configFileName+"2", false),
 		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true))
 
 	// Run tests.

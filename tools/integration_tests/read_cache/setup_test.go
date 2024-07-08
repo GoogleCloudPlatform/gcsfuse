@@ -142,10 +142,6 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 ////////////////////////////////////////////////////////////////////////
 
 func TestMain(m *testing.M) {
-	//out, err := operations.CalculateFileCRC32("/tmp/gcsfuse_readwrite_test_545011229/cache-dir/gcsfuse-file-cache/ashmeenbkt/ReadCacheTest/ReadCacheTestomyh")
-	//fmt.Println(out, " ", err)
-	//return
-
 	setup.ParseSetUpFlags()
 
 	ctx = context.Background()
