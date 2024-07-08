@@ -325,15 +325,12 @@ type Listing struct {
 // ListingFolders contains a set of folders by a call to ListFolders.
 type ListingFolders struct {
 	// Records for folders matching the listing criteria.
-	//
-	// Guaranteed to be strictly increasing under a lexicographical comparison on
-	// (name, generation) pairs.
 	folders []*controlpb.Folder
 
 	// A continuation token, for fetching more results.
 	//
 	// If non-empty, this listing does not represent the full set of matching
-	// objects in the bucket. Call ListFolders again with the request's
+	// folders in the bucket. Call ListFolders again with the request's
 	// ContinuationToken field set to this value to continue where you left off.
 	//
 	// Note that there is no guarantee of atomicity of listings. Folders written
