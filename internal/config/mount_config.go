@@ -140,7 +140,7 @@ type MetadataCacheConfig struct {
 
 type GCSRetries struct {
 	// Set max retry attempts in case of retryable errors. Default value is 6.
-	MaxRetryAttempts int `yaml:"max-retry-attempts"`
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 }
 
 type MountConfig struct {

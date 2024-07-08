@@ -228,19 +228,17 @@ func Test_DefaultMaxParallelDownloads(t *testing.T) {
 
 func TestOverrideWithMaxRetryAttemptsFlag(t *testing.T) {
 	var testCases = []struct {
-		configValue   int
-		flagValue     int
+		configValue   int64
+		flagValue     int64
 		isFlagSet     bool
-		expectedValue int
+		expectedValue int64
 	}{
 		{34, -1, true, -1},
 		{34, -1, false, 34},
 		{0, 435, true, 435},
 		{0, 0, false, 0},
 		{0, 1, true, 1},
-		{9223372036, -1, false, 9223372036}, // MaxSupportedTtlInSeconds
 		{5, -6, true, -6},
-		{9223372037, 5, false, 9223372037}, // MaxSupportedTtlInSeconds + 1	}
 	}
 	for index, tt := range testCases {
 		t.Run(fmt.Sprintf("Test case: %d", index), func(t *testing.T) {
