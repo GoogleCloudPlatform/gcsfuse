@@ -16,6 +16,7 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -109,20 +110,24 @@ func getCachedFilePath(fileName string) string {
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
 	maxRetries := 10
-	retryDelay := 30 * time.Millisecond
+	retryDelay := 500 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
+	var err error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		// Validate that the file is present in cache location.
 		fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
-		require.Nil(t, err, "Failed to find cached file %s", expectedPathOfCachedFile)
-		require.NotNil(t, fileInfo, "Received nil FileInfo %s", expectedPathOfCachedFile)
+		if fileInfo == nil {
+			err = fmt.Errorf("received nil FileInfo %s", expectedPathOfCachedFile)
+		}
 		// Validate file size in cache directory matches actual file size.
-		if filesize != (*fileInfo).Size() {
+		if err == nil && filesize != (*fileInfo).Size() {
+			err = fmt.Errorf("incorrect cached file size. Expected: %d, Got %d", filesize, (*fileInfo).Size())
 			t.Logf("Incorrect cached file size, retrying %d...", attempt)
 		}
 		time.Sleep(retryDelay)
 	}
+	require.Nil(t, err)
 }
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
