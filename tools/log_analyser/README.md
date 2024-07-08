@@ -39,6 +39,8 @@ If yes, enter the start and end time (epoch)
 
 Enter the type of logs (gke/gcsfuse)
 
+If chosen gke, enter the format in which logs are (CSV/JSON)
+
 Enter your ldap (to give access of the created sheet)
 
 Exp- `patelvishvesh`
@@ -48,10 +50,7 @@ Enter the name and location of the credential file
 
 Exp- `/usr/local/google/home/patelvishvesh/Downloads/credentials.json`
 
-After this a google sheet link will be generated, take this link and follow the instructions given in the below doc-
-
-[Steps to get PLX dashboard](https://docs.google.com/document/d/1G5JYRVBi92GQ2Se5vpW5dAgGj_Bs5sjTXEzw6adeO3E/edit?usp=sharing&resourcekey=0-qgJv2mpIK_EAralYG5Zo3A)
-
+After this a google sheet link will be generated.
 
 Please refer to the below document to see an instance of the code run.
 

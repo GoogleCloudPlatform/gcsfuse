@@ -5,11 +5,11 @@ from parser.requests import Request
 import heapq
 
 
-def get_val(message, key, delim, direction, offset):
+def get_val(message, key, delim, direction, offset, faulty_logs):
     # offset contains adjustments needed for spaces and key lengths
     try:
         if message.find(key) == -1:
-            print("Error parsing log with message:", message)
+            faulty_logs.append(message)
             return None
         if direction == "fwd":
             start_index = message.find(key)+len(key)+offset
@@ -17,28 +17,28 @@ def get_val(message, key, delim, direction, offset):
             start_index = message.rfind(key)+len(key)+offset
         if delim != "end_line":
             if message.find(delim, start_index) == -1:
-                print("Error parsing log with message:", message)
+                faulty_logs.append(message)
                 return None
             end_index = message.find(delim, start_index)
         else:
             end_index = len(message) - 1
         return message[start_index:end_index]
     except ValueError as e:
-        print("Error parsing log with message:", message)
+        faulty_logs.append(message)
         return None
 
 
 def lookup_parser(log, global_data):
     message = log["message"]
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
-    name = get_val(message, "name", "\"", "fwd", 2)
-    parent_tmp = get_val(message, "parent", ",", "fwd", 1)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
+    name = get_val(message, "name", "\"", "fwd", 2, global_data.faulty_logs)
+    parent_tmp = get_val(message, "parent", ",", "fwd", 1, global_data.faulty_logs)
     if parent_tmp is None or name is None or req_id is None:
         return
     try:
         parent = int(parent_tmp)
     except ValueError as e:
-        print("Error parsing parent:", parent_tmp)
+        global_data.faulty_logs.append(message)
         return
     if parent != 0 and parent != 1 and parent in global_data.inode_name_map:
         prefix_name = global_data.inode_name_map[parent]
@@ -62,7 +62,7 @@ def lookup_parser(log, global_data):
 
 def gcs_call_parser(log, global_data):
     message = log["message"]
-    name = get_val(message, "(", "\"", "fwd", 1)
+    name = get_val(message, "(", "\"", "fwd", 1, global_data.faulty_logs)
     if name is None:
         return
     if name not in global_data.name_object_map.keys():
@@ -71,8 +71,8 @@ def gcs_call_parser(log, global_data):
         global_data.name_object_map[name].is_dir = True
 
     if message.find("<-") != -1:
-        req = get_val(message, "0x", " ", "fwd", 0)
-        req_name = get_val(message, "<-", "(", "fwd", 1)
+        req = get_val(message, "0x", " ", "fwd", 0, global_data.faulty_logs)
+        req_name = get_val(message, "<-", "(", "fwd", 1, global_data.faulty_logs)
         if req is None or req_name not in global_data.gcalls.gcs_index_map.keys():
             return
         global_data.requests[req] = Request("gcsreq", name)
@@ -84,8 +84,8 @@ def gcs_call_parser(log, global_data):
         global_data.gcalls.gcs_calls[global_data.gcalls.gcs_index_map[req_name]].calls_made += 1
 
     elif message.find("->") != -1:
-        req = get_val(message, "0x", " ", "fwd", 0)
-        req_name = get_val(message, "->", "(", "fwd", 1)
+        req = get_val(message, "0x", " ", "fwd", 0, global_data.faulty_logs)
+        req_name = get_val(message, "->", "(", "fwd", 1, global_data.faulty_logs)
         if req is None or req_name not in global_data.gcalls.gcs_index_map.keys():
             return
 
@@ -118,15 +118,15 @@ def gcs_call_parser(log, global_data):
                 if len(global_data.max_read_entries) > 10:
                     heapq.heappop(global_data.max_read_entries)
                 if message.find("nil") == -1:
-                    start_temp = get_val(message, "[", ",", "fwd", 0)
-                    final_temp = get_val(message, ",", ")", "bck", 1)
+                    start_temp = get_val(message, "[", ",", "fwd", 0, global_data.faulty_logs)
+                    final_temp = get_val(message, ",", ")", "bck", 1, global_data.faulty_logs)
                     if start_temp is None or final_temp is None:
                         return
                     try:
                         start = int(start_temp)
                         final = int(final_temp)
                     except ValueError as e:
-                        print("Error parsing bytes:", start_temp, "or", final_temp)
+                        global_data.faulty_logs.append(message)
                         return
                     global_data.bytes_from_gcs += final-start
                     file_obj = global_data.name_object_map[name]
@@ -145,14 +145,14 @@ def gcs_call_parser(log, global_data):
 
 def open_file_parser(log, global_data):
     message = log["message"]
-    inode_temp = get_val(message, "inode", ",", "fwd", 1)
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
+    inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
     if req_id is None or inode_temp is None:
         return
     try:
         inode = int(inode_temp)
     except ValueError as e:
-        print("Error parsing inode:", inode_temp)
+        global_data.faulty_logs.append(message)
         return
     if inode in global_data.inode_name_map.keys():
         global_data.requests[req_id] = Request("OpenFile", global_data.inode_name_map[inode])
@@ -168,16 +168,16 @@ def open_file_parser(log, global_data):
 
 def release_file_handle_parser(log, global_data):
     message = log["message"]
-    handle_temp = get_val(message, "handle", ")", "fwd", 1)
+    handle_temp = get_val(message, "handle", ")", "fwd", 1, global_data.faulty_logs)
     if handle_temp is not None:
         try:
             handle = int(handle_temp)
         except ValueError as e:
-            print("Error parsing handle:", handle_temp)
+            global_data.faulty_logs.append(message)
             return
     else:
         return
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
     if req_id is None:
         return
     global_data.gcalls.kernel_calls[13].calls_made += 1
@@ -197,11 +197,11 @@ def release_file_handle_parser(log, global_data):
 
 def read_file_parser(log, global_data):
     message = log["message"]
-    inode_temp = get_val(message, "inode", ",", "fwd", 1)
-    handle_temp = get_val(message, "handle", ",", "fwd", 1)
-    offset_temp = get_val(message, "offset", ",", "fwd", 1)
-    byts_temp = get_val(message, ",", " ", "bck", 1)
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
+    inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
+    handle_temp = get_val(message, "handle", ",", "fwd", 1, global_data.faulty_logs)
+    offset_temp = get_val(message, "offset", ",", "fwd", 1, global_data.faulty_logs)
+    byts_temp = get_val(message, ",", " ", "bck", 1, global_data.faulty_logs)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
     if req_id is None or byts_temp is None or offset_temp is None or handle_temp is None or inode_temp is None:
         return
     try:
@@ -210,7 +210,7 @@ def read_file_parser(log, global_data):
         offset = int(offset_temp)
         byts = int(byts_temp)
     except ValueError as e:
-        print("Error parsing:", inode_temp, handle_temp, offset_temp, byts_temp)
+        global_data.faulty_logs.append(message)
         return
     if inode in global_data.inode_name_map.keys():
         obj = global_data.name_object_map[global_data.inode_name_map[inode]]
@@ -270,25 +270,29 @@ def kernel_call_parser(log, global_data):
     if message.find("(") == -1:
         return
     name = None
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
-    req_name = get_val(message, "<-", " ", "fwd", 1)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
+    req_name = get_val(message, "<-", " ", "fwd", 1, global_data.faulty_logs)
     if req_id is None or req_name is None:
         return
     global_data.requests[req_id] = Request(req_name, "")
     global_data.requests[req_id].timestamp_sec = log["timestamp"]["seconds"]
     global_data.requests[req_id].timestamp_nano = log["timestamp"]["nanos"]
     if message.find("inode") != -1:
-        inode_temp = get_val(message, "inode", ",", "fwd", 1)
+        inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
         if inode_temp is None:
             return
-        inode = int(inode_temp)
+        try:
+            inode = int(inode_temp)
+        except ValueError as e:
+            global_data.faulty_logs.append(message)
+            return
         if inode in global_data.inode_name_map.keys():
             global_data.requests[req_id].object_name = global_data.inode_name_map[inode]
             file_obj = global_data.name_object_map[global_data.inode_name_map[inode]]
             if req_name in file_obj.kernel_calls.callname_index_map.keys():
                 file_obj.kernel_calls.calls[file_obj.kernel_calls.callname_index_map[req_name]].calls_made += 1
     elif message.find("name") != -1:
-        name = get_val(message, "name", "\"", "fwd", 2)
+        name = get_val(message, "name", "\"", "fwd", 2, global_data.faulty_logs)
         if name is None:
             return
         if name in global_data.name_object_map.keys():
@@ -299,13 +303,13 @@ def kernel_call_parser(log, global_data):
     if req_name in global_data.gcalls.kernel_index_map.keys():
         global_data.gcalls.kernel_calls[global_data.gcalls.kernel_index_map[req_name]].calls_made += 1
     if message.find("CreateFile") != -1:
-        parent_temp = get_val(message, "parent", ",", "fwd", 1)
+        parent_temp = get_val(message, "parent", ",", "fwd", 1, global_data.faulty_logs)
         if parent_temp is None:
             return
         try:
             parent = int(parent_temp)
         except ValueError as e:
-            print("Error parsing parent:", parent_temp)
+            global_data.faulty_logs.append(message)
             return
         if parent in global_data.inode_name_map:
             prefix = global_data.inode_name_map[parent] + "/"
@@ -321,7 +325,7 @@ def response_parser(log, global_data):
     message = log["message"]
     time_sec = log["timestamp"]["seconds"]
     time_nano = log["timestamp"]["nanos"]
-    req_id = get_val(message, "Op 0x", " ", "fwd", 0)
+    req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
     if req_id is None:
         return
     if req_id in global_data.requests.keys():
@@ -346,13 +350,13 @@ def response_parser(log, global_data):
                     obj.is_dir = False
                     global_data.requests.pop(req_id)
                     return
-                inode_temp = get_val(message, "(inode", ")", "fwd", 1)
+                inode_temp = get_val(message, "(inode", ")", "fwd", 1, global_data.faulty_logs)
                 if inode_temp is None:
                     return
                 try:
                     inode = int(inode_temp)
                 except ValueError as e:
-                    print("Error parsing inode:", inode_temp)
+                    global_data.faulty_logs.append(message)
                     return
                 if not req.is_lookup_call_added and req.req_type == "LookUpInode":
                     obj.kernel_calls.calls[0].calls_made += 1
@@ -363,12 +367,12 @@ def response_parser(log, global_data):
                 global_data.inode_name_map[inode] = req.object_name
 
             elif req_name == "OpenFile":
-                handle_temp = get_val(message, "handle", ")", "fwd", 1)
+                handle_temp = get_val(message, "handle", ")", "fwd", 1, global_data.faulty_logs)
                 if handle_temp is not None:
                     try:
                         handle = int(handle_temp)
                     except ValueError as e:
-                        print("Error parsing handle:", handle_temp)
+                        global_data.faulty_logs.append(message)
                         return
                     obj.handles[handle] = Handle(handle, req.timestamp_sec, req.timestamp_nano)
                     obj.opened_handles += 1

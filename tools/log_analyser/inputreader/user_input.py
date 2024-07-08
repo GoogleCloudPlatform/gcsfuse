@@ -1,5 +1,7 @@
 from inputreader.get_logs import GetLogs
 import os
+
+
 class UserInput:
     def get_input(self):
         files = []
@@ -21,5 +23,8 @@ class UserInput:
             end_time = 1e18
         get_logs_obj = GetLogs()
         log_type = input("Enter the type of logs (gcsfuse/gke): ")
-        logs = get_logs_obj.get_json_logs(files, log_type, [start_time, end_time])
+        log_format = ""
+        if log_type == "gke":
+            log_format = input("Enter the format of the GKE logs (CSV/JSON): ")
+        logs = get_logs_obj.get_json_logs(files, log_type, [start_time, end_time], log_format)
         return logs

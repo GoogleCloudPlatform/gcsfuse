@@ -1,4 +1,3 @@
-import csv
 import statistics as stats
 import numpy as np
 import gspread
@@ -6,32 +5,39 @@ import heapq
 import json
 
 
-def get_top_file_gcscalls_stats(global_data):
+def get_top_file_gcscalls_stats(global_data, call_type):
     top_file_num = []
-    top_file_response_time = []
-    top_files = [[], [], [], [], [], [], [], []]
+    top_files = []
+    if call_type == "GCS":
+        call_len = 8
+    else:
+        call_len = 10
+    for i in range(call_len):
+        top_files.append([])
     for name in global_data.name_object_map.keys():
-        obj = global_data.name_object_map[name].gcs_calls.calls
-        for i in range(8):
-            heapq.heappush(top_files[i], (obj[i].calls_returned, name))
+        if call_type == "GCS":
+            obj = global_data.name_object_map[name].gcs_calls.calls
+        else:
+            obj = global_data.name_object_map[name].kernel_calls.calls
+        for i in range(call_len):
+            heapq.heappush(top_files[i], (obj[i].calls_returned, int(obj[i].total_response_time), name))
             if len(top_files[i]) > 5:
                 heapq.heappop(top_files[i])
 
-    for i in range(8):
-        total_num = 0
-        total_time = 0
-        for j in range(len(top_files[i])):
-            total_num += top_files[i][j][0]
-            total_time += global_data.name_object_map[top_files[i][j][1]].gcs_calls.calls[i].total_response_time
-        top_file_num.append(total_num)
-        top_file_response_time.append(total_time)
-        # print(total_num, total_time)
+    for i in range(call_len):
+        file_list = []
+        while len(top_files[i]) > 0:
+            tup = heapq.heappop(top_files[i])
+            if tup[0] != 0:
+                file_list.append(tup)
+        top_file_num.append(json.dumps(list(reversed(file_list))))
 
-    return top_file_num, top_file_response_time
+    return top_file_num
 
 
 def calls_data_writer(global_data, obj, call_type, name, worksheet):
     data = []
+    top_file_num = get_top_file_gcscalls_stats(global_data, call_type)
     for i in range(len(obj)):
         call_data = [name, obj[i].call_name, call_type, obj[i].calls_made, obj[i].calls_returned, obj[i].total_response_time/1e3]
         if len(obj[i].response_times) == 0:
@@ -46,13 +52,12 @@ def calls_data_writer(global_data, obj, call_type, name, worksheet):
             call_data.append(int(np.percentile(obj[i].response_times, 90)))
             call_data.append(int(np.percentile(obj[i].response_times, 95)))
             call_data.append(int(max(obj[i].response_times)))
-        if call_type == "GCS":
-            top_file_num, top_file_response_time = get_top_file_gcscalls_stats(global_data)
+        if call_type == "kernel" and i > 5:
+            call_data.append(top_file_num[i-6])
+        elif call_type == "GCS":
             call_data.append(top_file_num[i])
-            call_data.append(top_file_response_time[i])
         else:
-            call_data.append(0)
-            call_data.append(0)
+            call_data.append(json.dumps([]))
         data.append(call_data)
     worksheet.append_rows(data)
 
@@ -153,20 +158,20 @@ def max_entry_writer(global_data, worksheet):
     worksheet.append_rows(data)
 
 
-
 def main_gsheet_generator(global_data):
-    call_data = [['obj_name', 'call_name', 'call_type', 'calls_sent', 'calls_responded', 'total_response_time', 'average_response_time', 'median_response_time', 'p90_response_time', 'p95_response_time', 'max_response_time', 'top_file_num', 'top_file_response_time']]
+    call_data = [['obj_name', 'call_name', 'call_type', 'calls_sent', 'calls_responded', 'total_response_time', 'average_response_time', 'median_response_time', 'p90_response_time', 'p95_response_time', 'max_response_time', 'top_file_num']]
     handle_data = [['file_name', 'handle', 'total_reads', 'total_writes', 'average_read_size', 'average_read_response_time', 'average_write_size', 'average_write_response_time', 'total_request_time', 'opening_time', 'closing_time', 'opened_handles', 'closed_handles']]
     pattern_data = [['handle', 'op', 'op_type', 'number_of_consecutive_ops', 'mean_op_size', 'total_op_size', 'op_bytes', 'op_range']]
     max_entry_data = [['call_type', 'response_time', 'object_name']]
     cred_file = input("Enter the credential file (with path): ")
-    ldap = input("Enter your ldap: ")
+    ldap = input("Enter your ldap (to give access to the sheet generated): ")
     gc = gspread.service_account(filename=cred_file)
     sheet = gc.create('sample_sheet2')
     worksheet1 = sheet.add_worksheet(title='call_data', rows='1', cols='1')
     worksheet2 = sheet.add_worksheet(title='handle_data', rows='1', cols='1')
     worksheet3 = sheet.add_worksheet(title='read_pattern', rows='1', cols='1')
     worksheet4 = sheet.add_worksheet(title='max_entries', rows='1', cols='1')
+    worksheet5 = sheet.add_worksheet(title ='faulty logs', rows='1',cols='1')
     try:
         worksheet = sheet.worksheet("Sheet1")
         sheet.del_worksheet(worksheet)
@@ -185,5 +190,11 @@ def main_gsheet_generator(global_data):
     worksheet4.clear()
     worksheet4.append_rows(max_entry_data)
     max_entry_writer(global_data, worksheet4)
+    worksheet5.clear()
+    worksheet5.append_row(["message"])
+    log_rows = []
+    for log in global_data.faulty_logs:
+        log_rows.append([log])
+    worksheet5.append_rows(log_rows)
     sheet.share(ldap + '@google.com', perm_type='user', role='writer')
     print(f"Sheet created at: https://docs.google.com/spreadsheets/d/{sheet.id}/edit?usp=sharing")
