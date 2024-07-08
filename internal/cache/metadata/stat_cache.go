@@ -225,7 +225,7 @@ func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
-	hit, entry := sc.sharedcachelookup(objectName, now)
+	hit, entry := sc.sharedCacheLookup(objectName, now)
 	if hit {
 		return hit, entry.m
 	}
@@ -237,7 +237,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *controlpb.Folder) {
 	// Look up in the LRU cache.
-	hit, entry := sc.sharedcachelookup(folderName, now)
+	hit, entry := sc.sharedCacheLookup(folderName, now)
 	if hit {
 		return hit, entry.f
 	}
@@ -245,7 +245,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	return false, nil
 }
 
-func (sc *statCacheBucketView) sharedcachelookup(key string, now time.Time) (bool, *entry) {
+func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
 		return false, nil

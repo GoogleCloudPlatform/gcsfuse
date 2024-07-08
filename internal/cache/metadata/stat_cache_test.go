@@ -419,7 +419,7 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	assert.Equal(t.T(), saffron, spices.LookUpOrNil("saffron", someTime))
 }
 
-func (t *StatCacheTest) Test_InsertFolder_Create_Entry_When_No_Entry_Is_Present() {
+func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 	const name = "key1"
 	newEntry := &controlpb.Folder{
 		Name:           name,
@@ -434,7 +434,7 @@ func (t *StatCacheTest) Test_InsertFolder_Create_Entry_When_No_Entry_Is_Present(
 	assert.Equal(t.T(), int64(1), entry.Metageneration)
 }
 
-func (t *StatCacheTest) Test_InsertFolder_Override_Entry_Old_Entry_Is_Already_Present() {
+func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -454,7 +454,7 @@ func (t *StatCacheTest) Test_InsertFolder_Override_Entry_Old_Entry_Is_Already_Pr
 	assert.Equal(t.T(), int64(2), entry.Metageneration)
 }
 
-func (t *StatCacheTest) Test_Lookup_Return_False_If_Expiration_Is_Passed() {
+func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
 	const name = "key1"
 	entry := &controlpb.Folder{
 		Name:           name,
@@ -468,7 +468,7 @@ func (t *StatCacheTest) Test_Lookup_Return_False_If_Expiration_Is_Passed() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *StatCacheTest) Test_Lookup_Return_False_When_Is_Not_Present() {
+func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
 	const name = "key1"
 
 	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
@@ -477,7 +477,7 @@ func (t *StatCacheTest) Test_Lookup_Return_False_When_Is_Not_Present() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *StatCacheTest) Test_InsertFolder_Should_Not_Override_Entry_If_Metageneration_Is_Old() {
+func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationIsOld() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -497,7 +497,7 @@ func (t *StatCacheTest) Test_InsertFolder_Should_Not_Override_Entry_If_Metagener
 	assert.Equal(t.T(), int64(2), entry.Metageneration)
 }
 
-func (t *StatCacheTest) Test_AddNegativeEntryForFolder_Should_Add_Negative_Entry_For_Folder() {
+func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForFolder() {
 	const name = "key1"
 	existingEntry := &controlpb.Folder{
 		Name:           name,
@@ -512,7 +512,7 @@ func (t *StatCacheTest) Test_AddNegativeEntryForFolder_Should_Add_Negative_Entry
 	assert.Nil(t.T(), entry)
 }
 
-func (t *StatCacheTest) Test_Should_Evict_Entry_On_Full_Capacity_Including_Folder_Size() {
+func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
 	localCache := lru.NewCache(uint64(3000))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
