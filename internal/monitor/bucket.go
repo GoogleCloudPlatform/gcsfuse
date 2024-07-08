@@ -217,6 +217,14 @@ func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string,
 	return
 }
 
+func (mb *monitoringBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+	startTime := time.Now()
+	listing, err = mb.wrapped.ListFolders(ctx, req)
+	recordRequest(ctx, "ListFolders", startTime)
+
+	return listing, err
+}
+
 // recordReader increments the reader count when it's opened or closed.
 func recordReader(ctx context.Context, ioMethod string) {
 	if err := stats.RecordWithTags(

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -316,6 +317,26 @@ type Listing struct {
 	// (Cf. Google-internal bug 19286144)
 	//
 	// Note that there is no guarantee of atomicity of listings. Objects written
+	// and deleted concurrently with a single or multiple listing requests may or
+	// may not be returned.
+	ContinuationToken string
+}
+
+// ListingFolders contains a set of folders by a call to ListFolders.
+type ListingFolders struct {
+	// Records for folders matching the listing criteria.
+	//
+	// Guaranteed to be strictly increasing under a lexicographical comparison on
+	// (name, generation) pairs.
+	folders []*controlpb.Folder
+
+	// A continuation token, for fetching more results.
+	//
+	// If non-empty, this listing does not represent the full set of matching
+	// objects in the bucket. Call ListFolders again with the request's
+	// ContinuationToken field set to this value to continue where you left off.
+	//
+	// Note that there is no guarantee of atomicity of listings. Folders written
 	// and deleted concurrently with a single or multiple listing requests may or
 	// may not be returned.
 	ContinuationToken string

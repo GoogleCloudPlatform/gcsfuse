@@ -68,3 +68,10 @@ func (m *MockStorageControlClient) RenameFolder(ctx context.Context, req *contro
 
 	return nil, args.Error(1)
 }
+
+// Implement the ListFolders method for the mock.
+func (m *MockStorageControlClient) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest, opts ...gax.CallOption) *control.FolderIterator {
+	args := m.Called(ctx, req, opts)
+
+	return args.Get(0).(*control.FolderIterator)
+}

@@ -945,3 +945,9 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 
 	return
 }
+
+func (b *bucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+	// TODO: Implement method
+
+	return listing, err
+}

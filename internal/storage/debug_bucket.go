@@ -254,3 +254,11 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	return o, err
 }
+
+func (b *debugBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+	id, desc, start := b.startRequest("ListFolders(%q)", req.Prefix)
+	defer b.finishRequest(id, desc, start, &err)
+
+	listing, err = b.wrapped.ListFolders(ctx, req)
+	return listing, err
+}

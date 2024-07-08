@@ -229,3 +229,13 @@ func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, dest
 	o, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)
 	return o, err
 }
+
+func (b *prefixBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+	// Modify the request and call through.
+	mReq := new(controlpb.ListFoldersRequest)
+	*mReq = *req
+	mReq.Prefix = b.prefix + mReq.Prefix
+
+	o, err := b.wrapped.ListFolders(ctx, mReq)
+	return o, err
+}
