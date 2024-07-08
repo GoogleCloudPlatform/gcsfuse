@@ -35,7 +35,7 @@ type flags struct {
 	DebugMutex       bool
 	IgnoreInterrupts bool
 	AnonymousAccess  bool
-	MaxRetryAttempts int
+	MaxRetryAttempts int64
 }
 type ConfigTest struct {
 	suite.Suite
