@@ -1,15 +1,28 @@
+# Copyright 2024 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import sys
 import subprocess
 
 DEFAULT_VM_NAME = "perf-tests-vm"
-DEFAULT_MACHINE_TYPE = "n2-standard-16"
+DEFAULT_MACHINE_TYPE = "n2-standard-96"
 DEFAULT_IMAGE_FAMILY = "ubuntu-2004-lts"
 DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
-DEFAULT_BOOT_DISK_SIZE = "50GiB"
 DEFAULT_ZONE = "us-west1-a"
-DEFAULT_STARTUP_SCRIPT = "gs://anushkadhn-onb-bucket/custom_vm_startup_script.sh"
-
+DEFAULT_STARTUP_SCRIPT = "./../../custom_vm_startup_script.sh"
+BOOT_DISK_SIZE = "100GiB"
 
 def _parse_arguments(argv):
     """Parses the arguments provided to the script via command line.
@@ -56,14 +69,6 @@ def _parse_arguments(argv):
     )
 
     parser.add_argument(
-        '--boot_disk_size',
-        help='Provide boot disk size of the vm instance',
-        action='store',
-        default=DEFAULT_BOOT_DISK_SIZE,
-        required=False,
-    )
-
-    parser.add_argument(
         '--zone',
         help='Provide zone of the vm instance',
         action='store',
@@ -91,9 +96,9 @@ if __name__ == '__main__':
                       --machine-type={args.machine_type}\
                       --image-family={args.image_family}\
                       --image-project={args.image_project}\
-                      --boot-disk-size={args.boot_disk_size}\
+                      --boot-disk-size={BOOT_DISK_SIZE}\
                       --zone={args.zone}\
-                      --metadata=startup-script-url={args.startup_script}",
+                      --metadata-from-file=startup-script={args.startup_script}",
                                 shell=True)
     except subprocess.CalledProcessError as e:
         print(e.output)
