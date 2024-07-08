@@ -18,6 +18,7 @@ import (
 	"math"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -45,10 +46,29 @@ type StatCache interface {
 	// Erase the entry for the given object name, if any.
 	Erase(name string)
 
-	// Return the current entry for the given name, or nil if there is a negative
+	// Return the current object entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
+
+	// Insert an entry for the given folder resource.
+	//
+	// In order to help cope with caching of arbitrarily out of date (i.e.
+	// inconsistent) object listings, entry will not replace any positive entry
+	// with a newer meta generation number.
+	//
+	// The entry will expire after the supplied time.
+	InsertFolder(f *controlpb.Folder, expiration time.Time)
+
+	// Return the current folder entry for the given name, or nil if there is a negative
+	// entry. Return hit == false when there is neither a positive nor a negative
+	// entry, or the entry has expired according to the supplied current time.
+	LookUpFolder(folderName string, now time.Time) (bool, *controlpb.Folder)
+
+	// Set up a negative entry for the given folder name, indicating that the name
+	// doesn't exist. Overwrite any existing entry for the name, positive or
+	// negative.
+	AddNegativeEntryForFolder(folderName string, expiration time.Time)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -80,6 +100,7 @@ type statCacheBucketView struct {
 // entry. Nil object means negative entry.
 type entry struct {
 	m          *gcs.MinObject
+	f          *controlpb.Folder
 	expiration time.Time
 	key        string
 }
@@ -92,12 +113,16 @@ type entry struct {
 // benchmark runs) to heap-size per positive stat-cache entry
 // to calculate a size closer to the actual memory utilization.
 func (e entry) Size() (size uint64) {
-	// First, calculate size on heap.
+	// First, calculate size on heap (including folder size also in case of hns buckets, in case of non-hns buckets 0 will be added as e.f will be Nil ).
 	// Additional 2*util.UnsafeSizeOf(&e.key) is to account for the copies of string
 	// struct stored in the cache map and in the cache linked-list.
 	size = uint64(util.UnsafeSizeOf(&e) + len(e.key) + 2*util.UnsafeSizeOf(&e.key) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
+	}
+
+	if e.f != nil {
+		size += uint64(util.UnsafeSizeOf(&e.f))
 	}
 
 	// Convert heap-size to RSS (resident set size).
@@ -176,6 +201,21 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	}
 }
 
+func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
+	name := sc.key(folderName)
+
+	// Insert a negative entry.
+	e := entry{
+		f:          nil,
+		expiration: expiration,
+		key:        name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
+}
+
 func (sc *statCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
 	sc.sharedCache.Erase(name)
@@ -183,23 +223,64 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
-	now time.Time) (hit bool, m *gcs.MinObject) {
+	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
-	value := sc.sharedCache.LookUp(sc.key(objectName))
+	hit, entry := sc.sharedCacheLookup(objectName, now)
+	if hit {
+		return hit, entry.m
+	}
+
+	return false, nil
+}
+
+func (sc *statCacheBucketView) LookUpFolder(
+	folderName string,
+	now time.Time) (bool, *controlpb.Folder) {
+	// Look up in the LRU cache.
+	hit, entry := sc.sharedCacheLookup(folderName, now)
+	if hit {
+		return hit, entry.f
+	}
+
+	return false, nil
+}
+
+func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
+	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
-		return
+		return false, nil
 	}
 
 	e := value.(entry)
 
 	// Has this entry expired?
 	if e.expiration.Before(now) {
-		sc.Erase(objectName)
-		return
+		sc.Erase(key)
+		return false, nil
 	}
 
-	hit = true
-	m = e.m
+	return true, &e
+}
 
-	return
+func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
+	name := sc.key(f.Name)
+
+	// Return if there is already a better entry?
+	existing := sc.sharedCache.LookUp(name)
+	if existing != nil && existing.(entry).f != nil {
+		existingFolder := existing.(entry).f
+		if f.Metageneration != existingFolder.Metageneration && f.Metageneration < existingFolder.Metageneration {
+			return
+		}
+	}
+
+	e := entry{
+		f:          f,
+		expiration: expiration,
+		key:        name,
+	}
+
+	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+		panic(err)
+	}
 }

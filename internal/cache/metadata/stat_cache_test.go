@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -101,6 +102,14 @@ var expiration = someTime.Add(time.Second)
 type StatCacheTest struct {
 	suite.Suite
 	cache testHelperCache
+	//t.cache is the wrapper class on top of metadata.StatCache.
+	//This approach tests wrapper methods instead of directly testing actual functionality, compromising the safety net.
+	//For instance: If the helper class changes internally and stops calling stat cache methods, tests won't fail,
+	//hence tests are not being safety net capturing behaviour change of actual functionality.
+	//added stat cache to test metadata.StatCache directly, removing unnecessary wrappers for accurate unit testing.
+	//Changing every test will increase the scope and actual hns work will be affected, so taking cautious call to just add new test in refactored way in first go,
+	//we can update rest of tests slowly later.
+	statCache metadata.StatCache
 }
 
 type MultiBucketStatCacheTest struct {
@@ -111,6 +120,7 @@ type MultiBucketStatCacheTest struct {
 func (t *StatCacheTest) SetupTest() {
 	cache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
+	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
 	// its prepending bucketName can be left empty("") without any problem.
 }
@@ -407,4 +417,132 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 	assert.Equal(t.T(), apple, fruits.LookUpOrNil("apple", someTime))
 	assert.Equal(t.T(), cardamom, spices.LookUpOrNil("cardamom", someTime))
 	assert.Equal(t.T(), saffron, spices.LookUpOrNil("saffron", someTime))
+}
+
+func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
+	const name = "key1"
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+
+	t.statCache.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(1), entry.Metageneration)
+}
+
+func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+
+	t.statCache.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(2), entry.Metageneration)
+}
+
+func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
+	const name = "key1"
+	entry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+	t.statCache.InsertFolder(entry, expiration)
+
+	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), result)
+}
+
+func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
+	const name = "key1"
+
+	hit, result := t.statCache.LookUpFolder(name, expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), result)
+}
+
+func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationIsOld() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+	newEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 1,
+	}
+
+	t.statCache.InsertFolder(newEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "key1", entry.Name)
+	assert.Equal(t.T(), int64(2), entry.Metageneration)
+}
+
+func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForFolder() {
+	const name = "key1"
+	existingEntry := &controlpb.Folder{
+		Name:           name,
+		Metageneration: 2,
+	}
+	t.statCache.InsertFolder(existingEntry, expiration)
+
+	t.statCache.AddNegativeEntryForFolder(name, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), entry)
+}
+
+func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
+	localCache := lru.NewCache(uint64(3000))
+	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
+	objectEntry1 := &gcs.MinObject{Name: "1"}
+	objectEntry2 := &gcs.MinObject{Name: "2"}
+	folderEntry := &controlpb.Folder{
+		Name:           "3",
+		Metageneration: 1,
+	}
+	t.statCache.Insert(objectEntry1, expiration) // adds size of 1428
+	t.statCache.Insert(objectEntry2, expiration) // adds size of 1428
+
+	hit1, entry1 := t.statCache.LookUp("1", someTime)
+	hit2, entry2 := t.statCache.LookUp("2", someTime)
+
+	assert.True(t.T(), hit1)
+	assert.Equal(t.T(), "1", entry1.Name)
+	assert.True(t.T(), hit2)
+	assert.Equal(t.T(), "2", entry2.Name)
+
+	t.statCache.InsertFolder(folderEntry, expiration) //adds size of 220 and exceeds capacity
+
+	hit1, entry1 = t.statCache.LookUp("1", someTime)
+	hit2, entry2 = t.statCache.LookUp("2", someTime)
+	hit3, entry3 := t.statCache.LookUpFolder("3", someTime)
+
+	assert.False(t.T(), hit1)
+	assert.Nil(t.T(), entry1)
+	assert.True(t.T(), hit2)
+	assert.Equal(t.T(), "2", entry2.Name)
+	assert.True(t.T(), hit3)
+	assert.Equal(t.T(), "3", entry3.Name)
+
 }
