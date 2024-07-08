@@ -63,6 +63,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
+	DefaultMaxRetryAttempts         = int64(6)
 )
 
 type WriteConfig struct {
@@ -134,6 +135,11 @@ type MetadataCacheConfig struct {
 	StatCacheMaxSizeMB int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
+type GCSRetries struct {
+	// Set max retry attempts in case of retryable errors. Default value is 6.
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+}
+
 type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
@@ -145,6 +151,7 @@ type MountConfig struct {
 	GCSAuth             `yaml:"gcs-auth"`
 	EnableHNS           bool `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
+	GCSRetries          `yaml:"gcs-retries"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -207,6 +214,10 @@ func NewMountConfig() *MountConfig {
 	}
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
+
+	mountConfig.GCSRetries = GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
 
 	return mountConfig
 }

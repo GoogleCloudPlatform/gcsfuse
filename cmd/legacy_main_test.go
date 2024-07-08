@@ -201,7 +201,8 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInMountConfigAsMarshal
 		`"EnableHNS":true`,
 		`"IgnoreInterrupts":false`,
 		`"DisableParallelDirops":false`,
-		`"KernelListCacheTtlSeconds":0}`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"MaxRetryAttempts":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -239,7 +240,8 @@ func (t *MainTest) TestEnableHNSFlagFalse() {
 		`"EnableHNS":false`,
 		`"IgnoreInterrupts":false`,
 		`"DisableParallelDirops":false`,
-		`"KernelListCacheTtlSeconds":0}`,
+		`"KernelListCacheTtlSeconds":0`,
+		`"MaxRetryAttempts":0}`,
 	}, ",")
 	assert.Equal(t.T(), expected, actual)
 }
@@ -285,6 +287,7 @@ func (t *MainTest) TestStringifyShouldReturnAllFlagsPassedInFlagStorageAsMarshal
 		`"SequentialReadSizeMb":10`,
 		`"AnonymousAccess":false`,
 		`"MaxRetrySleep":0`,
+		`"MaxRetryAttempts":0`,
 		`"StatCacheCapacity":0`,
 		`"StatCacheTTL":0`,
 		`"TypeCacheTTL":0`,

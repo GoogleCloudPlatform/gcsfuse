@@ -76,8 +76,9 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"sequential-read-size-mb":       flags.SequentialReadSizeMb,
 		},
 		"gcs-retries": map[string]interface{}{
-			"max-retry-sleep": flags.MaxRetrySleep,
-			"multiplier":      flags.RetryMultiplier,
+			"max-retry-sleep":    flags.MaxRetrySleep,
+			"multiplier":         flags.RetryMultiplier,
+			"max-retry-attempts": flags.MaxRetryAttempts,
 		},
 		"implicit-dirs": flags.ImplicitDirs,
 		"logging": map[string]interface{}{

@@ -53,6 +53,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.True(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
 	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t, DefaultMaxRetryAttempts, mountConfig.GCSRetries.MaxRetryAttempts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -142,6 +143,9 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.Equal(t.T(), -1, mountConfig.MaxParallelDownloads)
 	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
 	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
+
+	// gcs-retries
+	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {

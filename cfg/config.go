@@ -146,6 +146,8 @@ type GcsConnectionConfig struct {
 }
 
 type GcsRetriesConfig struct {
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
 
 	Multiplier float64 `yaml:"multiplier"`
@@ -571,6 +573,13 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("max-parallel-downloads", "", config.DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	err = v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.IntP("max-retry-attempts", "", 6, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.")
+
+	err = v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts"))
 	if err != nil {
 		return err
 	}
