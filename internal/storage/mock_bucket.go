@@ -13,7 +13,6 @@ import (
 	unsafe "unsafe"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -350,7 +349,7 @@ func (m *mockBucket) UpdateObject(p0 context.Context, p1 *gcs.UpdateObjectReques
 
 func (m *mockBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (o0 *controlpb.Folder, o1 error) {
+	prefix string) (o0 *gcs.Folder, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -367,7 +366,7 @@ func (m *mockBucket) GetFolder(
 	}
 
 	if retVals[0] != nil {
-		o0 = retVals[0].(*controlpb.Folder)
+		o0 = retVals[0].(*gcs.Folder)
 	}
 
 	// o1 error

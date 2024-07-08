@@ -21,7 +21,6 @@ import (
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -299,7 +298,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (folder *controlpb.Folder, err error) {
+	prefix string) (folder *gcs.Folder, err error) {
 	// Fetch the listing.
 	folder, err = b.wrapped.GetFolder(ctx, prefix)
 	if err != nil {

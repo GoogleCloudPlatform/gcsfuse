@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -421,7 +420,7 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 
 func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 	const name = "key1"
-	newEntry := &controlpb.Folder{
+	newEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 1,
 	}
@@ -436,12 +435,12 @@ func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 
 func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent() {
 	const name = "key1"
-	existingEntry := &controlpb.Folder{
+	existingEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 1,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
-	newEntry := &controlpb.Folder{
+	newEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 2,
 	}
@@ -456,7 +455,7 @@ func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent()
 
 func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
 	const name = "key1"
-	entry := &controlpb.Folder{
+	entry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 1,
 	}
@@ -479,12 +478,12 @@ func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
 
 func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationIsOld() {
 	const name = "key1"
-	existingEntry := &controlpb.Folder{
+	existingEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 2,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
-	newEntry := &controlpb.Folder{
+	newEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 1,
 	}
@@ -499,7 +498,7 @@ func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationI
 
 func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForFolder() {
 	const name = "key1"
-	existingEntry := &controlpb.Folder{
+	existingEntry := &gcs.Folder{
 		Name:           name,
 		Metageneration: 2,
 	}
@@ -517,7 +516,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
-	folderEntry := &controlpb.Folder{
+	folderEntry := &gcs.Folder{
 		Name:           "3",
 		Metageneration: 1,
 	}

@@ -28,7 +28,6 @@ import (
 	"unicode/utf8"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -885,7 +884,7 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	return
 }
 
-func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.Folder, error) {
+func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -898,7 +897,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*controlpb.F
 		return nil, err
 	}
 
-	return &controlpb.Folder{Name: foldername}, nil
+	return &gcs.Folder{Name: foldername}, nil
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {

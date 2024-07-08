@@ -21,7 +21,6 @@ import (
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -240,7 +239,7 @@ func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err 
 	return err
 }
 
-func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *controlpb.Folder, err error) {
+func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
 	id, desc, start := b.startRequest("GetFolder(%q)", folderName)
 	defer b.finishRequest(id, desc, start, &err)
 
