@@ -500,18 +500,25 @@ func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	return stoargeLayout, err
 }
 
-func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error) {
+func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	var callOptions []gax.CallOption
 
-	folder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
+	clientFolder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
 		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 	}, callOptions...)
 
 	if err != nil {
 		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
+		return nil, err
 	}
 
-	return folder, err
+	folder := gcs.Folder{
+		Name:           clientFolder.Name,
+		Metageneration: clientFolder.Metageneration,
+		UpdateTime:     clientFolder.GetUpdateTime().AsTime(),
+	}
+
+	return &folder, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

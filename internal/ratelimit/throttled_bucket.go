@@ -18,7 +18,6 @@ import (
 	"io"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -212,7 +211,7 @@ func (b *throttledBucket) RenameFolder(ctx context.Context, folderName string, d
 	return
 }
 
-func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (folder *controlpb.Folder, err error) {
+func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {

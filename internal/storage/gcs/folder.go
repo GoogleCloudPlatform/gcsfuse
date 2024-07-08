@@ -15,11 +15,11 @@
 package gcs
 
 import (
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"time"
 )
 
 type Folder struct {
 	Name           string
 	Metageneration int64
-	UpdateTime     *timestamp.Timestamp
+	UpdateTime     time.Time
 }

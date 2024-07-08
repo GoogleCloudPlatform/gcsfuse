@@ -21,7 +21,6 @@ import (
 	"time"
 
 	control "cloud.google.com/go/storage/control/apiv2"
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -204,7 +203,7 @@ func (mb *monitoringBucket) DeleteFolder(ctx context.Context, folderName string)
 	return err
 }
 
-func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error) {
+func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	startTime := time.Now()
 	folder, err := mb.wrapped.GetFolder(ctx, folderName)
 	recordRequest(ctx, "GetFolder", startTime)
