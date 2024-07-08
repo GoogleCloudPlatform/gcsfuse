@@ -10,7 +10,7 @@ invalidate=1
 time_based=0
 file_append=0
 create_on_open=1
-nrfiles=20
+nrfiles=10
 thread=1
 openfiles=1
 group_reporting=1
@@ -21,5 +21,5 @@ filename_format=$jobname.$jobnum.$filenum
 stonewall
 directory=/mnt/disks/pd/600mb
 filesize=600M
-numjobs=1
+numjobs=32
 
