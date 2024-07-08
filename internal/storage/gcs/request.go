@@ -325,7 +325,7 @@ type Listing struct {
 // ListingFolders contains a set of folders by a call to ListFolders.
 type ListingFolders struct {
 	// Records for folders matching the listing criteria.
-	folders []*controlpb.Folder
+	Folders []*controlpb.Folder
 
 	// A continuation token, for fetching more results.
 	//
