@@ -297,18 +297,10 @@ func runCLIApp(c *cli.Context) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		flagsStringified, err := util.Stringify(*flags)
-		if err != nil {
-			logger.Warnf("failed to stringify cli flags: %v", err)
+		if cfgStr, err := util.Stringify(*newConfig); err == nil {
+			logger.Infof("GCSFuse mount config params: %s", cfgStr)
 		} else {
-			logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
-		}
-
-		mountConfigStringified, err := util.Stringify(*mountConfig)
-		if err != nil {
-			logger.Warnf("failed to stringify config-file: %v", err)
-		} else {
-			logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+			logger.Warnf("failed to stringify config params: %v", err)
 		}
 	}
 
