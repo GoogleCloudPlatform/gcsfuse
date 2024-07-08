@@ -27,7 +27,7 @@ clean-gen:
 	rm -rf cfg/config.go
 
 clean: clean-gen
-	go clean && rm -rf cfg/config.go
+	go clean
 
 clean-all: clean-gen
 	go clean -i ./...
