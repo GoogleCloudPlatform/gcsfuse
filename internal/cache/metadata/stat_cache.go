@@ -18,7 +18,6 @@ import (
 	"math"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -58,12 +57,12 @@ type StatCache interface {
 	// with a newer meta generation number.
 	//
 	// The entry will expire after the supplied time.
-	InsertFolder(f *controlpb.Folder, expiration time.Time)
+	InsertFolder(f *gcs.Folder, expiration time.Time)
 
 	// Return the current folder entry for the given name, or nil if there is a negative
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
-	LookUpFolder(folderName string, now time.Time) (bool, *controlpb.Folder)
+	LookUpFolder(folderName string, now time.Time) (bool, *gcs.Folder)
 
 	// Set up a negative entry for the given folder name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -100,7 +99,7 @@ type statCacheBucketView struct {
 // entry. Nil object means negative entry.
 type entry struct {
 	m          *gcs.MinObject
-	f          *controlpb.Folder
+	f          *gcs.Folder
 	expiration time.Time
 	key        string
 }
@@ -235,7 +234,7 @@ func (sc *statCacheBucketView) LookUp(
 
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
-	now time.Time) (bool, *controlpb.Folder) {
+	now time.Time) (bool, *gcs.Folder) {
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 	if hit {
@@ -262,7 +261,7 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	return true, &e
 }
 
-func (sc *statCacheBucketView) InsertFolder(f *controlpb.Folder, expiration time.Time) {
+func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
 	// Return if there is already a better entry?
