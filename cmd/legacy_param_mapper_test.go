@@ -286,6 +286,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				IgnoreInterrupts:          false,
 				AnonymousAccess:           false,
 				KernelListCacheTtlSeconds: -1,
+				MaxRetryAttempts:          100,
 				ClientProtocol:            mountpkg.HTTP2,
 			},
 			mockCLICtx: &mockCLIContext{
@@ -310,6 +311,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				GCSAuth: config.GCSAuth{
 					AnonymousAccess: true,
 				},
+				GCSRetries: config.GCSRetries{
+					MaxRetryAttempts: 15,
+				},
 			},
 			expectedConfig: &cfg.Config{
 				Logging: cfg.LoggingConfig{
@@ -326,6 +330,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					ClientProtocol: cfg.Protocol("http2"),
+				},
+				GcsRetries: cfg.GcsRetriesConfig{
+					MaxRetryAttempts: 15,
 				},
 			},
 			expectedErr: nil,

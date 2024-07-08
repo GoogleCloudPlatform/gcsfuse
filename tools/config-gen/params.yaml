@@ -158,7 +158,7 @@
 
 - flag-name: "max-retry-attempts"
   config-path: "gcs-retries.max-retry-attempts"
-  type: "int64"
+  type: "int"
   usage: >-
     It sets a limit on the number of times an operation will be retried if it 
     fails, preventing endless retry loops. Default value is 6.
