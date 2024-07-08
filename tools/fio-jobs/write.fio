@@ -21,5 +21,5 @@ filename_format=$jobname.$jobnum.$filenum
 stonewall
 directory=/mnt/disks/pd/600mb
 filesize=600M
-numjobs=16
+numjobs=32
 
