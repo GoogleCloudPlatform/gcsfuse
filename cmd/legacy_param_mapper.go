@@ -154,6 +154,6 @@ func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue
 	if !c.IsSet(flag) {
 		return
 	}
-	log.Println(flag, toUpdate, updateValue)
+	log.Println("Overlapping: ", flag, toUpdate, updateValue)
 	*toUpdate = updateValue
 }
