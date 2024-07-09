@@ -75,6 +75,24 @@ class GetLogs:
             ordered_list.append(unordered_list[file_tup[1]])
         return ordered_list
 
+    def append_logs(self, logs, temp_logs):
+        first_log = self.iso_to_epoch(temp_logs[0]["timestamp"])
+        last_log = self.iso_to_epoch(temp_logs[len(temp_logs) - 1]["timestamp"])
+        first_log_time = first_log["seconds"] + 1e-9*first_log["nanos"]
+        last_log_time = last_log["seconds"] + 1e-9*last_log["nanos"]
+        if first_log_time < last_log_time:
+            for obj in temp_logs:
+                if "timestamp" in obj.keys() and "textPayload" in obj.keys():
+                    json_log = {"timestamp": self.iso_to_epoch(obj["timestamp"]), "message": obj["textPayload"]}
+                    logs.append(json_log)
+        else:
+            file_len = len(temp_logs) - 1
+            for i in range(len(temp_logs)):
+                obj = temp_logs[file_len - i]
+                if "timestamp" in obj.keys() and "textPayload" in obj.keys():
+                    json_log = {"timestamp": self.iso_to_epoch(obj["timestamp"]), "message": obj["textPayload"]}
+                    logs.append(json_log)
+
     def get_json_logs(self, files, log_type, interval, log_format):
         ordered_files = self.get_sorted_files(files, log_type, log_format)
         logs = []
@@ -99,18 +117,17 @@ class GetLogs:
                         data = json.load(handle)
                     if not isinstance(data, list):
                         raise ValueError("Expected a JSON list in the file")
-                    for obj in data:
-                        if "timestamp" in obj.keys() and "textPayload" in obj.keys():
-                            json_log = {"timestamp": self.iso_to_epoch(obj["timestamp"]), "message": obj["textPayload"]}
-                            logs.append(json_log)
+                    self.append_logs(logs, data)
                 else:
+                    temp_logs = []
                     with open(file, 'r') as csvfile:
                         reader = csv.reader(csvfile)
                         header_row = next(reader)
                         fields_to_extract = ["timestamp", "textPayload"]
                         field_indices = {field: header_row.index(field) for field in fields_to_extract if field in header_row}
-
                         for row in reader:
-                            json_log = {"timestamp": self.iso_to_epoch(row[field_indices["timestamp"]]), "message": row[field_indices["textPayload"]]}
-                            logs.append(json_log)
+                            json_log = {"timestamp": row[field_indices["timestamp"]], "textPayload": row[field_indices["textPayload"]]}
+                            temp_logs.append(json_log)
+                    self.append_logs(logs, temp_logs)
+
         return logs
