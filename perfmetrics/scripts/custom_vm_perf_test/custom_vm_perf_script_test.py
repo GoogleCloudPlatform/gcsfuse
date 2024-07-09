@@ -15,9 +15,10 @@
 # unit tests for custom_vm_perf_script
 
 import unittest
-from perfmetrics.scripts.custom_vm_perf_test.custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
+from custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
   DEFAULT_MACHINE_TYPE, DEFAULT_IMAGE_PROJECT, DEFAULT_IMAGE_FAMILY, \
   DEFAULT_ZONE, DEFAULT_STARTUP_SCRIPT
+
 
 class TestParseArguments(unittest.TestCase):
   def test_explicit_values(self):
@@ -60,4 +61,3 @@ class TestParseArguments(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
-

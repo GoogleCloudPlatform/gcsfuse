@@ -29,7 +29,7 @@ DEFAULT_MACHINE_TYPE = "n2-standard-96"
 DEFAULT_IMAGE_FAMILY = "ubuntu-2004-lts"
 DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
 DEFAULT_ZONE = "us-west1-b"
-DEFAULT_STARTUP_SCRIPT = "./../../custom_vm_startup_script.sh"
+DEFAULT_STARTUP_SCRIPT = "custom_vm_startup_script.sh"
 BOOT_DISK_SIZE = "100GiB"
 
 def _parse_arguments(argv):
