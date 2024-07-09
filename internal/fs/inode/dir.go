@@ -201,7 +201,7 @@ type dirInode struct {
 	// (via kernel) the directory listing from the filesystem.
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
-	prevDirListingTimeStamp *time.Time
+	prevDirListingTimeStamp time.Time
 }
 
 var _ DirInode = &dirInode{}
@@ -695,8 +695,7 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	nowTime := d.cacheClock.Now()
-	d.prevDirListingTimeStamp = &nowTime
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	return
 }
 
@@ -890,13 +889,15 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 	return
 }
 
+// ShouldInvalidateKernelListCache doesn't require any lock as d.prevDirListingTimeStamp
+// is concurrency safe, and we are okay with the in-consistent value.
 func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
-	// prevDirListingTimeStamp = nil means listing has not happened yet, and we should
+	// prevDirListingTimeStamp.IsZero() true means listing has not happened yet, and we should
 	// invalidate for clean start.
-	if d.prevDirListingTimeStamp == nil {
+	if d.prevDirListingTimeStamp.IsZero() {
 		return true
 	}
 
-	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
+	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
 }
