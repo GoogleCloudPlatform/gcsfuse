@@ -264,7 +264,6 @@ func runCLIApp(c *cli.Context) (err error) {
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
-	config.OverrideWithMaxRetryAttemptFlag(c, mountConfig, flags.MaxRetryAttempts)
 
 	// Ideally this call to SetLogFormat (which internally creates a new defaultLogger)
 	// should be set as an else to the 'if flags.Foreground' check below, but currently

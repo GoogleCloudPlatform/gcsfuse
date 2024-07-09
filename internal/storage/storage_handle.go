@@ -16,7 +16,6 @@ package storage
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -195,8 +194,6 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithErrorFunc(storageutil.ShouldRetry),
 		storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
-
-	log.Println("Retries: ", clientConfig.MaxRetryAttempts)
 
 	sh = &storageClient{client: sc, storageControlClient: controlClient}
 	return

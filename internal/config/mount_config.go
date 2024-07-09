@@ -224,7 +224,9 @@ func NewMountConfig() *MountConfig {
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
 
-	mountConfig.GCSRetries.MaxRetryAttempts = DefaultMaxRetryAttempts
+	mountConfig.GCSRetries = GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
 
 	return mountConfig
 }
