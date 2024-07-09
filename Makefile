@@ -1,11 +1,14 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate fmt vet build buildTest install test clean-gen clean clean-all
+.PHONY: generate imports fmt vet build buildTest install test clean-gen clean clean-all
 
 generate:
 	go generate ./...
 
-fmt: generate
+imports: generate
+	goimports -w .
+
+fmt: imports
 	go fmt ./...
 
 vet: fmt
