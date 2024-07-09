@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -154,6 +153,5 @@ func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue
 	if !c.IsSet(flag) {
 		return
 	}
-	log.Println("Overlapping: ", flag, toUpdate, updateValue)
 	*toUpdate = updateValue
 }

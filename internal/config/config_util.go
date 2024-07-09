@@ -66,6 +66,14 @@ func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, 
 	}
 }
 
+// OverrideWithMaxRetryAttemptFlag overwrites the max-retry-attempts config with
+// the max-retry-attempts flag value if the flag is set.
+func OverrideWithMaxRetryAttemptFlag(c cliContext, mountConfig *MountConfig, retries int64) {
+	if c.IsSet(MaxRetryAttempts) {
+		mountConfig.GCSRetries.MaxRetryAttempts = retries
+	}
+}
+
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
 	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
 }
