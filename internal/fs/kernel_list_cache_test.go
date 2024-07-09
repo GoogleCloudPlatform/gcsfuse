@@ -26,6 +26,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -128,10 +129,11 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 	wg.Add(2)
 	// Fail if the operation takes more than timeout.
 	timeout := 5 * time.Second
+	iterationsPerGoroutine := 100
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for i := 0; i < iterationsPerGoroutine; i++ {
 			f, err := os.Open(path.Join(mntDir, "explicitDir"))
 			assert.Nil(t.T(), err)
 
@@ -141,12 +143,13 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 	}()
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for i := 0; i < iterationsPerGoroutine; i++ {
 			_, err := os.Stat(path.Join(mntDir, "explicitDir"))
 			assert.Nil(t.T(), err)
 		}
 	}()
 
+	// Wait for goroutines or timeout.
 	done := make(chan bool, 1)
 	go func() {
 		wg.Wait()
@@ -157,6 +160,178 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_OpenDirAndLookUpInode
 		// Operation completed successfully before timeout.
 	case <-time.After(timeout):
 		assert.FailNow(t.T(), "Possible deadlock")
+	}
+}
+
+// Test_Concurrent_ReadDir tests for potential deadlocks or race conditions
+// when multiple goroutines call Readdir() concurrently on the same directory.
+func (t *KernelListCacheTestWithPositiveTtl) Test_Concurrent_ReadDir() {
+	var wg sync.WaitGroup
+	goroutineCount := 10         // Number of concurrent goroutines
+	iterationsPerGoroutine := 10 // Number of iterations per goroutine
+
+	wg.Add(goroutineCount)
+	timeout := 5 * time.Second
+
+	dirPath := path.Join(mntDir, "explicitDir")
+
+	for i := 0; i < goroutineCount; i++ {
+		go func() {
+			defer wg.Done()
+
+			for j := 0; j < iterationsPerGoroutine; j++ {
+				f, err := os.Open(dirPath)
+				assert.Nil(t.T(), err)
+
+				_, err = f.Readdirnames(-1) // Read all directory entries
+				assert.Nil(t.T(), err)
+
+				err = f.Close()
+				assert.Nil(t.T(), err)
+			}
+		}()
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t.T(), "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
+// Test_Parallel_ReadDirAndFileOperations detects race conditions and deadlocks when one goroutine
+// performs Readdir() while another concurrently creates and deletes files in the same directory.
+func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndFileOperations() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	timeout := 5 * time.Second // Adjust timeout as needed
+	iterationsPerGoroutine := 100
+
+	dirPath := path.Join(mntDir, "explicitDir")
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+			f, err := os.Open(dirPath)
+			assert.Nil(t.T(), err)
+
+			_, err = f.Readdirnames(-1)
+			if err != nil {
+				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
+				assert.True(t.T(), strings.Contains(err.Error(), "input/output error"))
+			}
+
+			err = f.Close()
+			assert.Nil(t.T(), err)
+		}
+	}()
+
+	// Goroutine 2: Creates and deletes files
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+			filePath := path.Join(dirPath, "tmp_file.txt")
+			renamedFilePath := path.Join(dirPath, "renamed_tmp_file.txt")
+
+			// Create
+			f, err := os.Create(filePath)
+			assert.Nil(t.T(), err)
+
+			err = f.Close()
+			assert.Nil(t.T(), err)
+
+			// Rename
+			err = os.Rename(filePath, renamedFilePath)
+			assert.Nil(t.T(), err)
+
+			// Delete
+			err = os.Remove(renamedFilePath)
+			assert.Nil(t.T(), err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t.T(), "Possible deadlock or race condition detected")
+	}
+}
+
+// Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
+// ReadDir() is called concurrently with directory creation and deletion operations.
+func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndDirOperations() {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	timeout := 5 * time.Second
+	iterationsPerGoroutine := 100
+
+	parentDir := path.Join(mntDir, "explicitDir")
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			f, err := os.Open(parentDir)
+			assert.Nil(t.T(), err)
+
+			_, err = f.Readdirnames(0)
+			assert.Nil(t.T(), err)
+
+			err = f.Close()
+			assert.Nil(t.T(), err)
+		}
+	}()
+
+	// Goroutine 2: Creates and deletes directories
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			dirPath := path.Join(parentDir, "test_dir")
+			renamedDirPath := path.Join(parentDir, "renamed_test_dir")
+
+			// Create
+			err := os.Mkdir(dirPath, 0755)
+			assert.Nil(t.T(), err)
+
+			// Rename
+			err = os.Rename(dirPath, renamedDirPath)
+			assert.Nil(t.T(), err)
+
+			// Delete
+			err = os.Remove(renamedDirPath)
+			assert.Nil(t.T(), err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t.T(), "Possible deadlock or race condition detected during Readdir and directory operations")
 	}
 }
 

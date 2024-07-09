@@ -2154,9 +2154,7 @@ func (fs *fileSystem) OpenDir(
 	fs.mu.Unlock()
 
 	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
-	// Explicitly not adding any lock, since
 	if fs.kernelListCacheTTL > 0 {
-
 		// Invalidates the kernel list-cache once the last cached response is out of
 		// kernelListCacheTTL.
 		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)
