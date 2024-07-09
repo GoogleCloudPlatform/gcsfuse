@@ -395,9 +395,6 @@ type DeleteObjectRequest struct {
 }
 
 type ListFoldersRequest struct {
-	// Required. Name of the bucket in which to look for folders. The bucket must
-	// be a hierarchical namespace enabled bucket.
-	Parent string
 	// Optional. Maximum number of folders to return in a single response. The
 	// service will use this parameter or 1,000 items, whichever is smaller.
 	PageSize int32
