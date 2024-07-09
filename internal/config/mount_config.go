@@ -15,6 +15,7 @@
 package config
 
 import (
+	"log"
 	"math"
 )
 
@@ -219,5 +220,6 @@ func NewMountConfig() *MountConfig {
 		MaxRetryAttempts: DefaultMaxRetryAttempts,
 	}
 
+	log.Println("Default config: ", mountConfig.GCSRetries.MaxRetryAttempts)
 	return mountConfig
 }

@@ -219,7 +219,7 @@ func newApp() (app *cli.App) {
 					" Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.",
 			},
 
-			cli.IntFlag{
+			cli.Int64Flag{
 				Name:  "max-retry-attempts",
 				Value: 6,
 				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.",
