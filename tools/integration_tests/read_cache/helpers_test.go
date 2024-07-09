@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -116,7 +117,8 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		// Validate that the file is present in cache location.
-		fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
+		var fileInfo *fs.FileInfo
+		fileInfo, err = operations.StatFile(expectedPathOfCachedFile)
 		if fileInfo == nil {
 			err = fmt.Errorf("received nil FileInfo %s", expectedPathOfCachedFile)
 		}
@@ -136,7 +138,7 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 	cachedFilePath := getCachedFilePath(fileName)
 	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
 	if err != nil {
-		t.Errorf("CalculateFileCRC32 Failed: %v", err)
+		t.Errorf("CalculateFileCRC32 Failed for file %s: %v", cachedFilePath, err)
 	}
 	err = client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient)
 	if err != nil {
@@ -246,4 +248,13 @@ func runTestsOnlyForDynamicMount(t *testing.T) {
 		log.Println("This test will run only for dynamic mounting...")
 		t.SkipNow()
 	}
+}
+
+func isParallelDownloadsEnabled(flags []string) bool {
+	for _, flag := range flags {
+		if flag == "--config-file="+path.Join(setup.TestDir(), configFileNameForParallelDownloadTests) {
+			return true
+		}
+	}
+	return false
 }

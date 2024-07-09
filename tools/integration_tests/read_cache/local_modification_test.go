@@ -100,11 +100,13 @@ func TestLocalModificationTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true", "--config-file=" + createConfigFile(cacheCapacityInMB,
-			false, configFileName+"ForReadCache", false)},
-		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityInMB,
-			false, configFileNameForParallelDownloadTests, true)},
+		{"--implicit-dirs"},
 	}
+
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName, false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true),
+	)
 
 	// Run tests.
 	for _, flags := range flagsSet {

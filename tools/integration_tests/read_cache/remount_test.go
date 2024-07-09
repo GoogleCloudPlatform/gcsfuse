@@ -135,7 +135,7 @@ func TestRemountTest(t *testing.T) {
 		{"--implicit-dirs=true"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"ForReadCache", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName, false),
 		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true))
 
 	// Create storage client before running tests.

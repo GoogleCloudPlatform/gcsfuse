@@ -99,7 +99,7 @@ func TestDisabledCacheTTLTest(t *testing.T) {
 		{"--implicit-dirs=true", "--stat-cache-ttl=0s"},
 	}
 	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName+"ForReadCache", false),
+		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileName, false),
 		"--config-file="+createConfigFile(cacheCapacityInMB, false, configFileNameForParallelDownloadTests, true))
 
 	// Run tests.
