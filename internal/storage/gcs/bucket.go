@@ -153,5 +153,5 @@ type Bucket interface {
 	// request, returning a result folders that contains the results and
 	// potentially a cursor for retrieving the next portion of the larger set of
 	// results.
-	ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (*ListingFolders, error)
+	ListFolders(ctx context.Context, req *ListFolderRequest) (*ListingFolders, error)
 }

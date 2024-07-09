@@ -402,7 +402,7 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 	return
 }
 
-func (m *mockBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (o0 *gcs.ListingFolders, o1 error) {
+func (m *mockBucket) ListFolders(ctx context.Context, req *gcs.ListFolderRequest) (o0 *gcs.ListingFolders, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 

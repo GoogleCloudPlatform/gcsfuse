@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -325,7 +324,7 @@ type Listing struct {
 // ListingFolders contains a set of folders by a call to ListFolders.
 type ListingFolders struct {
 	// Records for folders matching the listing criteria.
-	Folders []*controlpb.Folder
+	Folders []*Folder
 
 	// A continuation token, for fetching more results.
 	//
@@ -393,4 +392,23 @@ type DeleteObjectRequest struct {
 	// with the given name (and optionally generation), and its meta-generation
 	// is not equal to this value.
 	MetaGenerationPrecondition *int64
+}
+
+type ListFolderRequest struct {
+	// Required. Name of the bucket in which to look for folders. The bucket must
+	// be a hierarchical namespace enabled bucket.
+	Parent string
+	// Optional. Maximum number of folders to return in a single response. The
+	// service will use this parameter or 1,000 items, whichever is smaller.
+	PageSize int32
+	// Optional. A previously-returned page token representing part of the larger
+	// set of results to view.
+	PageToken string
+	// Optional. Filter results to folders whose names begin with this prefix.
+	// If set, the value must either be an empty string or end with a '/'.
+	Prefix string
+	// Optional. If set, returns results in a directory-like mode. The results
+	// will only include folders that either exactly match the above prefix, or
+	// are one level below the prefix. The only supported value is '/'.
+	Delimiter string
 }

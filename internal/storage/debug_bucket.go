@@ -255,7 +255,7 @@ func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, desti
 	return o, err
 }
 
-func (b *debugBucket) ListFolders(ctx context.Context, req *controlpb.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+func (b *debugBucket) ListFolders(ctx context.Context, req *gcs.ListFolderRequest) (listing *gcs.ListingFolders, err error) {
 	id, desc, start := b.startRequest("ListFolders(%q)", req.Prefix)
 	defer b.finishRequest(id, desc, start, &err)
 
