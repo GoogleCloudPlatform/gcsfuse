@@ -64,7 +64,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(100)
+	DefaultMaxRetryAttempts         = int64(6)
 )
 
 type WriteConfig struct {
@@ -178,8 +178,16 @@ func DefaultLogRotateConfig() LogRotateConfig {
 	}
 }
 
+func DefaultGCSRetries() GCSRetries {
+	return GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
+}
+
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
+	log.Println("Mount config...")
+
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
@@ -216,10 +224,7 @@ func NewMountConfig() *MountConfig {
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
 
-	mountConfig.GCSRetries = GCSRetries{
-		MaxRetryAttempts: DefaultMaxRetryAttempts,
-	}
+	mountConfig.GCSRetries.MaxRetryAttempts = DefaultMaxRetryAttempts
 
-	log.Println("Default config: ", mountConfig.GCSRetries.MaxRetryAttempts)
 	return mountConfig
 }

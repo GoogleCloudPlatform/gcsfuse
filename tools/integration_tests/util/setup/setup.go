@@ -422,6 +422,7 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
+		GCSRetries: config.DefaultGCSRetries(),
 	}
 	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
 	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.

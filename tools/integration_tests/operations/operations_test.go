@@ -93,8 +93,11 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
+	log.Println("In config")
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
 
+	m := config.MountConfig{}
+	log.Println("Config: ", m)
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
 		WriteConfig: config.WriteConfig{
@@ -104,7 +107,10 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
+		GCSRetries: config.DefaultGCSRetries(),
 	}
+
+	log.Println("Mount Config: ", mountConfig1)
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath1})
 
@@ -120,6 +126,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
+		GCSRetries: config.DefaultGCSRetries(),
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath2})
@@ -133,6 +140,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
+		GCSRetries: config.DefaultGCSRetries(),
 	}
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
