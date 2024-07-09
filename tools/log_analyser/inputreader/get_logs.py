@@ -100,8 +100,9 @@ class GetLogs:
                     if not isinstance(data, list):
                         raise ValueError("Expected a JSON list in the file")
                     for obj in data:
-                        json_log = {"timestamp": self.iso_to_epoch(obj["timestamp"]), "message": obj["textPayload"]}
-                        logs.append(json_log)
+                        if "timestamp" in obj.keys() and "textPayload" in obj.keys():
+                            json_log = {"timestamp": self.iso_to_epoch(obj["timestamp"]), "message": obj["textPayload"]}
+                            logs.append(json_log)
                 else:
                     with open(file, 'r') as csvfile:
                         reader = csv.reader(csvfile)

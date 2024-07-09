@@ -293,11 +293,23 @@ def kernel_call_parser(log, global_data):
                 file_obj.kernel_calls.calls[file_obj.kernel_calls.callname_index_map[req_name]].calls_made += 1
     elif message.find("name") != -1:
         name = get_val(message, "name", "\"", "fwd", 2, global_data.faulty_logs)
-        if name is None:
+        parent_tmp = get_val(message, "parent", ",", "fwd", 1, global_data.faulty_logs)
+        if parent_tmp is None or name is None:
             return
-        if name in global_data.name_object_map.keys():
-            global_data.requests[req_id].object_name = name
-            file_obj = global_data.name_object_map[name]
+        try:
+            parent = int(parent_tmp)
+        except ValueError as e:
+            global_data.faulty_logs.append(message)
+            return
+        if parent != 0 and parent != 1 and parent in global_data.inode_name_map:
+            prefix_name = global_data.inode_name_map[parent]
+            prefix_name += "/"
+        else:
+            prefix_name = ""
+        abs_name = prefix_name + name
+        if abs_name in global_data.name_object_map.keys():
+            global_data.requests[req_id].object_name = abs_name
+            file_obj = global_data.name_object_map[abs_name]
             if req_name in file_obj.kernel_calls.callname_index_map.keys():
                 file_obj.kernel_calls.calls[file_obj.kernel_calls.callname_index_map[req_name]].calls_made += 1
     if req_name in global_data.gcalls.kernel_index_map.keys():
@@ -316,7 +328,7 @@ def kernel_call_parser(log, global_data):
         else:
             prefix = ""
             global_data.requests[req_id].is_valid = False
-        global_data.requests[req_id].abs_name = prefix + name
+        global_data.requests[req_id].object_name = prefix + name
         global_data.requests[req_id].rel_name = name
         global_data.requests[req_id].parent = parent
 
