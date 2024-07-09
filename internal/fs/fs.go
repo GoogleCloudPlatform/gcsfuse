@@ -2138,7 +2138,6 @@ func (fs *fileSystem) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	// Make sure the inode still exists and is a directory. If not, something has
 	// screwed up because the VFS layer shouldn't have let us forget the inode
@@ -2152,16 +2151,13 @@ func (fs *fileSystem) OpenDir(
 	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
 	op.Handle = handleID
 
+	fs.mu.Unlock()
+
 	// Enables kernel list-cache in case of non-zero kernelListCacheTTL.
 	if fs.kernelListCacheTTL > 0 {
-
-		// Taking RLock() since ShouldInvalidateKernelListCache only reads the DirInode
-		// properties, no modification.
-		in.RLock()
 		// Invalidates the kernel list-cache once the last cached response is out of
 		// kernelListCacheTTL.
 		op.KeepCache = !in.ShouldInvalidateKernelListCache(fs.kernelListCacheTTL)
-		in.RUnlock()
 
 		op.CacheDir = true
 	}
