@@ -15,43 +15,41 @@
 # unit tests for custom_vm_perf_script
 
 import unittest
-from custom_vm_perf_script import _parse_arguments
-
-DEFAULT_VM_NAME = "perf-tests-vm"
-DEFAULT_MACHINE_TYPE = "n2-standard-96"
-DEFAULT_IMAGE_FAMILY = "ubuntu-2004-lts"
-DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
-DEFAULT_ZONE = "us-west1-b"
-DEFAULT_STARTUP_SCRIPT = "./../../custom_vm_startup_script.sh"
-EXPECTED_VM_NAME = "custom-vm"
-EXPECTED_MACHINE_TYPE = "n2-standard-32"
-EXPECTED_IMAGE_FAMILY = "debian-10"
-EXPECTED_IMAGE_PROJECT = "debian-cloud"
-EXPECTED_ZONE = "us-west1-a"
-EXPECTED_STARTUP_SCRIPT = "custom_startup_script.sh"
+from custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
+  DEFAULT_MACHINE_TYPE, DEFAULT_IMAGE_PROJECT, DEFAULT_IMAGE_FAMILY, \
+  DEFAULT_ZONE, DEFAULT_STARTUP_SCRIPT
 
 class TestParseArguments(unittest.TestCase):
   def test_explicit_values(self):
+    vm_name = "custom-vm"
+    machine_type = "n2-standard-32"
+    image_family = "debian-10"
+    image_project = "debian-cloud"
+    zone = "us-west1-a"
+    startup_script = "custom_startup_script.sh"
+
     args = _parse_arguments(
         [
             "script",
-            "--vm_name", "custom-vm",
-            "--machine_type", "n2-standard-32",
-            "--image_family", "debian-10",
-            "--image_project", "debian-cloud",
-            "--zone", "us-west1-a",
-            "--startup_script", "custom_startup_script.sh"
+            "--vm_name", vm_name,
+            "--machine_type", machine_type,
+            "--image_family", image_family,
+            "--image_project", image_project,
+            "--zone", zone,
+            "--startup_script", startup_script
         ],
     )
-    self.assertEqual(args.vm_name, EXPECTED_VM_NAME)
-    self.assertEqual(args.machine_type, EXPECTED_MACHINE_TYPE)
-    self.assertEqual(args.image_family, EXPECTED_IMAGE_FAMILY)
-    self.assertEqual(args.image_project, EXPECTED_IMAGE_PROJECT)
-    self.assertEqual(args.zone, EXPECTED_ZONE)
-    self.assertEqual(args.startup_script, EXPECTED_STARTUP_SCRIPT)
 
-  def test_explicit_values(self):
+    self.assertEqual(args.vm_name, vm_name)
+    self.assertEqual(args.machine_type, machine_type)
+    self.assertEqual(args.image_family, image_family)
+    self.assertEqual(args.image_project, image_project)
+    self.assertEqual(args.zone, zone)
+    self.assertEqual(args.startup_script, startup_script)
+
+  def test_default_values(self):
     args = _parse_arguments(["script"])
+
     self.assertEqual(args.vm_name, DEFAULT_VM_NAME)
     self.assertEqual(args.machine_type, DEFAULT_MACHINE_TYPE)
     self.assertEqual(args.image_family, DEFAULT_IMAGE_FAMILY)
@@ -62,3 +60,4 @@ class TestParseArguments(unittest.TestCase):
 
 if __name__ == '__main__':
   unittest.main()
+
