@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# To automate perf tests, this script creates a VM instance based on the
+# flags passed.The command for running the script:
+# python3 custom_vm_perf_test.py --vm_name=<vm_name> --machine_type=<machine-type>
+# image_family=<image_family> --image_project=<image_project> --zone=<zone>
+# --startup_script=<startup_script_filepath>
+
+# For changing the bucket/spreadsheet id, change values in custom_vm_startup_script.sh
+
 import argparse
 import sys
 import subprocess
@@ -20,7 +28,7 @@ DEFAULT_VM_NAME = "perf-tests-vm"
 DEFAULT_MACHINE_TYPE = "n2-standard-96"
 DEFAULT_IMAGE_FAMILY = "ubuntu-2004-lts"
 DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
-DEFAULT_ZONE = "us-west1-a"
+DEFAULT_ZONE = "us-west1-b"
 DEFAULT_STARTUP_SCRIPT = "./../../custom_vm_startup_script.sh"
 BOOT_DISK_SIZE = "100GiB"
 
