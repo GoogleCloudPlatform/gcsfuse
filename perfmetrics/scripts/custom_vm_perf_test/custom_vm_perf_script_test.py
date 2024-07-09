@@ -15,10 +15,7 @@
 # unit tests for custom_vm_perf_script
 
 import unittest
-from custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
-  DEFAULT_MACHINE_TYPE, DEFAULT_IMAGE_PROJECT, DEFAULT_IMAGE_FAMILY, \
-  DEFAULT_ZONE, DEFAULT_STARTUP_SCRIPT
-
+import custom_vm_perf_script
 
 class TestParseArguments(unittest.TestCase):
   def test_explicit_values(self):
@@ -29,7 +26,7 @@ class TestParseArguments(unittest.TestCase):
     zone = "us-west1-a"
     startup_script = "custom_startup_script.sh"
 
-    args = _parse_arguments(
+    args = custom_vm_perf_script._parse_arguments(
         [
             "script",
             "--vm_name", vm_name,
@@ -49,14 +46,14 @@ class TestParseArguments(unittest.TestCase):
     self.assertEqual(args.startup_script, startup_script)
 
   def test_default_values(self):
-    args = _parse_arguments(["script"])
+    args = custom_vm_perf_script._parse_arguments(["script"])
 
-    self.assertEqual(args.vm_name, DEFAULT_VM_NAME)
-    self.assertEqual(args.machine_type, DEFAULT_MACHINE_TYPE)
-    self.assertEqual(args.image_family, DEFAULT_IMAGE_FAMILY)
-    self.assertEqual(args.image_project, DEFAULT_IMAGE_PROJECT)
-    self.assertEqual(args.zone, DEFAULT_ZONE)
-    self.assertEqual(args.startup_script, DEFAULT_STARTUP_SCRIPT)
+    self.assertEqual(args.vm_name, custom_vm_perf_script.DEFAULT_VM_NAME)
+    self.assertEqual(args.machine_type, custom_vm_perf_script.DEFAULT_MACHINE_TYPE)
+    self.assertEqual(args.image_family, custom_vm_perf_script.DEFAULT_IMAGE_FAMILY)
+    self.assertEqual(args.image_project, custom_vm_perf_script.DEFAULT_IMAGE_PROJECT)
+    self.assertEqual(args.zone, custom_vm_perf_script.DEFAULT_ZONE)
+    self.assertEqual(args.startup_script, custom_vm_perf_script.DEFAULT_STARTUP_SCRIPT)
 
 
 if __name__ == '__main__':
