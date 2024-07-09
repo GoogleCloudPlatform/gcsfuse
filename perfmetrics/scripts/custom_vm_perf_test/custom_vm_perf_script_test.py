@@ -15,7 +15,7 @@
 # unit tests for custom_vm_perf_script
 
 import unittest
-from custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
+from perfmetrics.scripts.custom_vm_perf_test.custom_vm_perf_script import _parse_arguments, DEFAULT_VM_NAME, \
   DEFAULT_MACHINE_TYPE, DEFAULT_IMAGE_PROJECT, DEFAULT_IMAGE_FAMILY, \
   DEFAULT_ZONE, DEFAULT_STARTUP_SCRIPT
 
