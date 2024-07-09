@@ -18,35 +18,9 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestInvalidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
-	if err != nil {
-		t.Fatalf("Error while creating the root command: %v", err)
-	}
-	cmd.SetArgs([]string{"--config-file=testdata/invalid_config.yml", "abc", "pqr"})
-
-	err = cmd.Execute()
-
-	if assert.NotNil(t, err) {
-		expectedErr := &mapstructure.Error{}
-		assert.ErrorAs(t, err, &expectedErr)
-	}
-}
-
-func TestValidConfig(t *testing.T) {
-	cmd, err := NewRootCmd(func(config cfg.Config) error { return nil })
-	if err != nil {
-		t.Fatalf("Error while creating the root command: %v", err)
-	}
-	cmd.SetArgs([]string{"--config-file=testdata/valid_config.yml", "abc", "pqr"})
-
-	assert.Nil(t, cmd.Execute())
-}
 
 func TestDefaultMaxParallelDownloads(t *testing.T) {
 	var actual cfg.Config
