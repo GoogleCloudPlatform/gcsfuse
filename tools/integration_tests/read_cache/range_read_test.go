@@ -101,11 +101,9 @@ func TestRangeReadTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagSet := [][]string{
-		{"--implicit-dirs=true"},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(largeFileCacheCapacity, false, configFileName+"1", false)},
+		{"--config-file=" + createConfigFile(largeFileCacheCapacity, true, configFileName+"2", false)},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagSet,
-		"--config-file="+createConfigFile(largeFileCacheCapacity, false, configFileName+"1", false),
-		"--config-file="+createConfigFile(largeFileCacheCapacity, true, configFileName+"2", false))
 
 	// Run tests.
 	for _, flags := range flagSet {

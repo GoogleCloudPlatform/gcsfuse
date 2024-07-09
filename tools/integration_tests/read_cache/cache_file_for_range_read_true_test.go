@@ -95,12 +95,9 @@ func TestCacheFileForRangeReadTrueTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true"},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false)},
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileNameForParallelDownloadTests, true)},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, true, configFileName, false))
-	flagsSet = append(flagsSet, []string{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB,
-		true, configFileNameForParallelDownloadTests, true)})
 
 	// Run tests.
 	for _, flags := range flagsSet {
