@@ -296,6 +296,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					"ignore-interrupts":          true,
 					"anonymous-access":           true,
 					"kernel-list-cache-ttl-secs": true,
+					"max-retry-attempts":         true,
 				},
 			},
 			legacyMountConfig: &config.MountConfig{
@@ -332,7 +333,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ClientProtocol: cfg.Protocol("http2"),
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
-					MaxRetryAttempts: 15,
+					MaxRetryAttempts: 100,
 				},
 			},
 			expectedErr: nil,

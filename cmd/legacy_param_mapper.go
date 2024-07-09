@@ -128,6 +128,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		ignoreInterrupts       = resolvedConfig.FileSystem.IgnoreInterrupts
 		anonymousAccess        = resolvedConfig.GcsAuth.AnonymousAccess
 		kernelListCacheTTLSecs = resolvedConfig.FileSystem.KernelListCacheTtlSecs
+		maxRetryAttempts       = resolvedConfig.GcsRetries.MaxRetryAttempts
 	)
 
 	// Decoding config to the same config structure (resolvedConfig).
@@ -141,6 +142,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "ignore-interrupts", &resolvedConfig.FileSystem.IgnoreInterrupts, ignoreInterrupts)
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
 	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
+	overrideWithFlag(c, "max-retry-attempts", &resolvedConfig.GcsRetries.MaxRetryAttempts, maxRetryAttempts)
 
 	return resolvedConfig, nil
 }
