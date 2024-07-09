@@ -195,6 +195,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storage.WithErrorFunc(storageutil.ShouldRetry),
 		storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
 
+	fmt.Println("Retries: ", clientConfig.MaxRetryAttempts)
+
 	sh = &storageClient{client: sc, storageControlClient: controlClient}
 	return
 }
