@@ -224,7 +224,7 @@ func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (fol
 	return folder, err
 }
 
-func (b *throttledBucket) ListFolders(ctx context.Context, req *gcs.ListFolderRequest) (listing *gcs.ListingFolders, err error) {
+func (b *throttledBucket) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
 	// Wait for permission to call through.
 	err = b.opThrottle.Wait(ctx, 1)
 	if err != nil {

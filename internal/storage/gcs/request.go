@@ -394,7 +394,7 @@ type DeleteObjectRequest struct {
 	MetaGenerationPrecondition *int64
 }
 
-type ListFolderRequest struct {
+type ListFoldersRequest struct {
 	// Required. Name of the bucket in which to look for folders. The bucket must
 	// be a hierarchical namespace enabled bucket.
 	Parent string
