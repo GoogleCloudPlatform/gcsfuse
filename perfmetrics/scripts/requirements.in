@@ -25,3 +25,6 @@ google.cloud==0.34.0
 google_api_python_client==2.55.0
 proto-plus==1.22.1
 protobuf==4.21.6
+urllib3==2.2.2
+exceptiongroup==1.1.1
+tomli==2.0.1
