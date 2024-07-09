@@ -1,0 +1,7 @@
+write:
+  create-empty-file: true
+logging:
+  severity: error
+  log-rotate:
+    max-file-size-mb: -1
+    backup-file-count: -1
