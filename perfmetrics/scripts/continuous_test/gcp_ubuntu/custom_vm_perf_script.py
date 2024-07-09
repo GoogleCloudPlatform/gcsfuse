@@ -14,7 +14,7 @@
 
 # To automate perf tests, this script creates a VM instance based on the
 # flags passed.The command for running the script:
-# python3 custom_vm_perf_test.py --vm_name=<vm_name> --machine_type=<machine-type>
+# python3 custom_vm_perf_script.py --vm_name=<vm_name> --machine_type=<machine-type>
 # image_family=<image_family> --image_project=<image_project> --zone=<zone>
 # --startup_script=<startup_script_filepath>
 
@@ -41,7 +41,10 @@ def _parse_arguments(argv):
     Returns:
       A class containing the parsed arguments.
     """
-    argv = sys.argv
+
+    if argv is None:
+        argv = sys.argv[1:]
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
