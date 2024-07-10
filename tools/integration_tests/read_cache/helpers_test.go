@@ -119,13 +119,13 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 		// Validate that the file is present in cache location.
 		var fileInfo *fs.FileInfo
 		fileInfo, err = operations.StatFile(expectedPathOfCachedFile)
-		if fileInfo == nil {
-			err = fmt.Errorf("received nil FileInfo %s", expectedPathOfCachedFile)
-		}
 		// Validate file size in cache directory matches actual file size.
-		if err == nil && filesize != (*fileInfo).Size() {
-			err = fmt.Errorf("incorrect cached file size. Expected: %d, Got %d", filesize, (*fileInfo).Size())
-			t.Logf("Incorrect cached file size, retrying %d...", attempt)
+		if err == nil && fileInfo != nil {
+			if filesize != (*fileInfo).Size() {
+				err = fmt.Errorf("incorrect cached file size. Expected: %d, Got %d", filesize, (*fileInfo).Size())
+				t.Logf("Incorrect cached file size, retrying %d...", attempt)
+			}
+			break
 		}
 		time.Sleep(retryDelay)
 	}
