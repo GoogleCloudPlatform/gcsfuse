@@ -115,6 +115,14 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	return
 }
 
+func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	return hit, f
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Bucket interface
 ////////////////////////////////////////////////////////////////////////
@@ -298,17 +306,23 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (folder *gcs.Folder, err error) {
-	// Fetch the listing.
-	folder, err = b.wrapped.GetFolder(ctx, prefix)
-	if err != nil {
-		return
+	prefix string) (*gcs.Folder, error) {
+
+	if hit, entry := b.lookUpFolder(prefix); hit {
+		// Negative entries result in NotFoundError.
+		if entry == nil {
+			err := &gcs.NotFoundError{
+				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
+			}
+
+			return nil, err
+		}
+
+		return entry, nil
 	}
 
-	// TODO: add folder metadata in stat cache
-	// b.insertFolder(folder)
-
-	return
+	// Fetch the listing.
+	return b.wrapped.GetFolder(ctx, prefix)
 }
 
 func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
