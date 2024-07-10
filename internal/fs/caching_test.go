@@ -21,10 +21,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -57,7 +57,7 @@ func (t *cachingTestCommon) SetUpTestSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
 	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
-	lruCache := newLruCache(uint64(1000 * mount.AverageSizeOfPositiveStatCacheEntry))
+	lruCache := newLruCache(uint64(1000 * cmd.AverageSizeOfPositiveStatCacheEntry))
 	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
 		ttl,
@@ -456,7 +456,7 @@ func getMultiMountBucketDir(bucketName string) string {
 }
 
 func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
-	sharedCache := newLruCache(uint64(1000 * mount.AverageSizeOfPositiveStatCacheEntry))
+	sharedCache := newLruCache(uint64(1000 * cmd.AverageSizeOfPositiveStatCacheEntry))
 	uncachedBuckets = make(map[string]gcs.Bucket)
 	buckets = make(map[string]gcs.Bucket)
 
