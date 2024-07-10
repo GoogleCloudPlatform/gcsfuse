@@ -288,7 +288,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				IgnoreInterrupts:          false,
 				AnonymousAccess:           false,
 				KernelListCacheTtlSeconds: -1,
-				MaxRetryAttempts:          100,
+				MaxRetryAttempts:          15,
 				ClientProtocol:            mountpkg.HTTP2,
 			},
 			mockCLICtx: &mockCLIContext{
@@ -345,7 +345,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ClientProtocol: cfg.Protocol("http2"),
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
-					MaxRetryAttempts: 100,
+					MaxRetryAttempts: 15,
 				},
 			},
 			expectedErr: nil,
