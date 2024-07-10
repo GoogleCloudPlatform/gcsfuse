@@ -30,6 +30,7 @@ DEFAULT_IMAGE_FAMILY = "ubuntu-2004-lts"
 DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
 DEFAULT_ZONE = "us-west1-b"
 DEFAULT_STARTUP_SCRIPT = "custom_vm_startup_script.sh"
+DEFAULT_COMMIT_ID = "master"
 BOOT_DISK_SIZE = "100GiB"
 
 def _parse_arguments(argv):
@@ -95,6 +96,14 @@ def _parse_arguments(argv):
         required=False,
     )
 
+    parser.add_argument(
+        '--commit_id',
+        help='Provide commit id for building gcsfuse',
+        action='store',
+        default=DEFAULT_COMMIT_ID,
+        required=False,
+    )
+
     return parser.parse_args(argv[1:])
 
 
@@ -109,7 +118,8 @@ if __name__ == '__main__':
                       --image-project={args.image_project}\
                       --boot-disk-size={BOOT_DISK_SIZE}\
                       --zone={args.zone}\
-                      --metadata-from-file=startup-script={args.startup_script}",
+                      --metadata-from-file=startup-script={args.startup_script}\
+                      --metadata=COMMIT_ID={args.commit_id}",
                                 shell=True)
     except subprocess.CalledProcessError as e:
         print(e.output)
