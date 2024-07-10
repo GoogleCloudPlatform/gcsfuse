@@ -159,11 +159,9 @@ func TestArgsParsing(t *testing.T) {
 
 			err = cmd.Execute()
 
-			if assert.Nil(t, err) {
+			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedBucket, bucketName)
-				if assert.Nil(t, err) {
-					assert.Equal(t, tc.expectedMountpoint, mountPoint)
-				}
+				assert.Equal(t, tc.expectedMountpoint, mountPoint)
 			}
 		})
 	}
