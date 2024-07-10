@@ -104,7 +104,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
-		GCSRetries: config.DefaultGCSRetries(),
 	}
 
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
@@ -122,7 +121,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
-		GCSRetries: config.DefaultGCSRetries(),
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath2})
@@ -136,7 +134,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
-		GCSRetries: config.DefaultGCSRetries(),
 	}
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})

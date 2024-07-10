@@ -177,12 +177,6 @@ func DefaultLogRotateConfig() LogRotateConfig {
 	}
 }
 
-func DefaultGCSRetries() GCSRetries {
-	return GCSRetries{
-		MaxRetryAttempts: DefaultMaxRetryAttempts,
-	}
-}
-
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
 	mountConfig.LogConfig = LogConfig{
