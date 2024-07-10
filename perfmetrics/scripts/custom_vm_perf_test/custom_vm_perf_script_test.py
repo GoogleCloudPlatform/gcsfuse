@@ -25,6 +25,7 @@ class TestParseArguments(unittest.TestCase):
     image_project = "debian-cloud"
     zone = "us-west1-a"
     startup_script = "custom_startup_script.sh"
+    commit_id = "test-branch"
 
     args = custom_vm_perf_script._parse_arguments(
         [
@@ -34,7 +35,8 @@ class TestParseArguments(unittest.TestCase):
             "--image_family", image_family,
             "--image_project", image_project,
             "--zone", zone,
-            "--startup_script", startup_script
+            "--startup_script", startup_script,
+            "--commit_id", commit_id
         ],
     )
 
@@ -44,6 +46,7 @@ class TestParseArguments(unittest.TestCase):
     self.assertEqual(args.image_project, image_project)
     self.assertEqual(args.zone, zone)
     self.assertEqual(args.startup_script, startup_script)
+    self.assertEqual(args.commit_id, commit_id)
 
   def test_default_values(self):
     args = custom_vm_perf_script._parse_arguments(["script"])
@@ -54,6 +57,7 @@ class TestParseArguments(unittest.TestCase):
     self.assertEqual(args.image_project, custom_vm_perf_script.DEFAULT_IMAGE_PROJECT)
     self.assertEqual(args.zone, custom_vm_perf_script.DEFAULT_ZONE)
     self.assertEqual(args.startup_script, custom_vm_perf_script.DEFAULT_STARTUP_SCRIPT)
+    self.assertEqual(args.commit_id,custom_vm_perf_script.DEFAULT_COMMIT_ID)
 
 
 if __name__ == '__main__':
