@@ -530,7 +530,7 @@ type flagStorage struct {
 
 	// Post-mount actions
 
-	// ExperimentalMetadataPrefetchOnMount indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
+	// Deprecated: ExperimentalMetadataPrefetchOnMount indicates whether or not to prefetch the metadata of the mounted bucket at the time of mounting the bucket.
 	// Supported values: ExperimentalMetadataPrefetchOnMountDisabled, ExperimentalMetadataPrefetchOnMountSynchronous, and ExperimentalMetadataPrefetchOnMountAsynchronous.
 	// Any other values will return error on mounting.
 	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
