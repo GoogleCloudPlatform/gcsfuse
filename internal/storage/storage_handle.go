@@ -194,6 +194,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithErrorFunc(storageutil.ShouldRetry))
 
+	// The default MaxRetryAttempts value is 0 indicates no limit.
 	if clientConfig.MaxRetryAttempts != 0 {
 		sc.SetRetry(storage.WithMaxAttempts(clientConfig.MaxRetryAttempts))
 	}
