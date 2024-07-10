@@ -474,7 +474,7 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 	}
 }
 
-func TestValidation(t *testing.T) {
+func TestConfigValidation(t *testing.T) {
 	conf := config.NewMountConfig()
 	conf.LogRotateConfig.MaxFileSizeMB = -1
 
