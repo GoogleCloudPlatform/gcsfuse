@@ -45,11 +45,11 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)
 			}
-			if bucket, mountpoint, err := populateArgs(args[1:]); err != nil {
-				return fmt.Errorf("error occurred while extracting the bucket and mountpoint: %w", err)
-			} else {
-				return mountFn(&configObj, bucket, mountpoint)
+			bucket, mountPoint, err := populateArgs(args[1:])
+			if err != nil {
+				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
 			}
+			return mountFn(&configObj, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {
