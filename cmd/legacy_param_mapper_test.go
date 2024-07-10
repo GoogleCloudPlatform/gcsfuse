@@ -504,3 +504,53 @@ func TestInvalidClientProtocol(t *testing.T) {
 
 	assert.NotNil(t, err)
 }
+
+func TestEnableEmptyManagedFoldersVetting(t *testing.T) {
+	testcases := []struct {
+		name                              string
+		enableHns                         bool
+		enableEmptyManagedFolders         bool
+		expectedEnableEmptyManagedFolders bool
+	}{
+		{
+			name:                              "both enable-hns and enable-empty-managed-folders set to true",
+			enableHns:                         true,
+			enableEmptyManagedFolders:         true,
+			expectedEnableEmptyManagedFolders: true,
+		},
+		{
+			name:                              "enable-hns set to true",
+			enableHns:                         true,
+			enableEmptyManagedFolders:         false,
+			expectedEnableEmptyManagedFolders: true,
+		},
+		{
+			name:                              "enable-hns not true but enable-empty-managed-folders set to true",
+			enableHns:                         false,
+			enableEmptyManagedFolders:         true,
+			expectedEnableEmptyManagedFolders: true,
+		},
+		{
+			name:                              "both enable-hns and enable-empty-managed-folders not true",
+			enableHns:                         false,
+			enableEmptyManagedFolders:         false,
+			expectedEnableEmptyManagedFolders: false,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			flags := &flagStorage{
+				ClientProtocol: mountpkg.ClientProtocol("http1"),
+			}
+			c := config.NewMountConfig()
+			c.EnableHNS = tc.enableHns
+			c.ListConfig.EnableEmptyManagedFolders = tc.enableEmptyManagedFolders
+
+			resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, c)
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableEmptyManagedFolders, resolvedConfig.List.EnableEmptyManagedFolders)
+			}
+		})
+	}
+}
