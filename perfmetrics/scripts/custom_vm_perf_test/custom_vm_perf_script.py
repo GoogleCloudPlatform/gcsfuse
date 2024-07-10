@@ -118,6 +118,7 @@ if __name__ == '__main__':
                       --image-project={args.image_project}\
                       --boot-disk-size={BOOT_DISK_SIZE}\
                       --zone={args.zone}\
+                      --scopes=https://www.googleapis.com/auth/cloud-platform\
                       --metadata-from-file=startup-script={args.startup_script}\
                       --metadata=COMMIT_ID={args.commit_id}",
                                 shell=True)
