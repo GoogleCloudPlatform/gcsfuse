@@ -33,7 +33,7 @@ func GetDefaultStorageClientConfig() (clientConfig StorageClientConfig) {
 		MaxIdleConnsPerHost:        100,
 		HttpClientTimeout:          800 * time.Millisecond,
 		MaxRetrySleep:              time.Minute,
-		MaxRetryAttempts:           6,
+		MaxRetryAttempts:           0,
 		RetryMultiplier:            2,
 		UserAgent:                  "gcsfuse/unknown (Go version go1.20-pre3 cl/474093167 +a813be86df) (GCP:gcsfuse)",
 		CustomEndpoint:             &url.URL{},
