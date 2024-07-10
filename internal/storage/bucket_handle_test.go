@@ -1296,7 +1296,7 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), folderPath, result.Name)
+	assert.Equal(testSuite.T(), TestObjectName, result.Name)
 }
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {
@@ -1343,4 +1343,12 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
+}
+
+func (testSuite *BucketHandleTest) TestFindObjectName() {
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
+
+	folderName := findFolderName(TestBucketName, folderPath)
+
+	assert.Equal(testSuite.T(), folderName, TestObjectName)
 }
