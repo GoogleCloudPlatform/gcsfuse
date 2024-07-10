@@ -147,6 +147,9 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "max-retry-attempts", &resolvedConfig.GcsRetries.MaxRetryAttempts, maxRetryAttempts)
 	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
+	if err := cfg.ValidateConfig(resolvedConfig); err != nil {
+		return nil, err
+	}
 	return resolvedConfig, nil
 }
 

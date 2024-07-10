@@ -306,6 +306,11 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					FilePath: "~/Documents/log-config.txt",
 					Format:   "text",
 					Severity: "INFO",
+					LogRotateConfig: config.LogRotateConfig{
+						MaxFileSizeMB:   1,
+						BackupFileCount: 0,
+						Compress:        true,
+					},
 				},
 				FileSystemConfig: config.FileSystemConfig{
 					IgnoreInterrupts:          true,
@@ -323,6 +328,11 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					FilePath: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "/Documents/log-flag.txt")),
 					Format:   "json",
 					Severity: "INFO",
+					LogRotate: cfg.LogRotateLoggingConfig{
+						BackupFileCount: 0,
+						Compress:        true,
+						MaxFileSizeMb:   1,
+					},
 				},
 				FileSystem: cfg.FileSystemConfig{
 					IgnoreInterrupts:       false,
@@ -462,6 +472,15 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 	if assert.Nil(t, err) && assert.NotNil(t, resolvedConfig.GcsConnection.CustomEndpoint) {
 		assert.Equal(t, *resolvedConfig.GcsConnection.CustomEndpoint, *u)
 	}
+}
+
+func TestValidation(t *testing.T) {
+	conf := config.NewMountConfig()
+	conf.LogRotateConfig.MaxFileSizeMB = -1
+
+	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, &flagStorage{ClientProtocol: mountpkg.HTTP2}, conf)
+
+	assert.Error(t, err)
 }
 
 func TestValidClientProtocol(t *testing.T) {

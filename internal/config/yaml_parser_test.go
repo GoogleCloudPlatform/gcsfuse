@@ -82,19 +82,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:")
 }
 
-func (t *YamlParserTest) TestReadConfigFile_ValidConfigWith0BackupFileCount() {
-	mountConfig, err := ParseConfigFile("testdata/valid_config_with_0_backup-file-count.yaml")
-
-	assert.NoError(t.T(), err)
-	assert.NotNil(t.T(), mountConfig)
-	assert.True(t.T(), mountConfig.WriteConfig.CreateEmptyFile)
-	assert.Equal(t.T(), ERROR, mountConfig.LogConfig.Severity)
-	assert.Equal(t.T(), "/tmp/logfile.json", mountConfig.LogConfig.FilePath)
-	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), 0, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	assert.False(t.T(), mountConfig.LogConfig.LogRotateConfig.Compress)
-}
-
 func (t *YamlParserTest) TestReadConfigFile_Invalid_UnexpectedField_Config() {
 	_, err := ParseConfigFile("testdata/invalid_unexpectedfield_config.yaml")
 
@@ -155,18 +142,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	_, err := ParseConfigFile("testdata/invalid_log_config.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig1() {
-	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_1.yaml")
-
-	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "max-file-size-mb should be atleast 1"))
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
-	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_2.yaml")
-
-	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value"))
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
