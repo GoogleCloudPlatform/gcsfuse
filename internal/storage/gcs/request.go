@@ -408,6 +408,7 @@ type ListFoldersRequest struct {
 	// will only include folders that either exactly match the above prefix, or
 	// are one level below the prefix. The only supported value is '/'.
 	//
+	// e.g. Given the following structure:
 	// A/B/c.txt
 	// A/B/d.txt
 	// X/Y/z.txt
