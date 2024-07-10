@@ -359,7 +359,7 @@ func (m *mockBucket) GetFolder(
 		"GetFolder",
 		file,
 		line,
-		[]interface{}{})
+		[]interface{}{ctx, prefix})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.GetFolder: invalid return values: %v", retVals))
