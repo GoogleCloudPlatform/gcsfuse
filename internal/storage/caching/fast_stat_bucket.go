@@ -319,7 +319,7 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 	return o, err
 }
 
-func (b *fastStatBucket) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+func (b *fastStatBucket) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListFoldersResponse, err error) {
 	listing, err = b.wrapped.ListFolders(ctx, req)
 
 	// TODO: Invalidate cache

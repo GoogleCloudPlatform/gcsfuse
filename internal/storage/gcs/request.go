@@ -321,9 +321,9 @@ type Listing struct {
 	ContinuationToken string
 }
 
-// ListingFolders contains a set of folders by a call to ListFolders.
-type ListingFolders struct {
-	// Records for folders matching the listing criteria.
+// ListFoldersResponse contains a response from ListFolders API.
+type ListFoldersResponse struct {
+	// Records for list of folders matching the listing criteria.
 	Folders []*Folder
 
 	// A continuation token, for fetching more results.
@@ -407,5 +407,12 @@ type ListFoldersRequest struct {
 	// Optional. If set, returns results in a directory-like mode. The results
 	// will only include folders that either exactly match the above prefix, or
 	// are one level below the prefix. The only supported value is '/'.
+	//
+	// A/B/c.txt
+	// A/B/d.txt
+	// X/Y/z.txt
+	// If we set Prefix = "A" and Delimiter = "/" in a file listing operation, it
+	// will list the folder "B" because it matches the prefix "A".
+
 	Delimiter string
 }

@@ -521,7 +521,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 	return &folder, err
 }
 
-func (b *bucketHandle) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+func (b *bucketHandle) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListFoldersResponse, err error) {
 
 	// TODO: Implement me.
 	return

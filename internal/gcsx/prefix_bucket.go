@@ -230,7 +230,7 @@ func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, dest
 	return o, err
 }
 
-func (b *prefixBucket) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListingFolders, err error) {
+func (b *prefixBucket) ListFolders(ctx context.Context, req *gcs.ListFoldersRequest) (listing *gcs.ListFoldersResponse, err error) {
 	// Modify the request and call through.
 	mReq := new(gcs.ListFoldersRequest)
 	*mReq = *req
