@@ -15,7 +15,6 @@
 package config
 
 import (
-	"log"
 	"math"
 )
 
@@ -64,7 +63,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(6)
+	DefaultMaxRetryAttempts         = 0
 )
 
 type WriteConfig struct {
@@ -186,7 +185,6 @@ func DefaultGCSRetries() GCSRetries {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
-	log.Println("Mount config...")
 
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
