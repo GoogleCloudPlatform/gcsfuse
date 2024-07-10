@@ -24,7 +24,7 @@ set -e
 VM_INSTANCE=$(hostname)
 VM_ZONE=$(curl http://metadata.google.internal/computeMetadata/v1/instance/zone -H Metadata-Flavor:Google | cut '-d/' -f4)
 FIO_READ_DIRS=("gcs/128kb_read" "gcs/256kb_read" "gcs/1mb_read" "gcs/5mb_read" "gcs/10mb_read" "gcs/50mb_read" "gcs/100mb_read" "gcs/200mb_read" "gcs/1gb_read")
-FIO_WRITE_DIRS=("gcs/256kb_read" "gcs/1mb_read" "gcs/50mb_read" "gcs/100mb_read" "gcs/1gb_read")
+FIO_WRITE_DIRS=("gcs/256kb_write" "gcs/1mb_write" "gcs/50mb_write" "gcs/100mb_write" "gcs/1gb_write")
 
 # Function to fetch metadata value of the key.
 function fetch_meta_data_value() {
