@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
@@ -513,26 +512,10 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 		return nil, err
 	}
 
-	folder := gcs.Folder{
-		Name:           findFolderName(b.bucketName, clientFolder.Name),
-		Metageneration: clientFolder.Metageneration,
-		UpdateTime:     clientFolder.GetUpdateTime().AsTime(),
-	}
-
-	return &folder, err
+	folder := storageutil.ControlFolderAttrsToGCSFolder(b.bucketName, clientFolder)
+	return folder, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
-}
-
-// In HNS, folder paths returned by control client APIs are in the form of:
-//
-// projects/_/buckets/{bucket}/folders/{folder}
-// This method extracts the folder name from such a string.
-func findFolderName(bucketName, object string) string {
-	prefix := "projects/_/buckets/" + bucketName + "/folders/"
-	folderName := strings.TrimPrefix(object, prefix)
-
-	return folderName
 }

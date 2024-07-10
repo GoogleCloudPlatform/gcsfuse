@@ -1344,11 +1344,3 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
 }
-
-func (testSuite *BucketHandleTest) TestFindObjectName() {
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
-
-	folderName := findFolderName(TestBucketName, folderPath)
-
-	assert.Equal(testSuite.T(), folderName, TestObjectName)
-}
