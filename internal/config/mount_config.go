@@ -185,7 +185,6 @@ func DefaultGCSRetries() GCSRetries {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
-
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
 		Severity: INFO,
