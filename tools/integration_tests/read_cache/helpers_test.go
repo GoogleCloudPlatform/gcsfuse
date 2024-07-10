@@ -124,8 +124,9 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 			if filesize != (*fileInfo).Size() {
 				err = fmt.Errorf("incorrect cached file size. Expected: %d, Got %d", filesize, (*fileInfo).Size())
 				t.Logf("Incorrect cached file size, retrying %d...", attempt)
+			} else {
+				break
 			}
-			break
 		}
 		time.Sleep(retryDelay)
 	}
