@@ -105,7 +105,6 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			LogRotateConfig: config.DefaultLogRotateConfig(),
 		},
 	}
-
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath1})
 
