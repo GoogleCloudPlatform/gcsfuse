@@ -725,3 +725,46 @@ func (t *DeleteObjectTest) WrappedSucceeds() {
 	err = t.deleteObject(name)
 	AssertEq(nil, err)
 }
+
+func (t *StatObjectTest) TestShouldReturnFromCacheWhenEntryIsPresent() {
+	const name = "some-name"
+	folder := &gcs.Folder{
+		Name: name,
+	}
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, folder))
+
+	result, err := t.bucket.GetFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+	ExpectThat(result, Pointee(DeepEquals(*folder)))
+}
+
+func (t *StatObjectTest) TestShouldReturnNotFoundErrorWhenNilEntryIsReturned() {
+	const name = "some-name"
+
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(true, nil))
+
+	result, err := t.bucket.GetFolder(context.TODO(), name)
+
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+	AssertEq(nil, result)
+}
+
+func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
+	const name = "some-name"
+	folder := &gcs.Folder{
+		Name: name,
+	}
+
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+		WillOnce(Return(folder, nil))
+
+	result, err := t.bucket.GetFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+	ExpectThat(result, Pointee(DeepEquals(*folder)))
+}

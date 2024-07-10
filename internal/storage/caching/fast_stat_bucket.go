@@ -321,7 +321,7 @@ func (b *fastStatBucket) GetFolder(
 		return entry, nil
 	}
 
-	// Fetch the listing.
+	// Fetch the Folder
 	return b.wrapped.GetFolder(ctx, prefix)
 }
 
