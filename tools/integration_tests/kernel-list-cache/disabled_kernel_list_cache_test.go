@@ -76,8 +76,8 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
-
 	assert.NoError(t, err)
+
 	require.Equal(t, 3, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
