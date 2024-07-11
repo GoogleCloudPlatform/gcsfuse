@@ -72,8 +72,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	// Adding one object to make sure to change the ReadDir() response.
 	f3 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file3.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f3)
-	// Advancing time by 5 years (157800000 seconds).
-	time.Sleep(157800000 * time.Second)
+
+	time.Sleep(5 * time.Second)
 
 	// No invalidation since infinite ttl.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
