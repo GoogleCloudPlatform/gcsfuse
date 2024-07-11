@@ -50,15 +50,16 @@ func (s *infiniteKernelListCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testing.T) {
-	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
 	// Create test data
-	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
-	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err := os.Open(targetDir)
 	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
@@ -77,7 +78,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	time.Sleep(5 * time.Second)
 
 	// Kernel cache will not invalidate since infinite ttl.
-	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err = os.Open(targetDir)
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
