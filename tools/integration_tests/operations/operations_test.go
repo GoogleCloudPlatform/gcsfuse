@@ -148,7 +148,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 		},
 	}
 	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
-	flags = append(flags, []string{"--config-file=" + filePath4})
+	flags = append(flags, []string{"--config-file=" + filePath4, "--implicit-dirs=true"})
 	return flags
 }
 
@@ -181,7 +181,7 @@ func TestMain(m *testing.M) {
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
+		{"--experimental-enable-json-read=true"},
 	}
 
 	// gRPC tests will not run in TPC environment
