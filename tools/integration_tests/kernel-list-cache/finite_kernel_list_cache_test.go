@@ -88,7 +88,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
