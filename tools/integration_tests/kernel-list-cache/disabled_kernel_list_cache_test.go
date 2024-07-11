@@ -20,6 +20,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
@@ -69,8 +70,10 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	err = f.Close()
 	assert.Nil(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
-	f3 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file3.txt"), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f3)
+	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirPath, "explicit_dir", "file3.txt"), "")
+	if err != nil {
+		t.Errorf("Failed to create test directory: %v", err)
+	}
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
