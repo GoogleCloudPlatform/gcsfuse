@@ -30,6 +30,7 @@ nohup gcsfuse/gcsfuse --foreground \
       --implicit-dirs \
       --stackdriver-export-interval 60s \
       --config-file /tmp/gcsfuse_config.yaml \
+      --kernel-list-cache-ttl-secs=-1 \
       gcsfuse-ml-tf-data myBucket > /home/output/gcsfuse.out 2> /home/output/gcsfuse.err &
 
 # Install tensorflow model garden library
