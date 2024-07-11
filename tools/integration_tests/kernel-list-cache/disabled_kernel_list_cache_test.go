@@ -70,10 +70,7 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	err = f.Close()
 	assert.Nil(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
-	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir", "file3.txt"), "")
-	if err != nil {
-		t.Errorf("Failed to create test directory: %v", err)
-	}
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
