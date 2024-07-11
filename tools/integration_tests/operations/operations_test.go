@@ -170,7 +170,7 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
 		{"--experimental-enable-json-read=true"},
-		{"--kernel-list-cache-ttl-secs=-1", "--implicit-dirs"},
+		{"--kernel-list-cache-ttl-secs -1", "--implicit-dirs"},
 	}
 
 	// gRPC tests will not run in TPC environment
