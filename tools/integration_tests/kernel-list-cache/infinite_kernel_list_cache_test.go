@@ -70,11 +70,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	assert.Equal(t, "file2.txt", names1[1])
 	err = f.Close()
 	assert.Nil(t, err)
+
 	// Adding one object to make sure to change the ReadDir() response.
-	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir", "file3.txt"), "")
-	if err != nil {
-		t.Errorf("Failed to create test directory: %v", err)
-	}
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
