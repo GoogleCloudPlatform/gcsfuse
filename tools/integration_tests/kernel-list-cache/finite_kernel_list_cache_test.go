@@ -33,6 +33,10 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+var (
+	targetDir string
+)
+
 type finiteKernelListCacheTest struct {
 	flags []string
 }

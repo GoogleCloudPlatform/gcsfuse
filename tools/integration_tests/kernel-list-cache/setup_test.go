@@ -37,7 +37,6 @@ const (
 
 var (
 	testDirPath string
-	targetDir   string
 	mountFunc   func([]string) error
 	// mount directory is where our tests run.
 	mountDir string
