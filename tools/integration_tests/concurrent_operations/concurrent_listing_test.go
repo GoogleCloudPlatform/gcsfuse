@@ -87,7 +87,12 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	// Fails if the operation takes more than timeout.
+<<<<<<< HEAD
 	timeout := 10 * time.Second
+=======
+	timeout := 5 * time.Second
+	iterationsPerGoroutine := 100
+>>>>>>> 8824523c (comment change to execute integration tests)
 
 	// Goroutine 1: Repeatedly calls OpenDir.
 	go func() {
@@ -182,7 +187,12 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
+<<<<<<< HEAD
 	goroutineCount := 10 // Number of concurrent goroutines
+=======
+	goroutineCount := 10          // Number of concurrent goroutines
+	iterationsPerGoroutine := 100 // Number of iterations per goroutine
+>>>>>>> 8824523c (comment change to execute integration tests)
 	wg.Add(goroutineCount)
 	timeout := 50 * time.Second
 
