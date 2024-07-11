@@ -33,6 +33,8 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
+// Test cases of this test suites are parallelizable, use -parallel n to set
+// the parallelism in the go test command.
 type concurrentListingTest struct{}
 
 func (s *concurrentListingTest) Setup(t *testing.T) {
@@ -41,17 +43,20 @@ func (s *concurrentListingTest) Setup(t *testing.T) {
 
 func (s *concurrentListingTest) Teardown(t *testing.T) {}
 
-// Create initial directory structure for kernel-list-cache test.
+// Create initial directory structure for kernel-list-cache test in the
+// given testCaseDir.
 // bucket
 //
 //		file1.txt
 //		file2.txt
-//	 explicitDir/
+//	  explicitDir/
 //		explicitDir/file1.txt
 //		explicitDir/file2.txt
-func createDirectoryStructure(t *testing.T) {
+func createDirectoryStructureForTestCase(t *testing.T, testCaseDir string) {
+	operations.CreateDirectory(path.Join(testDirPath, testCaseDir), t)
+
 	// Create explicitDir structure
-	explicitDir := path.Join(testDirPath, "explicitDir")
+	explicitDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	operations.CreateDirectory(explicitDir, t)
 	operations.CreateFileOfSize(5, path.Join(explicitDir, "file1.txt"), t)
 	operations.CreateFileOfSize(10, path.Join(explicitDir, "file2.txt"), t)
@@ -64,7 +69,11 @@ func createDirectoryStructure(t *testing.T) {
 // Test_OpenDirAndLookUp helps in detecting the deadlock when
 // OpenDir() and LookUpInode() request for same directory comes in parallel.
 func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
-	createDirectoryStructure(t)
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_OpenDirAndLookUp"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -72,20 +81,23 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	timeout := 5 * time.Second
 	iterationsPerGoroutine := 100
 
+	// Goroutine 1: Repeatedly calls OpenDir.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			f, err := os.Open(path.Join(testDirPath, "explicitDir"))
+			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
 		}
 	}()
+
+	// Goroutine 1: Repeatedly calls Stat.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			_, err := os.Stat(path.Join(testDirPath, "explicitDir"))
+			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
 	}()
@@ -107,20 +119,23 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 // Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with directory creation and deletion operations.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
-	createDirectoryStructure(t)
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_Parallel_ReadDirAndLookUp"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
 	iterationsPerGoroutine := 40
 
-	parentDir := path.Join(testDirPath, "explicitDir")
-
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			f, err := os.Open(parentDir)
+			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(0)
@@ -135,7 +150,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			_, err := os.Stat(path.Join(testDirPath, "explicitDir"))
+			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
 	}()
@@ -157,8 +172,12 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 
 // Test_Concurrent_ReadDir tests for potential deadlocks or race conditions
 // when multiple goroutines call Readdir() concurrently on the same directory.
-func (s *concurrentListingTest) Test_ReadDir(t *testing.T) {
-	createDirectoryStructure(t)
+func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_MultipleConcurrentReadDir"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	goroutineCount := 10          // Number of concurrent goroutines
@@ -167,14 +186,12 @@ func (s *concurrentListingTest) Test_ReadDir(t *testing.T) {
 	wg.Add(goroutineCount)
 	timeout := 50 * time.Second
 
-	dirPath := path.Join(testDirPath, "explicitDir")
-
 	for i := 0; i < goroutineCount; i++ {
 		go func() {
 			defer wg.Done()
 
 			for j := 0; j < iterationsPerGoroutine; j++ {
-				f, err := os.Open(dirPath)
+				f, err := os.Open(targetDir)
 				assert.Nil(t, err)
 
 				_, err = f.Readdirnames(-1) // Read all directory entries
@@ -204,20 +221,23 @@ func (s *concurrentListingTest) Test_ReadDir(t *testing.T) {
 // Test_Parallel_ReadDirAndFileOperations detects race conditions and deadlocks when one goroutine
 // performs Readdir() while another concurrently creates and deletes files in the same directory.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testing.T) {
-	createDirectoryStructure(t)
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	timeout := 200 * time.Second // Adjust timeout as needed
-	iterationsPerGoroutine := 40
-
-	dirPath := path.Join(testDirPath, "explicitDir")
+	timeout := 400 * time.Second // Adjust timeout as needed
+	iterationsPerGoroutine := 100
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
-			f, err := os.Open(dirPath)
+			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
@@ -235,8 +255,8 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
-			filePath := path.Join(dirPath, "tmp_file.txt")
-			renamedFilePath := path.Join(dirPath, "renamed_tmp_file.txt")
+			filePath := path.Join(targetDir, "tmp_file.txt")
+			renamedFilePath := path.Join(targetDir, "renamed_tmp_file.txt")
 
 			// Create
 			f, err := os.Create(filePath)
@@ -273,20 +293,23 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 // Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
 // ReadDir() is called concurrently with directory creation and deletion operations.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing.T) {
-	createDirectoryStructure(t)
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_Parallel_ReadDirAndDirOperations"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
 	iterationsPerGoroutine := 40
 
-	parentDir := path.Join(testDirPath, "explicitDir")
-
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			f, err := os.Open(parentDir)
+			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(0)
@@ -301,8 +324,8 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			dirPath := path.Join(parentDir, "test_dir")
-			renamedDirPath := path.Join(parentDir, "renamed_test_dir")
+			dirPath := path.Join(targetDir, "test_dir")
+			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
 
 			// Create
 			err := os.Mkdir(dirPath, 0755)
@@ -334,20 +357,23 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 }
 
 func (s *concurrentListingTest) Test_Parallel_ListDirAndFileEdit(t *testing.T) {
-	createDirectoryStructure(t)
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	timeout := 200 * time.Second
-	iterationsPerGoroutine := 40
-
-	parentDir := path.Join(testDirPath, "explicitDir")
+	timeout := 400 * time.Second
+	iterationsPerGoroutine := 100
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			f, err := os.Open(parentDir)
+			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(0)
@@ -362,7 +388,7 @@ func (s *concurrentListingTest) Test_Parallel_ListDirAndFileEdit(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
-			filePath := path.Join(parentDir, fmt.Sprintf("test_file_%d.txt", i))
+			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
 
 			// Create file
 			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
@@ -371,7 +397,7 @@ func (s *concurrentListingTest) Test_Parallel_ListDirAndFileEdit(t *testing.T) {
 			// Edit file (append some data)
 			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
 			assert.Nil(t, err)
-			_, err = f.Write([]byte(" This is an edit."))
+			_, err = f.Write([]byte("This is an edit."))
 			assert.Nil(t, err)
 			err = f.Close()
 			assert.Nil(t, err)
