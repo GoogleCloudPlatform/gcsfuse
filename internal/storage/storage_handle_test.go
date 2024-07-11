@@ -305,7 +305,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
 
-	if assert.Nil(testSuite.T(), err) {
+	if assert.NoError(testSuite.T(), err) {
 		assert.NotNil(testSuite.T(), handleCreated)
 	}
 }
