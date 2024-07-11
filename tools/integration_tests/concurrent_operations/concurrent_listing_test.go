@@ -409,6 +409,116 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	}
 }
 
+// Test_MultipleConcurrentOperations tests for potential deadlocks or race conditions when
+// listing, file or folder operations, stat, opendir, file modifications happening concurrently.
+func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+
+	testCaseDir := "Test_MultipleConcurrentOperations"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+
+	var wg sync.WaitGroup
+	wg.Add(5)
+	timeout := 400 * time.Second
+	iterationsPerGoroutine := 100
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+			f, err := os.Open(targetDir)
+			assert.Nil(t, err)
+
+			_, err = f.Readdirnames(-1)
+			if err != nil {
+				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
+				assert.True(t, strings.Contains(err.Error(), "input/output error"))
+			}
+
+			err = f.Close()
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Goroutine 2: Create and edit files
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
+
+			// Create file
+			err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+			assert.Nil(t, err)
+
+			// Edit file (append some data)
+			f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
+			assert.Nil(t, err)
+			_, err = f.Write([]byte("This is an edit."))
+			assert.Nil(t, err)
+			err = f.Close()
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Goroutine 3: Creates and deletes directories
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			dirPath := path.Join(targetDir, "test_dir")
+			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
+
+			// Create
+			err := os.Mkdir(dirPath, 0755)
+			assert.Nil(t, err)
+
+			// Rename
+			err = os.Rename(dirPath, renamedDirPath)
+			assert.Nil(t, err)
+
+			// Delete
+			err = os.Remove(renamedDirPath)
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Goroutine 4: Repeatedly stats
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			_, err := os.Stat(targetDir)
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Goroutine 5: Repeatedly calls OpenDir.
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsPerGoroutine; i++ {
+			f, err := os.Open(targetDir)
+			assert.Nil(t, err)
+
+			err = f.Close()
+			assert.Nil(t, err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
