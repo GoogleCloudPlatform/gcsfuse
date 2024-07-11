@@ -443,7 +443,7 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	UnmountGCSFuse(rootDir)
 	// delete log file created
-	if *mountedDirectory != "" {
+	if *mountedDirectory == "" {
 		err := os.Remove(LogFile())
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))

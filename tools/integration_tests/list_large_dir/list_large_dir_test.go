@@ -36,7 +36,7 @@ const NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles = 100
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0"}}
+	flags := [][]string{{"--implicit-dirs", "--stat-cache-ttl=0", "--kernel-list-cache-ttl-secs=-1"}}
 	if !testing.Short() {
 		flags = append(flags, []string{"--client-protocol=grpc", "--implicit-dirs=true", "--stat-cache-ttl=0"})
 	}
