@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestFindObjectName(t *testing.T) {
+func TestFindFolderName(t *testing.T) {
 	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
 
 	folderName := findFolderName(TestBucketName, folderPath)
@@ -32,15 +32,14 @@ func TestFindObjectName(t *testing.T) {
 }
 
 func TestControlFolderAttrsToGCSFolder(t *testing.T) {
-	timeAttr := time.Now()
-	protoTimestamp := &timestamppb.Timestamp{
-		Seconds: timeAttr.Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
-		Nanos:   int32(timeAttr.Nanosecond()), // Nanoseconds (0 to 999,999,999)
+	timestamp := &timestamppb.Timestamp{
+		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
+		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
 	}
 	attrs := controlpb.Folder{
 		Name:           TestObjectName,
 		Metageneration: 10,
-		UpdateTime:     protoTimestamp,
+		UpdateTime:     timestamp,
 	}
 
 	gcsFolder := ControlFolderAttrsToGCSFolder(TestBucketName, &attrs)
