@@ -59,28 +59,28 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 2, len(names1))
-	assert.Equal(t, "file1.txt", names1[0])
-	assert.Equal(t, "file2.txt", names1[1])
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
 	err = f.Close()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 
 	time.Sleep(2 * time.Second)
 
-	// No invalidation since infinite ttl.
+	// Kernel cache will not invalidate since infinite ttl.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	require.Equal(t, 2, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
@@ -90,12 +90,10 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 
 	// The response will be served from GCSFuse after the TTL expires.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	names3, err := f.Readdirnames(-1)
-
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	require.Equal(t, 3, len(names3))
-
 	assert.Equal(t, "file1.txt", names3[0])
 	assert.Equal(t, "file2.txt", names3[1])
 	assert.Equal(t, "file3.txt", names3[2])
