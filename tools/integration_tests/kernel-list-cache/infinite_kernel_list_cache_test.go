@@ -73,16 +73,15 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
-
+	
 	// No invalidation since infinite ttl.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
-
 	assert.NoError(t, err)
+
 	require.Equal(t, 2, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
