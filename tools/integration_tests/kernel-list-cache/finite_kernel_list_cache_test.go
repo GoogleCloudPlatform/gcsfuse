@@ -73,7 +73,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	// Adding one object to make sure to change the ReadDir() response.
 	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join("KernelListCacheTest", "explicit_dir", "file3.txt"), "")
 	if err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
+		t.Errorf("Failed to create test directory: %v", err)
 	}
 
 	time.Sleep(2 * time.Second)
