@@ -57,7 +57,7 @@ func TestKernelListCacheTestInfiniteTtlSuite(t *testing.T) {
 func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_AlwaysCacheHit() {
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(mntDir, "explicitDir"))
-	assert.Nil(t.T(), err)
+	assert.Nil(t, err)
 	defer func() {
 		assert.Nil(t.T(), f.Close())
 	}()
