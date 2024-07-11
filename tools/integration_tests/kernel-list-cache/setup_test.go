@@ -24,6 +24,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -89,22 +91,22 @@ func TestMain(m *testing.M) {
 	mountFunc = static_mounting.MountGcsfuseWithStaticMounting
 	successCode := m.Run()
 
-	//if successCode == 0 {
-	//	log.Println("Running dynamic mounting tests...")
-	//	// Save mount directory variable to have path of bucket to run tests.
-	//	mountDir = path.Join(setup.MntDir(), setup.TestBucket())
-	//	mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
-	//	successCode = m.Run()
-	//}
-	//
-	//if successCode == 0 {
-	//	log.Println("Running only dir mounting tests...")
-	//	setup.SetOnlyDirMounted(onlyDirMounted + "/")
-	//	mountDir = rootDir
-	//	mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
-	//	successCode = m.Run()
-	//	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
-	//}
+	if successCode == 0 {
+		log.Println("Running dynamic mounting tests...")
+		// Save mount directory variable to have path of bucket to run tests.
+		mountDir = path.Join(setup.MntDir(), setup.TestBucket())
+		mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMounting
+		successCode = m.Run()
+	}
+
+	if successCode == 0 {
+		log.Println("Running only dir mounting tests...")
+		setup.SetOnlyDirMounted(onlyDirMounted + "/")
+		mountDir = rootDir
+		mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDir
+		successCode = m.Run()
+		setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), testDirName))
+	}
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
