@@ -27,6 +27,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
 func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
 	// Extracting object number.
 	objNumberStr := strings.ReplaceAll(objName, prefix, "")
@@ -76,102 +79,6 @@ func validateDirectoryWithTwelveThousandFiles(objs []os.DirEntry, t *testing.T) 
 	}
 }
 
-// Test with a bucket with twelve thousand files.
-func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
-	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-
-	// List Directory first time
-	startTime := time.Now()
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-	endTime := time.Now()
-	validateDirectoryWithTwelveThousandFiles(objs, t)
-	firstListTime := endTime.Sub(startTime)
-	// Listing the directory a second time should retrieve the response from the kernel cache.
-	startTime = time.Now()
-	objs, err = os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-	endTime = time.Now()
-	validateDirectoryWithTwelveThousandFiles(objs, t)
-	secondListTime := endTime.Sub(startTime)
-
-	// Fetching data from the kernel for the second list will be faster.
-	assert.Less(t, secondListTime, firstListTime)
-
-	// Clear the data after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
-}
-
-func validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs []os.DirEntry, t *testing.T) {
-	var numberOfFiles = 0
-	var numberOfDirs = 0
-
-	// Checking if correct objects present in bucket.
-	for i := 0; i < len(objs); i++ {
-		if !objs[i].IsDir() {
-			numberOfFiles++
-			// Checking if Prefix1 to Prefix12000 present in the bucket
-			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
-		}
-
-		if objs[i].IsDir() {
-			numberOfDirs++
-			// Checking if Prefix1 to Prefix100 present in the bucket
-			checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
-		}
-	}
-
-	// number of explicit dirs = 100
-	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
-	}
-	// number of files = 12000
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
-	}
-}
-
-// Test with a bucket with twelve thousand files and hundred explicit directories.
-func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
-	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-	// Create hundred explicit directories.
-	createHundredExplicitDir(dirPath, t)
-
-	// List Directory first time
-	startTime := time.Now()
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-	endTime := time.Now()
-	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
-	firstListTime := endTime.Sub(startTime)
-	// Listing the directory a second time should retrieve the response from the kernel cache.
-	startTime = time.Now()
-	objs, err = os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-	endTime = time.Now()
-	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
-	secondListTime := endTime.Sub(startTime)
-
-	// Fetching data from the kernel for the second list will be faster.
-	assert.Less(t, secondListTime, firstListTime)
-	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
-}
-
 func validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs []os.DirEntry, t *testing.T) {
 	var numberOfFiles = 0
 	var numberOfDirs = 0
@@ -206,6 +113,106 @@ func validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplici
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
+}
+
+func validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs []os.DirEntry, t *testing.T) {
+	var numberOfFiles = 0
+	var numberOfDirs = 0
+
+	// Checking if correct objects present in bucket.
+	for i := 0; i < len(objs); i++ {
+		if !objs[i].IsDir() {
+			numberOfFiles++
+			// Checking if Prefix1 to Prefix12000 present in the bucket
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
+		}
+
+		if objs[i].IsDir() {
+			numberOfDirs++
+			// Checking if Prefix1 to Prefix100 present in the bucket
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
+		}
+	}
+
+	// number of explicit dirs = 100
+	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+	}
+	// number of files = 12000
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
+
+// Test with a bucket with twelve thousand files.
+func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+
+	// List Directory first time
+	startTime := time.Now()
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime := time.Now()
+	validateDirectoryWithTwelveThousandFiles(objs, t)
+	firstListTime := endTime.Sub(startTime)
+	// Listing the directory a second time should retrieve the response from the kernel cache.
+	startTime = time.Now()
+	objs, err = os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime = time.Now()
+	validateDirectoryWithTwelveThousandFiles(objs, t)
+	secondListTime := endTime.Sub(startTime)
+
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+
+	// Clear the data after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+}
+
+// Test with a bucket with twelve thousand files and hundred explicit directories.
+func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+	// Create hundred explicit directories.
+	createHundredExplicitDir(dirPath, t)
+
+	// List Directory first time
+	startTime := time.Now()
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime := time.Now()
+	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
+	firstListTime := endTime.Sub(startTime)
+	// Listing the directory a second time should retrieve the response from the kernel cache.
+	startTime = time.Now()
+	objs, err = os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime = time.Now()
+	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
+	secondListTime := endTime.Sub(startTime)
+
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+	// Clear the bucket after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
 
 // Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
