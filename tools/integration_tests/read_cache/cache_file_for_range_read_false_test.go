@@ -36,9 +36,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type cacheFileForRangeReadFalseTest struct {
-	flags         []string
-	storageClient *storage.Client
-	ctx           context.Context
+	flags                      []string
+	storageClient              *storage.Client
+	ctx                        context.Context
+	isParallelDownloadsEnabled bool
 }
 
 func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
@@ -82,10 +83,6 @@ func (s *cacheFileForRangeReadFalseTest) TestRangeReadsWithCacheMiss(t *testing.
 }
 
 func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSequentialAfterFileIsRemovedFromCache(t *testing.T) {
-	if isParallelDownloadsEnabled(s.flags) {
-		// This test is not valid when Parallel Downloads are enabled.
-		t.SkipNow()
-	}
 	var testFileNames [2]string
 	var expectedOutcome [2]*Expected
 	testFileNames[0] = setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSizeSameAsCacheCapacity, t)
@@ -115,7 +112,10 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
 	// Validate last chunk was considered sequential and cache hit true for second read.
 	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
-	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+	if !s.isParallelDownloadsEnabled {
+		// When parallel downloads are enabled, we can't concretely say that the read will be cache Hit.
+		assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+	}
 
 	validateFileIsNotCached(testFileNames[0], t)
 	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, t)
@@ -142,15 +142,23 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 		return
 	}
 
-	// Define flag set to run the tests.
+	// Run tests with parallel downloads disabled.
 	flagsSet := [][]string{
 		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false)},
-		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true)},
 	}
-
-	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		test_setup.RunTests(t, ts)
+	}
+
+	// Run tests with parallel downloads enabled.
+	flagsSet = [][]string{
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true)},
+	}
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		ts.isParallelDownloadsEnabled = true
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}

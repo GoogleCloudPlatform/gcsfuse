@@ -250,12 +250,3 @@ func runTestsOnlyForDynamicMount(t *testing.T) {
 		t.SkipNow()
 	}
 }
-
-func isParallelDownloadsEnabled(flags []string) bool {
-	for _, flag := range flags {
-		if flag == "--config-file="+path.Join(setup.TestDir(), configFileNameForParallelDownloadTests) {
-			return true
-		}
-	}
-	return false
-}
