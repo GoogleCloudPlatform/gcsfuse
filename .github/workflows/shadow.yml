@@ -15,8 +15,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Add shadow reviewer
-        run: gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers
+        run: gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers "$PR_URL"
         env:
           GH_TOKEN: ${{ secrets.SHADOW_REVIEWER }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{github.event.pull_request.html_url}}
