@@ -30,37 +30,6 @@ import (
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
-	// Extracting object number.
-	objNumberStr := strings.ReplaceAll(objName, prefix, "")
-	objNumber, err := strconv.Atoi(objNumberStr)
-	if err != nil {
-		t.Errorf("Error in extracting file number.")
-	}
-	if objNumber < 1 || objNumber > maxNumber {
-		t.Errorf("Correct object does not exist.")
-	}
-}
-
-func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
-	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
-	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
-
-	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
-	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
-}
-
-// Create a hundred explicit directories.
-func createHundredExplicitDir(dirPath string, t *testing.T) {
-	// Create hundred explicit directories.
-	for i := 1; i <= NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles; i++ {
-		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
-		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
-	}
-}
-
 func validateDirectoryWithTwelveThousandFiles(objs []os.DirEntry, t *testing.T) {
 	// number of objs - 12000
 	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
@@ -144,8 +113,39 @@ func validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs []
 	}
 }
 
+func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
+	// Extracting object number.
+	objNumberStr := strings.ReplaceAll(objName, prefix, "")
+	objNumber, err := strconv.Atoi(objNumberStr)
+	if err != nil {
+		t.Errorf("Error in extracting file number.")
+	}
+	if objNumber < 1 || objNumber > maxNumber {
+		t.Errorf("Correct object does not exist.")
+	}
+}
+
+func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
+	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
+	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
+}
+
+// Create a hundred explicit directories.
+func createHundredExplicitDir(dirPath string, t *testing.T) {
+	// Create hundred explicit directories.
+	for i := 1; i <= NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles; i++ {
+		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
+		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
+// Tests
 ////////////////////////////////////////////////////////////////////////
 
 // Test with a bucket with twelve thousand files.
