@@ -2,15 +2,18 @@
 name: "Add shadow reviewer"
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - '*'
 
 jobs:
   shadow-reviewer:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
       - name: Add shadow reviewer
         run: gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers
         env:
