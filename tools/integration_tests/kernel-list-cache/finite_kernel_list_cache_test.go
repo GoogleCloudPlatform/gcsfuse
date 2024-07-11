@@ -39,6 +39,7 @@ type finiteKernelListCacheTest struct {
 
 func (s *finiteKernelListCacheTest) Setup(t *testing.T) {
 	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
+	targetDir = path.Join(testDirPath, "explicit_dir")
 }
 
 func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
@@ -50,7 +51,7 @@ func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit(t *testing.T) {
-	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
+	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
@@ -58,7 +59,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err := os.Open(targetDir)
 	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
@@ -75,7 +76,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	time.Sleep(2 * time.Second)
 
 	// Kernel cache will not invalidate within ttl.
-	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err = os.Open(targetDir)
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 
@@ -87,7 +88,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	time.Sleep(3 * time.Second)
 
 	// The response will be served from GCSFuse after the TTL expires.
-	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err = os.Open(targetDir)
 	assert.NoError(t, err)
 	names3, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
