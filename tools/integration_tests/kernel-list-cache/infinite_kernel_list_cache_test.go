@@ -92,52 +92,146 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // addition of new file.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfFile(t *testing.T) {
-	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
 	// Create test data
-	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
-	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	f, err := os.Open(targetDir)
+	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 2, len(names1))
-	assert.Equal(t, "file1.txt", names1[0])
-	assert.Equal(t, "file2.txt", names1[1])
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
 	err = f.Close()
-	assert.Nil(t, err)
+	require.NoError(t, err)
+
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
 
 	// Ideally no invalidation since infinite ttl, but creation of a new file inside
 	// directory evicts the list cache for that directory.
-	fNew, err := os.Create(path.Join(testDirPath, "explicit_dir", "file4.txt"))
-	require.Nil(t, err)
+	fNew, err := os.Create(path.Join(targetDir, "file4.txt"))
+	require.NoError(t, err)
 	assert.NotNil(t, fNew)
 	defer func() {
 		assert.Nil(t, fNew.Close())
-		assert.Nil(t, os.Remove(path.Join(testDirPath, "explicit_dir", "file4.txt")))
+		assert.Nil(t, os.Remove(path.Join(targetDir, "file4.txt")))
 	}()
 
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	require.Equal(t, 4, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
 	assert.Equal(t, "file3.txt", names2[2])
 	assert.Equal(t, "file4.txt", names2[3])
+}
+
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
+// deletion of new file.
+func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfFile(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f2)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(targetDir)
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(names1))
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// Adding one object to make sure to change the ReadDir() response.
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	// Waiting for 5 seconds to see if the kernel cache expires.
+	time.Sleep(5 * time.Second)
+
+	// Ideally no invalidation since infinite ttl, but creation of a new file inside
+	// directory evicts the list cache for that directory.
+	err = os.Remove(path.Join(targetDir, "file2.txt"))
+	require.NoError(t, err)
+
+	f, err = os.Open(targetDir)
+	assert.Nil(t, err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(names2))
+	assert.Equal(t, "file1.txt", names2[0])
+	assert.Equal(t, "file3.txt", names2[1]) // file2.txt deleted, hence file3.txt
+}
+
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
+// file rename.
+func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f2)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(targetDir)
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(names1))
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// Adding one object to make sure to change the ReadDir() response.
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	// Waiting for 5 seconds to see if the kernel cache expires.
+	time.Sleep(5 * time.Second)
+
+	// Ideally no invalidation since infinite ttl, but creation of a new file inside
+	// directory evicts the list cache for that directory.
+	err = os.Rename(path.Join(targetDir, "file2.txt"), path.Join(targetDir, "renamed_file2.txt"))
+	require.NoError(t, err)
+
+	f, err = os.Open(targetDir)
+	require.NoError(t, err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.NoError(t, err)
+	require.Equal(t, 3, len(names2))
+	assert.Equal(t, "file1.txt", names2[0])
+	assert.Equal(t, "file3.txt", names2[1])
+	assert.Equal(t, "renamed_file2.txt", names2[2])
 }
 
 ////////////////////////////////////////////////////////////////////////
