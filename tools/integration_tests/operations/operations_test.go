@@ -181,7 +181,7 @@ func TestMain(m *testing.M) {
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--experimental-enable-json-read=true"},
+		{"--experimental-enable-json-read=true", "--implicit-dirs=true"},
 	}
 
 	// gRPC tests will not run in TPC environment
