@@ -71,9 +71,9 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	err = f.Close()
 	assert.Nil(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
-	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirPath, "explicit_dir", "file3.txt"), "")
+	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join("KernelListCacheTest", "explicit_dir", "file3.txt"), "")
 	if err != nil {
-		log.Printf("Failed to create test directory: %v", err)
+		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -82,22 +82,23 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
 	names2, err := f.Readdirnames(-1)
-	f.Close()
 
 	assert.Nil(t, err)
 	require.Equal(t, 2, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
 
-	time.Sleep(5 * time.Second)
+	// Waiting 3 more seconds to exceed the 5-second TTL for invalidating the kernel cache.
+	time.Sleep(3 * time.Second)
 
+	// The response will be served from GCSFuse after the TTL expires.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
 	names3, err := f.Readdirnames(-1)
-	f.Close()
 
 	assert.Nil(t, err)
 	require.Equal(t, 3, len(names3))
+
 	assert.Equal(t, "file1.txt", names3[0])
 	assert.Equal(t, "file2.txt", names3[1])
 	assert.Equal(t, "file3.txt", names3[2])
