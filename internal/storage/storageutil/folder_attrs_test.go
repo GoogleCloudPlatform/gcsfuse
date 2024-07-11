@@ -28,7 +28,7 @@ func TestFindFolderName(t *testing.T) {
 
 	folderName := findFolderName(TestBucketName, folderPath)
 
-	assert.Equal(t, folderName, TestObjectName)
+	assert.Equal(t, TestObjectName, folderName)
 }
 
 func TestControlFolderAttrsToGCSFolder(t *testing.T) {
@@ -44,7 +44,7 @@ func TestControlFolderAttrsToGCSFolder(t *testing.T) {
 
 	gcsFolder := ControlFolderAttrsToGCSFolder(TestBucketName, &attrs)
 
-	assert.Equal(t, gcsFolder.Name, attrs.Name)
-	assert.Equal(t, gcsFolder.Metageneration, attrs.Metageneration)
-	assert.Equal(t, gcsFolder.UpdateTime, attrs.UpdateTime.AsTime())
+	assert.Equal(t, attrs.Name, gcsFolder.Name)
+	assert.Equal(t, attrs.Metageneration, gcsFolder.Metageneration)
+	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
 }
