@@ -176,7 +176,8 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
-
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
 	// Clear the data after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -211,6 +212,8 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
@@ -247,6 +250,8 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 
 	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
