@@ -16,6 +16,8 @@ package read_cache
 
 import (
 	"context"
+	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -29,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/log_parser/json_parser/read_logs"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 // Expected is a helper struct that stores list of attributes to be validated from logs.
@@ -107,27 +110,41 @@ func getCachedFilePath(fileName string) string {
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
-	// Validate that the file is present in cache location.
+	maxRetries := 10
+	retryDelay := 500 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
-	fileInfo, err := operations.StatFile(expectedPathOfCachedFile)
-	if err != nil {
-		t.Errorf("Failed to find cached file %s: %v", expectedPathOfCachedFile, err)
+	var err error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Validate that the file is present in cache location.
+		var fileInfo *fs.FileInfo
+		fileInfo, err = operations.StatFile(expectedPathOfCachedFile)
+		// Validate file size in cache directory matches actual file size.
+		if err == nil && fileInfo != nil {
+			if filesize != (*fileInfo).Size() {
+				err = fmt.Errorf("incorrect cached file size. Expected: %d, Got %d", filesize, (*fileInfo).Size())
+				t.Logf("Incorrect cached file size, retrying %d...", attempt)
+			} else {
+				break
+			}
+		}
+		time.Sleep(retryDelay)
 	}
-	// Validate file size in cache directory matches actual file size.
-	if (*fileInfo).Size() != filesize {
-		t.Errorf("Incorrect cached file size. Expected %d, Got: %d", filesize, (*fileInfo).Size())
-	}
+	require.Nil(t, err)
 }
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
-	// Validate CRC of cached file matches GCS CRC.
+	//Validate CRC of cached file matches GCS CRC.
 	cachedFilePath := getCachedFilePath(fileName)
 	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
 	if err != nil {
-		t.Errorf("CalculateFileCRC32 Failed: %v", err)
+		t.Errorf("CalculateFileCRC32 Failed for file %s: %v", cachedFilePath, err)
 	}
-	client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient, t)
+	err = client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient)
+	if err != nil {
+		t.Errorf("Cache file CRC mismatch for cached file %s: %v", cachedFilePath, err)
+	}
 }
 
 func validateFileIsNotCached(fileName string, t *testing.T) {
@@ -151,18 +168,21 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	filename string, fileSize int64, checkCacheSize bool, t *testing.T) (expectedOutcome *Expected) {
 	// Read file via gcsfuse mount.
 	expectedOutcome = readFileAndGetExpectedOutcome(testDirPath, filename, true, zeroOffset, t)
+	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
+	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
+	if err != nil {
+		t.Errorf("CalculateCRC32 Failed: %v", err)
+	}
+	err = client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient)
+	if err != nil {
+		t.Errorf("Content served CRC mismatch: %v", err)
+	}
 	// Validate cached content with gcs.
 	validateFileInCacheDirectory(filename, fileSize, ctx, storageClient, t)
 	if checkCacheSize {
 		// Validate cache size within limit.
 		validateCacheSizeWithinLimit(cacheCapacityInMB, t)
 	}
-	// Validate CRC32 of content read via gcsfuse with CRC32 value on gcs.
-	gotCRC32Value, err := operations.CalculateCRC32(strings.NewReader(expectedOutcome.content))
-	if err != nil {
-		t.Errorf("CalculateCRC32 Failed: %v", err)
-	}
-	client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient, t)
 
 	return expectedOutcome
 }

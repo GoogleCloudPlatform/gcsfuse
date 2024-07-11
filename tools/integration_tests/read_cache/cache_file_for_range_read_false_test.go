@@ -27,7 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
-	"github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,9 +36,10 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type cacheFileForRangeReadFalseTest struct {
-	flags         []string
-	storageClient *storage.Client
-	ctx           context.Context
+	flags                      []string
+	storageClient              *storage.Client
+	ctx                        context.Context
+	isParallelDownloadsEnabled bool
 }
 
 func (s *cacheFileForRangeReadFalseTest) Setup(t *testing.T) {
@@ -107,11 +108,14 @@ func (s *cacheFileForRangeReadFalseTest) TestConcurrentReads_ReadIsTreatedNonSeq
 	validate(expectedOutcome[0], structuredReadLogs[0], true, false, randomReadChunkCount, t)
 	validate(expectedOutcome[1], structuredReadLogs[1], true, false, randomReadChunkCount, t)
 	// Validate last chunk was considered non-sequential and cache hit false for first read.
-	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
-	ogletest.ExpectEq(false, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].IsSequential)
+	assert.False(t, structuredReadLogs[0].Chunks[randomReadChunkCount-1].CacheHit)
 	// Validate last chunk was considered sequential and cache hit true for second read.
-	ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
-	ogletest.ExpectEq(true, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+	assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].IsSequential)
+	if !s.isParallelDownloadsEnabled {
+		// When parallel downloads are enabled, we can't concretely say that the read will be cache Hit.
+		assert.True(t, structuredReadLogs[1].Chunks[randomReadChunkCount-1].CacheHit)
+	}
 
 	validateFileIsNotCached(testFileNames[0], t)
 	validateFileInCacheDirectory(testFileNames[1], fileSizeSameAsCacheCapacity, s.ctx, s.storageClient, t)
@@ -138,18 +142,23 @@ func TestCacheFileForRangeReadFalseTest(t *testing.T) {
 		return
 	}
 
-	// Define flag set to run the tests.
+	// Run tests with parallel downloads disabled.
 	flagsSet := [][]string{
-		{"--implicit-dirs=true"},
-		{"--implicit-dirs=false"},
+		{"--implicit-dirs", "--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName, false)},
 	}
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet,
-		"--config-file="+createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileName))
-	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--o=ro", "")
-
-	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
+		log.Printf("Running tests with flags: %s", ts.flags)
+		test_setup.RunTests(t, ts)
+	}
+
+	// Run tests with parallel downloads enabled.
+	flagsSet = [][]string{
+		{"--config-file=" + createConfigFile(cacheCapacityForRangeReadTestInMiB, false, configFileNameForParallelDownloadTests, true)},
+	}
+	for _, flags := range flagsSet {
+		ts.flags = flags
+		ts.isParallelDownloadsEnabled = true
 		log.Printf("Running tests with flags: %s", ts.flags)
 		test_setup.RunTests(t, ts)
 	}
