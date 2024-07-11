@@ -33,17 +33,12 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-var (
-	targetDir string
-)
-
 type finiteKernelListCacheTest struct {
 	flags []string
 }
 
 func (s *finiteKernelListCacheTest) Setup(t *testing.T) {
 	mountGCSFuseAndSetupTestDir(s.flags, ctx, storageClient, testDirName)
-	targetDir = path.Join(testDirPath, "explicit_dir")
 }
 
 func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
@@ -55,11 +50,12 @@ func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
