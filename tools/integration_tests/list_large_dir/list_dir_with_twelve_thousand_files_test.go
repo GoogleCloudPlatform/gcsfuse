@@ -92,7 +92,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFiles(objs, t)
 	firstListTime := endTime.Sub(startTime)
-	// List Directory second time, this time response should come through kernel cache.
+	// Listing the directory a second time should retrieve the response from the kernel cache.
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
@@ -102,7 +102,7 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	validateDirectoryWithTwelveThousandFiles(objs, t)
 	secondListTime := endTime.Sub(startTime)
 
-	// Second time response will get fetch from kernel, so it will take less time to get response.
+	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
 
 	// Clear the data after testing.
@@ -156,7 +156,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
 	firstListTime := endTime.Sub(startTime)
-	// List Directory second time, this time response should come through kernel cache.
+	// Listing the directory a second time should retrieve the response from the kernel cache.
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
@@ -166,7 +166,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T)
 	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
 	secondListTime := endTime.Sub(startTime)
 
-	// Second time response will get fetch from kernel, so it will take less time to get response.
+	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
@@ -228,7 +228,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	endTime := time.Now()
 	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
 	firstListTime := endTime.Sub(startTime)
-	// List Directory second time, this time response should come through kernel cache.
+	// Listing the directory a second time should retrieve the response from the kernel cache.
 	startTime = time.Now()
 	objs, err = os.ReadDir(dirPath)
 	if err != nil {
@@ -238,7 +238,7 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
 	secondListTime := endTime.Sub(startTime)
 
-	// Second time response will get fetch from kernel, so it will take less time to get response.
+	// Fetching data from the kernel for the second list will be faster.
 	assert.Less(t, secondListTime, firstListTime)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
