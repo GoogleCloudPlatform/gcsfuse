@@ -53,9 +53,9 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f1)
+	operations.CloseFile(f1)
 	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f2)
+	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
@@ -82,6 +82,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
 	names2, err := f.Readdirnames(-1)
+	f.Close()
 
 	assert.Nil(t, err)
 	require.Equal(t, 2, len(names2))
@@ -93,12 +94,13 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
 	names3, err := f.Readdirnames(-1)
+	f.Close()
 
 	assert.Nil(t, err)
 	require.Equal(t, 3, len(names3))
 	assert.Equal(t, "file1.txt", names3[0])
 	assert.Equal(t, "file2.txt", names3[1])
-	assert.Equal(t, "file3.txt", names3[1])
+	assert.Equal(t, "file3.txt", names3[2])
 }
 
 ////////////////////////////////////////////////////////////////////////
