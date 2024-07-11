@@ -33,8 +33,9 @@ import (
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-// Test cases of this test suites are parallelizable, use -parallel n to set
-// the parallelism in the go test command.
+// This test-suite contains parallelizable test-case. Use "-parallel n" to limit
+// the degree of parallelism. By default it uses GOMAXPROCS.
+// Ref: https://stackoverflow.com/questions/24375966/does-go-test-run-unit-tests-concurrently
 type concurrentListingTest struct{}
 
 func (s *concurrentListingTest) Setup(t *testing.T) {
@@ -43,7 +44,7 @@ func (s *concurrentListingTest) Setup(t *testing.T) {
 
 func (s *concurrentListingTest) Teardown(t *testing.T) {}
 
-// Create initial directory structure for kernel-list-cache test in the
+// createDirectoryStructureForTestCase creates initial directory structure in the
 // given testCaseDir.
 // bucket
 //
@@ -72,12 +73,10 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_OpenDirAndLookUp"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
-	// Fail if the operation takes more than timeout.
+	// Fails if the operation takes more than timeout.
 	timeout := 5 * time.Second
 	iterationsPerGoroutine := 100
 
@@ -116,16 +115,13 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	}
 }
 
-// Test_Parallel_ReadDirAndDirOperations tests for potential deadlocks or race conditions when
-// ReadDir() is called concurrently with directory creation and deletion operations.
+// Test_Parallel_ReadDirAndLookUp tests for potential deadlocks or race conditions when
+// ReadDir() is called concurrently with LookUp of same dir.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_Parallel_ReadDirAndLookUp"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
@@ -146,7 +142,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 		}
 	}()
 
-	// Goroutine 2: Creates and deletes directories
+	// Goroutine 2: Repeatedly stats
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsPerGoroutine; i++ {
@@ -170,22 +166,20 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	}
 }
 
-// Test_Concurrent_ReadDir tests for potential deadlocks or race conditions
+// Test_MultipleConcurrentReadDir tests for potential deadlocks or race conditions
 // when multiple goroutines call Readdir() concurrently on the same directory.
 func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_MultipleConcurrentReadDir"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	goroutineCount := 10          // Number of concurrent goroutines
 	iterationsPerGoroutine := 100 // Number of iterations per goroutine
-
 	wg.Add(goroutineCount)
 	timeout := 50 * time.Second
 
+	// Create multiple go routines to listing concurrently.
 	for i := 0; i < goroutineCount; i++ {
 		go func() {
 			defer wg.Done()
@@ -222,12 +216,9 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 // performs Readdir() while another concurrently creates and deletes files in the same directory.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_Parallel_ReadDirAndFileOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
@@ -294,12 +285,9 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 // ReadDir() is called concurrently with directory creation and deletion operations.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_Parallel_ReadDirAndDirOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
@@ -356,7 +344,9 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	}
 }
 
-func (s *concurrentListingTest) Test_Parallel_ListDirAndFileEdit(t *testing.T) {
+// Test_Parallel_ReadDirAndFileEdit tests for potential deadlocks or race conditions when
+// ReadDir() is called concurrently with modification of underneath file.
+func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
 
 	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
