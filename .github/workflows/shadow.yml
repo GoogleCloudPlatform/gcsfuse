@@ -15,3 +15,5 @@ jobs:
         run: gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers
         env:
           GH_TOKEN: ${{ secrets.SHADOW_REVIEWER }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
