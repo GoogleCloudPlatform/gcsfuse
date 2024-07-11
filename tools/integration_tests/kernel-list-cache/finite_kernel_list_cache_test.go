@@ -72,7 +72,6 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	require.NoError(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-
 	time.Sleep(2 * time.Second)
 
 	// Kernel cache will not invalidate since infinite ttl.
@@ -84,7 +83,6 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	require.Equal(t, 2, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
-
 	// Waiting 3 more seconds to exceed the 5-second TTL for invalidating the kernel cache.
 	time.Sleep(3 * time.Second)
 
@@ -93,6 +91,7 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_Cach
 	assert.NoError(t, err)
 	names3, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
+
 	require.Equal(t, 3, len(names3))
 	assert.Equal(t, "file1.txt", names3[0])
 	assert.Equal(t, "file2.txt", names3[1])
