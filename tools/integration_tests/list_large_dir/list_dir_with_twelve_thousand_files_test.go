@@ -20,55 +20,17 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/assert"
 )
 
-func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
-	// Extracting object number.
-	objNumberStr := strings.ReplaceAll(objName, prefix, "")
-	objNumber, err := strconv.Atoi(objNumberStr)
-	if err != nil {
-		t.Errorf("Error in extracting file number.")
-	}
-	if objNumber < 1 || objNumber > maxNumber {
-		t.Errorf("Correct object does not exist.")
-	}
-}
-
-func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
-	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
-	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
-
-	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
-	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
-}
-
-// Create a hundred explicit directories.
-func createHundredExplicitDir(dirPath string, t *testing.T) {
-	// Create hundred explicit directories.
-	for i := 1; i <= NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles; i++ {
-		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
-		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
-	}
-}
-
-// Test with a bucket with twelve thousand files.
-func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
-	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-
-	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
+// //////////////////////////////////////////////////////////////////////
+// Helpers
+// //////////////////////////////////////////////////////////////////////
+func validateDirectoryWithTwelveThousandFiles(objs []os.DirEntry, t *testing.T) {
 	// number of objs - 12000
 	if len(objs) != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", len(objs))
@@ -84,77 +46,9 @@ func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
 	for i := 0; i < len(objs); i++ {
 		checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
 	}
-
-	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
 
-// Test with a bucket with twelve thousand files and hundred explicit directories.
-func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
-	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-
-	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-
-	// Create hundred explicit directories.
-	createHundredExplicitDir(dirPath, t)
-
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
-	var numberOfFiles = 0
-	var numberOfDirs = 0
-
-	// Checking if correct objects present in bucket.
-	for i := 0; i < len(objs); i++ {
-		if !objs[i].IsDir() {
-			numberOfFiles++
-			// Checking if Prefix1 to Prefix12000 present in the bucket
-			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
-		}
-
-		if objs[i].IsDir() {
-			numberOfDirs++
-			// Checking if Prefix1 to Prefix100 present in the bucket
-			checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
-		}
-	}
-
-	// number of explicit dirs = 100
-	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
-	}
-	// number of files = 12000
-	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
-		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
-	}
-
-	// Clear the bucket after testing.
-	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
-}
-
-// Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
-func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
-	createTwelveThousandFilesAndUploadOnTestBucket(t)
-	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
-	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
-
-	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
-
-	// Create hundred explicit directories.
-	createHundredExplicitDir(dirPath, t)
-
-	subDirPath := path.Join(testDirPathOnBucket, DirectoryWithTwelveThousandFiles)
-	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, PrefixImplicitDirInLargeDirListTest, strconv.Itoa(NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
-
-	objs, err := os.ReadDir(dirPath)
-	if err != nil {
-		t.Errorf("Error in listing directory.")
-	}
-
+func validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs []os.DirEntry, t *testing.T) {
 	var numberOfFiles = 0
 	var numberOfDirs = 0
 
@@ -188,7 +82,176 @@ func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImpl
 	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
 		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
 	}
+}
 
+func validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs []os.DirEntry, t *testing.T) {
+	var numberOfFiles = 0
+	var numberOfDirs = 0
+
+	// Checking if correct objects present in bucket.
+	for i := 0; i < len(objs); i++ {
+		if !objs[i].IsDir() {
+			numberOfFiles++
+			// Checking if Prefix1 to Prefix12000 present in the bucket
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixFileInDirectoryWithTwelveThousandFiles, NumberOfFilesInDirectoryWithTwelveThousandFiles, t)
+		}
+
+		if objs[i].IsDir() {
+			numberOfDirs++
+			// Checking if Prefix1 to Prefix100 present in the bucket
+			checkIfObjNameIsCorrect(objs[i].Name(), PrefixExplicitDirInLargeDirListTest, NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles, t)
+		}
+	}
+
+	// number of explicit dirs = 100
+	if numberOfDirs != NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of directories from directory: %v, expected 100", numberOfDirs)
+	}
+	// number of files = 12000
+	if numberOfFiles != NumberOfFilesInDirectoryWithTwelveThousandFiles {
+		t.Errorf("Listed incorrect number of files from directory: %v, expected 12000", numberOfFiles)
+	}
+}
+
+func checkIfObjNameIsCorrect(objName string, prefix string, maxNumber int, t *testing.T) {
+	// Extracting object number.
+	objNumberStr := strings.ReplaceAll(objName, prefix, "")
+	objNumber, err := strconv.Atoi(objNumberStr)
+	if err != nil {
+		t.Errorf("Error in extracting file number.")
+	}
+	if objNumber < 1 || objNumber > maxNumber {
+		t.Errorf("Correct object does not exist.")
+	}
+}
+
+func createTwelveThousandFilesAndUploadOnTestBucket(t *testing.T) {
+	// Creating twelve thousand files in DirectoryWithTwelveThousandFiles directory to upload them on a bucket for testing.
+	localDirPath := path.Join(os.Getenv("HOME"), DirectoryWithTwelveThousandFiles)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, PrefixFileInDirectoryWithTwelveThousandFiles, t)
+
+	// Uploading twelve thousand files to directoryWithTwelveThousandFiles in testBucket.
+	dirPath := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests, DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/upload_files_to_bucket.sh", dirPath, DirectoryWithTwelveThousandFiles, PrefixFileInDirectoryWithTwelveThousandFiles)
+}
+
+// Create a hundred explicit directories.
+func createHundredExplicitDir(dirPath string, t *testing.T) {
+	// Create hundred explicit directories.
+	for i := 1; i <= NumberOfExplicitDirsInDirectoryWithTwelveThousandFiles; i++ {
+		subDirPath := path.Join(dirPath, PrefixExplicitDirInLargeDirListTest+strconv.Itoa(i))
+		operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+// Test with a bucket with twelve thousand files.
+func TestListDirectoryWithTwelveThousandFiles(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+
+	// List Directory first time
+	startTime := time.Now()
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime := time.Now()
+	validateDirectoryWithTwelveThousandFiles(objs, t)
+	firstListTime := endTime.Sub(startTime)
+	// Listing the directory a second time should retrieve the response from the kernel cache.
+	startTime = time.Now()
+	objs, err = os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime = time.Now()
+	validateDirectoryWithTwelveThousandFiles(objs, t)
+	secondListTime := endTime.Sub(startTime)
+
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
+	// Clear the data after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+}
+
+// Test with a bucket with twelve thousand files and hundred explicit directories.
+func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDir(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+	// Create hundred explicit directories.
+	createHundredExplicitDir(dirPath, t)
+
+	// List Directory first time
+	startTime := time.Now()
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime := time.Now()
+	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
+	firstListTime := endTime.Sub(startTime)
+	// Listing the directory a second time should retrieve the response from the kernel cache.
+	startTime = time.Now()
+	objs, err = os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime = time.Now()
+	validateDirectoryWithTwelveThousandFilesAndHundredExplicitDirectory(objs, t)
+	secondListTime := endTime.Sub(startTime)
+
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
+	// Clear the bucket after testing.
+	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
+}
+
+// Test with a bucket with twelve thousand files, hundred explicit directories, and hundred implicit directories.
+func TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir(t *testing.T) {
+	createTwelveThousandFilesAndUploadOnTestBucket(t)
+	testDirPath := path.Join(setup.MntDir(), DirectoryForListLargeFileTests)
+	testDirPathOnBucket := path.Join(setup.TestBucket(), DirectoryForListLargeFileTests)
+	dirPath := path.Join(testDirPath, DirectoryWithTwelveThousandFiles)
+	// Create hundred explicit directories.
+	createHundredExplicitDir(dirPath, t)
+	subDirPath := path.Join(testDirPathOnBucket, DirectoryWithTwelveThousandFiles)
+	setup.RunScriptForTestData("testdata/create_implicit_dir.sh", subDirPath, PrefixImplicitDirInLargeDirListTest, strconv.Itoa(NumberOfImplicitDirsInDirectoryWithTwelveThousandFiles))
+
+	// List Directory first time
+	startTime := time.Now()
+	objs, err := os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime := time.Now()
+	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
+	firstListTime := endTime.Sub(startTime)
+	// Listing the directory a second time should retrieve the response from the kernel cache.
+	startTime = time.Now()
+	objs, err = os.ReadDir(dirPath)
+	if err != nil {
+		t.Errorf("Error in listing directory.")
+	}
+	endTime = time.Now()
+	validateDirectoryWithTwelveThousandFilesHundredExplicitDirAndHundredImplicitDir(objs, t)
+	secondListTime := endTime.Sub(startTime)
+
+	// Fetching data from the kernel for the second list will be faster.
+	assert.Less(t, secondListTime, firstListTime)
+	// The second directory listing should take less than 100 milliseconds since it will be retrieved from the kernel cache.
+	assert.Less(t, secondListTime, 100*time.Millisecond)
 	// Clear the bucket after testing.
 	setup.RunScriptForTestData("testdata/delete_objects.sh", testDirPathOnBucket)
 }
