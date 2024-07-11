@@ -16,10 +16,15 @@ package kernel_list_cache
 
 import (
 	"log"
+	"os"
+	"path"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -43,8 +48,42 @@ func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 // TODO: Add test scenarios here.
-func (s *disabledKernelListCacheTest) TestMock(t *testing.T) {
-	t.Log("running mock test")
+func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *testing.T) {
+	operations.CreateDirectory(path.Join(testDirPath, "explicitDir"), t)
+	// Adding one object to make sure to change the ReadDir() response.
+	f1 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file1.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f1)
+	// Adding one object to make sure to change the ReadDir() response.
+	f2 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file2.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f2)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t, err)
+	require.Equal(t, 2, len(names1))
+	assert.Equal(t, "file1.txt", names1[0])
+	assert.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t, err)
+	// Adding one object to make sure to change the ReadDir() response.
+	f3 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file3.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f3)
+
+	// Zero ttl, means readdir will always be served from gcsfuse.
+	f, err = os.Open(path.Join(testDirPath, "explicitDir"))
+	assert.Nil(t, err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.Nil(t, err)
+	require.Equal(t, 3, len(names2))
+	assert.Equal(t, "file1.txt", names2[0])
+	assert.Equal(t, "file2.txt", names2[1])
+	assert.Equal(t, "file3.txt", names2[2])
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -62,7 +101,7 @@ func TestDisabledKernelListCacheTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=0"},
+		{"--kernel-list-cache-ttl-secs=0", "--stat-cache-ttl=0", "--rename-dir-limit=10"},
 	}
 
 	// Run tests.
