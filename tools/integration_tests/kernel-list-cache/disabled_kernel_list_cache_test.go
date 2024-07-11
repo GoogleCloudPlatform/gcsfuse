@@ -47,14 +47,13 @@ func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// TODO: Add test scenarios here.
 func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *testing.T) {
-	operations.CreateDirectory(path.Join(testDirPath, "explicitDir"), t)
+	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
 	// Adding one object to make sure to change the ReadDir() response.
-	f1 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file1.txt"), setup.FilePermission_0600, t)
+	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f1)
 	// Adding one object to make sure to change the ReadDir() response.
-	f2 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
@@ -71,11 +70,11 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	err = f.Close()
 	assert.Nil(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
-	f3 := operations.CreateFile(path.Join(testDirPath, "explicitDir", "file3.txt"), setup.FilePermission_0600, t)
+	f3 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file3.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f3)
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
-	f, err = os.Open(path.Join(testDirPath, "explicitDir"))
+	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.Nil(t, err)
 	names2, err := f.Readdirnames(-1)
 
