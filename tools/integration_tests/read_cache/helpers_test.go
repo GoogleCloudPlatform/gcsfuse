@@ -135,16 +135,25 @@ func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testin
 
 func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.Context, storageClient *storage.Client, t *testing.T) {
 	validateFileSizeInCacheDirectory(fileName, filesize, t)
-	//Validate CRC of cached file matches GCS CRC.
+
+	gcsCRC, err := client.GetCRCFromGCS(path.Join(testDirName, fileName), ctx, storageClient)
+	require.NoError(t, err)
+	maxRetries := 10
+	retryDelay := 500 * time.Millisecond
 	cachedFilePath := getCachedFilePath(fileName)
-	crc32ValueOfCachedFile, err := operations.CalculateFileCRC32(cachedFilePath)
-	if err != nil {
-		t.Errorf("CalculateFileCRC32 Failed for file %s: %v", cachedFilePath, err)
+
+	// Validate CRC of cached file matches GCS CRC.
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		cachedFileCRC, err := operations.CalculateFileCRC32(cachedFilePath)
+		require.NoError(t, err)
+		if gcsCRC != cachedFileCRC {
+			err = fmt.Errorf("CRC32 mismatch. Expected %d, Got %d", gcsCRC, cachedFileCRC)
+		} else {
+			break
+		}
+		time.Sleep(retryDelay)
 	}
-	err = client.ValidateCRCWithGCS(crc32ValueOfCachedFile, path.Join(testDirName, fileName), ctx, storageClient)
-	if err != nil {
-		t.Errorf("Cache file CRC mismatch for cached file %s: %v", cachedFilePath, err)
-	}
+	require.NoError(t, err)
 }
 
 func validateFileIsNotCached(fileName string, t *testing.T) {
@@ -173,8 +182,8 @@ func readFileAndValidateCacheWithGCS(ctx context.Context, storageClient *storage
 	if err != nil {
 		t.Errorf("CalculateCRC32 Failed: %v", err)
 	}
-	err = client.ValidateCRCWithGCS(gotCRC32Value, path.Join(testDirName, filename), ctx, storageClient)
-	if err != nil {
+	gcsCRC, err := client.GetCRCFromGCS(path.Join(testDirName, filename), ctx, storageClient)
+	if err != nil || gcsCRC != gotCRC32Value {
 		t.Errorf("Content served CRC mismatch: %v", err)
 	}
 	// Validate cached content with gcs.
