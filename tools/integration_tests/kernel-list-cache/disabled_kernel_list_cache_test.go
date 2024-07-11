@@ -58,26 +58,26 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t, err)
 	require.Equal(t, 2, len(names1))
-	assert.Equal(t, "file1.txt", names1[0])
-	assert.Equal(t, "file2.txt", names1[1])
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
 	err = f.Close()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	require.Equal(t, 3, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
 	assert.Equal(t, "file2.txt", names2[1])
