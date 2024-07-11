@@ -33,38 +33,41 @@ import (
 )
 
 const (
-	testDirName                         = "ReadCacheTest"
-	onlyDirMounted                      = "OnlyDirMountReadCache"
-	cacheSubDirectoryName               = "gcsfuse-file-cache"
-	smallContentSize                    = 128 * util.KiB
-	chunkSizeToRead                     = 128 * util.KiB
-	fileSize                            = 3 * util.MiB
-	fileSizeSameAsCacheCapacity         = cacheCapacityForRangeReadTestInMiB * util.MiB
-	fileSizeForRangeRead                = 8 * util.MiB
-	chunksRead                          = fileSize / chunkSizeToRead
-	testFileName                        = "foo"
-	cacheCapacityInMB                   = 9
-	NumberOfFilesWithinCacheLimit       = (cacheCapacityInMB * util.MiB) / fileSize
-	NumberOfFilesMoreThanCacheLimit     = (cacheCapacityInMB*util.MiB)/fileSize + 1
-	largeFileSize                       = 15 * util.MiB
-	largeFileName                       = "15MBFile"
-	largeFileChunksRead                 = largeFileSize / chunkSizeToRead
-	chunksReadAfterUpdate               = 1
-	metadataCacheTTlInSec               = 10
-	testFileNameSuffixLength            = 4
-	zeroOffset                          = 0
-	randomReadOffset                    = 9 * util.MiB
-	configFileName                      = "config"
-	offset5000                          = 5000
-	offset1000                          = 1000
-	offsetForRangeReadWithin8MB         = 4 * util.MiB
-	offset10MiB                         = 10 * util.MiB
-	cacheCapacityForRangeReadTestInMiB  = 50
-	cacheCapacityForVeryLargeFileInMiB  = 500
-	veryLargeFileSize                   = cacheCapacityForVeryLargeFileInMiB * util.MiB
-	offsetEndOfFile                     = veryLargeFileSize - 1*util.MiB
-	cacheDirName                        = "cache-dir"
-	logFileNameForMountedDirectoryTests = "/tmp/gcsfuse_read_cache_test_logs/log.json"
+	testDirName                            = "ReadCacheTest"
+	onlyDirMounted                         = "OnlyDirMountReadCache"
+	cacheSubDirectoryName                  = "gcsfuse-file-cache"
+	smallContentSize                       = 128 * util.KiB
+	chunkSizeToRead                        = 128 * util.KiB
+	fileSize                               = 3 * util.MiB
+	fileSizeSameAsCacheCapacity            = cacheCapacityForRangeReadTestInMiB * util.MiB
+	fileSizeForRangeRead                   = 8 * util.MiB
+	chunksRead                             = fileSize / chunkSizeToRead
+	testFileName                           = "foo"
+	cacheCapacityInMB                      = 9
+	NumberOfFilesWithinCacheLimit          = (cacheCapacityInMB * util.MiB) / fileSize
+	NumberOfFilesMoreThanCacheLimit        = (cacheCapacityInMB*util.MiB)/fileSize + 1
+	largeFileSize                          = 15 * util.MiB
+	largeFileCacheCapacity                 = 15
+	largeFileName                          = "15MBFile"
+	largeFileChunksRead                    = largeFileSize / chunkSizeToRead
+	chunksReadAfterUpdate                  = 1
+	metadataCacheTTlInSec                  = 10
+	testFileNameSuffixLength               = 4
+	zeroOffset                             = 0
+	randomReadOffset                       = 9 * util.MiB
+	configFileName                         = "config"
+	configFileNameForParallelDownloadTests = "configForReadCacheWithParallelDownload"
+	offset5000                             = 5000
+	offset1000                             = 1000
+	offsetForRangeReadWithin8MB            = 4 * util.MiB
+	offset10MiB                            = 10 * util.MiB
+	cacheCapacityForRangeReadTestInMiB     = 50
+	cacheDirName                           = "cache-dir"
+	logFileNameForMountedDirectoryTests    = "/tmp/gcsfuse_read_cache_test_logs/log.json"
+	parallelDownloadsPerFile               = 4
+	maxParallelDownloads                   = -1
+	downloadChunkSizeMB                    = 3
+	enableCrcCheck                         = true
 )
 
 var (
@@ -97,7 +100,7 @@ func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageCli
 	testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
 }
 
-func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string) string {
+func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName string, enableParallelDownloads bool) string {
 	cacheDirPath = path.Join(setup.TestDir(), cacheDirName)
 
 	// Set up config file for file cache.
@@ -105,8 +108,13 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 		FileCacheConfig: config.FileCacheConfig{
 			// Keeping the size as low because the operations are performed on small
 			// files
-			MaxSizeMB:             cacheSize,
-			CacheFileForRangeRead: cacheFileForRangeRead,
+			MaxSizeMB:                cacheSize,
+			CacheFileForRangeRead:    cacheFileForRangeRead,
+			EnableParallelDownloads:  enableParallelDownloads,
+			ParallelDownloadsPerFile: parallelDownloadsPerFile,
+			MaxParallelDownloads:     maxParallelDownloads,
+			DownloadChunkSizeMB:      downloadChunkSizeMB,
+			EnableCRC:                enableCrcCheck,
 		},
 		CacheDir: config.CacheDir(cacheDirPath),
 		LogConfig: config.LogConfig{
