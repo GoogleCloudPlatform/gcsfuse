@@ -49,7 +49,7 @@ func (s *finiteKernelListCacheTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testing.T) {
+func (s *finiteKernelListCacheTest) TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit(t *testing.T) {
 	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
