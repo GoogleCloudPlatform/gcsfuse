@@ -1,0 +1,17 @@
+
+name: "Add shadow reviewer"
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  shadow-reviewer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add shadow reviewer
+        run: gh pr edit --add-reviewer @GoogleCloudPlatform/gcsfuse-shadow-reviewers
+        env:
+          GH_TOKEN: ${{ secrets.SHADOW_REVIEWER }}
