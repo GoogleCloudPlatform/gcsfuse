@@ -75,8 +75,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
-	
-	// No invalidation since infinite ttl.
+
+	// Kernel cache will not invalidate since infinite ttl.
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
