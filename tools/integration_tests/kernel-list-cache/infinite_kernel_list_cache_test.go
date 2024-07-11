@@ -88,6 +88,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	assert.Equal(t, "file2.txt", names2[1])
 }
 
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
+// addition of new file.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfFile(t *testing.T) {
 	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
 	// Create test data
