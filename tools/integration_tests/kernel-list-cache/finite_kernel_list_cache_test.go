@@ -96,9 +96,9 @@ func (s *finiteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testin
 
 	assert.Nil(t, err)
 	require.Equal(t, 3, len(names3))
-	assert.Equal(t, "file1.txt", names2[0])
-	assert.Equal(t, "file2.txt", names2[1])
-	assert.Equal(t, "file3.txt", names2[1])
+	assert.Equal(t, "file1.txt", names3[0])
+	assert.Equal(t, "file2.txt", names3[1])
+	assert.Equal(t, "file3.txt", names3[1])
 }
 
 ////////////////////////////////////////////////////////////////////////
