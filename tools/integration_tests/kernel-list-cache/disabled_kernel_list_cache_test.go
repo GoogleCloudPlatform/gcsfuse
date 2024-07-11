@@ -49,10 +49,9 @@ func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
 
 func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *testing.T) {
 	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
-	// Adding one object to make sure to change the ReadDir() response.
+	// Create test data
 	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f1)
-	// Adding one object to make sure to change the ReadDir() response.
 	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
 	defer operations.CloseFile(f2)
 
