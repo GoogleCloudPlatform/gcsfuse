@@ -16,10 +16,16 @@ package kernel_list_cache
 
 import (
 	"log"
+	"os"
+	"path"
 	"testing"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -42,9 +48,42 @@ func (s *infiniteKernelListCacheTest) Teardown(t *testing.T) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// TODO: Add test scenarios here.
-func (s *infiniteKernelListCacheTest) TestMock(t *testing.T) {
-	t.Log("running mock test")
+func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *testing.T) {
+	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f2)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
+	assert.Nil(t, err)
+	defer func() {
+		assert.Nil(t, f.Close())
+	}()
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t, err)
+	require.Equal(t, 2, len(names1))
+	assert.Equal(t, "file1.txt", names1[0])
+	assert.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t, err)
+	// Adding one object to make sure to change the ReadDir() response.
+	f3 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file3.txt"), setup.FilePermission_0600, t)
+	defer operations.CloseFile(f3)
+	// Advancing time by 5 years (157800000 seconds).
+	time.Sleep(157800000 * time.Second)
+
+	// No invalidation since infinite ttl.
+	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
+	assert.Nil(t, err)
+	names2, err := f.Readdirnames(-1)
+
+	assert.Nil(t, err)
+	require.Equal(t, 2, len(names2))
+	assert.Equal(t, "file1.txt", names2[0])
+	assert.Equal(t, "file2.txt", names2[1])
 }
 
 ////////////////////////////////////////////////////////////////////////
