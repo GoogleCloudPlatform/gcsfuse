@@ -49,15 +49,15 @@ func (s *disabledKernelListCacheTest) Teardown(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *testing.T) {
-	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
+	operations.CreateDirectory(targetDir, t)
 	// Create test data
-	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
-	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
-	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err := os.Open(targetDir)
 	require.NoError(t, err)
 	defer func() {
 		assert.Nil(t, f.Close())
@@ -73,7 +73,7 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
 
 	// Zero ttl, means readdir will always be served from gcsfuse.
-	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
+	f, err = os.Open(targetDir)
 	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
