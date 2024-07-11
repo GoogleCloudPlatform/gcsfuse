@@ -466,17 +466,23 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 }
 
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
+	UnmountGCSFuse(rootDir)
+	// delete log file created
+	if *mountedDirectory != "" {
+		err := os.Remove(LogFile())
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
+	}
+}
+
+func UnmountGCSFuse(rootDir string) {
 	SetMntDir(rootDir)
 	if *mountedDirectory == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := UnMount()
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-		// delete log file created
-		err = os.Remove(LogFile())
-		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
 	}
 }
