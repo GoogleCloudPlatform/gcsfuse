@@ -52,9 +52,9 @@ func (s *disabledKernelListCacheTest) TestKernelListCache_AlwaysCacheMiss(t *tes
 	operations.CreateDirectory(path.Join(testDirPath, "explicit_dir"), t)
 	// Create test data
 	f1 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file1.txt"), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f1)
+	operations.CloseFile(f1)
 	f2 := operations.CreateFile(path.Join(testDirPath, "explicit_dir", "file2.txt"), setup.FilePermission_0600, t)
-	defer operations.CloseFile(f2)
+	operations.CloseFile(f2)
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(testDirPath, "explicit_dir"))
