@@ -73,9 +73,10 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_AlwaysCacheHit(t *test
 	// Adding one object to make sure to change the ReadDir() response.
 	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirPath, "explicit_dir", "file3.txt"), "")
 	if err != nil {
-		log.Printf("Failed to create test directory: %v", err)
+		t.Errorf("Failed to create test directory: %v", err)
 	}
 
+	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
 
 	// No invalidation since infinite ttl.
