@@ -39,6 +39,7 @@ const (
 var (
 	storageClient *storage.Client
 	ctx           context.Context
+	testDirPath   string
 )
 
 func TestMain(m *testing.M) {

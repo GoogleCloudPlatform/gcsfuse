@@ -17,6 +17,7 @@ package concurrent_operations
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 )
 
@@ -26,7 +27,9 @@ import (
 
 type concurrentListingTest struct{}
 
-func (s *concurrentListingTest) Setup(t *testing.T) {}
+func (s *concurrentListingTest) Setup(t *testing.T) {
+	testDirPath = setup.SetupTestDirectory(testDirName)
+}
 
 func (s *concurrentListingTest) Teardown(t *testing.T) {}
 
