@@ -1296,7 +1296,7 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), folderPath, result.Name)
+	assert.Equal(testSuite.T(), TestObjectName, result.Name)
 }
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {

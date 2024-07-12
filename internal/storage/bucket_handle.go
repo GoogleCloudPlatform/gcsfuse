@@ -512,13 +512,8 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 		return nil, err
 	}
 
-	folder := gcs.Folder{
-		Name:           clientFolder.Name,
-		Metageneration: clientFolder.Metageneration,
-		UpdateTime:     clientFolder.GetUpdateTime().AsTime(),
-	}
-
-	return &folder, err
+	folderResponse := gcs.GCSFolder(b.bucketName, clientFolder)
+	return folderResponse, err
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
