@@ -186,46 +186,70 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 // (a) First ReadDir() will be served from GCSFuse filesystem.
 // (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
 // file rename.
-func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(t *testing.T) {
+func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyDirectParent(t *testing.T) {
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
-	// Create test data
+	subDir := path.Join(targetDir, "sub_dir")
+	operations.CreateDirectory(subDir, t)
+	// Create test files
 	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f1)
-	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	f2 := operations.CreateFile(path.Join(subDir, "file2.txt"), setup.FilePermission_0600, t)
 	operations.CloseFile(f2)
-
-	// First read, kernel will cache the dir response.
+	f3 := operations.CreateFile(path.Join(subDir, "file3.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f3)
+	// Initial read of parent directory (caches results)
 	f, err := os.Open(targetDir)
-	assert.NoError(t, err)
-	defer func() {
-		assert.NoError(t, f.Close())
-	}()
-	names1, err := f.Readdirnames(-1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	names1, err := f.Readdirnames(-1) // Read all filenames
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
 	require.Equal(t, 2, len(names1))
 	require.Equal(t, "file1.txt", names1[0])
-	require.Equal(t, "file2.txt", names1[1])
-	err = f.Close()
-	assert.NoError(t, err)
-
-	// Adding one object to make sure to change the ReadDir() response.
-	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-
-	// Ideally no invalidation since infinite ttl, but rename of a file inside
-	// directory evicts the list cache for that directory.
-	err = os.Rename(path.Join(targetDir, "file2.txt"), path.Join(targetDir, "renamed_file2.txt"))
-	require.NoError(t, err)
-
-	f, err = os.Open(targetDir)
+	require.Equal(t, "sub_dir", names1[1])
+	// Initial read of sub-directory (caches results)
+	f, err = os.Open(subDir)
 	require.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
-
-	assert.NoError(t, err)
-	require.Equal(t, 3, len(names2))
-	assert.Equal(t, "file1.txt", names2[0])
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	require.Equal(t, 2, len(names2))
+	assert.Equal(t, "file2.txt", names2[0])
 	assert.Equal(t, "file3.txt", names2[1])
-	assert.Equal(t, "renamed_file2.txt", names2[2])
+	// Add a new file to the sub-directory to trigger a cache invalidation scenario
+	fNew, err := os.Create(path.Join(subDir, "file4.txt"))
+	require.NoError(t, err)
+	require.NoError(t, fNew.Close())
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName,
+		path.Join("explicit_dir", "sub_dir", "file5.txt"), "", t)
+	// Add a new file to the parent directory through the client to verify that the
+	// cache is not invalidated in the case of the parent.
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName,
+		path.Join("explicit_dir", "file6.txt"), "", t)
+
+	// Re-read parent directory (should still use the cache and NOT show the change in the sub-dir)
+	f1, err = os.Open(targetDir)
+	require.NoError(t, err)
+	names1, err = f1.Readdirnames(-1)
+	require.NoError(t, err)
+	require.NoError(t, f1.Close())
+	// Re-read sub-directory (cache should be invalidated and show the new file)
+	f2, err = os.Open(subDir)
+	require.NoError(t, err)
+	names2, err = f2.Readdirnames(-1)
+	require.NoError(t, f2.Close())
+	require.NoError(t, err)
+
+	// This is expected to be 2 as it is reading from cache for parent directory
+	require.Equal(t, 2, len(names1))
+	assert.Equal(t, "file1.txt", names1[0])
+	assert.Equal(t, "sub_dir", names1[1])
+	// Cache invalidated, expect 4 items now as call went to GCS
+	require.Equal(t, 4, len(names2))
+	assert.Equal(t, "file2.txt", names2[0])
+	assert.Equal(t, "file3.txt", names2[1])
+	assert.Equal(t, "file4.txt", names2[2])
+	assert.Equal(t, "file5.txt", names2[3])
 }
 
 // (a) First ReadDir() will be served from GCSFuse filesystem.
