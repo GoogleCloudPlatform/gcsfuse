@@ -258,38 +258,6 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_ListAndDeleteDirectory
 	require.NoError(t, err)
 }
 
-//func (s *infiniteKernelListCacheTest) TestKernelListCache_ListAndDeleteDirectoryContainingOnlyGCSFiles(t *testing.T) {
-//	targetDir := path.Join(testDirPath, "explicit_dir")
-//	operations.CreateDirectory(targetDir, t)
-//
-//	// (a) First read served from GCS, kernel will cache the dir response.
-//	f, err := os.Open(targetDir)
-//	assert.NoError(t, err)
-//	names1, err := f.Readdirnames(-1)
-//	assert.NoError(t, err)
-//	require.Equal(t, 0, len(names1))
-//	err = f.Close()
-//	assert.NoError(t, err)
-//
-//	// Adding one object to make sure to change the ReadDir() response.
-//	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-//
-//	err = os.RemoveAll(targetDir)
-//	assert.NoError(t, err)
-//
-//	err = os.RemoveAll(targetDir)
-//	assert.NoError(t, err)
-//
-//	f, err = os.Open(targetDir)
-//	assert.NoError(t, err)
-//	names2, err := f.Readdirnames(-1)
-//	assert.NoError(t, err)
-//	require.Equal(t, 1, len(names2))
-//	err = f.Close()
-//	assert.NoError(t, err)
-//}
-//
-
 // explicit_dir/file1.txt
 // explicit_dir/sub_dir/file2.txt
 // explicit_dir/sub_dir/file3.txt
