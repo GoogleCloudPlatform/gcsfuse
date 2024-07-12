@@ -23,30 +23,29 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const TestBucketName string = "testBucket"
+const TestFolderName string = "testFolder"
+
 func TestFindFolderName(t *testing.T) {
-	bucketName := "testBucket"
-	folderName := "testFolder"
-	folderPath := "projects/_/buckets/" + bucketName + "/folders/" + folderName
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestFolderName
 
-	result := findFolderName(bucketName, folderPath)
+	result := findFolderName(TestBucketName, folderPath)
 
-	assert.Equal(t, result, folderName)
+	assert.Equal(t, result, TestFolderName)
 }
 
 func TestControlFolderAttrsToGCSFolder(t *testing.T) {
-	bucketName := "testBucket"
-	folderName := "testFolder"
 	timestamp := &timestamppb.Timestamp{
 		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
 		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
 	}
 	attrs := controlpb.Folder{
-		Name:           folderName,
+		Name:           TestFolderName,
 		Metageneration: 10,
 		UpdateTime:     timestamp,
 	}
 
-	gcsFolder := ControlFolderAttrsToGCSFolder(bucketName, &attrs)
+	gcsFolder := ControlFolderAttrsToGCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.Metageneration, gcsFolder.Metageneration)
