@@ -228,9 +228,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	assert.Equal(t, "renamed_file2.txt", names2[2])
 }
 
-// (a) First ReadDir() will be served from GCSFuse filesystem.
-// (b) Second ReadDir() will also be served from GCSFuse filesystem, because of
-// file rename.
+// Subdir invalidate its cache, parent's cache remains persists.
 func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyDirectParent(t *testing.T) {
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
