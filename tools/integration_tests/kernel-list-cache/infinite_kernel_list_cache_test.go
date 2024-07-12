@@ -218,7 +218,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
 
-	// Ideally no invalidation since infinite ttl, but creation of a new file inside
+	// Ideally no invalidation since infinite ttl, but rename of a file inside
 	// directory evicts the list cache for that directory.
 	err = os.Rename(path.Join(targetDir, "file2.txt"), path.Join(targetDir, "renamed_file2.txt"))
 	require.NoError(t, err)
