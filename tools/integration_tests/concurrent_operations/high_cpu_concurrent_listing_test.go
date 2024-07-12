@@ -20,10 +20,12 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
@@ -49,6 +51,27 @@ func (s *highCpuConcurrentListingTest) Setup(t *testing.T) {
 
 func (s *highCpuConcurrentListingTest) Teardown(t *testing.T) {}
 
+func getRelativePathFromDirectory(t *testing.T, filePath, targetDir string) string {
+	// Split the file path into its components
+	parts := strings.Split(filepath.Clean(filePath), string(filepath.Separator))
+
+	// Find the index of the target directory
+	targetIndex := -1
+	for i, part := range parts {
+		if part == targetDir {
+			targetIndex = i
+			break
+		}
+	}
+
+	if targetIndex == -1 {
+		t.Errorf("Target directory not found.")
+	}
+
+	// Construct the relative path by joining the components after the target directory
+	return filepath.Join(parts[targetIndex+1:]...)
+}
+
 func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir string) {
 	operations.CreateDirectory(path.Join(testDirPath, testCaseDir), t)
 
@@ -58,17 +81,16 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 	numLevel := 3
 
 	var globalWG sync.WaitGroup
-	globalWG.Add(5)
 
-	// Create 100 files at level `explicitDir`
-	create100FilesAt := func(dir string) {
-		defer globalWG.Done()
+	createFilesInGivenDir := func(dir string) {
 		var wg sync.WaitGroup
 		for i := 0; i < numFiles; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
 				fileName := fmt.Sprintf("file%d.txt", i+1)
+				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "", t)
+				t.Logf("Successfully created object %s", path.Join(dir, fileName))
 				operations.CreateFileOfSize(5, path.Join(dir, fileName), t)
 			}(i)
 		}
@@ -85,7 +107,7 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 		// Create 100 files at the current level.
 		go func() {
 			defer globalWG.Done()
-			create100FilesAt(currLevel)
+			createFilesInGivenDir(currLevel)
 		}()
 	}
 	globalWG.Wait()
@@ -122,7 +144,7 @@ func (s *highCpuConcurrentListingTest) Test_MultipleConcurrentRecursiveListing(t
 	goroutineCount := 100          // Number of concurrent goroutines
 	iterationsPerGoroutine := 1000 // Number of iterations per goroutine
 	wg.Add(goroutineCount)
-	timeout := 500 * time.Second
+	timeout := 200 * time.Second
 
 	// Create multiple go routines to listing concurrently.
 	for i := 0; i < goroutineCount; i++ {
