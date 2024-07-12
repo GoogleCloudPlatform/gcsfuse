@@ -541,8 +541,7 @@ func (s *concurrentListingTest) Test_ListWithCopyFile(t *testing.T) {
 				assert.True(t, strings.Contains(err.Error(), "input/output error"))
 			}
 
-			err = f.Close()
-			assert.NoError(t, err)
+			assert.NoError(t, f.Close())
 		}
 	}()
 
@@ -550,7 +549,7 @@ func (s *concurrentListingTest) Test_ListWithCopyFile(t *testing.T) {
 	err := os.WriteFile(path.Join(testDirPath, "copy_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
 	require.NoError(t, err)
 
-	// Goroutine 2: Copy files
+	// Goroutine 2: Copy file
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
@@ -602,15 +601,14 @@ func (s *concurrentListingTest) Test_ListWithCopyDir(t *testing.T) {
 				assert.True(t, strings.Contains(err.Error(), "input/output error"))
 			}
 
-			err = f.Close()
-			assert.NoError(t, err)
+			assert.NoError(t, f.Close())
 		}
 	}()
 	// Create Dir
 	err := os.Mkdir(path.Join(testDirPath, "copy_dir"), setup.DirPermission_0755)
 	require.NoError(t, err)
 
-	// Goroutine 2: Copy files
+	// Goroutine 2: Copy Dir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
