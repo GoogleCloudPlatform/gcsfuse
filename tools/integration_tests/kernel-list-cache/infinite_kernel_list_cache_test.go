@@ -184,7 +184,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 	assert.NoError(t, err)
 	require.Equal(t, 2, len(names2))
 	assert.Equal(t, "file1.txt", names2[0])
-	assert.Equal(t, "file3.txt", names2[1]) // file2.txt deleted, hence file3.txt
+	assert.Equal(t, "file3.txt", names2[1])
 }
 
 // (a) First ReadDir() will be served from GCSFuse filesystem.
