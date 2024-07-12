@@ -17,6 +17,7 @@
 package fs_test
 
 import (
+	"errors"
 	"os"
 	"path"
 	"testing"
@@ -85,4 +86,64 @@ func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_AlwaysCacheHit(
 	require.Equal(t.T(), 2, len(names2))
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
+}
+
+func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirAfterListCachedWorks() {
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(mntDir, "explicitDir"))
+	assert.Nil(t.T(), err)
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t.T(), err)
+	require.Equal(t.T(), 2, len(names1))
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t.T(), err)
+	// Adding one object to make sure to change the ReadDir() response.
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"explicitDir/file3.txt": "123456",
+	}))
+	// Advancing time by 5 years (157800000 seconds).
+	cacheClock.AdvanceTime(157800000 * time.Second)
+
+	// os.RemoveDir should delete all files and invalidate cache.
+	err = os.RemoveAll(path.Join(mntDir, "explicitDir"))
+	assert.NoError(t.T(), err)
+
+	_, err = os.ReadDir(path.Join(mntDir, "explicitDir"))
+	var pathError *os.PathError
+	assert.True(t.T(), errors.As(err, &pathError))
+}
+
+func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirAfterListCacheInvalidatesCache() {
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(mntDir, "explicitDir"))
+	assert.Nil(t.T(), err)
+	names1, err := f.Readdirnames(-1)
+	assert.Nil(t.T(), err)
+	require.Equal(t.T(), 2, len(names1))
+	assert.Equal(t.T(), "file1.txt", names1[0])
+	assert.Equal(t.T(), "file2.txt", names1[1])
+	err = f.Close()
+	assert.Nil(t.T(), err)
+	// Adding one object to make sure to change the ReadDir() response.
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"explicitDir/file3.txt": "123456",
+	}))
+	// Advancing time by 5 years (157800000 seconds).
+	cacheClock.AdvanceTime(157800000 * time.Second)
+	// os.RemoveDir should delete all files and invalidate cache.
+	err = os.RemoveAll(path.Join(mntDir, "explicitDir"))
+	assert.NoError(t.T(), err)
+
+	// Adding one more object to make sure to change the ReadDir() response.
+	assert.Nil(t.T(), t.createObjects(map[string]string{
+		"explicitDir/file4.txt": "123456",
+	}))
+	names2, err := os.ReadDir(path.Join(mntDir, "explicitDir"))
+	assert.Nil(t.T(), err)
+
+	assert.Nil(t.T(), err)
+	require.Equal(t.T(), 1, len(names2))
+	assert.Equal(t.T(), "file4.txt", names2[0].Name())
 }

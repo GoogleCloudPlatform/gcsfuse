@@ -228,6 +228,36 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	assert.Equal(t, "renamed_file2.txt", names2[2])
 }
 
+// (a) First ReadDir() will be served from GCSFuse filesystem.
+// (b) Second RmDIr() will also be served from GCSFuse filesystem, but it will cache the response.
+// (c) Third ReadDir() will serve the read request from cache.
+func (s *infiniteKernelListCacheTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f2)
+
+	// (a) First read served from GCS, kernel will cache the dir response.
+	f, err := os.Open(targetDir)
+	assert.NoError(t, err)
+	names1, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(names1))
+	require.Equal(t, "file1.txt", names1[0])
+	require.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// Adding one object to make sure to change the ReadDir() response.
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+
+	err = os.RemoveAll(targetDir)
+	require.NoError(t, err)
+}
+
 // explicit_dir/file1.txt
 // explicit_dir/sub_dir/file2.txt
 // explicit_dir/sub_dir/file3.txt

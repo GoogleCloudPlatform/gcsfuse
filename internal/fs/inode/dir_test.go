@@ -1568,3 +1568,12 @@ func (t *DirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
 	ExpectTrue(errors.As(err, &notFoundErr))
 }
+
+func (t *DirTest) Test_InvalidateKernelListCache() {
+	d := t.in.(*dirInode)
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
+
+	t.in.InvalidateKernelListCache()
+
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+}

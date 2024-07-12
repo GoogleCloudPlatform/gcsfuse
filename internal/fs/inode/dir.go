@@ -147,6 +147,10 @@ type DirInode interface {
 	// should be invalidated or not.
 	ShouldInvalidateKernelListCache(ttl time.Duration) bool
 
+	//InvalidateKernelListCache sets the prevDirListingTimeStamp to zero so that
+	//cache is invalidated for next list call.
+	InvalidateKernelListCache()
+
 	// RLock readonly lock.
 	RLock()
 
@@ -956,4 +960,9 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
 
 	return folder, nil
+}
+
+func (d *dirInode) InvalidateKernelListCache() {
+	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
+	d.prevDirListingTimeStamp = time.Time{}
 }

@@ -243,6 +243,11 @@ func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	return true
 }
 
+func (d *baseDirInode) InvalidateKernelListCache() {
+	// Kernel list cache is not supported for baseDirInode.
+	return
+}
+
 func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
 	err = fuse.ENOSYS
 	return
