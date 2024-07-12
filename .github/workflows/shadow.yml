@@ -2,12 +2,11 @@
 name: "Add shadow reviewer"
 
 on:
-  push:
+  pull_request:
+    types: 
+    - ready_for_review
     branches:
       - master
-  pull_request:
-    branches:
-      - '*'
 
 jobs:
   shadow-reviewer:
