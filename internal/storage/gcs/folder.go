@@ -27,7 +27,7 @@ type Folder struct {
 	UpdateTime     time.Time
 }
 
-func ConvertToGCSFolderFromGetFolderResponse(bucketName string, attrs *controlpb.Folder) *Folder {
+func GCSFolder(bucketName string, attrs *controlpb.Folder) *Folder {
 	// Setting the parameters in Folder and doing conversions as necessary.
 	return &Folder{
 		Name:           getFolderName(bucketName, attrs.Name),

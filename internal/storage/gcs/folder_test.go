@@ -45,7 +45,7 @@ func TestControlFolderAttrsToGCSFolder(t *testing.T) {
 		UpdateTime:     timestamp,
 	}
 
-	gcsFolder := ConvertToGCSFolderFromGetFolderResponse(TestBucketName, &attrs)
+	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.Metageneration, gcsFolder.Metageneration)
