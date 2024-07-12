@@ -518,10 +518,10 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 }
 
 // Test_ListWithCopyFile tests for potential deadlocks or race conditions when
-// listing, file or folder operations, copy file happening concurrently.
-func (s *concurrentListingTest) Test_ListWithCopyFile(t *testing.T) {
+// listing, file or folder operations, move file happening concurrently.
+func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_ListWithCopyFile"
+	testCaseDir := "Test_ListWithMoveFile"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
@@ -553,11 +553,11 @@ func (s *concurrentListingTest) Test_ListWithCopyFile(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
-			// Copy File in the target directory
-			err = operations.CopyFile(path.Join(testDirPath, "copy_file.txt"), path.Join(targetDir, "copy_file.txt"))
+			// Move File in the target directory
+			err = operations.Move(path.Join(testDirPath, "copy_file.txt"), path.Join(targetDir, "copy_file.txt"))
 			assert.NoError(t, err)
-			// Copy File out of the target directory
-			err = operations.CopyFile(path.Join(targetDir, "copy_file.txt"), path.Join(testDirPath, "copy_file.txt"))
+			// Move File out of the target directory
+			err = operations.Move(path.Join(targetDir, "copy_file.txt"), path.Join(testDirPath, "copy_file.txt"))
 			assert.NoError(t, err)
 		}
 	}()
@@ -578,10 +578,10 @@ func (s *concurrentListingTest) Test_ListWithCopyFile(t *testing.T) {
 }
 
 // Test_ListWithCopyDir tests for potential deadlocks or race conditions when
-// listing, file or folder operations, copy dir happening concurrently.
-func (s *concurrentListingTest) Test_ListWithCopyDir(t *testing.T) {
+// listing, file or folder operations, move dir happening concurrently.
+func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_ListWithCopyDir"
+	testCaseDir := "Test_ListWithMoveDir"
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
@@ -612,11 +612,11 @@ func (s *concurrentListingTest) Test_ListWithCopyDir(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
-			// Copy Dir in the target dir
-			err = operations.CopyDir(path.Join(testDirPath, "copy_dir"), path.Join(targetDir, "copy_dir"))
+			// Move Dir in the target dir
+			err = operations.Move(path.Join(testDirPath, "copy_dir"), path.Join(targetDir, "copy_dir"))
 			assert.NoError(t, err)
-			// Copy Dir out of the target dir
-			err = operations.CopyDir(path.Join(targetDir, "copy_dir"), path.Join(testDirPath, "copy_dir"))
+			// Move Dir out of the target dir
+			err = operations.Move(path.Join(targetDir, "copy_dir"), path.Join(testDirPath, "copy_dir"))
 			assert.NoError(t, err)
 		}
 	}()
