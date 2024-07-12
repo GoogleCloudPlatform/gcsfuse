@@ -85,40 +85,42 @@ git clone https://github.com/googlecloudplatform/gcsfuse |& tee -a ~/logs.txt
 cd gcsfuse
 
 echo "Installing fio"
-./perfmetrics/scripts/fio/install_fio.sh "~"
+"./perfmetrics/scripts/fio/install_fio.sh" .
+fio --version
 
 echo "Building and installing gcsfuse"
 commitId=$(fetch_meta_data_value "COMMIT_ID")
 ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
 
+git checkout $commitId
 cd perfmetrics/scripts
 echo "Mounting gcsfuse"
 mkdir -p gcs
 
+UPLOAD_FLAGS="--upload_gs"
+GCSFUSE_FIO_FLAGS="--stackdriver-export-interval=30s"
+BUCKET_NAME="anushkadhn-perf-tests"
+SPREADSHEET_ID="1vFbBhVQ46KclpdOTr2iFZVavAqpOzJgHVjrpmeRZF6A"
+MOUNT_POINT=gcs
+
+# The VM will itself exit if the gcsfuse mount fails.sudo cat /var/log/syslog | grep -i -A 20  “Success”
+gcsfuse  $GCSFUSE_FIO_FLAGS $BUCKET_NAME $MOUNT_POINT
+
 #deleting files in the read directories if non empty
 for dir in "${FIO_READ_DIRS[@]}";
 do
-  if [ -d ${dir} ] && ! [ -z "$( ls -A ${dir} )" ]; then
-    rm dir/*
+  if [ -d "$dir" ] && ! [ -z "$( ls -A "$dir" )" ]; then
+    rm "$dir"/*
   fi
 done
 
 #deleting files in the write directories if non empty
 for dir in "${FIO_WRITE_DIRS[@]}";
 do
-  if [ -d ${dir} ] && ! [ -z "$( ls -A ${dir} )" ]; then
-    rm dir/*
+  if [ -d "$dir" ] && ! [ -z "$( ls -A "$dir" )" ]; then
+      rm "$dir"/*
   fi
 done
-
-UPLOAD_FLAGS="--upload_gs"
-GCSFUSE_FIO_FLAGS="--stackdriver-export-interval=30s"
-BUCKET_NAME="anushkadhn-perf-tests"
-SPREADSHEET_ID="1xnNZdZXewP8Hk7btKXK-BQS1vuhmSx1TVGYmHTqJvlg"
-MOUNT_POINT=gcs
-
-# The VM will itself exit if the gcsfuse mount fails.sudo cat /var/log/syslog | grep -i -A 20  “Success”
-gcsfuse  $GCSFUSE_FIO_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 #clearing out the read write directories
 echo Print the time when FIO tests start
@@ -129,6 +131,10 @@ fio  job_files/custom_vm_perf_test_read_write.fio --lat_percentiles 1 --output-f
 echo "Overall fio end epoch time:" `date +%s`
 sudo umount $MOUNT_POINT
 
+pip install --upgrade google-cloud
+pip install --upgrade google-cloud-bigquery
+pip install --upgrade google-cloud-storage
+
 echo Installing requirements..
 pip install --require-hashes -r requirements.txt --user
 gsutil cp gs://anushkadhn-perf-tests/creds.json gsheet
@@ -136,5 +142,3 @@ echo Fetching results..
 python3 fetch_and_upload_metrics.py "fio-output.json" $UPLOAD_FLAGS --spreadsheet_id=$SPREADSHEET_ID
 
 echo "Success!"
-
-
