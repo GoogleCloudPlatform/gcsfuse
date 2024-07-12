@@ -104,7 +104,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 	f, err := os.Open(targetDir)
 	require.NoError(t, err)
 	defer func() {
-		assert.Nil(t, f.Close())
+		assert.NoError(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
 	require.NoError(t, err)
@@ -125,8 +125,8 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 	require.NoError(t, err)
 	assert.NotNil(t, fNew)
 	defer func() {
-		assert.Nil(t, fNew.Close())
-		assert.Nil(t, os.Remove(path.Join(targetDir, "file4.txt")))
+		assert.NoError(t, fNew.Close())
+		assert.NoError(t, os.Remove(path.Join(targetDir, "file4.txt")))
 	}()
 
 	f, err = os.Open(path.Join(testDirPath, "explicit_dir"))
@@ -155,9 +155,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer func() {
-		assert.Nil(t, f.Close())
+		assert.NoError(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
@@ -178,7 +178,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 	require.NoError(t, err)
 
 	f, err = os.Open(targetDir)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	names2, err := f.Readdirnames(-1)
 
 	assert.NoError(t, err)
@@ -201,9 +201,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(targetDir)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	defer func() {
-		assert.Nil(t, f.Close())
+		assert.NoError(t, f.Close())
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.NoError(t, err)
