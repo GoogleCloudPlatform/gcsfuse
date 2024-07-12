@@ -88,7 +88,7 @@ func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_AlwaysCacheHit(
 	assert.Equal(t.T(), "file2.txt", names2[1])
 }
 
-func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirAfterListCachedWorks() {
+func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirAfterListIsCachedWorks() {
 	// First read, kernel will cache the dir response.
 	f, err := os.Open(path.Join(mntDir, "explicitDir"))
 	assert.Nil(t.T(), err)
