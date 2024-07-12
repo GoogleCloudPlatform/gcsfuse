@@ -116,8 +116,6 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnAdditionOfF
 
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-	// Waiting for 5 seconds to see if the kernel cache expires.
-	time.Sleep(5 * time.Second)
 
 	// Ideally no invalidation since infinite ttl, but creation of a new file inside
 	// directory evicts the list cache for that directory.
@@ -169,8 +167,6 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-	// Waiting for 5 seconds to see if the kernel cache expires.
-	time.Sleep(5 * time.Second)
 
 	// Ideally no invalidation since infinite ttl, but deletion of file inside
 	// directory evicts the list cache for that directory.
@@ -215,8 +211,6 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 
 	// Adding one object to make sure to change the ReadDir() response.
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-	// Waiting for 5 seconds to see if the kernel cache expires.
-	time.Sleep(5 * time.Second)
 
 	// Ideally no invalidation since infinite ttl, but rename of a file inside
 	// directory evicts the list cache for that directory.
