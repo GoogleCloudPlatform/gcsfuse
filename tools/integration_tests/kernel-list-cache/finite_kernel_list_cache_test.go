@@ -114,7 +114,7 @@ func TestFiniteKernelListCacheTest(t *testing.T) {
 
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=5"},
+		{"--kernel-list-cache-ttl-secs=5", "--rename-dir-limit=10"},
 	}
 
 	// Run tests.
