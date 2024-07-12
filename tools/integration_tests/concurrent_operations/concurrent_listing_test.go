@@ -483,7 +483,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	// Goroutine 4: Repeatedly stats
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsForMediumOperations; i++ {
+		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
