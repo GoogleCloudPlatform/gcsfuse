@@ -546,18 +546,18 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	}()
 
 	// Create file
-	err := os.WriteFile(path.Join(testDirPath, "copy_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
+	err := os.WriteFile(path.Join(testDirPath, "move_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
 	require.NoError(t, err)
 
-	// Goroutine 2: Copy file
+	// Goroutine 2: Move file
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move File in the target directory
-			err = operations.Move(path.Join(testDirPath, "copy_file.txt"), path.Join(targetDir, "copy_file.txt"))
+			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
 			assert.NoError(t, err)
 			// Move File out of the target directory
-			err = operations.Move(path.Join(targetDir, "copy_file.txt"), path.Join(testDirPath, "copy_file.txt"))
+			err = operations.Move(path.Join(targetDir, "move_file.txt"), path.Join(testDirPath, "move_file.txt"))
 			assert.NoError(t, err)
 		}
 	}()
@@ -605,18 +605,18 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 		}
 	}()
 	// Create Dir
-	err := os.Mkdir(path.Join(testDirPath, "copy_dir"), setup.DirPermission_0755)
+	err := os.Mkdir(path.Join(testDirPath, "move_dir"), setup.DirPermission_0755)
 	require.NoError(t, err)
 
-	// Goroutine 2: Copy Dir
+	// Goroutine 2: Move Dir
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			// Move Dir in the target dir
-			err = operations.Move(path.Join(testDirPath, "copy_dir"), path.Join(targetDir, "copy_dir"))
+			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
 			assert.NoError(t, err)
 			// Move Dir out of the target dir
-			err = operations.Move(path.Join(targetDir, "copy_dir"), path.Join(testDirPath, "copy_dir"))
+			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
 			assert.NoError(t, err)
 		}
 	}()
