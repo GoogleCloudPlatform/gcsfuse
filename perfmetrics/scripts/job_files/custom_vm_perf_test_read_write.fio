@@ -3,7 +3,7 @@ ioengine=sync
 direct=1
 fadvise_hint=0
 verify=0
-iodepth=64
+iodepth=1
 invalidate=1
 thread=1
 openfiles=1
@@ -11,7 +11,7 @@ group_reporting=1
 allrandrepeat=1
 filename_format=$jobname.$jobnum.$filenum
 
-[128kb_seq_read_job]
+[test_seq_read_job]
 stonewall
 numjobs=10
 ramp_time=10s
@@ -20,4 +20,4 @@ time_based=1
 rw=read
 bs=128k
 filesize=128k
-directory=gcs/128kb_read
+directory=gcs/test_read
