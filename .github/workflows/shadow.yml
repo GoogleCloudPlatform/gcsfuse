@@ -1,5 +1,4 @@
-
-name: "Add shadow reviewer"
+name: "Shadow reviews"
 
 on:
   pull_request:
