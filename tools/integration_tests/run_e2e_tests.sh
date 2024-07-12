@@ -61,6 +61,7 @@ TEST_DIR_PARALLEL=(
   "operations"
   "log_content"
   "kernel-list-cache"
+  "concurrent_operations"
 )
 # These tests never become parallel as it is changing bucket permissions.
 TEST_DIR_NON_PARALLEL=(
