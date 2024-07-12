@@ -512,7 +512,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 		return nil, err
 	}
 
-	folder := gcs.ControlFolderAttrsToGCSFolder(b.bucketName, clientFolder)
+	folder := gcs.ConvertToGCSFolderFromGetFolderResponse(b.bucketName, clientFolder)
 	return folder, err
 }
 
