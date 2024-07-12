@@ -172,7 +172,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDeletionOfF
 	// Waiting for 5 seconds to see if the kernel cache expires.
 	time.Sleep(5 * time.Second)
 
-	// Ideally no invalidation since infinite ttl, but creation of a new file inside
+	// Ideally no invalidation since infinite ttl, but deletion of file inside
 	// directory evicts the list cache for that directory.
 	err = os.Remove(path.Join(targetDir, "file2.txt"))
 	require.NoError(t, err)
