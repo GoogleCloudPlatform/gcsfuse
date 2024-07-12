@@ -26,7 +26,7 @@ import (
 const TestBucketName string = "testBucket"
 const TestFolderName string = "testFolder"
 
-func TestFindFolderName(t *testing.T) {
+func TestGetFolderName(t *testing.T) {
 	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestFolderName
 
 	result := getFolderName(TestBucketName, folderPath)
@@ -34,7 +34,7 @@ func TestFindFolderName(t *testing.T) {
 	assert.Equal(t, result, TestFolderName)
 }
 
-func TestControlFolderAttrsToGCSFolder(t *testing.T) {
+func TestGCSFolder(t *testing.T) {
 	timestamp := &timestamppb.Timestamp{
 		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
 		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
