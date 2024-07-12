@@ -272,6 +272,7 @@ func makeRootForBucket(
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+		fs.mountConfig.EnableHNS,
 	)
 }
 
@@ -725,7 +726,9 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+			fs.mountConfig.EnableHNS,
+		)
 
 	case inode.IsSymlink(ic.MinObject):
 		in = inode.NewSymlinkInode(

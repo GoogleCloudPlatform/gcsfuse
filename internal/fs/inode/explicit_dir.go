@@ -56,7 +56,8 @@ func NewExplicitDirInode(
 		bucket,
 		mtimeClock,
 		cacheClock,
-		typeCacheMaxSizeMB)
+		typeCacheMaxSizeMB,
+		false)
 
 	d = &explicitDirInode{
 		dirInode: wrapped.(*dirInode),

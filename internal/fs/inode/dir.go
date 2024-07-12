@@ -202,6 +202,7 @@ type dirInode struct {
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
 	prevDirListingTimeStamp time.Time
+	isHNSEnabled            bool
 }
 
 var _ DirInode = &dirInode{}
@@ -236,7 +237,9 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int) (d DirInode) {
+	typeCacheMaxSizeMB int,
+	isHNSEnabled bool,
+) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
@@ -253,6 +256,7 @@ func NewDirInode(
 		name:                        name,
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                isHNSEnabled,
 	}
 
 	typed.lc.Init(id)
@@ -517,11 +521,16 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.implicitDirs {
-			b.Add(lookUpImplicitOrExplicitDir)
+		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+			// add get folder call here
 		} else {
-			b.Add(lookUpExplicitDir)
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		}
+
 	}
 
 	if err := b.Join(); err != nil {
