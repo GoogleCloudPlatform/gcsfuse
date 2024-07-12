@@ -29,7 +29,7 @@ const TestFolderName string = "testFolder"
 func TestFindFolderName(t *testing.T) {
 	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestFolderName
 
-	result := findFolderName(TestBucketName, folderPath)
+	result := getFolderName(TestBucketName, folderPath)
 
 	assert.Equal(t, result, TestFolderName)
 }

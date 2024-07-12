@@ -30,7 +30,7 @@ type Folder struct {
 func ConvertToGCSFolderFromGetFolderResponse(bucketName string, attrs *controlpb.Folder) *Folder {
 	// Setting the parameters in Folder and doing conversions as necessary.
 	return &Folder{
-		Name:           findFolderName(bucketName, attrs.Name),
+		Name:           getFolderName(bucketName, attrs.Name),
 		Metageneration: attrs.Metageneration,
 		UpdateTime:     attrs.GetUpdateTime().AsTime(),
 	}
@@ -40,9 +40,9 @@ func ConvertToGCSFolderFromGetFolderResponse(bucketName string, attrs *controlpb
 //
 // projects/_/buckets/{bucket}/folders/{folder}
 // This method extracts the folder name from such a string.
-func findFolderName(bucketName, object string) string {
+func getFolderName(bucketName string, fullPath string) string {
 	prefix := "projects/_/buckets/" + bucketName + "/folders/"
-	folderName := strings.TrimPrefix(object, prefix)
+	folderName := strings.TrimPrefix(fullPath, prefix)
 
 	return folderName
 }
