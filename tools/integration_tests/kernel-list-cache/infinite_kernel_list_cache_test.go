@@ -228,7 +228,27 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 	assert.Equal(t, "renamed_file2.txt", names2[2])
 }
 
-// Subdir invalidate its cache, parent's cache remains persists.
+// explicit_dir/file1.txt
+// explicit_dir/sub_dir/file2.txt
+// explicit_dir/sub_dir/file3.txt
+//
+// ls explicit_dir
+// file1.txt, sub_dir
+//
+// ls explicit_dir/sub_dir
+// file2.txt, file3.txt
+// `
+// add file4.txt  in explicit_dir/sub_dir with gcsfuse
+// add file5.txt  in explicit_dir/sub_dir outside of  gcsfuse
+// add file6.txt  in explicit_dir with gcsfuse
+//
+// Since file4 was created through the kernel, the subdirectory cache was invalidated, but the parent cache remained persistent.
+//
+// ls explicit_dir
+// file1.txt, sub_dir
+//
+// ls explicit_dir/sub_dir
+// file2.txt, file3.txt, file4.txt, file5.txt
 func (s *infiniteKernelListCacheTest) TestKernelListCache_EvictCacheEntryOfOnlyDirectParent(t *testing.T) {
 	targetDir := path.Join(testDirPath, "explicit_dir")
 	operations.CreateDirectory(targetDir, t)
