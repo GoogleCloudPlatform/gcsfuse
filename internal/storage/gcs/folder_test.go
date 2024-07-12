@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storageutil
+package gcs
 
 import (
 	"testing"
@@ -24,25 +24,29 @@ import (
 )
 
 func TestFindFolderName(t *testing.T) {
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
+	bucketName := "testBucket"
+	folderName := "testFolder"
+	folderPath := "projects/_/buckets/" + bucketName + "/folders/" + folderName
 
-	folderName := findFolderName(TestBucketName, folderPath)
+	result := findFolderName(bucketName, folderPath)
 
-	assert.Equal(t, TestObjectName, folderName)
+	assert.Equal(t, result, folderName)
 }
 
 func TestControlFolderAttrsToGCSFolder(t *testing.T) {
+	bucketName := "testBucket"
+	folderName := "testFolder"
 	timestamp := &timestamppb.Timestamp{
 		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
 		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
 	}
 	attrs := controlpb.Folder{
-		Name:           TestObjectName,
+		Name:           folderName,
 		Metageneration: 10,
 		UpdateTime:     timestamp,
 	}
 
-	gcsFolder := ControlFolderAttrsToGCSFolder(TestBucketName, &attrs)
+	gcsFolder := ControlFolderAttrsToGCSFolder(bucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.Metageneration, gcsFolder.Metageneration)

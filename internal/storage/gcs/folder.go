@@ -15,11 +15,34 @@
 package gcs
 
 import (
+	"strings"
 	"time"
+
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 )
 
 type Folder struct {
 	Name           string
 	Metageneration int64
 	UpdateTime     time.Time
+}
+
+func ControlFolderAttrsToGCSFolder(bucketName string, attrs *controlpb.Folder) *Folder {
+	// Setting the parameters in Folder and doing conversions as necessary.
+	return &Folder{
+		Name:           findFolderName(bucketName, attrs.Name),
+		Metageneration: attrs.Metageneration,
+		UpdateTime:     attrs.GetUpdateTime().AsTime(),
+	}
+}
+
+// In HNS, folder paths returned by control client APIs are in the form of:
+//
+// projects/_/buckets/{bucket}/folders/{folder}
+// This method extracts the folder name from such a string.
+func findFolderName(bucketName, object string) string {
+	prefix := "projects/_/buckets/" + bucketName + "/folders/"
+	folderName := strings.TrimPrefix(object, prefix)
+
+	return folderName
 }
