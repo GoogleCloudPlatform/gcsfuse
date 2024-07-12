@@ -147,3 +147,35 @@ func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirAfterL
 	require.Equal(t.T(), 1, len(names2))
 	assert.Equal(t.T(), "file4.txt", names2[0].Name())
 }
+
+//func (t *KernelListCacheTestWithInfiniteTtl) TestKernelListCache_RemoveDirWorksWhenNoLocalCachedFiles() {
+//	err := os.Mkdir(path.Join(mntDir, "newDir"), os.FileMode(0777))
+//	// First read, kernel will cache the dir response.
+//	f, err := os.Open(path.Join(mntDir, "newDir"))
+//	assert.Nil(t.T(), err)
+//	names1, err := f.Readdirnames(-1)
+//	assert.Nil(t.T(), err)
+//	require.Equal(t.T(), 0, len(names1))
+//	err = f.Close()
+//	assert.Nil(t.T(), err)
+//	// Adding one object to make sure to change the ReadDir() response.
+//	assert.Nil(t.T(), t.createObjects(map[string]string{
+//		"newDir/file1.txt": "123456",
+//	}))
+//
+//	// os.RemoveAll should delete all files and invalidate cache.
+//	err = os.RemoveAll(path.Join(mntDir, "newDir"))
+//	assert.NoError(t.T(), err)
+//
+//	//assert.NotNil(t.T(), err)
+//
+//	//err = os.RemoveAll(path.Join(mntDir, "newDir"))
+//	//assert.NoError(t.T(), err)
+//
+//	//names2, err := os.ReadDir(path.Join(mntDir, "newDir"))
+//	//assert.NoError(t.T(), err)
+//	//require.Equal(t.T(), 1, len(names2))
+//	//assert.Equal(t.T(), "file1.txt", names2[0].Name())
+//	//var pathError *os.PathError
+//	//assert.True(t.T(), errors.As(err, &pathError))
+//}
