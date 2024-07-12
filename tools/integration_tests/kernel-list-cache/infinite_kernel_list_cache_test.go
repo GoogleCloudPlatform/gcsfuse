@@ -238,9 +238,9 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnFileRename(
 // ls explicit_dir/sub_dir
 // file2.txt, file3.txt
 //
-// add file4.txt  in explicit_dir/sub_dir with gcsfuse
-// add file5.txt  in explicit_dir/sub_dir outside of  gcsfuse
-// add file6.txt  in explicit_dir with gcsfuse
+// Create file4.txt  in explicit_dir/sub_dir with gcsfuse
+// Create file5.txt  in explicit_dir/sub_dir outside of  gcsfuse
+// Create file6.txt  in explicit_dir with gcsfuse
 //
 // Since file4 was created through the kernel, the subdirectory cache was invalidated,
 // but the parent cache remained persistent.
