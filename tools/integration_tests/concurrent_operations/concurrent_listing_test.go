@@ -29,6 +29,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+
+	// Used for operation like, creation, deletion, rename or edit of files/folders.
+	iterationsForHeavyOperations = 50
+
+	// Used for listing of directories.
+	iterationsForMediumOperations = 200
+
+	// Used for Open of Stat.
+	iterationsForLightOperations = 1000
+)
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -48,8 +60,6 @@ func (s *concurrentListingTest) Teardown(t *testing.T) {}
 // given testCaseDir.
 // bucket
 //
-//		file1.txt
-//		file2.txt
 //	  explicitDir/
 //		explicitDir/file1.txt
 //		explicitDir/file2.txt
@@ -77,13 +87,12 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	// Fails if the operation takes more than timeout.
-	timeout := 5 * time.Second
-	iterationsPerGoroutine := 100
+	timeout := 10 * time.Second
 
 	// Goroutine 1: Repeatedly calls OpenDir.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
@@ -95,7 +104,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	// Goroutine 1: Repeatedly calls Stat.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
@@ -125,16 +134,15 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
-	iterationsPerGoroutine := 40
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
-			_, err = f.Readdirnames(0)
+			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
 
 			err = f.Close()
@@ -145,7 +153,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndLookUp(t *testing.T) {
 	// Goroutine 2: Repeatedly stats
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForLightOperations; i++ {
 			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
@@ -174,8 +182,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	createDirectoryStructureForTestCase(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	goroutineCount := 10          // Number of concurrent goroutines
-	iterationsPerGoroutine := 100 // Number of iterations per goroutine
+	goroutineCount := 10 // Number of concurrent goroutines
 	wg.Add(goroutineCount)
 	timeout := 50 * time.Second
 
@@ -184,7 +191,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < iterationsPerGoroutine; j++ {
+			for j := 0; j < iterationsForMediumOperations; j++ {
 				f, err := os.Open(targetDir)
 				assert.Nil(t, err)
 
@@ -222,12 +229,11 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second // Adjust timeout as needed
-	iterationsPerGoroutine := 100
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
@@ -245,7 +251,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 	// Goroutine 2: Creates and deletes files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
 			filePath := path.Join(targetDir, "tmp_file.txt")
 			renamedFilePath := path.Join(targetDir, "renamed_tmp_file.txt")
 
@@ -291,16 +297,15 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 200 * time.Second
-	iterationsPerGoroutine := 40
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
-			_, err = f.Readdirnames(0)
+			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
 
 			err = f.Close()
@@ -311,7 +316,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 	// Goroutine 2: Creates and deletes directories
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForHeavyOperations; i++ {
 			dirPath := path.Join(targetDir, "test_dir")
 			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
 
@@ -348,25 +353,21 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndDirOperations(t *testing
 // ReadDir() is called concurrently with modification of underneath file.
 func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_Parallel_ListDirAndFileEdit"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 	timeout := 400 * time.Second
-	iterationsPerGoroutine := 100
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForMediumOperations; i++ {
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
-			_, err = f.Readdirnames(0)
+			_, err = f.Readdirnames(-1)
 			assert.Nil(t, err)
 
 			err = f.Close()
@@ -377,7 +378,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	// Goroutine 2: Create and edit files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForHeavyOperations; i++ {
 			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
 
 			// Create file
@@ -413,21 +414,17 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 // listing, file or folder operations, stat, opendir, file modifications happening concurrently.
 func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
-
 	testCaseDir := "Test_MultipleConcurrentOperations"
 	createDirectoryStructureForTestCase(t, testCaseDir)
-
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
-
 	var wg sync.WaitGroup
 	wg.Add(5)
 	timeout := 400 * time.Second
-	iterationsPerGoroutine := 100
 
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ { // Adjust iteration count if needed
+		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
@@ -445,7 +442,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	// Goroutine 2: Create and edit files
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForHeavyOperations; i++ {
 			filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
 
 			// Create file
@@ -465,7 +462,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	// Goroutine 3: Creates and deletes directories
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForHeavyOperations; i++ {
 			dirPath := path.Join(targetDir, "test_dir")
 			renamedDirPath := path.Join(targetDir, "renamed_test_dir")
 
@@ -486,7 +483,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	// Goroutine 4: Repeatedly stats
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForMediumOperations; i++ {
 			_, err := os.Stat(targetDir)
 			assert.Nil(t, err)
 		}
@@ -495,7 +492,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	// Goroutine 5: Repeatedly calls OpenDir.
 	go func() {
 		defer wg.Done()
-		for i := 0; i < iterationsPerGoroutine; i++ {
+		for i := 0; i < iterationsForLightOperations; i++ {
 			f, err := os.Open(targetDir)
 			assert.Nil(t, err)
 
