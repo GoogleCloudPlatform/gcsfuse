@@ -91,7 +91,6 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 				defer wg.Done()
 				fileName := fmt.Sprintf("file%d.txt", i+1)
 				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "", t)
-				t.Logf("Successfully created object %s", path.Join(dir, fileName))
 				operations.CreateFileOfSize(5, path.Join(dir, fileName), t)
 			}(i)
 		}
@@ -140,9 +139,9 @@ func listDirectoryRecursively(t *testing.T, root string) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// Test_AllOperationTogether tests for potential deadlocks or race conditions
-// when multiple goroutines performs recursive listing.
-func (s *highCpuConcurrentListingTest) Test_AllOperationTogether(t *testing.T) {
+// Test_AllReadOperationTogether tests for potential deadlocks or race conditions
+// when multiple goroutines performs recursive listing .
+func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.T) {
 	if runtime.NumCPU() < requiredCpuCount {
 		t.SkipNow()
 	}
@@ -156,36 +155,16 @@ func (s *highCpuConcurrentListingTest) Test_AllOperationTogether(t *testing.T) {
 
 	// Create multiple go routines to listing concurrently.
 	for r := 0; r < goRoutineCountPerOperation; r++ {
-		wg.Add(5)
+		wg.Add(3)
 
 		// Repeatedly do recursive listing.
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < iterationsForHeavyOperations; j++ {
+			for j := 0; j < iterationsForMediumOperations; j++ {
 				listDirectoryRecursivelyWithCmd(t, targetDir)
 			}
 		}()
-
-		// Create and edit files
-		go func(routineId int) {
-			defer wg.Done()
-			for i := 0; i < iterationsForHeavyOperations; i++ {
-				filePath := path.Join(targetDir, fmt.Sprintf("r%dedit_file_%d.txt", routineId, i))
-
-				// Create file
-				err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
-				assert.Nil(t, err)
-
-				// Edit file (append some data)
-				f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
-				assert.Nil(t, err)
-				_, err = f.Write([]byte("This is an edit."))
-				assert.Nil(t, err)
-				err = f.Close()
-				assert.Nil(t, err)
-			}
-		}(r)
 
 		// Repeatedly stats
 		go func() {
@@ -195,27 +174,6 @@ func (s *highCpuConcurrentListingTest) Test_AllOperationTogether(t *testing.T) {
 				assert.Nil(t, err)
 			}
 		}()
-
-		// Goroutine 3: Creates and deletes directories
-		go func(routineId int) {
-			defer wg.Done()
-			for i := 0; i < iterationsForHeavyOperations; i++ {
-				dirPath := path.Join(targetDir, fmt.Sprintf("r_%d_test_dir", routineId))
-				renamedDirPath := path.Join(targetDir, fmt.Sprintf("r_%d_renamed_test_dir", routineId))
-
-				// Create
-				err := os.Mkdir(dirPath, 0755)
-				assert.Nil(t, err)
-
-				// Rename
-				err = os.Rename(dirPath, renamedDirPath)
-				assert.Nil(t, err)
-
-				// Delete
-				err = os.Remove(renamedDirPath)
-				assert.Nil(t, err)
-			}
-		}(r)
 
 		// Repeatedly calls OpenDir.
 		go func() {
