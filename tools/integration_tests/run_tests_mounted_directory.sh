@@ -491,3 +491,26 @@ sudo umount $MOUNT_DIR
 mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
+
+# Test package: concurrent_operations
+# Run tests with static mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
+gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Run test with persistent mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Test package: kernel-list-cache
+# Run tests with static mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
+gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Run test with persistent mounting.  (flags: --client-protocol=grpc --implicit-dirs=true)
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
