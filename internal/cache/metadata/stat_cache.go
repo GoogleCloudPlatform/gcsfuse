@@ -69,6 +69,13 @@ type StatCache interface {
 	// negative.
 	AddNegativeEntryForFolder(folderName string, expiration time.Time)
 
+	// Invalidate cache for all the entries with given prefix
+	// e.g. If cache contains below objects
+	// a/b
+	// a/d/c
+	// d
+	// Then it will invalidate entries a, a/b, a/d/c
+	// Entry d will remain in cache.
 	InValidateCacheForEntriesWithGivenPrefix(prefix string)
 }
 
@@ -286,6 +293,7 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	}
 }
 
+// Invalidate cache for all the entries with given prefix.
 func (sc *statCacheBucketView) InValidateCacheForEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
 	sc.sharedCache.EraseEntriesWithGivenPrefixes(prefix)

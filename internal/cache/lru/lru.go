@@ -273,7 +273,7 @@ func (c *Cache) EraseEntriesWithGivenPrefixes(
 	prefix string) (value []ValueType) {
 	var deletedEntries []ValueType
 
-	for key, _ := range c.index {
+	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {
 			v := c.Erase(key)
 			deletedEntries = append(deletedEntries, v)
