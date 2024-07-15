@@ -77,8 +77,8 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 
 	explicitDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	operations.CreateDirectory(explicitDir, t)
-	numFiles := 10
-	numLevel := 3
+	numFiles := 2
+	numLevel := 2
 
 	var globalWG sync.WaitGroup
 
@@ -130,9 +130,9 @@ func listDirectoryRecursively(t *testing.T, root string) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-// Test_MultipleConcurrentRecursiveListing tests for potential deadlocks or race conditions
+// Test_AllOperationTogether tests for potential deadlocks or race conditions
 // when multiple goroutines performs recursive listing.
-func (s *highCpuConcurrentListingTest) Test_MultipleConcurrentRecursiveListing(t *testing.T) {
+func (s *highCpuConcurrentListingTest) Test_AllOperationTogether(t *testing.T) {
 	if runtime.NumCPU() < requiredCpuCount {
 		t.SkipNow()
 	}
@@ -141,18 +141,81 @@ func (s *highCpuConcurrentListingTest) Test_MultipleConcurrentRecursiveListing(t
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	goroutineCount := 100          // Number of concurrent goroutines
-	iterationsPerGoroutine := 1000 // Number of iterations per goroutine
-	wg.Add(goroutineCount)
+	goRoutineCountPerOperation := 5
 	timeout := 200 * time.Second
 
 	// Create multiple go routines to listing concurrently.
-	for i := 0; i < goroutineCount; i++ {
+	for r := 0; r < goRoutineCountPerOperation; r++ {
+		wg.Add(5)
+
+		// Repeatedly do recursive listing.
 		go func() {
 			defer wg.Done()
 
-			for j := 0; j < iterationsPerGoroutine; j++ {
+			for j := 0; j < iterationsForHeavyOperations; j++ {
 				listDirectoryRecursively(t, targetDir)
+			}
+		}()
+
+		// Create and edit files
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				filePath := path.Join(targetDir, fmt.Sprintf("r%dedit_file_%d.txt", routineId, i))
+
+				// Create file
+				err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+				assert.Nil(t, err)
+
+				// Edit file (append some data)
+				f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
+				assert.Nil(t, err)
+				_, err = f.Write([]byte("This is an edit."))
+				assert.Nil(t, err)
+				err = f.Close()
+				assert.Nil(t, err)
+			}
+		}(r)
+
+		// Repeatedly stats
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterationsForLightOperations; i++ {
+				_, err := os.Stat(targetDir)
+				assert.Nil(t, err)
+			}
+		}()
+
+		// Goroutine 3: Creates and deletes directories
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				dirPath := path.Join(targetDir, fmt.Sprintf("r_%d_test_dir", routineId))
+				renamedDirPath := path.Join(targetDir, fmt.Sprintf("r_%d_renamed_test_dir", routineId))
+
+				// Create
+				err := os.Mkdir(dirPath, 0755)
+				assert.Nil(t, err)
+
+				// Rename
+				err = os.Rename(dirPath, renamedDirPath)
+				assert.Nil(t, err)
+
+				// Delete
+				err = os.Remove(renamedDirPath)
+				assert.Nil(t, err)
+			}
+		}(r)
+
+		// Repeatedly calls OpenDir.
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterationsForLightOperations; i++ {
+				f, err := os.Open(targetDir)
+				assert.Nil(t, err)
+
+				err = f.Close()
+				assert.Nil(t, err)
 			}
 		}()
 	}
