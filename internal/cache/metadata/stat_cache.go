@@ -296,5 +296,5 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 // Invalidate cache for all the entries with given prefix.
 func (sc *statCacheBucketView) InValidateCacheForEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
-	sc.sharedCache.EraseEntriesWithGivenPrefixe(prefix)
+	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
 }

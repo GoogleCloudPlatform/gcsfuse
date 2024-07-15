@@ -176,7 +176,7 @@ func (t *CacheTest) TestEraseCacheWithGivenPrefix() {
 	t.insertAndAssert("a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
 	t.insertAndAssert("b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
 
-	deletedEntry := t.cache.EraseEntriesWithGivenPrefixe("a")
+	deletedEntry := t.cache.EraseEntriesWithGivenPrefix("a")
 
 	ExpectEq(4, len(deletedEntry))
 	ExpectEq(nil, t.cache.LookUp("a"))
@@ -193,7 +193,7 @@ func (t *CacheTest) TestEraseCacheWithGivenPrefixWithSomeEntriesEvictedDueToCach
 	t.insertAndAssert("a/c", testData{Value: 20, DataSize: 10}, []int64{}, nil)
 	t.insertAndAssert("b", testData{Value: 21, DataSize: 15}, []int64{23}, nil)
 
-	deletedEntry := t.cache.EraseEntriesWithGivenPrefixe("a")
+	deletedEntry := t.cache.EraseEntriesWithGivenPrefix("a")
 
 	// As entry "a" was already evicted by the insertion of "b", only three entries will be removed.
 	ExpectEq(3, len(deletedEntry))

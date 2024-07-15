@@ -269,27 +269,14 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefixe(
+func (c *Cache) EraseEntriesWithGivenPrefix(
 	prefix string) (value []ValueType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	var deletedEntries []ValueType
 
 	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {
-			e, ok := c.index[key]
-			if !ok {
-				continue
-			}
-			deletedEntry := e.Value.(entry).Value
-
-			c.currentSize -= deletedEntry.Size()
-
-			delete(c.index, key)
-			c.entries.Remove(e)
-
-			deletedEntries = append(deletedEntries, deletedEntry)
+			e := c.Erase(key)
+			deletedEntries = append(deletedEntries, e)
 		}
 	}
 
