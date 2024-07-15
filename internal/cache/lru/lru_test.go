@@ -169,6 +169,23 @@ func (t *CacheTest) TestEraseWhenKeyPresent() {
 	ExpectEq(nil, t.cache.LookUp("burrito"))
 }
 
+func (t *CacheTest) TestEraseCacheWithGivenAsPrefix() {
+	t.insertAndAssert("a", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+	t.insertAndAssert("a/b", testData{Value: 26, DataSize: 5}, []int64{}, nil)
+	t.insertAndAssert("a/b/d", testData{Value: 22, DataSize: 6}, []int64{}, nil)
+	t.insertAndAssert("a/c", testData{Value: 20, DataSize: 6}, []int64{}, nil)
+	t.insertAndAssert("b", testData{Value: 21, DataSize: 2}, []int64{}, nil)
+
+	deletedEntry := t.cache.EraseEntriesWithGivenPrefixes("a")
+
+	ExpectEq(23, deletedEntry[0].(testData).Value)
+	ExpectEq(26, deletedEntry[1].(testData).Value)
+	ExpectEq(22, deletedEntry[2].(testData).Value)
+	ExpectEq(20, deletedEntry[3].(testData).Value)
+	ExpectEq(nil, t.cache.LookUp("a"))
+	ExpectEq(2, t.cache.LookUp("b").Size())
+}
+
 func (t *CacheTest) TestEraseWhenKeyNotPresent() {
 	t.insertAndAssert("burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
 

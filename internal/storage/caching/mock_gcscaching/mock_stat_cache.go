@@ -186,3 +186,22 @@ func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.
 
 	return
 }
+
+func (m *mockStatCache) InValidateCacheForEntriesWithGivenPrefix(p0 string) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"InValidateCacheForEntriesWithGivenPrefix",
+		file,
+		line,
+		[]interface{}{p0})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
+	}
+
+	return
+}
