@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -64,8 +65,23 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{
 		{"--kernel-list-cache-ttl-secs=-1"},
 		{"--kernel-list-cache-ttl-secs=0"},
-		{"--kernel-list-cache-ttl-secs=150"},
+		{"--kernel-list-cache-ttl-secs=100"},
 	}
+
+	mountConfig := config.MountConfig{
+		// Run with metadata caches disabled.
+		MetadataCacheConfig: config.MetadataCacheConfig{
+			TtlInSeconds:       -1,
+			StatCacheMaxSizeMB: -1,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
+	setup.AppendFlagsToAllFlagsInTheFlagsSet(&flagsSet, "--config-file="+filePath)
+
 	successCode := static_mounting.RunTests(flagsSet, m)
 
 	if successCode == 0 {

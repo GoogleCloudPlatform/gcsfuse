@@ -139,14 +139,58 @@ func listDirectoryRecursively(t *testing.T, root string) {
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
+// Test_RecursiveListing tests for potential deadlocks or race conditions
+// when multiple goroutines performs recursive listing.
+func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
+	if runtime.NumCPU() < requiredCpuCount {
+		t.SkipNow()
+	}
+
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_RecursiveListing"
+	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	numberOfGoroutine := 50
+	timeout := 200 * time.Second
+
+	// Create multiple go routines to listing concurrently.
+	for r := 0; r < numberOfGoroutine; r++ {
+		wg.Add(1)
+		// Repeatedly do recursive listing.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
 // Test_AllReadOperationTogether tests for potential deadlocks or race conditions
-// when multiple goroutines performs recursive listing .
+// when multiple goroutines performs recursive listing, openDir, stat operations with
+// repetitions.
 func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.T) {
 	if runtime.NumCPU() < requiredCpuCount {
 		t.SkipNow()
 	}
+
 	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_MultipleConcurrentRecursiveListing"
+	testCaseDir := "Test_AllReadOperationTogether"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
@@ -156,11 +200,9 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.
 	// Create multiple go routines to listing concurrently.
 	for r := 0; r < goRoutineCountPerOperation; r++ {
 		wg.Add(3)
-
 		// Repeatedly do recursive listing.
 		go func() {
 			defer wg.Done()
-
 			for j := 0; j < iterationsForMediumOperations; j++ {
 				listDirectoryRecursivelyWithCmd(t, targetDir)
 			}
@@ -174,6 +216,240 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.
 				assert.Nil(t, err)
 			}
 		}()
+
+		// Repeatedly calls OpenDir.
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterationsForLightOperations; i++ {
+				f, err := os.Open(targetDir)
+				assert.Nil(t, err)
+
+				err = f.Close()
+				assert.Nil(t, err)
+			}
+		}()
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
+// Test_RecursiveListingAndDirOperations tests for potential deadlocks or race conditions
+// when multiple goroutines performs recursive listing and directory operations with repetition.
+func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndDirOperations(t *testing.T) {
+	if runtime.NumCPU() < requiredCpuCount {
+		t.SkipNow()
+	}
+
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_RecursiveListingAndDirOperations"
+	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	numberOfGoroutine := 50
+	timeout := 200 * time.Second
+
+	// Create multiple go routines to listing concurrently.
+	for r := 0; r < numberOfGoroutine; r++ {
+		wg.Add(2)
+		// Repeatedly do recursive listing.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+
+		// Creates and deletes directories
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				dirPath := path.Join(targetDir, fmt.Sprintf("r_%d_test_dir", routineId))
+				renamedDirPath := path.Join(targetDir, fmt.Sprintf("r_%d_renamed_test_dir", routineId))
+
+				// Create
+				err := os.Mkdir(dirPath, 0755)
+				assert.Nil(t, err)
+
+				// Rename
+				err = os.Rename(dirPath, renamedDirPath)
+				assert.Nil(t, err)
+
+				// Delete
+				err = os.Remove(renamedDirPath)
+				assert.Nil(t, err)
+			}
+		}(r)
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
+// Test_RecursiveListingAndFileOperations tests for potential deadlocks or race conditions
+// when multiple goroutines performs recursive listing and multiple go routines does
+// file operations.
+func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileOperations(t *testing.T) {
+	if runtime.NumCPU() < requiredCpuCount {
+		t.SkipNow()
+	}
+
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_RecursiveListingAndFileOperations"
+	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	numberOfGoroutine := 50
+	timeout := 200 * time.Second
+
+	// Create multiple go routines to listing concurrently.
+	for r := 0; r < numberOfGoroutine; r++ {
+		wg.Add(2)
+		// Repeatedly do recursive listing.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+
+		// Create and edit files
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				filePath := path.Join(targetDir, fmt.Sprintf("r%dedit_file_%d.txt", routineId, i))
+
+				// Create file
+				err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+				assert.Nil(t, err)
+
+				// Edit file (append some data)
+				f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
+				assert.Nil(t, err)
+				_, err = f.Write([]byte("This is an edit."))
+				assert.Nil(t, err)
+				err = f.Close()
+				assert.Nil(t, err)
+			}
+		}(r)
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
+// Test_KitchenSink tests for potential deadlocks or race conditions
+// when multiple goroutines performs different operations with repetition.
+func (s *highCpuConcurrentListingTest) Test_KitchenSink(t *testing.T) {
+	// TODO(b/353248177) skipping this test because of mentioned bug.
+	t.SkipNow()
+
+	if runtime.NumCPU() < requiredCpuCount {
+		t.SkipNow()
+	}
+
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_KitchenSink"
+	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	numberOfGoroutine := 50
+	timeout := 200 * time.Second
+
+	// Create multiple go routines to listing concurrently.
+	for r := 0; r < numberOfGoroutine; r++ {
+		wg.Add(5)
+		// Repeatedly do recursive listing.
+		go func() {
+			defer wg.Done()
+
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+
+		// Create and edit files
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				filePath := path.Join(targetDir, fmt.Sprintf("r%dedit_file_%d.txt", routineId, i))
+
+				// Create file
+				err := os.WriteFile(filePath, []byte("Hello, world!"), setup.FilePermission_0600)
+				assert.Nil(t, err)
+
+				// Edit file (append some data)
+				f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, setup.FilePermission_0600)
+				assert.Nil(t, err)
+				_, err = f.Write([]byte("This is an edit."))
+				assert.Nil(t, err)
+				err = f.Close()
+				assert.Nil(t, err)
+			}
+		}(r)
+
+		// Repeatedly stats
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterationsForLightOperations; i++ {
+				_, err := os.Stat(targetDir)
+				assert.Nil(t, err)
+			}
+		}()
+
+		// Goroutine 3: Creates and deletes directories
+		go func(routineId int) {
+			defer wg.Done()
+			for i := 0; i < iterationsForHeavyOperations; i++ {
+				dirPath := path.Join(targetDir, fmt.Sprintf("r_%d_test_dir", routineId))
+				renamedDirPath := path.Join(targetDir, fmt.Sprintf("r_%d_renamed_test_dir", routineId))
+
+				// Create
+				err := os.Mkdir(dirPath, 0755)
+				assert.Nil(t, err)
+
+				// Rename
+				err = os.Rename(dirPath, renamedDirPath)
+				assert.Nil(t, err)
+
+				// Delete
+				err = os.Remove(renamedDirPath)
+				assert.Nil(t, err)
+			}
+		}(r)
 
 		// Repeatedly calls OpenDir.
 		go func() {
