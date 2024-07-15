@@ -269,7 +269,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefixes(
+func (c *Cache) EraseEntriesWithGivenPrefixe(
 	prefix string) (value []ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
