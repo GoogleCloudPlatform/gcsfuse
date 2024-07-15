@@ -283,6 +283,7 @@ func (c *Cache) EraseEntriesWithGivenPrefixes(
 				continue
 			}
 			deletedEntry := e.Value.(entry).Value
+
 			c.currentSize -= deletedEntry.Size()
 
 			delete(c.index, key)

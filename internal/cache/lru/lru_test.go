@@ -178,11 +178,11 @@ func (t *CacheTest) TestEraseCacheWithGivenAsPrefix() {
 
 	deletedEntry := t.cache.EraseEntriesWithGivenPrefixes("a")
 
-	ExpectEq(23, deletedEntry[0].(testData).Value)
-	ExpectEq(26, deletedEntry[1].(testData).Value)
-	ExpectEq(22, deletedEntry[2].(testData).Value)
-	ExpectEq(20, deletedEntry[3].(testData).Value)
+	ExpectEq(4, len(deletedEntry))
 	ExpectEq(nil, t.cache.LookUp("a"))
+	ExpectEq(nil, t.cache.LookUp("a/b"))
+	ExpectEq(nil, t.cache.LookUp("a/b/d"))
+	ExpectEq(nil, t.cache.LookUp("a/c"))
 	ExpectEq(2, t.cache.LookUp("b").Size())
 }
 
