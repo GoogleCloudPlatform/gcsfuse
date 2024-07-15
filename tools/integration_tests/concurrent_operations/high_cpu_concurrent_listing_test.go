@@ -17,6 +17,7 @@ package concurrent_operations
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -113,6 +114,15 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 	globalWG.Wait()
 }
 
+func listDirectoryRecursivelyWithCmd(t *testing.T, root string) {
+	cmd := exec.Command("ls", "-R", root)
+	_, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Errorf("Error in listing recursively: %v", err)
+	}
+}
+
 func listDirectoryRecursively(t *testing.T, root string) {
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -153,7 +163,7 @@ func (s *highCpuConcurrentListingTest) Test_AllOperationTogether(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < iterationsForHeavyOperations; j++ {
-				listDirectoryRecursively(t, targetDir)
+				listDirectoryRecursivelyWithCmd(t, targetDir)
 			}
 		}()
 
