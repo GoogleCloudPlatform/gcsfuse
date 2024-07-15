@@ -280,7 +280,7 @@ func (c *Cache) EraseEntriesWithGivenPrefixes(
 		if strings.HasPrefix(key, prefix) {
 			e, ok := c.index[key]
 			if !ok {
-				return
+				continue
 			}
 			deletedEntry := e.Value.(entry).Value
 			c.currentSize -= deletedEntry.Size()
