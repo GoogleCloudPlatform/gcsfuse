@@ -6,7 +6,17 @@ import heapq
 
 
 def get_val(message, key, delim, direction, offset, faulty_logs):
-    # offset contains adjustments needed for spaces and key lengths
+    """
+    A helper function to extract important info from the message
+
+    :param message: string to be parsed
+    :param key: from this key onwards the text is returned
+    :param delim: until this delim the text is returned
+    :param direction: search in forward or backward
+    :param offset: to adjust spaces
+    :param faulty_logs: a list containing incorrect logs
+    :return: the part of the message which is required
+    """
     try:
         if message.find(key) == -1:
             faulty_logs.append(message)
@@ -29,6 +39,14 @@ def get_val(message, key, delim, direction, offset, faulty_logs):
 
 
 def lookup_parser(log, global_data):
+    """
+    Parses the requests of the LookUpInode type
+
+    creates an entry in the 'requests' list, constructs the full name using inode
+    and parent, if unable to do so, then marks request as invalid
+    :param log: the log which is getting parsed
+    :param global_data: object of GlobalData containing all the data
+    """
     message = log["message"]
     req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
     name = get_val(message, "name", "\"", "fwd", 2, global_data.faulty_logs)
@@ -61,6 +79,17 @@ def lookup_parser(log, global_data):
 
 
 def gcs_call_parser(log, global_data):
+    """
+    Parses all the requests and responses of the GCS type logs
+
+    at first it creates an object for the file/dir mentioned in the log
+    checks if the log is request or response, if it is request then creates an entry
+    in the 'requests' list, else it updates the time request took for completion
+    and pushes entry in the max response time list for List, Create and Read
+    also it notes down the GCS read patterns
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     name = get_val(message, "(", "\"", "fwd", 1, global_data.faulty_logs)
     if name is None:
@@ -75,10 +104,9 @@ def gcs_call_parser(log, global_data):
         req_name = get_val(message, "<-", "(", "fwd", 1, global_data.faulty_logs)
         if req is None or req_name not in global_data.gcalls.gcs_index_map.keys():
             return
-        global_data.requests[req] = Request("gcsreq", name)
+        global_data.requests[req] = Request(req_name, name)
         global_data.requests[req].timestamp_sec = log["timestamp"]["seconds"]
         global_data.requests[req].timestamp_nano = log["timestamp"]["nanos"]
-        global_data.requests[req].keyword = req_name
         file_obj = global_data.name_object_map[name]
         file_obj.gcs_calls.calls[file_obj.gcs_calls.callname_index_map[req_name]].calls_made += 1
         global_data.gcalls.gcs_calls[global_data.gcalls.gcs_index_map[req_name]].calls_made += 1
@@ -144,6 +172,15 @@ def gcs_call_parser(log, global_data):
 
 
 def open_file_parser(log, global_data):
+    """
+    parses the OpenFile type requests
+
+    checks if the inode mentioned is valid, if yes then creates a request with name
+    else just creates one without name, in order to count it towards global data
+    and then updates global data
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
     req_id = get_val(message, "Op 0x", " ", "fwd", 0, global_data.faulty_logs)
@@ -167,6 +204,14 @@ def open_file_parser(log, global_data):
 
 
 def release_file_handle_parser(log, global_data):
+    """
+    parses the requests of ReleaseFileHandle type
+
+    checks if the handle mentioned exists, if yes then updates the info
+    updates global data
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     handle_temp = get_val(message, "handle", ")", "fwd", 1, global_data.faulty_logs)
     if handle_temp is not None:
@@ -196,6 +241,16 @@ def release_file_handle_parser(log, global_data):
 
 
 def read_file_parser(log, global_data):
+    """
+    parses the requests of type ReadFile/WriteFile
+
+    if inode is valid, it creates a handle if already does not exist and then
+    depending on read/write updates the pattern, makes an request entry
+    if inode is invalid then it creates a request just so that it gets counted globally
+    updates global data
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
     handle_temp = get_val(message, "handle", ",", "fwd", 1, global_data.faulty_logs)
@@ -223,7 +278,7 @@ def read_file_parser(log, global_data):
             global_data.requests[req_id] = Request("ReadFile", global_data.inode_name_map[inode])
             if handle_obj.last_read_offset == -1:
                 handle_obj.read_pattern += "_"
-            elif handle_obj.last_read_offset == offset:
+            elif handle_obj.last_read_offset <= offset and handle_obj.last_read_offset + 8*1024*1024 > offset:
                 handle_obj.read_pattern += "s"
             else:
                 handle_obj.read_pattern += "r"
@@ -266,6 +321,14 @@ def read_file_parser(log, global_data):
 
 
 def kernel_call_parser(log, global_data):
+    """
+    It parses all the remaining kernel calls
+
+    extracts name/inode depending on the log and then makes an entry for request,
+    for 'CreateFile' it creates absolute name of the file, updates the global data
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     if message.find("(") == -1:
         return
@@ -274,9 +337,11 @@ def kernel_call_parser(log, global_data):
     req_name = get_val(message, "<-", " ", "fwd", 1, global_data.faulty_logs)
     if req_id is None or req_name is None:
         return
+
     global_data.requests[req_id] = Request(req_name, "")
     global_data.requests[req_id].timestamp_sec = log["timestamp"]["seconds"]
     global_data.requests[req_id].timestamp_nano = log["timestamp"]["nanos"]
+
     if message.find("inode") != -1:
         inode_temp = get_val(message, "inode", ",", "fwd", 1, global_data.faulty_logs)
         if inode_temp is None:
@@ -291,6 +356,7 @@ def kernel_call_parser(log, global_data):
             file_obj = global_data.name_object_map[global_data.inode_name_map[inode]]
             if req_name in file_obj.kernel_calls.callname_index_map.keys():
                 file_obj.kernel_calls.calls[file_obj.kernel_calls.callname_index_map[req_name]].calls_made += 1
+
     elif message.find("name") != -1:
         name = get_val(message, "name", "\"", "fwd", 2, global_data.faulty_logs)
         parent_tmp = get_val(message, "parent", ",", "fwd", 1, global_data.faulty_logs)
@@ -312,8 +378,10 @@ def kernel_call_parser(log, global_data):
             file_obj = global_data.name_object_map[abs_name]
             if req_name in file_obj.kernel_calls.callname_index_map.keys():
                 file_obj.kernel_calls.calls[file_obj.kernel_calls.callname_index_map[req_name]].calls_made += 1
+
     if req_name in global_data.gcalls.kernel_index_map.keys():
         global_data.gcalls.kernel_calls[global_data.gcalls.kernel_index_map[req_name]].calls_made += 1
+
     if message.find("CreateFile") != -1:
         parent_temp = get_val(message, "parent", ",", "fwd", 1, global_data.faulty_logs)
         if parent_temp is None:
@@ -334,6 +402,17 @@ def kernel_call_parser(log, global_data):
 
 
 def response_parser(log, global_data):
+    """
+    parses all the responses of the kernel calls
+
+    checks if the request id corresponding to the log exists, if yes then we proceed
+    updates the calls returned data and then for read and write file responses, it
+    records the completion separately, for LookUpInode and CreateFile it extracts the
+    inode present in the log and then updates the file object, for OpenFile response
+    it extracts handle and creates an entry for it in file object
+    :param log: the log to be parsed
+    :param global_data: object containing all the data
+    """
     message = log["message"]
     time_sec = log["timestamp"]["seconds"]
     time_nano = log["timestamp"]["nanos"]
@@ -396,6 +475,12 @@ def response_parser(log, global_data):
 
 
 def general_parser(logs):
+    """
+    creates an object of GlobalData to store the analyzed data and then iterates
+    through the logs to pass them to the appropriate functions
+    :param logs: contains the sorted json logs with two fields, timestamp and message
+    :return: returns the global_data i.e. analyzed data
+    """
     global_data = GlobalData()
     global_data.name_object_map[""] = Object(1, 0, "", "")
     global_data.name_object_map[""].is_dir = True

@@ -52,7 +52,3 @@ Exp- `/usr/local/google/home/patelvishvesh/Downloads/credentials.json`
 
 After this a google sheet link will be generated.
 
-Please refer to the below document to see an instance of the code run.
-
-[Demo run of Log Analyzer](https://docs.google.com/document/d/1Z8XkKoSEDwGN-X_KVY0T--itNJvHp02BoDRRVzaBJks/edit?usp=sharing&resourcekey=0-18aMKC7pPcTp_6TuriNwrA)
-

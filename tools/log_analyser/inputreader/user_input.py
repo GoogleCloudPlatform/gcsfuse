@@ -4,6 +4,11 @@ import os
 
 class UserInput:
     def get_input(self):
+        """
+        takes the directory and log information from user
+        and calls appropriate functions to get sorted logs
+        :return: list of sorted logs
+        """
         files = []
         directory_path = input("Enter the path to the directory containing log files: ")
         for filename in os.listdir(directory_path):

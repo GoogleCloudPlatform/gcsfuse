@@ -6,6 +6,18 @@ import json
 
 
 def get_top_file_gcscalls_stats(global_data, call_type):
+    """
+    it writes the top file stats for some calls (all GCS calls, 10 kernel calls)
+
+    checks whether it is GCS or kernel and fixes the length of iterations
+    then it maintains a priority queue of size 5 (because we need top 5 files)
+    for each file we push an entry corresponding to it and then check if the size is greater than 5
+    if yes we remove the entry with least calls completed
+    :param global_data: containing all the analyzed data
+    :param call_type: GCS/kernel
+    :return:returns a list of lists containing tuples of the form [calls completed, response time, file/dir name]
+    response time for kernel calls is 0, as we are not maintaining that
+    """
     top_file_num = []
     top_files = []
     if call_type == "GCS":
@@ -36,6 +48,15 @@ def get_top_file_gcscalls_stats(global_data, call_type):
 
 
 def calls_data_writer(global_data, obj, call_type, name, worksheet):
+    """
+    writes the relevant calls data to the google sheet,
+    calls the get_top_file_gcscalls_stats function
+    :param global_data: contains all the analyzed information
+    :param obj: list containing the objects of Calls type
+    :param call_type: GCS/kernel
+    :param name: file/dir name or maybe global flag
+    :param worksheet: the worksheet to which the data is to be written
+    """
     data = []
     top_file_num = get_top_file_gcscalls_stats(global_data, call_type)
     for i in range(len(obj)):
@@ -63,6 +84,11 @@ def calls_data_writer(global_data, obj, call_type, name, worksheet):
 
 
 def handle_data_writer(global_data, worksheet):
+    """
+    iterates over all the registered file handle and writes their information
+    :param global_data: all analyzed data
+    :param worksheet: worksheet in which the data is to be written
+    """
     data = []
     for handle in global_data.handle_name_map.keys():
         name = global_data.handle_name_map[handle]
@@ -90,8 +116,18 @@ def handle_data_writer(global_data, worksheet):
 
 
 def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern, op):
+    """
+    it creates rows for read/write patterns for a file handle
+    :param handle:for which rows are to be created
+    :param data: a list containing all the rows to be written in a worksheet
+    :param obj_bytes_list: contains all the bytes that were read/written
+    :param obj_ranges_list: contains intervals of write/read
+    :param obj_pattern: patterns for read/write
+    :param op:read/write
+    """
     if len(obj_pattern) > 0:
         data.append([handle, op, "first " + op, 1, obj_bytes_list[0], obj_bytes_list[0], json.dumps([obj_bytes_list[0]]), json.dumps([obj_ranges_list[0]])])
+        # data.append([handle, op, "first " + op, 1, obj_bytes_list[0], obj_bytes_list[0]])
     if len(obj_pattern) > 1:
         read_ranges = [obj_ranges_list[1]]
         read_bytes = [obj_bytes_list[1]]
@@ -105,6 +141,7 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
                 json_read_ranges = json.dumps(read_ranges)
                 avg_byte_size = np.mean(obj_bytes_list)
                 row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, json_read_bytes, json_read_ranges]
+                # row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum]
                 data.append(row)
                 last_read = obj_pattern[i]
                 streak = 1
@@ -122,10 +159,15 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
         json_read_ranges = json.dumps(read_ranges)
         avg_byte_size = np.mean(obj_bytes_list)
         row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, json_read_bytes, json_read_ranges]
+        # row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum]
         data.append(row)
 
 
 def read_pattern_writer(global_data, worksheet):
+    """
+    it calls the get_pattern_rows with appropriate arguments
+    and then writes to the google sheet
+    """
     data = []
     for handle in global_data.handle_name_map.keys():
         name = global_data.handle_name_map[handle]
@@ -136,12 +178,14 @@ def read_pattern_writer(global_data, worksheet):
     for name in global_data.name_object_map.keys():
         obj = global_data.name_object_map[name]
         get_pattern_rows(name, data, obj.read_bytes, obj.read_ranges, obj.read_pattern, "read")
-
     if len(data) > 0:
         worksheet.append_rows(data)
 
 
 def max_entry_writer(global_data, worksheet):
+    """
+    writes entries with max response times along with the file/dir name for some GCS calls
+    """
     data = []
     while len(global_data.max_read_entries) > 0:
         response_time, obj_name = heapq.heappop(global_data.max_read_entries)
@@ -159,6 +203,12 @@ def max_entry_writer(global_data, worksheet):
 
 
 def main_gsheet_generator(global_data):
+    """
+    creates a google sheet after taking a credential file and ldap
+    calls appropriate functions for writing data, shares the sheet with user over mail
+    and also outputs the link
+    :param global_data: all the analyzed
+    """
     call_data = [['obj_name', 'call_name', 'call_type', 'calls_sent', 'calls_responded', 'total_response_time', 'average_response_time', 'median_response_time', 'p90_response_time', 'p95_response_time', 'max_response_time', 'top_file_num']]
     handle_data = [['file_name', 'handle', 'total_reads', 'total_writes', 'average_read_size', 'average_read_response_time', 'average_write_size', 'average_write_response_time', 'total_request_time', 'opening_time', 'closing_time', 'opened_handles', 'closed_handles']]
     pattern_data = [['handle', 'op', 'op_type', 'number_of_consecutive_ops', 'mean_op_size', 'total_op_size', 'op_bytes', 'op_range']]

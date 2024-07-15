@@ -6,6 +6,11 @@ import datetime
 
 class GetLogs:
     def iso_to_epoch(self, timestamp_str):
+        """
+        converts iso to epoch time (seconds and nanoseconds)
+        :param timestamp_str: string with iso time
+        :return: epoch time json object
+        """
         try:
             datetime_obj = datetime.datetime.fromisoformat(timestamp_str)
             seconds = int(datetime_obj.timestamp())
@@ -16,6 +21,14 @@ class GetLogs:
             return None
 
     def get_sorted_files(self, files, log_type, log_format):
+        """
+        for each file it reads the first log with valid timestamp and then arranges
+        the files in order of timestamps
+        :param files: list of file names
+        :param log_type: gke/gcsfuse
+        :param log_format: json/csv
+        :return: ordered list of files
+        """
         unordered_list = []
         for file in files:
             if file.find(".zip") != -1:
@@ -68,7 +81,22 @@ class GetLogs:
                                 file_tuple.append([[timestamp["seconds"], timestamp["nanos"]], pos])
                                 break
                 pos += 1
-        # file with the earliest entry gets the first position
+        else:
+            for file in files:
+                with open(file, "r") as handle:
+                    for line in handle:
+                        start_ind = line.find("time=\"") + len("time=\"")
+                        end_ind = line.find("\"", start_ind)
+                        if start_ind != -1 and end_ind != -1:
+                            time = line[start_ind:end_ind]
+                            datetime_obj = datetime.datetime.strptime(time, "%d/%m/%Y %H:%M:%S.%f")
+                            epoch_time = datetime_obj.timestamp()
+                            microseconds_str = time.split('.')[-1]
+                            microseconds = int(microseconds_str)
+                            nanoseconds = microseconds * 1000
+                            file_tuple.append([[epoch_time, nanoseconds], pos])
+                            break
+                pos += 1
         file_tuple.sort()
         ordered_list = []
         for file_tup in file_tuple:
@@ -76,6 +104,11 @@ class GetLogs:
         return ordered_list
 
     def append_logs(self, logs, temp_logs):
+        """
+        extracts timestamp and message (textPayload) and appends to the list of logs
+        :param logs: list of logs
+        :param temp_logs: logs of a single file with more fields than we need
+        """
         first_log = self.iso_to_epoch(temp_logs[0]["timestamp"])
         last_log = self.iso_to_epoch(temp_logs[len(temp_logs) - 1]["timestamp"])
         first_log_time = first_log["seconds"] + 1e-9*first_log["nanos"]
@@ -94,6 +127,15 @@ class GetLogs:
                     logs.append(json_log)
 
     def get_json_logs(self, files, log_type, interval, log_format):
+        """
+        calls get_sorted_files to get sorted files and the depending on the format
+        it opens file and calls append_logs or just directly appends logs (for json gcsfuse logs)
+        :param files: list of file names
+        :param log_type: gke/gcsfuse
+        :param interval: time interval for which logs are wanted
+        :param log_format: json/csv
+        :return: a list of json logs with two fields message and timestamp(epoch)
+        """
         ordered_files = self.get_sorted_files(files, log_type, log_format)
         logs = []
         for file in ordered_files:
@@ -129,5 +171,23 @@ class GetLogs:
                             json_log = {"timestamp": row[field_indices["timestamp"]], "textPayload": row[field_indices["textPayload"]]}
                             temp_logs.append(json_log)
                     self.append_logs(logs, temp_logs)
+            else:
+                with open(file, 'r') as handle:
+                    for line in handle:
+                        start_ind = line.find("time=\"") + len("time=\"")
+                        end_ind = line.find("\"", start_ind)
+                        start_ind1 = line.find("message=\"") + len("message=\"")
+                        end_ind1 = line.rfind("\"")
+                        if start_ind1 != -1 and end_ind1 != -1 and start_ind != -1 and end_ind != -1:
+                            time = line[start_ind:end_ind]
+                            message = line[start_ind1:end_ind1]
+                            message = message.replace(r"\"", "\"")
+                            datetime_obj = datetime.datetime.strptime(time, "%d/%m/%Y %H:%M:%S.%f")
+                            epoch_time = int(datetime_obj.timestamp())
+                            microseconds_str = time.split('.')[-1]
+                            microseconds = int(microseconds_str)
+                            nanoseconds = microseconds * 1000
+                            log_data = {"timestamp": {"seconds": epoch_time, "nanos": nanoseconds}, "message": message}
+                            logs.append(log_data)
 
         return logs

@@ -2,6 +2,9 @@ from parser.gcs_calls import GcsCalls
 from parser.kernel_calls import KernelCalls
 
 class Object:
+    """
+    here the information regarding a file/directory is stored
+    """
     def __init__(self, inode, parent, rel_name, abs_name):
         self.inode = inode
         self.parent = parent

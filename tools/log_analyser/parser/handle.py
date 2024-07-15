@@ -1,4 +1,7 @@
 class Handle:
+    """
+    stores info regarding a file handle
+    """
     def __init__(self, num, time_sec, time_nano):
         self.handle_num = num
         self.opening_time = time_sec

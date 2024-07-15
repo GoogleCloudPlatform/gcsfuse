@@ -1,6 +1,9 @@
 from parser.calls import Calls
 
 class GlobalCalls:
+    """
+    here all the call info is stored globally
+    """
     def __init__(self):
         self.kernel_calls = [Calls("Unlink"),
                              Calls("Rename"),

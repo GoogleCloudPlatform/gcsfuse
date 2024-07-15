@@ -1,6 +1,7 @@
 from parser.calls import Calls
 
 class GcsCalls:
+    """GCS call info specific to a file/dir"""
     def __init__(self):
         self.calls = [Calls("StatObject"),
                       Calls("ListObjects"),

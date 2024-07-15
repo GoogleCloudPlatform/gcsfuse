@@ -1,6 +1,10 @@
 from parser.calls import Calls
 
 class KernelCalls:
+    """
+    stores a list of Call type object for some kernel calls
+    it stores info specific for a file/dir and not global
+    """
     def __init__(self):
         self.calls = [Calls("LookUpInode"),
                       Calls("ReadFile"),
