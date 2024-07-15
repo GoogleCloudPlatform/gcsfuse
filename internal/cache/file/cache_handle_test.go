@@ -877,3 +877,31 @@ func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
 	assert.False(cht.T(), cacheHit)
 	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
 }
+
+func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload_And_ParallelDownloadsEnabled() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.cacheFileForRangeRead = false
+	cht.cacheHandle.fileDownloadJob = downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
+	)
+
+	// Since, it's a random read, download job will not start.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Equal(cht.T(), downloader.NotStarted, jobStatus.Name)
+	assert.Less(cht.T(), jobStatus.Offset, offset)
+	assert.Equal(cht.T(), n, 0)
+	assert.False(cht.T(), cacheHit)
+	assert.NotNil(cht.T(), err)
+	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
+}
