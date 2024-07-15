@@ -521,8 +521,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
+		// TODO: Update if block to call get folder once implicit dirs changes are complete, and e2e tests are passed on new changes
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
-			// add get folder call here
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		} else {
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
