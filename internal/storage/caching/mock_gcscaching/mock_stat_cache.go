@@ -202,6 +202,4 @@ func (m *mockStatCache) InValidateCacheForEntriesWithGivenPrefix(p0 string) {
 	if len(retVals) != 0 {
 		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
 	}
-
-	return
 }
