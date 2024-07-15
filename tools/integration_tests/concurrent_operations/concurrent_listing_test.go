@@ -517,7 +517,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 	}
 }
 
-// Test_ListWithCopyFile tests for potential deadlocks or race conditions when
+// Test_ListWithMoveFile tests for potential deadlocks or race conditions when
 // listing, file or folder operations, move file happening concurrently.
 func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
@@ -577,7 +577,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 	}
 }
 
-// Test_ListWithCopyDir tests for potential deadlocks or race conditions when
+// Test_ListWithMoveDir tests for potential deadlocks or race conditions when
 // listing, file or folder operations, move dir happening concurrently.
 func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 	t.Parallel() // Mark the test parallelizable.
