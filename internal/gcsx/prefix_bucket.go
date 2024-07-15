@@ -223,6 +223,11 @@ func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder
 	return b.wrapped.GetFolder(ctx, mFolderName)
 }
 
+func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	mFolderName := b.wrappedName(folderName)
+	return b.wrapped.CreateFolder(ctx, mFolderName)
+}
+
 func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*control.RenameFolderOperation, error) {
 	mFolderName := b.wrappedName(folderName)
 	mDestinationFolderId := b.wrappedName(destinationFolderId)
