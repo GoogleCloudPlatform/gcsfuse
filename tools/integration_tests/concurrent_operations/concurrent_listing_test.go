@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -513,6 +514,125 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 		// Success: Both operations finished before timeout
 	case <-time.After(timeout):
 		assert.FailNow(t, "Possible deadlock or race condition detected during Readdir and directory operations")
+	}
+}
+
+// Test_ListWithMoveFile tests for potential deadlocks or race conditions when
+// listing, file or folder operations, move file happening concurrently.
+func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_ListWithMoveFile"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	wg.Add(2)
+	timeout := 400 * time.Second // Adjust timeout as needed
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+			f, err := os.Open(targetDir)
+			assert.NoError(t, err)
+
+			_, err = f.Readdirnames(-1)
+			if err != nil {
+				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
+				assert.True(t, strings.Contains(err.Error(), "input/output error"))
+			}
+
+			assert.NoError(t, f.Close())
+		}
+	}()
+
+	// Create file
+	err := os.WriteFile(path.Join(testDirPath, "move_file.txt"), []byte("Hello, world!"), setup.FilePermission_0600)
+	require.NoError(t, err)
+
+	// Goroutine 2: Move file
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+			// Move File in the target directory
+			err = operations.Move(path.Join(testDirPath, "move_file.txt"), path.Join(targetDir, "move_file.txt"))
+			assert.NoError(t, err)
+			// Move File out of the target directory
+			err = operations.Move(path.Join(targetDir, "move_file.txt"), path.Join(testDirPath, "move_file.txt"))
+			assert.NoError(t, err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected")
+	}
+}
+
+// Test_ListWithMoveDir tests for potential deadlocks or race conditions when
+// listing, file or folder operations, move dir happening concurrently.
+func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_ListWithMoveDir"
+	createDirectoryStructureForTestCase(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	wg.Add(2)
+	timeout := 400 * time.Second // Adjust timeout as needed
+
+	// Goroutine 1: Repeatedly calls Readdir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForMediumOperations; i++ { // Adjust iteration count if needed
+			f, err := os.Open(targetDir)
+			require.NoError(t, err)
+
+			_, err = f.Readdirnames(-1)
+			if err != nil {
+				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
+				assert.True(t, strings.Contains(err.Error(), "input/output error"))
+			}
+
+			assert.NoError(t, f.Close())
+		}
+	}()
+	// Create Dir
+	err := os.Mkdir(path.Join(testDirPath, "move_dir"), setup.DirPermission_0755)
+	require.NoError(t, err)
+
+	// Goroutine 2: Move Dir
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterationsForHeavyOperations; i++ { // Adjust iteration count if needed
+			// Move Dir in the target dir
+			err = operations.Move(path.Join(testDirPath, "move_dir"), path.Join(targetDir, "move_dir"))
+			assert.NoError(t, err)
+			// Move Dir out of the target dir
+			err = operations.Move(path.Join(targetDir, "move_dir"), path.Join(testDirPath, "move_dir"))
+			assert.NoError(t, err)
+		}
+	}()
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: Both operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected")
 	}
 }
 
