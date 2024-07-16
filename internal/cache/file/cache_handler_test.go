@@ -316,7 +316,6 @@ func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasCompleted(t *testing.T)
 	require.Nil(t, actualJob)
 
 	err = chTestArgs.cacheHandler.addFileInfoEntryAndCreateDownloadJob(chTestArgs.object, chTestArgs.bucket)
-
 	assert.NoError(t, err)
 	assert.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
 	// No new job should be added to job manager
