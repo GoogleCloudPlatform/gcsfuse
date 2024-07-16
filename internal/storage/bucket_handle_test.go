@@ -1334,12 +1334,12 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
 	mockClient.On("CreateFolder", ctx, &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/" + TestBucketName ,
-		FolderId: TestObjectName}, mock.Anything).
+		FolderId: TestFolderName}, mock.Anything).
 		Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	folder, err := testSuite.bucketHandle.CreateFolder(ctx, TestObjectName)
+	folder, err := testSuite.bucketHandle.CreateFolder(ctx, TestFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
@@ -1349,17 +1349,17 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 func (testSuite *BucketHandleTest) TestCreateFolder() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
+	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestFolderName
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
 	mockClient.On("CreateFolder", ctx, &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/" + TestBucketName,
-		FolderId: TestObjectName}, mock.Anything).
+		FolderId: TestFolderName}, mock.Anything).
 		Return(&mockFolder, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	folder, err := testSuite.bucketHandle.CreateFolder(ctx, TestObjectName)
+	folder, err := testSuite.bucketHandle.CreateFolder(ctx, TestFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NoError(testSuite.T(), err)
