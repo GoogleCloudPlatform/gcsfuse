@@ -478,6 +478,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 }
 
 func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{
 		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 		DestinationFolderId: destinationFolderId,
@@ -487,7 +488,9 @@ func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, dest
 		return nil, fmt.Errorf("longrunning operation: %w", err)
 	}
 
-	controlFolder, err := resp.Wait(ctx)
+	// Wait blocks until the long-running operation is completed,
+	// returning the response and any errors encountered.
+	controlFolder, err = resp.Wait(ctx)
 	folder = gcs.GCSFolder(b.bucketName, controlFolder)
 
 	return folder, err
