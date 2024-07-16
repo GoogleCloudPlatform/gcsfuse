@@ -189,13 +189,6 @@ func TestMain(m *testing.M) {
 		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
 	}
 
-	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
-	if !setup.TestOnTPCEndPoint() {
-		if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-			flagsSet = append(flagsSet, hnsFlagSet)
-		}
-	}
-
 	mountConfigFlags := createMountConfigsAndEquivalentFlags()
 	flagsSet = append(flagsSet, mountConfigFlags...)
 
