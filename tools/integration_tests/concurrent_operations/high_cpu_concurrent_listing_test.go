@@ -20,14 +20,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
@@ -53,27 +50,6 @@ func (s *highCpuConcurrentListingTest) Setup(t *testing.T) {
 
 func (s *highCpuConcurrentListingTest) Teardown(t *testing.T) {}
 
-func getRelativePathFromDirectory(t *testing.T, filePath, targetDir string) string {
-	// Split the file path into its components
-	parts := strings.Split(filepath.Clean(filePath), string(filepath.Separator))
-
-	// Find the index of the target directory
-	targetIndex := -1
-	for i, part := range parts {
-		if part == targetDir {
-			targetIndex = i
-			break
-		}
-	}
-
-	if targetIndex == -1 {
-		t.Errorf("Target directory not found.")
-	}
-
-	// Construct the relative path by joining the components after the target directory
-	return filepath.Join(parts[targetIndex+1:]...)
-}
-
 func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir string) {
 	operations.CreateDirectory(path.Join(testDirPath, testCaseDir), t)
 
@@ -91,7 +67,7 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 			go func(i int) {
 				defer wg.Done()
 				fileName := fmt.Sprintf("file%d.txt", i+1)
-				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "test_content", t)
+				operations.CreateFileWithContent(path.Join(dir, fileName), setup.FilePermission_0600, "test_content", t)
 			}(i)
 		}
 
@@ -199,7 +175,7 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileRead(t *testi
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
-				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
+				data, err := os.ReadFile(path.Join(targetDir, "level1/file1.txt"))
 				assert.Nil(t, err)
 				assert.True(t, bytes.Equal(data, []byte("test_content")))
 			}
@@ -253,7 +229,7 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationsTogether(t *testing
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
-				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
+				data, err := os.ReadFile(path.Join(targetDir, "level1/file1.txt"))
 				assert.Nil(t, err)
 				assert.True(t, bytes.Equal(data, []byte("test_content")))
 			}
