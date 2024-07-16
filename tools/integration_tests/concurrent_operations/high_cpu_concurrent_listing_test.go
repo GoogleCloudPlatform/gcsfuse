@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	requiredCpuCount = 30
+	requiredCPUCoresToRunThisTest = 30
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -122,19 +122,6 @@ func listDirectoryRecursivelyWithCmd(t *testing.T, root string) {
 	}
 }
 
-func listDirectoryRecursively(t *testing.T, root string) {
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err // Handle errors during the walk
-		}
-
-		return nil
-	})
-	if err != nil {
-		t.Errorf("Error in listing recursively: %v", err)
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
@@ -142,10 +129,9 @@ func listDirectoryRecursively(t *testing.T, root string) {
 // Test_RecursiveListing tests for potential deadlocks or race conditions
 // when multiple goroutines performs recursive listing.
 func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
-	if runtime.NumCPU() < requiredCpuCount {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
 		t.SkipNow()
 	}
-
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_RecursiveListing"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
@@ -183,16 +169,15 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
 	}
 }
 
-// Test_AllReadOperationTogether tests for potential deadlocks or race conditions
+// Test_AllReadOperationsTogether tests for potential deadlocks or race conditions
 // when multiple goroutines performs recursive listing, openDir, stat operations with
 // repetitions.
-func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.T) {
-	if runtime.NumCPU() < requiredCpuCount {
+func (s *highCpuConcurrentListingTest) Test_AllReadOperationsTogether(t *testing.T) {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
 		t.SkipNow()
 	}
-
 	t.Parallel() // Mark the test parallelizable.
-	testCaseDir := "Test_AllReadOperationTogether"
+	testCaseDir := "Test_AllReadOperationsTogether"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
@@ -252,12 +237,11 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.
 // Test_RecursiveListingAndDirOperations tests for potential deadlocks or race conditions
 // when multiple goroutines performs recursive listing and directory operations with repetition.
 func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndDirOperations(t *testing.T) {
+	// TODO (b/353248177) enable this test once this bug is fixed.
 	t.SkipNow()
-
-	if runtime.NumCPU() < requiredCpuCount {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
 		t.SkipNow()
 	}
-
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_RecursiveListingAndDirOperations"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
@@ -322,11 +306,9 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndDirOperations(t *
 func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileOperations(t *testing.T) {
 	// TODO (b/353144897) enable this test once this bug is fixed.
 	t.SkipNow()
-
-	if runtime.NumCPU() < requiredCpuCount {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
 		t.SkipNow()
 	}
-
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_RecursiveListingAndFileOperations"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
@@ -389,11 +371,9 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileOperations(t 
 func (s *highCpuConcurrentListingTest) Test_KitchenSink(t *testing.T) {
 	// TODO (b/353248177 && b/353144897) enable this test once this bug is fixed.
 	t.SkipNow()
-
-	if runtime.NumCPU() < requiredCpuCount {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
 		t.SkipNow()
 	}
-
 	t.Parallel() // Mark the test parallelizable.
 	testCaseDir := "Test_KitchenSink"
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
