@@ -103,6 +103,9 @@ func (t *FlagsTest) Defaults() {
 
 	// Post-mount actions
 	assert.Equal(t.T(), config.ExperimentalMetadataPrefetchOnMountDisabled, f.ExperimentalMetadataPrefetchOnMount)
+
+	// Metrics
+	assert.Equal(t.T(), 0, f.PrometheusPort)
 }
 
 func (t *FlagsTest) Bools() {
@@ -411,4 +414,14 @@ func (t *FlagsTest) Test_KernelListCacheTtlSecs_MaxValid() {
 	f := parseArgs(t, args)
 
 	assert.Equal(t.T(), int64(9223372036), f.KernelListCacheTtlSeconds)
+}
+
+func (t *FlagsTest) Test_PrometheusPort() {
+	args := []string{
+		"--prometheus-port=8080",
+	}
+
+	f := parseArgs(t, args)
+
+	assert.Equal(t.T(), 8080, f.PrometheusPort)
 }
