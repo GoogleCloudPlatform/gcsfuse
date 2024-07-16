@@ -20,7 +20,6 @@ import (
 	"io"
 	"time"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor/tags"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -217,7 +216,7 @@ func (mb *monitoringBucket) CreateFolder(ctx context.Context, folderName string)
 	return folder, err
 }
 
-func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	startTime := time.Now()
 	o, err = mb.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 	recordRequest(ctx, "RenameFolder", startTime)
