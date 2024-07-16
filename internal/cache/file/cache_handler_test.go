@@ -510,7 +510,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 	existingJob := chTestArgs.jobManager.GetJob(testObjectName, chTestArgs.bucket.Name())
 	require.Nil(t, existingJob)
 	wg := sync.WaitGroup{}
-	getCacheHandleTestFun := func() {
+	getCacheHandleTestFun := func(t *testing.T) {
 		defer wg.Done()
 		minObj := createObject(t, chTestArgs.bucket, testObjectName, []byte("content of object_1 ..."))
 
@@ -524,7 +524,7 @@ func Test_GetCacheHandle_ConcurrentSameFile(t *testing.T) {
 	// Start concurrent GetCacheHandle()
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go getCacheHandleTestFun()
+		go getCacheHandleTestFun(t)
 	}
 	wg.Wait()
 
@@ -640,7 +640,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 	require.Equal(t, downloader.NotStarted, existingJob.GetStatus().Name)
 	require.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
 	wg := sync.WaitGroup{}
-	InvalidateCacheTestFun := func() {
+	InvalidateCacheTestFun := func(t *testing.T) {
 		defer wg.Done()
 
 		err := chTestArgs.cacheHandler.InvalidateCache(chTestArgs.object.Name, chTestArgs.bucket.Name())
@@ -656,7 +656,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 	// Start concurrent GetCacheHandle()
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go InvalidateCacheTestFun()
+		go InvalidateCacheTestFun(t)
 	}
 	wg.Wait()
 }
