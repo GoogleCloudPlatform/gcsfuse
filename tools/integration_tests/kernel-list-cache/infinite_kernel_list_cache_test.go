@@ -453,6 +453,78 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_CacheMissOnDirectoryRe
 	assert.Equal(t, "renamed_sub_dir", names2[3])
 }
 
+func (s *infiniteKernelListCacheTest) TestKernelListCache_ListAndDeleteDirectory(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f2)
+
+	// (a) First read served from GCS, kernel will cache the dir response.
+	f, err := os.Open(targetDir)
+	assert.NoError(t, err)
+	names1, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 2, len(names1))
+	assert.Equal(t, "file1.txt", names1[0])
+	assert.Equal(t, "file2.txt", names1[1])
+	err = f.Close()
+	assert.NoError(t, err)
+	// Adding one object to make sure to change the ReadDir() response.
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	// Error is expected in first delete directory operation due to internal bug b/352688554.
+	err = os.RemoveAll(targetDir)
+	assert.Error(t, err)
+
+	// Unlink calls triggered due to os.RemoveAll will invalidate the cache so
+	// fresh response from GCS is expected containing the uncached file.
+	f, err = os.Open(targetDir)
+	assert.NoError(t, err)
+	names2, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 1, len(names2))
+	assert.Equal(t, "file3.txt", names2[0])
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// 2nd RemoveAll call will succeed.
+	err = os.RemoveAll(targetDir)
+	assert.NoError(t, err)
+}
+
+func (s *infiniteKernelListCacheTest) TestKernelListCache_DeleteAndListDirectory(t *testing.T) {
+	targetDir := path.Join(testDirPath, "explicit_dir")
+	operations.CreateDirectory(targetDir, t)
+	// Create test data
+	f1 := operations.CreateFile(path.Join(targetDir, "file1.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f1)
+	f2 := operations.CreateFile(path.Join(targetDir, "file2.txt"), setup.FilePermission_0600, t)
+	operations.CloseFile(f2)
+
+	err := os.RemoveAll(targetDir)
+	assert.NoError(t, err)
+
+	// Adding object to GCS to make sure to change the ReadDir() response.
+	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir")+"/", "")
+	require.NoError(t, err)
+	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
+	// Read will be served from GCS as Unlink Operation triggered by os.RemoveAll invalidates the cache.
+	f, err := os.Open(targetDir)
+	assert.NoError(t, err)
+	names1, err := f.Readdirnames(-1)
+	assert.NoError(t, err)
+	require.Equal(t, 1, len(names1))
+	assert.Equal(t, "file3.txt", names1[0])
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// 2nd RemoveAll call will also succeed.
+	err = os.RemoveAll(targetDir)
+	assert.NoError(t, err)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
