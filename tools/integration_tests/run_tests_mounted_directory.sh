@@ -517,10 +517,10 @@ test_cases=(
   "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDirectoryRename"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  gcsfuse --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
-  cleanup_test_environment
+  cleanup_test_environment02
 done
 
 # Kernel list cache with finite ttl (--kernel-list-cache-ttl-secs=5).
@@ -528,8 +528,8 @@ test_cases=(
   "TestFiniteKernelListCacheTest/TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=5 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
-  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/read_cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  gcsfuse --kernel-list-cache-ttl-secs=5 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment
 done
@@ -539,7 +539,7 @@ test_cases=(
   "TestDisabledKernelListCacheTest/TestKernelListCache_AlwaysCacheMiss"
 )
 for test_case in "${test_cases[@]}"; do
-  gcsfuse --kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR" > /dev/null
+  gcsfuse --kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
   GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
   sudo umount "$MOUNT_DIR"
   cleanup_test_environment
