@@ -900,6 +900,11 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	return &gcs.Folder{Name: foldername}, nil
 }
 
+func (b *bucket) CreateFolder(ctx context.Context, foldername string) (o *gcs.Folder, err error) {
+	// TODO: Implement
+	return
+}
+
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
 	// Check that the destination name is legal.
 	err = checkName(destinationFolderId)

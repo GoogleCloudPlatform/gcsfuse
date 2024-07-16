@@ -210,6 +210,13 @@ func (mb *monitoringBucket) GetFolder(ctx context.Context, folderName string) (*
 	return folder, err
 }
 
+func (mb *monitoringBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+	startTime := time.Now()
+	folder, err := mb.wrapped.CreateFolder(ctx, folderName)
+	recordRequest(ctx, "CreateFolder", startTime)
+	return folder, err
+}
+
 func (mb *monitoringBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
 	startTime := time.Now()
 	o, err = mb.wrapped.RenameFolder(ctx, folderName, destinationFolderId)

@@ -516,6 +516,11 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 	return folderResponse, err
 }
 
+func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	// TODO: Implement me
+	return
+}
+
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
 	return conditions != (storage.Conditions{})
 }

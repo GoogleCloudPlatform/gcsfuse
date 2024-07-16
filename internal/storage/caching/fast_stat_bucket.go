@@ -325,6 +325,14 @@ func (b *fastStatBucket) GetFolder(
 	return b.wrapped.GetFolder(ctx, prefix)
 }
 
+func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+	o, err = b.wrapped.CreateFolder(ctx, folderName)
+
+	// TODO: Insert folder in the cache
+
+	return
+}
+
 func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 

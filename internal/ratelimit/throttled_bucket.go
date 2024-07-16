@@ -224,6 +224,19 @@ func (b *throttledBucket) GetFolder(ctx context.Context, folderName string) (fol
 	return folder, err
 }
 
+func (b *throttledBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	// Wait for permission to call through.
+	err = b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return
+	}
+
+	// Call through.
+	folder, err = b.wrapped.CreateFolder(ctx, folderName)
+
+	return folder, err
+}
+
 ////////////////////////////////////////////////////////////////////////
 // readerCloser
 ////////////////////////////////////////////////////////////////////////
