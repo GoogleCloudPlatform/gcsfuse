@@ -144,7 +144,8 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 
 	// Validate CRC of cached file matches GCS CRC.
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		cachedFileCRC, err := operations.CalculateFileCRC32(cachedFilePath)
+		var cachedFileCRC uint32
+		cachedFileCRC, err = operations.CalculateFileCRC32(cachedFilePath)
 		require.NoError(t, err)
 		if gcsCRC != cachedFileCRC {
 			err = fmt.Errorf("CRC32 mismatch. Expected %d, Got %d", gcsCRC, cachedFileCRC)
