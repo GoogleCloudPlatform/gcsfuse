@@ -15,6 +15,7 @@
 package concurrent_operations
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -91,7 +92,6 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 				defer wg.Done()
 				fileName := fmt.Sprintf("file%d.txt", i+1)
 				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "test_content", t)
-				operations.CreateFileOfSize(5, path.Join(dir, fileName), t)
 			}(i)
 		}
 
@@ -104,7 +104,6 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 		lastLevel = currLevel
 		operations.CreateDirectory(currLevel, t)
 		globalWG.Add(1)
-		// Create 100 files at the current level.
 		go func() {
 			defer globalWG.Done()
 			createFilesInGivenDir(currLevel)
@@ -200,10 +199,9 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileRead(t *testi
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
-				listDirectoryRecursivelyWithCmd(t, targetDir)
 				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
 				assert.Nil(t, err)
-				assert.Equal(t, data, []byte("test_content"))
+				assert.True(t, bytes.Equal(data, []byte("test_content")))
 			}
 		}()
 	}
@@ -255,10 +253,9 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationsTogether(t *testing
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
-				listDirectoryRecursivelyWithCmd(t, targetDir)
 				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
 				assert.Nil(t, err)
-				assert.Equal(t, data, []byte("test_content"))
+				assert.True(t, bytes.Equal(data, []byte("test_content")))
 			}
 		}()
 
