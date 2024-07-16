@@ -477,14 +477,20 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	return err
 }
 
-func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (resp *control.RenameFolderOperation, err error) {
+func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	req := &controlpb.RenameFolderRequest{
 		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 		DestinationFolderId: destinationFolderId,
 	}
-	resp, err = b.controlClient.RenameFolder(ctx, req)
+	resp, err := b.controlClient.RenameFolder(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("longrunning operation: %w", err)
+	}
 
-	return resp, err
+	controlFolder, err := resp.Wait(ctx)
+	folder = gcs.GCSFolder(b.bucketName, controlFolder)
+
+	return folder, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional

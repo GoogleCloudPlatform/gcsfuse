@@ -376,6 +376,32 @@ func (m *mockBucket) GetFolder(
 	return
 }
 
+func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o0 *gcs.Folder, o1 error) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"RenameFolder",
+		file,
+		line,
+		[]interface{}{})
+	if len(retVals) != 1 {
+		panic(fmt.Sprintf("mockBucket.RenameFolder: invalid return values: %v", retVals))
+	}
+	// o0 string
+	if retVals[0] != nil {
+		o0 = retVals[0].(*control.RenameFolderOperation)
+	}
+
+	// o1 error
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+	return
+}
+
 func (m *mockBucket) CreateFolder(ctx context.Context, prefix string) (o0 *gcs.Folder, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
@@ -394,32 +420,6 @@ func (m *mockBucket) CreateFolder(ctx context.Context, prefix string) (o0 *gcs.F
 
 	if retVals[0] != nil {
 		o0 = retVals[0].(*gcs.Folder)
-	}
-
-	// o1 error
-	if retVals[1] != nil {
-		o1 = retVals[1].(error)
-	}
-	return
-}
-
-func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o0 *control.RenameFolderOperation, o1 error) {
-	// Get a file name and line number for the caller.
-	_, file, line, _ := runtime.Caller(1)
-
-	// Hand the call off to the controller, which does most of the work.
-	retVals := m.controller.HandleMethodCall(
-		m,
-		"RenameFolder",
-		file,
-		line,
-		[]interface{}{})
-	if len(retVals) != 1 {
-		panic(fmt.Sprintf("mockBucket.RenameFolder: invalid return values: %v", retVals))
-	}
-	// o0 string
-	if retVals[0] != nil {
-		o0 = retVals[0].(*control.RenameFolderOperation)
 	}
 
 	// o1 error
