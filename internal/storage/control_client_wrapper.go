@@ -37,3 +37,7 @@ type StorageControlClient interface {
 
 	CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error)
 }
+
+type RenameFolderOperationInterface interface {
+	Wait(ctx context.Context, opts ...gax.CallOption) (*controlpb.Folder, error)
+}
