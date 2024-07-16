@@ -59,9 +59,7 @@ func (m *MockStorageControlClient) GetFolder(ctx context.Context,
 }
 
 // Implement the CreateFolder method for the mock.
-func (m *MockStorageControlClient) CreateFolder(ctx context.Context,
-	req *controlpb.CreateFolderRequest,
-	opts ...gax.CallOption) (*controlpb.Folder, error) {
+func (m *MockStorageControlClient) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
 	args := m.Called(ctx, req, opts)
 
 	// Needed to assert folder in only those cases where folder is present

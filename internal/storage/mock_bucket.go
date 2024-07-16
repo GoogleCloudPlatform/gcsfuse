@@ -376,9 +376,7 @@ func (m *mockBucket) GetFolder(
 	return
 }
 
-func (m *mockBucket) CreateFolder(
-	ctx context.Context,
-	prefix string) (o0 *gcs.Folder, o1 error) {
+func (m *mockBucket) CreateFolder(ctx context.Context, prefix string) (o0 *gcs.Folder, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 

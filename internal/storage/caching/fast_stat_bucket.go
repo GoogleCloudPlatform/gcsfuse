@@ -325,9 +325,7 @@ func (b *fastStatBucket) GetFolder(
 	return b.wrapped.GetFolder(ctx, prefix)
 }
 
-func (b *fastStatBucket) CreateFolder(
-	ctx context.Context,
-	folderName string) (o *gcs.Folder, err error) {
+func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
 	o, err = b.wrapped.CreateFolder(ctx, folderName)
 
 	// TODO: Insert folder in the cache
