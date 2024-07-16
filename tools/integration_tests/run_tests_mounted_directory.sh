@@ -491,3 +491,56 @@ sudo umount $MOUNT_DIR
 mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,client_protocol=grpc
 GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/implicit_dir/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
 sudo umount $MOUNT_DIR
+
+# Test package: concurrent_operations
+# Run tests with static mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
+gcsfuse --implicit-dirs=true --kernel-list-cache-ttl-secs=-1 $TEST_BUCKET_NAME $MOUNT_DIR
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Run test with persistent mounting.  (flags: --kernel-list-cache-ttl-secs=-1 --implicit-dirs=true)
+mount.gcsfuse $TEST_BUCKET_NAME $MOUNT_DIR -o implicit_dirs=true,kernel_list_cache_ttl_secs=-1
+GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/concurrent_operations/...  -p 1 --integrationTest -v --mountedDirectory=$MOUNT_DIR --testbucket=$TEST_BUCKET_NAME
+sudo umount $MOUNT_DIR
+
+# Test package: kernel-list-cache
+
+# Kernel list cache with infinite ttl. (--kernel-list-cache-ttl-secs=-1)
+test_cases=(
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_AlwaysCacheHit"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnAdditionOfFile"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDeletionOfFile"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnFileRename"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_EvictCacheEntryOfOnlyDirectParent"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnAdditionOfDirectory"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDeletionOfDirectory"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_CacheMissOnDirectoryRename"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_ListAndDeleteDirectory"
+  "TestInfiniteKernelListCacheTest/TestKernelListCache_DeleteAndListDirectory"
+)
+for test_case in "${test_cases[@]}"; do
+  gcsfuse --kernel-list-cache-ttl-secs=-1 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  sudo umount "$MOUNT_DIR"
+done
+
+# Kernel list cache with finite ttl (--kernel-list-cache-ttl-secs=5).
+test_cases=(
+  "TestFiniteKernelListCacheTest/TestKernelListCache_CacheHitWithinLimit_CacheMissAfterLimit"
+)
+for test_case in "${test_cases[@]}"; do
+  gcsfuse --kernel-list-cache-ttl-secs=5 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  sudo umount "$MOUNT_DIR"
+done
+
+# Disabled Kernel list cache (--kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10).
+test_cases=(
+  "TestDisabledKernelListCacheTest/TestKernelListCache_AlwaysCacheMiss"
+)
+for test_case in "${test_cases[@]}"; do
+  gcsfuse --kernel-list-cache-ttl-secs=0 --stat-cache-ttl=0 --rename-dir-limit=10 "$TEST_BUCKET_NAME" "$MOUNT_DIR"
+  GODEBUG=asyncpreemptoff=1 go test ./tools/integration_tests/kernel-list-cache/... -p 1 --integrationTest -v --mountedDirectory="$MOUNT_DIR" --testbucket="$TEST_BUCKET_NAME" -run "$test_case"
+  sudo umount "$MOUNT_DIR"
+done
+
