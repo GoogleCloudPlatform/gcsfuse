@@ -510,7 +510,7 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_DeleteAndListDirectory
 	err = client.CreateObjectOnGCS(ctx, storageClient, path.Join(testDirName, "explicit_dir")+"/", "")
 	require.NoError(t, err)
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-	// Read will be served from GCS as Unlink Operation triggered by os.RemoveAll invalidates the cache.
+	// Read will be served from GCS as removing the directory also deletes the cache.
 	f, err := os.Open(targetDir)
 	assert.NoError(t, err)
 	names1, err := f.Readdirnames(-1)
