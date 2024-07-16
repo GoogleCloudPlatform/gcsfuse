@@ -529,7 +529,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 
 func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	req := &controlpb.CreateFolderRequest{
-		Parent:   b.bucketName,
+		Parent:   "projects/_/buckets/" + b.bucketName,
 		FolderId: folderName,
 	}
 
