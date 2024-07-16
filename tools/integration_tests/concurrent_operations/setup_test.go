@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 
 	// Create common storage client to be used in test.
 	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*20)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*50)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {

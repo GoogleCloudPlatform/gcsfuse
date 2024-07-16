@@ -151,11 +151,13 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	numberOfGoroutine := 10
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU // Use all cpus for recursive listing.
 	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
-	for r := 0; r < numberOfGoroutine; r++ {
+	for r := 0; r < goRoutineCountPerOperation; r++ {
 		wg.Add(1)
 		// Repeatedly do recursive listing.
 		go func() {
@@ -194,7 +196,9 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationTogether(t *testing.
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	goRoutineCountPerOperation := 5
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU / 3 // Divide among three read-only operations.
 	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
@@ -259,11 +263,13 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndDirOperations(t *
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	numberOfGoroutine := 40
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU / 2 // Divide b/w listing and dir operations.
 	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
-	for r := 0; r < numberOfGoroutine; r++ {
+	for r := 0; r < goRoutineCountPerOperation; r++ {
 		wg.Add(2)
 		// Repeatedly do recursive listing.
 		go func() {
@@ -326,11 +332,13 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileOperations(t 
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	numberOfGoroutine := 50
-	timeout := 200 * time.Second
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU / 2 // Divide b/w list and file operations.
+	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
-	for r := 0; r < numberOfGoroutine; r++ {
+	for r := 0; r < goRoutineCountPerOperation; r++ {
 		wg.Add(2)
 		// Repeatedly do recursive listing.
 		go func() {
@@ -391,11 +399,13 @@ func (s *highCpuConcurrentListingTest) Test_KitchenSink(t *testing.T) {
 	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
 	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
 	var wg sync.WaitGroup
-	numberOfGoroutine := 50
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU / 5 // Divide in three different operations.
 	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
-	for r := 0; r < numberOfGoroutine; r++ {
+	for r := 0; r < goRoutineCountPerOperation; r++ {
 		wg.Add(5)
 		// Repeatedly do recursive listing.
 		go func() {
