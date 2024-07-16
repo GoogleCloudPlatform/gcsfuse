@@ -27,7 +27,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -900,7 +899,12 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	return &gcs.Folder{Name: foldername}, nil
 }
 
-func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+func (b *bucket) CreateFolder(ctx context.Context, foldername string) (o *gcs.Folder, err error) {
+	// TODO: Implement
+	return
+}
+
+func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	// Check that the destination name is legal.
 	err = checkName(destinationFolderId)
 	if err != nil {
@@ -943,10 +947,5 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	// Remove the folder.
 	b.objects = append(b.objects[:index], b.objects[index+1:]...)
 
-	return
-}
-
-func (b *bucket) CreateFolder(ctx context.Context, foldername string) (o *gcs.Folder, err error) {
-	// TODO: Implement
 	return
 }
