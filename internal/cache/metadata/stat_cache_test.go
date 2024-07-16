@@ -570,24 +570,24 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	t.statCache.InsertFolder(folderEntry3, expiration) //adds size of 220 and exceeds capacity
 	t.statCache.Insert(objectEntry3, expiration)       // adds size of 1428
 
-	t.statCache.InValidateCacheForEntriesWithGivenPrefix("a")
+	t.statCache.EraseEntriesWithGivenPrefix("a")
 
 	hit1, entry1 := t.statCache.LookUpFolder("a", someTime)
-	hit2, entry2 := t.statCache.LookUpFolder("a/b", someTime)
-	hit3, entry3 := t.statCache.LookUp("a/b/c", someTime)
-	hit4, entry4 := t.statCache.LookUpFolder("a/d", someTime)
-	hit5, entry5 := t.statCache.LookUpFolder("b", someTime)
-	hit6, entry6 := t.statCache.LookUp("d", someTime)
 	assert.False(t.T(), hit1)
 	assert.Nil(t.T(), entry1)
+	hit2, entry2 := t.statCache.LookUpFolder("a/b", someTime)
 	assert.False(t.T(), hit2)
 	assert.Nil(t.T(), entry2)
+	hit3, entry3 := t.statCache.LookUp("a/b/c", someTime)
 	assert.False(t.T(), hit3)
 	assert.Nil(t.T(), entry3)
+	hit4, entry4 := t.statCache.LookUpFolder("a/d", someTime)
 	assert.False(t.T(), hit4)
 	assert.Nil(t.T(), entry4)
+	hit5, entry5 := t.statCache.LookUpFolder("b", someTime)
 	assert.True(t.T(), hit5)
 	assert.Equal(t.T(), "b", entry5.Name)
+	hit6, entry6 := t.statCache.LookUp("d", someTime)
 	assert.True(t.T(), hit6)
 	assert.Equal(t.T(), "d", entry6.Name)
 }

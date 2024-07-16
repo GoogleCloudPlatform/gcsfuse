@@ -336,7 +336,7 @@ func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, de
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 
 	// Invalidate cache for old directory.
-	b.cache.InValidateCacheForEntriesWithGivenPrefix(folderName)
+	b.cache.EraseEntriesWithGivenPrefix(folderName)
 
 	return o, err
 }

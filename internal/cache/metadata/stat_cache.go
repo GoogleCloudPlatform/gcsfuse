@@ -71,12 +71,13 @@ type StatCache interface {
 
 	// Invalidate cache for all the entries with given prefix
 	// e.g. If cache contains below objects
+	// a
 	// a/b
 	// a/d/c
 	// d
 	// Then it will invalidate entries a, a/b, a/d/c
 	// Entry d will remain in cache.
-	InValidateCacheForEntriesWithGivenPrefix(prefix string)
+	EraseEntriesWithGivenPrefix(prefix string)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -294,7 +295,7 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 }
 
 // Invalidate cache for all the entries with given prefix.
-func (sc *statCacheBucketView) InValidateCacheForEntriesWithGivenPrefix(prefix string) {
+func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
 	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
 }

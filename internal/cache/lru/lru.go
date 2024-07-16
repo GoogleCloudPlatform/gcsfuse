@@ -269,16 +269,10 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefix(
-	prefix string) (value []ValueType) {
-	var deletedEntries []ValueType
-
+func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 	for key := range c.index {
 		if strings.HasPrefix(key, prefix) {
-			e := c.Erase(key)
-			deletedEntries = append(deletedEntries, e)
+			c.Erase(key)
 		}
 	}
-
-	return deletedEntries
 }
