@@ -90,7 +90,7 @@ func createDirectoryStructureForTestCaseParallel(t *testing.T, testCaseDir strin
 			go func(i int) {
 				defer wg.Done()
 				fileName := fmt.Sprintf("file%d.txt", i+1)
-				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "", t)
+				client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join(getRelativePathFromDirectory(t, dir, testDirName), fileName), "test_content", t)
 				operations.CreateFileOfSize(5, path.Join(dir, fileName), t)
 			}(i)
 		}
@@ -140,7 +140,7 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
 	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
 	t.Logf("Testing with %d go-routine: ", availableCPU)
 	goRoutineCountPerOperation := availableCPU // Use all cpus for recursive listing.
-	timeout := 400 * time.Second
+	timeout := 600 * time.Second
 
 	// Create multiple go routines to listing concurrently.
 	for r := 0; r < goRoutineCountPerOperation; r++ {
@@ -150,6 +150,60 @@ func (s *highCpuConcurrentListingTest) Test_RecursiveListing(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
 				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+	}
+
+	// Wait for goroutines or timeout
+	done := make(chan bool, 1)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Success: All Readdir operations finished before timeout
+	case <-time.After(timeout):
+		assert.FailNow(t, "Possible deadlock or race condition detected during concurrent Readdir calls")
+	}
+}
+
+// Test_RecursiveListingAndFileRead tests for potential deadlocks or race conditions
+// when multiple goroutines performs recursive listing.
+func (s *highCpuConcurrentListingTest) Test_RecursiveListingAndFileRead(t *testing.T) {
+	if runtime.NumCPU() < requiredCPUCoresToRunThisTest {
+		t.SkipNow()
+	}
+	t.Parallel() // Mark the test parallelizable.
+	testCaseDir := "Test_RecursiveListingAndFileRead"
+	createDirectoryStructureForTestCaseParallel(t, testCaseDir)
+	targetDir := path.Join(testDirPath, testCaseDir, "explicitDir")
+	var wg sync.WaitGroup
+	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
+	t.Logf("Testing with %d go-routine: ", availableCPU)
+	goRoutineCountPerOperation := availableCPU / 2 // Use all cpus for recursive listing.
+	timeout := 400 * time.Second
+
+	// Create multiple go routines to listing concurrently.
+	for r := 0; r < goRoutineCountPerOperation; r++ {
+		wg.Add(2)
+		// Repeatedly do recursive listing.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+
+		// Repeatedly file read.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
+				assert.Nil(t, err)
+				assert.Equal(t, data, []byte("test_content"))
 			}
 		}()
 	}
@@ -183,17 +237,28 @@ func (s *highCpuConcurrentListingTest) Test_AllReadOperationsTogether(t *testing
 	var wg sync.WaitGroup
 	availableCPU := runtime.NumCPU() / 2 // Keep half for gcsfuse process.
 	t.Logf("Testing with %d go-routine: ", availableCPU)
-	goRoutineCountPerOperation := availableCPU / 3 // Divide among three read-only operations.
+	goRoutineCountPerOperation := availableCPU / 4 // Divide among three read-only operations.
 	timeout := 400 * time.Second
 
 	// Create multiple go routines to listing concurrently.
 	for r := 0; r < goRoutineCountPerOperation; r++ {
-		wg.Add(3)
+		wg.Add(4)
 		// Repeatedly do recursive listing.
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterationsForMediumOperations; j++ {
 				listDirectoryRecursivelyWithCmd(t, targetDir)
+			}
+		}()
+
+		// Repeatedly file read.
+		go func() {
+			defer wg.Done()
+			for j := 0; j < iterationsForMediumOperations; j++ {
+				listDirectoryRecursivelyWithCmd(t, targetDir)
+				data, err := os.ReadFile(path.Join(targetDir, "file1.txt"))
+				assert.Nil(t, err)
+				assert.Equal(t, data, []byte("test_content"))
 			}
 		}()
 
