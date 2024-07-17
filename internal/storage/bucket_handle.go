@@ -486,7 +486,7 @@ func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, dest
 	}
 	resp, err = b.controlClient.RenameFolder(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("longrunning operation: %w", err)
+		return nil, err
 	}
 
 	// Wait blocks until the long-running operation is completed,
