@@ -37,6 +37,8 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
+
 type bucketHandle struct {
 	gcs.Bucket
 	bucket        *storage.BucketHandle
@@ -471,7 +473,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	var callOptions []gax.CallOption
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", b.bucketName, folderName),
+		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 	}, callOptions...)
 
 	return err
@@ -480,7 +482,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{
-		Name:                fmt.Sprintf("projects/_/buckets/%s/folders/%s", b.bucketName, folderName),
+		Name:                fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
 	}
 	resp, err := b.controlClient.RenameFolder(ctx, req)
