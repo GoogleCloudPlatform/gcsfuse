@@ -769,7 +769,7 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
 }
 
-func (t *StatObjectTest) TestShouldRenameFolder() {
+func (t *StatObjectTest) TestRenameFolder() {
 	const name = "some-name"
 	const newName = "new-name"
 	var folder = &gcs.Folder{
