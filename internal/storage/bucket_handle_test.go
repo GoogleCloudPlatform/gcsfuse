@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1345,10 +1346,10 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	assert.Nil(testSuite.T(), folder)
 }
 
-func (testSuite *BucketHandleTest) TestCreateFolder() {
+func (testSuite *BucketHandleTest) TestShouldCreateFolderWithGivenName() {
 	mockClient := new(MockStorageControlClient)
 	mockFolder := controlpb.Folder{
-		Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestFolderName,
+		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
 	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/" + TestBucketName,
 		FolderId: TestFolderName}, mock.Anything).
