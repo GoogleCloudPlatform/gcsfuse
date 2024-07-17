@@ -714,8 +714,8 @@ func (t *DeleteObjectTest) WrappedSucceeds() {
 	const name = ""
 	var err error
 
-	// Erase
-	ExpectCall(t.cache, "Erase")(Any())
+	// AddNegativeEntry
+	ExpectCall(t.cache, "AddNegativeEntry")(Any(), Any())
 
 	// Wrapped
 	ExpectCall(t.wrapped, "DeleteObject")(Any(), Any()).

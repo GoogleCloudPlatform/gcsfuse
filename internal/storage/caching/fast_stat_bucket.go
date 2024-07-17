@@ -273,8 +273,13 @@ func (b *fastStatBucket) UpdateObject(
 func (b *fastStatBucket) DeleteObject(
 	ctx context.Context,
 	req *gcs.DeleteObjectRequest) (err error) {
-	b.invalidate(req.Name)
 	err = b.wrapped.DeleteObject(ctx, req)
+	if err != nil {
+		b.invalidate(req.Name)
+	} else {
+		b.addNegativeEntry(req.Name)
+	}
+
 	return
 }
 
