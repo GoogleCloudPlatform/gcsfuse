@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/caching/mock_gcscaching"
@@ -773,12 +772,14 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 func (t *StatObjectTest) TestShouldRenameFolder() {
 	const name = "some-name"
 	const newName = "new-name"
-	var op *control.RenameFolderOperation
+	var folder = &gcs.Folder{
+		Name: newName,
+	}
 	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
-	ExpectCall(t.wrapped, "RenameFolder")(context.TODO(), name, newName).WillOnce(Return(op, nil))
+	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
 
-	result, err := t.bucket.RenameFolder(context.TODO(), name, newName)
+	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
 
 	AssertEq(nil, err)
-	ExpectThat(result, Pointee(DeepEquals(&op)))
+	ExpectEq(result, folder)
 }
