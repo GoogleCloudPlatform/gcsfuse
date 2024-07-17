@@ -733,6 +733,9 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 			downloadPath := util.GetDownloadPath(chTestArgs.cacheDir, objectPath)
 			file, err := os.OpenFile(downloadPath, os.O_RDONLY, 0600)
 			require.NoError(t, err)
+			defer func() {
+				_ = file.Close()
+			}()
 
 			err = chTestArgs.cacheHandler.InvalidateCache(minObject.Name, chTestArgs.bucket.Name())
 
