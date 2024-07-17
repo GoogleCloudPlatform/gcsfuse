@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"math"
 	"path"
 	"testing"
 	"time"
@@ -86,9 +87,9 @@ func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-func (s *jobChunkTest) TestJobChunkSize(t *testing.T) {
+func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	var fileSize int64 = 24 * util.MiB
-	chunkCount := fileSize / s.chunkSize
+	chunkCount := math.Ceil(float64(fileSize) / float64(s.chunkSize))
 	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
 
 	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
@@ -98,8 +99,8 @@ func (s *jobChunkTest) TestJobChunkSize(t *testing.T) {
 	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
 	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
 	assert.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
-	for i := 0; int64(i) < chunkCount; i++ {
-		offset := s.chunkSize * int64(i+1)
+	for i := 0; int64(i) < int64(chunkCount); i++ {
+		offset := min(s.chunkSize*int64(i+1), fileSize)
 		assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
 	}
 }
@@ -126,21 +127,35 @@ func TestJobChunkTest(t *testing.T) {
 	}
 
 	var cacheSizeMB int64 = 24
+
+	// Tests to validate chunk size when read cache parallel downloads are disabled.
 	var chunkSizeForReadCache int64 = 8
 	ts.flags = []string{"--config-file=" + createConfigFile(cacheSizeMB, true, configFileName, false)}
 	ts.chunkSize = chunkSizeForReadCache * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
+	// Tests to validate chunk size when read cache parallel downloads are enabled with unlimited max parallel downloads.
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "unlimitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = parallelDownloadsPerFile * downloadChunkSizeMB * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
+	// Tests to validate chunk size when read cache parallel downloads are enabled with go-routines not limited by max parallel downloads.
 	parallelDownloadsPerFile := 4
-	maxParallelDownloads := 1
+	maxParallelDownloads := 30
 	downloadChunkSizeMB := 3
+	ts.flags = []string{"--config-file=" +
+		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
+	ts.chunkSize = int64(parallelDownloadsPerFile) * int64(downloadChunkSizeMB) * util.MiB
+	log.Printf("Running tests with flags: %s", ts.flags)
+	test_setup.RunTests(t, ts)
+
+	// Tests to validate chunk size when read cache parallel downloads are enabled with go-routines limited by max parallel downloads.
+	parallelDownloadsPerFile = 4
+	maxParallelDownloads = 2
+	downloadChunkSizeMB = 3
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = int64(maxParallelDownloads+1) * int64(downloadChunkSizeMB) * util.MiB

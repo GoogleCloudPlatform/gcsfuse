@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,14 +26,17 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
+/*
+parseJobLogsFromLogFile takes an io.Reader and returns structured map of Job ID
+and Job logs sorted by timestamp.
+*/
 func parseJobLogsFromLogFile(reader io.Reader) (map[string]*Job, error) {
 	// structuredLogs map stores is a mapping between job id and JobData.
 	structuredLogs := make(map[string]*Job)
 
 	lines, err := loadLogLines(reader)
 	if err != nil {
-		fmt.Println("Error reading log file:", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error reading log file: %v", err)
 	}
 
 	for _, line := range lines {
@@ -78,6 +81,12 @@ func GetJobLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Job {
 	if err != nil {
 		t.Errorf("Failed to open log file")
 	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			t.Logf("error closing log file: %s", logFilePath)
+		}
+	}(file)
 	logsMap, err := parseJobLogsFromLogFile(file)
 	if err != nil {
 		t.Errorf("Failed to parse logs %s correctly: %v", setup.LogFile(), err)
