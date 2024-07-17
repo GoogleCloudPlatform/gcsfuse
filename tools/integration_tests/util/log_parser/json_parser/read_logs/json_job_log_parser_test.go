@@ -24,10 +24,9 @@ import (
 )
 
 type testCase struct {
-	name        string // Name of the test case
-	reader      io.Reader
-	expected    map[string]*Job
-	errorString string
+	name     string // Name of the test case
+	reader   io.Reader
+	expected map[string]*Job
 }
 
 func TestParseJobLogsSuccessful(t *testing.T) {
