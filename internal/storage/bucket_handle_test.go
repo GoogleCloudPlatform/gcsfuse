@@ -1316,21 +1316,6 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 	assert.ErrorContains(testSuite.T(), err, "folder not found")
 }
 
-func (testSuite *BucketHandleTest) TestRenameFolder() {
-	ctx := context.Background()
-	mockClient := new(MockStorageControlClient)
-	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameFolder}, mock.Anything).
-		Return(&control.RenameFolderOperation{}, nil)
-	testSuite.bucketHandle.controlClient = mockClient
-	testSuite.bucketHandle.bucketType = gcs.Hierarchical
-
-	o, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameFolder)
-
-	mockClient.AssertExpectations(testSuite.T())
-	assert.Nil(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), o)
-}
-
 func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)

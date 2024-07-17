@@ -74,8 +74,8 @@ func (m *MockStorageControlClient) CreateFolder(ctx context.Context, req *contro
 func (m *MockStorageControlClient) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
 	args := m.Called(ctx, req, opts)
 
-	if folder, ok := args.Get(0).(*control.RenameFolderOperation); ok {
-		return folder, nil
+	if folderOp, ok := args.Get(0).(*control.RenameFolderOperation); ok {
+		return folderOp, nil
 	}
 
 	return nil, args.Error(1)

@@ -12,7 +12,6 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -403,7 +402,7 @@ func (m *mockBucket) CreateFolder(ctx context.Context, prefix string) (o0 *gcs.F
 	return
 }
 
-func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o0 *control.RenameFolderOperation, o1 error) {
+func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o0 *gcs.Folder, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -419,7 +418,7 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 	}
 	// o0 string
 	if retVals[0] != nil {
-		o0 = retVals[0].(*control.RenameFolderOperation)
+		o0 = retVals[0].(*gcs.Folder)
 	}
 
 	// o1 error
