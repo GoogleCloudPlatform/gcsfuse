@@ -110,7 +110,7 @@ func getCachedFilePath(fileName string) string {
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
-	maxRetries := 15
+	maxRetries := 10
 	retryDelay := 500 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
 	var err error
