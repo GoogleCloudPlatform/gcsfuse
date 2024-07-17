@@ -21,6 +21,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testCase struct {
@@ -66,7 +67,8 @@ func TestParseJobLogsSuccessful(t *testing.T) {
 {"timestamp": {"seconds": 1704458059, "nanos": 975956234}, "severity": "TRACE", "message": "fuse_debug: Op 0x00000182        connection.go:415] <- ReadFile (inode 6, PID 2382526, handle 29, offset 0, 4096 bytes)"}
 {"timestamp": {"seconds": 1704458060, "nanos": 976093794}, "severity": "TRACE", "message": "f41c82a2-c891 <- FileCache(redacted:/smallfile.txt, offset: 0, size: 4096 handle: 29)"}
 {"timestamp": {"seconds": 1704458061, "nanos": 269924363}, "severity": "TRACE", "message": "Job:0xc000aa65b0 (redacted:/smallfile.txt) downloaded till 6 offset."}
-{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}`),
+{"timestamp": {"seconds": 1704458061, "nanos": 270075223}, "severity": "TRACE", "message": "f41c82a2-c891 -> OK (isSeq: true, hit: false) (293.935998ms)"}
+{"timestamp":{"seconds":1721228431,"nanos":993427325},"severity":"TRACE","message":"Job:0xc000af6000 (redacted-a-b-c:/ReadCacheTest/foo4ckc) downloaded till 8388608 offset."}`),
 			),
 			expected: map[string]*Job{
 				"0xc000aa65b0": {
@@ -90,6 +92,17 @@ func TestParseJobLogsSuccessful(t *testing.T) {
 							Offset:           6,
 						}},
 				},
+				"0xc000af6000": {
+					BucketName: "redacted-a-b-c",
+					ObjectName: "ReadCacheTest/foo4ckc",
+					JobID:      "0xc000af6000",
+					JobEntries: []JobData{
+						{
+							StartTimeSeconds: 1721228431,
+							StartTimeNanos:   993427325,
+							Offset:           8388608,
+						}},
+				},
 			},
 		},
 	}
@@ -97,7 +110,7 @@ func TestParseJobLogsSuccessful(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, err := parseJobLogsFromLogFile(tc.reader)
-			assert.Nil(t, err)
+			require.Nil(t, err)
 			assert.Equal(t, actual, tc.expected)
 		})
 	}

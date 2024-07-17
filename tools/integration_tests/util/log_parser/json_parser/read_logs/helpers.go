@@ -177,7 +177,7 @@ func parseFileCacheResponseLog(logs []string,
 func parseJobFileLog(startTimeStampSec, startTimeStampNanos int64, logsMessage string, structuredLogs map[string]*Job) error {
 
 	// Fetch bucket name, object name and offset from the logs.
-	pattern := `Job:(\w+) \(([\w_]+):/([\w./_-]+)\) downloaded till (\d+) offset.`
+	pattern := `Job:(\w+) \(([\w./_-]+):/([\w./_-]+)\) downloaded till (\d+) offset.`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindStringSubmatch(logsMessage)
 

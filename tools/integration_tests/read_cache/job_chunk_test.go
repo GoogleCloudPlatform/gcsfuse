@@ -101,7 +101,7 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
 	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
 	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
-	assert.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
+	require.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
 	for i := 0; int64(i) < int64(chunkCount); i++ {
 		offset := min(s.chunkSize*int64(i+1), fileSize)
 		assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
@@ -143,13 +143,13 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 	assert.Equal(t, expectedOutcome[0].ObjectName, structuredJobLogs[0].ObjectName)
 	assert.Equal(t, expectedOutcome[1].ObjectName, structuredJobLogs[1].ObjectName)
 	if s.isLimitedByMaxParallelDownloads {
-		assert.LessOrEqual(t, chunkCount, int64(len(structuredJobLogs[0].JobEntries)))
+		require.LessOrEqual(t, chunkCount, int64(len(structuredJobLogs[0].JobEntries)))
 		for i := 0; int64(i) < int64(len(structuredJobLogs[0].JobEntries)); i++ {
 			offset := min(s.chunkSize*int64(i+1), fileSize)
 			assert.GreaterOrEqual(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
 		}
 	} else {
-		assert.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
+		require.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
 		for i := 0; int64(i) < chunkCount; i++ {
 			offset := min(s.chunkSize*int64(i+1), fileSize)
 			assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
