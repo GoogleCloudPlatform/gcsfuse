@@ -186,16 +186,16 @@ func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile() {
 	fileInfo := chrT.cache.LookUp(chrT.fileInfoKeyName)
 	fileInfoData := fileInfo.(data.FileInfo)
 	jobStatusBefore := fileDownloadJob.GetStatus()
-	require.Equal(chrT.T(), jobStatusBefore.Name, downloader.NotStarted)
+	require.Equal(chrT.T(), downloader.NotStarted, jobStatusBefore.Name)
 	jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), jobStatusBefore.Name, downloader.Downloading)
+	require.Equal(chrT.T(), downloader.Downloading, jobStatusBefore.Name)
 
 	err = chrT.cacheHandler.cleanUpEvictedFile(&fileInfoData)
 
 	assert.NoError(chrT.T(), err)
 	jobStatusAfter := fileDownloadJob.GetStatus()
-	assert.Equal(chrT.T(), jobStatusAfter.Name, downloader.Invalid)
+	assert.Equal(chrT.T(), downloader.Invalid, jobStatusAfter.Name)
 	assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 	// Job should be removed from job manager
 	assert.Nil(chrT.T(), chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name()))
@@ -206,10 +206,10 @@ func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile_WhenLocalFileNotExist() {
 	fileInfo := chrT.cache.LookUp(chrT.fileInfoKeyName)
 	fileInfoData := fileInfo.(data.FileInfo)
 	jobStatusBefore := fileDownloadJob.GetStatus()
-	require.Equal(chrT.T(), jobStatusBefore.Name, downloader.NotStarted)
+	require.Equal(chrT.T(), downloader.NotStarted, jobStatusBefore.Name)
 	jobStatusBefore, err := fileDownloadJob.Download(context.Background(), int64(util.MiB), false)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), jobStatusBefore.Name, downloader.Downloading)
+	require.Equal(chrT.T(), downloader.Downloading, jobStatusBefore.Name)
 	err = os.Remove(chrT.downloadPath)
 	require.NoError(chrT.T(), err)
 
@@ -217,7 +217,7 @@ func (chrT *cacheHandlerTest) Test_cleanUpEvictedFile_WhenLocalFileNotExist() {
 
 	assert.NoError(chrT.T(), err)
 	jobStatusAfter := fileDownloadJob.GetStatus()
-	assert.Equal(chrT.T(), jobStatusAfter.Name, downloader.Invalid)
+	assert.Equal(chrT.T(), downloader.Invalid, jobStatusAfter.Name)
 	assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 	// Job should be removed from job manager
 	assert.Nil(chrT.T(), chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name()))
@@ -265,7 +265,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_IfNotAlr
 	assert.True(chrT.T(), chrT.isEntryInFileInfoCache(minObject.Name, chrT.bucket.Name()))
 	jobStatus := oldJob.GetStatus()
 	assert.Equal(chrT.T(), downloader.Invalid, jobStatus.Name)
-	assert.Equal(chrT.T(), false, chrT.doesFileExist(chrT.downloadPath))
+	assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 	// Job should be added for minObject
 	minObjectJob := chrT.jobManager.GetJob(minObject.Name, chrT.bucket.Name())
 	assert.NotNil(chrT.T(), minObjectJob)
@@ -290,7 +290,7 @@ func (chrT *cacheHandlerTest) Test_addFileInfoEntryAndCreateDownloadJob_WhenJobH
 	// Make the job completed, so it's removed from job manager.
 	jobStatus, err := existingJob.Download(context.Background(), int64(chrT.object.Size), true)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), uint64(jobStatus.Offset), chrT.object.Size)
+	require.Equal(chrT.T(), int64(chrT.object.Size), jobStatus.Offset)
 	// Give time for execution of callback to remove from job manager
 	time.Sleep(time.Second)
 	actualJob := chrT.jobManager.GetJob(chrT.object.Name, chrT.bucket.Name())
@@ -357,9 +357,9 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenCacheHasDifferentGeneratio
 	assert.NoError(chrT.T(), err)
 	assert.Nil(chrT.T(), newCacheHandle.validateCacheHandle())
 	jobStatusOfOldJob := existingJob.GetStatus()
-	assert.Equal(chrT.T(), jobStatusOfOldJob.Name, downloader.Invalid)
+	assert.Equal(chrT.T(), downloader.Invalid, jobStatusOfOldJob.Name)
 	jobStatusOfNewHandle := newCacheHandle.fileDownloadJob.GetStatus()
-	assert.Equal(chrT.T(), jobStatusOfNewHandle.Name, downloader.NotStarted)
+	assert.Equal(chrT.T(), downloader.NotStarted, jobStatusOfNewHandle.Name)
 }
 
 func (chrT *cacheHandlerTest) Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed() {
@@ -525,7 +525,7 @@ func (chrT *cacheHandlerTest) Test_GetCacheHandle_ConcurrentDifferentFiles() {
 	// Existing job for default chrT object should be invalidated.
 	assert.NotNil(chrT.T(), existingJob)
 	assert.Equal(chrT.T(), downloader.Invalid, existingJob.GetStatus().Name)
-	assert.Equal(chrT.T(), false, chrT.doesFileExist(chrT.downloadPath))
+	assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 	// File info should also be removed.
 	assert.False(chrT.T(), chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
@@ -541,7 +541,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_WhenAlreadyInCache() {
 	// Existing job for default chrT object should be invalidated.
 	assert.NotNil(chrT.T(), existingJob)
 	assert.Equal(chrT.T(), downloader.Invalid, existingJob.GetStatus().Name)
-	assert.Equal(chrT.T(), false, chrT.doesFileExist(chrT.downloadPath))
+	assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 	// File info should also be removed.
 	assert.False(chrT.T(), chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 }
@@ -568,7 +568,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_Truncates() {
 	// Read to populate cache
 	_, cacheHit, err := cacheHandle.Read(ctx, chrT.bucket, minObject, 0, buf)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), false, cacheHit)
+	require.False(chrT.T(), cacheHit)
 	require.Equal(chrT.T(), string(objectContent[:3]), string(buf))
 	require.Nil(chrT.T(), cacheHandle.Close())
 	// Open cache file before invalidation
@@ -602,7 +602,7 @@ func (chrT *cacheHandlerTest) Test_InvalidateCache_ConcurrentSameFile() {
 		assert.NoError(chrT.T(), err)
 		assert.NotNil(chrT.T(), existingJob)
 		assert.Equal(chrT.T(), downloader.Invalid, existingJob.GetStatus().Name)
-		assert.Equal(chrT.T(), false, chrT.doesFileExist(chrT.downloadPath))
+		assert.False(chrT.T(), chrT.doesFileExist(chrT.downloadPath))
 		// File info should also be removed.
 		assert.False(chrT.T(), chrT.isEntryInFileInfoCache(chrT.object.Name, chrT.bucket.Name()))
 	}
@@ -687,10 +687,10 @@ func (chrT *cacheHandlerTest) Test_Destroy() {
 	buf := make([]byte, 3)
 	_, cacheHit, err := cacheHandle1.Read(ctx, chrT.bucket, minObject1, 4, buf)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), false, cacheHit)
+	require.False(chrT.T(), cacheHit)
 	_, cacheHit, err = cacheHandle2.Read(ctx, chrT.bucket, minObject2, 4, buf)
 	require.NoError(chrT.T(), err)
-	require.Equal(chrT.T(), false, cacheHit)
+	require.False(chrT.T(), cacheHit)
 	err = cacheHandle1.Close()
 	require.NoError(chrT.T(), err)
 	err = cacheHandle2.Close()
