@@ -479,11 +479,12 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 
 func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	var controlFolder *controlpb.Folder
+	var resp RenameFolderOperationInterface
 	req := &controlpb.RenameFolderRequest{
 		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
 		DestinationFolderId: destinationFolderId,
 	}
-	resp, err := b.controlClient.RenameFolder(ctx, req)
+	resp, err = b.controlClient.RenameFolder(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("longrunning operation: %w", err)
 	}

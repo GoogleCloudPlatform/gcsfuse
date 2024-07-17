@@ -1304,8 +1304,10 @@ func (testSuite *BucketHandleTest) TestRenameFolder() {
 	mockClient := new(MockStorageControlClient)
 	mockClientOnRenameOperation := new(MockRenameFolderOperation)
 	mockClientOnRenameOperation.On("Wait", context.Background()).Return(mockFolder)
+	var r RenameFolderOperationInterface
+	r = mockClientOnRenameOperation
 	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameFolder}, mock.Anything).
-		Return(mockClientOnRenameOperation, nil)
+		Return(r, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
