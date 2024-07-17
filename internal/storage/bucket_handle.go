@@ -471,7 +471,7 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	var callOptions []gax.CallOption
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", b.bucketName, folderName),
 	}, callOptions...)
 
 	return err
@@ -479,12 +479,11 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 
 func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	var controlFolder *controlpb.Folder
-	var resp RenameFolderOperationInterface
 	req := &controlpb.RenameFolderRequest{
-		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name:                fmt.Sprintf("projects/_/buckets/%s/folders/%s", b.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
 	}
-	resp, err = b.controlClient.RenameFolder(ctx, req)
+	resp, err := b.controlClient.RenameFolder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +501,7 @@ func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, dest
 func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name:      "projects/_/buckets/" + b.bucketName + "/storageLayout",
+		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", b.bucketName),
 		Prefix:    "",
 		RequestId: "",
 	}, callOptions...)

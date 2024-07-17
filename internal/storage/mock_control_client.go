@@ -29,11 +29,6 @@ type MockStorageControlClient struct {
 	mock.Mock
 }
 
-type MockRenameFolderOperation struct {
-	RenameFolderOperationInterface
-	mock.Mock
-}
-
 // Implement the GetStorageLayout method for the mock.
 func (m *MockStorageControlClient) GetStorageLayout(ctx context.Context,
 	req *controlpb.GetStorageLayoutRequest,
@@ -80,16 +75,6 @@ func (m *MockStorageControlClient) RenameFolder(ctx context.Context, req *contro
 	args := m.Called(ctx, req, opts)
 
 	if folderOp, ok := args.Get(0).(*control.RenameFolderOperation); ok {
-		return folderOp, nil
-	}
-
-	return nil, args.Error(1)
-}
-
-func (m *MockRenameFolderOperation) Wait(ctx context.Context, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	args := m.Called(ctx, opts)
-
-	if folderOp, ok := args.Get(0).(*controlpb.Folder); ok {
 		return folderOp, nil
 	}
 
