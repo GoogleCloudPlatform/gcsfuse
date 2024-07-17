@@ -26,7 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-func ParseJobLogsFromLogFile(reader io.Reader) (map[string]*Job, error) {
+func parseJobLogsFromLogFile(reader io.Reader) (map[string]*Job, error) {
 	// structuredLogs map stores is a mapping between job id and JobData.
 	structuredLogs := make(map[string]*Job)
 
@@ -45,8 +45,7 @@ func ParseJobLogsFromLogFile(reader io.Reader) (map[string]*Job, error) {
 	return structuredLogs, nil
 }
 
-func filterAndParseJobLogLine(logLine string,
-	structuredLogs map[string]*Job) error {
+func filterAndParseJobLogLine(logLine string, structuredLogs map[string]*Job) error {
 
 	jsonLog := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(logLine), &jsonLog); err != nil {
@@ -79,7 +78,7 @@ func GetJobLogsSortedByTimestamp(logFilePath string, t *testing.T) []*Job {
 	if err != nil {
 		t.Errorf("Failed to open log file")
 	}
-	logsMap, err := ParseJobLogsFromLogFile(file)
+	logsMap, err := parseJobLogsFromLogFile(file)
 	if err != nil {
 		t.Errorf("Failed to parse logs %s correctly: %v", setup.LogFile(), err)
 	}

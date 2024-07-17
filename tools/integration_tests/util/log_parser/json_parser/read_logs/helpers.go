@@ -171,11 +171,10 @@ func parseFileCacheResponseLog(logs []string,
 	return nil
 }
 
-// parseJobFileLog parses a tokenized job file log message and adds details
-// (bucket name, offset, timestamps) corresponding to the object name in the
+// parseJobFileLog parses a job file log message and adds details
+// (bucket name, offset, timestamps) corresponding to the job id to the
 // structuredLogs map.
-func parseJobFileLog(startTimeStampSec, startTimeStampNanos int64, logsMessage string,
-	structuredLogs map[string]*Job) error {
+func parseJobFileLog(startTimeStampSec, startTimeStampNanos int64, logsMessage string, structuredLogs map[string]*Job) error {
 
 	// Fetch bucket name, object name and offset from the logs.
 	pattern := `Job:(\w+) \(([\w_]+):/([\w./_-]+)\) downloaded till (\d+) offset.`

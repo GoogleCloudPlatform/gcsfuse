@@ -30,7 +30,7 @@ type testCase struct {
 	errorString string
 }
 
-func TestParseLogFileSuccessful(t *testing.T) {
+func TestParseJobLogsSuccessful(t *testing.T) {
 	setup.IgnoreTestIfIntegrationTestFlagIsSet(t)
 
 	tests := []testCase{
@@ -97,7 +97,7 @@ func TestParseLogFileSuccessful(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := ParseJobLogsFromLogFile(tc.reader)
+			actual, err := parseJobLogsFromLogFile(tc.reader)
 			assert.Nil(t, err)
 			assert.Equal(t, actual, tc.expected)
 		})
