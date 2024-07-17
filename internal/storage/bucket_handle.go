@@ -515,7 +515,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 	var callOptions []gax.CallOption
 
 	clientFolder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 	}, callOptions...)
 
 	if err != nil {
@@ -529,7 +529,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 
 func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	req := &controlpb.CreateFolderRequest{
-		Parent:   "projects/_/buckets/" + b.bucketName,
+		Parent:   fmt.Sprintf("projects/_/buckets/%s", b.bucketName),
 		FolderId: folderName,
 	}
 
