@@ -295,7 +295,10 @@ func (rr *randomReader) ReadAt(
 		// If we have an existing reader but it's positioned at the wrong place,
 		// clean it up and throw it away.
 		if rr.reader != nil && rr.start != offset {
-			rr.reader.Close()
+			err = rr.reader.Close()
+			if err != nil {
+				logger.Errorf("Error in closing the connection: %v", err)
+			}
 			rr.reader = nil
 			rr.cancel = nil
 			rr.seeks++
