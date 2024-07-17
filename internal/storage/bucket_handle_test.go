@@ -34,6 +34,7 @@ import (
 )
 
 const missingObjectName string = "test/foo"
+const missingFolderName string = "missing"
 const dstObjectName string = "gcsfuse/dst.txt"
 
 var ContentType string = "ContentType"
@@ -1256,12 +1257,12 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("DeleteFolder", ctx, &controlpb.DeleteFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName}, mock.Anything).
+	mockClient.On("DeleteFolder", ctx, &controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}, mock.Anything).
 		Return(nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	err := testSuite.bucketHandle.DeleteFolder(ctx, TestObjectName)
+	err := testSuite.bucketHandle.DeleteFolder(ctx, TestFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
@@ -1270,12 +1271,12 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchical
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("DeleteFolder", mock.Anything, &controlpb.DeleteFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName}, mock.Anything).
+	mockClient.On("DeleteFolder", mock.Anything, &controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}, mock.Anything).
 		Return(errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	err := testSuite.bucketHandle.DeleteFolder(ctx, missingObjectName)
+	err := testSuite.bucketHandle.DeleteFolder(ctx, missingFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
@@ -1284,7 +1285,7 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName
+	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
@@ -1293,24 +1294,24 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	result, err := testSuite.bucketHandle.GetFolder(ctx, TestObjectName)
+	result, err := testSuite.bucketHandle.GetFolder(ctx, TestFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), err)
-	assert.Equal(testSuite.T(), TestObjectName, result.Name)
+	assert.Equal(testSuite.T(), TestFolderName, result.Name)
 }
 
 func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	folderPath := "projects/_/buckets/" + TestBucketName + "/folders/" + missingObjectName
+	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)
 
 	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
 		Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	result, err := testSuite.bucketHandle.GetFolder(ctx, missingObjectName)
+	result, err := testSuite.bucketHandle.GetFolder(ctx, missingFolderName)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.Nil(testSuite.T(), result)
@@ -1320,12 +1321,12 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: "projects/_/buckets/" + TestBucketName + "/folders/" + TestObjectName, DestinationFolderId: TestRenameFolder}, mock.Anything).
+	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}, mock.Anything).
 		Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
-	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestObjectName, TestRenameFolder)
+	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestFolderName, TestRenameFolder)
 
 	mockClient.AssertExpectations(testSuite.T())
 	assert.NotNil(testSuite.T(), err)
@@ -1333,7 +1334,7 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/" + TestBucketName,
+	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf("projects/_/buckets/%s", TestBucketName),
 		FolderId: TestFolderName}, mock.Anything).
 		Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
