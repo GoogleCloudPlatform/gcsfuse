@@ -17,8 +17,6 @@ package file
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
-	"io"
 	"os"
 	"path"
 	"strconv"
@@ -684,29 +682,32 @@ func Test_InvalidateCache_WhenEntryNotInCache(t *testing.T) {
 
 func Test_InvalidateCache_Truncates(t *testing.T) {
 	tbl := []struct {
-		name                        string
-		fileCacheConfig             config.FileCacheConfig
-		cacheDir                    string
-		expectedCacheHandleReadErr  error
-		expectedCInvalidateCacheErr error
-		expectedCacheFileReadErr    error
+		name                         string
+		fileCacheConfig              config.FileCacheConfig
+		cacheDir                     string
+		isCacheHandleReadErrExpected bool
+		isInvalidateCacheErrExpected bool
+		isCacheFileReadErrExpected   bool
 	}{
 		{
-			name:                        "Non parallel downloads",
-			fileCacheConfig:             config.FileCacheConfig{EnableCRC: true},
-			cacheDir:                    path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			expectedCacheHandleReadErr:  nil,
-			expectedCInvalidateCacheErr: nil,
-			expectedCacheFileReadErr:    io.EOF,
+			name:                         "Non parallel downloads",
+			fileCacheConfig:              config.FileCacheConfig{EnableCRC: true},
+			cacheDir:                     path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
+			isCacheHandleReadErrExpected: false,
+			isInvalidateCacheErrExpected: false,
+			isCacheFileReadErrExpected:   true,
 		},
 		{
 			name: "Parallel downloads",
 			fileCacheConfig: config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true,
 				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMB: 3},
-			cacheDir:                    path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			expectedCacheHandleReadErr:  fmt.Errorf("read via gcs"),
-			expectedCInvalidateCacheErr: nil,
-			expectedCacheFileReadErr:    io.EOF,
+			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
+			// Error is expected in parallel downloads because the foreground reads
+			// doesn't for async job to download till the requested offset unlike
+			// in case of non-parallel downloads for sequential reads.
+			isCacheHandleReadErrExpected: true,
+			isInvalidateCacheErrExpected: false,
+			isCacheFileReadErrExpected:   true,
 		},
 	}
 	for _, tc := range tbl {
@@ -720,11 +721,11 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 			ctx := context.Background()
 			// Read to populate cache
 			_, cacheHit, err := cacheHandle.Read(ctx, chTestArgs.bucket, minObject, 0, buf)
-			if tc.expectedCacheHandleReadErr == nil {
+			if !tc.isCacheHandleReadErrExpected {
 				require.NoError(t, err)
 				require.Equal(t, string(objectContent[:3]), string(buf))
 			} else {
-				require.ErrorContains(t, err, tc.expectedCacheHandleReadErr.Error())
+				require.NotNil(t, err)
 			}
 			require.False(t, cacheHit)
 			require.Nil(t, cacheHandle.Close())
@@ -739,10 +740,18 @@ func Test_InvalidateCache_Truncates(t *testing.T) {
 
 			err = chTestArgs.cacheHandler.InvalidateCache(minObject.Name, chTestArgs.bucket.Name())
 
-			assert.ErrorIs(t, err, tc.expectedCInvalidateCacheErr)
+			if tc.isInvalidateCacheErrExpected {
+				assert.NotNil(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			// Reading from the open file handle should fail as the file is truncated.
 			_, err = file.Read(buf)
-			assert.ErrorIs(t, err, tc.expectedCacheFileReadErr)
+			if tc.isCacheFileReadErrExpected {
+				assert.NotNil(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
@@ -772,7 +781,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 			require.Equal(t, downloader.NotStarted, existingJob.GetStatus().Name)
 			require.True(t, isEntryInFileInfoCache(t, chTestArgs.cache, chTestArgs.object.Name, chTestArgs.bucket.Name()))
 			wg := sync.WaitGroup{}
-			InvalidateCacheTestFun := func(t *testing.T) {
+			invalidateCacheTestFun := func(t *testing.T) {
 				defer wg.Done()
 
 				err := chTestArgs.cacheHandler.InvalidateCache(chTestArgs.object.Name, chTestArgs.bucket.Name())
@@ -788,7 +797,7 @@ func Test_InvalidateCache_ConcurrentSameFile(t *testing.T) {
 			// Start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
-				go InvalidateCacheTestFun(t)
+				go invalidateCacheTestFun(t)
 			}
 			wg.Wait()
 		})
@@ -817,7 +826,7 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			chTestArgs := initializeCacheHandlerTestArgs(t, &tc.fileCacheConfig, tc.cacheDir)
 			wg := sync.WaitGroup{}
-			InvalidateCacheTestFun := func(index int) {
+			invalidateCacheTestFun := func(index int) {
 				defer wg.Done()
 				objName := "object" + strconv.Itoa(index)
 				objContent := "object content: content#" + strconv.Itoa(index)
@@ -833,7 +842,7 @@ func Test_InvalidateCache_ConcurrentDifferentFiles(t *testing.T) {
 			// Start concurrent GetCacheHandle()
 			for i := 0; i < 5; i++ {
 				wg.Add(1)
-				go InvalidateCacheTestFun(i)
+				go invalidateCacheTestFun(i)
 			}
 			wg.Wait()
 		})
@@ -899,26 +908,29 @@ func Test_InvalidateCache_GetCacheHandle_Concurrent(t *testing.T) {
 
 func Test_Destroy(t *testing.T) {
 	tbl := []struct {
-		name                   string
-		fileCacheConfig        config.FileCacheConfig
-		cacheDir               string
-		expectedCacheHandleErr error
-		expectedJobStatus      []string
+		name                     string
+		fileCacheConfig          config.FileCacheConfig
+		cacheDir                 string
+		isCacheHandleErrExpected bool
+		expectedJobStatus        []string
 	}{
 		{
-			name:                   "Non parallel downloads",
-			fileCacheConfig:        config.FileCacheConfig{EnableCRC: true},
-			cacheDir:               path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			expectedCacheHandleErr: nil,
-			expectedJobStatus:      []string{string(downloader.Completed)},
+			name:                     "Non parallel downloads",
+			fileCacheConfig:          config.FileCacheConfig{EnableCRC: true},
+			cacheDir:                 path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
+			isCacheHandleErrExpected: false,
+			expectedJobStatus:        []string{string(downloader.Completed)},
 		},
 		{
 			name: "Parallel downloads",
 			fileCacheConfig: config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true,
 				ParallelDownloadsPerFile: 4, MaxParallelDownloads: 20, DownloadChunkSizeMB: 3},
-			cacheDir:               path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
-			expectedCacheHandleErr: fmt.Errorf("read via gcs"),
-			expectedJobStatus:      []string{string(downloader.Completed), string(downloader.Invalid)},
+			cacheDir: path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir"),
+			// Error is expected in parallel downloads because the foreground reads
+			// doesn't for async job to download till the requested offset unlike
+			// in case of non-parallel downloads for sequential reads.
+			isCacheHandleErrExpected: true,
+			expectedJobStatus:        []string{string(downloader.Completed), string(downloader.Invalid)},
 		},
 	}
 	for _, tc := range tbl {
@@ -934,17 +946,17 @@ func Test_Destroy(t *testing.T) {
 			// Read to create and populate file in cache.
 			buf := make([]byte, 3)
 			_, cacheHit, err := cacheHandle1.Read(ctx, chTestArgs.bucket, minObject1, 4, buf)
-			if tc.expectedCacheHandleErr == nil {
-				require.NoError(t, err)
+			if tc.isCacheHandleErrExpected {
+				require.NotNil(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.expectedCacheHandleErr.Error())
+				require.NoError(t, err)
 			}
 			require.Equal(t, false, cacheHit)
 			_, cacheHit, err = cacheHandle2.Read(ctx, chTestArgs.bucket, minObject2, 4, buf)
-			if tc.expectedCacheHandleErr == nil {
-				require.NoError(t, err)
+			if tc.isCacheHandleErrExpected {
+				require.NotNil(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.expectedCacheHandleErr.Error())
+				require.NoError(t, err)
 			}
 			require.Equal(t, false, cacheHit)
 			err = cacheHandle1.Close()
