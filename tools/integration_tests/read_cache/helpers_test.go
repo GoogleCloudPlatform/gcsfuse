@@ -110,7 +110,7 @@ func getCachedFilePath(fileName string) string {
 }
 
 func validateFileSizeInCacheDirectory(fileName string, filesize int64, t *testing.T) {
-	maxRetries := 15
+	maxRetries := 20
 	retryDelay := 500 * time.Millisecond
 	expectedPathOfCachedFile := getCachedFilePath(fileName)
 	var err error
@@ -138,7 +138,7 @@ func validateFileInCacheDirectory(fileName string, filesize int64, ctx context.C
 
 	gcsCRC, err := client.GetCRCFromGCS(path.Join(testDirName, fileName), ctx, storageClient)
 	require.NoError(t, err)
-	maxRetries := 15
+	maxRetries := 20
 	retryDelay := 500 * time.Millisecond
 	cachedFilePath := getCachedFilePath(fileName)
 

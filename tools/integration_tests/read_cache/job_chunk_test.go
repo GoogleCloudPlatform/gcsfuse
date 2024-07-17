@@ -17,6 +17,7 @@ package read_cache
 import (
 	"context"
 	"log"
+	"math"
 	"path"
 	"sync"
 	"testing"
@@ -89,23 +90,23 @@ func createConfigFileForJobChunkTest(cacheSize int64, cacheFileForRangeRead bool
 // Test scenarios
 ////////////////////////////////////////////////////////////////////////
 
-//func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
-//	var fileSize int64 = 24 * util.MiB
-//	chunkCount := math.Ceil(float64(fileSize) / float64(s.chunkSize))
-//	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
-//
-//	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
-//
-//	// Parse the log file and validate cache hit or miss from the structured logs.
-//	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
-//	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
-//	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
-//	assert.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
-//	for i := 0; int64(i) < int64(chunkCount); i++ {
-//		offset := min(s.chunkSize*int64(i+1), fileSize)
-//		assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
-//	}
-//}
+func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
+	var fileSize int64 = 24 * util.MiB
+	chunkCount := math.Ceil(float64(fileSize) / float64(s.chunkSize))
+	testFileName := setupFileInTestDir(s.ctx, s.storageClient, testDirName, fileSize, t)
+
+	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, t)
+
+	// Parse the log file and validate cache hit or miss from the structured logs.
+	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), t)
+	assert.Equal(t, expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
+	assert.Equal(t, expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
+	assert.EqualValues(t, chunkCount, len(structuredJobLogs[0].JobEntries))
+	for i := 0; int64(i) < int64(chunkCount); i++ {
+		offset := min(s.chunkSize*int64(i+1), fileSize)
+		assert.Equal(t, offset, structuredJobLogs[0].JobEntries[i].Offset)
+	}
+}
 
 func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads(t *testing.T) {
 	var fileSize int64 = 24 * util.MiB
