@@ -783,3 +783,25 @@ func (t *StatObjectTest) TestRenameFolder() {
 	AssertEq(nil, err)
 	ExpectEq(result, folder)
 }
+
+func (t *StatObjectTest) TestShouldDeleteFolder() {
+	const name = "some-name"
+	ExpectCall(t.cache, "Erase")(name).
+		WillOnce(Return())
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(nil))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+}
+
+func (t *StatObjectTest) TestShouldCallDeleteFolderWithError() {
+	const name = "some-name"
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(fmt.Errorf("mock error")))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertNe(nil, err)
+}

@@ -165,7 +165,7 @@ func (m *mockBucket) DeleteFolder(ctx context.Context, folderName string) (o0 er
 		"DeleteFolder",
 		file,
 		line,
-		[]interface{}{})
+		[]interface{}{ctx, folderName})
 	if len(retVals) != 1 {
 		panic(fmt.Sprintf("mockBucket.DeleteFolder: invalid return values: %v", retVals))
 	}
