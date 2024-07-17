@@ -126,8 +126,9 @@ func TestJobChunkTest(t *testing.T) {
 	}
 
 	var cacheSizeMB int64 = 24
+	var chunkSizeForReadCache int64 = 8
 	ts.flags = []string{"--config-file=" + createConfigFile(cacheSizeMB, true, configFileName, false)}
-	ts.chunkSize = 8 * util.MiB
+	ts.chunkSize = chunkSizeForReadCache * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
@@ -142,7 +143,7 @@ func TestJobChunkTest(t *testing.T) {
 	downloadChunkSizeMB := 3
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
-	ts.chunkSize = int64(maxParallelDownloads+1) * 3 * util.MiB
+	ts.chunkSize = int64(maxParallelDownloads+1) * int64(downloadChunkSizeMB) * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
