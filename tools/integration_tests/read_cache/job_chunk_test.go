@@ -131,13 +131,8 @@ func TestJobChunkTest(t *testing.T) {
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
 
-	ts.flags = []string{"--config-file=" + createConfigFileForJobChunkTest(
-		cacheSizeMB,
-		false,
-		"unlimitedMaxParallelDownloads",
-		parallelDownloadsPerFile,
-		maxParallelDownloads,
-		downloadChunkSizeMB)}
+	ts.flags = []string{"--config-file=" +
+		createConfigFileForJobChunkTest(cacheSizeMB, false, "unlimitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = parallelDownloadsPerFile * downloadChunkSizeMB * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
@@ -146,13 +141,7 @@ func TestJobChunkTest(t *testing.T) {
 	maxParallelDownloads := 1
 	downloadChunkSizeMB := 3
 	ts.flags = []string{"--config-file=" +
-		createConfigFileForJobChunkTest(
-			cacheSizeMB,
-			false,
-			"limitedMaxParallelDownloads",
-			parallelDownloadsPerFile,
-			maxParallelDownloads,
-			downloadChunkSizeMB)}
+		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloads", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
 	ts.chunkSize = int64(maxParallelDownloads+1) * 3 * util.MiB
 	log.Printf("Running tests with flags: %s", ts.flags)
 	test_setup.RunTests(t, ts)
