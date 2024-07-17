@@ -812,3 +812,36 @@ func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
 
 	AssertNe(nil, err)
 }
+
+func (t *StatObjectTest) TestShouldCallCreateFolder() {
+	const name = "some-name"
+	folder := &gcs.Folder{
+		Name: name,
+	}
+
+	ExpectCall(t.cache, "Erase")(name).
+		WillOnce(Return())
+	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
+		WillOnce(Return())
+	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
+		WillOnce(Return(folder, nil))
+
+	result, err := t.bucket.CreateFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+	ExpectThat(result, Pointee(DeepEquals(*folder)))
+}
+
+func (t *StatObjectTest) TestCallCreateFolderWithError() {
+	const name = "some-name"
+
+	ExpectCall(t.cache, "Erase")(name).
+		WillOnce(Return())
+	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
+		WillOnce(Return(nil, fmt.Errorf("mock error")))
+
+	result, err := t.bucket.CreateFolder(context.TODO(), name)
+
+	AssertNe(nil, err)
+	AssertEq(nil, result)
+}
