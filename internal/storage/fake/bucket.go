@@ -946,17 +946,17 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername, Metageneration: b.objects[index].metadata.MetaGeneration}, nil
+	return &gcs.Folder{Name: foldername, Metageneration: b.folders[index].Metageneration}, nil
 }
 
-func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Check that the name is legal.
-	err = checkName(folderName)
+	err := checkName(folderName)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Find any existing record for this name.
@@ -973,7 +973,7 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Fo
 		sort.Sort(b.folders)
 	}
 
-	return
+	return &fo, nil
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {

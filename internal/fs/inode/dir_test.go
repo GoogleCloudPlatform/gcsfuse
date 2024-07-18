@@ -1527,23 +1527,22 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 }
 
 func (t *DirTest) TestShouldFindExplicitFolder() {
-	const dirName = "qux"
-	dirObjName := path.Join(dirInodeName, dirName) + "/"
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
 
 	var err error
 
-	//TODO: once createFolder is done, this needs to be replaced with create folder
-	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	dirObj, err := t.bucket.CreateFolder(t.ctx, dirName)
 	AssertEq(nil, err)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName))
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
-	ExpectEq(dirObjName, result.FullName.GcsObjectName())
-	ExpectEq(dirObjName, result.MinObject.Name)
-	ExpectEq(dirObj.MetaGeneration, result.MinObject.MetaGeneration)
+	ExpectEq(dirName, result.FullName.GcsObjectName())
+	ExpectEq(dirName, result.MinObject.Name)
+	ExpectEq(dirObj.Metageneration, result.MinObject.MetaGeneration)
 	ExpectEq(0, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
@@ -1557,8 +1556,7 @@ func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
 	const dirName = "qux"
 	dirObjName := path.Join(dirInodeName, dirName) + "/"
 
-	//TODO: once createFolder is done, this needs to be replaced with create folder
-	_, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	_, err := t.bucket.CreateFolder(t.ctx, dirObjName)
 	AssertEq(nil, err)
 
 	// Look up with the name.
