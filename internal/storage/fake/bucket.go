@@ -962,10 +962,10 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Fo
 	// Find any existing record for this name.
 	existingIndex := b.folders.find(folderName)
 
-	// Create an object record from the given attributes.
+	// Create a folder record from the given attributes.
 	fo := b.mintFolder(folderName)
 
-	// Replace an entry in or add an entry to our list of objects.
+	// Replace an entry in or add an entry to our list of folders.
 	if existingIndex < len(b.folders) {
 		b.folders[existingIndex] = fo
 	} else {
@@ -992,8 +992,6 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 		return
 	}
 
-	// Copy it and assign a new generation number, to ensure that the generation
-	// number for the destination name is strictly increasing.
 	dst := b.folders[srcIndex]
 	dst.Name = destinationFolderId
 
