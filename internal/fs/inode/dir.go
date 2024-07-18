@@ -348,63 +348,26 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitInodeForHNS(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	m, err := findBackingGCSResource(ctx, bucket, name)
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 
-	if m == nil {
+	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(folderErr, &gcsErr) {
 		return nil, nil
 	}
+
 	// Annotate others.
-	if err != nil {
-		return nil, fmt.Errorf("find Explicit Inode For HNS: %w", err)
+	if folderErr != nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
-		MinObject: m,
+		MinObject: folderResult.ConvertFolderToMinObject(),
 	}, nil
-}
-
-func findBackingGCSResource(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*gcs.MinObject, error) {
-	var objectResult *gcs.MinObject
-	var objectErr error
-
-	lookUpObjectCall := func(ctx context.Context) error {
-		req := &gcs.StatObjectRequest{
-			Name: name.GcsObjectName(),
-		}
-		objectResult, _, objectErr = bucket.StatObject(ctx, req)
-		return objectErr
-	}
-
-	bundle := syncutil.NewBundle(ctx)
-
-	var folderResult *gcs.Folder
-	var folderErr error
-
-	lookUpFolderCall := func(ctx context.Context) error {
-		folderResult, folderErr = bucket.GetFolder(ctx, name.GcsObjectName())
-		return folderErr
-	}
-
-	bundle.Add(lookUpObjectCall)
-	bundle.Add(lookUpFolderCall)
-
-	// Execute bundled operations
-	if err := bundle.Join(); err != nil {
-		var gcsErr *gcs.NotFoundError
-		if !errors.As(err, &gcsErr) {
-			return nil, err
-		}
-	}
-
-	if folderResult != nil {
-		folderObject := folderResult.ConvertFolderToMinObject()
-		return folderObject, nil
-	}
-
-	return objectResult, nil
 }
 
 // findDirInode finds the dir inode core where the directory is either explicit

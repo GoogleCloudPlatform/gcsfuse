@@ -1526,7 +1526,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 	AssertEq(true, shouldInvalidate)
 }
 
-func (t *DirTest) TestShouldFindExplicitInodeForHNSForDirOnly() {
+func (t *DirTest) TestShouldFindExplicitFolder() {
 	const dirName = "qux"
 	dirObjName := path.Join(dirInodeName, dirName) + "/"
 
@@ -1537,7 +1537,7 @@ func (t *DirTest) TestShouldFindExplicitInodeForHNSForDirOnly() {
 	AssertEq(nil, err)
 
 	// Look up with the name.
-	result, err := findExplicitInodeForHNS(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName))
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName))
 
 	AssertEq(nil, err)
 	AssertNe(nil, result.MinObject)
@@ -1547,39 +1547,23 @@ func (t *DirTest) TestShouldFindExplicitInodeForHNSForDirOnly() {
 	ExpectEq(0, result.MinObject.Size)
 
 	// Look up with the conflict marker name.
-	result, err = findExplicitInodeForHNS(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
+	result, err = findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
 
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }
 
-func (t *DirTest) TestShouldFindExplicitInodeForHNSForFileOnly() {
-	const name = "qux"
-	const fullName = dirInodeName + name
-	var err error
+func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
+	const dirName = "qux"
+	dirObjName := path.Join(dirInodeName, dirName) + "/"
 
-	// Create a backing object.
-	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, fullName, []byte("taco"))
+	//TODO: once createFolder is done, this needs to be replaced with create folder
+	_, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
 	AssertEq(nil, err)
 
-	// Look up with the proper name.
-	result, err := findExplicitInodeForHNS(t.ctx, &t.bucket, NewFileName(t.in.Name(), name))
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
 
 	AssertEq(nil, err)
-	AssertNe(nil, result.MinObject)
-	ExpectEq(fullName, result.FullName.GcsObjectName())
-	ExpectEq(fullName, result.MinObject.Name)
-	ExpectEq(createObj.MetaGeneration, result.MinObject.MetaGeneration)
-
-	// TODO: Uncomment once create object is done for fake bucket, currently this will fail as both getFolder and statObject return based on objects in fake bucket implementation,
-	//once new resource folders is added in fake bucket are added asp art of create object, this test can be uncommented.
-	//Added it now only, so it is not missed
-
-	//ExpectEq(createObj.Generation, result.MinObject.Generation)
-	//ExpectEq(createObj.Size, result.MinObject.Size)
-	//
-	//A conflict marker name shouldn't work.
-	result, err = findExplicitInodeForHNS(t.ctx, &t.bucket, NewFileName(t.in.Name(), name+ConflictingFileNameSuffix))
-	AssertEq(nil, err)
-	ExpectEq(nil, result)
+	AssertEq(nil, result)
 }
