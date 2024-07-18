@@ -1525,3 +1525,30 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 
 	AssertEq(true, shouldInvalidate)
 }
+
+func (t *DirTest) TestShouldFindExplicitInodeForHNS() {
+	const dirName = "qux"
+	dirObjName := path.Join(dirInodeName, dirName) + "/"
+
+	var err error
+
+	//TODO: once createFolder is done, this needs to be replaced with create folder
+	dirObj, err := storageutil.CreateObject(t.ctx, t.bucket, dirObjName, []byte(""))
+	AssertEq(nil, err)
+
+	// Look up with the name.
+	result, err := findExplicitInodeForHNS(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName))
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.MinObject)
+	ExpectEq(dirObjName, result.FullName.GcsObjectName())
+	ExpectEq(dirObjName, result.MinObject.Name)
+	ExpectEq(dirObj.MetaGeneration, result.MinObject.MetaGeneration)
+	ExpectEq(0, result.MinObject.Size)
+
+	// Look up with the conflict marker name.
+	result, err = findExplicitInodeForHNS(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
+}

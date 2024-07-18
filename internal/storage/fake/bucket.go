@@ -888,6 +888,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	//TODO: once create folder is done, this code should be updated to find from new folder resources
 	// Does the object exist?
 	index := b.objects.find(foldername)
 	if index == len(b.objects) {
@@ -897,7 +898,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername}, nil
+	return &gcs.Folder{Name: foldername, Metageneration: b.objects[index].metadata.MetaGeneration}, nil
 }
 
 func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
