@@ -925,13 +925,13 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// Do we possess the object with the given name?
+	// Do we possess the folder with the given name?
 	index := b.folders.find(folderName)
 	if index == len(b.objects) {
 		return
 	}
 
-	// Remove the object.
+	// Remove the folder.
 	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return
@@ -941,7 +941,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// Does the object exist?
+	// Does the folder exist?
 	index := b.folders.find(foldername)
 	if index == len(b.folders) {
 		err := &gcs.NotFoundError{

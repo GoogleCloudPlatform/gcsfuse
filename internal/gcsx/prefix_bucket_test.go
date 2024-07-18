@@ -407,7 +407,7 @@ func TestGetFolder_Prefix(t *testing.T) {
 	folderName := "taco"
 	name := "foo_" + folderName
 	ctx := context.Background()
-	_, err = storageutil.CreateFolder(ctx, wrapped, name)
+	_, err = wrapped.CreateFolder(ctx, name)
 	require.Nil(t, err)
 
 	result, err := bucket.GetFolder(
@@ -427,7 +427,7 @@ func TestDeleteFolder(t *testing.T) {
 	name := "foo_" + folderName
 
 	ctx := context.Background()
-	_, err = storageutil.CreateFolder(ctx, wrapped, name)
+	_, err = wrapped.CreateFolder(ctx, name)
 	require.Nil(t, err)
 
 	err = bucket.DeleteFolder(
@@ -453,7 +453,7 @@ func TestRenameFolder(t *testing.T) {
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	ctx := context.Background()
-	_, err = storageutil.CreateFolder(ctx, wrapped, name)
+	_, err = wrapped.CreateFolder(ctx, name)
 	assert.Nil(t, err)
 
 	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)
@@ -472,13 +472,12 @@ func TestCreateFolder(t *testing.T) {
 	prefix := "foo_"
 	var err error
 	suffix := "test"
-	name := prefix + suffix
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.NoError(t, err)
 	ctx := context.Background()
 
-	_, err = storageutil.CreateFolder(ctx, wrapped, name)
+	_, err = bucket.CreateFolder(ctx, suffix)
 
 	assert.NoError(t, err)
 	// Folder should get created
