@@ -65,24 +65,24 @@ func (s fakeObjectSlice) Len() int {
 	return len(s)
 }
 
-func (s fakeFolderSlice) Len() int {
-	return len(s)
+func (f fakeFolderSlice) Len() int {
+	return len(f)
 }
 
 func (s fakeObjectSlice) Less(i, j int) bool {
 	return s[i].metadata.Name < s[j].metadata.Name
 }
 
-func (s fakeFolderSlice) Less(i, j int) bool {
-	return s[i].Name < s[j].Name
+func (f fakeFolderSlice) Less(i, j int) bool {
+	return f[i].Name < f[j].Name
 }
 
 func (s fakeObjectSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s fakeFolderSlice) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+func (f fakeFolderSlice) Swap(i, j int) {
+	f[i], f[j] = f[j], f[i]
 }
 
 // Return the smallest i such that s[i].metadata.Name >= name, or len(s) if
@@ -95,14 +95,14 @@ func (s fakeObjectSlice) lowerBound(name string) int {
 	return sort.Search(len(s), pred)
 }
 
-// Return the smallest i such that s[i].folder.Name >= name, or len(s) if
+// Return the smallest i such that s[i].Name >= name, or len(s) if
 // there is no such i.
-func (s fakeFolderSlice) lowerBound(name string) int {
+func (f fakeFolderSlice) lowerBound(name string) int {
 	pred := func(i int) bool {
-		return s[i].Name >= name
+		return f[i].Name >= name
 	}
 
-	return sort.Search(len(s), pred)
+	return sort.Search(len(f), pred)
 }
 
 // Return the smallest i such that s[i].metadata.Name == name, or len(s) if
@@ -116,15 +116,15 @@ func (s fakeObjectSlice) find(name string) int {
 	return len(s)
 }
 
-// Return the smallest i such that s[i].folder.Name == name, or len(s) if
+// Return the smallest i such that f[i].Name == name, or len(s) if
 // there is no such i.
-func (s fakeFolderSlice) find(name string) int {
-	lb := s.lowerBound(name)
-	if lb < len(s) && s[lb].Name == name {
+func (f fakeFolderSlice) find(name string) int {
+	lb := f.lowerBound(name)
+	if lb < len(f) && f[lb].Name == name {
 		return lb
 	}
 
-	return len(s)
+	return len(f)
 }
 
 // Return the smallest string that is lexicographically larger than prefix and
