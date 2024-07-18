@@ -277,12 +277,10 @@ func (b *bucket) mintObject(
 	return
 }
 
-// Create a folder struct for the given attributes and contents.
+// Create a folder struct for the given name.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) mintFolder(
-	folderName string) (f fakeFolder) {
-
+func (b *bucket) mintFolder(folderName string) (f fakeFolder) {
 	f.folder = gcs.Folder{
 		Name:           folderName,
 		Metageneration: 1,
@@ -967,6 +965,9 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 }
 
 func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	// Check that the name is legal.
 	err = checkName(folderName)
 	if err != nil {
