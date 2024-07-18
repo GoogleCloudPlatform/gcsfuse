@@ -45,10 +45,10 @@ class GetLogs:
             elif file.endswith(".gz"):
                 destination_dir = file[:file.rfind("/") + 1]
                 with gzip.open(file, 'rb') as f_in:
-                    uncompressed_name = os.path.join(destination_dir, os.path.basename(file)[:-3])  # Remove .gz extension
+                    uncompressed_name = os.path.join(destination_dir, os.path.basename(file)[:-3])
                     with open(uncompressed_name, 'wb') as f_out:
                         f_out.write(f_in.read())
-                os.remove(file)  # Delete the original .gz file after extraction
+                os.remove(file)
                 files.append(uncompressed_name)
             else:
                 unordered_list.append(file)
