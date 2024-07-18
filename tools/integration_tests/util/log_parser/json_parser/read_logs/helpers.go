@@ -17,6 +17,7 @@ package read_logs
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -167,5 +168,57 @@ func parseFileCacheResponseLog(logs []string,
 	chunk.IsSequential, _ = strconv.ParseBool(logs[4][:len(logs[4])-1]) //Remove trailing ","
 	chunk.CacheHit, _ = strconv.ParseBool(logs[6][:len(logs[6])-1])     //Remove trailing ","
 	chunk.ExecutionTime = logs[7][1 : len(logs[7])-1]                   //Remove prefix "(" and suffix ")"
+	return nil
+}
+
+// parseJobFileLog parses a job file log message and adds details
+// (bucket name, offset, timestamps) corresponding to the job id to the
+// structuredLogs map.
+func parseJobFileLog(startTimeStampSec, startTimeStampNanos int64, logsMessage string, structuredLogs map[string]*Job) error {
+
+	// Fetch bucket name, object name and offset from the logs.
+	pattern := `Job:(\w+) \(([\w./_-]+):/([\w./_-]+)\) downloaded till (\d+) offset.`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(logsMessage)
+
+	var jobID, bucketName, objectName string
+	var offset int64
+	var err error
+	if len(matches) == 5 { // 0th element is the full match, we want 4 captures
+		jobID = matches[1]
+		bucketName = matches[2]
+		objectName = matches[3]
+		offset, err = strconv.ParseInt(matches[4], 10, 64)
+		if err != nil {
+			return fmt.Errorf("error while parsing offset: %v", err)
+		}
+	} else {
+		return fmt.Errorf("string did not match the expected pattern")
+	}
+
+	// Job log entries can come multiple times.
+	// Check if log entry exists in the map for job id.
+	// If job entry doesn't exist, add it to the map, else append an entry.
+	jobEntry, ok := structuredLogs[jobID]
+	if !ok {
+		structuredLogs[jobID] = &Job{
+			JobID:      jobID,
+			ObjectName: objectName,
+			BucketName: bucketName,
+			JobEntries: []JobData{
+				{
+					StartTimeSeconds: startTimeStampSec,
+					StartTimeNanos:   startTimeStampNanos,
+					Offset:           offset,
+				},
+			},
+		}
+	} else {
+		jobEntry.JobEntries = append(jobEntry.JobEntries, JobData{
+			StartTimeSeconds: startTimeStampSec,
+			StartTimeNanos:   startTimeStampNanos,
+			Offset:           offset,
+		})
+	}
 	return nil
 }
