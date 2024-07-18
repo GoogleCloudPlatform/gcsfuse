@@ -27,7 +27,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -55,16 +54,31 @@ type fakeObject struct {
 // A slice of objects compared by name.
 type fakeObjectSlice []fakeObject
 
+// A slice of folders compared by name.
+type fakeFolderSlice []gcs.Folder
+
 func (s fakeObjectSlice) Len() int {
 	return len(s)
+}
+
+func (f fakeFolderSlice) Len() int {
+	return len(f)
 }
 
 func (s fakeObjectSlice) Less(i, j int) bool {
 	return s[i].metadata.Name < s[j].metadata.Name
 }
 
+func (f fakeFolderSlice) Less(i, j int) bool {
+	return f[i].Name < f[j].Name
+}
+
 func (s fakeObjectSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+func (f fakeFolderSlice) Swap(i, j int) {
+	f[i], f[j] = f[j], f[i]
 }
 
 // Return the smallest i such that s[i].metadata.Name >= name, or len(s) if
@@ -77,6 +91,16 @@ func (s fakeObjectSlice) lowerBound(name string) int {
 	return sort.Search(len(s), pred)
 }
 
+// Return the smallest i such that s[i].Name >= name, or len(s) if
+// there is no such i.
+func (f fakeFolderSlice) lowerBound(name string) int {
+	pred := func(i int) bool {
+		return f[i].Name >= name
+	}
+
+	return sort.Search(len(f), pred)
+}
+
 // Return the smallest i such that s[i].metadata.Name == name, or len(s) if
 // there is no such i.
 func (s fakeObjectSlice) find(name string) int {
@@ -86,6 +110,17 @@ func (s fakeObjectSlice) find(name string) int {
 	}
 
 	return len(s)
+}
+
+// Return the smallest i such that f[i].Name == name, or len(s) if
+// there is no such i.
+func (f fakeFolderSlice) find(name string) int {
+	lb := f.lowerBound(name)
+	if lb < len(f) && f[lb].Name == name {
+		return lb
+	}
+
+	return len(f)
 }
 
 // Return the smallest string that is lexicographically larger than prefix and
@@ -134,6 +169,7 @@ type bucket struct {
 	//
 	// INVARIANT: Strictly increasing.
 	objects fakeObjectSlice // GUARDED_BY(mu)
+	folders fakeFolderSlice
 
 	// The most recent generation number that was minted. The next object will
 	// receive generation prevGeneration + 1.
@@ -222,6 +258,19 @@ func (b *bucket) mintObject(
 
 	// Set up data.
 	o.data = contents
+
+	return
+}
+
+// Create a folder struct for the given name.
+//
+// LOCKS_REQUIRED(b.mu)
+func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
+	f = gcs.Folder{
+		Name:           folderName,
+		Metageneration: 1,
+		UpdateTime:     b.clock.Now(),
+	}
 
 	return
 }
@@ -872,14 +921,14 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// Do we possess the object with the given name?
-	index := b.objects.find(folderName)
+	// Do we possess the folder with the given name?
+	index := b.folders.find(folderName)
 	if index == len(b.objects) {
 		return
 	}
 
-	// Remove the object.
-	b.objects = append(b.objects[:index], b.objects[index+1:]...)
+	// Remove the folder.
+	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return
 }
@@ -888,10 +937,9 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	//TODO: once create folder is done, this code should be updated to find from new folder resources
-	// Does the object exist?
-	index := b.objects.find(foldername)
-	if index == len(b.objects) {
+	// Does the folder exist?
+	index := b.folders.find(foldername)
+	if index == len(b.folders) {
 		err := &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", foldername),
 		}
@@ -901,7 +949,34 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	return &gcs.Folder{Name: foldername, Metageneration: b.objects[index].metadata.MetaGeneration}, nil
 }
 
-func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Check that the name is legal.
+	err = checkName(folderName)
+	if err != nil {
+		return
+	}
+
+	// Find any existing record for this name.
+	existingIndex := b.folders.find(folderName)
+
+	// Create a folder record from the given attributes.
+	fo := b.mintFolder(folderName)
+
+	// Replace an entry in or add an entry to our list of folders.
+	if existingIndex < len(b.folders) {
+		b.folders[existingIndex] = fo
+	} else {
+		b.folders = append(b.folders, fo)
+		sort.Sort(b.folders)
+	}
+
+	return
+}
+
+func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	// Check that the destination name is legal.
 	err = checkName(destinationFolderId)
 	if err != nil {
@@ -909,40 +984,34 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	}
 
 	// Does the folder exist?
-	srcIndex := b.objects.find(folderName)
-	if srcIndex == len(b.objects) {
+	srcIndex := b.folders.find(folderName)
+	if srcIndex == len(b.folders) {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %q not found", folderName),
 		}
 		return
 	}
 
-	// Copy it and assign a new generation number, to ensure that the generation
-	// number for the destination name is strictly increasing.
-	dst := b.objects[srcIndex]
-	dst.metadata.Name = destinationFolderId
-	dst.metadata.MediaLink = "http://localhost/download/storage/fake/" + destinationFolderId
-
-	b.prevGeneration++
-	dst.metadata.Generation = b.prevGeneration
+	dst := b.folders[srcIndex]
+	dst.Name = destinationFolderId
 
 	// Insert into our array.
-	existingIndex := b.objects.find(folderName)
-	if existingIndex < len(b.objects) {
-		b.objects[existingIndex] = dst
+	existingIndex := b.folders.find(folderName)
+	if existingIndex < len(b.folders) {
+		b.folders[existingIndex] = dst
 	} else {
-		b.objects = append(b.objects, dst)
-		sort.Sort(b.objects)
+		b.folders = append(b.folders, dst)
+		sort.Sort(b.folders)
 	}
 
 	// Delete the src folder?
-	index := b.objects.find(folderName)
-	if index == len(b.objects) {
+	index := b.folders.find(folderName)
+	if index == len(b.folders) {
 		return
 	}
 
 	// Remove the folder.
-	b.objects = append(b.objects[:index], b.objects[index+1:]...)
+	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return
 }

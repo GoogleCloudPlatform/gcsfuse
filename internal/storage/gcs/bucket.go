@@ -17,7 +17,6 @@ package gcs
 import (
 	"io"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"golang.org/x/net/context"
 )
 
@@ -147,5 +146,7 @@ type Bucket interface {
 	GetFolder(ctx context.Context, folderName string) (*Folder, error)
 
 	// Atomically rename folder for Hierarchical bucket.
-	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*control.RenameFolderOperation, error)
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*Folder, error)
+
+	CreateFolder(ctx context.Context, folderName string) (*Folder, error)
 }

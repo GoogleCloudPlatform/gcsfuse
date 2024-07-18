@@ -100,7 +100,7 @@ be interacting with the file system.`)
 		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
 		StatCacheMaxSizeMB:                 statCacheMaxSizeMB,
 		StatCacheTTL:                       metadataCacheTTL,
-		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0,
+		EnableMonitoring:                   newConfig.Metrics.StackdriverExportInterval > 0 || newConfig.Metrics.PrometheusPort != 0,
 		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
 		DebugGCS:                           newConfig.Debug.Gcs,

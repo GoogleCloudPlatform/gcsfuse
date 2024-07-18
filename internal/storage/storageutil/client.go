@@ -46,6 +46,7 @@ type StorageClientConfig struct {
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
+	MaxRetryAttempts           int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
 	AnonymousAccess            bool

@@ -361,6 +361,15 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	wg.Add(2)
 	timeout := 400 * time.Second
 
+	// Pre-creating files for go-routine 2, this to avoid expected input/output error.
+	for i := 0; i < iterationsForHeavyOperations; i++ {
+		filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
+		file, err := os.Create(filePath)
+		require.Nil(t, err)
+		err = file.Close()
+		require.Nil(t, err)
+	}
+
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()

@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -247,7 +246,15 @@ func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder 
 	return
 }
 
-func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+func (b *debugBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	id, desc, start := b.startRequest("CreateFolder(%q)", folderName)
+	defer b.finishRequest(id, desc, start, &err)
+
+	folder, err = b.wrapped.CreateFolder(ctx, folderName)
+	return
+}
+
+func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	id, desc, start := b.startRequest("RenameFolder(%q)", folderName)
 	defer b.finishRequest(id, desc, start, &err)
 
