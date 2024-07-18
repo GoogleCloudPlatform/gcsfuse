@@ -136,10 +136,10 @@ def get_pattern_rows(handle, data, obj_bytes_list, obj_ranges_list, obj_pattern,
         streak = 1
         type_map = {"r": "random", "s": "sequential"}
         for i in range(2, len(obj_pattern)):
-            if obj_pattern[i] != last_read:
+            if obj_pattern[i] != last_read or streak == 500:
                 json_read_bytes = json.dumps(read_bytes)
                 json_read_ranges = json.dumps(read_ranges)
-                avg_byte_size = np.mean(obj_bytes_list)
+                avg_byte_size = np.mean(read_bytes)
                 row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum, json_read_bytes, json_read_ranges]
                 # row = [handle, op, type_map[last_read], streak, avg_byte_size, byte_sum]
                 data.append(row)
