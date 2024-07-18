@@ -1334,7 +1334,7 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf("projects/_/buckets/%s", TestBucketName),
+	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
 		FolderId: TestFolderName}, mock.Anything).
 		Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
@@ -1352,7 +1352,7 @@ func (testSuite *BucketHandleTest) TestShouldCreateFolderWithGivenName() {
 	mockFolder := controlpb.Folder{
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
-	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/" + TestBucketName,
+	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
 		FolderId: TestFolderName}, mock.Anything).
 		Return(&mockFolder, nil)
 	testSuite.bucketHandle.controlClient = mockClient

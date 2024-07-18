@@ -38,6 +38,7 @@ import (
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
+const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
@@ -529,7 +530,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 
 func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	req := &controlpb.CreateFolderRequest{
-		Parent:   fmt.Sprintf("projects/_/buckets/%s", b.bucketName),
+		Parent:   fmt.Sprintf(FullBucketPathHNS, b.bucketName),
 		FolderId: folderName,
 	}
 
