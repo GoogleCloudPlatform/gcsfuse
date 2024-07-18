@@ -23,8 +23,8 @@ set -e
 
 VM_INSTANCE=$(hostname)
 VM_ZONE=$(curl http://metadata.google.internal/computeMetadata/v1/instance/zone -H Metadata-Flavor:Google | cut '-d/' -f4)
-FIO_READ_DIRS=("gcs/128kb_read" "gcs/256kb_read" "gcs/1mb_read" "gcs/5mb_read" "gcs/10mb_read" "gcs/50mb_read" "gcs/100mb_read" "gcs/200mb_read" "gcs/1gb_read")
-FIO_WRITE_DIRS=("gcs/256kb_write" "gcs/1mb_write" "gcs/50mb_write" "gcs/100mb_write" "gcs/1gb_write")
+FIO_READ_DIRS=("128kb_read" "256kb_read" "1mb_read" "5mb_read" "10mb_read" "50mb_read" "100mb_read" "200mb_read" "1gb_read")
+FIO_WRITE_DIRS=("256kb_write" "1mb_write" "50mb_write" "100mb_write" "1gb_write")
 
 # Function to fetch metadata value of the key.
 function fetch_meta_data_value() {
@@ -44,6 +44,9 @@ function fetch_meta_data_value() {
   rm metadata.txt
   echo $value
 }
+
+echo "Disabling gce-cert-workload refresh timer"
+systemctl disable --now gce-workload-cert-refresh.timer
 
 echo "Running update"
 sudo apt update
@@ -107,19 +110,13 @@ MOUNT_POINT=gcs
 gcsfuse  $GCSFUSE_FIO_FLAGS $BUCKET_NAME $MOUNT_POINT
 
 #deleting files in the read directories if non empty
-for dir in "${FIO_READ_DIRS[@]}";
-do
-  if [ -d "$dir" ] && ! [ -z "$( ls -A "$dir" )" ]; then
-    rm "$dir"/*
-  fi
+for dir in "${FIO_READ_DIRS[@]}"; do
+  gcloud storage rm gs://$BUCKET_NAME/$dir/?* || echo "No files under directory ${dir}"
 done
 
 #deleting files in the write directories if non empty
-for dir in "${FIO_WRITE_DIRS[@]}";
-do
-  if [ -d "$dir" ] && ! [ -z "$( ls -A "$dir" )" ]; then
-      rm "$dir"/*
-  fi
+for dir in "${FIO_WRITE_DIRS[@]}"; do
+  gcloud storage rm gs://$BUCKET_NAME/$dir/?* || echo "No files under directory ${dir}"
 done
 
 #clearing out the read write directories

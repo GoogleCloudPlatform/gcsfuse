@@ -31,7 +31,7 @@ DEFAULT_IMAGE_PROJECT = "ubuntu-os-cloud"
 DEFAULT_ZONE = "us-west1-b"
 DEFAULT_STARTUP_SCRIPT = "custom_vm_startup_script.sh"
 DEFAULT_COMMIT_ID = "master"
-BOOT_DISK_SIZE = "100GiB"
+BOOT_DISK_SIZE = "150GiB"
 
 def _parse_arguments(argv):
     """Parses the arguments provided to the script via command line.
