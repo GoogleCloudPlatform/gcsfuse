@@ -51,15 +51,15 @@ type fakeObject struct {
 	data     []byte
 }
 
-type fakeFolder struct {
-	folder gcs.Folder
-}
+//type fakeFolder struct {
+//	folder gcs.Folder
+//}
 
 // A slice of objects compared by name.
 type fakeObjectSlice []fakeObject
 
-// A slice of objects compared by name.
-type fakeFolderSlice []fakeFolder
+// A slice of folders compared by name.
+type fakeFolderSlice []gcs.Folder
 
 func (s fakeObjectSlice) Len() int {
 	return len(s)
@@ -74,7 +74,7 @@ func (s fakeObjectSlice) Less(i, j int) bool {
 }
 
 func (s fakeFolderSlice) Less(i, j int) bool {
-	return s[i].folder.Name < s[j].folder.Name
+	return s[i].Name < s[j].Name
 }
 
 func (s fakeObjectSlice) Swap(i, j int) {
@@ -99,7 +99,7 @@ func (s fakeObjectSlice) lowerBound(name string) int {
 // there is no such i.
 func (s fakeFolderSlice) lowerBound(name string) int {
 	pred := func(i int) bool {
-		return s[i].folder.Name >= name
+		return s[i].Name >= name
 	}
 
 	return sort.Search(len(s), pred)
@@ -120,7 +120,7 @@ func (s fakeObjectSlice) find(name string) int {
 // there is no such i.
 func (s fakeFolderSlice) find(name string) int {
 	lb := s.lowerBound(name)
-	if lb < len(s) && s[lb].folder.Name == name {
+	if lb < len(s) && s[lb].Name == name {
 		return lb
 	}
 
@@ -269,8 +269,8 @@ func (b *bucket) mintObject(
 // Create a folder struct for the given name.
 //
 // LOCKS_REQUIRED(b.mu)
-func (b *bucket) mintFolder(folderName string) (f fakeFolder) {
-	f.folder = gcs.Folder{
+func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
+	f = gcs.Folder{
 		Name:           folderName,
 		Metageneration: 1,
 		UpdateTime:     b.clock.Now(),
@@ -999,7 +999,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	// Copy it and assign a new generation number, to ensure that the generation
 	// number for the destination name is strictly increasing.
 	dst := b.folders[srcIndex]
-	dst.folder.Name = destinationFolderId
+	dst.Name = destinationFolderId
 
 	// Insert into our array.
 	existingIndex := b.folders.find(folderName)
