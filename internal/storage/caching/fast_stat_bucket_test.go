@@ -818,7 +818,6 @@ func (t *StatObjectTest) TestShouldCallCreateFolder() {
 	folder := &gcs.Folder{
 		Name: name,
 	}
-
 	ExpectCall(t.cache, "Erase")(name).
 		WillOnce(Return())
 	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
@@ -834,7 +833,6 @@ func (t *StatObjectTest) TestShouldCallCreateFolder() {
 
 func (t *StatObjectTest) TestCallCreateFolderWithError() {
 	const name = "some-name"
-
 	ExpectCall(t.cache, "Erase")(name).
 		WillOnce(Return())
 	ExpectCall(t.wrapped, "CreateFolder")(Any(), name).
