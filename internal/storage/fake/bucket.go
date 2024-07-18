@@ -116,7 +116,7 @@ func (s fakeObjectSlice) find(name string) int {
 	return len(s)
 }
 
-// Return the smallest i such that s[i].metadata.Name == name, or len(s) if
+// Return the smallest i such that s[i].folder.Name == name, or len(s) if
 // there is no such i.
 func (s fakeFolderSlice) find(name string) int {
 	lb := s.lowerBound(name)
