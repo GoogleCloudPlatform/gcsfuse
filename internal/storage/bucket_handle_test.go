@@ -53,7 +53,7 @@ type BucketHandleTest struct {
 	bucketHandle  *bucketHandle
 	storageHandle StorageHandle
 	fakeStorage   FakeStorage
-	mockClient *MockStorageControlClient
+	mockClient    *MockStorageControlClient
 }
 
 func TestBucketHandleTestSuite(testSuite *testing.T) {
@@ -1308,7 +1308,7 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName}
-  testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
+	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
