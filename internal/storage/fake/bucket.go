@@ -277,7 +277,7 @@ func (b *bucket) mintObject(
 	return
 }
 
-// Create an folder struct for the given attributes and contents.
+// Create a folder struct for the given attributes and contents.
 //
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) mintFolder(

@@ -467,3 +467,21 @@ func TestRenameFolder(t *testing.T) {
 	var notFoundErr *gcs.NotFoundError
 	assert.True(t, errors.As(err, &notFoundErr))
 }
+
+func TestCreateFolder(t *testing.T) {
+	prefix := "foo_"
+	var err error
+	suffix := "test"
+	name := prefix + suffix
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	_, err = storageutil.CreateFolder(ctx, wrapped, name)
+
+	assert.NoError(t, err)
+	// Folder should get created
+	_, err = bucket.GetFolder(ctx, suffix)
+	assert.NoError(t, err)
+}
