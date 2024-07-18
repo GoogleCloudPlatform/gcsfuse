@@ -55,6 +55,7 @@ if [ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == true ]; then
   GO_TEST_PRESUBMIT_FLAG="-presubmit"
   if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
     INTEGRATION_TEST_TIMEOUT=40m
+    echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
   fi
   echo "Setting the flag to mark run as presubmit-run."
 fi
