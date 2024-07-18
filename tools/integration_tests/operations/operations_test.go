@@ -179,9 +179,13 @@ func TestMain(m *testing.M) {
 	// Set up flags to run tests on.
 	// Note: GRPC related tests will work only if you have allow-list bucket.
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
-	flagsSet := [][]string{
-		// By default, creating emptyFile is disabled.
-		{"--experimental-enable-json-read=true"},
+	flagsSet := [][]string{}
+
+	// Enable experimental-enable-json-read=true case for non-presubmit runs.
+	if !setup.IsPresubmitRun() {
+		flagsSet = append(flagsSet, []string{
+			// By default, creating emptyFile is disabled.
+			"--experimental-enable-json-read=true"})
 	}
 
 	// gRPC tests will not run in TPC environment
