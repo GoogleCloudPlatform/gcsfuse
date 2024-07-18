@@ -186,6 +186,16 @@ func (d *baseDirInode) ReadEntries(
 	return nil, "", syscall.ENOTSUP
 }
 
+func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+func (d *baseDirInode) UpdateCacheWithChildNode(ctx context.Context, name string, src *gcs.MinObject) (c *Core, err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Forbidden Public interface
 ////////////////////////////////////////////////////////////////////////
