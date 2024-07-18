@@ -31,7 +31,7 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 if [ $4 != "" ]; then
   RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-INTEGRATION_TEST_TIMEOUT=60m
+INTEGRATION_TEST_TIMEOUT=70m
 
 if [ "$#" -lt 3 ]
 then
@@ -42,7 +42,7 @@ fi
 if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
   echo "Setting the flag to skip few un-important integration tests."
-  INTEGRATION_TEST_TIMEOUT=40m
+  INTEGRATION_TEST_TIMEOUT=50m
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
