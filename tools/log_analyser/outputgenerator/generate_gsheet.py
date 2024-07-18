@@ -3,6 +3,7 @@ import numpy as np
 import gspread
 import heapq
 import json
+import datetime
 
 
 def get_top_file_gcscalls_stats(global_data, call_type):
@@ -216,7 +217,10 @@ def main_gsheet_generator(global_data):
     cred_file = input("Enter the credential file (with path): ")
     ldap = input("Enter your ldap (to give access to the sheet generated): ")
     gc = gspread.service_account(filename=cred_file)
-    sheet = gc.create('sample_sheet2')
+    current_datetime = datetime.datetime.now()
+    datetime_str = current_datetime.strftime("%Y/%m/%d_%H:%M:%S")
+    sheet_name = f"{ldap}_{datetime_str}_sheet"
+    sheet = gc.create(sheet_name)
     worksheet1 = sheet.add_worksheet(title='call_data', rows='1', cols='1')
     worksheet2 = sheet.add_worksheet(title='handle_data', rows='1', cols='1')
     worksheet3 = sheet.add_worksheet(title='read_pattern', rows='1', cols='1')
