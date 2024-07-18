@@ -159,17 +159,6 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 	return s.lowerBound(successor)
 }
 
-// Return the smallest i such that prefix < s[i].folder.Name and
-// !strings.HasPrefix(s[i].folder.Name, prefix).
-func (s fakeFolderSlice) prefixUpperBound(prefix string) int {
-	successor := prefixSuccessor(prefix)
-	if successor == "" {
-		return len(s)
-	}
-
-	return s.lowerBound(successor)
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
