@@ -422,7 +422,7 @@ func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 	const name = "key1"
 	newEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -430,19 +430,19 @@ func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 	assert.True(t.T(), hit)
 	assert.Equal(t.T(), "key1", entry.Name)
-	assert.Equal(t.T(), int64(1), entry.Metageneration)
+	assert.Equal(t.T(), int64(1), entry.MetaGeneration)
 }
 
 func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent() {
 	const name = "key1"
 	existingEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 	newEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 2,
+		MetaGeneration: 2,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -450,14 +450,14 @@ func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent()
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 	assert.True(t.T(), hit)
 	assert.Equal(t.T(), "key1", entry.Name)
-	assert.Equal(t.T(), int64(2), entry.Metageneration)
+	assert.Equal(t.T(), int64(2), entry.MetaGeneration)
 }
 
 func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
 	const name = "key1"
 	entry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	t.statCache.InsertFolder(entry, expiration)
 
@@ -480,12 +480,12 @@ func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationI
 	const name = "key1"
 	existingEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 2,
+		MetaGeneration: 2,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 	newEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -493,14 +493,14 @@ func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationI
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
 	assert.True(t.T(), hit)
 	assert.Equal(t.T(), "key1", entry.Name)
-	assert.Equal(t.T(), int64(2), entry.Metageneration)
+	assert.Equal(t.T(), int64(2), entry.MetaGeneration)
 }
 
 func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForFolder() {
 	const name = "key1"
 	existingEntry := &gcs.Folder{
 		Name:           name,
-		Metageneration: 2,
+		MetaGeneration: 2,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 
@@ -518,7 +518,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
 		Name:           "3",
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	t.statCache.Insert(objectEntry1, expiration) // adds size of 1428
 	t.statCache.Insert(objectEntry2, expiration) // adds size of 1428
@@ -550,18 +550,18 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	folderEntry1 := &gcs.Folder{
 		Name:           "a",
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	objectEntry1 := &gcs.MinObject{Name: "a/b"}
 	objectEntry2 := &gcs.MinObject{Name: "a/b/c"}
 	objectEntry3 := &gcs.MinObject{Name: "d"}
 	folderEntry2 := &gcs.Folder{
 		Name:           "a/d",
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	folderEntry3 := &gcs.Folder{
 		Name:           "b",
-		Metageneration: 1,
+		MetaGeneration: 1,
 	}
 	t.statCache.InsertFolder(folderEntry1, expiration) //adds size of 220 and exceeds capacity
 	t.statCache.Insert(objectEntry1, expiration)       // adds size of 1428

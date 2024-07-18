@@ -1542,7 +1542,7 @@ func (t *DirTest) TestShouldFindExplicitFolder() {
 	AssertNe(nil, result.MinObject)
 	ExpectEq(dirName, result.FullName.GcsObjectName())
 	ExpectEq(dirName, result.MinObject.Name)
-	ExpectEq(dirObj.Metageneration, result.MinObject.MetaGeneration)
+	ExpectEq(dirObj.MetaGeneration, result.MinObject.MetaGeneration)
 	ExpectEq(0, result.MinObject.Size)
 
 	// Look up with the conflict marker name.

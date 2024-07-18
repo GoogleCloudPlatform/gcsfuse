@@ -268,7 +268,7 @@ func (b *bucket) mintObject(
 func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	f = gcs.Folder{
 		Name:           folderName,
-		Metageneration: 1,
+		MetaGeneration: 1,
 		UpdateTime:     b.clock.Now(),
 	}
 
@@ -946,7 +946,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername, Metageneration: b.folders[index].Metageneration}, nil
+	return &gcs.Folder{Name: foldername, MetaGeneration: b.folders[index].MetaGeneration}, nil
 }
 
 func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {

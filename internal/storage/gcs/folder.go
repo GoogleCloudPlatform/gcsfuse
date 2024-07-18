@@ -23,7 +23,7 @@ import (
 
 type Folder struct {
 	Name           string
-	Metageneration int64
+	MetaGeneration int64
 	UpdateTime     time.Time
 }
 
@@ -31,7 +31,7 @@ func GCSFolder(bucketName string, attrs *controlpb.Folder) *Folder {
 	// Setting the parameters in Folder and doing conversions as necessary.
 	return &Folder{
 		Name:           getFolderName(bucketName, attrs.Name),
-		Metageneration: attrs.Metageneration,
+		MetaGeneration: attrs.Metageneration,
 		UpdateTime:     attrs.GetUpdateTime().AsTime(),
 	}
 }
@@ -51,7 +51,7 @@ func (f *Folder) ConvertFolderToMinObject() *MinObject {
 
 	return &MinObject{
 		Name:           f.Name,
-		MetaGeneration: f.Metageneration,
+		MetaGeneration: f.MetaGeneration,
 		Updated:        f.UpdateTime,
 	}
 }
