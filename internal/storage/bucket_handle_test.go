@@ -1257,7 +1257,8 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("DeleteFolder", ctx, &controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}, mock.Anything).
+	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}
+	mockClient.On("DeleteFolder", ctx, &deleteFolderReq, mock.Anything).
 		Return(nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
@@ -1271,7 +1272,8 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchical
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarchicalBucket() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("DeleteFolder", mock.Anything, &controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}, mock.Anything).
+	deleteFolderReq := &controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}
+	mockClient.On("DeleteFolder", mock.Anything, &deleteFolderReq, mock.Anything).
 		Return(errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
@@ -1286,10 +1288,11 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)
+	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
-	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
+	mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).
 		Return(&mockFolder, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
@@ -1305,8 +1308,9 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)
+	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
 
-	mockClient.On("GetFolder", ctx, &controlpb.GetFolderRequest{Name: folderPath}, mock.Anything).
+	mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).
 		Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
@@ -1321,8 +1325,8 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 	ctx := context.Background()
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("RenameFolder", mock.Anything, &controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}, mock.Anything).
-		Return(nil, errors.New("mock error"))
+	renameFolderReq := &controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}
+	mockClient.On("RenameFolder", mock.Anything, &renameFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
@@ -1334,9 +1338,9 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	mockClient := new(MockStorageControlClient)
-	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
-		FolderId: TestFolderName}, mock.Anything).
-		Return(nil, errors.New("mock error"))
+	createFolderReq := &controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
+		FolderId: TestFolderName}
+	mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
@@ -1352,9 +1356,9 @@ func (testSuite *BucketHandleTest) TestShouldCreateFolderWithGivenName() {
 	mockFolder := controlpb.Folder{
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
-	mockClient.On("CreateFolder", context.Background(), &controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
-		FolderId: TestFolderName}, mock.Anything).
-		Return(&mockFolder, nil)
+	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName),
+		FolderId: TestFolderName}
+	mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.controlClient = mockClient
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
