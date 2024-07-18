@@ -1525,3 +1525,43 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 
 	AssertEq(true, shouldInvalidate)
 }
+
+func (t *DirTest) TestShouldFindExplicitFolder() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+
+	var err error
+
+	dirObj, err := t.bucket.CreateFolder(t.ctx, dirName)
+	AssertEq(nil, err)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.MinObject)
+	ExpectEq(dirName, result.FullName.GcsObjectName())
+	ExpectEq(dirName, result.MinObject.Name)
+	ExpectEq(dirObj.MetaGeneration, result.MinObject.MetaGeneration)
+	ExpectEq(0, result.MinObject.Size)
+
+	// Look up with the conflict marker name.
+	result, err = findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
+}
+
+func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
+	const dirName = "qux"
+	dirObjName := path.Join(dirInodeName, dirName) + "/"
+
+	_, err := t.bucket.CreateFolder(t.ctx, dirObjName)
+	AssertEq(nil, err)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+}

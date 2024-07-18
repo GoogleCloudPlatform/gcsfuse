@@ -48,6 +48,6 @@ func TestGCSFolder(t *testing.T) {
 	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
-	assert.Equal(t, attrs.Metageneration, gcsFolder.Metageneration)
+	assert.Equal(t, attrs.Metageneration, gcsFolder.MetaGeneration)
 	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
 }

@@ -278,7 +278,7 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	existing := sc.sharedCache.LookUp(name)
 	if existing != nil && existing.(entry).f != nil {
 		existingFolder := existing.(entry).f
-		if f.Metageneration != existingFolder.Metageneration && f.Metageneration < existingFolder.Metageneration {
+		if f.MetaGeneration != existingFolder.MetaGeneration && f.MetaGeneration < existingFolder.MetaGeneration {
 			return
 		}
 	}

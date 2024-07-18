@@ -348,6 +348,28 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+
+	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(folderErr, &gcsErr) {
+		return nil, nil
+	}
+
+	// Annotate others.
+	if folderErr != nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
+	}
+
+	return &Core{
+		Bucket:    bucket,
+		FullName:  name,
+		MinObject: folderResult.ConvertFolderToMinObject(),
+	}, nil
+}
+
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
 func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
