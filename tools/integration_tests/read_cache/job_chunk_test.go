@@ -198,7 +198,7 @@ func TestJobChunkTest(t *testing.T) {
 	// Tests to validate chunk size when read cache parallel downloads are enabled
 	// with go-routines not limited by max parallel downloads.
 	parallelDownloadsPerFile := 4
-	maxParallelDownloads := 24 // maxParallelDownloads = parallelDownloadsPerFile * downloadChunkSizeMB * number of files
+	maxParallelDownloads := 9 // maxParallelDownloads > parallelDownloadsPerFile * number of files being accessed concurrently.
 	downloadChunkSizeMB := 3
 	ts.flags = []string{"--config-file=" +
 		createConfigFileForJobChunkTest(cacheSizeMB, false, "limitedMaxParallelDownloadsNotEffectingChunkSize", parallelDownloadsPerFile, maxParallelDownloads, downloadChunkSizeMB)}
