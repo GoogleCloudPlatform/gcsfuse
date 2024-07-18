@@ -16,6 +16,7 @@ package caching_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
