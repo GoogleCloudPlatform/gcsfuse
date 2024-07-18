@@ -34,7 +34,7 @@ fi
 INTEGRATION_TEST_TIMEOUT=70m
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-if [ $# -ge 5 ]
+if [ $# -ge 5 ] ; then
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
