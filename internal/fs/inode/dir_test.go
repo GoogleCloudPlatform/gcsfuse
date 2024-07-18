@@ -155,8 +155,8 @@ func (t *DirTest) readAllEntries() (entries []fuseutil.Dirent, err error) {
 }
 
 func (t *DirTest) setSymlinkTarget(
-	objName string,
-	target string) (err error) {
+		objName string,
+		target string) (err error) {
 	_, err = t.bucket.UpdateObject(
 		t.ctx,
 		&gcs.UpdateObjectRequest{
@@ -1526,7 +1526,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 	AssertEq(true, shouldInvalidate)
 }
 
-func (t *DirTest) TestShouldFindExplicitInodeForHNS() {
+func (t *DirTest) TestShouldFindExplicitInodeForHNSForDirOnly() {
 	const dirName = "qux"
 	dirObjName := path.Join(dirInodeName, dirName) + "/"
 
@@ -1549,6 +1549,37 @@ func (t *DirTest) TestShouldFindExplicitInodeForHNS() {
 	// Look up with the conflict marker name.
 	result, err = findExplicitInodeForHNS(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
 
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
+}
+
+func (t *DirTest) TestShouldFindExplicitInodeForHNSForFileOnly() {
+	const name = "qux"
+	const fullName = dirInodeName + name
+	var err error
+
+	// Create a backing object.
+	createObj, err := storageutil.CreateObject(t.ctx, t.bucket, fullName, []byte("taco"))
+	AssertEq(nil, err)
+
+	// Look up with the proper name.
+	result, err := findExplicitInodeForHNS(t.ctx, &t.bucket, NewFileName(t.in.Name(), name))
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.MinObject)
+	ExpectEq(fullName, result.FullName.GcsObjectName())
+	ExpectEq(fullName, result.MinObject.Name)
+	ExpectEq(createObj.MetaGeneration, result.MinObject.MetaGeneration)
+
+	// TODO: Uncomment once create object is done for fake bucket, currently this will fail as both getFolder and statObject return based on objects in fake bucket implementation,
+	//once new resource folders is added in fake bucket are added asp art of create object, this test can be uncommented.
+	//Added it now only, so it is not missed
+
+	//ExpectEq(createObj.Generation, result.MinObject.Generation)
+	//ExpectEq(createObj.Size, result.MinObject.Size)
+	//
+	//A conflict marker name shouldn't work.
+	result, err = findExplicitInodeForHNS(t.ctx, &t.bucket, NewFileName(t.in.Name(), name+ConflictingFileNameSuffix))
 	AssertEq(nil, err)
 	ExpectEq(nil, result)
 }

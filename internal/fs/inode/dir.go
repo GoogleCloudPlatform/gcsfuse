@@ -351,12 +351,9 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 func findExplicitInodeForHNS(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
 	m, err := findBackingGCSResource(ctx, bucket, name)
 
-	// Suppress Not found error which is a valid business case when object does not exist
-	var gcsErr *gcs.NotFoundError
-	if errors.As(err, &gcsErr) {
+	if m == nil {
 		return nil, nil
 	}
-
 	// Annotate others.
 	if err != nil {
 		return nil, fmt.Errorf("find Explicit Inode For HNS: %w", err)
@@ -396,7 +393,10 @@ func findBackingGCSResource(ctx context.Context, bucket *gcsx.SyncerBucket, name
 
 	// Execute bundled operations
 	if err := bundle.Join(); err != nil {
-		return nil, err
+		var gcsErr *gcs.NotFoundError
+		if !errors.As(err, &gcsErr) {
+			return nil, err
+		}
 	}
 
 	if folderResult != nil {
