@@ -404,17 +404,15 @@ func TestGetFolder_Prefix(t *testing.T) {
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
-	objectName := "taco"
-	name := "foo_" + objectName
-	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	// Create an object through the back door.
+	folderName := "taco"
+	name := "foo_" + folderName
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	_, err = storageutil.CreateFolder(ctx, wrapped, name)
 	require.Nil(t, err)
 
 	result, err := bucket.GetFolder(
 		ctx,
-		objectName)
+		folderName)
 
 	assert.Nil(nil, err)
 	assert.Equal(t, name, result.Name)
@@ -425,22 +423,21 @@ func TestDeleteFolder(t *testing.T) {
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
-	objectName := "taco"
-	name := "foo_" + objectName
-	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	// Create an object through the back door.
+	folderName := "taco"
+	name := "foo_" + folderName
+
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte("foobar"))
+	_, err = storageutil.CreateFolder(ctx, wrapped, name)
 	require.Nil(t, err)
 
 	err = bucket.DeleteFolder(
 		ctx,
-		objectName)
+		folderName)
 
 	if assert.Nil(t, err) {
 		_, err = wrapped.GetFolder(
 			ctx,
-			objectName)
+			folderName)
 		var notFoundErr *gcs.NotFoundError
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
@@ -456,7 +453,7 @@ func TestRenameFolder(t *testing.T) {
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	_, err = storageutil.CreateFolder(ctx, wrapped, name)
 	assert.Nil(t, err)
 
 	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)

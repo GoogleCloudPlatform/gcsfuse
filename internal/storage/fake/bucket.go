@@ -51,10 +51,21 @@ type fakeObject struct {
 	data     []byte
 }
 
+type fakeFolder struct {
+	folder gcs.Folder
+}
+
 // A slice of objects compared by name.
 type fakeObjectSlice []fakeObject
 
+// A slice of objects compared by name.
+type fakeFolderSlice []fakeFolder
+
 func (s fakeObjectSlice) Len() int {
+	return len(s)
+}
+
+func (s fakeFolderSlice) Len() int {
 	return len(s)
 }
 
@@ -62,7 +73,15 @@ func (s fakeObjectSlice) Less(i, j int) bool {
 	return s[i].metadata.Name < s[j].metadata.Name
 }
 
+func (s fakeFolderSlice) Less(i, j int) bool {
+	return s[i].folder.Name < s[j].folder.Name
+}
+
 func (s fakeObjectSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s fakeFolderSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
@@ -76,11 +95,32 @@ func (s fakeObjectSlice) lowerBound(name string) int {
 	return sort.Search(len(s), pred)
 }
 
+// Return the smallest i such that s[i].folder.Name >= name, or len(s) if
+// there is no such i.
+func (s fakeFolderSlice) lowerBound(name string) int {
+	pred := func(i int) bool {
+		return s[i].folder.Name >= name
+	}
+
+	return sort.Search(len(s), pred)
+}
+
 // Return the smallest i such that s[i].metadata.Name == name, or len(s) if
 // there is no such i.
 func (s fakeObjectSlice) find(name string) int {
 	lb := s.lowerBound(name)
 	if lb < len(s) && s[lb].metadata.Name == name {
+		return lb
+	}
+
+	return len(s)
+}
+
+// Return the smallest i such that s[i].metadata.Name == name, or len(s) if
+// there is no such i.
+func (s fakeFolderSlice) find(name string) int {
+	lb := s.lowerBound(name)
+	if lb < len(s) && s[lb].folder.Name == name {
 		return lb
 	}
 
@@ -119,6 +159,17 @@ func (s fakeObjectSlice) prefixUpperBound(prefix string) int {
 	return s.lowerBound(successor)
 }
 
+// Return the smallest i such that prefix < s[i].folder.Name and
+// !strings.HasPrefix(s[i].folder.Name, prefix).
+func (s fakeFolderSlice) prefixUpperBound(prefix string) int {
+	successor := prefixSuccessor(prefix)
+	if successor == "" {
+		return len(s)
+	}
+
+	return s.lowerBound(successor)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -133,6 +184,7 @@ type bucket struct {
 	//
 	// INVARIANT: Strictly increasing.
 	objects fakeObjectSlice // GUARDED_BY(mu)
+	folders fakeFolderSlice
 
 	// The most recent generation number that was minted. The next object will
 	// receive generation prevGeneration + 1.
@@ -221,6 +273,21 @@ func (b *bucket) mintObject(
 
 	// Set up data.
 	o.data = contents
+
+	return
+}
+
+// Create an folder struct for the given attributes and contents.
+//
+// LOCKS_REQUIRED(b.mu)
+func (b *bucket) mintFolder(
+	folderName string) (f fakeFolder) {
+
+	f.folder = gcs.Folder{
+		Name:           folderName,
+		Metageneration: 1,
+		UpdateTime:     b.clock.Now(),
+	}
 
 	return
 }
@@ -872,13 +939,13 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	defer b.mu.Unlock()
 
 	// Do we possess the object with the given name?
-	index := b.objects.find(folderName)
+	index := b.folders.find(folderName)
 	if index == len(b.objects) {
 		return
 	}
 
 	// Remove the object.
-	b.objects = append(b.objects[:index], b.objects[index+1:]...)
+	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return
 }
@@ -888,8 +955,8 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	defer b.mu.Unlock()
 
 	// Does the object exist?
-	index := b.objects.find(foldername)
-	if index == len(b.objects) {
+	index := b.folders.find(foldername)
+	if index == len(b.folders) {
 		err := &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %s not found", foldername),
 		}
@@ -899,8 +966,27 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 	return &gcs.Folder{Name: foldername}, nil
 }
 
-func (b *bucket) CreateFolder(ctx context.Context, foldername string) (o *gcs.Folder, err error) {
-	// TODO: Implement
+func (b *bucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+	// Check that the name is legal.
+	err = checkName(folderName)
+	if err != nil {
+		return
+	}
+
+	// Find any existing record for this name.
+	existingIndex := b.folders.find(folderName)
+
+	// Create an object record from the given attributes.
+	fo := b.mintFolder(folderName)
+
+	// Replace an entry in or add an entry to our list of objects.
+	if existingIndex < len(b.folders) {
+		b.folders[existingIndex] = fo
+	} else {
+		b.folders = append(b.folders, fo)
+		sort.Sort(b.folders)
+	}
+
 	return
 }
 
@@ -912,8 +998,8 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	}
 
 	// Does the folder exist?
-	srcIndex := b.objects.find(folderName)
-	if srcIndex == len(b.objects) {
+	srcIndex := b.folders.find(folderName)
+	if srcIndex == len(b.folders) {
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %q not found", folderName),
 		}
@@ -922,30 +1008,26 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 
 	// Copy it and assign a new generation number, to ensure that the generation
 	// number for the destination name is strictly increasing.
-	dst := b.objects[srcIndex]
-	dst.metadata.Name = destinationFolderId
-	dst.metadata.MediaLink = "http://localhost/download/storage/fake/" + destinationFolderId
-
-	b.prevGeneration++
-	dst.metadata.Generation = b.prevGeneration
+	dst := b.folders[srcIndex]
+	dst.folder.Name = destinationFolderId
 
 	// Insert into our array.
-	existingIndex := b.objects.find(folderName)
-	if existingIndex < len(b.objects) {
-		b.objects[existingIndex] = dst
+	existingIndex := b.folders.find(folderName)
+	if existingIndex < len(b.folders) {
+		b.folders[existingIndex] = dst
 	} else {
-		b.objects = append(b.objects, dst)
-		sort.Sort(b.objects)
+		b.folders = append(b.folders, dst)
+		sort.Sort(b.folders)
 	}
 
 	// Delete the src folder?
-	index := b.objects.find(folderName)
-	if index == len(b.objects) {
+	index := b.folders.find(folderName)
+	if index == len(b.folders) {
 		return
 	}
 
 	// Remove the folder.
-	b.objects = append(b.objects[:index], b.objects[index+1:]...)
+	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return
 }
