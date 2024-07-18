@@ -983,13 +983,6 @@ func (testSuite *BucketHandleTest) TestNameMethod() {
 	assert.Equal(testSuite.T(), TestBucketName, name)
 }
 
-func (testSuite *BucketHandleTest) TestBucketTypeMethod() {
-	testSuite.bucketHandle.controlClient = nil
-	bucketType := testSuite.bucketHandle.BucketType()
-
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, bucketType)
-}
-
 func (testSuite *BucketHandleTest) TestIsStorageConditionsNotEmptyWithEmptyConditions() {
 	assert.False(testSuite.T(), isStorageConditionsNotEmpty(storage.Conditions{}))
 }
@@ -1243,7 +1236,7 @@ func (testSuite *BucketHandleTest) TestDefaultBucketTypeWithControlClientNil() {
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected Hierarchical bucket type")
+	assert.Equal(testSuite.T(), gcs.NonHierarchical, testSuite.bucketHandle.bucketType, "Expected NonHierarchical bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchicalBucket() {
