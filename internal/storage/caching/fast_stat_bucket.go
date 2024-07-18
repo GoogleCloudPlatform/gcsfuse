@@ -98,6 +98,15 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.AddNegativeEntryForFolder(name, expiration)
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) invalidate(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -284,6 +293,8 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 		return err
 	}
 	b.invalidate(folderName)
+	// Add negative entry in the cache.
+	b.addNegativeEntryForFolder(folderName)
 
 	return err
 }

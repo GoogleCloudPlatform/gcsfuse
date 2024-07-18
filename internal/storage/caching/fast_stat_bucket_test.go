@@ -785,9 +785,17 @@ func (t *StatObjectTest) TestRenameFolder() {
 	ExpectEq(result, folder)
 }
 
-func (t *StatObjectTest) TestShouldDeleteFolder() {
+type DeleteFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&DeleteFolderTest{}) }
+
+func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 	const name = "some-name"
 	ExpectCall(t.cache, "Erase")(name).
+		WillOnce(Return())
+	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
 		WillOnce(Return())
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(nil))
@@ -797,7 +805,7 @@ func (t *StatObjectTest) TestShouldDeleteFolder() {
 	AssertEq(nil, err)
 }
 
-func (t *StatObjectTest) TestShouldCallDeleteFolderWithError() {
+func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
 	const name = "some-name"
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
 		WillOnce(Return(fmt.Errorf("mock error")))
