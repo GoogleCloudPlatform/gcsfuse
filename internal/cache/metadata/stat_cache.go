@@ -68,6 +68,16 @@ type StatCache interface {
 	// doesn't exist. Overwrite any existing entry for the name, positive or
 	// negative.
 	AddNegativeEntryForFolder(folderName string, expiration time.Time)
+
+	// Invalidate cache for all the entries with given prefix
+	// e.g. If cache contains below objects
+	// a
+	// a/b
+	// a/d/c
+	// d
+	// Then it will invalidate entries a, a/b, a/d/c
+	// Entry d will remain in cache.
+	EraseEntriesWithGivenPrefix(prefix string)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -282,4 +292,10 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
 		panic(err)
 	}
+}
+
+// Invalidate cache for all the entries with given prefix.
+func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
+	prefix = sc.key(prefix)
+	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
 }

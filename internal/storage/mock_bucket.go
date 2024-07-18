@@ -412,8 +412,9 @@ func (m *mockBucket) RenameFolder(ctx context.Context, folderName string, destin
 		"RenameFolder",
 		file,
 		line,
-		[]interface{}{})
-	if len(retVals) != 1 {
+		[]interface{}{ctx, folderName, destinationFolderId})
+
+	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.RenameFolder: invalid return values: %v", retVals))
 	}
 	// o0 string

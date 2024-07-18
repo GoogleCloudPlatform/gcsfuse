@@ -768,3 +768,18 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
 }
+
+func (t *StatObjectTest) TestRenameFolder() {
+	const name = "some-name"
+	const newName = "new-name"
+	var folder = &gcs.Folder{
+		Name: newName,
+	}
+	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
+	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
+
+	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
+
+	AssertEq(nil, err)
+	ExpectEq(result, folder)
+}
