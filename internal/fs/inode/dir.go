@@ -827,7 +827,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	var m *gcs.MinObject
 
 	if d.bucket.BucketType() == gcs.Hierarchical {
-		// In Case of HNS we will call CreateFolder to create directory.
+		// For HNS, create directories using the CreateFolder method.
 		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
