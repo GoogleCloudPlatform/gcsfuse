@@ -23,7 +23,7 @@
       }
     ]
   },
-  "nested-folders": {
+  "nested_folders": {
     "folder_name": "nested_folder_rename_test",
     "num_folders": 10,
     "folder_structure" :  [
