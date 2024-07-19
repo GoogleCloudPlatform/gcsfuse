@@ -813,7 +813,13 @@ func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
 	AssertNe(nil, err)
 }
 
-func (t *StatObjectTest) TestShouldCallCreateFolder() {
+type CreateFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&CreateFolderTest{}) }
+
+func (t *CreateFolderTest) TestCreateFolderCallsWrappedCreateFolderWithSuccess() {
 	const name = "some-name"
 	folder := &gcs.Folder{
 		Name: name,
@@ -831,7 +837,7 @@ func (t *StatObjectTest) TestShouldCallCreateFolder() {
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
 }
 
-func (t *StatObjectTest) TestCallCreateFolderWithError() {
+func (t *CreateFolderTest) TestCreateFolderReturnsErrorFromWrappedCreateFolder() {
 	const name = "some-name"
 	ExpectCall(t.cache, "Erase")(name).
 		WillOnce(Return())
