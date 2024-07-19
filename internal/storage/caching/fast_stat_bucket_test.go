@@ -793,8 +793,6 @@ func init() { RegisterTestSuite(&DeleteFolderTest{}) }
 
 func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
 	const name = "some-name"
-	ExpectCall(t.cache, "Erase")(name).
-		WillOnce(Return())
 	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
 		WillOnce(Return())
 	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
