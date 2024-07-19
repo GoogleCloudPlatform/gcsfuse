@@ -949,7 +949,10 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 		return nil, err
 	}
 
+	// Remove old entry from type cache.
 	d.cache.Erase(folderName)
+	// Add new renamed folder in type cache.
+	d.cache.Insert(d.cacheClock.Now(), destinationFolderId, metadata.ExplicitDirType)
 
 	return
 }
