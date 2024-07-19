@@ -824,11 +824,22 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
 	fullName := NewDirName(d.Name(), name)
-	o, err := d.createNewObject(ctx, fullName, nil)
-	if err != nil {
-		return nil, err
+	var m *gcs.MinObject
+
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		// In Case of HNS we will call CreateFolder to create directory.
+		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
+		if err != nil {
+			return nil, err
+		}
+		m = f.ConvertFolderToMinObject()
+	} else {
+		o, err := d.createNewObject(ctx, fullName, nil)
+		if err != nil {
+			return nil, err
+		}
+		m = storageutil.ConvertObjToMinObject(o)
 	}
-	m := storageutil.ConvertObjToMinObject(o)
 
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
