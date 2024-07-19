@@ -64,6 +64,9 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	// Rename the directiory/folder.
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
+
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -938,4 +941,19 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 
 	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
+}
+
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
+	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
+	// Remove old entry from type cache.
+	d.cache.Erase(folderName)
+	// Add new renamed folder in type cache.
+	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
+
+	return folder, nil
 }
