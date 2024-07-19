@@ -16,6 +16,7 @@ package caching_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -782,4 +783,32 @@ func (t *StatObjectTest) TestRenameFolder() {
 
 	AssertEq(nil, err)
 	ExpectEq(result, folder)
+}
+
+type DeleteFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&DeleteFolderTest{}) }
+
+func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
+	const name = "some-name"
+	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
+		WillOnce(Return())
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(nil))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+}
+
+func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
+	const name = "some-name"
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(fmt.Errorf("mock error")))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertNe(nil, err)
 }
