@@ -64,6 +64,7 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	// Rename the directiory/folder.
 	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
 
 	// Read the children objects of this dir, recursively. The result count
