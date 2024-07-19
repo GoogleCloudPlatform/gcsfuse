@@ -1320,7 +1320,7 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 	assert.Nil(testSuite.T(), folder)
 }
 
-func (testSuite *BucketHandleTest) TestShouldCreateFolderWithGivenName() {
+func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	mockFolder := controlpb.Folder{
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
