@@ -1566,21 +1566,26 @@ func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
 	AssertEq(nil, result)
 }
 
-func (t *DirTest) Test_ShouldRenameFolder() {
-	const dirName = "qux"
-	const renameDirName = "rename"
+func (t *DirTest) TestShouldRenameFolder() {
+	const (
+		dirName       = "qux"
+		renameDirName = "rename"
+	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
+	// Create the original folder.
 	_, err := t.bucket.CreateFolder(t.ctx, folderName)
 	AssertEq(nil, err)
 
+	// Attempt to rename the folder.
 	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
 	AssertEq(nil, err)
 
-	// Check the bucket.
+	// Verify the original folder no longer exists.
 	_, err = t.bucket.GetFolder(t.ctx, folderName)
 	var notFoundErr *gcs.NotFoundError
 	ExpectTrue(errors.As(err, &notFoundErr))
+	// Verify the renamed folder exists.
 	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
 	AssertEq(nil, err)
 	AssertEq(renameFolderName, f.Name)
