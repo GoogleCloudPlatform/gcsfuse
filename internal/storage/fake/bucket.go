@@ -25,6 +25,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -976,11 +977,11 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 	return &fo, nil
 }
 
-func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
+func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
 	// Check that the destination name is legal.
-	err = checkName(destinationFolderId)
+	err := checkName(destinationFolderId)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Does the folder exist?
@@ -989,7 +990,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 		err = &gcs.NotFoundError{
 			Err: fmt.Errorf("Object %q not found", folderName),
 		}
-		return
+		return nil, err
 	}
 
 	dst := b.folders[srcIndex]
@@ -1004,14 +1005,18 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 		sort.Sort(b.folders)
 	}
 
+	folder := &gcs.Folder{
+		Name:           destinationFolderId,
+		MetaGeneration: 1,
+		UpdateTime:     time.Now()}
+
 	// Delete the src folder?
 	index := b.folders.find(folderName)
 	if index == len(b.folders) {
-		return
+		return folder, nil
 	}
-
-	// Remove the folder.
+	// Remove the src folder?
 	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
-	return
+	return folder, nil
 }

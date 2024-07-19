@@ -943,7 +943,6 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 }
 
 func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
-
 	folder, err = d.bucket.RenameFolder(ctx, folderName, destinationFolderId)
 	if err != nil {
 		return nil, err
