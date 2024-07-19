@@ -38,6 +38,7 @@ import (
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
+const FullBucketPathHNS = "projects/_/buckets/%s"
 
 type bucketHandle struct {
 	gcs.Bucket
@@ -515,7 +516,7 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 	var callOptions []gax.CallOption
 
 	clientFolder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 	}, callOptions...)
 
 	if err != nil {
@@ -527,9 +528,20 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 	return folderResponse, err
 }
 
-func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
-	// TODO: Implement me
-	return
+func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+	req := &controlpb.CreateFolderRequest{
+		Parent:   fmt.Sprintf(FullBucketPathHNS, b.bucketName),
+		FolderId: folderName,
+	}
+
+	clientFolder, err := b.controlClient.CreateFolder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	folder := gcs.GCSFolder(b.bucketName, clientFolder)
+
+	return folder, nil
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {
