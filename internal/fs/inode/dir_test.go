@@ -1606,5 +1606,5 @@ func (t *DirTest) TestShouldRenameFolderWithSrcFolderDoesNotExist() {
 	ExpectTrue(errors.As(err, &notFoundErr))
 	// Verify the renamed folder does not exist.
 	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
-	AssertNe(nil, err)
+	ExpectTrue(errors.As(err, &notFoundErr))
 }
