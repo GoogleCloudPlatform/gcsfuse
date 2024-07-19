@@ -1591,7 +1591,7 @@ func (t *DirTest) TestShouldRenameFolder() {
 	AssertEq(renameFolderName, f.Name)
 }
 
-func (t *DirTest) TestShouldRenameFolderWithError() {
+func (t *DirTest) TestShouldRenameFolderWithSrcFolderDoesNotExist() {
 	const (
 		dirName       = "qux"
 		renameDirName = "rename"
@@ -1602,7 +1602,8 @@ func (t *DirTest) TestShouldRenameFolderWithError() {
 	// Attempt to rename the folder.
 	_, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
 
-	AssertNe(nil, err)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
 	// Verify the renamed folder does not exist.
 	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
 	AssertNe(nil, err)
