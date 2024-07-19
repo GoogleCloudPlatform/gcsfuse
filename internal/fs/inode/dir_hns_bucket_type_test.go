@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -121,13 +120,13 @@ func (t *DirTestHNSBucketType) Test_CreateChildDir_DoesntExist() {
 
 func (t *DirTestHNSBucketType) Test_CreateChildDir_Exists() {
 	const name = "qux"
-	objName := path.Join(dirInodeName, name) + "/"
+	folderName := path.Join(dirInodeName, name) + "/"
 
 	// Create an existing backing object.
-	_, err := storageutil.CreateObject(t.ctx, t.bucket, objName, []byte("taco"))
+	_, err := t.bucket.CreateFolder(t.ctx, folderName)
 	assert.NoError(t.T(), err)
 
 	// Call the inode.
 	_, err = t.in.CreateChildDir(t.ctx, name)
-	assert.Equal(t.T(), metadata.UnknownType, t.getTypeFromCache(name))
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.getTypeFromCache(name))
 }
