@@ -163,6 +163,102 @@ def parse_and_generate_directory_structure(dir_str) -> int:
     return 0
 
 
+def delete_existing_folders_in_gcs_bucket(gcs_bucket):
+
+  try:
+    subprocess.check_output(
+      'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
+  except subprocess.CalledProcessError as e:
+    logmessage(e.output.decode('utf-8'))
+
+def list_directory(path) -> list:
+  """Returns the list containing path of all the contents present in the current directory.
+
+  Args:
+    path: Path of the directory.
+
+  Returns:
+    A list containing path of all contents present in the input path.
+  """
+
+  contents = subprocess.check_output(
+      'gsutil -m ls {}'.format(path), shell=True)
+  contents_url = contents.decode('utf-8').split('\n')[:-1]
+  return contents_url
+
+
+def check_if_dir_structure_exists(directory_structure) -> (int):
+  # contents=subprocess.check_output(
+  #     'gsutil -m ls {}'.format(path), shell=True).decode('utf-8').split('\n')[:-1]
+
+  bucket_name = directory_structure["name"]
+  bucket_url = 'gs://{}'.format(bucket_name)
+
+  # check for top level folders
+  folders = list_directory(bucket_url)
+  nested_folder_count = "nested_folders" in directory_structure
+  if "folders" in directory_structure:
+    if len(folders) != directory_structure["folders"][
+      "num_folders"] + nested_folder_count:
+      delete_existing_folders_in_gcs_bucket(bucket_name)
+      return 0
+
+
+
+    # for each non-nested folder , check the count of files
+    for folder in directory_structure["folder_structure"]:
+      files = list_directory('{}/{}').format(bucket_url, folder["name"])
+      if len(files) != folder["num_files"]:
+        delete_existing_folders_in_gcs_bucket(bucket_name)
+        return 0
+
+  # check the number of second level folders in nested folders
+  if nested_folder_count:
+    nested_folder= directory_structure["nested_folders"]["folder_name"]
+    second_level_folders = list_directory('{}/{}'.format(bucket_url,nested_folder))
+    if len(second_level_folders) != directory_structure["nested_folders"][
+      "num_folders"]:
+      delete_existing_folders_in_gcs_bucket(bucket_name)
+      return 0
+
+    # if the length is same, check the files for each second level folder
+    for folder in directory_structure["nested_folders"]["folder_structure"]:
+      files_nested_folder = list_directory('{}/{}/{}'.format(bucket_name,nested_folder,folder["name"]))
+      if len(files_nested_folder) != folder["num_files"]:
+        delete_existing_folders_in_gcs_bucket(bucket_name)
+        return 0
+
+  return 1
+
+def check_for_config_file_consistency(config) -> (int):
+    if "name" not in config:
+      logmessage("Bucket name not specified")
+      return 0
+
+    if "folders" in config :
+      if not ("num_folders" in config["folders"] or "folder_structure" in config["folders"]):
+        logmessage("Key missing for nested folder")
+        return 0
+
+      if config["folders"]["num_folders"] != len(config["folders"]["folder_structure"]):
+        logmessage("Inconsistency in the folder structure")
+        return 0
+
+    if "nested_folders" in config :
+      if not ("folder_name"  in config["nested_folders"] or
+              "num_folders" in config["nested_folders"] or
+              "folder_structure" in config["nested_folders"]):
+        logmessage("Key missing for nested folder")
+        return 0
+
+      if config["nested_folders"]["num_folders"] != len(config["nested_folders"]["folder_structure"]):
+        logmessage("Inconsistency in the nested folder")
+        return 0
+
+    return 1
+
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -193,7 +289,18 @@ if __name__ == '__main__':
     subprocess.call('bash', shell=True)
 
   directory_structure = json.load(open(args.config_file))
-  exit_code = parse_and_generate_directory_structure(directory_structure)
+
+  exit_code= check_for_config_file_consistency(directory_structure)
+  if not exit_code:
+    logmessage("Config file is inconsistent")
+    print('Exited with code {}'.format(exit_code))
+    subprocess.call('bash', shell=True)
+
+  # compare directory structures
+  dir_structure_present = check_if_dir_structure_exists(directory_structure)
+
+  if not dir_structure_present:
+    exit_code = parse_and_generate_directory_structure(directory_structure)
 
   if exit_code != 0:
     print('Exited with code {}'.format(exit_code))
