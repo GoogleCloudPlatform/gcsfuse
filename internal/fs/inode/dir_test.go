@@ -1566,7 +1566,7 @@ func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
 	AssertEq(nil, result)
 }
 
-func (t *DirTest) TestShouldRenameFolder() {
+func (t *DirTest) TestRenameFolderWithGivenName() {
 	const (
 		dirName       = "qux"
 		renameDirName = "rename"
@@ -1591,7 +1591,7 @@ func (t *DirTest) TestShouldRenameFolder() {
 	AssertEq(renameFolderName, f.Name)
 }
 
-func (t *DirTest) TestShouldRenameFolderWithSrcFolderDoesNotExist() {
+func (t *DirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	const (
 		dirName       = "qux"
 		renameDirName = "rename"

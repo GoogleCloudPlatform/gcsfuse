@@ -943,16 +943,17 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	return cachedDuration >= ttl
 }
 
-func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
-	folder, err = d.bucket.RenameFolder(ctx, folderName, destinationFolderId)
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
+	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
 	// Remove old entry from type cache.
 	d.cache.Erase(folderName)
 	// Add new renamed folder in type cache.
-	d.cache.Insert(d.cacheClock.Now(), destinationFolderId, metadata.ExplicitDirType)
+	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
 
-	return
+	return folder, nil
 }
