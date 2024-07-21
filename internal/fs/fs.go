@@ -317,8 +317,8 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 // The intuition is that we hold inode and handle locks for long-running
 // operations, and we don't want to block the entire file system on those.
 //
-// See http://goo.gl/rDxxlG for more discussion, including an informal proof
-// that a strict partial order is sufficient.
+// See https://tinyurl.com/4nh4w7u9 for more discussion, including an informal
+// proof that a strict partial order is sufficient.
 
 type fileSystem struct {
 	fuseutil.NotImplementedFileSystem

@@ -33,8 +33,8 @@ const (
 
 func HandleMemoryProfileSignals() {
 	profileOnce := func(path string) (err error) {
-		// Trigger a garbage collection to get up to date information (cf.
-		// https://goo.gl/aXVQfL).
+		// Trigger a garbage collection to get up to date information
+		// (https://tinyurl.com/93d9jh53).
 		runtime.GC()
 
 		// Open the file.
