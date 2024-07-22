@@ -16,6 +16,7 @@ package caching_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -767,4 +768,47 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
+}
+
+func (t *StatObjectTest) TestRenameFolder() {
+	const name = "some-name"
+	const newName = "new-name"
+	var folder = &gcs.Folder{
+		Name: newName,
+	}
+	ExpectCall(t.cache, "EraseEntriesWithGivenPrefix")(name).WillOnce(Return())
+	ExpectCall(t.wrapped, "RenameFolder")(Any(), name, newName).WillOnce(Return(folder, nil))
+
+	result, err := t.bucket.RenameFolder(context.Background(), name, newName)
+
+	AssertEq(nil, err)
+	ExpectEq(result, folder)
+}
+
+type DeleteFolderTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&DeleteFolderTest{}) }
+
+func (t *DeleteFolderTest) Test_DeleteFolder_Success() {
+	const name = "some-name"
+	ExpectCall(t.cache, "AddNegativeEntryForFolder")(name, Any()).
+		WillOnce(Return())
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(nil))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertEq(nil, err)
+}
+
+func (t *DeleteFolderTest) Test_DeleteFolder_Failure() {
+	const name = "some-name"
+	ExpectCall(t.wrapped, "DeleteFolder")(Any(), name).
+		WillOnce(Return(fmt.Errorf("mock error")))
+
+	err := t.bucket.DeleteFolder(context.TODO(), name)
+
+	AssertNe(nil, err)
 }

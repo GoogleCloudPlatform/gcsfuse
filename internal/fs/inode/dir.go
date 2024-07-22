@@ -64,6 +64,9 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	// Rename the directiory/folder.
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
+
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -348,6 +351,28 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+
+	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(folderErr, &gcsErr) {
+		return nil, nil
+	}
+
+	// Annotate others.
+	if folderErr != nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
+	}
+
+	return &Core{
+		Bucket:    bucket,
+		FullName:  name,
+		MinObject: folderResult.ConvertFolderToMinObject(),
+	}, nil
+}
+
 // findDirInode finds the dir inode core where the directory is either explicit
 // or implicit. Returns nil if no such directory exists.
 func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
@@ -521,8 +546,13 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
+		// TODO: Update if block to call get folder once implicit dirs changes are complete, and e2e tests are passed on new changes
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
-			// add get folder call here
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		} else {
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
@@ -911,4 +941,19 @@ func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 
 	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
+}
+
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
+	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
+	// Remove old entry from type cache.
+	d.cache.Erase(folderName)
+	// Add new renamed folder in type cache.
+	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
+
+	return folder, nil
 }

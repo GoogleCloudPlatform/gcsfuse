@@ -221,8 +221,8 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "max-retry-attempts",
-				Value: 6,
-				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.",
+				Value: 0,
+				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit",
 			},
 
 			cli.IntFlag{
@@ -319,6 +319,12 @@ func newApp() (app *cli.App) {
 				Name:  "experimental-opentelemetry-collector-address",
 				Value: "",
 				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
+			},
+
+			cli.IntFlag{
+				Name:  config.PrometheusPortFlagName,
+				Value: 0,
+				Usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics.",
 			},
 
 			cli.StringFlag{
@@ -493,6 +499,7 @@ type flagStorage struct {
 	// Monitoring & Logging
 	// Deprecated: Use the param from cfg/config.go
 	StackdriverExportInterval time.Duration
+	PrometheusPort            int
 
 	// Deprecated: Use the param from cfg/config.go
 	OtelCollectorAddress string
@@ -640,6 +647,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		PrometheusPort:             c.Int("prometheus-port"),
 		LogFile:                    c.String("log-file"),
 		LogFormat:                  c.String("log-format"),
 		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),

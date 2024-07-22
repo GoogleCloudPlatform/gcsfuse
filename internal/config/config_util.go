@@ -25,6 +25,7 @@ const (
 	IgnoreInterruptsFlagName   = "ignore-interrupts"
 	AnonymousAccess            = "anonymous-access"
 	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+	PrometheusPortFlagName     = "prometheus-port"
 	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
 	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
 

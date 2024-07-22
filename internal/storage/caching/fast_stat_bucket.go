@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -96,6 +95,15 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 	b.cache.AddNegativeEntry(name, expiration)
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.AddNegativeEntryForFolder(name, expiration)
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -280,8 +288,13 @@ func (b *fastStatBucket) DeleteObject(
 }
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
-	b.invalidate(folderName)
 	err := b.wrapped.DeleteFolder(ctx, folderName)
+	if err != nil {
+		return err
+	}
+	// Add negative entry in the cache.
+	b.addNegativeEntryForFolder(folderName)
+
 	return err
 }
 
@@ -325,10 +338,19 @@ func (b *fastStatBucket) GetFolder(
 	return b.wrapped.GetFolder(ctx, prefix)
 }
 
-func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *control.RenameFolderOperation, err error) {
+func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
+	o, err = b.wrapped.CreateFolder(ctx, folderName)
+
+	// TODO: Insert folder in the cache
+
+	return
+}
+
+func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
 	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
 
-	// TODO: Invalidate cache
+	// Invalidate cache for old directory.
+	b.cache.EraseEntriesWithGivenPrefix(folderName)
 
 	return o, err
 }

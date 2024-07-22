@@ -194,6 +194,8 @@ type MetadataCacheConfig struct {
 }
 
 type MetricsConfig struct {
+	PrometheusPort int64 `yaml:"prometheus-port"`
+
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
 }
 
@@ -577,7 +579,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-retry-attempts", "", 6, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.")
+	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit.")
 
 	err = v.BindPFlag("gcs-retries.max-retry-attempts", flagSet.Lookup("max-retry-attempts"))
 	if err != nil {
@@ -622,6 +624,13 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	flagSet.IntP("parallel-downloads-per-file", "", 16, "Number of concurrent download requests per file.")
 
 	err = v.BindPFlag("file-cache.parallel-downloads-per-file", flagSet.Lookup("parallel-downloads-per-file"))
+	if err != nil {
+		return err
+	}
+
+	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	err = v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port"))
 	if err != nil {
 		return err
 	}
