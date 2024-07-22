@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,6 @@ func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest
 func (t *HNSDirTest) SetupTest() {
 	t.ctx = context.Background()
 	t.mockBucket = new(storage.TestifyMockBucket)
-	//t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
 		".gcsfuse_tmp/",
@@ -60,10 +59,6 @@ func (t *HNSDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, ena
 }
 
 func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
-	if t.in != nil {
-		t.in.Unlock()
-	}
-
 	var anyPastTime timeutil.SimulatedClock
 	anyPastTime.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 
@@ -107,7 +102,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
 
-	assert.Equal(t.T(), nil, err)
+	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, result.MinObject)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
