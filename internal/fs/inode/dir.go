@@ -537,6 +537,8 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
 	case metadata.ImplicitDirType:
+		// No change needed for HNS as there should not be any implicit dirs for any case in HNS bucket
+		// as any prefix ending with "/" is an actual folder resource in HNS bucket.
 		dirResult = &Core{
 			Bucket:    d.Bucket(),
 			FullName:  NewDirName(d.Name(), name),
