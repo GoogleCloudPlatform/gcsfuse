@@ -819,7 +819,7 @@ type CreateFolderTest struct {
 
 func init() { RegisterTestSuite(&CreateFolderTest{}) }
 
-func (t *CreateFolderTest) TestCreateFolderCallsWrappedCreateFolderWithSuccess() {
+func (t *CreateFolderTest) TestCreateFolderWhenGCSCallSucceeds() {
 	const name = "some-name"
 	folder := &gcs.Folder{
 		Name: name,
@@ -837,7 +837,7 @@ func (t *CreateFolderTest) TestCreateFolderCallsWrappedCreateFolderWithSuccess()
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
 }
 
-func (t *CreateFolderTest) TestCreateFolderReturnsErrorFromWrappedCreateFolder() {
+func (t *CreateFolderTest) TestCreateFolderWhenGCSCallFails() {
 	const name = "some-name"
 	ExpectCall(t.cache, "Erase")(name).
 		WillOnce(Return())
