@@ -150,8 +150,8 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 
 	// A conflict marker name shouldn't work.
-	//result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
-	//AssertEq(nil, err)
-	//ExpectEq(nil, result)
-	//ExpectEq(metadata.UnknownType, t.getTypeFromCache(name+ConflictingFileNameSuffix))
+	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), result)
+	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name+ConflictingFileNameSuffix))
 }
