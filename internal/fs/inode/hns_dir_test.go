@@ -15,42 +15,113 @@
 package inode
 
 import (
+	"errors"
+	"path"
 	"testing"
+	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
-	"github.com/jacobsa/timeutil"
 )
-
-func HNSTestDir(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest)) }
 
 type HNSDirTest struct {
 	suite.Suite
-	ctx    context.Context
-	bucket gcsx.SyncerBucket
-	clock  timeutil.SimulatedClock
-
-	in DirInode
-	tc metadata.TypeCache
+	ctx        context.Context
+	bucket     gcsx.SyncerBucket
+	in         DirInode
+	mockBucket *storage.TestifyMockBucket
 }
 
-func (t *DirTest) SetupTest() {
-	//t.ctx = ti.Ctx
+func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest)) }
+
+func (t *HNSDirTest) SetupTest() {
+	t.ctx = context.Background()
+	t.mockBucket = new(storage.TestifyMockBucket)
 	//t.clock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
-	//bucket := fake.NewFakeBucket(&t.clock, "some_bucket")
 	t.bucket = gcsx.NewSyncerBucket(
 		1,
 		".gcsfuse_tmp/",
-		new(storage.TestifyMockBucket))
-	// Create the inode. No implicit dirs by default.
-	t.resetInode(false, false, true)
+		t.mockBucket)
+	t.resetDirInode(false, false, true)
 }
 
-func (t *DirTest) TearDownTest() {
+func (t *HNSDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
+	t.resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
+}
+
+func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
+	if t.in != nil {
+		t.in.Unlock()
+	}
+
+	var anyPastTime timeutil.SimulatedClock
+	anyPastTime.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+
+	t.in = NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		fuseops.InodeAttributes{
+			Uid:  uid,
+			Gid:  gid,
+			Mode: dirMode,
+		},
+		implicitDirs,
+		enableManagedFoldersListing,
+		enableNonexistentTypeCache,
+		typeCacheTTL,
+		&t.bucket,
+		&anyPastTime,
+		&anyPastTime,
+		typeCacheMaxSizeMB,
+		false,
+	)
+
+	d := t.in.(*dirInode)
+	assert.NotEqual(t.T(), nil, d)
+	t.in.Lock()
+}
+
+func (t *HNSDirTest) TearDownTest() {
 	t.in.Unlock()
+}
+
+func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+	folder := &gcs.Folder{
+		Name:           dirName,
+		MetaGeneration: int64(1),
+	}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
+
+	assert.Equal(t.T(), nil, err)
+	assert.NotEqual(t.T(), nil, result.MinObject)
+	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+
+}
+
+func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), result)
 }
