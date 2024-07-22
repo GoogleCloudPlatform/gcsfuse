@@ -298,3 +298,14 @@ func (testSuite *StorageHandleTest) TestCreateClientOptionForGRPCClient() {
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), clientOption)
 }
+
+func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZero() {
+	sc := storageutil.GetDefaultStorageClientConfig()
+	sc.MaxRetryAttempts = 100
+
+	handleCreated, err := NewStorageHandle(context.Background(), sc)
+
+	if assert.NoError(testSuite.T(), err) {
+		assert.NotNil(testSuite.T(), handleCreated)
+	}
+}

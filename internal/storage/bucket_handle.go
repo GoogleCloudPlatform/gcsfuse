@@ -37,6 +37,9 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
+const FullBucketPathHNS = "projects/_/buckets/%s"
+
 type bucketHandle struct {
 	gcs.Bucket
 	bucket        *storage.BucketHandle
@@ -471,20 +474,29 @@ func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err
 	var callOptions []gax.CallOption
 
 	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 	}, callOptions...)
 
 	return err
 }
 
-func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (resp *control.RenameFolderOperation, err error) {
+func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{
-		Name:                "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+		Name:                fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
 	}
-	resp, err = b.controlClient.RenameFolder(ctx, req)
+	resp, err := b.controlClient.RenameFolder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
-	return resp, err
+	// Wait blocks until the long-running operation is completed,
+	// returning the response and any errors encountered.
+	controlFolder, err = resp.Wait(ctx)
+	folder = gcs.GCSFolder(b.bucketName, controlFolder)
+
+	return folder, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional
@@ -492,7 +504,7 @@ func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, dest
 func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name:      "projects/_/buckets/" + b.bucketName + "/storageLayout",
+		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", b.bucketName),
 		Prefix:    "",
 		RequestId: "",
 	}, callOptions...)
@@ -500,18 +512,36 @@ func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	return stoargeLayout, err
 }
 
-func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*controlpb.Folder, error) {
+func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	var callOptions []gax.CallOption
 
-	folder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: "projects/_/buckets/" + b.bucketName + "/folders/" + folderName,
+	clientFolder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
+		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
 	}, callOptions...)
 
 	if err != nil {
 		err = fmt.Errorf("error getting metadata for folder: %s, %w", folderName, err)
+		return nil, err
 	}
 
-	return folder, err
+	folderResponse := gcs.GCSFolder(b.bucketName, clientFolder)
+	return folderResponse, err
+}
+
+func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+	req := &controlpb.CreateFolderRequest{
+		Parent:   fmt.Sprintf(FullBucketPathHNS, b.bucketName),
+		FolderId: folderName,
+	}
+
+	clientFolder, err := b.controlClient.CreateFolder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	folder := gcs.GCSFolder(b.bucketName, clientFolder)
+
+	return folder, nil
 }
 
 func isStorageConditionsNotEmpty(conditions storage.Conditions) bool {

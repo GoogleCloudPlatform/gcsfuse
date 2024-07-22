@@ -31,3 +31,7 @@ enable-hns: true
 file-system:
   ignore-interrupts: true
   disable-parallel-dirops: true
+gcs-retries:
+  max-retry-attempts: 6
+metrics:
+  prometheus-port: 8080

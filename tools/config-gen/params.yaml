@@ -155,6 +155,14 @@
     exceeds this limit, the retry continues with this specified maximum value.
   default: "30s"
 
+- flag-name: "max-retry-attempts"
+  config-path: "gcs-retries.max-retry-attempts"
+  type: "int"
+  usage: >-
+    It sets a limit on the number of times an operation will be retried if it
+    fails, preventing endless retry loops. The default value 0 indicates no limit.
+  default: "0"
+
 - flag-name: "stat-cache-max-size-mb"
   config-path: "metadata-cache.stat-cache-max-size-mb"
   type: "int"
@@ -307,6 +315,12 @@
     Export metrics to stackdriver with this interval. The default value 0
     indicates no exporting.
   default: "0s"
+
+- flag-name: "prometheus-port"
+  config-path: "metrics.prometheus-port"
+  type: "int"
+  usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
+  default: "0"
 
 - flag-name: "experimental-opentelemetry-collector-address"
   config-path: "monitoring.experimental-opentelemetry-collector-address"

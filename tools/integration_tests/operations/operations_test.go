@@ -137,6 +137,18 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	filePath3 := setup.YAMLConfigFile(mountConfig3, "config3.yaml")
 	flags = append(flags, []string{"--config-file=" + filePath3})
 
+	mountConfig4 := config.MountConfig{
+		// Run with metadata caches disabled.
+		FileSystemConfig: config.FileSystemConfig{
+			KernelListCacheTtlSeconds: -1,
+		},
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := setup.YAMLConfigFile(mountConfig4, "config4.yaml")
+	flags = append(flags, []string{"--config-file=" + filePath4, "--implicit-dirs=true"})
 	return flags
 }
 
@@ -169,7 +181,8 @@ func TestMain(m *testing.M) {
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{
 		// By default, creating emptyFile is disabled.
-		{"--experimental-enable-json-read=true", "--implicit-dirs=true"}}
+		{"--experimental-enable-json-read=true"},
+	}
 
 	// gRPC tests will not run in TPC environment
 	if !testing.Short() && !setup.TestOnTPCEndPoint() {

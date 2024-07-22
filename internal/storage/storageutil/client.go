@@ -24,7 +24,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/auth"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
@@ -47,6 +46,7 @@ type StorageClientConfig struct {
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
 	MaxIdleConnsPerHost        int
+	MaxRetryAttempts           int
 	HttpClientTimeout          time.Duration
 	ExperimentalEnableJsonRead bool
 	AnonymousAccess            bool
@@ -55,7 +55,7 @@ type StorageClientConfig struct {
 	GrpcConnPoolSize int
 
 	// Enabling new API flow for HNS bucket.
-	EnableHNS config.EnableHNS
+	EnableHNS bool
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig) (httpClient *http.Client, err error) {

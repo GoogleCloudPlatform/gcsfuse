@@ -570,7 +570,7 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
 	assert.True(cht.T(), cacheHit)
 }
 
-func (cht *cacheHandleTest) Test_Read_Random() {
+func (cht *cacheHandleTest) Test_RandomRead() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
@@ -588,7 +588,7 @@ func (cht *cacheHandleTest) Test_Read_Random() {
 	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
+func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
@@ -605,7 +605,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownload() {
 	assert.True(cht.T(), strings.Contains(err.Error(), util.FallbackToGCSErrMsg))
 }
 
-func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
+func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalseButCacheHit() {
 	ctx := context.Background()
 	// Download the job till util.MiB
 	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(ctx, int64(2*util.MiB), true)
@@ -626,7 +626,7 @@ func (cht *cacheHandleTest) Test_Read_RandomWithNoRandomDownloadButCacheHit() {
 	cht.verifyContentRead(offset, dst)
 }
 
-func (cht *cacheHandleTest) Test_Read_Sequential() {
+func (cht *cacheHandleTest) Test_SequentialRead() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
@@ -697,7 +697,7 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	assert.Equal(cht.T(), newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
 }
 
-func (cht *cacheHandleTest) Test_Read_SequentialToRandom() {
+func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	dst := make([]byte, ReadContentSize)
 	firstReqOffset := int64(0)
 	cht.cacheHandle.isSequential = true
@@ -823,7 +823,7 @@ func (cht *cacheHandleTest) Test_MultipleReads_CacheHitShouldBeFalseThenTrue() {
 	assert.Nil(cht.T(), err)
 }
 
-func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
+func (cht *cacheHandleTest) Test_SequentialRead_Parallel_Download_True() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = true
@@ -851,7 +851,7 @@ func (cht *cacheHandleTest) Test_Read_Sequential_Parallel_Download_True() {
 	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
 }
 
-func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
+func (cht *cacheHandleTest) Test_RandomRead_Parallel_Download_True() {
 	dst := make([]byte, ReadContentSize)
 	offset := int64(cht.object.Size - ReadContentSize)
 	cht.cacheHandle.isSequential = false
@@ -874,6 +874,33 @@ func (cht *cacheHandleTest) Test_Read_Random_Parallel_Download_True() {
 	assert.Less(cht.T(), jobStatus.Offset, offset)
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	assert.Equal(cht.T(), 0, n)
+	assert.False(cht.T(), cacheHit)
+	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
+}
+
+func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelDownloadsEnabled() {
+	dst := make([]byte, ReadContentSize)
+	offset := int64(cht.object.Size - ReadContentSize)
+	cht.cacheHandle.isSequential = false
+	cht.cacheHandle.cacheFileForRangeRead = false
+	cht.cacheHandle.fileDownloadJob = downloader.NewJob(
+		cht.object,
+		cht.bucket,
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		&config.FileCacheConfig{EnableCRC: true, EnableParallelDownloads: true, ParallelDownloadsPerFile: 5, DownloadChunkSizeMB: 2},
+		semaphore.NewWeighted(math.MaxInt64),
+	)
+
+	// Since, it's a random read, download job will not start.
+	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+
+	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	assert.Equal(cht.T(), downloader.NotStarted, jobStatus.Name)
+	assert.Less(cht.T(), jobStatus.Offset, offset)
+	assert.Equal(cht.T(), n, 0)
 	assert.False(cht.T(), cacheHit)
 	assert.ErrorContains(cht.T(), err, util.FallbackToGCSErrMsg)
 }

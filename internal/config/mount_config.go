@@ -47,6 +47,7 @@ const (
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 	DefaultIgnoreInterrupts                       = true
+	DefaultPrometheusPort                         = 0
 
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
@@ -63,6 +64,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
+	DefaultMaxRetryAttempts         = int64(0)
 )
 
 type WriteConfig struct {
@@ -74,6 +76,11 @@ type LogConfig struct {
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
+}
+
+type MetricsConfig struct {
+	// Expose Prometheus metrics endpoint on this port and a path of /metrics.
+	PrometheusPort int `yaml:"prometheus-port"`
 }
 
 type ListConfig struct {
@@ -97,9 +104,6 @@ type GCSAuth struct {
 	// please pass anonymous-access flag explicitly if you do not want authentication enabled for your workflow.
 	AnonymousAccess bool `yaml:"anonymous-access"`
 }
-
-// Enable the storage control client flow on HNS buckets to utilize new APIs.
-type EnableHNS bool
 
 type FileSystemConfig struct {
 	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
@@ -137,6 +141,11 @@ type MetadataCacheConfig struct {
 	StatCacheMaxSizeMB int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
+type GCSRetries struct {
+	// Set max retry attempts in case of retryable errors. Default value is 6.
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+}
+
 type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
@@ -146,8 +155,10 @@ type MountConfig struct {
 	ListConfig          `yaml:"list"`
 	GCSConnection       `yaml:"gcs-connection"`
 	GCSAuth             `yaml:"gcs-auth"`
-	EnableHNS           `yaml:"enable-hns"`
+	EnableHNS           bool `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
+	GCSRetries          `yaml:"gcs-retries"`
+	MetricsConfig       `yaml:"metrics"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -210,6 +221,14 @@ func NewMountConfig() *MountConfig {
 	}
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
+
+	mountConfig.GCSRetries = GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
+
+	mountConfig.MetricsConfig = MetricsConfig{
+		PrometheusPort: DefaultPrometheusPort,
+	}
 
 	return mountConfig
 }

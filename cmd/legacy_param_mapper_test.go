@@ -87,6 +87,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				SequentialReadSizeMb:                40,
 				AnonymousAccess:                     false,
 				MaxRetrySleep:                       10,
+				MaxRetryAttempts:                    100,
 				RetryMultiplier:                     2,
 				StatCacheCapacity:                   200,
 				StatCacheTTL:                        50,
@@ -99,6 +100,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				EnableNonexistentTypeCache:          false,
 				StackdriverExportInterval:           40,
 				OtelCollectorAddress:                "address",
+				PrometheusPort:                      8080,
 				LogFile:                             "/tmp/log-file.json",
 				LogFormat:                           "json",
 				ExperimentalEnableJsonRead:          true,
@@ -157,8 +159,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ExperimentalEnableJsonRead: true,
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
-					MaxRetrySleep: 10,
-					Multiplier:    2,
+					MaxRetrySleep:    10,
+					MaxRetryAttempts: 100,
+					Multiplier:       2,
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
@@ -173,6 +176,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				Metrics: cfg.MetricsConfig{
 					StackdriverExportInterval: 40,
+					PrometheusPort:            8080,
 				},
 				Monitoring: cfg.MonitoringConfig{
 					ExperimentalOpentelemetryCollectorAddress: "address",
@@ -284,6 +288,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				IgnoreInterrupts:          false,
 				AnonymousAccess:           false,
 				KernelListCacheTtlSeconds: -1,
+				MaxRetryAttempts:          100,
 				ClientProtocol:            mountpkg.HTTP2,
 			},
 			mockCLICtx: &mockCLIContext{
@@ -293,6 +298,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					"ignore-interrupts":          true,
 					"anonymous-access":           true,
 					"kernel-list-cache-ttl-secs": true,
+					"max-retry-attempts":         true,
 				},
 			},
 			legacyMountConfig: &config.MountConfig{
@@ -307,6 +313,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				GCSAuth: config.GCSAuth{
 					AnonymousAccess: true,
+				},
+				GCSRetries: config.GCSRetries{
+					MaxRetryAttempts: 15,
 				},
 			},
 			expectedConfig: &cfg.Config{
@@ -324,6 +333,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					ClientProtocol: cfg.Protocol("http2"),
+				},
+				GcsRetries: cfg.GcsRetriesConfig{
+					MaxRetryAttempts: 100,
 				},
 			},
 			expectedErr: nil,

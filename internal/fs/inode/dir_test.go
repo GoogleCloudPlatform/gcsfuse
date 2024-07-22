@@ -118,7 +118,9 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.bucket,
 		&t.clock,
 		&t.clock,
-		typeCacheMaxSizeMB)
+		typeCacheMaxSizeMB,
+		false,
+	)
 
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
@@ -750,13 +752,13 @@ func (t *DirTest) ReadDescendants_NonEmpty() {
 func (t *DirTest) ReadEntries_Empty() {
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
-	AssertEq(nil, d.prevDirListingTimeStamp)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 	entries, err := t.readAllEntries()
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 	// Make sure prevDirListingTimeStamp is initialized.
-	AssertNe(nil, d.prevDirListingTimeStamp)
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
@@ -783,7 +785,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
-	AssertEq(nil, d.prevDirListingTimeStamp)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -811,8 +813,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
-	// Make sure prevDirListingTimeStamp is not nil.
-	AssertNe(nil, d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
 
 func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -842,7 +844,7 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
-	AssertEq(nil, d.prevDirListingTimeStamp)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -875,8 +877,8 @@ func (t *DirTest) ReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	ExpectEq(fuseutil.DT_Link, entry.Type)
 	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
 
-	// Make sure prevDirListingTimeStamp is not nil.
-	AssertNe(nil, d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
 
 func (t *DirTest) ReadEntries_TypeCaching() {
@@ -893,7 +895,7 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	AssertNe(nil, d)
-	AssertEq(nil, d.prevDirListingTimeStamp)
+	AssertTrue(d.prevDirListingTimeStamp.IsZero())
 
 	// Read the directory, priming the type cache.
 	_, err = t.readAllEntries()
@@ -925,8 +927,8 @@ func (t *DirTest) ReadEntries_TypeCaching() {
 
 	ExpectEq(dirObjName, result.MinObject.Name)
 
-	// Make sure prevDirListingTimeStamp is not nil.
-	AssertNe(nil, d.prevDirListingTimeStamp)
+	// Make sure prevDirListingTimeStamp is initialized.
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 }
 
 func (t *DirTest) CreateChildFile_DoesntExist() {
@@ -1484,7 +1486,7 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = nil
+	d.prevDirListingTimeStamp = time.Time{}
 
 	// Irrespective of the ttl value, this should always return true.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(util.MaxTimeDuration)
@@ -1494,8 +1496,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 	d := t.in.(*dirInode)
-	currentTime := d.cacheClock.Now()
-	d.prevDirListingTimeStamp = &currentTime
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	ttl := time.Second * 10
 	t.clock.AdvanceTime(ttl / 2)
 
@@ -1506,8 +1507,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 	d := t.in.(*dirInode)
-	currentTime := d.cacheClock.Now()
-	d.prevDirListingTimeStamp = &currentTime
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	ttl := 10 * time.Second
 	t.clock.AdvanceTime(ttl + time.Second)
 
@@ -1518,11 +1518,93 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 	d := t.in.(*dirInode)
-	currentTime := d.cacheClock.Now()
-	d.prevDirListingTimeStamp = &currentTime
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	ttl := time.Duration(0)
 
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
 
 	AssertEq(true, shouldInvalidate)
+}
+
+func (t *DirTest) TestShouldFindExplicitFolder() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+
+	var err error
+
+	dirObj, err := t.bucket.CreateFolder(t.ctx, dirName)
+	AssertEq(nil, err)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
+
+	AssertEq(nil, err)
+	AssertNe(nil, result.MinObject)
+	ExpectEq(dirName, result.FullName.GcsObjectName())
+	ExpectEq(dirName, result.MinObject.Name)
+	ExpectEq(dirObj.MetaGeneration, result.MinObject.MetaGeneration)
+	ExpectEq(0, result.MinObject.Size)
+
+	// Look up with the conflict marker name.
+	result, err = findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), dirName+ConflictingFileNameSuffix))
+
+	AssertEq(nil, err)
+	ExpectEq(nil, result)
+}
+
+func (t *DirTest) TestShouldReturnNilWhenGCSFolderNotFound() {
+	const dirName = "qux"
+	dirObjName := path.Join(dirInodeName, dirName) + "/"
+
+	_, err := t.bucket.CreateFolder(t.ctx, dirObjName)
+	AssertEq(nil, err)
+
+	// Look up with the name.
+	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
+
+	AssertEq(nil, err)
+	AssertEq(nil, result)
+}
+
+func (t *DirTest) TestRenameFolderWithGivenName() {
+	const (
+		dirName       = "qux"
+		renameDirName = "rename"
+	)
+	folderName := path.Join(dirInodeName, dirName) + "/"
+	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
+	// Create the original folder.
+	_, err := t.bucket.CreateFolder(t.ctx, folderName)
+	AssertEq(nil, err)
+
+	// Attempt to rename the folder.
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+
+	AssertEq(nil, err)
+	// Verify the original folder no longer exists.
+	_, err = t.bucket.GetFolder(t.ctx, folderName)
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
+	// Verify the renamed folder exists.
+	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
+	AssertEq(nil, err)
+	AssertEq(renameFolderName, f.Name)
+}
+
+func (t *DirTest) TestRenameFolderWithNonExistentSourceFolder() {
+	const (
+		dirName       = "qux"
+		renameDirName = "rename"
+	)
+	folderName := path.Join(dirInodeName, dirName) + "/"
+	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
+
+	// Attempt to rename the folder.
+	_, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+
+	var notFoundErr *gcs.NotFoundError
+	ExpectTrue(errors.As(err, &notFoundErr))
+	// Verify the renamed folder does not exist.
+	_, err = t.bucket.GetFolder(t.ctx, renameFolderName)
+	ExpectTrue(errors.As(err, &notFoundErr))
 }

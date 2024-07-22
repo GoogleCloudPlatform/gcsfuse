@@ -15,11 +15,15 @@
 package monitor
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
+	"contrib.go.opencensus.io/exporter/prometheus"
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"go.opencensus.io/stats/view"
@@ -105,4 +109,71 @@ func CloseOpenTelemetryCollectorExporter() {
 		ocExporter.Flush()
 	}
 	ocExporter = nil
+}
+
+var prometheusExporter *prometheus.Exporter
+var prometheusServer *http.Server
+
+// EnablePrometheusCollectorExporter starts exporting monitoring metrics for
+// the Prometheus to scrape on the given port.
+func EnablePrometheusCollectorExporter(port int) error {
+	if port == 0 {
+		return nil
+	}
+
+	if prometheusServer != nil {
+		return errors.New("a Prometheus server is already running")
+	}
+
+	if prometheusExporter != nil {
+		return errors.New("a Prometheus exporter is already running")
+	}
+
+	var err error
+	if prometheusExporter, err = prometheus.NewExporter(
+		prometheus.Options{
+			OnError: func(err error) {
+				logger.Errorf("Fail to collect metric: %v", err)
+			},
+		},
+	); err != nil {
+		return fmt.Errorf("create Prometheus collector exporter: %w", err)
+	}
+
+	view.RegisterExporter(prometheusExporter)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics", prometheusExporter.ServeHTTP)
+	prometheusServer = &http.Server{
+		Addr:           fmt.Sprintf(":%d", port),
+		Handler:        mux,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	go func() {
+		if err := prometheusServer.ListenAndServe(); err != nil {
+			logger.Errorf("Failed to start Prometheus server: %v", err)
+		}
+	}()
+
+	logger.Info("Prometheus collector exporter started")
+	return nil
+}
+
+// ClosePrometheusCollectorExporter closes the Prometheus exporter.
+func ClosePrometheusCollectorExporter() {
+	if prometheusServer != nil {
+		if err := prometheusServer.Shutdown(context.Background()); err != nil {
+			logger.Errorf("Failed to shutdown Prometheus server: %v", err)
+		}
+	}
+
+	if prometheusExporter != nil {
+		view.UnregisterExporter(prometheusExporter)
+	}
+
+	prometheusServer = nil
+	prometheusExporter = nil
 }

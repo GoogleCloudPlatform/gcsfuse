@@ -76,8 +76,9 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"sequential-read-size-mb":       flags.SequentialReadSizeMb,
 		},
 		"gcs-retries": map[string]interface{}{
-			"max-retry-sleep": flags.MaxRetrySleep,
-			"multiplier":      flags.RetryMultiplier,
+			"max-retry-sleep":    flags.MaxRetrySleep,
+			"multiplier":         flags.RetryMultiplier,
+			"max-retry-attempts": flags.MaxRetryAttempts,
 		},
 		"implicit-dirs": flags.ImplicitDirs,
 		"logging": map[string]interface{}{
@@ -92,6 +93,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"experimental-metadata-prefetch-on-mount": flags.ExperimentalMetadataPrefetchOnMount,
 		},
 		"metrics": map[string]interface{}{
+			"prometheus-port":             flags.PrometheusPort,
 			"stackdriver-export-interval": flags.StackdriverExportInterval,
 		},
 		"monitoring": map[string]interface{}{
@@ -127,6 +129,8 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		ignoreInterrupts       = resolvedConfig.FileSystem.IgnoreInterrupts
 		anonymousAccess        = resolvedConfig.GcsAuth.AnonymousAccess
 		kernelListCacheTTLSecs = resolvedConfig.FileSystem.KernelListCacheTtlSecs
+		maxRetryAttempts       = resolvedConfig.GcsRetries.MaxRetryAttempts
+		prometheusPort         = resolvedConfig.Metrics.PrometheusPort
 	)
 
 	// Decoding config to the same config structure (resolvedConfig).
@@ -140,12 +144,14 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "ignore-interrupts", &resolvedConfig.FileSystem.IgnoreInterrupts, ignoreInterrupts)
 	overrideWithFlag(c, "anonymous-access", &resolvedConfig.GcsAuth.AnonymousAccess, anonymousAccess)
 	overrideWithFlag(c, "kernel-list-cache-ttl-secs", &resolvedConfig.FileSystem.KernelListCacheTtlSecs, kernelListCacheTTLSecs)
+	overrideWithFlag(c, "max-retry-attempts", &resolvedConfig.GcsRetries.MaxRetryAttempts, maxRetryAttempts)
+	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
 	return resolvedConfig, nil
 }
 
 // overrideWithFlag function overrides the toUpdate value with updateValue if
-// the flag is set in cliCOntext.
+// the flag is set in cliContext.
 func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue T) {
 	if !c.IsSet(flag) {
 		return

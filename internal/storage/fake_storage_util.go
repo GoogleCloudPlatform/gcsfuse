@@ -22,6 +22,7 @@ import (
 const TestBucketName string = "gcsfuse-default-bucket"
 const TestObjectRootFolderName string = "gcsfuse/"
 const TestObjectName string = "gcsfuse/default.txt"
+const TestFolderName string = "gcsfuse/folder"
 const TestRenameFolder string = "gcsfuse/rename"
 const TestObjectSubRootFolderName string = "gcsfuse/SubFolder/"
 const TestSubObjectName string = "gcsfuse/SubFolder/default.txt"

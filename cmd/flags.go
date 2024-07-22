@@ -220,6 +220,12 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.IntFlag{
+				Name:  "max-retry-attempts",
+				Value: 0,
+				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit",
+			},
+
+			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: mount.DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb is not set.",
@@ -313,6 +319,12 @@ func newApp() (app *cli.App) {
 				Name:  "experimental-opentelemetry-collector-address",
 				Value: "",
 				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
+			},
+
+			cli.IntFlag{
+				Name:  config.PrometheusPortFlagName,
+				Value: 0,
+				Usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics.",
 			},
 
 			cli.StringFlag{
@@ -451,6 +463,9 @@ type flagStorage struct {
 	MaxRetrySleep time.Duration
 
 	// Deprecated: Use the param from cfg/config.go
+	MaxRetryAttempts int64
+
+	// Deprecated: Use the param from cfg/config.go
 	StatCacheCapacity int
 
 	// Deprecated: Use the param from cfg/config.go
@@ -484,6 +499,7 @@ type flagStorage struct {
 	// Monitoring & Logging
 	// Deprecated: Use the param from cfg/config.go
 	StackdriverExportInterval time.Duration
+	PrometheusPort            int
 
 	// Deprecated: Use the param from cfg/config.go
 	OtelCollectorAddress string
@@ -615,6 +631,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 
 		// Tuning,
 		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		MaxRetryAttempts:           c.Int64("max-retry-attempts"),
 		StatCacheCapacity:          c.Int("stat-cache-capacity"),
 		StatCacheTTL:               c.Duration("stat-cache-ttl"),
 		TypeCacheTTL:               c.Duration("type-cache-ttl"),
@@ -630,6 +647,7 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		PrometheusPort:             c.Int("prometheus-port"),
 		LogFile:                    c.String("log-file"),
 		LogFormat:                  c.String("log-format"),
 		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),

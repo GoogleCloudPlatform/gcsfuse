@@ -25,12 +25,14 @@ const (
 	IgnoreInterruptsFlagName   = "ignore-interrupts"
 	AnonymousAccess            = "anonymous-access"
 	KernelListCacheTtlFlagName = "kernel-list-cache-ttl-secs"
+	PrometheusPortFlagName     = "prometheus-port"
 	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
 	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
 
 	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
 	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
+	MaxRetryAttempts         = "max-retry-attempts"
 )
 
 // cliContext is abstraction over the IsSet() method of cli.Context, Specially
