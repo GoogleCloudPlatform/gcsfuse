@@ -40,6 +40,20 @@ type ReadChunkData struct {
 	ExecutionTime    string
 }
 
+type Job struct {
+	JobID      string
+	BucketName string
+	ObjectName string
+	JobEntries []JobData
+}
+
+// JobData stores the job timestamp and offsets for a particular file.
+type JobData struct {
+	StartTimeSeconds int64
+	StartTimeNanos   int64
+	Offset           int64
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////

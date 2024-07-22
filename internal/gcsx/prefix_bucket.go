@@ -20,7 +20,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -228,7 +227,7 @@ func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (fol
 	return b.wrapped.CreateFolder(ctx, mFolderName)
 }
 
-func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*control.RenameFolderOperation, error) {
+func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
 	mFolderName := b.wrappedName(folderName)
 	mDestinationFolderId := b.wrappedName(destinationFolderId)
 	o, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)

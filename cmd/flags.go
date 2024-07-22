@@ -221,8 +221,8 @@ func newApp() (app *cli.App) {
 
 			cli.IntFlag{
 				Name:  "max-retry-attempts",
-				Value: 6,
-				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. Default value is 6.",
+				Value: 0,
+				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit",
 			},
 
 			cli.IntFlag{

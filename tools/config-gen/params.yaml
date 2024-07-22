@@ -160,8 +160,8 @@
   type: "int"
   usage: >-
     It sets a limit on the number of times an operation will be retried if it
-    fails, preventing endless retry loops. Default value is 6.
-  default: "6"
+    fails, preventing endless retry loops. The default value 0 indicates no limit.
+  default: "0"
 
 - flag-name: "stat-cache-max-size-mb"
   config-path: "metadata-cache.stat-cache-max-size-mb"

@@ -64,7 +64,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(6)
+	DefaultMaxRetryAttempts         = int64(0)
 )
 
 type WriteConfig struct {

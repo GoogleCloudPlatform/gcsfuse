@@ -404,17 +404,15 @@ func TestGetFolder_Prefix(t *testing.T) {
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
-	objectName := "taco"
-	name := "foo_" + objectName
-	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	// Create an object through the back door.
+	folderName := "taco"
+	name := "foo_" + folderName
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	_, err = wrapped.CreateFolder(ctx, name)
 	require.Nil(t, err)
 
 	result, err := bucket.GetFolder(
 		ctx,
-		objectName)
+		folderName)
 
 	assert.Nil(nil, err)
 	assert.Equal(t, name, result.Name)
@@ -425,22 +423,21 @@ func TestDeleteFolder(t *testing.T) {
 	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
-	objectName := "taco"
-	name := "foo_" + objectName
-	// TODO: Replace the use of CreateObject with CreateFolder once the CreateFolder API has been successfully implemented.
-	// Create an object through the back door.
+	folderName := "taco"
+	name := "foo_" + folderName
+
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte("foobar"))
+	_, err = wrapped.CreateFolder(ctx, name)
 	require.Nil(t, err)
 
 	err = bucket.DeleteFolder(
 		ctx,
-		objectName)
+		folderName)
 
 	if assert.Nil(t, err) {
 		_, err = wrapped.GetFolder(
 			ctx,
-			objectName)
+			folderName)
 		var notFoundErr *gcs.NotFoundError
 		assert.ErrorAs(t, err, &notFoundErr)
 	}
@@ -456,7 +453,7 @@ func TestRenameFolder(t *testing.T) {
 	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
 	require.Nil(t, err)
 	ctx := context.Background()
-	_, err = storageutil.CreateObject(ctx, wrapped, name, []byte(""))
+	_, err = wrapped.CreateFolder(ctx, name)
 	assert.Nil(t, err)
 
 	_, err = bucket.RenameFolder(ctx, old_suffix, new_suffix)
@@ -469,4 +466,21 @@ func TestRenameFolder(t *testing.T) {
 	_, err = bucket.GetFolder(ctx, old_suffix)
 	var notFoundErr *gcs.NotFoundError
 	assert.True(t, errors.As(err, &notFoundErr))
+}
+
+func TestCreateFolder(t *testing.T) {
+	prefix := "foo_"
+	var err error
+	suffix := "test"
+	wrapped := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	bucket, err := gcsx.NewPrefixBucket(prefix, wrapped)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	_, err = bucket.CreateFolder(ctx, suffix)
+
+	assert.NoError(t, err)
+	// Folder should get created
+	_, err = bucket.GetFolder(ctx, suffix)
+	assert.NoError(t, err)
 }

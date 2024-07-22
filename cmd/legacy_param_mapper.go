@@ -151,7 +151,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 }
 
 // overrideWithFlag function overrides the toUpdate value with updateValue if
-// the flag is set in cliCOntext.
+// the flag is set in cliContext.
 func overrideWithFlag[T any](c cliContext, flag string, toUpdate *T, updateValue T) {
 	if !c.IsSet(flag) {
 		return
