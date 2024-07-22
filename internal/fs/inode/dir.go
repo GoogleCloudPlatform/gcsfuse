@@ -527,6 +527,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
+	lookUpHNSDir := func(ctx context.Context) (err error) {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		return
+	}
 
 	b := syncutil.NewBundle(ctx)
 
@@ -539,20 +543,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		b.Add(lookUpExplicitDir)
+		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(lookUpHNSDir)
+		} else {
+			b.Add(lookUpExplicitDir)
+		}
 	case metadata.RegularFileType, metadata.SymlinkType:
 		b.Add(lookUpFile)
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		// TODO: Update if block to call get folder once implicit dirs changes are complete, and e2e tests are passed on new changes
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
-			if d.implicitDirs {
-				b.Add(lookUpImplicitOrExplicitDir)
-			} else {
-				b.Add(lookUpExplicitDir)
-			}
+			b.Add(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
