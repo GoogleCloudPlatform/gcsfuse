@@ -107,54 +107,43 @@ def parse_and_generate_directory_structure(dir_str) -> int:
     if "folders" not in dir_str:
       logmessage("No folders specified in the config file")
     else:
-      if dir_str["folders"]["num_folders"] != len(
-          dir_str["folders"]["folder_structure"]):
-        logmessage("Inconsistency in the directory structure config file")
-        return -1
-      else:
-        for folder in dir_str["folders"]["folder_structure"]:
-          # create the folder
-          folder_name = folder["name"]
-          num_files = folder["num_files"]
-          filename_prefix = folder["file_name_prefix"]
-          file_size = folder["file_size"][:-2]
-          file_size_unit = folder["file_size"][-2:]
-          # Creating folders locally in temp directory and copying to gcs bucket:
-          destination_blob_name = 'gs://{}/{}/'.format(bucket_name, folder_name)
-          generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                                  int(num_files),
-                                                  file_size_unit,
-                                                  int(file_size),
-                                                  filename_prefix)
+      for folder in dir_str["folders"]["folder_structure"]:
+        # create the folder
+        folder_name = folder["name"]
+        num_files = folder["num_files"]
+        filename_prefix = folder["file_name_prefix"]
+        file_size = folder["file_size"][:-2]
+        file_size_unit = folder["file_size"][-2:]
+        # Creating folders locally in temp directory and copying to gcs bucket:
+        destination_blob_name = 'gs://{}/{}/'.format(bucket_name, folder_name)
+        generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                                int(num_files),
+                                                file_size_unit,
+                                                int(file_size),
+                                                filename_prefix)
 
     # creating a nested folder structure in gcs bucket
     if "nested_folders" not in dir_str:
       logmessage("No nested folders specified in the config file")
     else:
-      if dir_str["nested_folders"]["num_folders"] != len(
-          dir_str["nested_folders"]["folder_structure"]):
-        logmessage("Inconsistency in the directory structure config file")
-        return -1
-      else:
-        sub_folder_name = dir_str["nested_folders"]["folder_name"]
-        for folder in dir_str["nested_folders"]["folder_structure"]:
-          # create the folder
-          folder_name = folder["name"]
-          num_files = folder["num_files"]
-          filename_prefix = folder["file_name_prefix"]
-          file_size = folder["file_size"][:-2]
-          file_size_unit = folder["file_size"][-2:]
-          file_size_unit = folder["file_size"][-2:]
+      sub_folder_name = dir_str["nested_folders"]["folder_name"]
+      for folder in dir_str["nested_folders"]["folder_structure"]:
+        # create the folder
+        folder_name = folder["name"]
+        num_files = folder["num_files"]
+        filename_prefix = folder["file_name_prefix"]
+        file_size = folder["file_size"][:-2]
+        file_size_unit = folder["file_size"][-2:]
 
-          # # Creating folders locally in temp directory and copying to gcs bucket:
-          destination_blob_name = 'gs://{}/{}/{}/'.format(bucket_name,
-                                                          sub_folder_name,
-                                                          folder_name)
-          generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                                  int(num_files),
-                                                  file_size_unit,
-                                                  int(file_size),
-                                                  filename_prefix)
+        # # Creating folders locally in temp directory and copying to gcs bucket:
+        destination_blob_name = 'gs://{}/{}/{}/'.format(bucket_name,
+                                                        sub_folder_name,
+                                                        folder_name)
+        generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                                int(num_files),
+                                                file_size_unit,
+                                                int(file_size),
+                                                filename_prefix)
 
     # Deleting temporary folder:
     logmessage('Deleting the temporary directory.\n')
@@ -164,12 +153,13 @@ def parse_and_generate_directory_structure(dir_str) -> int:
 
 
 def delete_existing_folders_in_gcs_bucket(gcs_bucket):
-
   try:
     subprocess.check_output(
-      'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
+        'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
   except subprocess.CalledProcessError as e:
     logmessage(e.output.decode('utf-8'))
+    subprocess.call('bash',shell=True)
+
 
 def list_directory(path) -> list:
   """Returns the list containing path of all the contents present in the current directory.
@@ -180,17 +170,17 @@ def list_directory(path) -> list:
   Returns:
     A list containing path of all contents present in the input path.
   """
-
-  contents = subprocess.check_output(
-      'gsutil -m ls {}'.format(path), shell=True)
-  contents_url = contents.decode('utf-8').split('\n')[:-1]
-  return contents_url
+  try:
+    contents = subprocess.check_output(
+        'gsutil -m ls {}'.format(path), shell=True)
+    contents_url = contents.decode('utf-8').split('\n')[:-1]
+    return contents_url
+  except subprocess.CalledProcessError as e:
+    logmessage(e.output.decode('utf-8'))
+    subprocess.call('bash', shell=True)
 
 
 def check_if_dir_structure_exists(directory_structure) -> (int):
-  # contents=subprocess.check_output(
-  #     'gsutil -m ls {}'.format(path), shell=True).decode('utf-8').split('\n')[:-1]
-
   bucket_name = directory_structure["name"]
   bucket_url = 'gs://{}'.format(bucket_name)
 
@@ -203,19 +193,18 @@ def check_if_dir_structure_exists(directory_structure) -> (int):
       delete_existing_folders_in_gcs_bucket(bucket_name)
       return 0
 
-
-
     # for each non-nested folder , check the count of files
-    for folder in directory_structure["folder_structure"]:
-      files = list_directory('{}/{}').format(bucket_url, folder["name"])
+    for folder in directory_structure["folders"]["folder_structure"]:
+      files = list_directory('{}/{}'.format(bucket_url, folder["name"]))
       if len(files) != folder["num_files"]:
         delete_existing_folders_in_gcs_bucket(bucket_name)
         return 0
 
   # check the number of second level folders in nested folders
   if nested_folder_count:
-    nested_folder= directory_structure["nested_folders"]["folder_name"]
-    second_level_folders = list_directory('{}/{}'.format(bucket_url,nested_folder))
+    nested_folder = directory_structure["nested_folders"]["folder_name"]
+    second_level_folders = list_directory(
+      '{}/{}'.format(bucket_url, nested_folder))
     if len(second_level_folders) != directory_structure["nested_folders"][
       "num_folders"]:
       delete_existing_folders_in_gcs_bucket(bucket_name)
@@ -223,40 +212,44 @@ def check_if_dir_structure_exists(directory_structure) -> (int):
 
     # if the length is same, check the files for each second level folder
     for folder in directory_structure["nested_folders"]["folder_structure"]:
-      files_nested_folder = list_directory('{}/{}/{}'.format(bucket_name,nested_folder,folder["name"]))
+      files_nested_folder = list_directory(
+        '{}/{}/{}'.format(bucket_url, nested_folder, folder["name"]))
       if len(files_nested_folder) != folder["num_files"]:
         delete_existing_folders_in_gcs_bucket(bucket_name)
         return 0
 
   return 1
 
-def check_for_config_file_consistency(config) -> (int):
-    if "name" not in config:
-      logmessage("Bucket name not specified")
-      return 0
 
-    if "folders" in config :
-      if not ("num_folders" in config["folders"] or "folder_structure" in config["folders"]):
-        logmessage("Key missing for nested folder")
-        return 0
-
-      if config["folders"]["num_folders"] != len(config["folders"]["folder_structure"]):
-        logmessage("Inconsistency in the folder structure")
-        return 0
-
-    if "nested_folders" in config :
-      if not ("folder_name"  in config["nested_folders"] or
-              "num_folders" in config["nested_folders"] or
-              "folder_structure" in config["nested_folders"]):
-        logmessage("Key missing for nested folder")
-        return 0
-
-      if config["nested_folders"]["num_folders"] != len(config["nested_folders"]["folder_structure"]):
-        logmessage("Inconsistency in the nested folder")
-        return 0
-
+def check_for_config_file_inconsistency(config) -> (int):
+  if "name" not in config:
+    logmessage("Bucket name not specified")
     return 1
 
+  if "folders" in config:
+    if not ("num_folders" in config["folders"] or "folder_structure" in config[
+      "folders"]):
+      logmessage("Key missing for nested folder")
+      return 1
+
+    if config["folders"]["num_folders"] != len(
+        config["folders"]["folder_structure"]):
+      logmessage("Inconsistency in the folder structure")
+      return 1
+
+  if "nested_folders" in config:
+    if not ("folder_name" in config["nested_folders"] or
+            "num_folders" in config["nested_folders"] or
+            "folder_structure" in config["nested_folders"]):
+      logmessage("Key missing for nested folder")
+      return 1
+
+    if config["nested_folders"]["num_folders"] != len(
+        config["nested_folders"]["folder_structure"]):
+      logmessage("Inconsistency in the nested folder")
+      return 1
+
+  return 0
 
 
 if __name__ == '__main__':
@@ -290,8 +283,8 @@ if __name__ == '__main__':
 
   directory_structure = json.load(open(args.config_file))
 
-  exit_code= check_for_config_file_consistency(directory_structure)
-  if not exit_code:
+  exit_code = check_for_config_file_inconsistency(directory_structure)
+  if exit_code:
     logmessage("Config file is inconsistent")
     print('Exited with code {}'.format(exit_code))
     subprocess.call('bash', shell=True)
