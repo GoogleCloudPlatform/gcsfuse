@@ -148,10 +148,56 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
 
-	// A conflict marker name shouldn't work.
-	result, err = t.in.LookUpChild(t.ctx, name+ConflictingFileNameSuffix)
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent() {
+	const name = "unknown_type"
+	dirName := path.Join(dirInodeName, name) + "/"
+	// mock get folder call
+	folder := &gcs.Folder{
+		Name:           dirName,
+		MetaGeneration: int64(1),
+	}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
 	assert.Nil(t.T(), err)
-	assert.Nil(t.T(), result)
-	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name+ConflictingFileNameSuffix))
+	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
+	const name = "file_type"
+	fileName := path.Join(dirInodeName, name)
+	// mock get folder call
+	minObject := &gcs.MinObject{
+		Name:           name,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+	}
+	attrs := &gcs.ExtendedObjectAttributes{
+		ContentType:  "plain/text",
+		StorageClass: "DEFAULT",
+		CacheControl: "some-value",
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
