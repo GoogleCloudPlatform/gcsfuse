@@ -132,4 +132,5 @@ if __name__ == '__main__':
   exit_code = check_for_config_file_inconsistency(directory_structure)
   if exit_code != 0:
     print('Exited with code {}'.format(exit_code))
+<<<<<<< HEAD
     subprocess.call('bash', shell=True)
