@@ -211,10 +211,10 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
             "num_folders": 1,
             "folder_structure": [
                 {
-                    "name": "test_folder",
-                    "num_files": 1,
-                    "file_name_prefix": "file",
-                    "file_size": "1kb"
+                  "name": "test_folder",
+                  "num_files": 1,
+                  "file_name_prefix": "file",
+                  "file_size": "1kb"
                 }
             ]
         },
