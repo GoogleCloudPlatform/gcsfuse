@@ -26,7 +26,7 @@ from subprocess import Popen
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
 
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)],
 )
@@ -36,7 +36,7 @@ logger = logging.getLogger()
 def _logmessage(message) -> None:
   with open(OUTPUT_FILE, 'a') as out:
     out.write(message)
-  logger.error(message)
+  logger.info(message)
 
 
 def _check_for_config_file_inconsistency(config) -> (int):
