@@ -55,15 +55,15 @@ func init() {
 	switch runtime.GOOS {
 	case "darwin":
 		// FUSE_MAXNAMELEN is used on OS X in the kernel to limit the max length of
-		// a name that readdir needs to process (https://tinyurl.com/2rr6x8mt).
+		// a name that readdir needs to process (cf. https://goo.gl/eega7V).
 		//
 		// NOTE: I can't find where this is defined, but this appears to
 		// be its value.
 		fuseMaxNameLen = 255
 
 	case "linux":
-		// On Linux, we're looking at FUSE_NAME_MAX (https://tinyurl.com/2fr4y7fu),
-		// used in e.g. fuse_lookup_name (https://tinyurl.com/4pacanh3).
+		// On Linux, we're looking at FUSE_NAME_MAX (https://goo.gl/qd8G0f), used
+		// in e.g. fuse_lookup_name (https://goo.gl/FHSAhy).
 		fuseMaxNameLen = 1024
 
 	default:
@@ -136,8 +136,7 @@ func interestingLegalNames() (names []string) {
 	//  *  Cn (non-character and reserved), which is not included in unicode.C.
 	//  *  Co (private usage), which is large.
 	//  *  Cs (surrages), which is large.
-	//  *  U+0000, which is forbidden in paths by Go
-	//     (https://tinyurl.com/mrxdwxhs).
+	//  *  U+0000, which is forbidden in paths by Go (cf. https://goo.gl/BHoO7N).
 	//  *  U+000A and U+000D, which are forbidden by the docs.
 	//
 	for r := rune(0); r <= unicode.MaxRune; r++ {

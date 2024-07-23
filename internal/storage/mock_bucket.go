@@ -27,7 +27,6 @@ type mockBucket struct {
 	description string
 }
 
-// Deprecated: Please use testify_mock_bucket.go instead.
 func NewMockBucket(
 	c oglemock.Controller,
 	desc string) MockBucket {
