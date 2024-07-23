@@ -536,14 +536,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
 	case metadata.ImplicitDirType:
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
-			b.Add(lookUpHNSDir)
-		} else {
-			dirResult = &Core{
-				Bucket:    d.Bucket(),
-				FullName:  NewDirName(d.Name(), name),
-				MinObject: nil,
-			}
+		dirResult = &Core{
+			Bucket:    d.Bucket(),
+			FullName:  NewDirName(d.Name(), name),
+			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {

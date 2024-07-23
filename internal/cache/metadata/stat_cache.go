@@ -248,7 +248,9 @@ func (sc *statCacheBucketView) LookUpFolder(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 	if hit {
-		return hit, entry.f
+		if entry.f != nil {
+			return true, entry.f
+		}
 	}
 
 	return false, nil
