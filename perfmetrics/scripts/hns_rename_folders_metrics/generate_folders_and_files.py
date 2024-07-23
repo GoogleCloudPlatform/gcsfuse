@@ -365,8 +365,6 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
   return 0
 
 
-=======
->>>>>>> 55d7dea4a (Adding function to check the consistency of config file)
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
