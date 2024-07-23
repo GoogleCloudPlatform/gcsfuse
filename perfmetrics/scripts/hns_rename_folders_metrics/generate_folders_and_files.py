@@ -26,7 +26,7 @@ from subprocess import Popen
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)],
 )
@@ -36,10 +36,19 @@ logger = logging.getLogger()
 def logmessage(message) -> None:
   with open(OUTPUT_FILE, 'a') as out:
     out.write(message)
-  logger.info(message)
+  logger.error(message)
 
 
 def check_for_config_file_inconsistency(config) -> (int):
+  """
+  Checks for inconsistencies in the provided configuration.
+
+  Args:
+      config: The configuration dictionary to be checked.
+
+  Returns:
+      0 if no inconsistencies are found, 1 otherwise.
+  """
   if "name" not in config:
     logmessage("Bucket name not specified")
     return 1
@@ -90,13 +99,13 @@ if __name__ == '__main__':
 
   args = parser.parse_args(argv[1:])
 
-  # Checking that gsutil is installed:
-  logmessage('Checking whether gsutil is installed.\n')
-  process = Popen('gsutil version', shell=True)
+  # Checking that gcloud is installed:
+  logmessage('Checking whether gcloud is installed.\n')
+  process = Popen('gcloud version', shell=True)
   process.communicate()
   exit_code = process.wait()
   if exit_code != 0:
-    print('Gsutil not installed.')
+    print('gcloud not installed.')
     subprocess.call('bash', shell=True)
 
   directory_structure = json.load(open(args.config_file))
