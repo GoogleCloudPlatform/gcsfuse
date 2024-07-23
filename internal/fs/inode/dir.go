@@ -352,7 +352,6 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-
 	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
 
 	// Suppress "not found" errors.
@@ -537,12 +536,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	cachedType := d.cache.Get(d.cacheClock.Now(), name)
 	switch cachedType {
 	case metadata.ImplicitDirType:
-		// No change needed for HNS as there should not be any implicit dirs for any case in HNS bucket
-		// as any prefix ending with "/" is an actual folder resource in HNS bucket.
-		dirResult = &Core{
-			Bucket:    d.Bucket(),
-			FullName:  NewDirName(d.Name(), name),
-			MinObject: nil,
+		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(lookUpHNSDir)
+		} else {
+			dirResult = &Core{
+				Bucket:    d.Bucket(),
+				FullName:  NewDirName(d.Name(), name),
+				MinObject: nil,
+			}
 		}
 	case metadata.ExplicitDirType:
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
