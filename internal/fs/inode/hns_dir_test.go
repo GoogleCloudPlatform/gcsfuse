@@ -108,6 +108,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, result.MinObject)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
@@ -123,6 +124,7 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Nil(t.T(), result)
 }
@@ -142,6 +144,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
@@ -166,6 +169,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
@@ -177,7 +181,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
 	const name = "file_type"
 	fileName := path.Join(dirInodeName, name)
-	// mock get folder call
+	// mock stat object call
 	minObject := &gcs.MinObject{
 		Name:           name,
 		MetaGeneration: int64(1),
@@ -189,8 +193,37 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 		CacheControl: "some-value",
 	}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
-	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkType() {
+	const name = "file_type"
+	fileName := path.Join(dirInodeName, name)
+	// mock stat object call
+	minObject := &gcs.MinObject{
+		Name:           name,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
+	}
+	attrs := &gcs.ExtendedObjectAttributes{
+		ContentType:  "plain/text",
+		StorageClass: "DEFAULT",
+		CacheControl: "some-value",
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
@@ -199,5 +232,16 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	assert.Equal(t.T(), name, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
+	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentkType() {
+	const name = "file_type"
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), result)
+	t.mockBucket.AssertExpectations(t.T())
 }
