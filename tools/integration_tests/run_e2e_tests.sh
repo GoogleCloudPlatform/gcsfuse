@@ -31,9 +31,7 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 if [ $4 != "" ]; then
   RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-
 INTEGRATION_TEST_TIMEOUT_IN_MINS=70
-
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 if [ $# -ge 5 ] ; then
