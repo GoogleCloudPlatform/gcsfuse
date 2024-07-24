@@ -27,7 +27,7 @@ type WriteFileInfo struct {
 	mtime     time.Time
 }
 
-const BlockSize = 1 * util.MiB
+const BlockSize = 5 * util.MiB
 const MaxBlocks = 10
 
 // InitBufferedWriteHandler - Pass all required param and do init.
