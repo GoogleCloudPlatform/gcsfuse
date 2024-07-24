@@ -255,25 +255,32 @@ def check_if_dir_structure_exists(directory_structure) -> (int):
 
     # for each non-nested folder , check the count of files
     for folder in directory_structure["folders"]["folder_structure"]:
-      files = list_directory('{}/{}'.format(bucket_url, folder["name"]))
+      files = _list_directory('{}/{}'.format(bucket_url, folder["name"]))
       if len(files) != folder["num_files"]:
         return 0
 
   # check the number of second level folders in nested folders
   if nested_folder_count:
     nested_folder = directory_structure["nested_folders"]["folder_name"]
-    second_level_folders = list_directory(
+    second_level_folders = _list_directory(
         '{}/{}'.format(bucket_url, nested_folder))
     if len(second_level_folders) != directory_structure["nested_folders"][
       "num_folders"]:
       return 0
 
-    # for each second level folder in "nested" folders, check the count of files
-    for folder in directory_structure["nested_folders"]["folder_structure"]:
-      files_nested_folder = list_directory(
-          '{}/{}/{}'.format(bucket_url, nested_folder, folder["name"]))
-      if len(files_nested_folder) != folder["num_files"]:
-        return 0
+      # for each second level folder in "nested" folders, check the count of files
+      for folder in directory_structure["nested_folders"]["folder_structure"]:
+        try:
+          files_nested_folder = _list_directory(
+              '{}/{}/{}'.format(bucket_url, nested_folder, folder["name"]))
+          if len(files_nested_folder) != folder["num_files"]:
+            return 0
+        except:
+            # second level nested folder specified in config file does not exist
+            return 0
+    except:
+      # folder specified in the nested folder structrue does not exist in bucket
+      return 0
 
   return 1
 
@@ -312,7 +319,6 @@ if __name__ == '__main__':
   exit_code = _check_for_config_file_inconsistency(directory_structure)
   if exit_code != 0:
     print('Exited with code {}'.format(exit_code))
-<<<<<<< HEAD
     subprocess.call('bash', shell=True)
 
   # Compare the directory structure with the JSON config file to avoid recreation of
