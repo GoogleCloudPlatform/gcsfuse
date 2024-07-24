@@ -35,6 +35,7 @@ INTEGRATION_TEST_TIMEOUT=70m
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 if [ $# -ge 5 ] ; then
+  # This parameter is set to true by caller, only for presubmit runs.
   RUN_TESTS_WITH_PRESUBMIT_FLAG=$5
 fi
 
@@ -51,6 +52,7 @@ if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 fi
 
+# Pass flag "-presubmit" to 'go test' command and lower timeout for presubmit runs.
 if [ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == true ]; then
   PRESUBMIT_RUN_FLAG="-presubmit"
   if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
@@ -59,7 +61,7 @@ if [ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == true ]; then
     INTEGRATION_TEST_TIMEOUT=60m
   fi
   echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
-  echo "Setting the flag to mark run as presubmit-run."
+  echo "This is a presubmit-run."
 fi
 
 readonly RANDOM_STRING_LENGTH=5

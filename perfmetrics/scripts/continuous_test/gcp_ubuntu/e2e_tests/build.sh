@@ -22,6 +22,8 @@ readonly SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=true
 readonly RUN_TEST_ON_TPC_ENDPOINT=false
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION=us-central1
+
+# This flag, if set true, will indicate to the underlying script, to customize for a presubmit-run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"

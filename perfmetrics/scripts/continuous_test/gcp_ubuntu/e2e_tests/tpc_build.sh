@@ -23,6 +23,8 @@ readonly RUN_TEST_ON_TPC_ENDPOINT=true
 # TPC project id
 readonly PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly BUCKET_LOCATION="u-us-prp1"
+
+# This flag, if set true, will indicate to underlying script to customize for a presubmit run.
 readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"

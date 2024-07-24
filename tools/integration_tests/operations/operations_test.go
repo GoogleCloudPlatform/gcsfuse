@@ -181,7 +181,7 @@ func TestMain(m *testing.M) {
 	// Note: We are not testing specifically for implicit-dirs because they are covered as part of the other flags.
 	flagsSet := [][]string{}
 
-	// Enable experimental-enable-json-read=true case for non-presubmit runs.
+	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
 	if !setup.IsPresubmitRun() {
 		flagsSet = append(flagsSet, []string{
 			// By default, creating emptyFile is disabled.
