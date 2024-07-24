@@ -62,8 +62,6 @@ func (uh *UploadHandler) Upload(block Block) (err error) {
 	uh.chunks.PushBack(block)
 	uh.mu.Unlock()
 
-	logger.Infof("In Upload. Status = %s", uh.status)
-
 	switch uh.status {
 	case NotStarted:
 		err = uh.startUpload()
@@ -98,8 +96,6 @@ func (uh *UploadHandler) startUpload() (err error) {
 		Metadata:               metadataMap,
 	}
 
-	logger.Info("req = ", req)
-	logger.Info("bucket = ", uh.bucket.Name())
 	// We need to create a new context, since the first writeFile() call will be
 	// done by the time total upload is done. So can't use that context.
 	// TODO: Check if ctx needs to be persisted in UploadHandler.
@@ -132,10 +128,8 @@ func (uh *UploadHandler) startUpload() (err error) {
 func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
 	// Put back the block on the channel for reuse.
 	uh.blocksCh <- uh.bufferInProgress
-	//uh.mu.Lock()
-	//defer uh.mu.Unlock()
-
-	logger.Infof("callback called: chunks left: %d status: %s", uh.chunks.Len(), uh.status)
+	uh.mu.Lock()
+	defer uh.mu.Unlock()
 
 	// Upload next chunk if available.
 	if uh.chunks.Len() > 0 {
@@ -161,19 +155,15 @@ func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
 }
 
 func (uh *UploadHandler) uploadChunk() error {
-	uh.mu.Lock()
-	defer uh.mu.Unlock()
 	listEle := uh.chunks.Front()
 	uh.bufferInProgress = listEle.Value.(Block)
 	uh.chunks.Remove(listEle)
 
 	go func() {
-		logger.Infof("<- Upload started")
 		err := uh.bucket.Upload(uh.writer, uh.bufferInProgress)
-		logger.Infof("-> Upload done")
 
 		if err != nil {
-			logger.Infof("Upload failed: %v", err)
+			logger.Warnf("Upload failed: %v", err)
 			uh.status = Failed
 		}
 	}()
@@ -187,32 +177,21 @@ func (uh *UploadHandler) Finalize() error {
 	//  finalized
 	// Throw error
 
-	logger.Infof("upload handler finalise called. Status: %s", uh.status)
-
 	if uh.chunks.Len() != 0 || uh.status == Uploading {
-		logger.Infof("Changing status to ready to finalise so that on " +
-			"callback function call upload is finalised")
+		//Changing status to ready to finalise so that on callback function call upload is finalised
 		uh.status = ReadyToFinalize
 		uh.uploadDone = make(chan error)
-		logger.Infof("Waiting for uploadDone signal")
 		err := <-uh.uploadDone
-		logger.Infof("Got upload done signal")
 		return err
 	}
 
-	logger.Infof("Closing writer")
 	// readToFinalize, ChunkUploaded, failed
 	err := uh.writer.Close()
 	if err != nil {
 		logger.Errorf("error in closing Writer: %v", err)
 	}
-	logger.Infof("Writer closed")
 	if uh.uploadDone != nil {
-		logger.Infof("uh.uploadDone is non nil")
 		uh.uploadDone <- err
-	} else {
-		logger.Infof("uh.uploadDone is nil")
 	}
-
 	return err
 }

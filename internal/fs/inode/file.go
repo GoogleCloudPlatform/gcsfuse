@@ -477,8 +477,6 @@ func (f *FileInode) Write(
 	// buffered writes are valid for only new and sequential file writes.
 	if EnableBufferedWrites && f.local == true {
 		if f.bufferedWrites == nil {
-			logger.Info("init buffered writes handler during write. bucket = ", f.bucket)
-
 			f.bufferedWrites = block.InitBufferedWriteHandler(f.name.GcsObjectName(), f.bucket)
 		}
 		err = f.bufferedWrites.Write(data, offset)
@@ -596,7 +594,6 @@ func (f *FileInode) Sync(ctx context.Context) (err error) {
 
 	if EnableBufferedWrites && f.local {
 
-		logger.Info("finalising buffered writes")
 		if f.bufferedWrites == nil {
 			return
 		}
