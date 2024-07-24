@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -167,6 +168,18 @@ func (b *fastStatBucket) CreateObject(
 	b.insert(o)
 
 	return
+}
+
+func (b *fastStatBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+
+	b.invalidate(req.Name)
+
+	return b.wrapped.CreateObjectInChunks(ctx, req, chunkSize, callBack)
+}
+
+func (b *fastStatBucket) Upload(wc *storage.Writer, reader io.Reader) (err error) {
+	return b.wrapped.Upload(wc, reader)
 }
 
 // LOCKS_EXCLUDED(b.mu)

@@ -15,9 +15,11 @@
 package gcsx
 
 import (
+	"io"
 	"mime"
 	"path"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -43,6 +45,20 @@ func (b contentTypeBucket) CreateObject(
 	// Pass on the request.
 	o, err = b.Bucket.CreateObject(ctx, req)
 	return
+}
+
+func (b contentTypeBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+	// Guess a content type if necessary.
+	if req.ContentType == "" {
+		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
+	}
+
+	return b.Bucket.CreateObjectInChunks(ctx, req, chunkSize, callBack)
+}
+
+func (b contentTypeBucket) Upload(wc *storage.Writer, reader io.Reader) (err error) {
+	return b.Bucket.Upload(wc, reader)
 }
 
 func (b contentTypeBucket) ComposeObjects(

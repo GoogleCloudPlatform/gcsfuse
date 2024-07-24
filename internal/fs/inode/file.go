@@ -22,8 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -88,6 +90,8 @@ type FileInode struct {
 
 	// Represents if local file has been unlinked.
 	unlinked bool
+
+	bufferedWrites *block.BufferedWriteHandler
 }
 
 var _ Inode = &FileInode{}
@@ -460,6 +464,8 @@ func (f *FileInode) Read(
 	return
 }
 
+const EnableBufferedWrites bool = true
+
 // Serve a write for this file with semantics matching fuseops.WriteFileOp.
 //
 // LOCKS_REQUIRED(f.mu)
@@ -467,6 +473,28 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64) (err error) {
+
+	// buffered writes are valid for only new and sequential file writes.
+	if EnableBufferedWrites && f.local == true {
+		if f.bufferedWrites == nil {
+			logger.Info("init buffered writes handler during write. bucket = ", f.bucket)
+
+			f.bufferedWrites = block.InitBufferedWriteHandler(f.name.GcsObjectName(), f.bucket)
+		}
+		err = f.bufferedWrites.Write(data, offset)
+		if err != nil {
+			if err == fmt.Errorf("non sequential writes") {
+				//TODO: trigger edit flow
+				logger.Warnf("trigger edit flow")
+				err := f.bufferedWrites.Finalize()
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return
+	}
+
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
 	if err != nil {
@@ -565,6 +593,20 @@ func (f *FileInode) SetMtime(
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (err error) {
+
+	if EnableBufferedWrites && f.local {
+
+		logger.Info("finalising buffered writes")
+		if f.bufferedWrites == nil {
+			return
+		}
+
+		err := f.bufferedWrites.Finalize()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil {
 		return

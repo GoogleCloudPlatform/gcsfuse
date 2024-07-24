@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -160,6 +161,24 @@ func (b *debugBucket) CreateObject(
 	defer b.finishRequest(id, desc, start, &err)
 
 	o, err = b.wrapped.CreateObject(context.WithValue(ctx, gcs.ReqIdField, id), req)
+	return
+}
+
+func (b *debugBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (wc *storage.Writer, err error) {
+
+	id, desc, start := b.startRequest("CreateObjectInChunks(%q)", req.Name)
+	defer b.finishRequest(id, desc, start, &err)
+
+	wc, err = b.wrapped.CreateObjectInChunks(ctx, req, chunkSize, callBack)
+	return
+}
+
+func (b *debugBucket) Upload(wc *storage.Writer, reader io.Reader) (err error) {
+	id, desc, start := b.startRequest("Upload()")
+	defer b.finishRequest(id, desc, start, &err)
+
+	err = b.wrapped.Upload(wc, reader)
 	return
 }
 

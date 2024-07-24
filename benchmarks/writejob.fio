@@ -1,0 +1,30 @@
+[global]
+ioengine=sync
+direct=1
+fadvise_hint=0
+verify=0
+iodepth=64
+invalidate=1
+time_based=0
+file_append=0
+# By default fio creates all files first and then starts writing to them. This option is to disable that behavior.
+create_on_open=1
+thread=1
+openfiles=1
+group_reporting=1
+allrandrepeat=1
+# Every file is written only once. Set nrfiles per thread in such a way that the test runs for 1-2 min.
+# This will vary based on file size. Change the value from table to get provided results.
+nrfiles=2
+filename_format=$jobname.$jobnum.$filenum
+# Change this to randwrite to test random writes.
+rw=write
+# Update the block size value from the table for different
+bs=1M
+# Update the file size value from table(file size) for different experiments.
+filesize=50M
+[experiment]
+stonewall
+# Change the test directory (1mb) for different experiments. The directory must exist within the mounted directory.
+directory=50mb
+numjobs=112

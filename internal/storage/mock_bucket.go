@@ -12,6 +12,7 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 	context "golang.org/x/net/context"
@@ -130,6 +131,16 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 	}
 
 	return
+}
+
+func (m *mockBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+
+	return nil, nil
+}
+
+func (m *mockBucket) Upload(wc *storage.Writer, block io.Reader) (err error) {
+	return nil
 }
 
 func (m *mockBucket) DeleteObject(p0 context.Context, p1 *gcs.DeleteObjectRequest) (o0 error) {

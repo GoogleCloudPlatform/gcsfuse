@@ -28,6 +28,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
@@ -614,6 +615,16 @@ func (b *bucket) CreateObject(
 
 	o, err = b.createObjectLocked(req)
 	return
+}
+
+func (b *bucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+
+	return nil, nil
+}
+
+func (b *bucket) Upload(wc *storage.Writer, reader io.Reader) (err error) {
+	return nil
 }
 
 // LOCKS_EXCLUDED(b.mu)

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 )
@@ -95,6 +96,23 @@ func (b *prefixBucket) CreateObject(
 	}
 
 	return
+}
+
+func (b *prefixBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+
+	// Modify the request and call through.
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	wc, err := b.wrapped.CreateObjectInChunks(ctx, mReq, chunkSize, callBack)
+
+	return wc, err
+}
+
+func (b *prefixBucket) Upload(wc *storage.Writer, block io.Reader) (err error) {
+	return b.wrapped.Upload(wc, block)
 }
 
 func (b *prefixBucket) CopyObject(

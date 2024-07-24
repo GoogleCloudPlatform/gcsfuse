@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/mock"
 )
@@ -45,6 +46,16 @@ func (m *TestifyMockBucket) NewReader(ctx context.Context, req *gcs.ReadObjectRe
 func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
 	return args.Get(0).(*gcs.Object), args.Error(1)
+}
+
+func (m *TestifyMockBucket) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int,
+	callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+
+	return nil, nil
+}
+
+func (m *TestifyMockBucket) Upload(wc *storage.Writer, reader io.Reader) (err error) {
+	return nil
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {

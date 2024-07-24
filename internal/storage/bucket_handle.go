@@ -113,8 +113,8 @@ func (bh *bucketHandle) NewReader(
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
 	return obj.NewRangeReader(ctx, start, length)
 }
-func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
-	obj := b.bucket.Object(req.Name)
+func (bh *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRequest) error {
+	obj := bh.bucket.Object(req.Name)
 
 	// Switching to the requested generation of the object. By default, generation
 	// is 0 which signifies the latest generation. Note: GCS will delete the
@@ -148,11 +148,11 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 
 }
 
-func (b *bucketHandle) StatObject(ctx context.Context,
+func (bh *bucketHandle) StatObject(ctx context.Context,
 	req *gcs.StatObjectRequest) (m *gcs.MinObject, e *gcs.ExtendedObjectAttributes, err error) {
 	var attrs *storage.ObjectAttrs
 	// Retrieving object attrs through Go Storage Client.
-	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
+	attrs, err = bh.bucket.Object(req.Name).Attrs(ctx)
 
 	// If error is of type storage.ErrObjectNotExist
 	if err == storage.ErrObjectNotExist {
@@ -237,9 +237,34 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 
-func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
-	srcObj := b.bucket.Object(req.SrcName)
-	dstObj := b.bucket.Object(req.DstName)
+func (bh *bucketHandle) CreateObjectInChunks(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (*storage.Writer, error) {
+	obj := bh.bucket.Object(req.Name)
+	preconditions := storage.Conditions{}
+	preconditions.DoesNotExist = true
+	obj = obj.If(preconditions)
+
+	// Creating a NewWriter with requested attributes, using Go Storage Client.
+	// Chuck size for resumable upload is default i.e. 16MB.
+	wc := obj.NewWriter(ctx)
+	wc.ChunkSize = chunkSize
+	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc.ProgressFunc = callBack
+
+	return wc, nil
+}
+
+func (bh *bucketHandle) Upload(wc *storage.Writer, src io.Reader) (err error) {
+	// Copy the contents to the writer.
+	if _, err = io.Copy(wc, src); err != nil {
+		err = fmt.Errorf("error in io.Copy: %w", err)
+		return
+	}
+	return
+}
+
+func (bh *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (o *gcs.Object, err error) {
+	srcObj := bh.bucket.Object(req.SrcName)
+	dstObj := bh.bucket.Object(req.DstName)
 
 	// Switching to the requested generation of source object.
 	if req.SrcGeneration != 0 {
@@ -289,7 +314,7 @@ func getProjectionValue(req gcs.Projection) storage.Projection {
 	return convertedProjection
 }
 
-func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
+func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (listing *gcs.Listing, err error) {
 	// Converting *ListObjectsRequest to type *storage.Query as expected by the Go Storage Client.
 	query := &storage.Query{
 		Delimiter:                req.Delimiter,
@@ -299,7 +324,7 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 		IncludeFoldersAsPrefixes: req.IncludeFoldersAsPrefixes,
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
-	itr := b.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
+	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
 	pi.MaxSize = req.MaxResults
 	pi.Token = req.ContinuationToken
@@ -347,8 +372,8 @@ func (b *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsRequ
 	return
 }
 
-func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
-	obj := b.bucket.Object(req.Name)
+func (bh *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRequest) (o *gcs.Object, err error) {
+	obj := bh.bucket.Object(req.Name)
 
 	if req.Generation != 0 {
 		obj = obj.Generation(req.Generation)
@@ -411,8 +436,8 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 	return
 }
 
-func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
-	dstObj := b.bucket.Object(req.DstName)
+func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjectsRequest) (o *gcs.Object, err error) {
+	dstObj := bh.bucket.Object(req.DstName)
 
 	dstObjConds := storage.Conditions{}
 	if req.DstMetaGenerationPrecondition != nil {
@@ -438,7 +463,7 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	// Converting the req.Sources list to a list of storage.ObjectHandle as expected by the Go Storage Client.
 	var srcObjList []*storage.ObjectHandle
 	for _, src := range req.Sources {
-		currSrcObj := b.bucket.Object(src.Name)
+		currSrcObj := bh.bucket.Object(src.Name)
 		// Switching to requested Generation of the object.
 		// Zero src generation is the latest generation, we are skipping it because by default it will take the latest one
 		if src.Generation != 0 {
@@ -470,23 +495,23 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	return
 }
 
-func (b *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
+func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (err error) {
 	var callOptions []gax.CallOption
 
-	err = b.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
+	err = bh.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
+		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 	}, callOptions...)
 
 	return err
 }
 
-func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
+func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (folder *gcs.Folder, err error) {
 	var controlFolder *controlpb.Folder
 	req := &controlpb.RenameFolderRequest{
-		Name:                fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
+		Name:                fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
 	}
-	resp, err := b.controlClient.RenameFolder(ctx, req)
+	resp, err := bh.controlClient.RenameFolder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -494,17 +519,17 @@ func (b *bucketHandle) RenameFolder(ctx context.Context, folderName string, dest
 	// Wait blocks until the long-running operation is completed,
 	// returning the response and any errors encountered.
 	controlFolder, err = resp.Wait(ctx)
-	folder = gcs.GCSFolder(b.bucketName, controlFolder)
+	folder = gcs.GCSFolder(bh.bucketName, controlFolder)
 
 	return folder, err
 }
 
 // TODO: Consider adding this method to the bucket interface if additional
 // layout options are needed in the future.
-func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
+func (bh *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
-	stoargeLayout, err := b.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
-		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", b.bucketName),
+	stoargeLayout, err := bh.controlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bh.bucketName),
 		Prefix:    "",
 		RequestId: "",
 	}, callOptions...)
@@ -512,11 +537,11 @@ func (b *bucketHandle) getStorageLayout() (*controlpb.StorageLayout, error) {
 	return stoargeLayout, err
 }
 
-func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+func (bh *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	var callOptions []gax.CallOption
 
-	clientFolder, err := b.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, b.bucketName, folderName),
+	clientFolder, err := bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
+		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 	}, callOptions...)
 
 	if err != nil {
@@ -524,22 +549,22 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 		return nil, err
 	}
 
-	folderResponse := gcs.GCSFolder(b.bucketName, clientFolder)
+	folderResponse := gcs.GCSFolder(bh.bucketName, clientFolder)
 	return folderResponse, err
 }
 
-func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
+func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	req := &controlpb.CreateFolderRequest{
-		Parent:   fmt.Sprintf(FullBucketPathHNS, b.bucketName),
+		Parent:   fmt.Sprintf(FullBucketPathHNS, bh.bucketName),
 		FolderId: folderName,
 	}
 
-	clientFolder, err := b.controlClient.CreateFolder(ctx, req)
+	clientFolder, err := bh.controlClient.CreateFolder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	folder := gcs.GCSFolder(b.bucketName, clientFolder)
+	folder := gcs.GCSFolder(bh.bucketName, clientFolder)
 
 	return folder, nil
 }
