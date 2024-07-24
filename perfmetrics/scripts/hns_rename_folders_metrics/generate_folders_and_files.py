@@ -230,6 +230,16 @@ def _check_if_dir_structure_exists(directory_structure) -> bool:
   return True
 
 
+def delete_existing_folders_and_files_in_gcs_bucket(gcs_bucket)->(int):
+  try:
+    subprocess.check_output(
+        'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
+    return 0
+  except subprocess.CalledProcessError as e:
+    _logmessage(e.output.decode('utf-8'))
+    return 1
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -269,3 +279,11 @@ if __name__ == '__main__':
   # Compare the directory structure with the JSON config file to avoid recreation of
   # same test data.
   dir_structure_present = _check_if_dir_structure_exists(directory_structure)
+
+  # If directory structure does not exist/match the structure in the config file
+  # delete any existing files in bucket.
+  if not dir_structure_present:
+    exit_code = delete_existing_folders_and_files_in_gcs_bucket(directory_structure["name"])
+    if exit_code != 0:
+      print('Error while deleting bucket.Exiting...!')
+      subprocess.call('bash', shell=True)
