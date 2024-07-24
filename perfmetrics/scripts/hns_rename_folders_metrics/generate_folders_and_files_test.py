@@ -116,10 +116,8 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 class TestListDirectory(unittest.TestCase):
 
   @patch('subprocess.check_output')
-  @patch('subprocess.call')
   @patch('generate_folders_and_files.logmessage')
-  def test_listing_at_non_existent_path(self, mock_logmessage,
-      mock_subprocess_call, mock_check_output):
+  def test_listing_at_non_existent_path(self, mock_logmessage,mock_check_output):
     mock_check_output.side_effect = subprocess.CalledProcessError(
         returncode=1,
         cmd="gcloud storage ls gs://fake_bkt",
@@ -129,7 +127,6 @@ class TestListDirectory(unittest.TestCase):
 
     self.assertEqual(dir_list, None)
     mock_logmessage.assert_called_once_with('Error while listing')
-    mock_subprocess_call.assert_called_once_with('bash', shell=True)
 
   @patch('subprocess.check_output')
   def test_listing_directory(self, mock_check_output):
