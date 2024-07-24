@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	flagsSet := [][]string{
-		{"--kernel-list-cache-ttl-secs=-1"},
+		{"--kernel-list-cache-ttl-secs=-1", "--kernel-list-cache-ttl-secs=0"},
 	}
 	successCode := static_mounting.RunTests(flagsSet, m)
 
