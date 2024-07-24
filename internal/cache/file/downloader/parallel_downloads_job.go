@@ -60,7 +60,8 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	_, err = io.CopyN(dstWriter, newReader, end-start)
+	buf := directio.AlignedBlock(directio.BlockSize)
+	_, err = io.CopyBuffer(dstWriter, newReader, buf)
 	if err != nil {
 		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
 	}

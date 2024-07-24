@@ -22,6 +22,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -375,7 +376,7 @@ func (job *Job) downloadObjectAsync() {
 	defer job.cleanUpDownloadAsyncJob()
 
 	// Create, open and truncate cache file for writing object into it.
-	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
+	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY|syscall.O_DIRECT)
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
 		job.handleError(err)
