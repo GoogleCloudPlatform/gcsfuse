@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -117,7 +117,7 @@ type MultiBucketStatCacheTest struct {
 }
 
 func (t *StatCacheTest) SetupTest() {
-	cache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	cache := lru.NewCache(uint64((cmd.AverageSizeOfPositiveStatCacheEntry + cmd.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
@@ -125,7 +125,7 @@ func (t *StatCacheTest) SetupTest() {
 }
 
 func (t *MultiBucketStatCacheTest) SetupTest() {
-	sharedCache := lru.NewCache(uint64((mount.AverageSizeOfPositiveStatCacheEntry + mount.AverageSizeOfNegativeStatCacheEntry) * capacity))
+	sharedCache := lru.NewCache(uint64((cmd.AverageSizeOfPositiveStatCacheEntry + cmd.AverageSizeOfNegativeStatCacheEntry) * capacity))
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }

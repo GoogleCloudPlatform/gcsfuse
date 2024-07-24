@@ -30,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	gcsfusefs "github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
@@ -86,8 +85,7 @@ func (t *typeCacheTestCommon) SetUpTestSuite() {
 
 	// Fill server-cfg from mount-config.
 	func(mountConfig *config.MountConfig, serverCfg *gcsfusefs.ServerConfig) {
-		serverCfg.DirTypeCacheTTL = mount.ResolveMetadataCacheTTL(mount.DefaultStatOrTypeCacheTTL, mount.DefaultStatOrTypeCacheTTL,
-			mountConfig.TtlInSeconds)
+		serverCfg.DirTypeCacheTTL = time.Second * time.Duration(ttlInSeconds)
 		serverCfg.InodeAttributeCacheTTL = serverCfg.DirTypeCacheTTL
 		// We can add more logic here to fill other fileds in serverCfg
 		// from mountConfig here as needed.
