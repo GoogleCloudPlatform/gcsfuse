@@ -31,7 +31,9 @@ RUN_TEST_ON_TPC_ENDPOINT=false
 if [ $4 != "" ]; then
   RUN_TEST_ON_TPC_ENDPOINT=$4
 fi
-INTEGRATION_TEST_TIMEOUT=70m
+
+INTEGRATION_TEST_TIMEOUT_IN_MINS=70
+
 
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 if [ $# -ge 5 ] ; then
@@ -48,21 +50,18 @@ fi
 if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
   GO_TEST_SHORT_FLAG="-short"
   echo "Setting the flag to skip few un-important integration tests."
-  INTEGRATION_TEST_TIMEOUT=50m
-  echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
+  INTEGRATION_TEST_TIMEOUT_IN_MINS=$((INTEGRATION_TEST_TIMEOUT_IN_MINS-20))
 fi
 
 # Pass flag "-presubmit" to 'go test' command and lower timeout for presubmit runs.
 if [ "$RUN_TESTS_WITH_PRESUBMIT_FLAG" == true ]; then
+  echo "This is a presubmit-run, which skips some tests."
   PRESUBMIT_RUN_FLAG="-presubmit"
-  if [ "$SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE" == true ]; then
-    INTEGRATION_TEST_TIMEOUT=40m
-  else
-    INTEGRATION_TEST_TIMEOUT=60m
-  fi
-  echo "Changing the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
-  echo "This is a presubmit-run."
+  INTEGRATION_TEST_TIMEOUT_IN_MINS=$((INTEGRATION_TEST_TIMEOUT_IN_MINS-10))
 fi
+
+INTEGRATION_TEST_TIMEOUT=""${INTEGRATION_TEST_TIMEOUT_IN_MINS}"m"
+echo "Setting the integration test timeout to: $INTEGRATION_TEST_TIMEOUT"
 
 readonly RANDOM_STRING_LENGTH=5
 # Test directory arrays
