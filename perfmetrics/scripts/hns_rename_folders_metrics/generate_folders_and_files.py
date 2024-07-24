@@ -19,11 +19,13 @@ import argparse
 import json
 from datetime import datetime as dt
 import logging
+import os
 import sys
 import subprocess
-from subprocess import Popen
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
+TEMPORARY_DIRECTORY = './tmp/data_gen'
+BATCH_SIZE = 100
 
 logging.basicConfig(
     level=logging.INFO,
@@ -241,6 +243,51 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
     _logmessage(e.output.decode('utf-8'))
     return 1
 
+def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
+    file_size_unit, file_size,
+    filename_prefix) -> int:
+  for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
+    for file_num in range(batch_start, batch_start + BATCH_SIZE):
+      if file_num > num_of_files:
+        break
+
+      file_name = '{}_{}'.format(filename_prefix, file_num)
+      temp_file = '{}/{}.txt'.format(TEMPORARY_DIRECTORY, file_name)
+
+      # Creating files in temporary folder:
+      with open(temp_file, 'wb') as out:
+        if (file_size_unit.lower() == 'gb'):
+          out.truncate(1024 * 1024 * 1024 * int(file_size))
+        if (file_size_unit.lower() == 'mb'):
+          out.truncate(1024 * 1024 * int(file_size))
+        if (file_size_unit.lower() == 'kb'):
+          out.truncate(1024 * int(file_size))
+        if (file_size_unit.lower() == 'b'):
+          out.truncate(int(file_size))
+
+    num_files = os.listdir(TEMPORARY_DIRECTORY)
+
+    if not num_files:
+      logmessage("Files were not created locally")
+      return -1
+
+    # starting upload to the gcs bucket
+    process = subprocess.Popen(
+        'gcloud storage cp --recursive {}/* {}'.format(TEMPORARY_DIRECTORY,
+                                         destination_blob_name),
+        shell=True)
+    process.communicate()
+    exit_code = process.wait()
+    if exit_code != 0:
+      return exit_code
+
+    # Delete local files from temporary directory
+    subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
+
+    # Writing number of files uploaded to output file after every batch uploads:
+    logmessage('{}/{} files uploaded to {}\n'.format(len(num_files), num_of_files,
+                                                     destination_blob_name))
+  return 0
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -264,7 +311,7 @@ if __name__ == '__main__':
 
   # Checking that gcloud is installed:
   _logmessage('Checking whether gcloud is installed.\n')
-  process = Popen('gcloud version', shell=True)
+  process = subprocess.Popen('gcloud version', shell=True)
   process.communicate()
   exit_code = process.wait()
   if exit_code != 0:
