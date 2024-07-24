@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import subprocess
+from subprocess import Popen
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
 TEMPORARY_DIRECTORY = './tmp/data_gen'
