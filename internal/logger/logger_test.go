@@ -55,7 +55,7 @@ func TestLoggerSuite(t *testing.T) {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
-	defaultLogger = slog.New(
+	Logger = slog.New(
 		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
 	)
 	setLoggingLevel(level, programLevel)
@@ -329,7 +329,7 @@ func (t *LoggerTest) TestSetLogFormatToText() {
 		SetLogFormat(test.format)
 
 		assert.NotNil(t.T(), defaultLoggerFactory)
-		assert.NotNil(t.T(), defaultLogger)
+		assert.NotNil(t.T(), Logger)
 		assert.Equal(t.T(), defaultLoggerFactory.format, test.format)
 		// Create a logger using defaultLoggerFactory that writes to buffer.
 		var buf bytes.Buffer
