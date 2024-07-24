@@ -145,5 +145,89 @@ class TestListDirectory(unittest.TestCase):
     self.assertEqual(dir_list, expected_dir_list)
 
 
+class TestCheckIfDirStructureExists(unittest.TestCase):
+
+  @patch("generate_folders_and_files.list_directory")
+  def test_dir_already_exists_in_gcs_bucket(self, mock_list_directory):
+    mock_list_directory.side_effect = [
+        ["gs://test_bucket/test_folder/", "gs://test_bucket/nested/"],
+        ["gs://test_bucket/test_folder/file_1.txt"],
+        ["gs://test_bucket/nested/test_folder/"],
+        ["gs://test_bucket/nested/test_folder/file_1.txt"]
+    ]
+    dir_config = {
+        "name": "test_bucket",
+        "folders": {
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested",
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+
+    dir_present = generate_folders_and_files.check_if_dir_structure_exists(
+      dir_config)
+
+    self.assertEqual(dir_present, 1)
+
+  @patch("generate_folders_and_files.list_directory")
+  def test_dir_does_not_exist_in_gcs_bucket(self, mock_list_directory):
+    mock_list_directory.side_effect = [
+        ["gs://test_bucket/test_folder/", "gs://test_bucket/nested/"],
+        ["gs://test_bucket/test_folder/file_1.txt",
+         "gs://test_bucket/test_folder/file_1.txt"],
+        ["gs://test_bucket/nested/test_folder/"],
+        ["gs://test_bucket/nested/test_folder/file_1.txt"]
+    ]
+    dir_config = {
+        "name": "test_bucket",
+        "folders": {
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested",
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+
+    dir_present = generate_folders_and_files.check_if_dir_structure_exists(
+      dir_config)
+
+    self.assertEqual(dir_present, 0)
+
+
 if __name__ == '__main__':
   unittest.main()

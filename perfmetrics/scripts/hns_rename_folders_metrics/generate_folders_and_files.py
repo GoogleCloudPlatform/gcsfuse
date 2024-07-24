@@ -98,6 +98,54 @@ def list_directory(path) -> list:
     subprocess.call('bash', shell=True)
 
 
+def check_if_dir_structure_exists(directory_structure) -> (int):
+  """Checks if the directory structure mentioned in the config file already
+  exists in the GCS bucket.
+
+  Args:
+    directory_structure: Json Object representing the directory structure.
+
+  Returns:
+    true if the existing structure in GCS bucket exactly matches with teh config
+     file
+    false otherwise
+  """
+  bucket_name = directory_structure["name"]
+  bucket_url = 'gs://{}'.format(bucket_name)
+
+  # check for top level folders
+  folders = list_directory(bucket_url)
+  nested_folder_count = "nested_folders" in directory_structure
+  if "folders" in directory_structure:
+    if len(folders) != directory_structure["folders"][
+      "num_folders"] + nested_folder_count:
+      return 0
+
+    # for each non-nested folder , check the count of files
+    for folder in directory_structure["folders"]["folder_structure"]:
+      files = list_directory('{}/{}'.format(bucket_url, folder["name"]))
+      if len(files) != folder["num_files"]:
+        return 0
+
+  # check the number of second level folders in nested folders
+  if nested_folder_count:
+    nested_folder = directory_structure["nested_folders"]["folder_name"]
+    second_level_folders = list_directory(
+        '{}/{}'.format(bucket_url, nested_folder))
+    if len(second_level_folders) != directory_structure["nested_folders"][
+      "num_folders"]:
+      return 0
+
+    # for each second level folder in "nested" folders, check the count of files
+    for folder in directory_structure["nested_folders"]["folder_structure"]:
+      files_nested_folder = list_directory(
+          '{}/{}/{}'.format(bucket_url, nested_folder, folder["name"]))
+      if len(files_nested_folder) != folder["num_files"]:
+        return 0
+
+  return 1
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -134,3 +182,7 @@ if __name__ == '__main__':
     print('Exited with code {}'.format(exit_code))
 <<<<<<< HEAD
     subprocess.call('bash', shell=True)
+
+  # compare the directory structure with the config file to avoid recreation of
+  # same test data
+  dir_structure_present = check_if_dir_structure_exists(directory_structure)
