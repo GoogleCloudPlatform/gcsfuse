@@ -50,7 +50,6 @@ func getFolderName(bucketName string, fullPath string) string {
 func (f *Folder) ConvertFolderToMinObject() *MinObject {
 
 	return &MinObject{
-		Name:           f.Name,
 		MetaGeneration: f.MetaGeneration,
 		Updated:        f.UpdateTime,
 	}
