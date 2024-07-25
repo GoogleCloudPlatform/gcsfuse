@@ -62,9 +62,26 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
 	buf := directio.AlignedBlock(directio.BlockSize)
-	_, err = io.CopyBuffer(dstWriter, newReader, buf)
-	if err != nil {
-		err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
+	var bytesWritten int64
+	for bytesWritten < (end - start) {
+		readN, readErr := io.ReadFull(newReader, buf)
+		if readErr != nil && readErr != io.EOF {
+			err = fmt.Errorf("downloadRange: while reading content to buffer %w", readErr)
+			return err
+		}
+		if readN != len(buf) {
+			buf = buf[:readN]
+		}
+		writeN, writeErr := dstWriter.Write(buf)
+		if writeErr != nil {
+			err = fmt.Errorf("downloadRange: while writing content to cache file %w", writeErr)
+			return err
+		}
+		if readN != writeN {
+			err = fmt.Errorf("downloadRange: bytes written: %v are not equal to bytes read: %v", writeN, readN)
+			return err
+		}
+		bytesWritten = bytesWritten + int64(writeN)
 	}
 	return err
 }
