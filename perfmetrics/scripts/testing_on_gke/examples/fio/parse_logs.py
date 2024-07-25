@@ -15,8 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import json, os, pprint, subprocess
 import sys
+import fio_workload
 
 sys.path.append("../")
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
@@ -37,36 +39,30 @@ record = {
     "lowest_memory": 0,
     "highest_cpu": 0.0,
     "lowest_cpu": 0.0,
+    "gcsfuse_mount_options": "",
+    "blockSize": "",
+    "filesPerThread": 0,
+    "numThreads": 0,
 }
 
-if __name__ == "__main__":
-  logLocations = [
-      ("gke-fio-64k-1m", "64K"),
-      ("gke-fio-128k-1m", "128K"),
-      ("gke-fio-1mb-1m", "1M"),
-      ("gke-fio-100mb-50k", "100M"),
-      ("gke-fio-200gb-1", "200G"),
-  ]
 
-  try:
-    os.makedirs(LOCAL_LOGS_LOCATION)
-  except FileExistsError:
-    pass
-
-  for folder, fileSize in logLocations:
+def downloadFioOutputs(fioWorkloads):
+  for fioWorkload in fioWorkloads:
     try:
-      os.makedirs(LOCAL_LOGS_LOCATION + "/" + fileSize)
+      os.makedirs(LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize)
     except FileExistsError:
       pass
-    print(f"Download FIO output from the folder {folder}...")
+
+    print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
     result = subprocess.run(
         [
             "gsutil",
-            "-m",
+            "-m",  # download multiple files parallelly
+            "-q",  # download silently without any logs
             "cp",
             "-r",
-            f"gs://{folder}/fio-output",
-            LOCAL_LOGS_LOCATION + "/" + fileSize,
+            f"gs://{fioWorkload.bucket}/fio-output",
+            LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize,
         ],
         capture_output=False,
         text=True,
@@ -74,12 +70,53 @@ if __name__ == "__main__":
     if result.returncode < 0:
       print(f"failed to fetch FIO output, error: {result.stderr}")
 
+
+if __name__ == "__main__":
+  parser = argparse.ArgumentParser(
+      prog="DLIO Unet3d test output parser",
+      description=(
+          "This program takes in a json test-config file and parses it for"
+          " output buckets. From each output bucket, it downloads all the FIO"
+          " output logs from gs://<bucket>/logs/ locally to"
+          f" {LOCAL_LOGS_LOCATION} and parses them for FIO test runs and their"
+          " output metrics."
+      ),
+  )
+  parser.add_argument(
+      "--workload-config",
+      help=(
+          "A json configuration file to define workloads that were run to"
+          " generate the outputs that should be parsed."
+      ),
+      required=True,
+  )
+  parser.add_argument(
+      "--project-number",
+      help=(
+          "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
+          " utilization data from GCP."
+      ),
+      required=True,
+  )
+  args = parser.parse_args()
+
+  try:
+    os.makedirs(LOCAL_LOGS_LOCATION)
+  except FileExistsError:
+    pass
+
+  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+      args.workload_config
+  )
+  downloadFioOutputs(fioWorkloads)
+
   """
     "{read_type}-{mean_file_size}":
         "mean_file_size": str
         "read_type": str
         "records":
             "local-ssd": [record1, record2, record3, record4]
+            "gcsfuse-generic": [record1, record2, record3, record4]
             "gcsfuse-file-cache": [record1, record2, record3, record4]
             "gcsfuse-no-file-cache": [record1, record2, record3, record4]
     """
@@ -91,6 +128,18 @@ if __name__ == "__main__":
   for root, _, files in os.walk(LOCAL_LOGS_LOCATION):
     for file in files:
       per_epoch_output = root + f"/{file}"
+      gcsfuse_mount_options = ""
+      if not per_epoch_output.endswith(".json"):
+        print(f"ignoring file {per_epoch_output} as it's not a json file")
+        continue
+
+      gcsfuse_mount_options = ""
+      gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
+      if os.path.isfile(gcsfuse_mount_options_file):
+        with open(gcsfuse_mount_options_file) as f:
+          gcsfuse_mount_options = f.read().strip()
+
+      print(f"Now parsing file {per_epoch_output} ...")
       root_split = root.split("/")
       mean_file_size = root_split[-4]
       scenario = root_split[-2]
@@ -98,7 +147,18 @@ if __name__ == "__main__":
       epoch = int(file.split(".")[0][-1])
 
       with open(per_epoch_output, "r") as f:
-        per_epoch_output_data = json.load(f)
+        try:
+          per_epoch_output_data = json.load(f)
+        except:
+          print(f"failed to json-parse {per_epoch_output}, so skipping it.")
+          continue
+
+      if "global options" not in per_epoch_output_data:
+        print(f"field: 'global options' missing in {per_epoch_output}")
+        continue
+      global_options = per_epoch_output_data["global options"]
+      nrfiles = int(global_options["nrfiles"])
+      numjobs = int(global_options["numjobs"])
 
       key = "-".join([read_type, mean_file_size])
       if key not in output:
@@ -107,6 +167,7 @@ if __name__ == "__main__":
             "read_type": read_type,
             "records": {
                 "local-ssd": [],
+                "gcsfuse-generic": [],
                 "gcsfuse-file-cache": [],
                 "gcsfuse-no-file-cache": [],
             },
@@ -132,11 +193,22 @@ if __name__ == "__main__":
       r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
       if r["scenario"] != "local-ssd" and mash_installed:
         r["lowest_memory"], r["highest_memory"] = get_memory(
-            r["pod_name"], r["start"], r["end"]
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
         )
         r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-            r["pod_name"], r["start"], r["end"]
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
         )
+        pass
+      r["gcsfuse_mount_options"] = gcsfuse_mount_options
+      r["blockSize"] = bs
+      r["filesPerThread"] = nrfiles
+      r["numThreads"] = numjobs
 
       pprint.pprint(r)
 
@@ -145,42 +217,63 @@ if __name__ == "__main__":
 
       output[key]["records"][scenario][epoch - 1] = r
 
-  output_order = [
-      "read-64K",
-      "read-128K",
-      "read-1M",
-      "read-100M",
-      "read-200G",
-      "randread-1M",
-      "randread-100M",
-      "randread-200G",
+  scenario_order = [
+      "local-ssd",
+      "gcsfuse-generic",
+      "gcsfuse-no-file-cache",
+      "gcsfuse-file-cache",
   ]
-  scenario_order = ["local-ssd", "gcsfuse-no-file-cache", "gcsfuse-file-cache"]
 
   output_file = open("./output.csv", "a")
   output_file.write(
-      "File Size,Read Type,Scenario,Epoch,Duration (s),Throughput"
-      " (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse Lowest Memory"
-      " (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU (core),GCSFuse"
-      " Highest CPU (core),Pod,Start,End\n"
+      "File Size,Read Type,Scenario,Epoch,Duration"
+      " (s),Throughput (MB/s),IOPS,Throughput over Local SSD (%),GCSFuse Lowest"
+      " Memory (MB),GCSFuse Highest Memory (MB),GCSFuse Lowest CPU"
+      " (core),GCSFuse Highest CPU"
+      " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads\n"
   )
 
-  for key in output_order:
-    if key not in output:
-      continue
+  for key in output:
     record_set = output[key]
 
     for scenario in scenario_order:
       for i in range(len(record_set["records"][scenario])):
-        r = record_set["records"][scenario][i]
-        r["throughput_over_local_ssd"] = round(
-            r["throughput_mb_per_second"]
-            / record_set["records"]["local-ssd"][i]["throughput_mb_per_second"]
-            * 100,
-            2,
-        )
-        output_file.write(
-            f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']}\n"
-        )
-
+        if ("local-ssd" in record_set["records"]) and (
+            len(record_set["records"]["local-ssd"])
+            == len(record_set["records"][scenario])
+        ):
+          try:
+            r = record_set["records"][scenario][i]
+            r["throughput_over_local_ssd"] = round(
+                r["throughput_mb_per_second"]
+                / record_set["records"]["local-ssd"][i][
+                    "throughput_mb_per_second"
+                ]
+                * 100,
+                2,
+            )
+          except:
+            print(
+                "failed to parse record-set for throughput_over_local_ssd."
+                f" record: {r}"
+            )
+            continue
+          else:
+            output_file.write(
+                f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']}\n"
+            )
+        else:
+          try:
+            r = record_set["records"][scenario][i]
+            r["throughput_over_local_ssd"] = "NA"
+          except:
+            print(
+                "failed to parse record-set for throughput_over_local_ssd."
+                f" record: {r}"
+            )
+            continue
+          else:
+            output_file.write(
+                f"{record_set['mean_file_size']},{record_set['read_type']},{scenario},'Unknown',{r['epoch']},{r['duration']},{r['throughput_mb_per_second']},{r['IOPS']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{r['blockSize']},{r['filesPerThread']},{r['numThreads']}\n"
+            )
   output_file.close()
