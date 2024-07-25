@@ -288,7 +288,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				IgnoreInterrupts:          false,
 				AnonymousAccess:           false,
 				KernelListCacheTtlSeconds: -1,
-				MaxRetryAttempts:          15,
+				MaxRetryAttempts:          100,
 				ClientProtocol:            mountpkg.HTTP2,
 			},
 			mockCLICtx: &mockCLIContext{
@@ -345,7 +345,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ClientProtocol: cfg.Protocol("http2"),
 				},
 				GcsRetries: cfg.GcsRetriesConfig{
-					MaxRetryAttempts: 15,
+					MaxRetryAttempts: 100,
 				},
 			},
 			expectedErr: nil,
@@ -519,19 +519,19 @@ func TestEnableEmptyManagedFoldersVetting(t *testing.T) {
 			expectedEnableEmptyManagedFolders: true,
 		},
 		{
-			name:                              "enable-hns set to true",
+			name:                              "enable-hns set to true and enable-empty-managed-folders set to false",
 			enableHns:                         true,
 			enableEmptyManagedFolders:         false,
 			expectedEnableEmptyManagedFolders: true,
 		},
 		{
-			name:                              "enable-hns not true but enable-empty-managed-folders set to true",
+			name:                              "enable-hns set to false and enable-empty-managed-folders set to true",
 			enableHns:                         false,
 			enableEmptyManagedFolders:         true,
 			expectedEnableEmptyManagedFolders: true,
 		},
 		{
-			name:                              "both enable-hns and enable-empty-managed-folders not true",
+			name:                              "both enable-hns and enable-empty-managed-folders set to false",
 			enableHns:                         false,
 			enableEmptyManagedFolders:         false,
 			expectedEnableEmptyManagedFolders: false,

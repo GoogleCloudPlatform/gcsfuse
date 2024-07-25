@@ -14,7 +14,7 @@
 
 package cfg
 
-func VetConfig(c *Config) {
+func Rationalize(c *Config) {
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
 	if c.EnableHns {
 		c.List.EnableEmptyManagedFolders = true

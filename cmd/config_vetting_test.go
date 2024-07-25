@@ -32,17 +32,17 @@ func TestEnableEmptyManagedFoldersResolution(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "enable-hns set to true but enable-empty-managed-folders set to false",
+			name:     "enable-hns set to true and enable-empty-managed-folders set to false",
 			args:     []string{"--enable-hns", "--enable-empty-managed-folders=false"},
 			expected: true,
 		},
 		{
-			name:     "enable-hns not true but enable-empty-managed-folders set to true",
+			name:     "enable-hns set to false and enable-empty-managed-folders set to true",
 			args:     []string{"--enable-hns=false", "--enable-empty-managed-folders=true"},
 			expected: true,
 		},
 		{
-			name:     "both enable-hns and enable-empty-managed-folders not true",
+			name:     "both enable-hns and enable-empty-managed-folders set to false",
 			args:     []string{"--enable-hns=false", "--enable-empty-managed-folders=false"},
 			expected: false,
 		},

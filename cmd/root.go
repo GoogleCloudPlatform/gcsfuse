@@ -78,7 +78,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 		if cfgErr = cfg.ValidateConfig(&configObj); cfgErr != nil {
 			return
 		}
-		cfg.VetConfig(&configObj)
+		cfg.Rationalize(&configObj)
 	}
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
