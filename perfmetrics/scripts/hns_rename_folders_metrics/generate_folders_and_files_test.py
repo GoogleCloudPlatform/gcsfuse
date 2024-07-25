@@ -308,36 +308,50 @@ class TestDeleteExistingDataInGcsBucket(unittest.TestCase):
 
 class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
 
-  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY','./tmp/data_gen')
-  @patch('generate_folders_and_files.BATCH_SIZE',10)
+  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
+  @patch('generate_folders_and_files.BATCH_SIZE', 10)
   @patch('builtins.open', new_callable=mock_open)
   @patch('os.listdir')
   @patch('subprocess.Popen')
   @patch('subprocess.call')
   @patch('generate_folders_and_files.logmessage')
-  def test_file_deletion_and_log_message(self, mock_logmessage,mock_call,mock_popen,mock_listdir,mock_withopen
-      ):
+  def test_files_generation_and_upload(self, mock_logmessage, mock_call,
+      mock_popen, mock_listdir, mock_open
+  ):
     """
-    Tests that files are deleted from the temporary directory and the log message is written correctly.
+    Tests that files are created,copied to destination bucket,deleted from the
+    temporary directory and the log message is written correctly.
     """
-    mock_listdir.return_value = ['file1.txt', 'file2.txt']
+    mock_listdir.return_value = ['file1.txt']
     mock_popen.return_value = mock.MagicMock()
-    mock_popen.return_value.communicate.return_value= (b'output',b'error')
-    mock_popen.return_value.wait.return_value= 0
+    mock_popen.return_value.communicate.return_value = (b'output', b'error')
+    mock_popen.return_value.wait.return_value = 0
     destination_blob_name = 'gs://fake-bucket'
-    num_of_files = 2
+    num_of_files = 1
     file_size_unit = 'MB'
     file_size = 1
-    filename_prefix = 'test_file'
-
+    filename_prefix = 'file'
+    temp_file='./tmp/data_gen/file_1.txt'
 
     exit_code = generate_folders_and_files.generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
         filename_prefix)
 
+    # Assert that temp_file is opened
+    mock_open.assert_called_once_with(temp_file, 'wb')
+    # Assert that 'truncate' was called with the expected size
+    expected_size = 1024 * 1024 * int(file_size)
+    mock_open.return_value.truncate.assert_called_once_with(expected_size)
+    # Assert that upload started to GCS bucket and exit code is 0 indicating
+    # successful upload
+    mock_popen.assert_called_once_with(
+        f'gcloud storage cp --recursive {generate_folders_and_files.TEMPORARY_DIRECTORY}/* {destination_blob_name}',
+        shell=True)
     self.assertEqual(exit_code, 0)
+    # Assert that files are deleted and correct logmessage is written
     mock_call.assert_called_once_with(
-      f'rm -rf {generate_folders_and_files.TEMPORARY_DIRECTORY}/*', shell=True)
+        f'rm -rf {generate_folders_and_files.TEMPORARY_DIRECTORY}/*',
+        shell=True)
     expected_log_message = f'{num_of_files}/{num_of_files} files uploaded to {destination_blob_name}\n'
     mock_logmessage.assert_has_calls([call(expected_log_message)])
 
