@@ -26,7 +26,7 @@ import (
 )
 
 // NewRootCmd accepts the mountFn that it executes with the parsed configuration
-func NewRootCmd(mountFn func(config cfg.Config) error) (*cobra.Command, error) {
+func NewRootCmd(mountFn func(*cfg.Config, string, string) error) (*cobra.Command, error) {
 	var (
 		configObj cfg.Config
 		cfgFile   string
@@ -45,7 +45,11 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			if cfgErr != nil {
 				return fmt.Errorf("error while parsing config: %w", cfgErr)
 			}
-			return mountFn(configObj)
+			bucket, mountPoint, err := populateArgs(args[1:])
+			if err != nil {
+				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
+			}
+			return mountFn(&configObj, bucket, mountPoint)
 		},
 	}
 	initConfig := func() {

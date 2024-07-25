@@ -338,10 +338,18 @@ func (b *fastStatBucket) GetFolder(
 	return b.wrapped.GetFolder(ctx, prefix)
 }
 
-func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (o *gcs.Folder, err error) {
-	o, err = b.wrapped.CreateFolder(ctx, folderName)
+func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
+	// Throw away any existing record for this folder.
+	b.invalidate(folderName)
 
-	// TODO: Insert folder in the cache
+	expiration := b.clock.Now().Add(b.ttl)
+	f, err = b.wrapped.CreateFolder(ctx, folderName)
+	if err != nil {
+		return
+	}
+
+	// Record the new folder.
+	b.cache.InsertFolder(f, expiration)
 
 	return
 }
