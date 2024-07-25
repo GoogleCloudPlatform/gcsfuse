@@ -24,7 +24,7 @@ import sys
 import subprocess
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
-TEMPORARY_DIRECTORY = './tmp/data_gen'
+TEMPORARY_DIRECTORY = '/tmp/data_gen'
 BATCH_SIZE = 100
 
 logging.basicConfig(
@@ -35,10 +35,13 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 
-def _logmessage(message) -> None:
+def _logmessage(message,type) -> None:
   with open(OUTPUT_FILE, 'a') as out:
     out.write(message)
-  logger.info(message)
+  if type == "error":
+    logger.error(message)
+  else:
+    logger.info(message)
 
 
 def _check_for_config_file_inconsistency(config) -> (int):
@@ -52,30 +55,30 @@ def _check_for_config_file_inconsistency(config) -> (int):
       0 if no inconsistencies are found, 1 otherwise.
   """
   if "name" not in config:
-    _logmessage("Bucket name not specified")
+    _logmessage("Bucket name not specified","error")
     return 1
 
   if "folders" in config:
     if not ("num_folders" in config["folders"] or "folder_structure" in config[
       "folders"]):
-      _logmessage("Key missing for nested folder")
+      _logmessage("Key missing for nested folder","error")
       return 1
 
     if config["folders"]["num_folders"] != len(
         config["folders"]["folder_structure"]):
-      _logmessage("Inconsistency in the folder structure")
+      _logmessage("Inconsistency in the folder structure","error")
       return 1
 
   if "nested_folders" in config:
     if not ("folder_name" in config["nested_folders"] or
             "num_folders" in config["nested_folders"] or
             "folder_structure" in config["nested_folders"]):
-      _logmessage("Key missing for nested folder")
+      _logmessage("Key missing for nested folder","error")
       return 1
 
     if config["nested_folders"]["num_folders"] != len(
         config["nested_folders"]["folder_structure"]):
-      _logmessage("Inconsistency in the nested folder")
+      _logmessage("Inconsistency in the nested folder","error")
       return 1
 
   return 0
@@ -96,7 +99,7 @@ def _list_directory(path) -> list:
     contents_url = contents.decode('utf-8').split('\n')[:-1]
     return contents_url
   except subprocess.CalledProcessError as e:
-    _logmessage(e.output.decode('utf-8'))
+    _logmessage(e.output.decode('utf-8'),"error")
 
 
 def _compare_folder_structure(folder, folder_url) -> bool:
@@ -240,8 +243,9 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
         'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
     return 0
   except subprocess.CalledProcessError as e:
-    _logmessage(e.output.decode('utf-8'))
+    _logmessage(e.output.decode('utf-8'),"error")
     return 1
+
 
 def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     file_size_unit, file_size,
@@ -268,26 +272,27 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     num_files = os.listdir(TEMPORARY_DIRECTORY)
 
     if not num_files:
-      logmessage("Files were not created locally")
+      _logmessage("Files were not created locally","error")
       return -1
 
     # starting upload to the gcs bucket
-    process = subprocess.Popen(
+    try:
+        subprocess.Popen(
         'gcloud storage cp --recursive {}/* {}'.format(TEMPORARY_DIRECTORY,
                                          destination_blob_name),
-        shell=True)
-    process.communicate()
-    exit_code = process.wait()
-    if exit_code != 0:
-      return exit_code
+        shell=True).communicate()
+    except subprocess.CalledProcessError as e:
+      _logmessage("Issue while uploading files to GCS bucket.Aborting...","error")
+      return -1
 
     # Delete local files from temporary directory
     subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
     # Writing number of files uploaded to output file after every batch uploads:
-    logmessage('{}/{} files uploaded to {}\n'.format(len(num_files), num_of_files,
-                                                     destination_blob_name))
+    _logmessage('{}/{} files uploaded to {}\n'.format(len(num_files), num_of_files,
+                                                     destination_blob_name),"info")
   return 0
+
 
 if __name__ == '__main__':
   argv = sys.argv
@@ -310,7 +315,7 @@ if __name__ == '__main__':
   args = parser.parse_args(argv[1:])
 
   # Checking that gcloud is installed:
-  _logmessage('Checking whether gcloud is installed.\n')
+  _logmessage('Checking whether gcloud is installed.\n',"info")
   process = subprocess.Popen('gcloud version', shell=True)
   process.communicate()
   exit_code = process.wait()
@@ -334,5 +339,5 @@ if __name__ == '__main__':
   if not dir_structure_present:
     exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
-      print('Error while deleting bucket.Exiting...!')
+      print('Error while deleting content in bucket.Exiting...!')
       subprocess.call('bash', shell=True)
