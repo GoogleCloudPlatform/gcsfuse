@@ -18,7 +18,7 @@
           "bucket":"The bucket must have objects with name Workload.{i}/{j} for every i,j where i:0-{numThreads}-1, j:0-{filesPerThread}-1, and each of these objects must be of size {fileSize}. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "64k",
             "filesPerThread": 20000,
             "numThreads": 50,
@@ -30,7 +30,7 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "128K",
             "filesPerThread": 20000,
             "numThreads": 50,
@@ -42,7 +42,7 @@
           "_bucket_alt3":"gke-fio-128k-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "1M",
             "filesPerThread": 20000,
             "numThreads": 50,
@@ -54,7 +54,7 @@
           "_bucket_alt3":"gke-fio-1mb-1m"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "100M",
             "filesPerThread": 1000,
             "numThreads": 50,
@@ -70,7 +70,8 @@
             "fileSize": "200G",
             "filesPerThread": 1,
             "numThreads": 100,
-            "blockSize": "1M"
+            "blockSize": "1M",
+            "readTypes": ["read"]
           },
           "bucket":"fio-200gb-1-us-west1",
           "_bucket_alt2":"fio-200gb-1-us-central1",
@@ -87,7 +88,7 @@
           "bucket":"The bucket must have objects with name 'train/', 'valid/', and train/img_{i}_of_{numFilesTrain}.npz for every i where i:0-{numFilesTrain}-1 and each train/img_{i}_of_{numFilesTrain}.npz must be of size {recordLength} bytes. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
-          "dlioWorkload": {
+          "_dlioWorkload": {
             "numFilesTrain": 500000,
             "recordLength": 102400,
             "batchSizes": [800,128]
@@ -97,7 +98,7 @@
           "_bucket_alt3":"gke-dlio-unet3d-100kb-500k"
         },
         {
-          "dlioWorkload": {
+          "_dlioWorkload": {
             "numFilesTrain": 1000000,
             "recordLength": 512000,
             "batchSizes": [800,128]
@@ -117,7 +118,7 @@
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
         },
         {
-          "dlioWorkload": {
+          "_dlioWorkload": {
             "numFilesTrain": 5000,
             "recordLength": 157286400,
             "batchSizes": [4]
