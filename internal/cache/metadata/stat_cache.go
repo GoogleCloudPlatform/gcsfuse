@@ -247,7 +247,17 @@ func (sc *statCacheBucketView) LookUpFolder(
 	now time.Time) (bool, *gcs.Folder) {
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(folderName, now)
+
 	if hit {
+		// This is negative entry scenario
+		if entry.f == nil && entry.m == nil {
+			return true, nil
+		}
+		// This is cache entry absent scenario
+		if entry.f == nil {
+			return false, nil
+		}
+
 		return true, entry.f
 	}
 
