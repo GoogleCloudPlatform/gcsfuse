@@ -61,7 +61,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
 
-	buf := directio.AlignedBlock(directio.BlockSize)
+	buf := directio.AlignedBlock(directio.BlockSize * 1024)
 	var bytesWritten int64
 	for bytesWritten < (end - start) {
 		readN, readErr := io.ReadFull(newReader, buf)
