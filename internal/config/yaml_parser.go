@@ -62,16 +62,6 @@ func IsValidLogSeverity(severity string) bool {
 	return false
 }
 
-func IsValidLogRotateConfig(config LogRotateConfig) error {
-	if config.MaxFileSizeMB <= 0 {
-		return fmt.Errorf("max-file-size-mb should be atleast 1")
-	}
-	if config.BackupFileCount < 0 {
-		return fmt.Errorf("backup-file-count should be 0 (to retain all backup files) or a positive value")
-	}
-	return nil
-}
-
 func (fileCacheConfig *FileCacheConfig) validate() error {
 	if fileCacheConfig.MaxSizeMB < -1 {
 		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
@@ -160,11 +150,6 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	mountConfig.LogConfig.Severity = strings.ToUpper(mountConfig.LogConfig.Severity)
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
-		return
-	}
-
-	if err = IsValidLogRotateConfig(mountConfig.LogConfig.LogRotateConfig); err != nil {
-		err = fmt.Errorf(parseConfigFileErrMsgFormat, err)
 		return
 	}
 
