@@ -7,7 +7,9 @@ import (
 	"hash/crc32"
 	"io"
 	"os"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
@@ -82,7 +84,7 @@ func (d *Downloader) IncrementalMultiThreadFullFileDownload(fileName string) (er
 		fmt.Printf("Downloading %d MiB \n", downloadSize/util.MiB)
 		err = d.multiThreadRangeDownload(fileName, start, downloadSize)
 		if err != nil {
-			err = fmt.Errorf("while incremental download: %d to %d", start, availableEnd)
+			err = fmt.Errorf("while incremental download: %d to %d: %v", start, availableEnd, err)
 			return
 		}
 
@@ -113,12 +115,47 @@ func (d *Downloader) multiThreadRangeDownload(fileName string, offset uint64, le
 	return nil
 }
 
+// Check if O_DIRECT is supported
+func hasO_DIRECT() bool {
+	_, err := syscall.Open("/dev/null", syscall.O_RDONLY|syscall.O_DIRECT, 0)
+	fmt.Printf("Error while opening /dev/null: %v", err)
+	return err == nil
+}
+
+// Allocate memory aligned to the given block size
+func alignedAlloc(size, alignSize int) ([]byte, error) {
+	buf, err := syscall.Mmap(-1, 0, size, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_PRIVATE|syscall.MAP_ANONYMOUS)
+	if err != nil {
+		return nil, err
+	}
+	alignedAddr := uintptr(unsafe.Pointer(&buf[0]))
+	alignedAddr = (alignedAddr + uintptr(alignSize-1)) &^ uintptr(alignSize-1)
+	return buf[alignedAddr-uintptr(unsafe.Pointer(&buf[0])):], nil
+}
+
 func (d *Downloader) rangeDownload(fileName string, offset uint64, len uint64) (err error) {
-	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+	if !hasO_DIRECT() {
+		return fmt.Errorf("O_DIRECT not supported")
+	}
+
+	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
+
+	// Used sudo tune2fs -l /dev/mapper/glinux_20230704-root | grep -i 'block size'
+	blockSizeL := 4096
+	bufferSizeL := 1024 * blockSizeL
+
+	// Allocate aligned buffer
+	alignedBuffer, err := alignedAlloc(bufferSizeL, blockSizeL)
+	if err != nil {
+		fmt.Println("Error allocating buffer:", err)
+		return
+	}
+	defer syscall.Munmap(alignedBuffer)
+
 	defer func(f *os.File) {
 		err := f.Close()
 		if err != nil {
@@ -140,9 +177,9 @@ func (d *Downloader) rangeDownload(fileName string, offset uint64, len uint64) (
 			ReadCompressed: d.minObj.HasContentEncodingGzip(),
 		})
 
-	copiedData, err := io.Copy(f, rc)
+	copiedData, err := io.CopyBuffer(f, rc, alignedBuffer)
 	if copiedData != int64(len) || (err != nil && err != io.EOF) {
-		err = fmt.Errorf("error while downloading")
+		err = fmt.Errorf("error while downloading: %v", err)
 		return
 	}
 
@@ -188,7 +225,7 @@ func main() {
 	//err := globalDownloader.MultiThreadFullFileDownload("parallel_download.txt")
 	err := globalDownloader.IncrementalMultiThreadFullFileDownload("incremental_download.txt")
 	if err != nil {
-		fmt.Printf("error while downloaing file")
+		fmt.Printf("error while downloaing file: %v\n", err)
 	}
 
 	totalTime := time.Since(startTime)
