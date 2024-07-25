@@ -138,7 +138,7 @@ class TestListDirectory(unittest.TestCase):
                          "gs://fake_bkt/fake_folder_1/",
                          "gs://fake_bkt/nested_fake_folder/"]
 
-    dir_list = generate_folders_and_files._list_directory("gs://fake_bkt")
+    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
 
     self.assertEqual(dir_list, expected_dir_list)
 
