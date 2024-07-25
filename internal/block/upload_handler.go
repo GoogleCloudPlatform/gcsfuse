@@ -40,7 +40,7 @@ const (
 )
 
 // InitUploadHandler to initiate UploadHandler.Pass all UploadHandler struct parameters as args.
-func InitUploadHandler(objectName string, bucket gcs.Bucket, blockChan chan Block) *UploadHandler {
+func InitUploadHandler(objectName string, bucket gcs.Bucket, blockChan *chan Block) *UploadHandler {
 	uh := UploadHandler{
 		chunks:           list.List{},
 		bufferInProgress: nil,
@@ -49,7 +49,7 @@ func InitUploadHandler(objectName string, bucket gcs.Bucket, blockChan chan Bloc
 		status:           NotStarted,
 		mu:               locker.NewRW("UploadHandler", func() {}),
 		chunkSize:        BlockSize,
-		blocksCh:         blockChan,
+		blocksCh:         *blockChan,
 		objectName:       objectName,
 	}
 
@@ -127,7 +127,8 @@ func (uh *UploadHandler) startUpload() (err error) {
 
 func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
 	// Put back the block on the channel for reuse.
-	uh.blocksCh <- uh.bufferInProgress
+	uh.bufferInProgress.Reuse(uh.blocksCh)
+	//uh.blocksCh <- uh.bufferInProgress
 	uh.mu.Lock()
 	defer uh.mu.Unlock()
 
