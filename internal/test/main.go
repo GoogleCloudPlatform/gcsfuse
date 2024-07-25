@@ -15,6 +15,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
+	"github.com/ncw/directio"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -134,27 +135,26 @@ func alignedAlloc(size, alignSize int) ([]byte, error) {
 }
 
 func (d *Downloader) rangeDownload(fileName string, offset uint64, len uint64) (err error) {
-	if !hasO_DIRECT() {
-		return fmt.Errorf("O_DIRECT not supported")
-	}
+	//if hasO_DIRECT() {
+	//	return fmt.Errorf("O_DIRECT not supported")
+	//}
 
-	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, 0644)
+	f, err := directio.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0666)
+	//f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|syscall.O_DIRECT, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
 	}
 
-	// Used sudo tune2fs -l /dev/mapper/glinux_20230704-root | grep -i 'block size'
-	blockSizeL := 4096
-	bufferSizeL := 1024 * blockSizeL
+	block := directio.AlignedBlock(directio.BlockSize)
 
 	// Allocate aligned buffer
-	alignedBuffer, err := alignedAlloc(bufferSizeL, blockSizeL)
+	//alignedBuffer, err := alignedAlloc(bufferSizeL, blockSizeL)
 	if err != nil {
 		fmt.Println("Error allocating buffer:", err)
 		return
 	}
-	defer syscall.Munmap(alignedBuffer)
+	//defer syscall.Munmap(alignedBuffer)
 
 	defer func(f *os.File) {
 		err := f.Close()
@@ -177,10 +177,18 @@ func (d *Downloader) rangeDownload(fileName string, offset uint64, len uint64) (
 			ReadCompressed: d.minObj.HasContentEncodingGzip(),
 		})
 
-	copiedData, err := io.CopyBuffer(f, rc, alignedBuffer)
-	if copiedData != int64(len) || (err != nil && err != io.EOF) {
-		err = fmt.Errorf("error while downloading: %v", err)
-		return
+	//io.ReadFull(rc, block)
+	for {
+		_, err = io.ReadFull(rc, block)
+		if err != nil {
+			break
+		}
+		_, err = syscall.Write(int(f.Fd()), block)
+		//copiedData, err := io.CopyBuffer(f, rc, block)
+		if err != nil {
+			err = fmt.Errorf("error while downloading: %v", err)
+			return
+		}
 	}
 
 	return nil
