@@ -478,7 +478,7 @@ func TestConfigValidation(t *testing.T) {
 	conf := config.NewMountConfig()
 	conf.LogRotateConfig.MaxFileSizeMB = -1
 
-	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, &flagStorage{ClientProtocol: mountpkg.HTTP2}, conf)
+	_, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, &flagStorage{ClientProtocol: mountpkg.ClientProtocol(cfg.HTTP2)}, conf)
 
 	assert.Error(t, err)
 }
