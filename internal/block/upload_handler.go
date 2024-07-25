@@ -157,6 +157,9 @@ func (uh *UploadHandler) statusNotifier(bytesUploaded int64) {
 
 func (uh *UploadHandler) uploadChunk() error {
 	listEle := uh.chunks.Front()
+	if listEle == nil {
+		logger.Errorf("Got empty list in upload chunk")
+	}
 	uh.bufferInProgress = listEle.Value.(Block)
 	uh.chunks.Remove(listEle)
 
