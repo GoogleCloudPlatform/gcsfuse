@@ -36,6 +36,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
@@ -70,6 +71,10 @@ func RunScriptForTestData(args ...string) {
 		log.Printf("Error: %s", out)
 		panic(err)
 	}
+}
+
+func IsPresubmitRun() bool {
+	return *isPresubmitRun
 }
 
 func TestBucket() string {

@@ -23,6 +23,9 @@ readonly RUN_TEST_ON_TPC_ENDPOINT=false
 readonly PROJECT_ID="gcs-fuse-test-ml"
 readonly BUCKET_LOCATION=us-central1
 
+# This flag, if set true, will indicate to the underlying script, to customize for a presubmit-run.
+readonly RUN_TESTS_WITH_PRESUBMIT_FLAG=false
+
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 echo "Building and installing gcsfuse..."
 # Get the latest commitId of yesterday in the log file. Build gcsfuse and run
@@ -34,4 +37,4 @@ git checkout $commitId
 
 echo "Running e2e tests on installed package...."
 # $1 argument is refering to value of testInstalledPackage
-./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT
+./tools/integration_tests/run_e2e_tests.sh $RUN_E2E_TESTS_ON_INSTALLED_PACKAGE $SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE $BUCKET_LOCATION $RUN_TEST_ON_TPC_ENDPOINT $RUN_TESTS_WITH_PRESUBMIT_FLAG
