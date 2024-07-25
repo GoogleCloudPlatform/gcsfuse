@@ -22,6 +22,13 @@ bucketName: gke-dlio-test-data
 scenario: local-ssd
 nodeType: n2-standard-96
 
+resourceLimits:
+  cpu: 0
+  memory: 0
+resourceRequests:
+  cpu: 0
+  memory: 0
+
 dlio:
   numFilesTrain: 500000
   recordLength: 102400
@@ -34,3 +41,4 @@ gcsfuse:
   metadataTypeCacheCapacity: "-1"
   fileCacheCapacity: "-1"
   fileCacheForRangeRead: "true"
+  mountOptions: "implicit-dirs"
