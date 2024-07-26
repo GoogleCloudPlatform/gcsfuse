@@ -308,7 +308,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 		return err
 	}
 	// Add negative entry in the cache.
-	b.addNegativeEntryForFolder(folderName)
+	b.cache.Erase(folderName)
 
 	return err
 }
@@ -350,7 +350,7 @@ func (b *fastStatBucket) GetFolder(
 	}
 
 	// Fetch the Folder
-  f, err := b.wrapped.GetFolder(ctx, prefix)
+	f, err := b.wrapped.GetFolder(ctx, prefix)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
 		if _, ok := err.(*gcs.NotFoundError); ok {
