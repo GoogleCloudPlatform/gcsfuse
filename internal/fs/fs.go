@@ -1832,9 +1832,12 @@ func (fs *fileSystem) RmDir(
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
 		}
-		//Clear kernel list cache after removing a directory. This ensures remote
-		//GCS files are included in future directory listings for unlinking.
-		childDir.InvalidateKernelListCache()
+
+		if fs.kernelListCacheTTL > 0 {
+			// Clear kernel list cache after removing a directory. This ensures remote
+			// GCS files are included in future directory listings for unlinking.
+			childDir.InvalidateKernelListCache()
+		}
 
 		// Are there any entries?
 		if len(entries) != 0 {

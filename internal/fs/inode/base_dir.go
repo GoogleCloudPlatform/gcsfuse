@@ -243,7 +243,7 @@ func (d *baseDirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	return true
 }
 
-// Kernel list cache is not supported for baseDirInode.
+// List operation is not supported for baseDirInode.
 func (d *baseDirInode) InvalidateKernelListCache() {}
 
 func (d *baseDirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (op *gcs.Folder, err error) {

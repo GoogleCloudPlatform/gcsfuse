@@ -1572,6 +1572,7 @@ func (t *DirTest) TestRenameFolderWithNonExistentSourceFolder() {
 func (t *DirTest) Test_InvalidateKernelListCache() {
 	d := t.in.(*dirInode)
 	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	AssertFalse(d.prevDirListingTimeStamp.IsZero())
 
 	t.in.InvalidateKernelListCache()
 

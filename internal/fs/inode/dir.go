@@ -147,8 +147,8 @@ type DirInode interface {
 	// should be invalidated or not.
 	ShouldInvalidateKernelListCache(ttl time.Duration) bool
 
-	//InvalidateKernelListCache sets the prevDirListingTimeStamp to zero so that
-	//cache is invalidated for next list call.
+	// InvalidateKernelListCache guarantees that the subsequent list call will be
+	// served from GCSFuse.
 	InvalidateKernelListCache()
 
 	// RLock readonly lock.
