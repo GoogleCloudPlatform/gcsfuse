@@ -21,14 +21,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"slices"
 	"text/template" // NOLINT
 )
 
 var (
-	outFile      = flag.String("outFile", "", "Output file")
-	paramsFile   = flag.String("paramsFile", "", "Params YAML file")
-	templateFile = flag.String("templateFile", "", "Template file")
+	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed.")
+	paramsFile  = flag.String("paramsFile", "", "Params YAML file.")
+	templateDir = flag.String("templateDir", ".", "Template directory.")
 )
 
 type templateData struct {
@@ -40,26 +41,27 @@ type templateData struct {
 
 func validateFlags() error {
 	if *paramsFile == "" {
-		return fmt.Errorf("input filename cannot be empty")
+		return fmt.Errorf("params filename cannot be empty")
 	}
-	if *outFile == "" {
-		return fmt.Errorf("output filename cannot be empty")
+	if *outDir == "" {
+		return fmt.Errorf("output directory cannot be empty")
 	}
-	if *templateFile == "" {
-		return fmt.Errorf("template filename cannot be empty")
+	if *templateDir == "" {
+		return fmt.Errorf("template directory cannot be empty")
 	}
 	return nil
 }
 
-func write(data templateData) error {
-	outputFile, err := os.Create(*outFile)
+func write(data any, outF, tmplF string) error {
+	outputFile, err := os.Create(outF)
 	if err != nil {
-		defer outputFile.Close()
+		defer func() { _ = outputFile.Close() }()
 	}
 	if err != nil {
 		return err
 	}
-	tmpl, err := template.New("config.tpl").ParseFiles(*templateFile)
+	_, file := path.Split(tmplF)
+	tmpl, err := template.New(file).ParseFiles(tmplF)
 	if err != nil {
 		return err
 	}
@@ -104,7 +106,7 @@ func main() {
 		FlagTemplateData: fd,
 		TypeTemplateData: td,
 		Backticks:        "`",
-	})
+	}, path.Join(*outDir, "config.go"), path.Join(*templateDir, "config.tpl"))
 	if err != nil {
 		panic(err)
 	}
