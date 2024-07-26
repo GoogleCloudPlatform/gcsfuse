@@ -836,19 +836,36 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
 	fullName := NewDirName(d.Name(), name)
-	o, err := d.createNewObject(ctx, fullName, nil)
-	if err != nil {
-		return nil, err
-	}
-	m := storageutil.ConvertObjToMinObject(o)
+	var f *gcs.Folder
+	var err error
+	var m *gcs.MinObject
+	var c *Core
 
+	if d.bucket.BucketType() == gcs.Hierarchical {
+		f, err = d.bucket.CreateFolder(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		c = &Core{
+			FullName:  fullName,
+			Bucket:    d.Bucket(),
+			MinObject: f.ConvertFolderToMinObject(f.Name),
+		}
+	} else {
+		o, err := d.createNewObject(ctx, fullName, nil)
+		if err != nil {
+			return nil, err
+		}
+		m = storageutil.ConvertObjToMinObject(o)
+		c = &Core{
+			FullName:  fullName,
+			Bucket:    d.Bucket(),
+			MinObject: m,
+		}
+	}
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
-	return &Core{
-		Bucket:    d.Bucket(),
-		FullName:  fullName,
-		MinObject: m,
-	}, nil
+	return c, nil
 }
 
 // LOCKS_REQUIRED(d)

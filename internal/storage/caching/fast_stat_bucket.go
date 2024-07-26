@@ -17,12 +17,10 @@ package caching
 import (
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -180,18 +178,20 @@ func (b *fastStatBucket) CreateObject(
 		return
 	}
 
-	if strings.HasSuffix(o.Name, "/") {
-		b.insertFolder(&gcs.Folder{
-			Name:           o.Name,
-			MetaGeneration: 0,
-			UpdateTime:     time.Now(),
-		})
-		logger.Infof("Insert in folder Cache..")
-		// Your code here if the condition is true
-	} else {
-		// Record the new object.
-		b.insert(o)
-	}
+	//if strings.HasSuffix(o.Name, "/") && b.{
+	//	b.insertFolder(&gcs.Folder{
+	//		Name:           o.Name,
+	//		MetaGeneration: 0,
+	//		UpdateTime:     time.Now(),
+	//	})
+	//	logger.Infof("Insert in folder Cache..")
+	//	// Your code here if the condition is true
+	//} else {
+	//	// Record the new object.
+	//	b.insert(o)
+	//}
+
+	b.insert(o)
 
 	return
 }
