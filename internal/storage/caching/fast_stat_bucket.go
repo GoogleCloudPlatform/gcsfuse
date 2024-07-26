@@ -367,9 +367,9 @@ func (b *fastStatBucket) GetFolder(
 	f, err := b.wrapped.GetFolder(ctx, prefix)
 	if err != nil {
 		// Special case: NotFoundError -> negative entry.
-		if _, ok := err.(*gcs.NotFoundError); ok {
-			b.addNegativeEntryForFolder(prefix)
-		}
+		//if _, ok := err.(*gcs.NotFoundError); ok {
+		//	b.addNegativeEntryForFolder(prefix)
+		//}
 		return nil, err
 	}
 
