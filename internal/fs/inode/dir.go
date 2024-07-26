@@ -849,7 +849,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		c = &Core{
 			FullName:  fullName,
 			Bucket:    d.Bucket(),
-			MinObject: f.ConvertFolderToMinObject(f.Name),
+			MinObject: f.ConvertFolderToMinObject(name),
 		}
 	} else {
 		o, err := d.createNewObject(ctx, fullName, nil)
