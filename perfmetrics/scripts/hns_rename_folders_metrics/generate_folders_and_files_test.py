@@ -142,6 +142,58 @@ class TestListDirectory(unittest.TestCase):
     self.assertEqual(dir_list, expected_dir_list)
 
 
+class TestCompareFolderStructure(unittest.TestCase):
+
+  @patch('generate_folders_and_files.list_directory')
+  def test_folder_structure_matches(self,mock_listdir):
+    mock_listdir.return_value=['test_file_1.txt']
+    test_folder={
+        "name": "test_folder",
+        "num_files": 1,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://temp_folder_url'
+
+    match = generate_folders_and_files.compare_folder_structure(test_folder,test_folder_url)
+
+    self.assertEqual(match,True)
+
+  @patch('generate_folders_and_files.list_directory')
+  def test_folder_structure_mismatches(self,mock_listdir):
+    mock_listdir.return_value=['test_file_1.txt']
+    test_folder={
+        "name": "test_folder",
+        "num_files": 2,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://temp_folder_url'
+
+    match = generate_folders_and_files.compare_folder_structure(test_folder,test_folder_url)
+
+    self.assertEqual(match,False)
+
+  @patch('generate_folders_and_files.list_directory')
+  def test_folder_does_not_exist_in_gcs_bucket(self,mock_listdir):
+    mock_listdir.side_effect=subprocess.CalledProcessError(
+        returncode=1,
+        cmd="gcloud storage ls gs://fake_bkt/folder_does_not_exist",
+        output=b'Error while listing')
+    test_folder={
+        "name": "test_folder",
+        "num_files": 1,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://fake_bkt/folder_does_not_exist'
+
+    match = generate_folders_and_files.compare_folder_structure(test_folder,test_folder_url)
+
+    self.assertEqual(match,False)
+    self.assertRaises(subprocess.CalledProcessError)
+
+
 class TestCheckIfDirStructureExists(unittest.TestCase):
 
   @patch("generate_folders_and_files.list_directory")
