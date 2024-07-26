@@ -507,7 +507,7 @@ func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForF
 	t.statCache.AddNegativeEntryForFolder(name, expiration)
 
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
-	assert.False(t.T(), hit)
+	assert.True(t.T(), hit)
 	assert.Nil(t.T(), entry)
 }
 

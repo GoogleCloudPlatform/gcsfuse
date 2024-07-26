@@ -216,6 +216,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	// Insert a negative entry.
 	e := entry{
 		f:          nil,
+		m:          nil,
 		expiration: expiration,
 		key:        name,
 	}
@@ -249,6 +250,12 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
+		// Negative Entry Scenario
+		if entry.m == nil && entry.f == nil {
+			return true, nil
+		}
+
+		// Object with same name present but not the folder
 		if entry.f == nil {
 			return false, nil
 		}
