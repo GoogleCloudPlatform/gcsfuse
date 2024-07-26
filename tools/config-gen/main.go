@@ -56,8 +56,7 @@ func validateFlags() error {
 // templateFile and writes the generated text into the outputFile.
 func write(dataObj any, outputFile, templateFile string) (err error) {
 	var outF *os.File
-	outF, err = os.Create(outputFile)
-	if err != nil {
+	if outF, err = os.Create(outputFile); err != nil {
 		return err
 	}
 	defer func() {
