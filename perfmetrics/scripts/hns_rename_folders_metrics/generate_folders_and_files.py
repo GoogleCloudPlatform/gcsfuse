@@ -56,7 +56,7 @@ def _check_for_config_file_inconsistency(config) -> (int):
   if "folders" in config:
     if not ("num_folders" in config["folders"] or "folder_structure" in config[
       "folders"]):
-      _logmessage("Key missing for folder")
+      _logmessage("Key missing for nested folder")
       return 1
 
     if config["folders"]["num_folders"] != len(
