@@ -42,9 +42,9 @@ func init() {
 func (t *AllBucketsTest) SetUpTestSuite() {
 	mtimeClock = timeutil.RealClock()
 	buckets = map[string]gcs.Bucket{
-		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0"),
-		"bucket-1": fake.NewFakeBucket(mtimeClock, "bucket-1"),
-		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2"),
+		"bucket-0": fake.NewFakeBucket(mtimeClock, "bucket-0", gcs.NonHierarchical),
+		"bucket-1": fake.NewFakeBucket(mtimeClock, "bucket-1", gcs.NonHierarchical),
+		"bucket-2": fake.NewFakeBucket(mtimeClock, "bucket-2", gcs.NonHierarchical),
 	}
 	// buckets: {"some_bucket", "bucket-1", "bucket-2"}
 	t.fsTest.SetUpTestSuite()

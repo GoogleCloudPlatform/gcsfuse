@@ -19,6 +19,7 @@ import (
 	"time"
 
 	gcstesting "github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake/testing"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
@@ -34,7 +35,7 @@ func init() {
 		deps.Clock = clock
 
 		// Set up the bucket.
-		deps.Bucket = NewFakeBucket(clock, "some_bucket")
+		deps.Bucket = NewFakeBucket(clock, "some_bucket", gcs.NonHierarchical)
 
 		return
 	}

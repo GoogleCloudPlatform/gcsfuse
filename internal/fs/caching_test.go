@@ -56,7 +56,7 @@ type cachingTestCommon struct {
 func (t *cachingTestCommon) SetUpTestSuite() {
 	// Wrap the bucket in a stat caching layer for the purposes of the file
 	// system.
-	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket")
+	uncachedBucket = fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.NonHierarchical)
 	lruCache := newLruCache(uint64(1000 * mount.AverageSizeOfPositiveStatCacheEntry))
 	statCache := metadata.NewStatCacheBucketView(lruCache, "")
 	bucket = caching.NewFastStatBucket(
@@ -463,7 +463,7 @@ func (t *MultiBucketMountCachingTest) SetUpTestSuite() {
 	// Create uncached buckets and wrap them in stat caching layer
 	// for the purposes of the file system.
 	for _, bucketName := range []string{bucket1Name, bucket2Name} {
-		uncachedBuckets[bucketName] = fake.NewFakeBucket(timeutil.RealClock(), bucketName)
+		uncachedBuckets[bucketName] = fake.NewFakeBucket(timeutil.RealClock(), bucketName, gcs.NonHierarchical)
 		statCache := metadata.NewStatCacheBucketView(sharedCache, bucketName)
 		buckets[bucketName] = caching.NewFastStatBucket(
 			ttl,

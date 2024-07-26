@@ -22,6 +22,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -59,12 +60,12 @@ func (t *BaseDirTest) SetUp(ti *TestInfo) {
 	t.bm.buckets["bucketA"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketA"),
+		fake.NewFakeBucket(&t.clock, "bucketA", gcs.NonHierarchical),
 	)
 	t.bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1, // Append threshold
 		".gcsfuse_tmp/",
-		fake.NewFakeBucket(&t.clock, "bucketB"),
+		fake.NewFakeBucket(&t.clock, "bucketB", gcs.NonHierarchical),
 	)
 
 	// Create the inode. No implicit dirs by default.
