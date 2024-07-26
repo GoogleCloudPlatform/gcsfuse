@@ -27,8 +27,8 @@ type WriteFileInfo struct {
 	mtime     time.Time
 }
 
-const BlockSize = 16 * util.MiB
-const MaxBlocks = 100
+const BlockSize = 64 * util.MiB
+const MaxBlocks = 10
 
 // InitBufferedWriteHandler - Pass all required param and do init.
 func InitBufferedWriteHandler(objectName string, bucket gcs.Bucket) *BufferedWriteHandler {
