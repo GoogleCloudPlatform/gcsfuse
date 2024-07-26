@@ -560,10 +560,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
+		logger.Infof("In Lookup")
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
 			logger.Infof("In Lookup HNS Dir type")
 			b.Add(lookUpHNSDir)
 		} else {
+			logger.Infof("In no hns", d.isHNSEnabled, d.bucket.BucketType())
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
 			} else {
