@@ -27,9 +27,9 @@ import (
 )
 
 var (
-	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed.")
-	paramsFile  = flag.String("paramsFile", "", "Params YAML file.")
-	templateDir = flag.String("templateDir", ".", "Directory containing the template files.")
+	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
+	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
+	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
 )
 
 type templateData struct {
@@ -54,24 +54,25 @@ func validateFlags() error {
 
 // write applies the dataObj which could be an object of any type, to the
 // templateFile and writes the generated text into the outputFile.
-func write(dataObj any, outputFile, templateFile string) error {
-	o, err := os.Create(outputFile)
-	if err != nil {
-		defer func() { _ = o.Close() }()
-	}
+func write(dataObj any, outputFile, templateFile string) (err error) {
+	var outF *os.File
+	outF, err = os.Create(outputFile)
 	if err != nil {
 		return err
 	}
-	_, file := path.Split(templateFile)
-	tmpl, err := template.New(file).ParseFiles(templateFile)
-	if err != nil {
+	defer func() {
+		closeErr := outF.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	file := path.Base(templateFile)
+	if tmpl, err := template.New(file).ParseFiles(templateFile); err == nil {
+		return tmpl.Execute(outF, dataObj)
+	} else {
 		return err
 	}
-	err = tmpl.Execute(o, dataObj)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func main() {
@@ -108,7 +109,9 @@ func main() {
 		FlagTemplateData: fd,
 		TypeTemplateData: td,
 		Backticks:        "`",
-	}, path.Join(*outDir, "config.go"), path.Join(*templateDir, "config.tpl"))
+	},
+		path.Join(*outDir, "config.go"),
+		path.Join(*templateDir, "config.tpl"))
 	if err != nil {
 		panic(err)
 	}
