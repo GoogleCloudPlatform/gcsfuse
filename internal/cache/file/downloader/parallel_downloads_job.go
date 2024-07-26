@@ -71,48 +71,77 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
-	var start, end int64
-	end = int64(job.object.Size)
-	var parallelReadRequestSize = int64(job.fileCacheConfig.DownloadChunkSizeMB) * cacheutil.MiB
+	var numGoroutines int
+	var start uint64
+	downloadChunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMB) * uint64(cacheutil.MiB)
+	rangeMap := make(map[uint64]uint64)
+	for numGoroutines = 0; (numGoroutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < job.object.Size); numGoroutines++ {
+		// Respect max download parallelism only beyond first go routine.
+		if numGoroutines > 0 && !job.maxParallelismSem.TryAcquire(1) {
+			break
+		}
+		start = start + downloadChunkSize
+	}
 
-	// Each iteration of this for loop downloads job.fileCacheConfig.DownloadChunkSizeMB * job.fileCacheConfig.ParallelDownloadsPerFile
-	// size of range of object from GCS into given file handle and updates the
-	// file info cache.
-	for start < end {
-		downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
+	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
+	singleReadGap := uint64(numGoroutines) * downloadChunkSize
 
-		for goRoutineIdx := 0; (goRoutineIdx < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < end); goRoutineIdx++ {
-			rangeStart := start
-			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
-			currGoRoutineIdx := goRoutineIdx
+	for goroutineIdx := 0; goroutineIdx < numGoroutines; goroutineIdx++ {
+		var currGoRoutineIdx int = goroutineIdx
 
-			// Respect max download parallelism only beyond first go routine.
-			if currGoRoutineIdx > 0 && !job.maxParallelismSem.TryAcquire(1) {
-				break
+		downloadErrGroup.Go(func() error {
+			if currGoRoutineIdx > 0 {
+				defer job.maxParallelismSem.Release(1)
 			}
 
-			downloadErrGroup.Go(func() error {
-				if currGoRoutineIdx > 0 {
-					defer job.maxParallelismSem.Release(1)
-				}
+			rangeStart := uint64(currGoRoutineIdx) * downloadChunkSize
+			for rangeStart < job.object.Size {
+				rangeEnd := min(job.object.Size, rangeStart+downloadChunkSize)
 				// Copy the contents from NewReader to cache file at appropriate offset.
-				offsetWriter := io.NewOffsetWriter(cacheFile, rangeStart)
-				return job.downloadRange(downloadErrGroupCtx, offsetWriter, rangeStart, rangeEnd)
-			})
+				offsetWriter := io.NewOffsetWriter(cacheFile, int64(rangeStart))
+				downloadErr := job.downloadRange(downloadErrGroupCtx, offsetWriter, int64(rangeStart), int64(rangeEnd))
+				if downloadErr != nil {
+					return downloadErr
+				}
+				// Check if the chunk downloaded completes a range [0, R) and find that
+				// R.
+				job.mu.Lock()
+				finalStart := rangeStart
+				finalEnd := rangeEnd
+				if rangeStart != 0 {
+					leftStart, exist := rangeMap[rangeStart]
+					if exist {
+						finalStart = leftStart
+						delete(rangeMap, rangeStart)
+						delete(rangeMap, leftStart)
+					}
+				}
+				rightEnd, exist := rangeMap[rangeEnd]
+				if exist {
+					finalEnd = rightEnd
+					delete(rangeMap, rangeEnd)
+					delete(rangeMap, rightEnd)
+				}
+				rangeMap[finalStart] = finalEnd
+				rangeMap[finalEnd] = finalStart
+				if finalStart == 0 {
+					logger.Errorf("Found range starting from 0: %v", finalEnd)
+					updateErr := job.updateStatusOffset(int64(finalEnd))
+					if updateErr != nil {
+						job.mu.Unlock()
+						return updateErr
+					}
+				}
+				rangeStart = rangeStart + singleReadGap
+				job.mu.Unlock()
+			}
+			return nil
+		})
+	}
 
-			start = rangeEnd
-		}
-
-		// If any of the go routines failed, consider the async job failed.
-		err = downloadErrGroup.Wait()
-		if err != nil {
-			return
-		}
-
-		err = job.updateStatusOffset(start)
-		if err != nil {
-			return err
-		}
+	err = downloadErrGroup.Wait()
+	if err != nil {
+		return
 	}
 	return
 }

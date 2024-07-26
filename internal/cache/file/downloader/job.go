@@ -108,14 +108,14 @@ type jobSubscriber struct {
 }
 
 func NewJob(
-	object *gcs.MinObject,
-	bucket gcs.Bucket,
-	fileInfoCache *lru.Cache,
-	sequentialReadSizeMb int32,
-	fileSpec data.FileSpec,
-	removeJobCallback func(),
-	fileCacheConfig *config.FileCacheConfig,
-	maxParallelismSem *semaphore.Weighted,
+		object *gcs.MinObject,
+		bucket gcs.Bucket,
+		fileInfoCache *lru.Cache,
+		sequentialReadSizeMb int32,
+		fileSpec data.FileSpec,
+		removeJobCallback func(),
+		fileCacheConfig *config.FileCacheConfig,
+		maxParallelismSem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{
 		object:               object,
@@ -267,8 +267,8 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
 		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
 	}
-	job.mu.Lock()
-	defer job.mu.Unlock()
+	//job.mu.Lock()
+	//defer job.mu.Unlock()
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
 		job.status.Offset = downloadedOffset
@@ -338,7 +338,9 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			newReader = nil
 		}
 
+		job.mu.Lock()
 		err = job.updateStatusOffset(start)
+		job.mu.Unlock()
 		if err != nil {
 			return err
 		}
