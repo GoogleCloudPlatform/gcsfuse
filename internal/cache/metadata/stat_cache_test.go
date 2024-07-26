@@ -507,6 +507,20 @@ func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForF
 	t.statCache.AddNegativeEntryForFolder(name, expiration)
 
 	hit, entry := t.statCache.LookUpFolder(name, someTime)
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), entry)
+}
+
+func (t *StatCacheTest) Test_ShouldReturnHitFalseWhenOnlyObjectHasNegativeEntry() {
+	const name = "key1"
+	existingEntry := &gcs.MinObject{
+		Name:           name,
+		MetaGeneration: 2,
+	}
+	t.statCache.Insert(existingEntry, expiration)
+
+	hit, entry := t.statCache.LookUpFolder(name, someTime)
+
 	assert.False(t.T(), hit)
 	assert.Nil(t.T(), entry)
 }
