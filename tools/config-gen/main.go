@@ -29,7 +29,7 @@ import (
 var (
 	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed.")
 	paramsFile  = flag.String("paramsFile", "", "Params YAML file.")
-	templateDir = flag.String("templateDir", ".", "Template directory.")
+	templateDir = flag.String("templateDir", ".", "Directory containing the template files.")
 )
 
 type templateData struct {
@@ -52,20 +52,22 @@ func validateFlags() error {
 	return nil
 }
 
-func write(data any, outF, tmplF string) error {
-	outputFile, err := os.Create(outF)
+// write applies the dataObj which could be an object of any type, to the
+// templateFile and writes the generated text into the outputFile.
+func write(dataObj any, outputFile, templateFile string) error {
+	o, err := os.Create(outputFile)
 	if err != nil {
-		defer func() { _ = outputFile.Close() }()
+		defer func() { _ = o.Close() }()
 	}
 	if err != nil {
 		return err
 	}
-	_, file := path.Split(tmplF)
-	tmpl, err := template.New(file).ParseFiles(tmplF)
+	_, file := path.Split(templateFile)
+	tmpl, err := template.New(file).ParseFiles(templateFile)
 	if err != nil {
 		return err
 	}
-	err = tmpl.Execute(outputFile, data)
+	err = tmpl.Execute(o, dataObj)
 	if err != nil {
 		return err
 	}
