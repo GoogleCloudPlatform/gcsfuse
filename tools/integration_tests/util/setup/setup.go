@@ -372,8 +372,11 @@ func SetupTestDirectory(testDirName string) string {
 	err := os.Mkdir(testDirPath, DirPermission_0755)
 	if err != nil && !strings.Contains(err.Error(), "file exists") {
 		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
+		CleanUpDir(testDirPath)
+		os.RemoveAll(testDirPath)
+		os.Mkdir(testDirPath, DirPermission_0755)
 	}
-	CleanUpDir(testDirPath)
+
 	return testDirPath
 }
 
