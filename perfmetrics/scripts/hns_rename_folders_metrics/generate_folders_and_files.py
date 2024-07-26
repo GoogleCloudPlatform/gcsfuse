@@ -307,7 +307,7 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
         if not match:
           return False
     except:
-      # Folder specified in configi fle under the nested folder structrue does
+      # Folder specified in config fle under the nested folder structrue does
       # not exist in bucket.
       return False
 
