@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -185,6 +186,7 @@ func (b *fastStatBucket) CreateObject(
 			MetaGeneration: 0,
 			UpdateTime:     time.Now(),
 		})
+		logger.Infof("Insert in folder Cache..")
 		// Your code here if the condition is true
 	} else {
 		// Record the new object.
