@@ -125,6 +125,7 @@ be interacting with the file system.`)
 		SequentialReadSizeMb:       flags.SequentialReadSizeMb,
 		EnableNonexistentTypeCache: newConfig.MetadataCache.EnableNonexistentTypeCache,
 		MountConfig:                mountConfig,
+		EnableHNS:                  mountConfig.EnableHNS,
 	}
 
 	logger.Infof("Creating a new server...\n")

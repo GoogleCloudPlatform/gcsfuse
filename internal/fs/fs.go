@@ -64,7 +64,8 @@ type ServerConfig struct {
 
 	// The temporary directory to use for local caching, or the empty string to
 	// use the system default.
-	TempDir string
+	TempDir   string
+	EnableHNS bool
 
 	// By default, if a bucket contains the object "foo/bar" but no object named
 	// "foo/", it's as if the directory doesn't exist. This allows us to have
@@ -189,6 +190,7 @@ func NewFileSystem(
 		mountConfig:                cfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
 		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+		enableHNS:                  cfg.EnableHNS,
 	}
 
 	// Set up root bucket
@@ -339,6 +341,7 @@ type fileSystem struct {
 	contentCache               *contentcache.ContentCache
 	implicitDirs               bool
 	enableNonexistentTypeCache bool
+	enableHNS                  bool
 	inodeAttributeCacheTTL     time.Duration
 	dirTypeCacheTTL            time.Duration
 
@@ -702,7 +705,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+			fs.enableHNS)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
