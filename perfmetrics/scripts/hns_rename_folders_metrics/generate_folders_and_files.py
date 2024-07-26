@@ -79,6 +79,25 @@ def check_for_config_file_inconsistency(config) -> (int):
   return 0
 
 
+def list_directory(path) -> list:
+  """Returns the list containing path of all the contents present in the current directory.
+
+  Args:
+    path: Path of the directory.
+
+  Returns:
+    A list containing path of all contents present in the input path.
+  """
+  try:
+    contents = subprocess.check_output(
+        'gcloud storage ls {}'.format(path), shell=True)
+    contents_url = contents.decode('utf-8').split('\n')[:-1]
+    return contents_url
+  except subprocess.CalledProcessError as e:
+    logmessage(e.output.decode('utf-8'))
+    subprocess.call('bash', shell=True)
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:

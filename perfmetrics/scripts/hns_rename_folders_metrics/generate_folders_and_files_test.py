@@ -11,14 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import subprocess
 import unittest
-from generate_folders_and_files import check_for_config_file_inconsistency
+import generate_folders_and_files
+from mock import patch, call
 
-class TestRenameFolder(unittest.TestCase):
+
+class TestCheckForConfigFileInconsistency(unittest.TestCase):
   def test_missing_bucket_name(self):
     config = {}
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 1)
 
   def test_missing_keys_from_folder(self):
@@ -26,7 +29,8 @@ class TestRenameFolder(unittest.TestCase):
         "name": "test_bucket",
         "folders": {}
     }
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 1)
 
   def test_missing_keys_from_nested_folder(self):
@@ -34,7 +38,8 @@ class TestRenameFolder(unittest.TestCase):
         "name": "test_bucket",
         "nested_folders": {}
     }
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 1)
 
   def test_folders_num_folder_mismatch(self):
@@ -52,7 +57,8 @@ class TestRenameFolder(unittest.TestCase):
             ]
         }
     }
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 1)
 
   def test_nested_folders_num_folder_mismatch(self):
@@ -71,7 +77,8 @@ class TestRenameFolder(unittest.TestCase):
             ]
         }
     }
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 1)
 
   def test_valid_config(self):
@@ -81,10 +88,10 @@ class TestRenameFolder(unittest.TestCase):
             "num_folders": 1,
             "folder_structure": [
                 {
-                  "name": "test_folder",
-                  "num_files": 1,
-                  "file_name_prefix": "file",
-                  "file_size": "1kb"
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
                 }
             ]
         },
@@ -101,8 +108,42 @@ class TestRenameFolder(unittest.TestCase):
             ]
         }
     }
-    result = check_for_config_file_inconsistency(config)
+    result = generate_folders_and_files.check_for_config_file_inconsistency(
+        config)
     self.assertEqual(result, 0)
+
+
+class TestListDirectory(unittest.TestCase):
+
+  @patch('subprocess.check_output')
+  @patch('subprocess.call')
+  @patch('generate_folders_and_files.logmessage')
+  def test_listing_at_non_existent_path(self, mock_logmessage,
+      mock_subprocess_call, mock_check_output):
+    mock_check_output.side_effect = subprocess.CalledProcessError(
+        returncode=1,
+        cmd="gcloud storage ls gs://fake_bkt",
+        output=b'Error while listing')
+
+    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
+
+    self.assertEqual(dir_list, None)
+    mock_logmessage.assert_called_once_with('Error while listing')
+    mock_subprocess_call.assert_called_once_with('bash', shell=True)
+
+  @patch('subprocess.check_output')
+  def test_listing_directory(self, mock_check_output):
+    mock_check_output.return_value = b'gs://fake_bkt/fake_folder_0/\n' \
+                                     b'gs://fake_bkt/fake_folder_1/\n' \
+                                     b'gs://fake_bkt/nested_fake_folder/\n'
+    expected_dir_list = ["gs://fake_bkt/fake_folder_0/",
+                         "gs://fake_bkt/fake_folder_1/",
+                         "gs://fake_bkt/nested_fake_folder/"]
+
+    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
+
+    self.assertEqual(dir_list, expected_dir_list)
+
 
 if __name__ == '__main__':
   unittest.main()
