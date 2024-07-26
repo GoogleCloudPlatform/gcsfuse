@@ -78,8 +78,8 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	defer b.mu.Unlock()
 
 	expiration := b.clock.Now().Add(b.ttl)
-	if b.BucketType() == gcs.Hierarchical {
-		for _, o := range objs {
+	for _, o := range objs {
+		if b.BucketType() == gcs.Hierarchical {
 			if strings.HasSuffix(o.Name, "/") {
 				f := &gcs.Folder{
 					Name:           o.Name,
@@ -91,10 +91,10 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 				m := storageutil.ConvertObjToMinObject(o)
 				b.cache.Insert(m, expiration)
 			}
+		} else {
+			m := storageutil.ConvertObjToMinObject(o)
+			b.cache.Insert(m, expiration)
 		}
-	} else {
-		m := storageutil.ConvertObjToMinObject(o)
-		b.cache.Insert(m, expiration)
 	}
 }
 
