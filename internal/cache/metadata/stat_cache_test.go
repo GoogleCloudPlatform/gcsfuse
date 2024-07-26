@@ -511,7 +511,7 @@ func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForF
 	assert.Nil(t.T(), entry)
 }
 
-func (t *StatCacheTest) Test_ShouldReturnHitFalseWhenOnlyObjectHasNegativeEntry() {
+func (t *StatCacheTest) Test_ShouldReturnHitFalseWhenOnlyObjectAlreadyHasEntry() {
 	const name = "key1"
 	existingEntry := &gcs.MinObject{
 		Name:           name,

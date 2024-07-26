@@ -249,12 +249,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		// Adds negative entry scenario
-		if entry.f == nil && entry.m == nil {
-			return true, nil
-		}
-
-		// Adds uninitiated object scenario
+		// Adds scenario to check folder as well even if object with same name is already present
 		if entry.f == nil {
 			return false, nil
 		}
