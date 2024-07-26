@@ -17,6 +17,7 @@ package caching
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -178,8 +179,17 @@ func (b *fastStatBucket) CreateObject(
 		return
 	}
 
-	// Record the new object.
-	b.insert(o)
+	if strings.HasSuffix(o.Name, "/") {
+		b.insertFolder(&gcs.Folder{
+			Name:           o.Name,
+			MetaGeneration: 0,
+			UpdateTime:     time.Now(),
+		})
+		// Your code here if the condition is true
+	} else {
+		// Record the new object.
+		b.insert(o)
+	}
 
 	return
 }
