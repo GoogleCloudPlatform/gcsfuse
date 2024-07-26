@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -288,6 +289,10 @@ func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, err
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
+	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		logger.Infof("In HNS")
+		return findExplicitFolder(ctx, d.Bucket(), childName)
+	}
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}

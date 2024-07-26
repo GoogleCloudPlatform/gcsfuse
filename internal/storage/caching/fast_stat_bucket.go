@@ -83,6 +83,21 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
+func (b *fastStatBucket) insertMultipleFolders(folders []*gcs.Folder) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	for _, f := range folders {
+		b.cache.InsertFolder(f, expiration)
+	}
+}
+
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) insertFolder(o *gcs.Folder) {
+	b.insertMultipleFolders([]*gcs.Folder{o})
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) insert(o *gcs.Object) {
 	b.insertMultiple([]*gcs.Object{o})
@@ -335,7 +350,18 @@ func (b *fastStatBucket) GetFolder(
 	}
 
 	// Fetch the Folder
-	return b.wrapped.GetFolder(ctx, prefix)
+  f, err := b.wrapped.GetFolder(ctx, prefix)
+	if err != nil {
+		// Special case: NotFoundError -> negative entry.
+		if _, ok := err.(*gcs.NotFoundError); ok {
+			b.addNegativeEntryForFolder(prefix)
+		}
+		return nil, err
+	}
+
+	b.insertFolder(f)
+
+	return f, err
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {

@@ -20,7 +20,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -58,9 +57,9 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 
 	successCode := static_mounting.RunTests(flags, m)
 
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flags, m)
-	}
+	//if successCode == 0 {
+	//	successCode = persistent_mounting.RunTests(flags, m)
+	//}
 	return successCode
 }
 

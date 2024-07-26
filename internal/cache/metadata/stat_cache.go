@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
@@ -143,6 +144,9 @@ func (e entry) Size() (size uint64) {
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
 func shouldReplace(m *gcs.MinObject, existing entry) bool {
+	if existing.f != nil {
+		return false
+	}
 	// Negative entries should always be replaced with positive entries.
 	if existing.m == nil {
 		return true
@@ -250,10 +254,11 @@ func (sc *statCacheBucketView) LookUpFolder(
 
 	if hit {
 		// Adds scenario to check folder as well even if object with same name is already present
-		if entry.f == nil {
-			return false, nil
-		}
+		//if entry.f == nil {
+		//	return false, nil
+		//}
 
+		logger.Infof("LookUpFolder: ", entry.f)
 		return true, entry.f
 	}
 
