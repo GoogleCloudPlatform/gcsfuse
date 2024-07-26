@@ -144,9 +144,6 @@ func (e entry) Size() (size uint64) {
 // Should the supplied object for a new positive entry replace the given
 // existing entry?
 func shouldReplace(m *gcs.MinObject, existing entry) bool {
-	if existing.f != nil {
-		return false
-	}
 	// Negative entries should always be replaced with positive entries.
 	if existing.m == nil {
 		return true

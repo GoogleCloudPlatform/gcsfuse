@@ -17,6 +17,7 @@ package caching
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,8 +79,17 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 	for _, o := range objs {
-		m := storageutil.ConvertObjToMinObject(o)
-		b.cache.Insert(m, expiration)
+		if strings.HasSuffix(o.Name, "/") {
+			f := &gcs.Folder{
+				Name:           o.Name,
+				MetaGeneration: 0,
+				UpdateTime:     time.Now(),
+			}
+			b.cache.InsertFolder(f, expiration)
+		} else {
+			m := storageutil.ConvertObjToMinObject(o)
+			b.cache.Insert(m, expiration)
+		}
 	}
 }
 
@@ -177,19 +187,6 @@ func (b *fastStatBucket) CreateObject(
 	if err != nil {
 		return
 	}
-
-	//if strings.HasSuffix(o.Name, "/") && b.{
-	//	b.insertFolder(&gcs.Folder{
-	//		Name:           o.Name,
-	//		MetaGeneration: 0,
-	//		UpdateTime:     time.Now(),
-	//	})
-	//	logger.Infof("Insert in folder Cache..")
-	//	// Your code here if the condition is true
-	//} else {
-	//	// Record the new object.
-	//	b.insert(o)
-	//}
 
 	b.insert(o)
 
