@@ -284,6 +284,26 @@ def compare_folder_structure(folder, folder_url) -> bool:
   return True
 
 
+def compare_folders(folder_structure, parent_url) -> bool:
+  """ Checks that the folder structure matches for each folder under parent_url.
+
+  Args:
+    folder_structure: JSON object representing folders
+    parent_url: The GCS URL of the parent directory
+
+  Returns:
+    true if the structure of the parent folder represented by parent_url in GCS
+    bucket matches the folder_structure JSON object.
+    false otherwise
+  """
+  for folder in folder_structure:
+    folder_url = '{}/{}'.format(parent_url, folder["name"])
+    match = compare_folder_structure(folder, folder_url)
+    if not match:
+      return False
+  return True
+
+
 def check_if_dir_structure_exists(directory_structure) -> bool:
   """Checks if the directory structure mentioned in the config file already
   exists in the GCS bucket.
@@ -300,7 +320,7 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
   bucket_url = 'gs://{}'.format(bucket_name)
 
   # Check for top level folders.
-  folders = list_directory(bucket_url)
+  folders = _list_directory(bucket_url)
   nested_folder_count = "nested_folders" in directory_structure
   if "folders" in directory_structure:
     # Note: It is already validated during input file consistency check that the
@@ -311,11 +331,10 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
       return False
 
     # For each non-nested folder , check the count of files.
-    for folder in directory_structure["folders"]["folder_structure"]:
-      folder_url = '{}/{}'.format(bucket_url, folder["name"])
-      match = compare_folder_structure(folder, folder_url)
-      if not match:
-        return False
+    match = compare_folders(directory_structure["folders"]["folder_structure"],
+                            bucket_url)
+    if not match:
+      return False
 
   # Check the number of second level folders in nested folders.
   if nested_folder_count:
@@ -323,24 +342,20 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
     # keys folder_name,num_folder,folder_structure is specified whenever folder
     # section is included.
     nested_folder = directory_structure["nested_folders"]["folder_name"]
-    second_level_folders = _list_directory(
-        '{}/{}'.format(bucket_url, nested_folder))
-    if len(second_level_folders) != directory_structure["nested_folders"][
-      "num_folders"]:
-      return False
+    nested_folder_url = '{}/{}'.format(bucket_url, nested_folder)
     try:
-      second_level_folders = _list_directory(
-          '{}/{}'.format(bucket_url, nested_folder))
+
+      second_level_folders = _list_directory(nested_folder_url)
       if len(second_level_folders) != directory_structure["nested_folders"][
         "num_folders"]:
         return False
 
       # For each second level folder in "nested" folders, check the count of files.
-      for folder in directory_structure["nested_folders"]["folder_structure"]:
-        folder_url= '{}/{}/{}'.format(bucket_url,nested_folder,folder["name"])
-        match= compare_folder_structure(folder,folder_url)
-        if not match:
-          return False
+      match = compare_folders(
+          directory_structure["nested_folders"]["folder_structure"],
+          nested_folder_url)
+      if not match:
+        return False
     except:
       # Folder specified in JSON config file under the nested folder structrue does
       # not exist in bucket.
