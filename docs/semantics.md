@@ -352,35 +352,7 @@ Traditional file systems do not allow multiple directory entries with the same n
 
 Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named ```foo\n``` (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named ```foo\n``` by returning the file inode. ```\n``` in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
 
-**Memory-mapped files**
-
-Cloud Storage FUSE files can be memory-mapped for reading and writing using ```mmap(2)```. If you make modifications to such a file and want to ensure that they are durable, you must do the following:
-
-- Keep the file descriptor you supplied to ```mmap(2)``` open while you make your modifications.
-- When you are finished modifying the mapping, call ```msync(2)``` and check for errors.
-- Call ```munmap(2)``` and check for errors.
-- Call ```close(2)``` on the original file descriptor and check for errors.
-- If none of the calls returns an error, the modifications have been made durable in Cloud Storage, according to the usual rules documented above.
-
-See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
-
-**Error Handling**
-
-Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
-
-
-**Missing features**
-
-Not all of the usual file system features are supported. Most prominently:
-- Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
-- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting ```--rename-dir-limit```. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
-- File and directory permissions and ownership cannot be changed. See the permissions section above.
-- Modification times are not tracked for any inodes except for files.
-- No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
-
-# Incompatibilities with GCS (Google Cloud Storage)
-
-## Unsupported objects
+### Unsupported object names
 
 **Problem**: GCS supports creating objects having names or prefixes such as `A//B`
 (in fact object `A//B` can even co-exist with object `A/B` in the same
@@ -411,4 +383,30 @@ supported in gcsfuse.
    having `/./`, `/../` or null-character (`\0`) in them.
 1. The effects of the above workaround appear on an existing gcsfuse mount
 only on re-mounting.
+
+**Memory-mapped files**
+
+Cloud Storage FUSE files can be memory-mapped for reading and writing using ```mmap(2)```. If you make modifications to such a file and want to ensure that they are durable, you must do the following:
+
+- Keep the file descriptor you supplied to ```mmap(2)``` open while you make your modifications.
+- When you are finished modifying the mapping, call ```msync(2)``` and check for errors.
+- Call ```munmap(2)``` and check for errors.
+- Call ```close(2)``` on the original file descriptor and check for errors.
+- If none of the calls returns an error, the modifications have been made durable in Cloud Storage, according to the usual rules documented above.
+
+See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
+
+**Error Handling**
+
+Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
+
+
+**Missing features**
+
+Not all of the usual file system features are supported. Most prominently:
+- Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
+- However, if your application can tolerate the risks, you may enable renaming directories in a non-atomic way, by setting ```--rename-dir-limit```. If a directory contains fewer files than this limit and no subdirectory, it can be renamed.
+- File and directory permissions and ownership cannot be changed. See the permissions section above.
+- Modification times are not tracked for any inodes except for files.
+- No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
 
