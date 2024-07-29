@@ -473,24 +473,11 @@ func (s *infiniteKernelListCacheTest) TestKernelListCache_ListAndDeleteDirectory
 	err = f.Close()
 	assert.NoError(t, err)
 	// Adding one object to make sure to change the ReadDir() response.
+	// All files including file3.txt will be deleted by os.RemoveAll
 	client.CreateObjectInGCSTestDir(ctx, storageClient, testDirName, path.Join("explicit_dir", "file3.txt"), "", t)
-	// Error is expected in first delete directory operation due to internal bug b/352688554.
-	err = os.RemoveAll(targetDir)
-	assert.Error(t, err)
 
-	// Unlink calls triggered due to os.RemoveAll will invalidate the cache so
-	// fresh response from GCS is expected containing the uncached file.
-	f, err = os.Open(targetDir)
-	assert.NoError(t, err)
-	names2, err := f.Readdirnames(-1)
-	assert.NoError(t, err)
-	require.Equal(t, 1, len(names2))
-	assert.Equal(t, "file3.txt", names2[0])
-	err = f.Close()
-	assert.NoError(t, err)
-
-	// 2nd RemoveAll call will succeed.
 	err = os.RemoveAll(targetDir)
+
 	assert.NoError(t, err)
 }
 

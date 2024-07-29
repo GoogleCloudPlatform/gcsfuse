@@ -1833,6 +1833,12 @@ func (fs *fileSystem) RmDir(
 			return err
 		}
 
+		if fs.kernelListCacheTTL > 0 {
+			// Clear kernel list cache after removing a directory. This ensures remote
+			// GCS files are included in future directory listings for unlinking.
+			childDir.InvalidateKernelListCache()
+		}
+
 		// Are there any entries?
 		if len(entries) != 0 {
 			err = fuse.ENOTEMPTY
