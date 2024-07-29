@@ -335,7 +335,15 @@ func (b *fastStatBucket) GetFolder(
 	}
 
 	// Fetch the Folder
-	return b.wrapped.GetFolder(ctx, prefix)
+	folder, error := b.wrapped.GetFolder(ctx, prefix)
+
+	if error != nil {
+		return nil, error
+	}
+
+	// Record the new folder.
+	b.cache.InsertFolder(folder, b.clock.Now().Add(b.ttl))
+	return folder, nil
 }
 
 func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {

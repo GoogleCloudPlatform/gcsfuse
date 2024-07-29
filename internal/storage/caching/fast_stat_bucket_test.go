@@ -761,6 +761,8 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 
 	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
 		WillOnce(Return(false, nil))
+	ExpectCall(t.cache, "InsertFolder")(folder, Any()).
+		WillOnce(Return())
 	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
 		WillOnce(Return(folder, nil))
 
@@ -768,6 +770,21 @@ func (t *StatObjectTest) TestShouldCallGetFolderWhenEntryIsNotPresent() {
 
 	AssertEq(nil, err)
 	ExpectThat(result, Pointee(DeepEquals(*folder)))
+}
+
+func (t *StatObjectTest) TestShouldReturnNilWhenErrorIsReturnedFromGetFolder() {
+	const name = "some-name"
+	error := errors.New("connection error")
+
+	ExpectCall(t.cache, "LookUpFolder")(name, Any()).
+		WillOnce(Return(false, nil))
+	ExpectCall(t.wrapped, "GetFolder")(Any(), name).
+		WillOnce(Return(nil, error))
+
+	folder, result := t.bucket.GetFolder(context.TODO(), name)
+
+	AssertEq(nil, folder)
+	AssertEq(error, result)
 }
 
 func (t *StatObjectTest) TestRenameFolder() {
