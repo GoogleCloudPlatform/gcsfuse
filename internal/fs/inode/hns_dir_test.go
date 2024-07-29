@@ -143,15 +143,17 @@ func (t *HNSDirTest) TestLookUpChildShouldLookUpConflicting() {
 		ForceFetchFromGcs:              false,
 		ReturnExtendedObjectAttributes: false,
 	}
+	object := gcs.MinObject{Name: dirName}
 	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
-	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&gcs.MinObject{}, &gcs.ExtendedObjectAttributes{}, nil)
+	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 
 	// Look up with the proper name.
-	_, err := t.in.LookUpChild(t.ctx, name+"\n")
+	c, err := t.in.LookUpChild(t.ctx, name+"\n")
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), dirName, c.MinObject.Name)
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
