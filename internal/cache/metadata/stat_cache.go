@@ -252,6 +252,7 @@ func (sc *statCacheBucketView) LookUpFolder(
 		return false, nil
 	}
 	// Adds scenario to check folder as well even if object with same name is already present
+	// TODO: should be removed once integration for lookup is completed
 	if entry.f == nil {
 		return false, nil
 	}
