@@ -134,13 +134,10 @@ func (t *HNSDirTest) TestLookUpChildShouldLookUpConflicting() {
 	const name = "qux"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := &gcs.Folder{
-		Name:           dirName,
-		MetaGeneration: int64(1),
+		Name: dirName,
 	}
 	statObjectRequest := gcs.StatObjectRequest{
-		Name:                           path.Join(dirInodeName, name),
-		ForceFetchFromGcs:              false,
-		ReturnExtendedObjectAttributes: false,
+		Name: path.Join(dirInodeName, name),
 	}
 	object := gcs.MinObject{Name: dirName}
 	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
