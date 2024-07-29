@@ -21,14 +21,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"slices"
 	"text/template" // NOLINT
 )
 
 var (
-	outFile      = flag.String("outFile", "", "Output file")
-	paramsFile   = flag.String("paramsFile", "", "Params YAML file")
-	templateFile = flag.String("templateFile", "", "Template file")
+	outDir      = flag.String("outDir", "", "Output directory where the auto-generated files are to be placed")
+	paramsFile  = flag.String("paramsFile", "", "Params YAML file")
+	templateDir = flag.String("templateDir", ".", "Directory containing the template files")
 )
 
 type templateData struct {
@@ -40,34 +41,37 @@ type templateData struct {
 
 func validateFlags() error {
 	if *paramsFile == "" {
-		return fmt.Errorf("input filename cannot be empty")
+		return fmt.Errorf("params filename cannot be empty")
 	}
-	if *outFile == "" {
-		return fmt.Errorf("output filename cannot be empty")
+	if *outDir == "" {
+		return fmt.Errorf("output directory cannot be empty")
 	}
-	if *templateFile == "" {
-		return fmt.Errorf("template filename cannot be empty")
+	if *templateDir == "" {
+		return fmt.Errorf("template directory cannot be empty")
 	}
 	return nil
 }
 
-func write(data templateData) error {
-	outputFile, err := os.Create(*outFile)
-	if err != nil {
-		defer outputFile.Close()
-	}
-	if err != nil {
+// write applies the dataObj which could be an object of any type, to the
+// templateFile and writes the generated text into the outputFile.
+func write(dataObj any, outputFile, templateFile string) (err error) {
+	var outF *os.File
+	if outF, err = os.Create(outputFile); err != nil {
 		return err
 	}
-	tmpl, err := template.New("config.tpl").ParseFiles(*templateFile)
-	if err != nil {
+	defer func() {
+		closeErr := outF.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+
+	file := path.Base(templateFile)
+	var tmpl *template.Template
+	if tmpl, err = template.New(file).ParseFiles(templateFile); err != nil {
 		return err
 	}
-	err = tmpl.Execute(outputFile, data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return tmpl.Execute(outF, dataObj)
 }
 
 func main() {
@@ -104,7 +108,9 @@ func main() {
 		FlagTemplateData: fd,
 		TypeTemplateData: td,
 		Backticks:        "`",
-	})
+	},
+		path.Join(*outDir, "config.go"),
+		path.Join(*templateDir, "config.tpl"))
 	if err != nil {
 		panic(err)
 	}
