@@ -248,16 +248,15 @@ func (sc *statCacheBucketView) LookUpFolder(
 	// Look up in the LRU cache.
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
-	if hit {
-		// Adds scenario to check folder as well even if object with same name is already present
-		if entry.f == nil {
-			return false, nil
-		}
-
-		return true, entry.f
+	if !hit {
+		return false, nil
+	}
+	// Adds scenario to check folder as well even if object with same name is already present
+	if entry.f == nil {
+		return false, nil
 	}
 
-	return false, nil
+	return true, entry.f
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
