@@ -98,8 +98,37 @@ def list_directory(path) -> list:
 
 
 def compare_folder_structure(folder, folder_url) -> bool:
-  """Checks if the number of files in config file under folder matches the
-  number of files in the GCS bucket.
+  """Checks if the number of files inside folder in GCS bucket matches the
+  num_files parameter for folder.
+
+  Example folder structure
+  {
+  "name": "example-folder" ,
+  "folders" : {
+    "num_folders": 1,
+    "folder_structure" : [
+      {
+        "name": "1k_files_folder" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      }
+    ]
+    }
+  },
+   "nested_folders": {
+    "folder_name": "nested_folder",
+    "num_folders": 1,
+    "folder_structure" :  [
+      {
+        "name": "1k_files_nested_folder" ,
+        "num_files": 1000 ,
+        "file_name_prefix": "file" ,
+        "file_size": "1kb"
+      }
+      ]
+    }
+  }
 
   Args:
     folder: Json Object representing the folder.
@@ -116,7 +145,7 @@ def compare_folder_structure(folder, folder_url) -> bool:
       return False
   except:
     # If the list directory fails wth url did not match object, folder
-    # specified in config file does not exist in bucket.
+    # specified in JSON folder object does not exist in bucket.
     return False
 
   return True
@@ -130,9 +159,9 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
     directory_structure: Json Object representing the directory structure.
 
   Returns:
-    true if the existing structure in GCS bucket exactly matches with teh config
-     file
-    false otherwise
+    true if the existing structure in GCS bucket exactly matches with the config
+     file.
+    false otherwise.
   """
   bucket_name = directory_structure["name"]
   bucket_url = 'gs://{}'.format(bucket_name)
@@ -141,6 +170,9 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
   folders = list_directory(bucket_url)
   nested_folder_count = "nested_folders" in directory_structure
   if "folders" in directory_structure:
+    # Note: It is already validated during input file consistency check that the
+    # keys num_folder,folder_structure is specified whenever folder section is
+    # included.
     if len(folders) != directory_structure["folders"][
       "num_folders"] + nested_folder_count:
       return False
@@ -154,6 +186,9 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
 
   # Check the number of second level folders in nested folders.
   if nested_folder_count:
+    # Note: It is already validated during input file consistency check that the
+    # keys folder_name,num_folder,folder_structure is specified whenever folder
+    # section is included.
     nested_folder = directory_structure["nested_folders"]["folder_name"]
     try:
       second_level_folders = list_directory(
@@ -169,7 +204,7 @@ def check_if_dir_structure_exists(directory_structure) -> bool:
         if not match:
           return False
     except:
-      # Folder specified in config fle under the nested folder structrue does
+      # Folder specified in JSON config file under the nested folder structrue does
       # not exist in bucket.
       return False
 
@@ -186,7 +221,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       'config_file',
-      help='Provide path of the config file', )
+      help='Provide path of the JSON config file', )
   parser.add_argument(
       '--keep_files',
       help='Please specify whether to keep local files/folders or not',
@@ -212,6 +247,6 @@ if __name__ == '__main__':
     print('Exited with code {}'.format(exit_code))
     subprocess.call('bash', shell=True)
 
-  # Compare the directory structure with the config file to avoid recreation of
+  # Compare the directory structure with the JSON config file to avoid recreation of
   # same test data.
   dir_structure_present = check_if_dir_structure_exists(directory_structure)
