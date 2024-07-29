@@ -392,12 +392,12 @@ this issue, even objects having name or prefix `A/C` (which are perfectly
 supported by linux filesystem) cannot be listed by gcsfuse by `ls A`.
 
 **Workaround**: To access objects having name or prefix `A/C` in a
-gcsfuse-mounted directory, you should either move (preferably to
-prefix `A/B` if there is no other such object/prefix) or
+gcsfuse-mounted directory in the above case, you should either move (preferably to
+`A/B` if there is no other such object/prefix) or
 delete (NOT recommended as it causes irreversible data-loss),
 all objects having name or prefix `A//B`.
 
-For move, A gsutil mv command like `gsutil -m mv -r
+For moving, A gsutil mv command like `gsutil -m mv -r
 gs://<bucket>/A//* gs://<bucket>/A/` should suffice.
 
 For deletion, A gsutil mv command like `gsutil -m rm -r
