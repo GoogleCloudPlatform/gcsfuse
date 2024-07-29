@@ -330,7 +330,7 @@ This can be overridden by setting ```-o allow_other``` to allow other users to a
 
 See [Key Differences from a POSIX filesystem](https://cloud.google.com/storage/docs/gcs-fuse#expandable-1)
 
-**Unlinking directories**
+## Unlinking directories
 
 Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first do a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
 
@@ -342,7 +342,7 @@ Cloud Storage FUSE implements requests from the kernel to read the contents of a
 
 However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to ```readdir(3) ```may return names for which ```fstat(2)``` returns ```ENOENT```.
 
-**Name conflicts**
+## Name conflicts
 
 It is possible to have a Cloud Storage bucket containing an object named foo and another object named ```foo/```:
 - This situation can easily happen when writing to Cloud Storage directly, since there is nothing special about those names as far as Cloud Storage is concerned.
@@ -354,37 +354,15 @@ Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it ap
 
 ### Unsupported object names
 
-**Problem**: GCS supports creating objects having names or prefixes such as `A//B`
-(in fact object `A//B` can even co-exist with object `A/B` in the same
-GCS bucket). Such objects cannot be represented in a gcsfuse-mounted filesystem,
-because linux filesystem does not support directories named `/`. This causes
-either an `input/output error` or unexpected behavior on listing the directory
-entries of `A` (i.e. `ls A`) in a gcsfuse-mounted file-system. Because of
-this issue, even objects having name or prefix `A/C` (which are perfectly
-supported by linux filesystem) cannot be listed by gcsfuse by `ls A`.
+Objects in GCS with double slashes '//' as a name or
+prefix are not supported in GCSfuse. Accessing a directory with such
+named files will cause an 'input/output error', as the Linux
+filesystem does not support files or directories named with a '/'.
+The most common example of this is an object called, for example
+'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a
+file, and is missing directory 'B/' between 'A/' and 'C.txt'.
 
-**Workaround**: To access objects having name or prefix `A/C` in a
-gcsfuse-mounted directory in the above case, you should either move (preferably to
-`A/B` if there is no other such object/prefix) or
-delete (NOT recommended as it will delete the underlying object),
-all objects having name or prefix `A//B`.
-
-For moving, A gsutil mv command like `gsutil -m mv -r
-gs://<bucket>/A//* gs://<bucket>/A/` should suffice.
-
-For deletion, A gsutil mv command like `gsutil -m rm -r
-gs://<bucket>/A//*` should suffice.
-
-**Notes**:
-1. The name `A//B` has only been taken as an example. In general, any GCS
-object name or prefix which has a `//` in it, or starts with `/` is not
-supported in gcsfuse.
-1. The same problem exists with GCS objects having names starting with `./`, `../` or
-   having `/./`, `/../` or null-character (`\0`) in them.
-1. The effects of the above workaround appear on an existing gcsfuse mount
-only on re-mounting.
-
-**Memory-mapped files**
+## Memory-mapped files
 
 Cloud Storage FUSE files can be memory-mapped for reading and writing using ```mmap(2)```. If you make modifications to such a file and want to ensure that they are durable, you must do the following:
 
@@ -396,12 +374,12 @@ Cloud Storage FUSE files can be memory-mapped for reading and writing using ```m
 
 See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
 
-**Error Handling**
+## Error Handling
 
 Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
 
 
-**Missing features**
+## Missing features
 
 Not all of the usual file system features are supported. Most prominently:
 - Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
