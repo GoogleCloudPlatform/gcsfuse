@@ -51,6 +51,9 @@ func DecodeHook() mapstructure.DecodeHookFunc {
 		mapstructure.TextUnmarshallerHookFunc(),
 		mapstructure.StringToTimeDurationHookFunc(), // default hook
 		mapstructure.StringToSliceHookFunc(","),     // default hook
+		// TODO: stringToURLHookFunc() needs to be in the end in order to avoid
+		// error being thrown.
+		// In the longer term, we want to change the type of URL params to string.
 		stringToURLHookFunc(),
 	)
 }
