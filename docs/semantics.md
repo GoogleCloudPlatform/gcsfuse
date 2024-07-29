@@ -407,6 +407,8 @@ gs://<bucket>/A//*` should suffice.
 1. The name `A//B` has only been taken as an example. In general, any GCS
 object name or prefix which has a `//` in it, or starts with `/` is not
 supported in gcsfuse.
+1. The same problem exists with GCS objects having names starting with `./`, `../` or
+   having `/./`, `/../` or null-character (`\0`) in them.
 1. The effects of the above workaround appear on an existing gcsfuse mount
 only on re-mounting.
 
