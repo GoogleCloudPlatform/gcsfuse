@@ -14,6 +14,7 @@
 
 package cfg
 
+// Rationalize updates the config fields based on the values of other fields.
 func Rationalize(c *Config) {
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
 	if c.EnableHns {
