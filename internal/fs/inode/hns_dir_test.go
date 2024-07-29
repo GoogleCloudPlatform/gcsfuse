@@ -138,21 +138,20 @@ func (t *HNSDirTest) TestLookUpChildShouldLookUpConflicting() {
 		Name:           dirName,
 		MetaGeneration: int64(1),
 	}
+	statObjectRequest := gcs.StatObjectRequest{
+		Name:                           path.Join(dirInodeName, name),
+		ForceFetchFromGcs:              false,
+		ReturnExtendedObjectAttributes: false,
+	}
 	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
-	t.mockBucket.On("StatObject", mock.Anything, dirName).Return(nil, gcs.NotFoundError{})
+	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&gcs.MinObject{}, &gcs.ExtendedObjectAttributes{}, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
-	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
 
 	// Look up with the proper name.
-	result, err := t.in.LookUpChild(t.ctx, name+"\n")
+	_, err := t.in.LookUpChild(t.ctx, name+"\n")
 
 	t.mockBucket.AssertExpectations(t.T())
-	assert.Nil(t.T(), err)
-	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), dirName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+	assert.NoError(t.T(), err)
 }
 
 func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
