@@ -232,7 +232,7 @@ func (d *baseDirInode) DeleteChildDir(
 	return
 }
 
-func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+func (d *baseDirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent) {
 	// Base directory can not contain local files.
 	return nil
 }
