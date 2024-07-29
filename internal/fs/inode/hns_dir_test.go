@@ -277,8 +277,9 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	t.mockBucket.On("RenameFolder", t.ctx, folderName, renameFolderName).Return(nil, &gcs.NotFoundError{})
 
 	// Attempt to rename the folder.
-	_, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.True(t.T(), errors.As(err, &notFoundErr))
+	assert.Nil(t.T(), f)
 }
