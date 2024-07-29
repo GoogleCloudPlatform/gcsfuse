@@ -292,6 +292,9 @@ func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, err
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
+	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		return findExplicitFolder(ctx, d.Bucket(), childName)
+	}
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
