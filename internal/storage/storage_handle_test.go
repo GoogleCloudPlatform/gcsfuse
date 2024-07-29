@@ -126,7 +126,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	assert.Nil(testSuite.T(), err)
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = url
+	sc.CustomEndpoint = url.String()
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
@@ -139,7 +139,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithCustomEndpointAndAut
 // This will fail while fetching the token-source, since key-file doesn't exist.
 func (testSuite *StorageHandleTest) TestNewStorageHandleWhenCustomEndpointIsNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
+	sc.CustomEndpoint = ""
 	sc.AnonymousAccess = false
 
 	handleCreated, err := NewStorageHandle(context.Background(), sc)
@@ -254,7 +254,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithGRPCClientPro
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustomEndpointNilAndAuthEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = nil
+	sc.CustomEndpoint = ""
 	sc.AnonymousAccess = false
 	sc.ClientProtocol = cfg.GRPC
 
@@ -269,7 +269,7 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientWithCustom
 	url, err := url.Parse(storageutil.CustomEndpoint)
 	assert.Nil(testSuite.T(), err)
 	sc := storageutil.GetDefaultStorageClientConfig()
-	sc.CustomEndpoint = url
+	sc.CustomEndpoint = url.String()
 	sc.AnonymousAccess = false
 	sc.ClientProtocol = cfg.GRPC
 

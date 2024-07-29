@@ -18,7 +18,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -36,7 +35,7 @@ type StorageClientConfig struct {
 	// ClientProtocol decides the go-sdk client to create.
 	ClientProtocol    cfg.Protocol
 	UserAgent         string
-	CustomEndpoint    *url.URL
+	CustomEndpoint    string
 	KeyFile           string
 	TokenUrl          string
 	ReuseTokenFromUrl bool

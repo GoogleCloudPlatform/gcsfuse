@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"fmt"
+	"net/url"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -28,10 +29,25 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	return nil
 }
 
+func isValidUrl(u string) (string, error) {
+	decodedUrl, err := url.Parse(u)
+	if err != nil {
+		return "", err
+	}
+	return decodedUrl.String(), nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(config *Config) error {
-	if err := isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
+	var err error
+
+	if err = isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
 		return fmt.Errorf("error parsing log-rotate config: %w", err)
 	}
+
+	if config.GcsConnection.CustomEndpoint, err = isValidUrl(config.GcsConnection.CustomEndpoint); err != nil {
+		return fmt.Errorf("invalid config.GcsConnection.CustomEndpoint: %w", err)
+	}
+
 	return nil
 }

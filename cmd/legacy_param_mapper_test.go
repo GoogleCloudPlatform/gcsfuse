@@ -147,7 +147,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					AnonymousAccess:   false,
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
-					CustomEndpoint:             nil,
+					CustomEndpoint:             "",
 					BillingProject:             "billing-project",
 					ClientProtocol:             cfg.Protocol("http1"),
 					LimitBytesPerSec:           100,
@@ -469,8 +469,8 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 
 	resolvedConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, legacyFlagStorage, &config.MountConfig{})
 
-	if assert.Nil(t, err) && assert.NotNil(t, resolvedConfig.GcsConnection.CustomEndpoint) {
-		assert.Equal(t, *resolvedConfig.GcsConnection.CustomEndpoint, *u)
+	if assert.Nil(t, err) && assert.NotEmpty(t, resolvedConfig.GcsConnection.CustomEndpoint) {
+		assert.Equal(t, resolvedConfig.GcsConnection.CustomEndpoint, u.String())
 	}
 }
 
