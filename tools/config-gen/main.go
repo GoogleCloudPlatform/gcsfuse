@@ -67,11 +67,11 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	}()
 
 	file := path.Base(templateFile)
-	if tmpl, err := template.New(file).ParseFiles(templateFile); err == nil {
-		return tmpl.Execute(outF, dataObj)
-	} else {
+	var tmpl *template.Template
+	if tmpl, err = template.New(file).ParseFiles(templateFile); err != nil {
 		return err
 	}
+	return tmpl.Execute(outF, dataObj)
 }
 
 func main() {
