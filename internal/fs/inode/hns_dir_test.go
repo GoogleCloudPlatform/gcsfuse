@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -40,6 +41,8 @@ type HNSDirTest struct {
 	bucket     gcsx.SyncerBucket
 	in         DirInode
 	mockBucket *storage.TestifyMockBucket
+	typeCache  metadata.TypeCache
+	fixedTime  timeutil.SimulatedClock
 }
 
 func TestHNSDirSuite(testSuite *testing.T) { suite.Run(testSuite, new(HNSDirTest)) }
@@ -59,8 +62,7 @@ func (t *HNSDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, ena
 }
 
 func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool, typeCacheMaxSizeMB int, typeCacheTTL time.Duration) {
-	var anyPastTime timeutil.SimulatedClock
-	anyPastTime.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
+	t.fixedTime.SetTime(time.Date(2024, 7, 22, 2, 15, 0, 0, time.Local))
 
 	t.in = NewDirInode(
 		dirInodeID,
@@ -75,14 +77,18 @@ func (t *HNSDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		enableNonexistentTypeCache,
 		typeCacheTTL,
 		&t.bucket,
-		&anyPastTime,
-		&anyPastTime,
+		&t.fixedTime,
+		&t.fixedTime,
 		typeCacheMaxSizeMB,
-		false,
+		true,
 	)
 
 	d := t.in.(*dirInode)
-	assert.NotEqual(t.T(), nil, d)
+	assert.NotNil(t.T(), d)
+	t.typeCache = d.cache
+	assert.NotNil(t.T(), t.typeCache)
+
+	//Lock dir Inode
 	t.in.Lock()
 }
 
@@ -102,6 +108,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), name))
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, result.MinObject)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
@@ -117,6 +124,124 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	// Look up with the name.
 	result, err := findExplicitFolder(t.ctx, &t.bucket, NewDirName(t.in.Name(), "not-present"))
 
+	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Nil(t.T(), result)
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+	// mock get folder call
+	folder := &gcs.Folder{
+		Name:           dirName,
+		MetaGeneration: int64(1),
+	}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.ExplicitDirType)
+
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent() {
+	const name = "unknown_type"
+	dirName := path.Join(dirInodeName, name) + "/"
+	// mock get folder call
+	folder := &gcs.Folder{
+		Name:           dirName,
+		MetaGeneration: int64(1),
+	}
+	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
+	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularFileType() {
+	const name = "file_type"
+	fileName := path.Join(dirInodeName, name)
+	// mock stat object call
+	minObject := &gcs.MinObject{
+		Name:           name,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+	}
+	attrs := &gcs.ExtendedObjectAttributes{
+		ContentType:  "plain/text",
+		StorageClass: "DEFAULT",
+		CacheControl: "some-value",
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkType() {
+	const name = "file_type"
+	fileName := path.Join(dirInodeName, name)
+	// mock stat object call
+	minObject := &gcs.MinObject{
+		Name:           name,
+		MetaGeneration: int64(1),
+		Generation:     int64(2),
+		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
+	}
+	attrs := &gcs.ExtendedObjectAttributes{
+		ContentType:  "plain/text",
+		StorageClass: "DEFAULT",
+		CacheControl: "some-value",
+	}
+	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
+	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
+	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
+	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentkType() {
+	const name = "file_type"
+	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
+	// Look up with the proper name.
+	result, err := t.in.LookUpChild(t.ctx, name)
+
+	assert.Nil(t.T(), err)
+	assert.Nil(t.T(), result)
+	t.mockBucket.AssertExpectations(t.T())
 }
