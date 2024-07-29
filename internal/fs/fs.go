@@ -702,7 +702,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+			fs.mountConfig.EnableHNS)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
