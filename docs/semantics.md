@@ -382,7 +382,9 @@ Not all of the usual file system features are supported. Most prominently:
 
 ## Unsupported objects
 
-**Scenario** GCS supports creating objects having name or prefix such as `A//B` (in fact object `A//B` can even co-exist with another object `A/B` in the same GCS bucket). Such objects cannot be represented in a gcsfuse-mounted filesystem, because linux filesystem does not support directory named `/`. This causes either an `input/output error` or unexpected behavior on listing the directory entries of `A` (i.e. `ls A`) in a gcsfuse-mounted file-system. Because of the this issue, even objects having name or prefix `A/C` (which are perfectly supported by linux filesystem) cannot be listed by gcsfuse by `ls A`.
+**Problem**: GCS supports creating objects having name or prefix such as `A//B` (in fact object `A//B` can even co-exist with another object `A/B` in the same GCS bucket). Such objects cannot be represented in a gcsfuse-mounted filesystem, because linux filesystem does not support directory named `/`. This causes either an `input/output error` or unexpected behavior on listing the directory entries of `A` (i.e. `ls A`) in a gcsfuse-mounted file-system. Because of the this issue, even objects having name or prefix `A/C` (which are perfectly supported by linux filesystem) cannot be listed by gcsfuse by `ls A`.
+
 **Workaround**: To be able to access objects having name or prefix `A/C` in a gcsfuse-mounted directory, you should either delete or move/rename all objects having prefix `A//B` (preferably to prefix `A/B` for smooth transition in a gcsfuse mount). A gsutil command like `gsutil -m mv -r gs://<bucket>/A//* gs://<bucket>/A/` should suffice.
+
 **Note**: The name `A//B` has only been taken as an example. In general, any object name or prefix which is not a valid linux file/directory name would pose the same problem in a gcsfuse-mounted filesystem.
 
