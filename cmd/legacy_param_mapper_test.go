@@ -505,7 +505,7 @@ func TestInvalidClientProtocol(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestEnableEmptyManagedFoldersVetting(t *testing.T) {
+func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 	testcases := []struct {
 		name                              string
 		enableHns                         bool
