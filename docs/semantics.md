@@ -394,7 +394,7 @@ supported by linux filesystem) cannot be listed by gcsfuse by `ls A`.
 **Workaround**: To access objects having name or prefix `A/C` in a
 gcsfuse-mounted directory in the above case, you should either move (preferably to
 `A/B` if there is no other such object/prefix) or
-delete (NOT recommended as it causes irreversible data-loss),
+delete (NOT recommended as it will delete the underlying object),
 all objects having name or prefix `A//B`.
 
 For moving, A gsutil mv command like `gsutil -m mv -r
