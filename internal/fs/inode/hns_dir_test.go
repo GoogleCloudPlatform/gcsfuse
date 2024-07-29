@@ -148,7 +148,6 @@ func (t *HNSDirTest) TestLookUpChildShouldLookUpConflicting() {
 	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 
-	// Look up with the proper name.
 	c, err := t.in.LookUpChild(t.ctx, name+"\n")
 
 	t.mockBucket.AssertExpectations(t.T())
