@@ -408,7 +408,7 @@ func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsH
 	assert.Equal(t.T(), err.Error(), "DeleteFolder: mock delete folder error")
 }
 
-func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsHNS_Fail() {
+func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
@@ -421,7 +421,7 @@ func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsHNS_Fail() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsHNS_Success() {
+func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := gcs.Folder{Name: name}
@@ -433,11 +433,11 @@ func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsHNS_Success() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), result)
-	assert.Equal(t.T(), result.MinObject.Name, name)
-	assert.Equal(t.T(), result.FullName.objectName, dirName)
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), dirName, result.FullName.objectName)
 }
 
-func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsNonHNS_Fail() {
+func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	const name = "folder"
 	var preCond int64
 	dirName := path.Join(dirInodeName, name) + "/"
@@ -452,12 +452,12 @@ func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsNonHNS_Fail() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsNonHNS_Success() {
+func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
 	var preCond int64
 	createObjectReq := gcs.CreateObjectRequest{Name: dirName, Contents: strings.NewReader(""), GenerationPrecondition: &preCond}
-	object := gcs.Object{Name: name}
+	object := gcs.Object{Name: dirName}
 	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
 	t.mockBucket.On("CreateObject", t.ctx, &createObjectReq).Return(&object, nil)
 
@@ -466,6 +466,6 @@ func (t *HNSDirTest) TestCreateChildDir_WhenBucketTypeIsNonHNS_Success() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), result)
-	assert.Equal(t.T(), result.MinObject.Name, name)
-	assert.Equal(t.T(), result.FullName.objectName, dirName)
+	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), dirName, result.FullName.objectName)
 }

@@ -840,14 +840,15 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	var core *Core
 
 	// Check the bucket type
-	if d.bucket.BucketType() == gcs.Hierarchical {
+	// TODO: Use function for this check.
+	if d.bucket.BucketType() == gcs.Hierarchical && d.isHNSEnabled {
 		// For hierarchical buckets, create a folder
 		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
 		}
 		// Convert the folder to a minimal object
-		o := f.ConvertFolderToMinObject(name)
+		o := f.ConvertFolderToMinObject(fullName.GcsObjectName())
 		core = &Core{
 			FullName:  fullName,
 			Bucket:    d.Bucket(),
