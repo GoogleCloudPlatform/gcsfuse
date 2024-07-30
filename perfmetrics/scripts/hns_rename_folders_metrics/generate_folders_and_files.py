@@ -56,7 +56,7 @@ def _check_for_config_file_inconsistency(config) -> (int):
   if "folders" in config:
     if not ("num_folders" in config["folders"] or "folder_structure" in config[
       "folders"]):
-      _logmessage("Key missing for nested folder")
+      _logmessage("Key missing for folder")
       return 1
 
     if config["folders"]["num_folders"] != len(
@@ -230,6 +230,18 @@ def _check_if_dir_structure_exists(directory_structure) -> bool:
   return True
 
 
+def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
+  # TODO: Handle case where delete operation called on empty bucket results in
+  #  exiting due to "gcs object not found at url" when using gcloud command
+  try:
+    subprocess.check_output(
+        'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
+    return 0
+  except subprocess.CalledProcessError as e:
+    _logmessage(e.output.decode('utf-8'))
+    return 1
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -269,3 +281,11 @@ if __name__ == '__main__':
   # Compare the directory structure with the JSON config file to avoid recreation of
   # same test data.
   dir_structure_present = _check_if_dir_structure_exists(directory_structure)
+
+  # If directory structure does not exist/match the structure in the config file
+  # delete any existing files in bucket.
+  if not dir_structure_present:
+    exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
+    if exit_code != 0:
+      print('Error while deleting bucket.Exiting...!')
+      subprocess.call('bash', shell=True)
