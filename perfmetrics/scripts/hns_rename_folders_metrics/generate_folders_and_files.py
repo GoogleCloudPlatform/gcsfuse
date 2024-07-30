@@ -230,7 +230,9 @@ def _check_if_dir_structure_exists(directory_structure) -> bool:
   return True
 
 
-def _delete_existing_folders_and_files_in_gcs_bucket(gcs_bucket)->(int):
+def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
+  # TODO: Handle case where delete operation called on empty bucket results in
+  #  exiting due to "gcs object not found at url" when using gcloud command
   try:
     subprocess.check_output(
         'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
@@ -283,7 +285,7 @@ if __name__ == '__main__':
   # If directory structure does not exist/match the structure in the config file
   # delete any existing files in bucket.
   if not dir_structure_present:
-    exit_code = _delete_existing_folders_and_files_in_gcs_bucket(directory_structure["name"])
+    exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
       print('Error while deleting bucket.Exiting...!')
       subprocess.call('bash', shell=True)

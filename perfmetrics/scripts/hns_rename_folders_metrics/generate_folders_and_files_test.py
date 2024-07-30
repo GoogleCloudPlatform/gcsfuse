@@ -278,7 +278,7 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
     self.assertEqual(dir_present, 0)
 
 
-class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
+class TestDeleteExistingDataInGcsBucket(unittest.TestCase):
 
   @patch('subprocess.check_output')
   @patch('generate_folders_and_files._logmessage')
@@ -290,7 +290,7 @@ class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
         output=b'Error while deleting')
 
     exit_code = generate_folders_and_files\
-      ._delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
+      ._delete_existing_data_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 1)
     mock_logmessage.assert_called_once_with('Error while deleting')
@@ -300,7 +300,7 @@ class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
     mock_check_output.return_value = 0
 
     exit_code = generate_folders_and_files \
-      ._delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
+      ._delete_existing_data_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 0)
 
