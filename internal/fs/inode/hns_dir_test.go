@@ -115,7 +115,6 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-
 }
 
 func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
@@ -167,6 +166,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	assert.Equal(t.T(), metadata.UnknownType, t.typeCache.Get(t.fixedTime.Now(), name))
+
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
@@ -184,7 +184,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
 	minObject := &gcs.MinObject{
-		Name:           name,
+		Name:           fileName,
 		MetaGeneration: int64(1),
 		Generation:     int64(2),
 	}
@@ -195,13 +195,14 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	}
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.RegularFileType)
+
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
@@ -212,7 +213,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
 	minObject := &gcs.MinObject{
-		Name:           name,
+		Name:           fileName,
 		MetaGeneration: int64(1),
 		Generation:     int64(2),
 		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
@@ -225,12 +226,13 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	t.mockBucket.On("StatObject", mock.Anything, mock.Anything).Return(minObject, attrs, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.SymlinkType)
+
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
@@ -239,6 +241,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
 	const name = "file_type"
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
+
 	// Look up with the proper name.
 	result, err := t.in.LookUpChild(t.ctx, name)
 
