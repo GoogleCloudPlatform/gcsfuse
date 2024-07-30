@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -90,16 +91,20 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing) {
 
 	expiration := b.clock.Now().Add(b.ttl)
 
+	// save the objects in cache
 	for _, o := range listing.Objects {
+		// excluding zero byte objects corresponding to folders
 		if !strings.HasSuffix(o.Name, "/") {
 			m := storageutil.ConvertObjToMinObject(o)
 			b.cache.Insert(m, expiration)
 		}
 	}
 
+	// save prefixes as folders all prefixes are folders in hns
 	for _, p := range listing.CollapsedRuns {
 		if !strings.HasSuffix(p, "/") {
-			_ = fmt.Errorf("error in prefix name: %s", p)
+			// log the error for incorrect prefix but don't fail the operation
+			logger.Errorf("error in prefix name: %s", p)
 		} else {
 			f := &gcs.Folder{
 				Name: p,
