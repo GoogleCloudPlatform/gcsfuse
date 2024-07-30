@@ -137,9 +137,9 @@ func fixConflictingNames(entries []fuseutil.Dirent, localEntries map[string]fuse
 
 		if eIsDir == prevIsDir {
 			if _, ok := localEntries[e.Name]; ok && !eIsDir {
-				// if we find same entry in GCS vs local file entries, i.e, the entry is
-				// uploaded to GCS but not yet deleted from local entries. Hence,
-				// don't return it as part of list response.
+				// We have found same entry in GCS and local file entries, i.e, the
+				// entry is uploaded to GCS but not yet deleted from local entries.
+				// Do not return the duplicate entry as part of list response.
 				continue
 			} else {
 				err = fmt.Errorf(
