@@ -842,7 +842,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	// Check the bucket type
 	if d.bucket.BucketType() == gcs.Hierarchical {
 		// For hierarchical buckets, create a folder
-		f, err := d.bucket.CreateFolder(ctx, name)
+		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
 		}
