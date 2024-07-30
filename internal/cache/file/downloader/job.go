@@ -478,7 +478,7 @@ func (job *Job) GetStatus() JobStatus {
 // Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
 // In case of mismatch deletes the file and corresponding entry from file cache.
 func (job *Job) validateCRC() (err error) {
-	if !job.fileCacheConfig.EnableCrcCheck {
+	if !job.fileCacheConfig.EnableCRC {
 		return
 	}
 
@@ -507,8 +507,8 @@ func (job *Job) validateCRC() (err error) {
 	}
 
 	job.fileInfoCache.Erase(fileInfoKeyName)
-	removeErr := os.Remove(job.fileSpec.Path)
-	if removeErr != nil {
+	removeErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.Path)
+	if removeErr != nil && !os.IsNotExist(removeErr) {
 		err = errors.Join(err, removeErr)
 	}
 

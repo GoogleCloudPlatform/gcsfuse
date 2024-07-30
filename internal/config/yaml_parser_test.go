@@ -43,16 +43,17 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.False(t, mountConfig.FileCacheConfig.EnableParallelDownloads)
-	assert.Equal(t, 10, mountConfig.FileCacheConfig.DownloadParallelismPerFile)
-	assert.Equal(t, -1, mountConfig.FileCacheConfig.MaxDownloadParallelism)
-	assert.Equal(t, 25, mountConfig.FileCacheConfig.ReadRequestSizeMB)
-	assert.True(t, mountConfig.FileCacheConfig.EnableCrcCheck)
+	assert.Equal(t, 16, mountConfig.FileCacheConfig.ParallelDownloadsPerFile)
+	assert.GreaterOrEqual(t, mountConfig.FileCacheConfig.MaxParallelDownloads, 16)
+	assert.Equal(t, 50, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
+	assert.False(t, mountConfig.FileCacheConfig.EnableCRC)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.True(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
 	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t, DefaultMaxRetryAttempts, mountConfig.GCSRetries.MaxRetryAttempts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -79,19 +80,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidConfig() {
 	_, err := ParseConfigFile("testdata/invalid_config.yaml")
 
 	assert.ErrorContains(t.T(), err, "error parsing config file: yaml: unmarshal errors:")
-}
-
-func (t *YamlParserTest) TestReadConfigFile_ValidConfigWith0BackupFileCount() {
-	mountConfig, err := ParseConfigFile("testdata/valid_config_with_0_backup-file-count.yaml")
-
-	assert.NoError(t.T(), err)
-	assert.NotNil(t.T(), mountConfig)
-	assert.True(t.T(), mountConfig.WriteConfig.CreateEmptyFile)
-	assert.Equal(t.T(), ERROR, mountConfig.LogConfig.Severity)
-	assert.Equal(t.T(), "/tmp/logfile.json", mountConfig.LogConfig.FilePath)
-	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
-	assert.Equal(t.T(), 0, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
-	assert.False(t.T(), mountConfig.LogConfig.LogRotateConfig.Compress)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_Invalid_UnexpectedField_Config() {
@@ -138,10 +126,16 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMB)
 	assert.True(t.T(), mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.True(t.T(), mountConfig.FileCacheConfig.EnableParallelDownloads)
-	assert.Equal(t.T(), 10, mountConfig.DownloadParallelismPerFile)
-	assert.Equal(t.T(), -1, mountConfig.MaxDownloadParallelism)
-	assert.Equal(t.T(), 100, mountConfig.ReadRequestSizeMB)
-	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCrcCheck)
+	assert.Equal(t.T(), 10, mountConfig.ParallelDownloadsPerFile)
+	assert.Equal(t.T(), -1, mountConfig.MaxParallelDownloads)
+	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
+	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
+
+	// gcs-retries
+	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)
+
+	// metrics config
+	assert.Equal(t.T(), 8080, mountConfig.MetricsConfig.PrometheusPort)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
@@ -150,46 +144,34 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig1() {
-	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_1.yaml")
-
-	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "max-file-size-mb should be atleast 1"))
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidLogRotateConfig2() {
-	_, err := ParseConfigFile("testdata/invalid_log_rotate_config_2.yaml")
-
-	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "backup-file-count should be 0 (to retain all backup files) or a positive value"))
-}
-
 func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
 	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_size_mb.yaml")
 
 	assert.ErrorContains(t.T(), err, FileCacheMaxSizeMBInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidMaxDownloadParallelismConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_download_parallelism.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidMaxParallelDownloadsConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_parallel_downloads.yaml")
 
-	assert.ErrorContains(t.T(), err, MaxDownloadParallelismInvalidValueError)
+	assert.ErrorContains(t.T(), err, MaxParallelDownloadsInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxDownloadParallelismConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_download_parallelism.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxParallelDownloadsConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml")
 
-	assert.ErrorContains(t.T(), err, "the value of max-download-parallelism for file-cache must not be 0 when enable-parallel-downloads is true")
+	assert.ErrorContains(t.T(), err, "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadParallelismPerFileConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_parallelism_per_file.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidParallelDownloadsPerFileConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml")
 
-	assert.ErrorContains(t.T(), err, DownloadParallelismPerFileInvalidValueError)
+	assert.ErrorContains(t.T(), err, ParallelDownloadsPerFileInvalidValueError)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidReadRequestSizeMBConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_read_request_size_mb.yaml")
+func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadChunkSizeMBConfig() {
+	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_chunk_size_mb.yaml")
 
-	assert.ErrorContains(t.T(), err, ReadRequestSizeMBInvalidValueError)
+	assert.ErrorContains(t.T(), err, DownloadChunkSizeMBInvalidValueError)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
@@ -302,30 +284,38 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetDisableParalle
 	assert.False(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_ListConfig_InvalidKernelListCacheTtl() {
-	_, err := ParseConfigFile("testdata/list_config/invalid_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/invalid_kernel_list_cache_ttl.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsInvalidValueError))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_ListConfig_UnsupportedLargeKernelListCacheTtl() {
-	_, err := ParseConfigFile("testdata/list_config/unsupported_large_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsupportedLargeKernelListCacheTtl() {
+	_, err := ParseConfigFile("testdata/file_system_config/unsupported_large_kernel_list_cache_ttl.yaml")
 
 	assert.ErrorContains(t.T(), err, fmt.Sprintf("invalid kernelListCacheTtlSecs: %s", TtlInSecsTooHighError))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_ListConfig_UnsetKernelListCacheTtl() {
-	mountConfig, err := ParseConfigFile("testdata/list_config/unset_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/unset_kernel_list_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.ListConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 }
 
-func (t *YamlParserTest) TestReadConfigFile_ListConfig_ValidKernelListCacheTtl() {
-	mountConfig, err := ParseConfigFile("testdata/list_config/valid_kernel_list_cache_ttl.yaml")
+func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCacheTtl() {
+	mountConfig, err := ParseConfigFile("testdata/file_system_config/valid_kernel_list_cache_ttl.yaml")
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), int64(10), mountConfig.ListConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), int64(10), mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+}
+
+func (t *YamlParserTest) TestReadConfigFile_MetricsConfig_UnsetPrometheusPort() {
+	mountConfig, err := ParseConfigFile("testdata/metrics_config/unset_prometheus_port.yaml")
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), mountConfig)
+	assert.Equal(t.T(), 0, mountConfig.MetricsConfig.PrometheusPort)
 }

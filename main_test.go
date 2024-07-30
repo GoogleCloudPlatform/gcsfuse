@@ -47,8 +47,23 @@ func TestPosixFlagsConversion(t *testing.T) {
 			expected: []string{"abc", "--flag=\"-test\""},
 		},
 		{
+			name:     "Help shorthand stays unchanged.",
+			input:    []string{"abc", "-h"},
+			expected: []string{"abc", "-h"},
+		},
+		{
 			name:     "Version shorthand stays unchanged.",
 			input:    []string{"abc", "-v"},
+			expected: []string{"abc", "-v"},
+		},
+		{
+			name:     "Help flag becomes help shorthand.",
+			input:    []string{"abc", "--h"},
+			expected: []string{"abc", "-h"},
+		},
+		{
+			name:     "Version flag becomes version shorthand.",
+			input:    []string{"abc", "--v"},
 			expected: []string{"abc", "-v"},
 		},
 	}

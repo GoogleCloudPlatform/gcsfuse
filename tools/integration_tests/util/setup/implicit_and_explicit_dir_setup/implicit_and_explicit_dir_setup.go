@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 const ExplicitDirectory = "explicitDirectory"
@@ -64,7 +65,8 @@ func RunTestsForImplicitDirAndExplicitDir(flags [][]string, m *testing.M) int {
 }
 
 func RemoveAndCheckIfDirIsDeleted(dirPath string, dirName string, t *testing.T) {
-	operations.RemoveDir(dirPath)
+	err := os.RemoveAll(dirPath)
+	require.Nil(t, err)
 
 	dir, err := os.Stat(dirPath)
 	if err == nil && dir.Name() == dirName && dir.IsDir() {

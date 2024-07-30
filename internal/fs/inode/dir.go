@@ -64,6 +64,9 @@ type DirInode interface {
 	// true.
 	LookUpChild(ctx context.Context, name string) (*Core, error)
 
+	// Rename the directiory/folder.
+	RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error)
+
 	// Read the children objects of this dir, recursively. The result count
 	// is capped at the given limit. Internal caches are not refreshed from this
 	// call.
@@ -201,7 +204,8 @@ type dirInode struct {
 	// (via kernel) the directory listing from the filesystem.
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
-	prevDirListingTimeStamp *time.Time
+	prevDirListingTimeStamp time.Time
+	isHNSEnabled            bool
 }
 
 var _ DirInode = &dirInode{}
@@ -236,7 +240,9 @@ func NewDirInode(
 	bucket *gcsx.SyncerBucket,
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
-	typeCacheMaxSizeMB int) (d DirInode) {
+	typeCacheMaxSizeMB int,
+	isHNSEnabled bool,
+) (d DirInode) {
 
 	if !name.IsDir() {
 		panic(fmt.Sprintf("Unexpected name: %s", name))
@@ -253,6 +259,7 @@ func NewDirInode(
 		name:                        name,
 		attrs:                       attrs,
 		cache:                       metadata.NewTypeCache(typeCacheMaxSizeMB, typeCacheTTL),
+		isHNSEnabled:                isHNSEnabled,
 	}
 
 	typed.lc.Init(id)
@@ -341,6 +348,28 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		Bucket:    bucket,
 		FullName:  name,
 		MinObject: m,
+	}, nil
+}
+
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
+
+	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+
+	// Suppress "not found" errors.
+	var gcsErr *gcs.NotFoundError
+	if errors.As(folderErr, &gcsErr) {
+		return nil, nil
+	}
+
+	// Annotate others.
+	if folderErr != nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
+	}
+
+	return &Core{
+		Bucket:    bucket,
+		FullName:  name,
+		MinObject: folderResult.ConvertFolderToMinObject(),
 	}, nil
 }
 
@@ -517,11 +546,21 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.implicitDirs {
-			b.Add(lookUpImplicitOrExplicitDir)
+		// TODO: Update if block to call get folder once implicit dirs changes are complete, and e2e tests are passed on new changes
+		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		} else {
-			b.Add(lookUpExplicitDir)
+			if d.implicitDirs {
+				b.Add(lookUpImplicitOrExplicitDir)
+			} else {
+				b.Add(lookUpExplicitDir)
+			}
 		}
+
 	}
 
 	if err := b.Join(); err != nil {
@@ -695,8 +734,7 @@ func (d *dirInode) ReadEntries(
 		entries = append(entries, entry)
 	}
 
-	nowTime := d.cacheClock.Now()
-	d.prevDirListingTimeStamp = &nowTime
+	d.prevDirListingTimeStamp = d.cacheClock.Now()
 	return
 }
 
@@ -831,42 +869,44 @@ func (d *dirInode) DeleteChildFile(
 func (d *dirInode) DeleteChildDir(
 	ctx context.Context,
 	name string,
-	isImplicitDir bool) (err error) {
+	isImplicitDir bool) error {
 	d.cache.Erase(name)
 
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
-	if isImplicitDir {
-		return
+	// Hierarchical buckets don't have implicit dirs.
+	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
+		return nil
 	}
+
 	childName := NewDirName(d.Name(), name)
 
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
-	err = d.bucket.DeleteObject(
+	err := d.bucket.DeleteObject(
 		ctx,
 		&gcs.DeleteObjectRequest{
 			Name:       childName.GcsObjectName(),
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
-	if err != nil {
-		err = fmt.Errorf("DeleteObject: %w", err)
-		return
+	if d.bucket.BucketType() != gcs.Hierarchical {
+		if err != nil {
+			return fmt.Errorf("DeleteObject: %w", err)
+		}
+		d.cache.Erase(name)
+		return nil
 	}
 
-	if d.bucket.BucketType() == gcs.Hierarchical {
-		// Delete Folder deletes folder (in case of Hierarchical Bucket).
-		err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName())
-	}
-
-	if err != nil {
-		return
+	// Ignoring delete object error here, as in case of hns there is no way of knowing
+	// if underlying placeholder object exists or not in Hierarchical bucket.
+	// The DeleteFolder operation handles removing empty folders.
+	if err = d.bucket.DeleteFolder(ctx, childName.GcsObjectName()); err != nil {
+		return fmt.Errorf("DeleteFolder: %w", err)
 	}
 
 	d.cache.Erase(name)
-
-	return
+	return nil
 }
 
 // LOCKS_REQUIRED(fs)
@@ -890,13 +930,30 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 	return
 }
 
+// ShouldInvalidateKernelListCache doesn't require any lock as d.prevDirListingTimeStamp
+// is concurrency safe, and we are okay with the in-consistent value.
 func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
-	// prevDirListingTimeStamp = nil means listing has not happened yet, and we should
+	// prevDirListingTimeStamp.IsZero() true means listing has not happened yet, and we should
 	// invalidate for clean start.
-	if d.prevDirListingTimeStamp == nil {
+	if d.prevDirListingTimeStamp.IsZero() {
 		return true
 	}
 
-	cachedDuration := d.cacheClock.Now().Sub(*d.prevDirListingTimeStamp)
+	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
 	return cachedDuration >= ttl
+}
+
+func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinationFolderName string) (*gcs.Folder, error) {
+	folder, err := d.bucket.RenameFolder(ctx, folderName, destinationFolderName)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
+	// Remove old entry from type cache.
+	d.cache.Erase(folderName)
+	// Add new renamed folder in type cache.
+	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
+
+	return folder, nil
 }

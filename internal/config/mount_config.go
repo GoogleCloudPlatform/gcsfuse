@@ -47,6 +47,7 @@ const (
 	DefaultAnonymousAccess                        = false
 	DefaultEnableHNS                              = false
 	DefaultIgnoreInterrupts                       = true
+	DefaultPrometheusPort                         = 0
 
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
@@ -59,11 +60,11 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 
-	DefaultEnableCrcCheck             = true
-	DefaultEnableParallelDownloads    = false
-	DefaultReadRequestSizeMB          = 25
-	DefaultDownloadParallelismPerFile = 10
-	DefaultMaxDownloadParallelism     = -1
+	DefaultEnableCRC                = false
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
+	DefaultMaxRetryAttempts         = int64(0)
 )
 
 type WriteConfig struct {
@@ -71,10 +72,15 @@ type WriteConfig struct {
 }
 
 type LogConfig struct {
-	Severity        LogSeverity     `yaml:"severity"`
+	Severity        string          `yaml:"severity"`
 	Format          string          `yaml:"format"`
 	FilePath        string          `yaml:"file-path"`
 	LogRotateConfig LogRotateConfig `yaml:"log-rotate"`
+}
+
+type MetricsConfig struct {
+	// Expose Prometheus metrics endpoint on this port and a path of /metrics.
+	PrometheusPort int `yaml:"prometheus-port"`
 }
 
 type ListConfig struct {
@@ -86,8 +92,6 @@ type ListConfig struct {
 	// (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
 	// (c) If ImplicitDirectories is false then no managed folders are listed irrespective of EnableEmptyManagedFolders flag.
 	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
-
-	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type GCSConnection struct {
@@ -101,23 +105,20 @@ type GCSAuth struct {
 	AnonymousAccess bool `yaml:"anonymous-access"`
 }
 
-// Enable the storage control client flow on HNS buckets to utilize new APIs.
-type EnableHNS bool
-type CacheDir string
-
 type FileSystemConfig struct {
-	IgnoreInterrupts      bool `yaml:"ignore-interrupts"`
-	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+	IgnoreInterrupts          bool  `yaml:"ignore-interrupts"`
+	DisableParallelDirops     bool  `yaml:"disable-parallel-dirops"`
+	KernelListCacheTtlSeconds int64 `yaml:"kernel-list-cache-ttl-secs"`
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                  int64 `yaml:"max-size-mb"`
-	CacheFileForRangeRead      bool  `yaml:"cache-file-for-range-read"`
-	EnableParallelDownloads    bool  `yaml:"enable-parallel-downloads,omitempty"`
-	DownloadParallelismPerFile int   `yaml:"download-parallelism-per-file,omitempty"`
-	MaxDownloadParallelism     int   `yaml:"max-download-parallelism,omitempty"`
-	ReadRequestSizeMB          int   `yaml:"read-request-size-mb,omitempty"`
-	EnableCrcCheck             bool  `yaml:"enable-crc-check"`
+	MaxSizeMB                int64 `yaml:"max-size-mb"`
+	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
+	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
+	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
+	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
+	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCRC                bool  `yaml:"enable-crc"`
 }
 
 type MetadataCacheConfig struct {
@@ -140,17 +141,24 @@ type MetadataCacheConfig struct {
 	StatCacheMaxSizeMB int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 }
 
+type GCSRetries struct {
+	// Set max retry attempts in case of retryable errors. Default value is 6.
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+}
+
 type MountConfig struct {
 	WriteConfig         `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
-	CacheDir            `yaml:"cache-dir"`
+	CacheDir            string `yaml:"cache-dir"`
 	MetadataCacheConfig `yaml:"metadata-cache"`
 	ListConfig          `yaml:"list"`
 	GCSConnection       `yaml:"gcs-connection"`
 	GCSAuth             `yaml:"gcs-auth"`
-	EnableHNS           `yaml:"enable-hns"`
+	EnableHNS           bool `yaml:"enable-hns"`
 	FileSystemConfig    `yaml:"file-system"`
+	GCSRetries          `yaml:"gcs-retries"`
+	MetricsConfig       `yaml:"metrics"`
 }
 
 // LogRotateConfig defines the parameters for log rotation. It consists of three
@@ -185,12 +193,12 @@ func NewMountConfig() *MountConfig {
 		LogRotateConfig: DefaultLogRotateConfig(),
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:                  DefaultFileCacheMaxSizeMB,
-		EnableParallelDownloads:    DefaultEnableParallelDownloads,
-		DownloadParallelismPerFile: DefaultDownloadParallelismPerFile,
-		MaxDownloadParallelism:     DefaultMaxDownloadParallelism,
-		ReadRequestSizeMB:          DefaultReadRequestSizeMB,
-		EnableCrcCheck:             DefaultEnableCrcCheck,
+		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:  DefaultEnableParallelDownloads,
+		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
+		MaxParallelDownloads:     DefaultMaxParallelDownloads(),
+		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
+		EnableCRC:                DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
@@ -208,11 +216,19 @@ func NewMountConfig() *MountConfig {
 	}
 	mountConfig.EnableHNS = DefaultEnableHNS
 
-	mountConfig.ListConfig = ListConfig{
+	mountConfig.FileSystemConfig = FileSystemConfig{
 		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
 	}
 
 	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
+
+	mountConfig.GCSRetries = GCSRetries{
+		MaxRetryAttempts: DefaultMaxRetryAttempts,
+	}
+
+	mountConfig.MetricsConfig = MetricsConfig{
+		PrometheusPort: DefaultPrometheusPort,
+	}
 
 	return mountConfig
 }

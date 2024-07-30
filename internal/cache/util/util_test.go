@@ -278,6 +278,64 @@ func (ut *utilTest) Test_CalculateFileCRC32_ShouldReturnErrorWhenContextIsCancel
 	ExpectEq(0, crc)
 }
 
+func (ut *utilTest) Test_TruncateAndRemoveFile_FileExists() {
+	// Create a file to be deleted.
+	fileName := "temp.txt"
+	file, err := os.Create(fileName)
+	AssertEq(nil, err)
+	_, err = file.WriteString("Writing some data")
+	AssertEq(nil, err)
+	err = file.Close()
+	AssertEq(nil, err)
+
+	err = TruncateAndRemoveFile(fileName)
+
+	ExpectEq(nil, err)
+	// Check the file is deleted.
+	_, err = os.Stat(fileName)
+	ExpectTrue(os.IsNotExist(err), fmt.Sprintf("expected not exist error but got error: %v", err))
+}
+
+func (ut *utilTest) Test_TruncateAndRemoveFile_FileDoesNotExist() {
+	// Create a file to be deleted.
+	fileName := "temp.txt"
+
+	err := TruncateAndRemoveFile(fileName)
+
+	ExpectTrue(os.IsNotExist(err), fmt.Sprintf("expected not exist error but got error: %v", err))
+}
+
+func (ut *utilTest) Test_TruncateAndRemoveFile_OpenedFileDeleted() {
+	// Create a file to be deleted.
+	fileName := "temp.txt"
+	file, err := os.Create(fileName)
+	AssertEq(nil, err)
+	fileString := "Writing some data"
+	_, err = file.WriteString(fileString)
+	AssertEq(nil, err)
+	// Close the file to get the contents synced.
+	err = file.Close()
+	AssertEq(nil, err)
+	// Open the file again
+	file, err = os.Open(fileName)
+	defer func() {
+		_ = file.Close()
+	}()
+	AssertEq(nil, err)
+	fileInfo, err := file.Stat()
+	AssertEq(nil, err)
+	AssertEq(len(fileString), fileInfo.Size())
+
+	// File is not closed and call TruncateAndRemoveFile
+	err = TruncateAndRemoveFile(fileName)
+
+	ExpectEq(nil, err)
+	// The size of open file should be 0.
+	fileInfo, err = file.Stat()
+	ExpectEq(nil, err)
+	ExpectEq(0, fileInfo.Size())
+}
+
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirectoryExists(t *testing.T) {
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")

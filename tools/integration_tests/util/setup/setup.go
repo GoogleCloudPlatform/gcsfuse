@@ -30,11 +30,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
 )
 
+var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
 var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
@@ -69,6 +71,10 @@ func RunScriptForTestData(args ...string) {
 		log.Printf("Error: %s", out)
 		panic(err)
 	}
+}
+
+func IsPresubmitRun() bool {
+	return *isPresubmitRun
 }
 
 func TestBucket() string {
@@ -404,6 +410,30 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
+// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
+func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
+	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Error in getting bucket attrs: %w", err)
+	}
+	if attrs.HierarchicalNamespace != nil && !attrs.HierarchicalNamespace.Enabled {
+		return nil, fmt.Errorf("Bucket is not Hierarchical")
+	}
+
+	var flags []string
+	mountConfig4 := config.MountConfig{
+		EnableHNS: true,
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
+	}
+	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
+	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.
+	flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
+	return flags, nil
+}
+
 func separateBucketAndObjectName(bucket, object string) (string, string) {
 	bucketAndObjectPath := strings.SplitN(bucket, "/", 2)
 	bucket = bucketAndObjectPath[0]
@@ -441,17 +471,23 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 }
 
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
+	UnmountGCSFuse(rootDir)
+	// delete log file created
+	if *mountedDirectory == "" {
+		err := os.Remove(LogFile())
+		if err != nil {
+			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
+		}
+	}
+}
+
+func UnmountGCSFuse(rootDir string) {
 	SetMntDir(rootDir)
 	if *mountedDirectory == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := UnMount()
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in unmounting bucket: %v", err))
-		}
-		// delete log file created
-		err = os.Remove(LogFile())
-		if err != nil {
-			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
 		}
 	}
 }

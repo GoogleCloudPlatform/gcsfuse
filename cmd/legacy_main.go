@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/canned"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
@@ -100,23 +101,24 @@ func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
 }
-func createStorageHandle(flags *flagStorage, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, mountConfig *config.MountConfig, userAgent string) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
-		ClientProtocol:             flags.ClientProtocol,
-		MaxConnsPerHost:            flags.MaxConnsPerHost,
-		MaxIdleConnsPerHost:        flags.MaxIdleConnsPerHost,
-		HttpClientTimeout:          flags.HttpClientTimeout,
-		MaxRetrySleep:              flags.MaxRetrySleep,
-		RetryMultiplier:            flags.RetryMultiplier,
+		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
+		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
+		MaxIdleConnsPerHost:        int(newConfig.GcsConnection.MaxIdleConnsPerHost),
+		HttpClientTimeout:          newConfig.GcsConnection.HttpClientTimeout,
+		MaxRetrySleep:              newConfig.GcsRetries.MaxRetrySleep,
+		MaxRetryAttempts:           int(newConfig.GcsRetries.MaxRetryAttempts),
+		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		UserAgent:                  userAgent,
-		CustomEndpoint:             flags.CustomEndpoint,
-		KeyFile:                    flags.KeyFile,
+		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
+		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            mountConfig.GCSAuth.AnonymousAccess,
-		TokenUrl:                   flags.TokenUrl,
-		ReuseTokenFromUrl:          flags.ReuseTokenFromUrl,
-		ExperimentalEnableJsonRead: flags.ExperimentalEnableJsonRead,
+		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
+		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
 		GrpcConnPoolSize:           mountConfig.GCSConnection.GRPCConnPoolSize,
-		EnableHNS:                  mountConfig.EnableHNS,
+		EnableHNS:                  newConfig.EnableHns,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig)
@@ -132,12 +134,13 @@ func mountWithArgs(
 	bucketName string,
 	mountPoint string,
 	flags *flagStorage,
-	mountConfig *config.MountConfig) (mfs *fuse.MountedFileSystem, err error) {
+	mountConfig *config.MountConfig,
+	newConfig *cfg.Config) (mfs *fuse.MountedFileSystem, err error) {
 	// Enable invariant checking if requested.
-	if flags.DebugInvariants {
+	if newConfig.Debug.ExitOnInvariantViolation {
 		locker.EnableInvariantsCheck()
 	}
-	if flags.DebugMutex {
+	if newConfig.Debug.LogMutex {
 		locker.EnableDebugMessages()
 	}
 
@@ -147,11 +150,11 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(flags.AppName, getConfigForUserAgent(mountConfig))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(flags, mountConfig, userAgent)
+		storageHandle, err = createStorageHandle(newConfig, mountConfig, userAgent)
 		if err != nil {
-			err = fmt.Errorf("Failed to create storage handle using createStorageHandle: %w", err)
+			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
 		}
 	}
@@ -162,6 +165,7 @@ func mountWithArgs(
 		context.Background(),
 		bucketName,
 		mountPoint,
+		newConfig,
 		flags,
 		mountConfig,
 		storageHandle)
@@ -174,19 +178,19 @@ func mountWithArgs(
 	return
 }
 
-func populateArgs(c *cli.Context) (
+func populateArgs(args []string) (
 	bucketName string,
 	mountPoint string,
 	err error) {
 	// Extract arguments.
-	switch len(c.Args()) {
+	switch len(args) {
 	case 1:
 		bucketName = ""
-		mountPoint = c.Args()[0]
+		mountPoint = args[0]
 
 	case 2:
-		bucketName = c.Args()[0]
-		mountPoint = c.Args()[1]
+		bucketName = args[0]
+		mountPoint = args[1]
 
 	default:
 		err = fmt.Errorf(
@@ -251,8 +255,12 @@ func runCLIApp(c *cli.Context) (err error) {
 		return fmt.Errorf("parsing config file failed: %w", err)
 	}
 
-	config.OverrideWithLoggingFlags(mountConfig, flags.LogFile, flags.LogFormat,
-		flags.DebugFuse, flags.DebugGCS, flags.DebugMutex)
+	newConfig, err := PopulateNewConfigFromLegacyFlagsAndConfig(c, flags, mountConfig)
+	if err != nil {
+		return fmt.Errorf("error resolving flags and configs: %w", err)
+	}
+
+	cfg.OverrideWithLoggingFlags(newConfig, newConfig.Debug.Fuse, newConfig.Debug.Gcs, newConfig.Debug.LogMutex)
 	config.OverrideWithIgnoreInterruptsFlag(c, mountConfig, flags.IgnoreInterrupts)
 	config.OverrideWithAnonymousAccessFlag(c, mountConfig, flags.AnonymousAccess)
 	config.OverrideWithKernelListCacheTtlFlag(c, mountConfig, flags.KernelListCacheTtlSeconds)
@@ -261,15 +269,15 @@ func runCLIApp(c *cli.Context) (err error) {
 	// should be set as an else to the 'if flags.Foreground' check below, but currently
 	// that means the logs generated by resolveConfigFilePaths below don't honour
 	// the user-provided log-format.
-	logger.SetLogFormat(mountConfig.LogConfig.Format)
+	logger.SetLogFormat(newConfig.Logging.Format)
 
 	err = resolveConfigFilePaths(mountConfig)
 	if err != nil {
 		return fmt.Errorf("Resolving path: %w", err)
 	}
 
-	if flags.Foreground {
-		err = logger.InitLogFile(mountConfig.LogConfig)
+	if newConfig.Foreground {
+		err = logger.InitLogFile(mountConfig.LogConfig, newConfig.Logging)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -277,19 +285,19 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	var bucketName string
 	var mountPoint string
-	bucketName, mountPoint, err = populateArgs(c)
+	bucketName, mountPoint, err = populateArgs(c.Args())
 	if err != nil {
 		return
 	}
 
-	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), flags.AppName, mountPoint)
+	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", getVersion(), newConfig.AppName, mountPoint)
 
 	// Log mount-config and the CLI flags in the log-file.
 	// If there is no log-file, then log these to stdout.
 	// Do not log these in stdout in case of daemonized run
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
-	if flags.Foreground || mountConfig.LogConfig.FilePath == "" {
+	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
 		flagsStringified, err := util.Stringify(*flags)
 		if err != nil {
 			logger.Warnf("failed to stringify cli flags: %v", err)
@@ -306,18 +314,18 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.
-	if flags.StatCacheCapacity != mount.DefaultStatCacheCapacity {
+	if newConfig.MetadataCache.DeprecatedStatCacheCapacity != mount.DefaultStatCacheCapacity {
 		logger.Warnf("Deprecated flag stat-cache-capacity used! Please switch to config parameter 'metadata-cache: stat-cache-max-size-mb'.")
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheTTL or TypeCacheTTL.
-	if flags.StatCacheTTL != mount.DefaultStatOrTypeCacheTTL || flags.TypeCacheTTL != mount.DefaultStatOrTypeCacheTTL {
+	if newConfig.MetadataCache.DeprecatedStatCacheTtl != mount.DefaultStatOrTypeCacheTTL || newConfig.MetadataCache.DeprecatedTypeCacheTtl != mount.DefaultStatOrTypeCacheTTL {
 		logger.Warnf("Deprecated flag stat-cache-ttl and/or type-cache-ttl used! Please switch to config parameter 'metadata-cache: ttl-secs' .")
 	}
 
 	// If we haven't been asked to run in foreground mode, we should run a daemon
 	// with the foreground flag set and wait for it to mount.
-	if !flags.Foreground {
+	if !newConfig.Foreground {
 		// Find the executable.
 		var path string
 		path, err = osext.Executable()
@@ -397,14 +405,15 @@ func runCLIApp(c *cli.Context) (err error) {
 	}
 
 	// The returned error is ignored as we do not enforce monitoring exporters
-	_ = monitor.EnableStackdriverExporter(flags.StackdriverExportInterval)
-	_ = monitor.EnableOpenTelemetryCollectorExporter(flags.OtelCollectorAddress)
+	_ = monitor.EnableStackdriverExporter(newConfig.Metrics.StackdriverExportInterval)
+	_ = monitor.EnableOpenTelemetryCollectorExporter(newConfig.Monitoring.ExperimentalOpentelemetryCollectorAddress)
+	_ = monitor.EnablePrometheusCollectorExporter(int(newConfig.Metrics.PrometheusPort))
 
 	// Mount, writing information about our progress to the writer that package
 	// daemonize gives us and telling it about the outcome.
 	var mfs *fuse.MountedFileSystem
 	{
-		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig)
+		mfs, err = mountWithArgs(bucketName, mountPoint, flags, mountConfig, newConfig)
 
 		// This utility is to absorb the error
 		// returned by daemonize.SignalOutcome calls by simply
@@ -460,6 +469,7 @@ func runCLIApp(c *cli.Context) (err error) {
 
 	monitor.CloseStackdriverExporter()
 	monitor.CloseOpenTelemetryCollectorExporter()
+	monitor.ClosePrometheusCollectorExporter()
 
 	if err != nil {
 		err = fmt.Errorf("MountedFileSystem.Join: %w", err)

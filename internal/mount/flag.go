@@ -27,9 +27,12 @@ import (
 type ClientProtocol string
 
 const (
+	// Deprecated: Use the constant from cfg package
 	HTTP1 ClientProtocol = "http1"
+	// Deprecated: Use the constant from cfg package
 	HTTP2 ClientProtocol = "http2"
-	GRPC  ClientProtocol = "grpc"
+	// Deprecated: Use the constant from cfg package
+	GRPC ClientProtocol = "grpc"
 	// DefaultStatOrTypeCacheTTL is the default value used for
 	// stat-cache-ttl or type-cache-ttl if they have not been set
 	// by the user.

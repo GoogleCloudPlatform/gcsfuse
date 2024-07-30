@@ -65,7 +65,7 @@ func getGoDataType(dt string) string {
 	case "octal":
 		return "Octal"
 	case "url":
-		return "url.URL"
+		return "*url.URL"
 	case "logSeverity":
 		return "LogSeverity"
 	case "protocol":
@@ -110,10 +110,6 @@ func computeFields(param Param) ([]fieldInfo, error) {
 			}
 
 			dt = tn + typeName
-
-			// Squash non leaf fields to make decoding possible from legacy
-			// flagStorage and mountConfig.
-			s = fmt.Sprint(s, ",squash")
 		}
 		fieldInfos = append(fieldInfos, fieldInfo{
 			TypeName:   typeName,

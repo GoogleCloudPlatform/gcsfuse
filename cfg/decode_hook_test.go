@@ -37,7 +37,7 @@ func bindFlag(t *testing.T, v *viper.Viper, key string, f *flag.Flag) {
 func TestParsingSuccess(t *testing.T) {
 	type TestConfig struct {
 		OctalParam       Octal
-		URLParam         url.URL
+		URLParam         *url.URL
 		BoolParam        bool
 		StringParam      string
 		IntParam         int
@@ -105,7 +105,7 @@ func TestParsingSuccess(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Error while parsing URL: %v", err)
 				}
-				assert.Equal(t, *u, c.URLParam)
+				assert.Equal(t, *u, *c.URLParam)
 			},
 		},
 		{
@@ -257,7 +257,7 @@ func TestParsingSuccess(t *testing.T) {
 func TestParsingError(t *testing.T) {
 	type TestConfig struct {
 		OctalParam       Octal
-		URLParam         url.URL
+		URLParam         *url.URL
 		LogSeverityParam LogSeverity
 		ProtocolParam    Protocol
 	}

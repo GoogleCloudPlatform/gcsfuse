@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 
+	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/mock"
@@ -52,6 +53,29 @@ func (m *MockStorageControlClient) GetFolder(ctx context.Context,
 	// Needed to assert folder in only those cases where folder is present
 	if folder, ok := args.Get(0).(*controlpb.Folder); ok {
 		return folder, nil
+	}
+
+	return nil, args.Error(1)
+}
+
+// Implement the CreateFolder method for the mock.
+func (m *MockStorageControlClient) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
+	args := m.Called(ctx, req, opts)
+
+	// Needed to assert folder in only those cases where folder is present
+	if folder, ok := args.Get(0).(*controlpb.Folder); ok {
+		return folder, nil
+	}
+
+	return nil, args.Error(1)
+}
+
+// Implement the RenameFolder method for the mock.
+func (m *MockStorageControlClient) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
+	args := m.Called(ctx, req, opts)
+
+	if folderOp, ok := args.Get(0).(*control.RenameFolderOperation); ok {
+		return folderOp, nil
 	}
 
 	return nil, args.Error(1)

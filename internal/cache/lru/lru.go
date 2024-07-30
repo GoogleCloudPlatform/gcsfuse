@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 )
@@ -266,4 +267,12 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	c.index[key] = e
 
 	return nil
+}
+
+func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
+	for key := range c.index {
+		if strings.HasPrefix(key, prefix) {
+			c.Erase(key)
+		}
+	}
 }

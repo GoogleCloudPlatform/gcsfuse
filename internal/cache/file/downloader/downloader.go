@@ -64,9 +64,9 @@ type JobManager struct {
 
 func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.FileMode,
 	cacheDir string, sequentialReadSizeMb int32, c *config.FileCacheConfig) (jm *JobManager) {
-	maxDownloadParallelism := int64(math.MaxInt64)
-	if c.MaxDownloadParallelism > 0 {
-		maxDownloadParallelism = int64(c.MaxDownloadParallelism)
+	maxParallelDownloads := int64(math.MaxInt64)
+	if c.MaxParallelDownloads > 0 {
+		maxParallelDownloads = int64(c.MaxParallelDownloads)
 	}
 	jm = &JobManager{
 		fileInfoCache:        fileInfoCache,
@@ -76,7 +76,7 @@ func NewJobManager(fileInfoCache *lru.Cache, filePerm os.FileMode, dirPerm os.Fi
 		sequentialReadSizeMb: sequentialReadSizeMb,
 		fileCacheConfig:      c,
 		// Shared between jobs - Limits the overall concurrency of downloads.
-		maxParallelismSem: semaphore.NewWeighted(maxDownloadParallelism),
+		maxParallelismSem: semaphore.NewWeighted(maxParallelDownloads),
 	}
 	jm.mu = locker.New("JobManager", func() {})
 	jm.jobs = make(map[string]*Job)

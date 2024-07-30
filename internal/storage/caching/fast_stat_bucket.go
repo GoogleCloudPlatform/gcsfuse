@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
@@ -99,6 +98,15 @@ func (b *fastStatBucket) addNegativeEntry(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) addNegativeEntryForFolder(name string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+	b.cache.AddNegativeEntryForFolder(name, expiration)
+}
+
+// LOCKS_EXCLUDED(b.mu)
 func (b *fastStatBucket) invalidate(name string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -113,6 +121,14 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 
 	hit, m = b.cache.LookUp(name, b.clock.Now())
 	return
+}
+
+func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	return hit, f
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -272,8 +288,13 @@ func (b *fastStatBucket) DeleteObject(
 }
 
 func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) error {
-	b.invalidate(folderName)
 	err := b.wrapped.DeleteFolder(ctx, folderName)
+	if err != nil {
+		return err
+	}
+	// Add negative entry in the cache.
+	b.addNegativeEntryForFolder(folderName)
+
 	return err
 }
 
@@ -298,15 +319,46 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(
 	ctx context.Context,
-	prefix string) (folder *controlpb.Folder, err error) {
-	// Fetch the listing.
-	folder, err = b.wrapped.GetFolder(ctx, prefix)
+	prefix string) (*gcs.Folder, error) {
+
+	if hit, entry := b.lookUpFolder(prefix); hit {
+		// Negative entries result in NotFoundError.
+		if entry == nil {
+			err := &gcs.NotFoundError{
+				Err: fmt.Errorf("negative cache entry for folder %v", prefix),
+			}
+
+			return nil, err
+		}
+
+		return entry, nil
+	}
+
+	// Fetch the Folder
+	return b.wrapped.GetFolder(ctx, prefix)
+}
+
+func (b *fastStatBucket) CreateFolder(ctx context.Context, folderName string) (f *gcs.Folder, err error) {
+	// Throw away any existing record for this folder.
+	b.invalidate(folderName)
+
+	expiration := b.clock.Now().Add(b.ttl)
+	f, err = b.wrapped.CreateFolder(ctx, folderName)
 	if err != nil {
 		return
 	}
 
-	// TODO: add folder metadata in stat cache
-	// b.insertFolder(folder)
+	// Record the new folder.
+	b.cache.InsertFolder(f, expiration)
 
 	return
+}
+
+func (b *fastStatBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
+	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+
+	// Invalidate cache for old directory.
+	b.cache.EraseEntriesWithGivenPrefix(folderName)
+
+	return o, err
 }

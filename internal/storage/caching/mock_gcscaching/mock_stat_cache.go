@@ -27,6 +27,23 @@ type mockStatCache struct {
 	description string
 }
 
+func (m *mockStatCache) AddNegativeEntryForFolder(p0 string, p1 time.Time) {
+	// Get a folder name and line number for the caller.
+	_, name, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"AddNegativeEntryForFolder",
+		name,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.AddNegativeEntryforFolder: invalid return values: %v", retVals))
+	}
+}
+
 func NewMockStatCache(
 	c oglemock.Controller,
 	desc string) MockStatCache {
@@ -122,4 +139,67 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 	}
 
 	return
+}
+
+func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"InsertFolder",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.InsertFolder: invalid return values: %v", retVals))
+	}
+}
+
+func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.Folder) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"LookUpFolder",
+		file,
+		line,
+		[]interface{}{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
+	}
+
+	// o0 bool
+	if retVals[0] != nil {
+		o0 = retVals[0].(bool)
+	}
+
+	// o1 *gcs.Folder
+	if retVals[1] != nil {
+		o1 = retVals[1].(*gcs.Folder)
+	}
+
+	return
+}
+
+func (m *mockStatCache) EraseEntriesWithGivenPrefix(p0 string) {
+	// Get a file name and line number for the caller.
+	_, file, line, _ := runtime.Caller(1)
+
+	// Hand the call off to the controller, which does most of the work.
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"EraseEntriesWithGivenPrefix",
+		file,
+		line,
+		[]interface{}{p0})
+
+	if len(retVals) != 0 {
+		panic(fmt.Sprintf("mockStatCache.LookUpFolder: invalid return values: %v", retVals))
+	}
 }

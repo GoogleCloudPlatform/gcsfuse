@@ -18,66 +18,72 @@ import (
 	"fmt"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var (
-	cfgFile   string
-	configObj cfg.Config
-)
-var rootCmd = &cobra.Command{
-	Use:   "gcsfuse [flags] bucket mount_point",
-	Short: "Mount a specified GCS bucket or all accessible buckets locally",
-	Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
+// NewRootCmd accepts the mountFn that it executes with the parsed configuration
+func NewRootCmd(mountFn func(*cfg.Config, string, string) error) (*cobra.Command, error) {
+	var (
+		configObj cfg.Config
+		cfgFile   string
+		cfgErr    error
+		v         = viper.New()
+	)
+	rootCmd := &cobra.Command{
+		Use:   "gcsfuse [flags] bucket mount_point",
+		Short: "Mount a specified GCS bucket or all accessible buckets locally",
+		Long: `Cloud Storage FUSE is an open source FUSE adapter that lets you mount 
 and access Cloud Storage buckets as local file systems. For a technical overview
 of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
-	Version: getVersion(),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: the following error will be removed once the command is implemented.
-		return fmt.Errorf("unsupported operation")
-	},
-}
-
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		panic(err)
+		Version: getVersion(),
+		Args:    cobra.RangeArgs(2, 3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cfgErr != nil {
+				return fmt.Errorf("error while parsing config: %w", cfgErr)
+			}
+			bucket, mountPoint, err := populateArgs(args[1:])
+			if err != nil {
+				return fmt.Errorf("error occurred while extracting the bucket and mountPoint: %w", err)
+			}
+			return mountFn(&configObj, bucket, mountPoint)
+		},
 	}
-}
+	initConfig := func() {
+		if cfgFile != "" {
+			cfgFile, err := util.GetResolvedPath(cfgFile)
+			if err != nil {
+				cfgErr = fmt.Errorf("error while resolving config-file path[%s]: %w", cfgFile, err)
+				return
+			}
+			v.SetConfigFile(cfgFile)
+			v.SetConfigType("yaml")
+			if err := v.ReadInConfig(); err != nil {
+				cfgErr = fmt.Errorf("error while reading the config: %w", err)
+				return
+			}
+		}
 
-func init() {
+		if cfgErr = v.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
+			// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
+			decoderConfig.TagName = "yaml"
+			// Reject the config file if any of the fields in the YAML don't map to the struct.
+			decoderConfig.ErrorUnused = true
+		},
+		); cfgErr != nil {
+			return
+		}
+		cfgErr = cfg.ValidateConfig(&configObj)
+	}
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified."+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config-file", "", "The path to the config file where all gcsfuse related config needs to be specified. "+
 		"Refer to 'https://cloud.google.com/storage/docs/gcsfuse-cli#config-file' for possible configurations.")
 
 	// Add all the other flags.
-	if err := cfg.BindFlags(rootCmd.PersistentFlags()); err != nil {
-		logger.Fatal("error while declaring/binding flags: %v", err)
+	if err := cfg.BindFlags(v, rootCmd.PersistentFlags()); err != nil {
+		return nil, fmt.Errorf("error while declaring/binding flags: %w", err)
 	}
-}
-
-func initConfig() {
-	if cfgFile != "" {
-		cfgFile, err := util.GetResolvedPath(cfgFile)
-		if err != nil {
-			logger.Fatal("error while resolving config-file path[%s]: %v", cfgFile, err)
-		}
-		viper.SetConfigFile(cfgFile)
-		viper.SetConfigType("yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			logger.Fatal("error while reading the config: %v", err)
-		}
-	}
-
-	err := viper.Unmarshal(&configObj, viper.DecodeHook(cfg.DecodeHook()), func(decoderConfig *mapstructure.DecoderConfig) {
-		// By default, viper supports mapstructure tags for unmarshalling. Override that to support yaml tag.
-		decoderConfig.TagName = "yaml"
-	},
-	)
-	if err != nil {
-		logger.Fatal("error while unmarshalling the config: %v", err)
-	}
+	return rootCmd, nil
 }

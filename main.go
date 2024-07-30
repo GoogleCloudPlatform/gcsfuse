@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/cmd"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 )
@@ -43,9 +44,14 @@ func logPanic() {
 func convertToPosixArgs(args []string) []string {
 	pArgs := make([]string, 0, len(args))
 	for _, a := range args {
-		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && a != "-v" {
+		switch {
+		case a == "--v", a == "-v":
+			pArgs = append(pArgs, "-v")
+		case a == "--h", a == "-h":
+			pArgs = append(pArgs, "-h")
+		case strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--"):
 			pArgs = append(pArgs, "-"+a)
-		} else {
+		default:
 			pArgs = append(pArgs, a)
 		}
 	}
@@ -63,8 +69,15 @@ func main() {
 	// Make logging output better.
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true" {
-		os.Args = convertToPosixArgs(os.Args)
-		cmd.Execute()
+		// TODO: implement the mount logic instead of simply returning nil.
+		rootCmd, err := cmd.NewRootCmd(func(*cfg.Config, string, string) error { return nil })
+		if err != nil {
+			log.Fatalf("Error occurred while creating the root command: %v", err)
+		}
+		rootCmd.SetArgs(convertToPosixArgs(os.Args))
+		if err := rootCmd.Execute(); err != nil {
+			log.Fatalf("Error occurred during command execution: %v", err)
+		}
 		return
 	}
 	cmd.ExecuteLegacyMain()

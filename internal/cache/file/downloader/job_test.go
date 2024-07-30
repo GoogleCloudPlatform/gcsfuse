@@ -340,6 +340,57 @@ func (dt *downloaderTest) Test_cleanUpDownloadAsyncJob() {
 	AssertTrue(callbackExecuted.Load())
 }
 
+func (dt *downloaderTest) Test_downloadObjectToFile() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 10 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
+	// Add subscriber
+	subscribedOffset := int64(6 * util.MiB)
+	notificationC := dt.job.subscribe(subscribedOffset)
+	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
+		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
+	AssertEq(nil, err)
+	defer func() {
+		_ = file.Close()
+	}()
+
+	// Start download
+	err = dt.job.downloadObjectToFile(file)
+
+	AssertEq(nil, err)
+	jobStatus, ok := <-notificationC
+	AssertEq(true, ok)
+	// Check the notification is sent after subscribed offset
+	AssertGe(jobStatus.Offset, subscribedOffset)
+	dt.job.mu.Lock()
+	defer dt.job.mu.Unlock()
+	// Verify file is downloaded
+	dt.verifyFile(objectContent)
+	// Verify fileInfoCache update
+	dt.verifyFileInfoEntry(uint64(objectSize))
+}
+
+func (dt *downloaderTest) Test_downloadObjectToFile_CtxCancelled() {
+	objectName := "path/in/gcs/cancel.txt"
+	objectSize := util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), func() {})
+	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
+	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
+		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
+	AssertEq(nil, err)
+	defer func() {
+		_ = file.Close()
+	}()
+
+	dt.job.cancelFunc()
+	err = dt.job.downloadObjectToFile(file)
+
+	AssertTrue(errors.Is(err, context.Canceled), fmt.Sprintf("didn't get context canceled error: %v", err))
+}
+
 // Note: We can't test Test_downloadObjectAsync_MoreThanSequentialReadSize as
 // the fake storage bucket/server in the testing environment doesn't support
 // reading ranges (start and limit in NewReader call)
@@ -686,7 +737,7 @@ func (dt *downloaderTest) Test_GetStatus() {
 
 func (dt *downloaderTest) Test_Invalidate_WhenDownloading() {
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 8 * util.MiB
+	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
@@ -832,7 +883,7 @@ func (dt *downloaderTest) Test_Invalidate_Download_Concurrent() {
 	AssertEq(nil, dt.job.removeJobCallback)
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTrue() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsTrue() {
 	objectName := "path/in/gcs/file1.txt"
 	objectSize := 8 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -865,7 +916,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsTr
 	AssertTrue(strings.Contains(err.Error(), "no such file or directory"))
 }
 
-func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFalse() {
+func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCRCIsFalse() {
 	objectName := "path/in/gcs/file2.txt"
 	objectSize := 1 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
@@ -886,7 +937,7 @@ func (dt *downloaderTest) Test_validateCRC_ForTamperedFileWhenEnableCrcCheckIsFa
 	// Tamper the file
 	err = os.WriteFile(dt.fileSpec.Path, []byte("test"), 0644)
 	AssertEq(nil, err)
-	dt.job.fileCacheConfig.EnableCrcCheck = false
+	dt.job.fileCacheConfig.EnableCRC = false
 
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
 	err = dt.job.validateCRC()
@@ -907,7 +958,7 @@ func (dt *downloaderTest) Test_validateCRC_WheContextIsCancelled() {
 	offset := int64(10 * util.MiB)
 	_, err := dt.job.Download(context.Background(), offset, true)
 	AssertEq(nil, err)
-	AssertEq(Downloading, dt.job.status.Name)
+	AssertTrue((dt.job.status.Name == Downloading) || (dt.job.status.Name == Completed), fmt.Sprintf("got job status: %v", dt.job.status.Name))
 	AssertEq(nil, dt.job.status.Err)
 	AssertGe(dt.job.status.Offset, offset)
 

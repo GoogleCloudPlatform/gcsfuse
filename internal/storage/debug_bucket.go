@@ -20,7 +20,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"golang.org/x/net/context"
@@ -239,10 +238,26 @@ func (b *debugBucket) DeleteFolder(ctx context.Context, folderName string) (err 
 	return err
 }
 
-func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *controlpb.Folder, err error) {
+func (b *debugBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
 	id, desc, start := b.startRequest("GetFolder(%q)", folderName)
 	defer b.finishRequest(id, desc, start, &err)
 
 	folder, err = b.wrapped.GetFolder(ctx, folderName)
 	return
+}
+
+func (b *debugBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+	id, desc, start := b.startRequest("CreateFolder(%q)", folderName)
+	defer b.finishRequest(id, desc, start, &err)
+
+	folder, err = b.wrapped.CreateFolder(ctx, folderName)
+	return
+}
+
+func (b *debugBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (o *gcs.Folder, err error) {
+	id, desc, start := b.startRequest("RenameFolder(%q)", folderName)
+	defer b.finishRequest(id, desc, start, &err)
+
+	o, err = b.wrapped.RenameFolder(ctx, folderName, destinationFolderId)
+	return o, err
 }

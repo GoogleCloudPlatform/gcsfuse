@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -52,7 +53,7 @@ func TestLoggerSuite(t *testing.T) {
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 
-func redirectLogsToGivenBuffer(buf *bytes.Buffer, level config.LogSeverity) {
+func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	var programLevel = new(slog.LevelVar)
 	defaultLogger = slog.New(
 		defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: "),
@@ -63,7 +64,7 @@ func redirectLogsToGivenBuffer(buf *bytes.Buffer, level config.LogSeverity) {
 // fetchLogOutputForSpecifiedSeverityLevel takes configured severity and
 // functions that write logs as parameter and returns string array containing
 // output from each function call.
-func fetchLogOutputForSpecifiedSeverityLevel(level config.LogSeverity, functions []func()) []string {
+func fetchLogOutputForSpecifiedSeverityLevel(level string, functions []func()) []string {
 	// create a logger that writes to buffer at configured level.
 	var buf bytes.Buffer
 	redirectLogsToGivenBuffer(&buf, level)
@@ -109,7 +110,7 @@ func validateOutput(t *testing.T, expected []string, output []string) {
 	}
 }
 
-func validateLogOutputAtSpecifiedFormatAndSeverity(t *testing.T, format string, level config.LogSeverity, expectedOutput []string) {
+func validateLogOutputAtSpecifiedFormatAndSeverity(t *testing.T, format string, level string, expectedOutput []string) {
 	// set log format
 	defaultLoggerFactory.format = format
 
@@ -231,7 +232,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
 
 func (t *LoggerTest) TestSetLoggingLevel() {
 	testData := []struct {
-		inputLevel           config.LogSeverity
+		inputLevel           string
 		programLevel         *slog.LevelVar
 		expectedProgramLevel slog.Level
 	}{
@@ -274,18 +275,20 @@ func (t *LoggerTest) TestInitLogFile() {
 	filePath += "/log.txt"
 	fileSize := 100
 	backupFileCount := 2
-	logConfig := config.LogConfig{
-		Severity: config.DEBUG,
-		Format:   format,
-		FilePath: filePath,
+	legacyLogConfig := config.LogConfig{
 		LogRotateConfig: config.LogRotateConfig{
 			MaxFileSizeMB:   fileSize,
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
 	}
+	newLogConfig := cfg.LoggingConfig{
+		FilePath: cfg.ResolvedPath(filePath),
+		Severity: "DEBUG",
+		Format:   format,
+	}
 
-	err := InitLogFile(logConfig)
+	err := InitLogFile(legacyLogConfig, newLogConfig)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())

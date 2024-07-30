@@ -48,7 +48,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			MaxSizeMB:             700,
 			CacheFileForRangeRead: true,
 		},
-		CacheDir: config.CacheDir(cacheDirPath),
+		CacheDir: cacheDirPath,
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),
@@ -63,7 +63,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 			MaxSizeMB:             -1,
 			CacheFileForRangeRead: false,
 		},
-		CacheDir: config.CacheDir(cacheDirPath),
+		CacheDir: cacheDirPath,
 		LogConfig: config.LogConfig{
 			Severity:        config.TRACE,
 			LogRotateConfig: config.DefaultLogRotateConfig(),

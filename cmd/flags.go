@@ -220,6 +220,12 @@ func newApp() (app *cli.App) {
 			},
 
 			cli.IntFlag{
+				Name:  "max-retry-attempts",
+				Value: 0,
+				Usage: "The max-retry-attempts parameter sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. The default value 0 indicates no limit",
+			},
+
+			cli.IntFlag{
 				Name:  "stat-cache-capacity",
 				Value: mount.DefaultStatCacheCapacity,
 				Usage: "How many entries can the stat-cache hold (impacts memory consumption). This flag has been deprecated (starting v2.0) and in its place only metadata-cache:stat-cache-max-size-mb in the gcsfuse config-file will be supported. For now, the value of stat-cache-capacity will be translated to the next higher corresponding value of metadata-cache:stat-cache-max-size-mb (assuming stat-cache entry-size ~= 1640 bytes, including 1400 for positive entry and 240 for corresponding negative entry), when metadata-cache:stat-cache-max-size-mb is not set.",
@@ -315,6 +321,12 @@ func newApp() (app *cli.App) {
 				Usage: "Experimental: Export metrics to the OpenTelemetry collector at this address.",
 			},
 
+			cli.IntFlag{
+				Name:  config.PrometheusPortFlagName,
+				Value: 0,
+				Usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics.",
+			},
+
 			cli.StringFlag{
 				Name:  "log-file",
 				Value: "",
@@ -390,63 +402,130 @@ func newApp() (app *cli.App) {
 }
 
 type flagStorage struct {
-	AppName    string
+	// Deprecated: Use the param from cfg/config.go
+	AppName string
+
+	// Deprecated: Use the param from cfg/config.go
 	Foreground bool
 	ConfigFile string
 
 	// File system
-	MountOptions     map[string]string
-	DirMode          os.FileMode
-	FileMode         os.FileMode
-	Uid              int64
-	Gid              int64
-	ImplicitDirs     bool
-	OnlyDir          string
+	MountOptions map[string]string
+
+	// Deprecated: Use the param from cfg/config.go
+	DirMode os.FileMode
+
+	// Deprecated: Use the param from cfg/config.go
+	FileMode os.FileMode
+
+	// Deprecated: Use the param from cfg/config.go
+	Uid int64
+
+	// Deprecated: Use the param from cfg/config.go
+	Gid int64
+
+	// Deprecated: Use the param from cfg/config.go
+	ImplicitDirs bool
+
+	// Deprecated: Use the param from cfg/config.go
+	OnlyDir string
+
+	// Deprecated: Use the param from cfg/config.go
 	RenameDirLimit   int64
 	IgnoreInterrupts bool
 
 	// GCS
-	CustomEndpoint                     *url.URL
-	BillingProject                     string
-	KeyFile                            string
-	TokenUrl                           string
-	ReuseTokenFromUrl                  bool
+	// Deprecated: Use the param from cfg/config.go
+	CustomEndpoint *url.URL
+
+	// Deprecated: Use the param from cfg/config.go
+	BillingProject string
+
+	// Deprecated: Use the param from cfg/config.go
+	KeyFile string
+
+	// Deprecated: Use the param from cfg/config.go
+	TokenUrl string
+
+	// Deprecated: Use the param from cfg/config.go
+	ReuseTokenFromUrl bool
+
+	// Deprecated: Use the param from cfg/config.go
 	EgressBandwidthLimitBytesPerSecond float64
-	OpRateLimitHz                      float64
-	SequentialReadSizeMb               int32
-	AnonymousAccess                    bool
+
+	// Deprecated: Use the param from cfg/config.go
+	OpRateLimitHz        float64
+	SequentialReadSizeMb int32
+	AnonymousAccess      bool
 
 	// Tuning
-	MaxRetrySleep              time.Duration
-	StatCacheCapacity          int
-	StatCacheTTL               time.Duration
-	TypeCacheTTL               time.Duration
-	KernelListCacheTtlSeconds  int64
-	HttpClientTimeout          time.Duration
-	MaxRetryDuration           time.Duration
-	RetryMultiplier            float64
-	LocalFileCache             bool
-	TempDir                    string
-	ClientProtocol             mountpkg.ClientProtocol
-	MaxConnsPerHost            int
-	MaxIdleConnsPerHost        int
+	// Deprecated: Use the param from cfg/config.go
+	MaxRetrySleep time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	MaxRetryAttempts int64
+
+	// Deprecated: Use the param from cfg/config.go
+	StatCacheCapacity int
+
+	// Deprecated: Use the param from cfg/config.go
+	StatCacheTTL time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	TypeCacheTTL              time.Duration
+	KernelListCacheTtlSeconds int64
+
+	// Deprecated: Use the param from cfg/config.go
+	HttpClientTimeout time.Duration
+
+	// Deprecated: Use the param from cfg/config.go
+	RetryMultiplier float64
+
+	// Deprecated: Use the param from cfg/config.go
+	TempDir string
+
+	// Deprecated: Use the param from cfg/config.go
+	ClientProtocol mountpkg.ClientProtocol
+
+	// Deprecated: Use the param from cfg/config.go
+	MaxConnsPerHost int
+
+	// Deprecated: Use the param from cfg/config.go
+	MaxIdleConnsPerHost int
+
+	// Deprecated: Use the param from cfg/config.go
 	EnableNonexistentTypeCache bool
 
 	// Monitoring & Logging
-	StackdriverExportInterval  time.Duration
-	OtelCollectorAddress       string
-	LogFile                    string
-	LogFormat                  string
+	// Deprecated: Use the param from cfg/config.go
+	StackdriverExportInterval time.Duration
+	PrometheusPort            int
+
+	// Deprecated: Use the param from cfg/config.go
+	OtelCollectorAddress string
+
+	// Deprecated: Use the param from cfg/config.go
+	LogFile string
+
+	// Deprecated: Use the param from cfg/config.go
+	LogFormat string
+
+	// Deprecated: Use the param from cfg/config.go
 	ExperimentalEnableJsonRead bool
-	DebugFuseErrors            bool
 
 	// Debugging
-	DebugFuse       bool
-	DebugFS         bool
-	DebugGCS        bool
-	DebugHTTP       bool
+
+	// Deprecated: Use the param from cfg/config.go
+	DebugFuse bool
+
+	// Deprecated: Use the param from cfg/config.go
+	DebugGCS bool
+
+	// Deprecated: Use the param from cfg/config.go
 	DebugInvariants bool
-	DebugMutex      bool
+
+	// Deprecated: Use the param from cfg/config.go
+	DebugMutex bool
 
 	// Post-mount actions
 
@@ -485,16 +564,6 @@ func resolvePathForTheFlagInContext(flagKey string, c *cli.Context) (err error) 
 // GCSFUSE_PARENT_PROCESS_DIR. Child process is spawned when --foreground flag
 // is disabled.
 func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
-	err = resolvePathForTheFlagInContext("log-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for log-file: %w", err)
-	}
-
-	err = resolvePathForTheFlagInContext("key-file", c)
-	if err != nil {
-		return fmt.Errorf("resolving for key-file: %w", err)
-	}
-
 	err = resolvePathForTheFlagInContext("config-file", c)
 	if err != nil {
 		return fmt.Errorf("resolving for config-file: %w", err)
@@ -505,14 +574,9 @@ func resolvePathForTheFlagsInContext(c *cli.Context) (err error) {
 
 // resolveConfigFilePaths resolves the config file paths specified in the config file.
 func resolveConfigFilePaths(mountConfig *config.MountConfig) (err error) {
-	mountConfig.LogConfig.FilePath, err = resolveFilePath(mountConfig.LogConfig.FilePath, "logging: file")
-	if err != nil {
-		return
-	}
-
 	// Resolve cache-dir path
 	resolvedPath, err := resolveFilePath(string(mountConfig.CacheDir), "cache-dir")
-	mountConfig.CacheDir = config.CacheDir(resolvedPath)
+	mountConfig.CacheDir = resolvedPath
 	if err != nil {
 		return
 	}
@@ -566,16 +630,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		SequentialReadSizeMb:               int32(c.Int("sequential-read-size-mb")),
 
 		// Tuning,
-		MaxRetrySleep:             c.Duration("max-retry-sleep"),
-		StatCacheCapacity:         c.Int("stat-cache-capacity"),
-		StatCacheTTL:              c.Duration("stat-cache-ttl"),
-		TypeCacheTTL:              c.Duration("type-cache-ttl"),
-		KernelListCacheTtlSeconds: c.Int64(config.KernelListCacheTtlFlagName),
-		HttpClientTimeout:         c.Duration("http-client-timeout"),
-		MaxRetryDuration:          c.Duration("max-retry-duration"),
-		RetryMultiplier:           c.Float64("retry-multiplier"),
-		// This flag is deprecated and we have plans to remove the implementation related to this flag in next release.
-		LocalFileCache:             false,
+		MaxRetrySleep:              c.Duration("max-retry-sleep"),
+		MaxRetryAttempts:           c.Int64("max-retry-attempts"),
+		StatCacheCapacity:          c.Int("stat-cache-capacity"),
+		StatCacheTTL:               c.Duration("stat-cache-ttl"),
+		TypeCacheTTL:               c.Duration("type-cache-ttl"),
+		KernelListCacheTtlSeconds:  c.Int64(config.KernelListCacheTtlFlagName),
+		HttpClientTimeout:          c.Duration("http-client-timeout"),
+		RetryMultiplier:            c.Float64("retry-multiplier"),
 		TempDir:                    c.String("temp-dir"),
 		ClientProtocol:             clientProtocol,
 		MaxConnsPerHost:            c.Int("max-conns-per-host"),
@@ -585,16 +647,14 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 		// Monitoring & Logging
 		StackdriverExportInterval:  c.Duration("stackdriver-export-interval"),
 		OtelCollectorAddress:       c.String("experimental-opentelemetry-collector-address"),
+		PrometheusPort:             c.Int("prometheus-port"),
 		LogFile:                    c.String("log-file"),
 		LogFormat:                  c.String("log-format"),
 		ExperimentalEnableJsonRead: c.Bool("experimental-enable-json-read"),
 
 		// Debugging,
-		DebugFuseErrors: c.BoolT("debug_fuse_errors"),
 		DebugFuse:       c.Bool("debug_fuse"),
 		DebugGCS:        c.Bool("debug_gcs"),
-		DebugHTTP:       c.Bool("debug_http"),
-		DebugFS:         c.Bool("debug_fs"),
 		DebugInvariants: c.Bool("debug_invariants"),
 		DebugMutex:      c.Bool("debug_mutex"),
 
@@ -628,10 +688,6 @@ func validateExperimentalMetadataPrefetchOnMount(mode string) error {
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-	}
-
-	if !flags.ClientProtocol.IsValid() {
-		return fmt.Errorf("client protocol: %s is not valid", flags.ClientProtocol)
 	}
 
 	if err = validateExperimentalMetadataPrefetchOnMount(flags.ExperimentalMetadataPrefetchOnMount); err != nil {
