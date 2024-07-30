@@ -14,10 +14,28 @@
 
 package cfg
 
+import "net/url"
+
+func decodeURL(u string) (string, error) {
+	decodedUrl, err := url.Parse(u)
+	if err != nil {
+		return "", err
+	}
+	return decodedUrl.String(), nil
+}
+
 // Rationalize updates the config fields based on the values of other fields.
-func Rationalize(c *Config) {
+func Rationalize(c *Config) error {
 	// The EnableEmptyManagedFolders flag must be set to true to enforce folder prefixes for Hierarchical buckets.
 	if c.EnableHns {
 		c.List.EnableEmptyManagedFolders = true
 	}
+
+	var err error
+	c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

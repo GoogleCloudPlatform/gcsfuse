@@ -30,10 +30,9 @@ func validLogRotateConfig() LogRotateLoggingConfig {
 
 func TestValidateConfig(t *testing.T) {
 	testCases := []struct {
-		name                   string
-		config                 *Config
-		expectedCustomEndpoint string
-		wantErr                bool
+		name    string
+		config  *Config
+		wantErr bool
 	}{
 		{
 			name: "Valid Config 1",
@@ -43,8 +42,7 @@ func TestValidateConfig(t *testing.T) {
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
 			},
-			expectedCustomEndpoint: "https://bing.com/search?q=dotnet",
-			wantErr:                false,
+			wantErr: false,
 		},
 		{
 			name: "Valid Config 2",
@@ -54,8 +52,7 @@ func TestValidateConfig(t *testing.T) {
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
 			},
-			expectedCustomEndpoint: "https://j%40ne:password@google.com",
-			wantErr:                false,
+			wantErr: false,
 		},
 		{
 			name: "Invalid Config",
@@ -65,8 +62,7 @@ func TestValidateConfig(t *testing.T) {
 					CustomEndpoint: "a_b://abc",
 				},
 			},
-			expectedCustomEndpoint: "",
-			wantErr:                true,
+			wantErr: true,
 		},
 	}
 
@@ -74,7 +70,6 @@ func TestValidateConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := ValidateConfig(tc.config)
 
-			assert.Equal(t, tc.config.GcsConnection.CustomEndpoint, tc.expectedCustomEndpoint)
 			if tc.wantErr {
 				assert.Error(t, actualErr)
 			} else {

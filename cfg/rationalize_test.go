@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRationalize(t *testing.T) {
+func TestRationalizeEnableEmptyManagedFolders(t *testing.T) {
 	testcases := []struct {
 		name                              string
 		enableHns                         bool
@@ -59,9 +59,64 @@ func TestRationalize(t *testing.T) {
 				List:      ListConfig{EnableEmptyManagedFolders: tc.enableEmptyManagedFolders},
 			}
 
-			Rationalize(&c)
+			err := Rationalize(&c)
 
-			assert.Equal(t, tc.expectedEnableEmptyManagedFolders, c.List.EnableEmptyManagedFolders)
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableEmptyManagedFolders, c.List.EnableEmptyManagedFolders)
+			}
+		})
+	}
+}
+
+func TestRationalizeCustomEndpoint(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		config                 *Config
+		expectedCustomEndpoint string
+		wantErr                bool
+	}{
+		{
+			name: "Valid Config 1",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "https://bing.com/search?q=dotnet",
+				},
+			},
+			expectedCustomEndpoint: "https://bing.com/search?q=dotnet",
+			wantErr:                false,
+		},
+		{
+			name: "Valid Config 2",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "https://j@ne:password@google.com",
+				},
+			},
+			expectedCustomEndpoint: "https://j%40ne:password@google.com",
+			wantErr:                false,
+		},
+		{
+			name: "Invalid Config",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "a_b://abc",
+				},
+			},
+			expectedCustomEndpoint: "",
+			wantErr:                true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.config)
+
+			assert.Equal(t, tc.config.GcsConnection.CustomEndpoint, tc.expectedCustomEndpoint)
+			if tc.wantErr {
+				assert.Error(t, actualErr)
+			} else {
+				assert.NoError(t, actualErr)
+			}
 		})
 	}
 }
