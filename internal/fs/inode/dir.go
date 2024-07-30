@@ -373,7 +373,7 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 	return &Core{
 		Bucket:    bucket,
-		FullName:  name,
+		FullName:  Name{objectName: folderResult.Name},
 		MinObject: folderObject,
 	}, nil
 }
