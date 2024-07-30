@@ -219,7 +219,14 @@ func (b *prefixBucket) DeleteFolder(ctx context.Context, folderName string) (err
 
 func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
 	mFolderName := b.wrappedName(folderName)
-	return b.wrapped.GetFolder(ctx, mFolderName)
+	f, err := b.wrapped.GetFolder(ctx, mFolderName)
+
+	// Modify the returned object.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
 }
 
 func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
