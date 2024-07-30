@@ -371,7 +371,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
 
-    exit_code = generate_folders_and_files.generate_files_and_upload_to_gcs_bucket(
+    exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
         filename_prefix)
 
@@ -383,7 +383,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     mock_open.return_value.truncate.assert_called_once_with(expected_size)
     # Assert that error log message is written to logfile
     mock_open.assert_has_calls([call().write("Files were not created locally")])
-    self.assertEqual(exit_code, -1)
+    self.assertEqual(exit_code, 1)
 
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('generate_folders_and_files.BATCH_SIZE', 10)
@@ -405,7 +405,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
 
-    exit_code = generate_folders_and_files.generate_files_and_upload_to_gcs_bucket(
+    exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
         filename_prefix)
 
@@ -420,25 +420,27 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
         shell=True)
     # Assert that except block is executed due to the upload failure
     mock_open.assert_has_calls([call().write('Issue while uploading files to GCS bucket.Aborting...')])
-    self.assertEqual(exit_code, -1)
+    self.assertEqual(exit_code, 1)
 
 
 class TestParseAndGenerateDirStructure(unittest.TestCase):
 
-  @patch('generate_folders_and_files.logmessage')
+  @patch('generate_folders_and_files.LOG_ERROR','error')
+  @patch('generate_folders_and_files._logmessage')
   def test_no_dir_structure_passed(self,mock_logmessage):
     dir_str={}
 
-    exit_code=generate_folders_and_files.parse_and_generate_directory_structure(dir_str)
+    exit_code=generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
 
-    self.assertEqual(exit_code,-1)
-    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.","error")
+    self.assertEqual(exit_code,1)
+    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.",generate_folders_and_files.LOG_ERROR)
 
 
+  @patch('generate_folders_and_files.LOG_INFO','info')
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('subprocess.call')
-  @patch('generate_folders_and_files.logmessage')
-  @patch('generate_folders_and_files.generate_files_and_upload_to_gcs_bucket')
+  @patch('generate_folders_and_files._logmessage')
+  @patch('generate_folders_and_files._generate_files_and_upload_to_gcs_bucket')
   def test_valid_dir_str_with_folders(self, mock_generate, mock_log, mock_subprocess):
     dir_str = {
         "name": "test_bucket",
@@ -467,7 +469,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
         }
     }
 
-    exit_code = generate_folders_and_files.parse_and_generate_directory_structure(dir_str)
+    exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
 
     self.assertEqual(exit_code, 0)
     # Verify subprocess calls
@@ -477,8 +479,8 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     ]
     mock_subprocess.assert_has_calls(expected_subprocess_calls)
     # Verify log messages
-    mock_log.assert_any_call('Making a temporary directory.\n', "info")
-    mock_log.assert_any_call('Deleting the temporary directory.\n', "info")
+    mock_log.assert_any_call('Making a temporary directory.\n', generate_folders_and_files.LOG_INFO)
+    mock_log.assert_any_call('Deleting the temporary directory.\n', generate_folders_and_files.LOG_INFO)
     # Verify generate_files_and_upload_to_gcs_bucket call
     expected_generate_and_upload_calls = [
         call( 'gs://test_bucket/test_folder/',2,'kb',1,'file'),
