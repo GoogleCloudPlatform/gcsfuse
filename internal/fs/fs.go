@@ -702,7 +702,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 			ic.Bucket,
 			fs.mtimeClock,
 			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+			fs.mountConfig.EnableHNS)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -1831,6 +1832,12 @@ func (fs *fileSystem) RmDir(
 		if err != nil {
 			err = fmt.Errorf("ReadEntries: %w", err)
 			return err
+		}
+
+		if fs.kernelListCacheTTL > 0 {
+			// Clear kernel list cache after removing a directory. This ensures remote
+			// GCS files are included in future directory listings for unlinking.
+			childDir.InvalidateKernelListCache()
 		}
 
 		// Are there any entries?

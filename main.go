@@ -62,7 +62,7 @@ func convertToPosixArgs(args []string) []string {
 // which is used for flag and config file parsing.
 // Refer https://go.dev/blog/generate for details.
 //
-//go:generate go run -C tools/config-gen . --paramsFile=params.yaml --outFile=../../cfg/config.go --templateFile=config.tpl
+//go:generate go run -C tools/config-gen . --paramsFile=params.yaml --outDir=../../cfg --templateDir=templates
 func main() {
 	// Common configuration for all commands
 	defer logPanic()

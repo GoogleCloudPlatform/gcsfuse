@@ -147,6 +147,10 @@ type DirInode interface {
 	// should be invalidated or not.
 	ShouldInvalidateKernelListCache(ttl time.Duration) bool
 
+	// InvalidateKernelListCache guarantees that the subsequent list call will be
+	// served from GCSFuse.
+	InvalidateKernelListCache()
+
 	// RLock readonly lock.
 	RLock()
 
@@ -352,7 +356,6 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-
 	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
 
 	// Suppress "not found" errors.
@@ -366,10 +369,12 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
+	folderObject := folderResult.ConvertFolderToMinObject(name.objectName)
+
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
-		MinObject: folderResult.ConvertFolderToMinObject(),
+		MinObject: folderObject,
 	}, nil
 }
 
@@ -527,6 +532,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
+	lookUpHNSDir := func(ctx context.Context) (err error) {
+		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
+		return
+	}
 
 	b := syncutil.NewBundle(ctx)
 
@@ -539,20 +548,19 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		b.Add(lookUpExplicitDir)
+		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+			b.Add(lookUpHNSDir)
+		} else {
+			b.Add(lookUpExplicitDir)
+		}
 	case metadata.RegularFileType, metadata.SymlinkType:
 		b.Add(lookUpFile)
 	case metadata.NonexistentType:
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		// TODO: Update if block to call get folder once implicit dirs changes are complete, and e2e tests are passed on new changes
 		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
-			if d.implicitDirs {
-				b.Add(lookUpImplicitOrExplicitDir)
-			} else {
-				b.Add(lookUpExplicitDir)
-			}
+			b.Add(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
 				b.Add(lookUpImplicitOrExplicitDir)
@@ -956,4 +964,9 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
 
 	return folder, nil
+}
+
+func (d *dirInode) InvalidateKernelListCache() {
+	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
+	d.prevDirListingTimeStamp = time.Time{}
 }

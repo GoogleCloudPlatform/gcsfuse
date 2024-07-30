@@ -59,7 +59,10 @@ func (m *TestifyMockBucket) ComposeObjects(ctx context.Context, req *gcs.Compose
 
 func (m *TestifyMockBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.MinObject), args.Get(1).(*gcs.ExtendedObjectAttributes), args.Error(2)
+	if args.Get(2) != nil {
+		return nil, nil, args.Error(2)
+	}
+	return args.Get(0).(*gcs.MinObject), args.Get(1).(*gcs.ExtendedObjectAttributes), nil
 }
 
 func (m *TestifyMockBucket) ListObjects(ctx context.Context, req *gcs.ListObjectsRequest) (*gcs.Listing, error) {
@@ -92,7 +95,10 @@ func (m *TestifyMockBucket) GetFolder(ctx context.Context, folderName string) (*
 
 func (m *TestifyMockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
 	args := m.Called(ctx, folderName, destinationFolderId)
-	return args.Get(0).(*gcs.Folder), args.Error(1)
+	if args.Get(0) != nil {
+		return args.Get(0).(*gcs.Folder), nil
+	}
+	return nil, args.Error(1)
 }
 
 func (m *TestifyMockBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
