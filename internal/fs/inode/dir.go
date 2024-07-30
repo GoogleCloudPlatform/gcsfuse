@@ -292,9 +292,10 @@ func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, err
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
-	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+	if d.IsBucketHierarchical() {
 		return findExplicitFolder(ctx, d.Bucket(), childName)
 	}
+	
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
@@ -562,7 +563,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		if d.IsBucketHierarchical() {
 			b.Add(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
@@ -972,4 +973,11 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 func (d *dirInode) InvalidateKernelListCache() {
 	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
 	d.prevDirListingTimeStamp = time.Time{}
+}
+
+func (d *dirInode) IsBucketHierarchical() bool {
+	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		return true
+	}
+	return false
 }

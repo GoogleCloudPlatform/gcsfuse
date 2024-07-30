@@ -130,7 +130,7 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	assert.Nil(t.T(), result)
 }
 
-func (t *HNSDirTest) TestLookUpChildShouldLookUpConflicting() {
+func (t *HNSDirTest) TestLookUpChild_WithConflictMarkerName() {
 	const name = "qux"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := &gcs.Folder{
