@@ -292,6 +292,10 @@ func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, err
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
+	if d.isBucketHierarchical() {
+		return findExplicitFolder(ctx, d.Bucket(), childName)
+	}
+
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
@@ -548,7 +552,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		if d.isBucketHierarchical() {
 			b.Add(lookUpHNSDir)
 		} else {
 			b.Add(lookUpExplicitDir)
@@ -559,7 +563,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		if d.isBucketHierarchical() {
 			b.Add(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
@@ -883,7 +887,7 @@ func (d *dirInode) DeleteChildDir(
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
 	// Hierarchical buckets don't have implicit dirs.
-	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
+	if isImplicitDir && !d.isBucketHierarchical() {
 		return nil
 	}
 
@@ -898,7 +902,7 @@ func (d *dirInode) DeleteChildDir(
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
-	if d.bucket.BucketType() != gcs.Hierarchical {
+	if !d.isBucketHierarchical() {
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
@@ -969,4 +973,11 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 func (d *dirInode) InvalidateKernelListCache() {
 	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
 	d.prevDirListingTimeStamp = time.Time{}
+}
+
+func (d *dirInode) isBucketHierarchical() bool {
+	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		return true
+	}
+	return false
 }

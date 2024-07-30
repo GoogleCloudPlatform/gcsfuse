@@ -130,6 +130,27 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	assert.Nil(t.T(), result)
 }
 
+func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+	folder := &gcs.Folder{
+		Name: dirName,
+	}
+	statObjectRequest := gcs.StatObjectRequest{
+		Name: path.Join(dirInodeName, name),
+	}
+	object := gcs.MinObject{Name: dirName}
+	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
+	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+
+	c, err := t.in.LookUpChild(t.ctx, name+"\n")
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), dirName, c.MinObject.Name)
+}
+
 func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	const name = "qux"
 	dirName := path.Join(dirInodeName, name) + "/"
