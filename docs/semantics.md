@@ -330,7 +330,7 @@ This can be overridden by setting ```-o allow_other``` to allow other users to a
 
 See [Key Differences from a POSIX filesystem](https://cloud.google.com/storage/docs/gcs-fuse#expandable-1)
 
-**Unlinking directories**
+## Unlinking directories
 
 Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first do a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
 
@@ -342,7 +342,7 @@ Cloud Storage FUSE implements requests from the kernel to read the contents of a
 
 However, with this implementation there is no way for Cloud Storage FUSE to distinguish a child directory that actually exists (because its placeholder object is present) and one that is only implicitly defined. So when ```--implicit-dirs``` is not set, directory listings may contain names that are inaccessible in a later call from the kernel to Cloud Storage FUSE to look up the inode by name. For example, a call to ```readdir(3) ```may return names for which ```fstat(2)``` returns ```ENOENT```.
 
-**Name conflicts**
+## Name conflicts
 
 It is possible to have a Cloud Storage bucket containing an object named foo and another object named ```foo/```:
 - This situation can easily happen when writing to Cloud Storage directly, since there is nothing special about those names as far as Cloud Storage is concerned.
@@ -352,7 +352,17 @@ Traditional file systems do not allow multiple directory entries with the same n
 
 Instead, when a conflicting pair of foo and ```foo/``` objects both exist, it appears in the Cloud Storage FUSE file system as if there is a directory named foo and a file or symlink named ```foo\n``` (i.e. foo followed by U+000A, line feed). This is what will appear when the parent's directory entries are read, and Cloud Storage FUSE will respond to requests to look up the inode named ```foo\n``` by returning the file inode. ```\n``` in particular is chosen because it is not legal in Cloud Storage object names, and therefore is not ambiguous.
 
-**Memory-mapped files**
+### Unsupported object names
+
+Objects in GCS with double slashes '//' as a name or
+prefix are not supported in GCSfuse. Accessing a directory with such
+named files will cause an 'input/output error', as the Linux
+filesystem does not support files or directories named with a '/'.
+The most common example of this is an object called, for example
+'A//C.txt' where 'A' indicates a directory and 'C.txt' indicates a
+file, and is missing directory 'B/' between 'A/' and 'C.txt'.
+
+## Memory-mapped files
 
 Cloud Storage FUSE files can be memory-mapped for reading and writing using ```mmap(2)```. If you make modifications to such a file and want to ensure that they are durable, you must do the following:
 
@@ -364,12 +374,12 @@ Cloud Storage FUSE files can be memory-mapped for reading and writing using ```m
 
 See the notes on [fuseops.FlushFileOp](http://godoc.org/github.com/jacobsa/fuse/fuseops#FlushFileOp) for more details.
 
-**Error Handling**
+## Error Handling
 
 Transient errors can occur in distributed systems like Cloud Storage, such as network timeouts. Cloud Storage FUSE implements Cloud Storage [retry best practices](https://cloud.google.com/storage/docs/retry-strategy) with exponential backoff. 
 
 
-**Missing features**
+## Missing features
 
 Not all of the usual file system features are supported. Most prominently:
 - Renaming directories is by default not supported. A directory rename cannot be performed atomically in Cloud Storage and would therefore be arbitrarily expensive in terms of Cloud Storage operations, and for large directories would have high probability of failure, leaving the two directories in an inconsistent state.
@@ -377,3 +387,4 @@ Not all of the usual file system features are supported. Most prominently:
 - File and directory permissions and ownership cannot be changed. See the permissions section above.
 - Modification times are not tracked for any inodes except for files.
 - No other times besides modification time are tracked. For example, ctime and atime are not tracked (but will be set to something reasonable). Requests to change them will appear to succeed, but the results are unspecified.
+
