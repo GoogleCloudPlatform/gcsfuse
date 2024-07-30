@@ -617,7 +617,7 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 
 	expected := &gcs.Listing{
 		Objects:       []*gcs.Object{o0, o1},
-		CollapsedRuns: []string{"p0", "p1"},
+		CollapsedRuns: []string{"p0", "p1/"},
 	}
 
 	ExpectCall(t.wrapped, "BucketType")().
@@ -629,7 +629,7 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 	// Insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
 
-	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
+	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(1)
 
 	// Call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})

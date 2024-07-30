@@ -100,11 +100,12 @@ func (b *fastStatBucket) insertListing(listing *gcs.Listing) {
 	for _, p := range listing.CollapsedRuns {
 		if !strings.HasSuffix(p, "/") {
 			_ = fmt.Errorf("error in prefix name: %s", p)
+		} else {
+			f := &gcs.Folder{
+				Name: p,
+			}
+			b.cache.InsertFolder(f, expiration)
 		}
-		f := &gcs.Folder{
-			Name: p,
-		}
-		b.cache.InsertFolder(f, expiration)
 	}
 
 }
