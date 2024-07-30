@@ -847,7 +847,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 			return nil, err
 		}
 		// Convert the folder to a minimal object
-		o := f.ConvertFolderToMinObject(fullName.objectName)
+		o := f.ConvertFolderToMinObject(name)
 		core = &Core{
 			FullName:  fullName,
 			Bucket:    d.Bucket(),
