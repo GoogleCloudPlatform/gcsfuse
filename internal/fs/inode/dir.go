@@ -835,18 +835,18 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
-	// Generate the full name for the new directory
+	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var core *Core
 
-	// Check the bucket type
+	// Check the bucket type.
 	if d.isBucketHierarchical() {
-		// For hierarchical buckets, create a folder
+		// For hierarchical buckets, create a folder.
 		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
 		}
-		// Convert the folder to a minimal object
+		// Convert the folder to a minimal object.
 		o := f.ConvertFolderToMinObject()
 		core = &Core{
 			FullName:  fullName,
@@ -854,12 +854,12 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 			MinObject: o,
 		}
 	} else {
-		// For non-hierarchical buckets, create a new object
+		// For non-hierarchical buckets, create a new object.
 		o, err := d.createNewObject(ctx, fullName, nil)
 		if err != nil {
 			return nil, err
 		}
-		// Convert the object to a minimal object
+		// Convert the object to a minimal object.
 		m := storageutil.ConvertObjToMinObject(o)
 		core = &Core{
 			Bucket:    d.Bucket(),
@@ -868,7 +868,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		}
 	}
 
-	// Insert the new directory into the type cache
+	// Insert the new directory into the type cache.
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
 	return core, nil
