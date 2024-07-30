@@ -16,6 +16,7 @@ package inode
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"testing"
 	"time"
@@ -235,7 +236,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
-func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentkType() {
+func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExistentType() {
 	const name = "file_type"
 	t.typeCache.Insert(t.fixedTime.Now().Add(time.Minute), name, metadata.NonexistentType)
 	// Look up with the proper name.
@@ -282,4 +283,105 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.True(t.T(), errors.As(err, &notFoundErr))
 	assert.Nil(t.T(), f)
+}
+
+func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
+	const folderName = "folder"
+	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
+
+	// Delete dir
+	err := t.in.DeleteChildDir(t.ctx, folderName, true)
+
+	t.mockBucket.AssertExpectations(t.T()) // Verify mock interactions
+	assert.NoError(t.T(), err)             // Ensure no error occurred
+}
+
+func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectGiveSuccess() {
+	const name = "dir"
+	dirName := path.Join(dirInodeName, name) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:       dirName,
+		Generation: 0,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(nil)
+
+	err := t.in.DeleteChildDir(t.ctx, name, false)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+}
+func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndNonHNSBucket_DeleteObjectThrowAnError() {
+	const name = "folder"
+	dirName := path.Join(dirInodeName, name) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:       dirName,
+		Generation: 0,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
+
+	// Delete dir .
+	err := t.in.DeleteChildDir(t.ctx, name, false)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NotNil(t.T(), err)
+}
+
+func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectGiveSuccessDeleteFolderThrowAnError() {
+	const name = "folder"
+	dirName := path.Join(dirInodeName, name) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:       dirName,
+		Generation: 0,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(nil)
+	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(fmt.Errorf("mock error"))
+
+	// Delete dir .
+	err := t.in.DeleteChildDir(t.ctx, name, false)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NotNil(t.T(), err)
+}
+
+func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectThrowAnErrorDeleteFolderGiveSuccess() {
+	const name = "folder"
+	dirName := path.Join(dirInodeName, name) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:       dirName,
+		Generation: 0,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
+	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(nil)
+
+	// Delete dir .
+	err := t.in.DeleteChildDir(t.ctx, name, false)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
+}
+
+func (t *HNSDirTest) TestDeleteChildDir_WithImplicitDirFlagFalseAndBucketTypeIsHNS_DeleteObjectAndDeleteFolderThrowAnError() {
+	const name = "folder"
+	dirName := path.Join(dirInodeName, name) + "/"
+	deleteObjectReq := gcs.DeleteObjectRequest{
+		Name:       dirName,
+		Generation: 0,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.mockBucket.On("DeleteObject", t.ctx, &deleteObjectReq).Return(fmt.Errorf("mock error"))
+	t.mockBucket.On("DeleteFolder", t.ctx, dirName).Return(fmt.Errorf("mock delete folder error"))
+
+	// Delete dir .
+	err := t.in.DeleteChildDir(t.ctx, name, false)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NotNil(t.T(), err)
+	// It will ignore the error that came from deleteObject.
+	assert.Equal(t.T(), err.Error(), "DeleteFolder: mock delete folder error")
 }
