@@ -419,6 +419,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), result)
+	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
 }
 
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
@@ -435,6 +436,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	assert.NotNil(t.T(), result)
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
@@ -450,6 +452,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithFailure() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NotNil(t.T(), err)
 	assert.Nil(t.T(), result)
+	assert.Equal(t.T(), metadata.Type(0), t.typeCache.Get(t.fixedTime.Now(), dirName))
 }
 
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
@@ -468,4 +471,5 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	assert.NotNil(t.T(), result)
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
+	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
