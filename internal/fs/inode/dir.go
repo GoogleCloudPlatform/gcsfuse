@@ -521,14 +521,17 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	var fileResult *Core
 	var dirResult *Core
 	lookUpFile := func(ctx context.Context) (err error) {
+		fmt.Printf("Dir Name: %s-%s-%s", d.Name(), name, NewDirName(d.Name(), name))
 		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name))
 		return
 	}
 	lookUpExplicitDir := func(ctx context.Context) (err error) {
+		fmt.Printf("Dir Name: %s-%s-%s", d.Name(), name, NewDirName(d.Name(), name))
 		dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
 	lookUpImplicitOrExplicitDir := func(ctx context.Context) (err error) {
+		fmt.Printf("Dir Name: %s-%s-%s", d.Name(), name, NewDirName(d.Name(), name))
 		dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
