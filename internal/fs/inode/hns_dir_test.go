@@ -285,7 +285,6 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 	assert.Nil(t.T(), f)
 }
 
-
 func (t *HNSDirTest) TestDeleteChildDir_WhenImplicitDirFlagTrueOnNonHNSBucket() {
 	const folderName = "folder"
 	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
