@@ -16,7 +16,6 @@ package inode
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"sort"
@@ -1481,7 +1480,6 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 	}
 
 	entries := t.in.LocalFileEntries(localFileInodes)
-	fmt.Println(entries)
 
 	// Validate entries contains only linked child files.
 	AssertEq(1, len(entries))
