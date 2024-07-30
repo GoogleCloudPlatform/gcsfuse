@@ -21,7 +21,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -168,8 +167,8 @@ func TestReadDirWithSameNameLocalAndGCSFile(t *testing.T) {
 
 	// Attempt to list testDir.
 	_, err := os.ReadDir(testDirPath)
-	if err == nil || !strings.Contains(err.Error(), "input/output error") {
-		t.Fatalf("Expected error: %s, Got error: %v", "input/output error", err)
+	if err != nil {
+		t.Fatalf("ReadDir err: %v", err)
 	}
 
 	// Close the local file.
