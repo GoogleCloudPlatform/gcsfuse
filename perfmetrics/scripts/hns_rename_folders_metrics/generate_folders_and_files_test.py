@@ -20,7 +20,7 @@ from mock import patch, call
 class TestCheckForConfigFileInconsistency(unittest.TestCase):
   def test_missing_bucket_name(self):
     config = {}
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 1)
 
@@ -29,7 +29,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
         "name": "test_bucket",
         "folders": {}
     }
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 1)
 
@@ -38,7 +38,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
         "name": "test_bucket",
         "nested_folders": {}
     }
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 1)
 
@@ -57,7 +57,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
             ]
         }
     }
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 1)
 
@@ -77,7 +77,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
             ]
         }
     }
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 1)
 
@@ -108,7 +108,7 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
             ]
         }
     }
-    result = generate_folders_and_files.check_for_config_file_inconsistency(
+    result = generate_folders_and_files._check_for_config_file_inconsistency(
         config)
     self.assertEqual(result, 0)
 
@@ -116,20 +116,17 @@ class TestCheckForConfigFileInconsistency(unittest.TestCase):
 class TestListDirectory(unittest.TestCase):
 
   @patch('subprocess.check_output')
-  @patch('subprocess.call')
-  @patch('generate_folders_and_files.logmessage')
-  def test_listing_at_non_existent_path(self, mock_logmessage,
-      mock_subprocess_call, mock_check_output):
+  @patch('generate_folders_and_files._logmessage')
+  def test_listing_at_non_existent_path(self, mock_logmessage,mock_check_output):
     mock_check_output.side_effect = subprocess.CalledProcessError(
         returncode=1,
         cmd="gcloud storage ls gs://fake_bkt",
         output=b'Error while listing')
 
-    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
+    dir_list = generate_folders_and_files._list_directory("gs://fake_bkt")
 
     self.assertEqual(dir_list, None)
     mock_logmessage.assert_called_once_with('Error while listing')
-    mock_subprocess_call.assert_called_once_with('bash', shell=True)
 
   @patch('subprocess.check_output')
   def test_listing_directory(self, mock_check_output):
@@ -140,9 +137,145 @@ class TestListDirectory(unittest.TestCase):
                          "gs://fake_bkt/fake_folder_1/",
                          "gs://fake_bkt/nested_fake_folder/"]
 
-    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
+    dir_list = generate_folders_and_files._list_directory("gs://fake_bkt")
 
     self.assertEqual(dir_list, expected_dir_list)
+
+
+class TestCompareFolderStructure(unittest.TestCase):
+
+  @patch('generate_folders_and_files._list_directory')
+  def test_folder_structure_matches(self,mock_listdir):
+    mock_listdir.return_value=['test_file_1.txt']
+    test_folder={
+        "name": "test_folder",
+        "num_files": 1,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://temp_folder_url'
+
+    match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
+
+    self.assertEqual(match,True)
+
+  @patch('generate_folders_and_files._list_directory')
+  def test_folder_structure_mismatches(self,mock_listdir):
+    mock_listdir.return_value=['test_file_1.txt']
+    test_folder={
+        "name": "test_folder",
+        "num_files": 2,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://temp_folder_url'
+
+    match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
+
+    self.assertEqual(match,False)
+
+  @patch('generate_folders_and_files._list_directory')
+  def test_folder_does_not_exist_in_gcs_bucket(self,mock_listdir):
+    mock_listdir.side_effect=subprocess.CalledProcessError(
+        returncode=1,
+        cmd="gcloud storage ls gs://fake_bkt/folder_does_not_exist",
+        output=b'Error while listing')
+    test_folder={
+        "name": "test_folder",
+        "num_files": 1,
+        "file_name_prefix": "test_file",
+        "file_size": "1kb"
+    }
+    test_folder_url='gs://fake_bkt/folder_does_not_exist'
+
+    match = generate_folders_and_files._compare_folder_structure(test_folder, test_folder_url)
+
+    self.assertEqual(match,False)
+    self.assertRaises(subprocess.CalledProcessError)
+
+
+class TestCheckIfDirStructureExists(unittest.TestCase):
+
+  @patch("generate_folders_and_files._list_directory")
+  def test_dir_already_exists_in_gcs_bucket(self, mock_list_directory):
+    mock_list_directory.side_effect = [
+        ["gs://test_bucket/test_folder/", "gs://test_bucket/nested/"],
+        ["gs://test_bucket/test_folder/file_1.txt"],
+        ["gs://test_bucket/nested/test_folder/"],
+        ["gs://test_bucket/nested/test_folder/file_1.txt"]
+    ]
+    dir_config = {
+        "name": "test_bucket",
+        "folders": {
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested",
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+
+    dir_present = generate_folders_and_files._check_if_dir_structure_exists(
+      dir_config)
+
+    self.assertEqual(dir_present, 1)
+
+  @patch("generate_folders_and_files._list_directory")
+  def test_dir_does_not_exist_in_gcs_bucket(self, mock_list_directory):
+    mock_list_directory.side_effect = [
+        ["gs://test_bucket/test_folder/", "gs://test_bucket/nested/"],
+        ["gs://test_bucket/test_folder/file_1.txt",
+         "gs://test_bucket/test_folder/file_1.txt"],
+        ["gs://test_bucket/nested/test_folder/"],
+        ["gs://test_bucket/nested/test_folder/file_1.txt"]
+    ]
+    dir_config = {
+        "name": "test_bucket",
+        "folders": {
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        },
+        "nested_folders": {
+            "folder_name": "nested",
+            "num_folders": 1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 1,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+
+    dir_present = generate_folders_and_files._check_if_dir_structure_exists(
+      dir_config)
+
+    self.assertEqual(dir_present, 0)
 
 
 if __name__ == '__main__':
