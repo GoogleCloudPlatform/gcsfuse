@@ -150,6 +150,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	if err := cfg.ValidateConfig(resolvedConfig); err != nil {
 		return nil, err
 	}
+	cfg.Rationalize(resolvedConfig)
 	return resolvedConfig, nil
 }
 
