@@ -29,7 +29,7 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	return nil
 }
 
-func isValidUrl(u string) (string, error) {
+func isValidURL(u string) (string, error) {
 	decodedUrl, err := url.Parse(u)
 	if err != nil {
 		return "", err
@@ -45,7 +45,7 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("error parsing log-rotate config: %w", err)
 	}
 
-	if config.GcsConnection.CustomEndpoint, err = isValidUrl(config.GcsConnection.CustomEndpoint); err != nil {
+	if config.GcsConnection.CustomEndpoint, err = isValidURL(config.GcsConnection.CustomEndpoint); err != nil {
 		return fmt.Errorf("invalid config.GcsConnection.CustomEndpoint: %w", err)
 	}
 

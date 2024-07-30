@@ -33,7 +33,7 @@ func TestValidateConfig(t *testing.T) {
 		name                   string
 		config                 *Config
 		expectedCustomEndpoint string
-		expectedErr            bool
+		wantErr                bool
 	}{
 		{
 			name: "Valid Config 1",
@@ -44,18 +44,18 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			expectedCustomEndpoint: "https://bing.com/search?q=dotnet",
-			expectedErr:            false,
+			wantErr:                false,
 		},
 		{
 			name: "Valid Config 2",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint: "www.example.com",
+					CustomEndpoint: "https://j@ne:password@google.com",
 				},
 			},
-			expectedCustomEndpoint: "www.example.com",
-			expectedErr:            false,
+			expectedCustomEndpoint: "https://j%40ne:password@google.com",
+			wantErr:                false,
 		},
 		{
 			name: "Invalid Config",
@@ -66,17 +66,16 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			expectedCustomEndpoint: "",
-			expectedErr:            true,
+			wantErr:                true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			actualErr := ValidateConfig(tc.config)
 
 			assert.Equal(t, tc.config.GcsConnection.CustomEndpoint, tc.expectedCustomEndpoint)
-			if tc.expectedErr {
+			if tc.wantErr {
 				assert.Error(t, actualErr)
 			} else {
 				assert.NoError(t, actualErr)
