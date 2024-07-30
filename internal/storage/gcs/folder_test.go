@@ -64,9 +64,9 @@ func TestConvertFolderToMinObject(t *testing.T) {
 		UpdateTime:     timestamp.AsTime(),
 	}
 
-	result := folder.ConvertFolderToMinObject("object-name")
+	result := folder.ConvertFolderToMinObject()
 
-	assert.Equal(t, result.Name, "object-name")
+	assert.Equal(t, result.Name, TestFolderName)
 	assert.Equal(t, result.MetaGeneration, int64(10))
 	assert.Equal(t, result.Updated, timestamp.AsTime())
 }
