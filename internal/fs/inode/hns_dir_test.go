@@ -424,7 +424,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithFailure() {
 func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	const name = "folder"
 	dirName := path.Join(dirInodeName, name) + "/"
-	folder := gcs.Folder{Name: name}
+	folder := gcs.Folder{Name: dirName}
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
 	t.mockBucket.On("CreateFolder", t.ctx, dirName).Return(&folder, nil)
 
