@@ -415,7 +415,7 @@ func TestGetFolder_Prefix(t *testing.T) {
 		folderName)
 
 	assert.Nil(nil, err)
-	assert.Equal(t, name, result.Name)
+	assert.Equal(t, folderName, result.Name)
 }
 
 func TestDeleteFolder(t *testing.T) {
