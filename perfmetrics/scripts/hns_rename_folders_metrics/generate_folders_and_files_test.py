@@ -123,7 +123,7 @@ class TestListDirectory(unittest.TestCase):
         cmd="gcloud storage ls gs://fake_bkt",
         output=b'Error while listing')
 
-    dir_list = generate_folders_and_files.list_directory("gs://fake_bkt")
+    dir_list = generate_folders_and_files._list_directory("gs://fake_bkt")
 
     self.assertEqual(dir_list, None)
     mock_logmessage.assert_called_once_with('Error while listing')
@@ -281,7 +281,7 @@ class TestCheckIfDirStructureExists(unittest.TestCase):
 class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
 
   @patch('subprocess.check_output')
-  @patch('generate_folders_and_files.logmessage')
+  @patch('generate_folders_and_files._logmessage')
   def test_deleting_failure(self, mock_logmessage,
       mock_check_output):
     mock_check_output.side_effect = subprocess.CalledProcessError(
@@ -290,7 +290,7 @@ class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
         output=b'Error while deleting')
 
     exit_code = generate_folders_and_files\
-      .delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
+      ._delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 1)
     mock_logmessage.assert_called_once_with('Error while deleting')
@@ -300,7 +300,7 @@ class TestDeleteExistingFoldersAndFilesInGcsBucket(unittest.TestCase):
     mock_check_output.return_value = 0
 
     exit_code = generate_folders_and_files \
-      .delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
+      ._delete_existing_folders_and_files_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 0)
 

@@ -56,7 +56,7 @@ def _check_for_config_file_inconsistency(config) -> (int):
   if "folders" in config:
     if not ("num_folders" in config["folders"] or "folder_structure" in config[
       "folders"]):
-      _logmessage("Key missing for nested folder")
+      _logmessage("Key missing for folder")
       return 1
 
     if config["folders"]["num_folders"] != len(
@@ -230,7 +230,7 @@ def _check_if_dir_structure_exists(directory_structure) -> bool:
   return True
 
 
-def delete_existing_folders_and_files_in_gcs_bucket(gcs_bucket)->(int):
+def _delete_existing_folders_and_files_in_gcs_bucket(gcs_bucket)->(int):
   try:
     subprocess.check_output(
         'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
@@ -283,7 +283,7 @@ if __name__ == '__main__':
   # If directory structure does not exist/match the structure in the config file
   # delete any existing files in bucket.
   if not dir_structure_present:
-    exit_code = delete_existing_folders_and_files_in_gcs_bucket(directory_structure["name"])
+    exit_code = _delete_existing_folders_and_files_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
       print('Error while deleting bucket.Exiting...!')
       subprocess.call('bash', shell=True)
