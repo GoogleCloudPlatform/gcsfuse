@@ -358,7 +358,7 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
 
     # Creating a nested folder structure in gcs bucket.
     if "nested_folders" not in dir_str:
-      _logmessage("No nested folders specified in the config file",LOG_INFO)
+      logmessage("No nested folders specified in the config file","info")
     else:
       sub_folder_name = dir_str["nested_folders"]["folder_name"]
       destination_url = 'gs://{}/{}'.format(bucket_name,sub_folder_name)
