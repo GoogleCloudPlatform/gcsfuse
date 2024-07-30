@@ -13,7 +13,7 @@
 
 # limitations under the License.
 # To run the script, run in terminal :
-# python3 generate_folder_and_files.py <config-file.json>
+# python3 generate_folders_and_files.py <config-file.json>
 
 import argparse
 import json
@@ -24,7 +24,7 @@ import sys
 import subprocess
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
-TEMPORARY_DIRECTORY = '/tmp/data_gen'
+TEMPORARY_DIRECTORY = './tmp/data_gen'
 BATCH_SIZE = 100
 
 logging.basicConfig(
@@ -247,7 +247,7 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
     return 1
 
 
-def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
+def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     file_size_unit, file_size,
     filename_prefix) -> int:
   for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
@@ -275,7 +275,7 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
       _logmessage("Files were not created locally","error")
       return -1
 
-    # starting upload to the gcs bucket
+    # Starting upload to the gcs bucket.
     try:
         subprocess.Popen(
         'gcloud storage cp --recursive {}/* {}'.format(TEMPORARY_DIRECTORY,
@@ -285,10 +285,10 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
       _logmessage("Issue while uploading files to GCS bucket.Aborting...","error")
       return -1
 
-    # Delete local files from temporary directory
+    # Delete local files from temporary directory.
     subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
-    # Writing number of files uploaded to output file after every batch uploads:
+    # Writing number of files uploaded to output file after every batch uploads.
     _logmessage('{}/{} files uploaded to {}\n'.format(len(num_files), num_of_files,
                                                      destination_blob_name),"info")
   return 0
@@ -299,7 +299,7 @@ if __name__ == '__main__':
   if len(argv) < 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 generate_files.py <config_file> [--keep_files]')
+                    'python3 generate_folders_and_files.py <config_file> [--keep_files]')
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
