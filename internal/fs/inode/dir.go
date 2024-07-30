@@ -533,7 +533,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return
 	}
 	lookUpHNSDir := func(ctx context.Context) (err error) {
-		fmt.Println("Dir Name: ", d.Name(), name, NewDirName(d.Name(), name))
+		fmt.Printf("Dir Name: %s-%s-%s", d.Name(), name, NewDirName(d.Name(), name))
 		dirResult, err = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name))
 		return
 	}
