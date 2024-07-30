@@ -17,6 +17,7 @@ package caching
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +82,31 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 		m := storageutil.ConvertObjToMinObject(o)
 		b.cache.Insert(m, expiration)
 	}
+}
+
+func (b *fastStatBucket) insertListing(listing *gcs.Listing) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+
+	for _, o := range listing.Objects {
+		if !strings.HasSuffix(o.Name, "/") {
+			m := storageutil.ConvertObjToMinObject(o)
+			b.cache.Insert(m, expiration)
+		}
+	}
+
+	for _, p := range listing.CollapsedRuns {
+		if !strings.HasSuffix(p, "/") {
+			_ = fmt.Errorf("error in prefix name: %s", p)
+		}
+		f := &gcs.Folder{
+			Name: p,
+		}
+		b.cache.InsertFolder(f, expiration)
+	}
+
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -253,9 +279,13 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
+	if b.BucketType() == gcs.Hierarchical {
+		b.insertListing(listing)
+		return
+	}
+
 	// Note anything we found.
 	b.insertMultiple(listing.Objects)
-
 	return
 }
 
