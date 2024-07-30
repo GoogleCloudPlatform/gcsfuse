@@ -245,3 +245,41 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsNonExist
 	assert.Nil(t.T(), result)
 	t.mockBucket.AssertExpectations(t.T())
 }
+
+func (t *HNSDirTest) TestRenameFolderWithGivenName() {
+	const (
+		dirName       = "qux"
+		renameDirName = "rename"
+	)
+	folderName := path.Join(dirInodeName, dirName) + "/"
+	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
+	renameFolder := gcs.Folder{Name: renameFolderName}
+	t.mockBucket.On("RenameFolder", t.ctx, folderName, renameFolderName).Return(&renameFolder, nil)
+
+	// Attempt to rename the folder.
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	// Verify the renamed folder exists.
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), renameFolderName, f.Name)
+}
+
+func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
+	var notFoundErr *gcs.NotFoundError
+	const (
+		dirName       = "qux"
+		renameDirName = "rename"
+	)
+	folderName := path.Join(dirInodeName, dirName) + "/"
+	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
+	t.mockBucket.On("RenameFolder", t.ctx, folderName, renameFolderName).Return(nil, &gcs.NotFoundError{})
+
+	// Attempt to rename the folder.
+	f, err := t.in.RenameFolder(t.ctx, folderName, renameFolderName)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.True(t.T(), errors.As(err, &notFoundErr))
+	assert.Nil(t.T(), f)
+}

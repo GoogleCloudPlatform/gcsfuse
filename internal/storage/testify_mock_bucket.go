@@ -95,7 +95,10 @@ func (m *TestifyMockBucket) GetFolder(ctx context.Context, folderName string) (*
 
 func (m *TestifyMockBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
 	args := m.Called(ctx, folderName, destinationFolderId)
-	return args.Get(0).(*gcs.Folder), args.Error(1)
+	if args.Get(0) != nil {
+		return args.Get(0).(*gcs.Folder), nil
+	}
+	return nil, args.Error(1)
 }
 
 func (m *TestifyMockBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
