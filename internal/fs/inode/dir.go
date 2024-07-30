@@ -376,7 +376,7 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 
 	fmt.Println("MinObject in stat: ", folderObject.Name)
 	fmt.Println("Fullname in get folder: ", name)
-
+hn
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
