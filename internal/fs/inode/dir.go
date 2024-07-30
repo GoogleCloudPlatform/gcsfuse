@@ -348,6 +348,9 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 		return nil, fmt.Errorf("StatObject: %w", err)
 	}
 
+	fmt.Println("MinObject in stat: ", m.Name)
+	fmt.Println("Fullname in stat object: ", name)
+
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
@@ -370,6 +373,9 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 	}
 
 	folderObject := folderResult.ConvertFolderToMinObject(name.objectName)
+
+	fmt.Println("MinObject in stat: ", folderObject.Name)
+	fmt.Println("Fullname in get folder: ", name)
 
 	return &Core{
 		Bucket:    bucket,
