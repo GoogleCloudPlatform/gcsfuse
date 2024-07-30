@@ -23,6 +23,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -1924,7 +1925,11 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
-		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+		} else {
+			return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
 }
@@ -1970,6 +1975,84 @@ func (fs *fileSystem) renameFile(
 	}
 
 	return nil
+}
+
+func isSubdir(p1, p2 string) (bool, error) {
+	rel, err := filepath.Rel(p2, p1)
+	if err != nil {
+		return false, err
+	}
+	return !strings.HasPrefix(rel, "..") && rel != ".", nil
+}
+
+func (fs *fileSystem) renameFolder(ctx context.Context,
+		oldParent inode.DirInode,
+		oldName string,
+		newParent inode.DirInode,
+		newName string) (err error) {
+	// Set up a function that throws away the lookup count increment from
+	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
+	// the kernel) and unlocks the pending inodes, but only once
+	var pendingInodes []inode.DirInode
+	releaseInodes := func() {
+		for _, in := range pendingInodes {
+			fs.unlockAndDecrementLookupCount(in, 1)
+		}
+		pendingInodes = []inode.DirInode{}
+	}
+	defer releaseInodes()
+
+	// Get the inode of the old directory
+	oldDir, err := fs.lookUpOrCreateChildDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return fmt.Errorf("lookup old directory: %w", err)
+	}
+	pendingInodes = append(pendingInodes, oldDir)
+
+	// If old directory contains local (un-synced) files, rename operation is not supported.
+	fs.mu.Lock()
+	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	fs.mu.Unlock()
+	if len(entries) != 0 {
+		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
+	}
+
+	if oldParent == newParent {
+		// If both parents are the same, lock once
+		oldParent.Lock()
+		_, err = oldParent.RenameFolder(ctx, oldDir.Name().GcsObjectName(), path.Join(newParent.Name().GcsObjectName(), newName))
+		if err != nil {
+			return err
+		}
+		oldParent.Unlock()
+	} else {
+		// Determine lock order
+		p1, p2 := oldParent, newParent
+		x, _ := isSubdir(oldParent.Name().GcsObjectName(), newParent.Name().GcsObjectName())
+		if x {
+			p1, p2 = newParent, oldParent
+		}
+
+		// Lock in order
+		p1.Lock()
+		p2.Lock()
+		_, err = oldParent.RenameFolder(ctx, path.Join(oldParent.Name().GcsObjectName(), oldName), path.Join(newParent.Name().GcsObjectName(), newName))
+		if err != nil {
+			return err
+		}
+		p1.Unlock()
+		p2.Unlock()
+	}
+
+	// Get the inode of the new directory
+	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)
+	if err != nil {
+		return fmt.Errorf("lookup new directory: %w", err)
+	}
+	pendingInodes = append(pendingInodes, newDir)
+	releaseInodes()
+	fs.checkInvariantsForImplicitDirs()
+	return
 }
 
 // Rename an old directory to a new directory. If the new directory already
