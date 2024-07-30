@@ -295,7 +295,7 @@ func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, erro
 	if d.IsBucketHierarchical() {
 		return findExplicitFolder(ctx, d.Bucket(), childName)
 	}
-	
+
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
