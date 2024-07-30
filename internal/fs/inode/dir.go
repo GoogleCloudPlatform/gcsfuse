@@ -847,7 +847,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 			return nil, err
 		}
 		// Convert the folder to a minimal object
-		o := f.ConvertFolderToMinObject(name)
+		o := f.ConvertFolderToMinObject(fullName.objectName)
 		core = &Core{
 			FullName:  fullName,
 			Bucket:    d.Bucket(),
@@ -873,7 +873,6 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 
 	return core, nil
 }
-
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DeleteChildFile(
