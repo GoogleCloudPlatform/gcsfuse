@@ -44,7 +44,10 @@ func (m *TestifyMockBucket) NewReader(ctx context.Context, req *gcs.ReadObjectRe
 
 func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (*gcs.Object, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*gcs.Object), args.Error(1)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gcs.Object), nil
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {
