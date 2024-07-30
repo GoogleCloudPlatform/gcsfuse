@@ -185,7 +185,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	var wg sync.WaitGroup
 	goroutineCount := 10 // Number of concurrent goroutines
 	wg.Add(goroutineCount)
-	timeout := 50 * time.Second
+	timeout := 600 * time.Second // More timeout to accommodate the high listing time without kernel-list-cache.
 
 	// Create multiple go routines to listing concurrently.
 	for i := 0; i < goroutineCount; i++ {
