@@ -35,6 +35,8 @@ type Core struct {
 	// if the inode is the base directory or an implicit directory.
 	MinObject *gcs.MinObject
 
+	Folder *gcs.Folder
+
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool
 }

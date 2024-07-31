@@ -373,12 +373,10 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
-	folderObject := folderResult.ConvertFolderToMinObject()
-
 	return &Core{
 		Bucket:    bucket,
 		FullName:  name,
-		MinObject: folderObject,
+		Folder: folderResult,
 	}, nil
 }
 
