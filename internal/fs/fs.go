@@ -2313,11 +2313,9 @@ func (fs *fileSystem) WriteFile(
 	in.Lock()
 	defer in.Unlock()
 
-	// Serve the request.
-	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		return err
-	}
-
+	// ideally we should add to a queue and process the request. This is just to check
+	// if callbacks work or not.
+	go fs.writeHandle(in, ctx, op)
 	return
 }
 
@@ -2407,4 +2405,22 @@ func (fs *fileSystem) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
 	return syscall.ENOSYS
+}
+
+func (fs *fileSystem) writeHandle(in *inode.FileInode, ctx context.Context, op *fuseops.WriteFileOp) {
+	in.Lock()
+	defer in.Unlock()
+
+	var key interface{} = fuse.ContextKey
+	foo := ctx.Value(key)
+	rc, _ := foo.(fuse.ReplyCallback)
+
+	// Serve the request.
+	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
+		rc.Callb(ctx, err)
+		return
+	}
+
+	rc.Callb(ctx, nil)
+	return
 }
