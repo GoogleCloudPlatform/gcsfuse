@@ -33,7 +33,7 @@ import (
 
 type contextKeyType uint64
 
-var contextKey interface{} = contextKeyType(0)
+var ContextKey interface{} = contextKeyType(0)
 
 // Ask the Linux kernel for larger read requests.
 //
@@ -85,6 +85,11 @@ type opState struct {
 	inMsg  *buffer.InMessage
 	outMsg *buffer.OutMessage
 	op     interface{}
+}
+
+type ReplyCallback struct {
+	opState *opState
+	Callb func(context.Context, error) error
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -479,9 +484,10 @@ var writeLock sync.Mutex
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Extract the state we stuffed in earlier.
-	var key interface{} = contextKey
+	var key interface{} = ContextKey
 	foo := ctx.Value(key)
-	state, ok := foo.(opState)
+	rc, ok := foo.(ReplyCallback)
+	state := *rc.opState
 	if !ok {
 		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
 	}
