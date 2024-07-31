@@ -95,6 +95,7 @@ type fileSystemServer struct {
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
+	
 	// When we are done, we clean up by waiting for all in-flight ops then
 	// destroying the file system.
 	defer func() {
@@ -126,11 +127,10 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 }
 
 func (s *fileSystemServer) handleOp(
-		c *fuse.Connection,
-		ctx context.Context,
-		op interface{}) {
+	      c *fuse.Connection,
+		    ctx context.Context,
+		    op interface{}) {
 	defer s.opsInFlight.Done()
-
 	// Dispatch to the appropriate method.
 	var err error
 	switch typed := op.(type) {
