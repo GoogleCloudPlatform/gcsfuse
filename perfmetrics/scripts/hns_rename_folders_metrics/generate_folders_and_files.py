@@ -362,7 +362,7 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
     _logmessage('Deleting the temporary directory.\n',LOG_INFO)
     subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
 
-  return 0
+    return 0
 
 
 if __name__ == '__main__':

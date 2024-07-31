@@ -67,6 +67,8 @@ import numpy as np
 from bigquery import experiments_gcsfuse_bq
 from bigquery import constants
 
+from utils.mount_unmount_util import mount_gcs_bucket,unmount_gcs_bucket
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -364,57 +366,6 @@ def _compare_directory_structure(url, directory_structure) -> bool:
   return result
 
 
-def _unmount_gcs_bucket(gcs_bucket) -> None:
-  """Unmounts the GCS bucket.
-
-  Args:
-    gcs_bucket: Name of the directory to which GCS bucket is mounted to.
-
-  Raises:
-    An error if the GCS bucket could not be umnounted and aborts the program.
-  """
-
-  log.info('Unmounting the GCS Bucket.\n')
-  exit_code = subprocess.call('umount -l {}'.format(gcs_bucket), shell=True)
-  if exit_code != 0:
-    log.error('Error encountered in umounting the bucket. Aborting!\n')
-    subprocess.call('bash', shell=True)
-  else:
-    subprocess.call('rm -rf {}'.format(gcs_bucket), shell=True)
-    log.info(
-        'Successfully unmounted the bucket and deleted %s directory.\n',
-        gcs_bucket)
-
-
-def _mount_gcs_bucket(bucket_name, gcsfuse_flags) -> str:
-  """Mounts the GCS bucket into the gcs_bucket directory.
-
-  Args:
-    bucket_name: Name of the bucket to be mounted.
-    gcsfuse_flags: Set of flags for which bucket_name will be mounted
-
-  Returns:
-    A string which contains the name of the directory to which the bucket
-    is mounted.
-
-  Raises:
-    Aborts the program if error is encountered while mounting the bucket.
-  """
-
-  log.info('Started mounting the GCS Bucket using GCSFuse.\n')
-  gcs_bucket = bucket_name
-  subprocess.call('mkdir {}'.format(gcs_bucket), shell=True)
-
-  exit_code = subprocess.call(
-      'gcsfuse {} {} {}'.format(
-          gcsfuse_flags, bucket_name, gcs_bucket), shell=True)
-  if exit_code != 0:
-    log.error('Cannot mount the GCS bucket due to exit code %s.\n', exit_code)
-    subprocess.call('bash', shell=True)
-  else:
-    return gcs_bucket
-
-
 def _parse_arguments(argv):
   """Parses the arguments provided to the script via command line.
 
@@ -620,8 +571,8 @@ if __name__ == '__main__':
     subprocess.call('bash', shell=True)
   log.info('Directory Structure Created.\n')
 
-  gcs_bucket = _mount_gcs_bucket(directory_structure.name,
-                                 args.gcsfuse_flags[0])
+  gcs_bucket = mount_gcs_bucket(directory_structure.name,
+                                 args.gcsfuse_flags[0],log)
 
   gcs_bucket_results, persistent_disk_results = _perform_testing(
       directory_structure.folders, gcs_bucket, persistent_disk,
@@ -659,4 +610,4 @@ if __name__ == '__main__':
     log.info('Deleting files from persistent disk.\n')
     subprocess.call('rm -rf {}'.format(persistent_disk), shell=True)
 
-  _unmount_gcs_bucket(gcs_bucket)
+  unmount_gcs_bucket(gcs_bucket,log)
