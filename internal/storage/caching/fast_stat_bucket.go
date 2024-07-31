@@ -85,8 +85,8 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
-// InsertHierarchicalListing saves the objects in cache excluding zero byte objects corresponding to folders
-// by iterating objects present in listing and saves prefixes as folders all prefixes are folders in hns by
+// insertHierarchicalListing saves the objects in cache excluding zero byte objects corresponding to folders
+// by iterating objects present in listing and saves prefixes as folders (all prefixes are folders in hns) by
 // iterating collapsedRuns of listing.
 func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
