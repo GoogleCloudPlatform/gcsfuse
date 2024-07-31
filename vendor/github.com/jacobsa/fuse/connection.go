@@ -33,23 +33,25 @@ import (
 
 type contextKeyType uint64
 
-var ContextKey interface{} = contextKeyType(0)
+var contextKey interface{} = contextKeyType(0)
 
 // Ask the Linux kernel for larger read requests.
 //
 // As of 2015-03-26, the behavior in the kernel is:
 //
-//   - (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
-//     ra_pages to be init_response->max_readahead divided by the page size.
+//   - (https://tinyurl.com/2eakn5e9, https://tinyurl.com/mry9e33d) Set the
+//     local variable ra_pages to be init_response->max_readahead divided by
+//     the page size.
 //
-//   - (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
-//     backing_dev_info::ra_pages to the min of that value and what was sent
-//     in the request's max_readahead field.
+//   - (https://tinyurl.com/2eakn5e9, https://tinyurl.com/mbpshk8h) Set
+//     backing_dev_info::ra_pages to the min of that value and what was sent in
+//     the request's max_readahead field.
 //
-//   - (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
-//     how much to read ahead.
+//   - (https://tinyurl.com/57hpfu4x) Use backing_dev_info::ra_pages when
+//     deciding how much to read ahead.
 //
-//   - (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
+//   - (https://tinyurl.com/ywhfcfte) Don't read ahead at all if that field is
+//     zero.
 //
 // Reading a page at a time is a drag. Ask for a larger size.
 const maxReadahead = 1 << 20
@@ -87,20 +89,15 @@ type opState struct {
 	op     interface{}
 }
 
-type ReplyCallback struct {
-	opState *opState
-	Callb func(context.Context, error) error
-}
-
 // Create a connection wrapping the supplied file descriptor connected to the
 // kernel. You must eventually call c.close().
 //
 // The loggers may be nil.
 func newConnection(
-	cfg MountConfig,
-	debugLogger *log.Logger,
-	errorLogger *log.Logger,
-	dev *os.File) (*Connection, error) {
+		cfg MountConfig,
+		debugLogger *log.Logger,
+		errorLogger *log.Logger,
+		dev *os.File) (*Connection, error) {
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
@@ -209,10 +206,10 @@ func (c *Connection) Init() error {
 // Log information for an operation with the given ID. calldepth is the depth
 // to use when recovering file:line information with runtime.Caller.
 func (c *Connection) debugLog(
-	fuseID uint64,
-	calldepth int,
-	format string,
-	v ...interface{}) {
+		fuseID uint64,
+		calldepth int,
+		format string,
+		v ...interface{}) {
 	if c.debugLogger == nil {
 		return
 	}
@@ -242,8 +239,8 @@ func (c *Connection) debugLog(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
-	fuseID uint64,
-	f func()) {
+		fuseID uint64,
+		f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -261,8 +258,8 @@ func (c *Connection) recordCancelFunc(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
-	opCode uint32,
-	fuseID uint64) context.Context {
+		opCode uint32,
+		fuseID uint64) context.Context {
 	// Start with the parent context.
 	ctx := c.cfg.OpContext
 
@@ -290,8 +287,8 @@ func (c *Connection) beginOp(
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) finishOp(
-	opCode uint32,
-	fuseID uint64) {
+		opCode uint32,
+		fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -301,7 +298,7 @@ func (c *Connection) finishOp(
 	//
 	// Special case: we don't do this for Forget requests. See the note in
 	// beginOp above.
-	if opCode != fusekernel.OpForget && opCode != fusekernel.OpWrite {
+	if opCode != fusekernel.OpForget {
 		cancel, ok := c.cancelFuncs[fuseID]
 		if !ok {
 			panic(fmt.Sprintf("Unknown request ID in finishOp: %v", fuseID))
@@ -318,13 +315,13 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	defer c.mu.Unlock()
 
 	// NOTE(jacobsa): fuse.txt in the Linux kernel documentation
-	// (https://goo.gl/H55Dnr) defines the kernel <-> userspace protocol for
-	// interrupts.
+	// (https://tinyurl.com/2r4ajuwd) defines the kernel <-> userspace protocol
+	// for interrupts.
 	//
 	// In particular, my reading of it is that an interrupt request cannot be
 	// delivered to userspace before the original request. The part about the
 	// race and EAGAIN appears to be aimed at userspace programs that
-	// concurrently process requests (cf. http://goo.gl/BES2rs).
+	// concurrently process requests (https://tinyurl.com/3euehwfb).
 	//
 	// So in this method if we can't find the ID to be interrupted, it means that
 	// the request has already been replied to.
@@ -379,6 +376,7 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 
 // Write the supplied message to the kernel.
 func (c *Connection) writeMessage(msg []byte) error {
+	// Avoid the retry loop in os.File.Write.
 	n, err := syscall.Write(int(c.dev.Fd()), msg)
 	if err != nil {
 		return err
@@ -432,9 +430,7 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 		// Set up a context that remembers information about this op.
 		ctx := c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
-		opstate := opState{inMsg, outMsg, op}
-		replyb := ReplyCallback{opState: &opstate, Callb: c.Reply}
-		ctx = context.WithValue(ctx, ContextKey, replyb)
+		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op})
 
 		// Return the op to the user.
 		return ctx, op, nil
@@ -443,8 +439,8 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 // Skip errors that happen as a matter of course, since they spook users.
 func (c *Connection) shouldLogError(
-	op interface{},
-	err error) bool {
+		op interface{},
+		err error) bool {
 	// We don't log non-errors.
 	if err == nil {
 		return false
@@ -485,11 +481,9 @@ var writeLock sync.Mutex
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Extract the state we stuffed in earlier.
-	var key interface{} = ContextKey
+	var key interface{} = contextKey
 	foo := ctx.Value(key)
-	rc, ok := foo.(ReplyCallback)
-	state := *rc.opState
-
+	state, ok := foo.(opState)
 	if !ok {
 		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
 	}
@@ -498,7 +492,6 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	inMsg := state.inMsg
 	outMsg := state.outMsg
 	fuseID := inMsg.Header().Unique
-
 
 	defer func() {
 		// Invoke any callbacks set by the FUSE server after the response to the kernel is
@@ -519,7 +512,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
-			c.debugLog(fuseID, 1, "-> OK (%s)", describeResponse(op))
+			c.debugLog(fuseID, 1, "-> %s", describeResponse(op))
 		} else {
 			c.debugLog(fuseID, 1, "-> Error: %q", opErr.Error())
 		}
