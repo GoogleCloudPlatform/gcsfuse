@@ -196,7 +196,8 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	// flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
 	var hnsFlagSet []string
-	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+	hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient)
+	if err == nil {
 		hnsFlagSet = append(hnsFlagSet, "--key-file="+localKeyFilePath, "--stat-cache-ttl=0")
 	}
 
