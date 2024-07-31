@@ -85,22 +85,22 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
+// InsertHierarchicalListing saves the objects in cache excluding zero byte objects corresponding to folders
+// by iterating objects present in listing and saves prefixes as folders all prefixes are folders in hns by
+// iterating collapsedRuns of listing.
 func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	expiration := b.clock.Now().Add(b.ttl)
 
-	// save the objects in cache
 	for _, o := range listing.Objects {
-		// excluding zero byte objects corresponding to folders
 		if !strings.HasSuffix(o.Name, "/") {
 			m := storageutil.ConvertObjToMinObject(o)
 			b.cache.Insert(m, expiration)
 		}
 	}
 
-	// save prefixes as folders all prefixes are folders in hns
 	for _, p := range listing.CollapsedRuns {
 		if !strings.HasSuffix(p, "/") {
 			// log the error for incorrect prefix but don't fail the operation
