@@ -85,7 +85,7 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
-func (b *fastStatBucket) insertListing(listing *gcs.Listing) {
+func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -286,7 +286,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	if b.BucketType() == gcs.Hierarchical {
-		b.insertListing(listing)
+		b.insertHierarchicalListing(listing)
 		return
 	}
 
