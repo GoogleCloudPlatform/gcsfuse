@@ -290,7 +290,7 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
-	// Note anything we found.
+	// note anything we found.
 	b.insertMultiple(listing.Objects)
 	return
 }

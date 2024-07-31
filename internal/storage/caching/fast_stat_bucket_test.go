@@ -569,7 +569,7 @@ func (t *ListObjectsTest) EmptyListing() {
 }
 
 func (t *ListObjectsTest) EmptyListingForHNS() {
-	// Wrapped
+	// wrapped
 	expected := &gcs.Listing{}
 
 	ExpectCall(t.wrapped, "BucketType")().
@@ -578,7 +578,7 @@ func (t *ListObjectsTest) EmptyListingForHNS() {
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
 
-	// Call
+	// call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)
@@ -611,7 +611,7 @@ func (t *ListObjectsTest) NonEmptyListing() {
 }
 
 func (t *ListObjectsTest) NonEmptyListingForHNS() {
-	// Wrapped
+	// wrapped
 	o0 := &gcs.Object{Name: "taco"}
 	o1 := &gcs.Object{Name: "burrito"}
 
@@ -626,12 +626,12 @@ func (t *ListObjectsTest) NonEmptyListingForHNS() {
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
 
-	// Insert
+	// insert
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
 
 	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(1)
 
-	// Call
+	// call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)

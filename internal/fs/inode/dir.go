@@ -691,7 +691,7 @@ func (d *dirInode) readObjects(
 		}
 	}
 
-	// Return an appropriate continuation token, if any.
+	// return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
 	if !d.implicitDirs && !d.isHNSEnabled {
