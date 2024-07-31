@@ -106,7 +106,7 @@ func (dh *DirHandle) checkInvariants() {
 // GCS object names, to conflicting file names.
 //
 // Input must be sorted by name.
-func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
+func fixConflictingNames(entries []fuseutil.Dirent, localEntries map[string]fuseutil.Dirent) (output []fuseutil.Dirent, err error) {
 	// Sanity check.
 	if !sort.IsSorted(sortedDirents(entries)) {
 		err = fmt.Errorf("expected sorted input")
@@ -119,13 +119,15 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 
 		// Find the previous entry.
 		if i == 0 {
+			output = append(output, *e)
 			continue
 		}
 
-		prev := &entries[i-1]
+		prev := &output[len(output)-1]
 
 		// Does the pair have matching names?
 		if e.Name != prev.Name {
+			output = append(output, *e)
 			continue
 		}
 
@@ -134,13 +136,19 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 		prevIsDir := prev.Type == fuseutil.DT_Directory
 
 		if eIsDir == prevIsDir {
-			err = fmt.Errorf(
-				"weird dirent type pair for name %q: %v, %v",
-				e.Name,
-				e.Type,
-				prev.Type)
-
-			return
+			if _, ok := localEntries[e.Name]; ok && !eIsDir {
+				// We have found same entry in GCS and local file entries, i.e, the
+				// entry is uploaded to GCS but not yet deleted from local entries.
+				// Do not return the duplicate entry as part of list response.
+				continue
+			} else {
+				err = fmt.Errorf(
+					"weird dirent type pair for name %q: %v, %v",
+					e.Name,
+					e.Type,
+					prev.Type)
+				return
+			}
 		}
 
 		// Repair whichever is not the directory.
@@ -149,6 +157,8 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 		} else {
 			e.Name += inode.ConflictingFileNameSuffix
 		}
+
+		output = append(output, *e)
 	}
 
 	return
@@ -161,7 +171,7 @@ func fixConflictingNames(entries []fuseutil.Dirent) (err error) {
 func readAllEntries(
 	ctx context.Context,
 	in inode.DirInode,
-	localEntries []fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
+	localEntries map[string]fuseutil.Dirent) (entries []fuseutil.Dirent, err error) {
 	// Read entries from GCS.
 	// Read one batch at a time.
 	var tok string
@@ -185,7 +195,9 @@ func readAllEntries(
 	}
 
 	// Append local file entries (not synced to GCS).
-	entries = append(entries, localEntries...)
+	for _, localEntry := range localEntries {
+		entries = append(entries, localEntry)
+	}
 
 	// Ensure that the entries are sorted, for use in fixConflictingNames
 	// below.
@@ -194,16 +206,9 @@ func readAllEntries(
 	// Fix name conflicts.
 	// When a local file is synced to GCS but not removed from the local file map,
 	// the entries list will have two duplicate entries.
-	// To handle this scenario, we had 2 options:
-	// Option 1: [Selected]
-	// Throw an error while fixing conflicting names. The error will be fixed in
-	// subsequent ls calls assuming that entry will be removed from localFileInodes.
-	// Option 2: [Not Selected]
-	// Restrict fixConflictingNames to only GCS entries and show duplicate
-	// entries when ReadDir is called. In this case, a local file can have
-	// same name as directory and LookUpInode call will fetch directory details
-	// for both of them.
-	err = fixConflictingNames(entries)
+	// To handle this scenario, we are removing the duplicate entry before
+	// returning the response to kernel.
+	entries, err = fixConflictingNames(entries, localEntries)
 	if err != nil {
 		err = fmt.Errorf("fixConflictingNames: %w", err)
 		return
@@ -236,7 +241,7 @@ func readAllEntries(
 
 // LOCKS_REQUIRED(dh.Mu)
 // LOCKS_EXCLUDED(dh.in)
-func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries []fuseutil.Dirent) (err error) {
+func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries map[string]fuseutil.Dirent) (err error) {
 	dh.in.Lock()
 	defer dh.in.Unlock()
 
@@ -270,7 +275,7 @@ func (dh *DirHandle) ensureEntries(ctx context.Context, localFileEntries []fuseu
 func (dh *DirHandle) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp,
-	localFileEntries []fuseutil.Dirent) (err error) {
+	localFileEntries map[string]fuseutil.Dirent) (err error) {
 	// If the request is for offset zero, we assume that either this is the first
 	// call or rewinddir has been called. Reset state.
 	if op.Offset == 0 {

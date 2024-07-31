@@ -187,6 +187,10 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 	return
 }
 
+func (t *DirTest) getLocalDirentKey(in Inode) string {
+	return path.Base(in.Name().LocalName())
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -1443,10 +1447,8 @@ func (t *DirTest) LocalFileEntriesWith2LocalChildFiles() {
 	entries := t.in.LocalFileEntries(localFileInodes)
 
 	AssertEq(2, len(entries))
-	entryNames := []string{entries[0].Name, entries[1].Name}
-	sort.Strings(entryNames)
-	AssertEq(entryNames[0], "1_localChildInode")
-	AssertEq(entryNames[1], "2_localChildInode")
+	AssertEq(entries[t.getLocalDirentKey(in1)].Name, "1_localChildInode")
+	AssertEq(entries[t.getLocalDirentKey(in2)].Name, "2_localChildInode")
 }
 
 func (t *DirTest) LocalFileEntriesWithNoLocalChildFiles() {
@@ -1481,7 +1483,7 @@ func (t *DirTest) LocalFileEntriesWithUnlinkedLocalChildFiles() {
 
 	// Validate entries contains only linked child files.
 	AssertEq(1, len(entries))
-	AssertEq(entries[0].Name, "1_localChildInode")
+	AssertEq(entries[t.getLocalDirentKey(in1)].Name, "1_localChildInode")
 }
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
