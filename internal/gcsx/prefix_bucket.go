@@ -230,14 +230,27 @@ func (b *prefixBucket) GetFolder(ctx context.Context, folderName string) (folder
 	return f, err
 }
 
-func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (folder *gcs.Folder, err error) {
+func (b *prefixBucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
 	mFolderName := b.wrappedName(folderName)
-	return b.wrapped.CreateFolder(ctx, mFolderName)
+	f, err := b.wrapped.CreateFolder(ctx, mFolderName)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
 }
 
 func (b *prefixBucket) RenameFolder(ctx context.Context, folderName string, destinationFolderId string) (*gcs.Folder, error) {
 	mFolderName := b.wrappedName(folderName)
 	mDestinationFolderId := b.wrappedName(destinationFolderId)
-	o, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)
-	return o, err
+	f, err := b.wrapped.RenameFolder(ctx, mFolderName, mDestinationFolderId)
+
+	// Modify the returned folder.
+	if f != nil {
+		f.Name = b.localName(f.Name)
+	}
+
+	return f, err
 }
