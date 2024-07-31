@@ -477,8 +477,9 @@ func TestCreateFolder(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.Background()
 
-	_, err = bucket.CreateFolder(ctx, suffix)
+	f, err := bucket.CreateFolder(ctx, suffix)
 
+	assert.Equal(t, f.Name, suffix)
 	assert.NoError(t, err)
 	// Folder should get created
 	_, err = bucket.GetFolder(ctx, suffix)

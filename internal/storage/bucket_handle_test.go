@@ -1309,7 +1309,7 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 }
 
 func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
-	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName}
+	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
 	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
@@ -1324,7 +1324,7 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	mockFolder := controlpb.Folder{
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
-	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName}
+	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
 	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = gcs.Hierarchical
 
