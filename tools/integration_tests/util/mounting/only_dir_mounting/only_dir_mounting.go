@@ -52,7 +52,7 @@ func mountGcsFuseForFlagsAndExecuteTests(flags [][]string, m *testing.M) (succes
 		}
 		log.Printf("Running only dir mounting tests with flags: %s", flags[i])
 		successCode = setup.ExecuteTestForFlagsSet(flags[i], m)
-		if successCode != 0{
+		if successCode != 0 {
 			return
 		}
 	}
