@@ -148,7 +148,7 @@ The behavior of file cache is controlled by the following config-file parameters
    - Use a value of 0 to ensure that the most up to date file is read. Using a value of 0 issues a Get metadata call to make sure that the object generation for the file in the cache matches what's stored in Cloud Storage. 
 
 Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-cache):
-1. **Persistence**: Cloud Storage FUSE caches aren't persisted on unmounts and restart when all metadata entries are evicted. However, data in the file cache isn't evicted and should be deleted by the user, or can be reused in subsequent mount operations once the metadata has been populated again.
+1. **Persistence**: Cloud Storage FUSE caches aren't persisted on unmounts and restarts. For file caching, while the metadata entries needed to serve files from the cache are evicted on unmounts and restarts, data in the file cache may still be present in the file directory. You should delete data in the file cache directory after unmounts or restarts.
 
 2. **Security**: When you enable caching, Cloud Storage FUSE uses the specified 'cache-dir' you set as the underlying directory for the cache to persist files from your Cloud Storage bucket in an unencrypted format. Any user or process that has access to this cache directory can access these files. We recommend that you restrict access to this directory.
 
