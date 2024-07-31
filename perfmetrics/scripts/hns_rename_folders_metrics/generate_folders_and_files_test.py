@@ -571,24 +571,24 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
             ]
         }
     }
-
-    exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
-
-    self.assertEqual(exit_code, 0)
-    # Verify subprocess calls
     expected_subprocess_calls = [
         call(['mkdir', '-p', generate_folders_and_files.TEMPORARY_DIRECTORY]),
         call(['rm', '-r', generate_folders_and_files.TEMPORARY_DIRECTORY])
     ]
-    mock_subprocess.assert_has_calls(expected_subprocess_calls)
-    # Verify log messages
-    mock_log.assert_any_call('Making a temporary directory.\n', generate_folders_and_files.LOG_INFO)
-    mock_log.assert_any_call('Deleting the temporary directory.\n', generate_folders_and_files.LOG_INFO)
-    # Verify generate_files_and_upload_to_gcs_bucket call
     expected_generate_and_upload_calls = [
         call( 'gs://test_bucket/test_folder/',2,'kb',1,'file'),
         call('gs://test_bucket/test_nested/test_nested_folder1/',2,'kb',1,'file')
     ]
+
+    exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
+
+    self.assertEqual(exit_code, 0)
+    # Verify subprocess calls.
+    mock_subprocess.assert_has_calls(expected_subprocess_calls)
+    # Verify log messages.
+    mock_log.assert_any_call('Making a temporary directory.\n', generate_folders_and_files.LOG_INFO)
+    mock_log.assert_any_call('Deleting the temporary directory.\n', generate_folders_and_files.LOG_INFO)
+    # Verify generate_files_and_upload_to_gcs_bucket call.
     mock_generate.assert_has_calls(expected_generate_and_upload_calls)
 
 
