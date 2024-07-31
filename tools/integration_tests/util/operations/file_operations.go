@@ -41,7 +41,7 @@ const (
 	// TimeSlop The radius we use for "expect mtime is within"-style assertions as kernel
 	// time can be slightly out of sync of time.Now().
 	// Ref: https://github.com/golang/go/issues/33510
-	TimeSlop = 100 * time.Millisecond
+	TimeSlop = 25 * time.Millisecond
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
