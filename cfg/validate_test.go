@@ -28,41 +28,28 @@ func validLogRotateConfig() LogRotateLoggingConfig {
 	}
 }
 
-func TestValidateConfig(t *testing.T) {
+func TestValidateConfigSuccessful(t *testing.T) {
 	testCases := []struct {
-		name    string
-		config  *Config
-		wantErr bool
+		name   string
+		config *Config
 	}{
 		{
-			name: "Valid Config 1",
+			name: "Valid Config where input and expected custom endpoint matches.",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
 			},
-			wantErr: false,
 		},
 		{
-			name: "Valid Config 2",
+			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
 			},
-			wantErr: false,
-		},
-		{
-			name: "Invalid Config",
-			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
-				GcsConnection: GcsConnectionConfig{
-					CustomEndpoint: "a_b://abc",
-				},
-			},
-			wantErr: true,
 		},
 	}
 
@@ -70,11 +57,32 @@ func TestValidateConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualErr := ValidateConfig(tc.config)
 
-			if tc.wantErr {
-				assert.Error(t, actualErr)
-			} else {
-				assert.NoError(t, actualErr)
-			}
+			assert.NoError(t, actualErr)
+		})
+	}
+}
+
+func TestValidateConfigUnsuccessful(t *testing.T) {
+	testCases := []struct {
+		name   string
+		config *Config
+	}{
+		{
+			name: "Invalid Config due to invalid custom endpoint",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "a_b://abc",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := ValidateConfig(tc.config)
+
+			assert.Error(t, actualErr)
 		})
 	}
 }

@@ -35,7 +35,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		return nil, fmt.Errorf("PopulateNewConfigFromLegacyFlagsAndConfig: unexpected nil flags or mount config")
 	}
 
-	// resolve custom endpoint url type to string.
+	// Resolve custom endpoint url type to string.
 	var customEndPoint string
 	if flags.CustomEndpoint != nil {
 		customEndPoint = flags.CustomEndpoint.String()
