@@ -306,12 +306,12 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
     _logmessage('Making a temporary directory.\n',LOG_INFO)
     subprocess.call(['mkdir', '-p', TEMPORARY_DIRECTORY])
 
-    # creating a folder structure in gcs bucket
+    # Creating a folder structure in gcs bucket.
     if "folders" not in dir_str:
       _logmessage("No folders specified in the config file",LOG_INFO)
     else:
       for folder in dir_str["folders"]["folder_structure"]:
-        # create the folder
+        # Create the folder.
         folder_name = folder["name"]
         num_files = folder["num_files"]
         filename_prefix = folder["file_name_prefix"]
@@ -325,7 +325,7 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
                                                 int(file_size),
                                                 filename_prefix)
 
-    # creating a nested folder structure in gcs bucket
+    # Creating a nested folder structure in gcs bucket.
     if "nested_folders" not in dir_str:
       _logmessage("No nested folders specified in the config file",LOG_INFO)
     else:
@@ -338,7 +338,7 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
         file_size = folder["file_size"][:-2]
         file_size_unit = folder["file_size"][-2:]
 
-        # # Creating folders locally in temp directory and copying to gcs bucket:
+        # Creating folders locally in temp directory and copying to gcs bucket:
         destination_blob_name = 'gs://{}/{}/{}/'.format(bucket_name,
                                                         sub_folder_name,
                                                         folder_name)
@@ -353,6 +353,8 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
     subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
 
     return 0
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -398,9 +400,9 @@ if __name__ == '__main__':
   if not dir_structure_present:
     exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
-      _logmessage('Error while deleting content in bucket.Exiting...!','error')
+      _logmessage('Error while deleting content in bucket.Exiting...!', LOG_ERROR)
       subprocess.call('bash', shell=True)
 
     exit_code = _parse_and_generate_directory_structure(directory_structure)
     if exit_code != 0:
-      _logmessage('Error while trying to generate files...','error')
+      _logmessage('Error while trying to generate files...', LOG_ERROR)
