@@ -374,9 +374,9 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 	}
 
 	return &Core{
-		Bucket:    bucket,
-		FullName:  name,
-		Folder: folderResult,
+		Bucket:   bucket,
+		FullName: name,
+		Folder:   folderResult,
 	}, nil
 }
 
@@ -676,10 +676,13 @@ func (d *dirInode) readObjects(
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			var explicitDir *Core
+			if !d.isBucketHierarchical() {
+				explicitDir = &Core{
+					Bucket:    d.Bucket(),
+					FullName:  dirName,
+					MinObject: storageutil.ConvertObjToMinObject(o),
+				}
 			}
 			cores[dirName] = explicitDir
 		} else {
@@ -704,16 +707,25 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
-			continue
-		}
+		if !d.isBucketHierarchical() {
+			if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+				continue
+			}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+			implicitDir := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: nil,
+			}
+			cores[dirName] = implicitDir
+		} else {
+			folder := &Core{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &gcs.Folder{Name: dirName.objectName},
+			}
+			cores[dirName] = folder
 		}
-		cores[dirName] = implicitDir
 	}
 	return
 }

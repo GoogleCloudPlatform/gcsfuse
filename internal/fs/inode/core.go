@@ -50,6 +50,8 @@ func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
 		return metadata.UnknownType
+	case c.Folder != nil:
+		return metadata.ExplicitDirType
 	case c.MinObject == nil && !c.Local:
 		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
@@ -64,6 +66,10 @@ func (c *Core) Type() metadata.Type {
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
 func (c Core) SanityCheck() error {
+	if c.Folder != nil && c.FullName.objectName != c.Folder.Name {
+		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.Folder.Name)
+	}
+
 	if c.MinObject != nil && c.FullName.objectName != c.MinObject.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
 	}
