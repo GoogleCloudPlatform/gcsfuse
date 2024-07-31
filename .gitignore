@@ -41,5 +41,34 @@ _testmain.go
 .idea/
 .vscode/
 
-# External folders
-vendor/
+vendor/cloud.google.com
+vendor/contrib.go.opencensus.io
+vendor/go.opencensus.io
+vendor/go.opentelemetry.io
+vendor/go.uber.org
+vendor/golang.org
+vendor/google.golang.org
+vendor/gopkg.in
+vendor/github.com/a*
+vendor/github.com/b*
+vendor/github.com/c*
+vendor/github.com/d*
+vendor/github.com/e*
+vendor/github.com/f*
+vendor/github.com/g*
+vendor/github.com/h*
+vendor/github.com/i*
+vendor/github.com/k*
+vendor/github.com/m*
+vendor/github.com/p*
+vendor/github.com/r*
+vendor/github.com/s*
+vendor/github.com/u*
+vendor/github.com/jmespath
+vendor/github.com/jacobsa/daemonize
+vendor/github.com/jacobsa/oglematchers
+vendor/github.com/jacobsa/oglemock
+vendor/github.com/jacobsa/ogletest
+vendor/github.com/jacobsa/reqtrace
+vendor/github.com/jacobsa/syncutil
+vendor/github.com/jacobsa/timeutil

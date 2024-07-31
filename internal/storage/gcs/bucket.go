@@ -142,4 +142,36 @@ type Bucket interface {
 		req *DeleteObjectRequest) error
 
 	DeleteFolder(ctx context.Context, folderName string) error
+
+	/*CreateChunkUploader(
+		ctx context.Context,
+		req *CreateObjectRequest,
+		writeChunkSize int,
+		progressFunc func(int64)) (ChunkUploader, error)
+
+	CreateObjectInChunks(ctx context.Context, req *CreateObjectRequest, writeChunkSize int, progressFunc func(int64)) (*storage.Writer, error)
+	// Do we need context ??
+	UploadChunk(writer *storage.Writer, contents io.Reader) error
+	FinalizeUpload(write *storage.Writer) error*/
+}
+
+type ChunkUploader interface {
+	// Upload uploads the given chunk to gcs.
+	// Progress should be tracked using the progress func
+	// passed during ChunkUploader instance creation.
+	//
+	// Unlike the io.Writer interface, it doesn't return number-of-bytes
+	// uploaded in this call, as the write is asynchronous; instead
+	// this interface instead has
+	// BytesWrittenSoFar function below, which returns the total number
+	// of bytes successfully uploaded so far.
+	Upload(ctx context.Context, contents io.Reader) error
+
+	// Close finalizes the upload and returns the created object.
+	// Error is returned in case of failures.
+	Close(ctx context.Context) (*Object, error)
+
+	// Returns the number of bytes successfully uploaded so far
+	// by this uploader.
+	BytesUploadedSoFar() int64
 }

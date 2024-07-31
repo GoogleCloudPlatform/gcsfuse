@@ -1,0 +1,3 @@
+file-cache:
+  max-size-mb: 1024000
+cache-dir: /usr/local/google/home/swethv/Desktop/gcsfusecache

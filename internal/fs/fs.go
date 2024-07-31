@@ -2298,6 +2298,7 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+
 	if fs.mountConfig.FileSystemConfig.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context.
@@ -2305,19 +2306,13 @@ func (fs *fileSystem) WriteFile(
 		ctx, cancel = util.IsolateContextFromParentContext(ctx)
 		defer cancel()
 	}
+
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
-	in.Lock()
-	defer in.Unlock()
-
-	// Serve the request.
-	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
-		return err
-	}
-
+	go fs.writeHandle(in, ctx, op)
 	return
 }
 
@@ -2407,4 +2402,22 @@ func (fs *fileSystem) ListXattr(
 	ctx context.Context,
 	op *fuseops.ListXattrOp) error {
 	return syscall.ENOSYS
+}
+
+func (fs *fileSystem) writeHandle(in *inode.FileInode, ctx context.Context, op *fuseops.WriteFileOp) {
+	in.Lock()
+	defer in.Unlock()
+
+	var key interface{} = fuse.ContextKey
+	foo := ctx.Value(key)
+	rc, _ := foo.(fuse.ReplyCallback)
+
+	// Serve the request.
+	if err := in.Write(ctx, op.Data, op.Offset); err != nil {
+		rc.Callb(ctx, err)
+		return
+	}
+
+	rc.Callb(ctx, nil)
+	return
 }
