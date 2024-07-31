@@ -555,10 +555,30 @@ func (t *ListObjectsTest) EmptyListing() {
 	// Wrapped
 	expected := &gcs.Listing{}
 
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.NonHierarchical))
+
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
 
 	// Call
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	ExpectEq(expected, listing)
+}
+
+func (t *ListObjectsTest) EmptyListingForHNS() {
+	// wrapped
+	expected := &gcs.Listing{}
+
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.Hierarchical))
+
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
+		WillOnce(Return(expected, nil))
+
+	// call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)
@@ -574,6 +594,9 @@ func (t *ListObjectsTest) NonEmptyListing() {
 		Objects: []*gcs.Object{o0, o1},
 	}
 
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.NonHierarchical))
+
 	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
 		WillOnce(Return(expected, nil))
 
@@ -581,6 +604,34 @@ func (t *ListObjectsTest) NonEmptyListing() {
 	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
 
 	// Call
+	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
+
+	AssertEq(nil, err)
+	ExpectEq(expected, listing)
+}
+
+func (t *ListObjectsTest) NonEmptyListingForHNS() {
+	// wrapped
+	o0 := &gcs.Object{Name: "taco"}
+	o1 := &gcs.Object{Name: "burrito"}
+
+	expected := &gcs.Listing{
+		Objects:       []*gcs.Object{o0, o1},
+		CollapsedRuns: []string{"p0", "p1/"},
+	}
+
+	ExpectCall(t.wrapped, "BucketType")().
+		WillOnce(Return(gcs.Hierarchical))
+
+	ExpectCall(t.wrapped, "ListObjects")(Any(), Any()).
+		WillOnce(Return(expected, nil))
+
+	// insert
+	ExpectCall(t.cache, "Insert")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(2)
+
+	ExpectCall(t.cache, "InsertFolder")(Any(), timeutil.TimeEq(t.clock.Now().Add(ttl))).Times(1)
+
+	// call
 	listing, err := t.bucket.ListObjects(context.TODO(), &gcs.ListObjectsRequest{})
 
 	AssertEq(nil, err)

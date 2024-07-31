@@ -698,7 +698,7 @@ func (d *dirInode) readObjects(
 	// Return an appropriate continuation token, if any.
 	newTok = listing.ContinuationToken
 
-	if !d.implicitDirs {
+	if !d.implicitDirs && !d.isBucketHierarchical() {
 		return
 	}
 

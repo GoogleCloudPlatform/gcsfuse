@@ -17,10 +17,12 @@ package caching
 import (
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"golang.org/x/net/context"
@@ -81,6 +83,36 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 		m := storageutil.ConvertObjToMinObject(o)
 		b.cache.Insert(m, expiration)
 	}
+}
+
+// insertHierarchicalListing saves the objects in cache excluding zero byte objects corresponding to folders
+// by iterating objects present in listing and saves prefixes as folders (all prefixes are folders in hns) by
+// iterating collapsedRuns of listing.
+func (b *fastStatBucket) insertHierarchicalListing(listing *gcs.Listing) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	expiration := b.clock.Now().Add(b.ttl)
+
+	for _, o := range listing.Objects {
+		if !strings.HasSuffix(o.Name, "/") {
+			m := storageutil.ConvertObjToMinObject(o)
+			b.cache.Insert(m, expiration)
+		}
+	}
+
+	for _, p := range listing.CollapsedRuns {
+		if !strings.HasSuffix(p, "/") {
+			// log the error for incorrect prefix but don't fail the operation
+			logger.Errorf("error in prefix name: %s", p)
+		} else {
+			f := &gcs.Folder{
+				Name: p,
+			}
+			b.cache.InsertFolder(f, expiration)
+		}
+	}
+
 }
 
 // LOCKS_EXCLUDED(b.mu)
@@ -253,9 +285,13 @@ func (b *fastStatBucket) ListObjects(
 		return
 	}
 
-	// Note anything we found.
-	b.insertMultiple(listing.Objects)
+	if b.BucketType() == gcs.Hierarchical {
+		b.insertHierarchicalListing(listing)
+		return
+	}
 
+	// note anything we found.
+	b.insertMultiple(listing.Objects)
 	return
 }
 
