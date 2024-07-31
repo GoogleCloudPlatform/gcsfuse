@@ -113,14 +113,19 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
+		if _, ok := op.(*fuseops.WriteFileOp); ok {
+			s.handleOp(c, ctx, op, true)
+			continue
+		}
+		
 		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
 			// Special case: call in this goroutine for
 			// forget inode ops, which may come in a
 			// flurry from the kernel and are generally
 			// cheap for the file system to handle
-			s.handleOp(c, ctx, op)
+			s.handleOp(c, ctx, op, false)
 		} else {
-			s.handleOp(c, ctx, op)
+			s.handleOp(c, ctx, op, false)
 		}
 	}
 }
@@ -128,7 +133,8 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
-	op interface{}) {
+	op interface{},
+	val bool) {
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.
@@ -238,5 +244,7 @@ func (s *fileSystemServer) handleOp(
 		err = s.fs.Fallocate(ctx, typed)
 	}
 
-	c.Reply(ctx, err)
+	if !val {
+		c.Reply(ctx, err)
+	}
 }
