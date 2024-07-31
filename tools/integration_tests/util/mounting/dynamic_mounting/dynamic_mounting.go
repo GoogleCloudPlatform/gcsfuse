@@ -65,6 +65,9 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 		log.Printf("Running dynamic mounting tests with flags: %s", flags[i])
 		// Running tests on flags.
 		successCode = setup.ExecuteTest(m)
+		if successCode != 0{
+			return
+		}
 
 		// Currently mntDir is mntDir/bucketName.
 		// Unmounting can happen on rootMntDir. Changing mntDir to rootMntDir for unmounting.
