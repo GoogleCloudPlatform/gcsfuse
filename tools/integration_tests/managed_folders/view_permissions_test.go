@@ -140,8 +140,12 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, ViewPermission, setup.TestBucket())
 	defer creds_tests.RevokePermission(serviceAccount, ViewPermission, setup.TestBucket())
 
-	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	//	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=3"}
+	var hnsFlagSet []string
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--key-file="+localKeyFilePath, "--stat-cache-ttl=0")
+	}
+	setup.MountGCSFuseWithGivenMountFunc(hnsFlagSet, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 
@@ -151,13 +155,13 @@ func TestManagedFolders_FolderViewPermission(t *testing.T) {
 	defer cleanup(ctx, storageClient, bucket, testDir, serviceAccount, IAMRoleForViewPermission, t)
 
 	// Run tests.
-	log.Printf("Running tests with flags and managed folder have nil permissions: %s", flags)
+	log.Printf("Running tests with flags and managed folder have nil permissions: %s", hnsFlagSet)
 	test_setup.RunTests(t, ts)
 
 	// Provide storage.objectViewer role to managed folders.
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder1), serviceAccount, IAMRoleForViewPermission, t)
 	providePermissionToManagedFolder(bucket, path.Join(testDir, ManagedFolder2), serviceAccount, IAMRoleForViewPermission, t)
 
-	log.Printf("Running tests with flags and managed folder have view permissions: %s", flags)
+	log.Printf("Running tests with flags and managed folder have view permissions: %s", hnsFlagSet)
 	test_setup.RunTests(t, ts)
 }

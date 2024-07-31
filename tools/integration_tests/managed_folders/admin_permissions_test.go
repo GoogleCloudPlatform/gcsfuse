@@ -193,9 +193,14 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	serviceAccount, localKeyFilePath = creds_tests.CreateCredentials()
 	creds_tests.ApplyPermissionToServiceAccount(serviceAccount, AdminPermission, setup.TestBucket())
 
-	flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
+	// flags := []string{"--implicit-dirs", "--key-file=" + localKeyFilePath, "--rename-dir-limit=5", "--stat-cache-ttl=0"}
 
-	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
+	var hnsFlagSet []string
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--key-file="+localKeyFilePath, "--stat-cache-ttl=0")
+	}
+
+	setup.MountGCSFuseWithGivenMountFunc(hnsFlagSet, mountFunc)
 	defer setup.UnmountGCSFuseAndDeleteLogFile(rootDir)
 	setup.SetMntDir(mountDir)
 
@@ -203,7 +208,7 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	permissions := [][]string{{AdminPermission, "nil"}, {AdminPermission, IAMRoleForViewPermission}, {AdminPermission, IAMRoleForAdminPermission}, {ViewPermission, IAMRoleForAdminPermission}}
 
 	for i := 0; i < len(permissions); i++ {
-		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], flags)
+		log.Printf("Running tests with flags, bucket have %s permission and managed folder have %s permissions: %s", permissions[i][0], permissions[i][1], hnsFlagSet)
 		bucket, testDir = setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 		ts.bucketPermission = permissions[i][0]
 		if ts.bucketPermission == ViewPermission {
