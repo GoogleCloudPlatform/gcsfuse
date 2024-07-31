@@ -75,7 +75,7 @@ func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
 		expectedCustomEndpoint string
 	}{
 		{
-			name: "Valid Config where input and expected custom endpoint matches.",
+			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",

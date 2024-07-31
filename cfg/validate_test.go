@@ -34,7 +34,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		config *Config
 	}{
 		{
-			name: "Valid Config where input and expected custom endpoint matches.",
+			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{

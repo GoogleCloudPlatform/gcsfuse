@@ -28,9 +28,9 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	return nil
 }
 
-func isValidURL(u string) (err error) {
-	_, err = decodeURL(u)
-	return
+func isValidURL(u string) error {
+	_, err := decodeURL(u)
+	return err
 }
 
 // ValidateConfig returns a non-nil error if the config is invalid.
