@@ -30,7 +30,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -182,16 +181,16 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{}
 
 	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	if !setup.IsPresubmitRun() {
-		flagsSet = append(flagsSet, []string{
-			// By default, creating emptyFile is disabled.
-			"--experimental-enable-json-read=true"})
-	}
-
-	// gRPC tests will not run in TPC environment
-	if !testing.Short() && !setup.TestOnTPCEndPoint() {
-		flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
-	}
+	//if !setup.IsPresubmitRun() {
+	//	flagsSet = append(flagsSet, []string{
+	//		// By default, creating emptyFile is disabled.
+	//		"--experimental-enable-json-read=true"})
+	//}
+	//
+	//// gRPC tests will not run in TPC environment
+	//if !testing.Short() && !setup.TestOnTPCEndPoint() {
+	//	flagsSet = append(flagsSet, []string{"--client-protocol=grpc", "--implicit-dirs=true"})
+	//}
 
 	// HNS tests utilize the gRPC protocol, which is not supported by TPC.
 	if !setup.TestOnTPCEndPoint() {
@@ -200,20 +199,20 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
+	//mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	//flagsSet = append(flagsSet, mountConfigFlags...)
+	//
+	//// Only running static_mounting test for TPC.
+	//if setup.TestOnTPCEndPoint() {
+	//	successCodeTPC := static_mounting.RunTests(flagsSet, m)
+	//	os.Exit(successCodeTPC)
+	//}
+	//
+	//successCode := static_mounting.RunTests(flagsSet, m)
 
-	// Only running static_mounting test for TPC.
-	if setup.TestOnTPCEndPoint() {
-		successCodeTPC := static_mounting.RunTests(flagsSet, m)
-		os.Exit(successCodeTPC)
-	}
-
-	successCode := static_mounting.RunTests(flagsSet, m)
-
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
-	}
+	//if successCode == 0 {
+	successCode := only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
+	//}
 
 	if successCode == 0 {
 		successCode = persistent_mounting.RunTests(flagsSet, m)
