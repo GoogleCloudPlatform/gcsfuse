@@ -37,9 +37,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 
 	// resolve custom endpoint url type to string.
 	var customEndPoint string
-	if flags.CustomEndpoint == nil {
-		customEndPoint = ""
-	} else {
+	if flags.CustomEndpoint != nil {
 		customEndPoint = flags.CustomEndpoint.String()
 	}
 

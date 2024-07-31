@@ -17,11 +17,12 @@ package cfg
 import "net/url"
 
 func decodeURL(u string) (string, error) {
-	decodedUrl, err := url.Parse(u)
+	// TODO: check if we can replace url.Parse with url.ParseRequestURI.
+	decodedURL, err := url.Parse(u)
 	if err != nil {
 		return "", err
 	}
-	return decodedUrl.String(), nil
+	return decodedURL.String(), nil
 }
 
 // Rationalize updates the config fields based on the values of other fields.

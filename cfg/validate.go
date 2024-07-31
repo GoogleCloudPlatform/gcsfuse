@@ -16,7 +16,6 @@ package cfg
 
 import (
 	"fmt"
-	"net/url"
 )
 
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
@@ -29,12 +28,9 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	return nil
 }
 
-func isValidURL(u string) error {
-	_, err := url.Parse(u)
-	if err != nil {
-		return err
-	}
-	return nil
+func isValidURL(u string) (err error) {
+	_, err = decodeURL(u)
+	return
 }
 
 // ValidateConfig returns a non-nil error if the config is invalid.
