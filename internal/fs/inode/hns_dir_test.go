@@ -130,6 +130,27 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	assert.Nil(t.T(), result)
 }
 
+func (t *HNSDirTest) TestLookUpChildWithConflictMarkerName() {
+	const name = "qux"
+	dirName := path.Join(dirInodeName, name) + "/"
+	folder := &gcs.Folder{
+		Name: dirName,
+	}
+	statObjectRequest := gcs.StatObjectRequest{
+		Name: path.Join(dirInodeName, name),
+	}
+	object := gcs.MinObject{Name: dirName}
+	t.mockBucket.On("GetFolder", mock.Anything, dirName).Return(folder, nil)
+	t.mockBucket.On("StatObject", mock.Anything, &statObjectRequest).Return(&object, &gcs.ExtendedObjectAttributes{}, nil)
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+
+	c, err := t.in.LookUpChild(t.ctx, name+"\n")
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), dirName, c.MinObject.Name)
+}
+
 func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	const name = "qux"
 	dirName := path.Join(dirInodeName, name) + "/"
@@ -184,7 +205,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
 	minObject := &gcs.MinObject{
-		Name:           name,
+		Name:           fileName,
 		MetaGeneration: int64(1),
 		Generation:     int64(2),
 	}
@@ -201,7 +222,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsRegularF
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.fixedTime.Now(), name))
@@ -212,7 +233,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 	fileName := path.Join(dirInodeName, name)
 	// mock stat object call
 	minObject := &gcs.MinObject{
-		Name:           name,
+		Name:           fileName,
 		MetaGeneration: int64(1),
 		Generation:     int64(2),
 		Metadata:       map[string]string{"gcsfuse_symlink_target": "link"},
@@ -230,7 +251,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeIsSymlinkT
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), fileName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), name, result.MinObject.Name)
+	assert.Equal(t.T(), fileName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(2), result.MinObject.Generation)
 	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.SymlinkType, t.typeCache.Get(t.fixedTime.Now(), name))

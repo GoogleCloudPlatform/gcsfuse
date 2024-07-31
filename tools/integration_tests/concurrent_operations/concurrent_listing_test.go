@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -185,7 +184,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentReadDir(t *testing.T) {
 	var wg sync.WaitGroup
 	goroutineCount := 10 // Number of concurrent goroutines
 	wg.Add(goroutineCount)
-	timeout := 50 * time.Second
+	timeout := 600 * time.Second // More timeout to accommodate the high listing time without kernel-list-cache.
 
 	// Create multiple go routines to listing concurrently.
 	for i := 0; i < goroutineCount; i++ {
@@ -239,10 +238,7 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileOperations(t *testin
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			if err != nil {
-				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
-				assert.True(t, strings.Contains(err.Error(), "input/output error"))
-			}
+			assert.Nil(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
@@ -361,15 +357,6 @@ func (s *concurrentListingTest) Test_Parallel_ReadDirAndFileEdit(t *testing.T) {
 	wg.Add(2)
 	timeout := 400 * time.Second
 
-	// Pre-creating files for go-routine 2, this to avoid expected input/output error.
-	for i := 0; i < iterationsForHeavyOperations; i++ {
-		filePath := path.Join(targetDir, fmt.Sprintf("test_file_%d.txt", i))
-		file, err := os.Create(filePath)
-		require.Nil(t, err)
-		err = file.Close()
-		require.Nil(t, err)
-	}
-
 	// Goroutine 1: Repeatedly calls Readdir
 	go func() {
 		defer wg.Done()
@@ -439,10 +426,7 @@ func (s *concurrentListingTest) Test_MultipleConcurrentOperations(t *testing.T) 
 			assert.Nil(t, err)
 
 			_, err = f.Readdirnames(-1)
-			if err != nil {
-				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
-				assert.True(t, strings.Contains(err.Error(), "input/output error"))
-			}
+			assert.Nil(t, err)
 
 			err = f.Close()
 			assert.Nil(t, err)
@@ -545,10 +529,7 @@ func (s *concurrentListingTest) Test_ListWithMoveFile(t *testing.T) {
 			assert.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			if err != nil {
-				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
-				assert.True(t, strings.Contains(err.Error(), "input/output error"))
-			}
+			assert.Nil(t, err)
 
 			assert.NoError(t, f.Close())
 		}
@@ -605,10 +586,7 @@ func (s *concurrentListingTest) Test_ListWithMoveDir(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = f.Readdirnames(-1)
-			if err != nil {
-				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
-				assert.True(t, strings.Contains(err.Error(), "input/output error"))
-			}
+			assert.Nil(t, err)
 
 			assert.NoError(t, f.Close())
 		}

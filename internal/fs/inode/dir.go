@@ -134,7 +134,7 @@ type DirInode interface {
 
 	// LocalFileEntries lists the local files present in the directory.
 	// Local means that the file is not yet present on GCS.
-	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent)
+	LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent)
 
 	// LockForChildLookup takes appropriate kind of lock when an inode's child is
 	// looked up.
@@ -292,6 +292,10 @@ func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, err
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
+	if d.isBucketHierarchical() {
+		return findExplicitFolder(ctx, d.Bucket(), childName)
+	}
+
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
@@ -369,7 +373,7 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
-	folderObject := folderResult.ConvertFolderToMinObject(name.objectName)
+	folderObject := folderResult.ConvertFolderToMinObject()
 
 	return &Core{
 		Bucket:    bucket,
@@ -548,7 +552,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			MinObject: nil,
 		}
 	case metadata.ExplicitDirType:
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		if d.isBucketHierarchical() {
 			b.Add(lookUpHNSDir)
 		} else {
 			b.Add(lookUpExplicitDir)
@@ -559,7 +563,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		return nil, nil
 	case metadata.UnknownType:
 		b.Add(lookUpFile)
-		if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		if d.isBucketHierarchical() {
 			b.Add(lookUpHNSDir)
 		} else {
 			if d.implicitDirs {
@@ -883,7 +887,7 @@ func (d *dirInode) DeleteChildDir(
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
 	// Hierarchical buckets don't have implicit dirs.
-	if isImplicitDir && d.bucket.BucketType() != gcs.Hierarchical {
+	if isImplicitDir && !d.isBucketHierarchical() {
 		return nil
 	}
 
@@ -898,7 +902,7 @@ func (d *dirInode) DeleteChildDir(
 			Generation: 0, // Delete the latest version of object named after dir.
 		})
 
-	if d.bucket.BucketType() != gcs.Hierarchical {
+	if !d.isBucketHierarchical() {
 		if err != nil {
 			return fmt.Errorf("DeleteObject: %w", err)
 		}
@@ -918,7 +922,9 @@ func (d *dirInode) DeleteChildDir(
 }
 
 // LOCKS_REQUIRED(fs)
-func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries []fuseutil.Dirent) {
+func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntries map[string]fuseutil.Dirent) {
+	localEntries = make(map[string]fuseutil.Dirent)
+
 	for localInodeName, in := range localFileInodes {
 		// It is possible that the local file inode has been unlinked, but
 		// still present in localFileInodes map because of open file handle.
@@ -927,12 +933,13 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 		if ok && file.IsUnlinked() {
 			continue
 		}
+
 		if localInodeName.IsDirectChildOf(d.Name()) {
 			entry := fuseutil.Dirent{
 				Name: path.Base(localInodeName.LocalName()),
 				Type: fuseutil.DT_File,
 			}
-			localEntries = append(localEntries, entry)
+			localEntries[entry.Name] = entry
 		}
 	}
 	return
@@ -969,4 +976,11 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 func (d *dirInode) InvalidateKernelListCache() {
 	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
 	d.prevDirListingTimeStamp = time.Time{}
+}
+
+func (d *dirInode) isBucketHierarchical() bool {
+	if d.isHNSEnabled && d.bucket.BucketType() == gcs.Hierarchical {
+		return true
+	}
+	return false
 }

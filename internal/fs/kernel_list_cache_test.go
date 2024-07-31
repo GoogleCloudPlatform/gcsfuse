@@ -26,7 +26,6 @@ package fs_test
 import (
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -225,10 +224,7 @@ func (t *KernelListCacheTestWithPositiveTtl) Test_Parallel_ReadDirAndFileOperati
 			assert.Nil(t.T(), err)
 
 			_, err = f.Readdirnames(-1)
-			if err != nil {
-				// This is expected, see the documentation for fixConflictingNames() call in dir_handle.go.
-				assert.True(t.T(), strings.Contains(err.Error(), "input/output error"))
-			}
+			assert.Nil(t.T(), err)
 
 			err = f.Close()
 			assert.Nil(t.T(), err)
