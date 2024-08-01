@@ -269,7 +269,6 @@ func (b *bucket) mintObject(
 func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	f = gcs.Folder{
 		Name:           folderName,
-		MetaGeneration: 1,
 		UpdateTime:     b.clock.Now(),
 	}
 
@@ -947,7 +946,7 @@ func (b *bucket) GetFolder(ctx context.Context, foldername string) (*gcs.Folder,
 		return nil, err
 	}
 
-	return &gcs.Folder{Name: foldername, MetaGeneration: b.folders[index].MetaGeneration}, nil
+	return &gcs.Folder{Name: foldername}, nil
 }
 
 func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
@@ -1007,7 +1006,6 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 
 	folder := &gcs.Folder{
 		Name:           destinationFolderId,
-		MetaGeneration: 1,
 		UpdateTime:     time.Now()}
 
 	// Delete the src folder?

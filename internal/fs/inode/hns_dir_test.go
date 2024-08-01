@@ -103,7 +103,6 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := &gcs.Folder{
 		Name:           dirName,
-		MetaGeneration: int64(1),
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 
@@ -158,7 +157,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	// mock get folder call
 	folder := &gcs.Folder{
 		Name:           dirName,
-		MetaGeneration: int64(1),
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
@@ -182,7 +180,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	// mock get folder call
 	folder := &gcs.Folder{
 		Name:           dirName,
-		MetaGeneration: int64(1),
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
