@@ -157,3 +157,36 @@ func TestValidateCliFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConfigFile_WriteConfig(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				Write: cfg.WriteConfig{CreateEmptyFile: false},
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				Write: cfg.WriteConfig{CreateEmptyFile: true},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.Write, gotConfig.Write)
+			}
+		})
+	}
+}

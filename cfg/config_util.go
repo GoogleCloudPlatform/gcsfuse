@@ -14,10 +14,16 @@
 
 package cfg
 
+import "runtime"
+
 // OverrideWithLoggingFlags is for backward compatibility with old flags.
 func OverrideWithLoggingFlags(mountConfig *Config, debugFuse bool,
 	debugGCS bool, debugMutex bool) {
 	if debugFuse || debugGCS || debugMutex {
 		mountConfig.Logging.Severity = "TRACE"
 	}
+}
+
+func DefaultMaxParallelDownloads() int {
+	return max(16, 2*runtime.NumCPU())
 }

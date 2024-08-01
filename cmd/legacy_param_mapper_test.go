@@ -197,7 +197,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 			},
 			mockCLICtx: &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{
-				WriteConfig: config.WriteConfig{
+				WriteConfig: cfg.WriteConfig{
 					CreateEmptyFile: true,
 				},
 				LogConfig: config.LogConfig{

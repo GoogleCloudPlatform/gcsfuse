@@ -467,7 +467,7 @@
   config-path: "file-cache.max-parallel-downloads"
   type: "int"
   usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
-  default: "config.DefaultMaxParallelDownloads()"
+  default: "DefaultMaxParallelDownloads()"
 
 - flag-name: "download-chunk-size-mb"
   config-path: "file-cache.download-chunk-size-mb"

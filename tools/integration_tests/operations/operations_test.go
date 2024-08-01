@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
@@ -98,7 +99,7 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 
 	// Set up config file with create-empty-file: true.
 	mountConfig1 := config.MountConfig{
-		WriteConfig: config.WriteConfig{
+		WriteConfig: cfg.WriteConfig{
 			CreateEmptyFile: true,
 		},
 		LogConfig: config.LogConfig{

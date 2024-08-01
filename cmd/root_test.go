@@ -187,3 +187,45 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
+	tests := []struct {
+		name                    string
+		args                    []string
+		expectedCreateEmptyFile bool
+	}{
+		{
+			name:                    "Test create-empty-file flag true.",
+			args:                    []string{"gcsfuse", "--create-empty-file=true", "abc", "pqr"},
+			expectedCreateEmptyFile: true,
+		},
+		{
+			name:                    "Test create-empty-file flag false.",
+			args:                    []string{"gcsfuse", "--create-empty-file=false", "abc", "pqr"},
+			expectedCreateEmptyFile: false,
+		},
+		{
+			name:                    "Test default create-empty-file flag.",
+			args:                    []string{"gcsfuse", "abc", "pqr"},
+			expectedCreateEmptyFile: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var createEmptyFile bool
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				createEmptyFile = cfg.Write.CreateEmptyFile
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedCreateEmptyFile, createEmptyFile)
+			}
+		})
+	}
+}

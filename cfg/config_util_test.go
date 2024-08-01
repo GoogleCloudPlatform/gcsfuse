@@ -69,3 +69,7 @@ func TestOverrideWithLoggingFlags(t *testing.T) {
 		})
 	}
 }
+
+func Test_DefaultMaxParallelDownloads(t *testing.T) {
+	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
+}
