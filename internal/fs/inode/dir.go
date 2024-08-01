@@ -373,12 +373,10 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
-	folderObject := folderResult.ConvertFolderToMinObject()
-
 	return &Core{
-		Bucket:    bucket,
-		FullName:  name,
-		MinObject: folderObject,
+		Bucket:   bucket,
+		FullName: name,
+		Folder:   folderResult,
 	}, nil
 }
 
@@ -678,10 +676,13 @@ func (d *dirInode) readObjects(
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
 			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			var explicitDir *Core
+			if !d.isBucketHierarchical() {
+				explicitDir = &Core{
+					Bucket:    d.Bucket(),
+					FullName:  dirName,
+					MinObject: storageutil.ConvertObjToMinObject(o),
+				}
 			}
 			cores[dirName] = explicitDir
 		} else {
@@ -706,16 +707,25 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
-			continue
-		}
+		if !d.isBucketHierarchical() {
+			if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+				continue
+			}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+			implicitDir := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: nil,
+			}
+			cores[dirName] = implicitDir
+		} else {
+			folder := &Core{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &gcs.Folder{Name: dirName.objectName},
+			}
+			cores[dirName] = folder
 		}
-		cores[dirName] = implicitDir
 	}
 	return
 }
@@ -838,6 +848,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
+	var core *Core
 
 	// Check the bucket type.
 	if d.isBucketHierarchical() {
@@ -847,7 +858,11 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 			return nil, err
 		}
 		// Convert the folder to a minimal object.
-		m = f.ConvertFolderToMinObject()
+		core = &Core{
+			Bucket:   d.Bucket(),
+			FullName: fullName,
+			Folder:   f,
+		}
 	} else {
 		// For non-hierarchical buckets, create a new object.
 		o, err := d.createNewObject(ctx, fullName, nil)
@@ -856,16 +871,18 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		}
 		// Convert the object to a minimal object.
 		m = storageutil.ConvertObjToMinObject(o)
+		// Convert the folder to a minimal object.
+		core = &Core{
+			Bucket:    d.Bucket(),
+			FullName:  fullName,
+			MinObject: m,
+		}
 	}
 
 	// Insert the new directory into the type cache.
 	d.cache.Insert(d.cacheClock.Now(), name, metadata.ExplicitDirType)
 
-	return &Core{
-		Bucket:    d.Bucket(),
-		FullName:  fullName,
-		MinObject: m,
-	}, nil
+	return core, nil
 }
 
 // LOCKS_REQUIRED(d)
