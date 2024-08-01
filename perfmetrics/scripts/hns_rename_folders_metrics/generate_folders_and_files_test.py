@@ -310,7 +310,6 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
 
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('generate_folders_and_files.BATCH_SIZE', 10)
-  @patch('generate_folders_and_files.LOG_INFO','info')
   @patch('builtins.open', new_callable=mock_open)
   @patch('os.listdir')
   @patch('subprocess.Popen')
@@ -354,6 +353,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     expected_log_message = f'{num_of_files}/{num_of_files} files uploaded to {destination_blob_name}\n'
     mock_logmessage.assert_has_calls([call(expected_log_message,'info')])
 
+
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('generate_folders_and_files.BATCH_SIZE', 10)
   @patch('builtins.open', new_callable=mock_open)
@@ -384,6 +384,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     # Assert that error log message is written to logfile
     mock_open.assert_has_calls([call().write("Files were not created locally")])
     self.assertEqual(exit_code, 1)
+
 
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('generate_folders_and_files.BATCH_SIZE', 10)
@@ -425,7 +426,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
 
 class TestParseAndGenerateDirStructure(unittest.TestCase):
 
-  @patch('generate_folders_and_files.LOG_ERROR','error')
+
   @patch('generate_folders_and_files._logmessage')
   def test_no_dir_structure_passed(self,mock_logmessage):
     dir_str={}
@@ -433,10 +434,9 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     exit_code=generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
 
     self.assertEqual(exit_code,1)
-    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.",generate_folders_and_files.LOG_ERROR)
+    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.",'error')
 
 
-  @patch('generate_folders_and_files.LOG_INFO','info')
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
   @patch('subprocess.call')
   @patch('generate_folders_and_files._logmessage')
@@ -483,8 +483,8 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     # Verify subprocess calls.
     mock_subprocess.assert_has_calls(expected_subprocess_calls)
     # Verify log messages.
-    mock_log.assert_any_call('Making a temporary directory.\n', generate_folders_and_files.LOG_INFO)
-    mock_log.assert_any_call('Deleting the temporary directory.\n', generate_folders_and_files.LOG_INFO)
+    mock_log.assert_any_call('Making a temporary directory.\n', 'info')
+    mock_log.assert_any_call('Deleting the temporary directory.\n', 'info')
     # Verify generate_files_and_upload_to_gcs_bucket call.
     mock_generate.assert_has_calls(expected_generate_and_upload_calls)
 
