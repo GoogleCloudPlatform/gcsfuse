@@ -1993,13 +1993,13 @@ func (fs *fileSystem) handlePendingInodes(inodes *[]inode.DirInode) func() {
 	}
 }
 
-func (fs *fileSystem) getOldDir(ctx context.Context, oldParent inode.DirInode, oldName string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
-	oldDir, err := fs.lookUpOrCreateChildDirInode(ctx, oldParent, oldName)
+func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirInode, name string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
+	dir, err := fs.lookUpOrCreateChildDirInode(ctx, parent, name)
 	if err != nil {
 		return nil, fmt.Errorf("lookup old directory: %w", err)
 	}
-	*pendingInodes = append(*pendingInodes, oldDir)
-	return oldDir, nil
+	*pendingInodes = append(*pendingInodes, dir)
+	return dir, nil
 }
 
 func (fs *fileSystem) checkAndHandleLocalFiles(oldDir inode.BucketOwnedDirInode, oldName string) error {
@@ -2010,15 +2010,6 @@ func (fs *fileSystem) checkAndHandleLocalFiles(oldDir inode.BucketOwnedDirInode,
 		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
 	}
 	return nil
-}
-
-func (fs *fileSystem) getNewDir(ctx context.Context, newParent inode.DirInode, newName string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
-	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)
-	if err != nil {
-		return nil, fmt.Errorf("lookup new directory: %w", err)
-	}
-	*pendingInodes = append(*pendingInodes, newDir)
-	return newDir, nil
 }
 
 func (fs *fileSystem) checkNewDirNonEmpty(newDir inode.BucketOwnedDirInode, newName string) error {
@@ -2059,7 +2050,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	var pendingInodes []inode.DirInode
 	defer fs.handlePendingInodes(&pendingInodes)()
 
-	oldDir, err := fs.getOldDir(ctx, oldParent, oldName, &pendingInodes)
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName, &pendingInodes)
 	if err != nil {
 		return err
 	}
@@ -2068,7 +2059,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		return err
 	}
 
-	newDir, err := fs.getNewDir(ctx, newParent, newName, &pendingInodes)
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName, &pendingInodes)
 	if err != nil {
 		return err
 	}
@@ -2097,7 +2088,7 @@ func (fs *fileSystem) renameDir(ctx context.Context, oldParent inode.DirInode, o
 	var pendingInodes []inode.DirInode
 	defer fs.handlePendingInodes(&pendingInodes)()
 
-	oldDir, err := fs.getOldDir(ctx, oldParent, oldName, &pendingInodes)
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName, &pendingInodes)
 	if err != nil {
 		return err
 	}
@@ -2129,12 +2120,12 @@ func (fs *fileSystem) renameDir(ctx context.Context, oldParent inode.DirInode, o
 		}
 	}
 
-	newDir, err := fs.getNewDir(ctx, newParent, newName, &pendingInodes)
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName, &pendingInodes)
 	if err != nil {
 		return err
 	}
 
-	if err := fs.checkNewDirNonEmpty(newDir, newName); err != nil {
+	if err = fs.checkNewDirNonEmpty(newDir, newName); err != nil {
 		return err
 	}
 
