@@ -704,6 +704,33 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
+func(fs *fileSystem) createExplicitDirInode(ic inode.Core) (inode.Inode){
+	in := inode.NewExplicitDirInode(
+		fs.nextInodeID,
+		ic.FullName,
+		ic.MinObject,
+		fuseops.InodeAttributes{
+			Uid:  fs.uid,
+			Gid:  fs.gid,
+			Mode: fs.dirMode,
+
+			// We guarantee only that directory times be "reasonable".
+			Atime: fs.mtimeClock.Now(),
+			Ctime: fs.mtimeClock.Now(),
+			Mtime: fs.mtimeClock.Now(),
+		},
+		fs.implicitDirs,
+		fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
+		fs.enableNonexistentTypeCache,
+		fs.dirTypeCacheTTL,
+		ic.Bucket,
+		fs.mtimeClock,
+		fs.cacheClock,
+		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+		fs.mountConfig.EnableHNS)
+	return in
+}
+
 // Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
 // of that function.
 //
@@ -715,56 +742,13 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 
 	// Create the inode.
 	switch {
+	// Explicit Folders
 	case ic.Folder != nil:
-		in = inode.NewExplicitDirInode(
-			id,
-			ic.FullName,
-			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
-			fs.implicitDirs,
-			fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
-			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
-			ic.Bucket,
-			fs.mtimeClock,
-			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-			fs.mountConfig.EnableHNS)
+		in = fs.createExplicitDirInode(ic)
 
 	// Explicit directories
 	case ic.MinObject != nil && ic.FullName.IsDir():
-		in = inode.NewExplicitDirInode(
-			id,
-			ic.FullName,
-			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
-			fs.implicitDirs,
-			fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
-			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
-			ic.Bucket,
-			fs.mtimeClock,
-			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-			fs.mountConfig.EnableHNS)
+		in = fs.createExplicitDirInode(ic)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
