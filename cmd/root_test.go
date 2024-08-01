@@ -83,7 +83,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 	}
 }
 
-func TestArgsParsing(t *testing.T) {
+func TestArgsParsing_MountPoint(t *testing.T) {
 	wd, err := os.Getwd()
 	require.Nil(t, err)
 	hd, err := os.UserHomeDir()
@@ -136,6 +136,53 @@ func TestArgsParsing(t *testing.T) {
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedBucket, bucketName)
 				assert.Equal(t, tc.expectedMountpoint, mountPoint)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_MountOptions(t *testing.T) {
+	tests := []struct {
+		name                 string
+		args                 []string
+		expectedMountOptions []string
+	}{
+		{
+			name:                 "Multiple mount options specified with multiple -o flags.",
+			args:                 []string{"gcsfuse", "--o", "rw,nodev", "--o", "user=jacobsa,noauto", "abc", "pqr"},
+			expectedMountOptions: []string{"rw", "nodev", "user=jacobsa", "noauto"},
+		},
+		{
+			name:                 "Only one mount option specified.",
+			args:                 []string{"gcsfuse", "--o", "rw", "abc", "pqr"},
+			expectedMountOptions: []string{"rw"},
+		},
+		{
+			name:                 "Multiple mount option specified with single flag.",
+			args:                 []string{"gcsfuse", "--o", "rw,nodev", "abc", "pqr"},
+			expectedMountOptions: []string{"rw", "nodev"},
+		},
+		{
+			name:                 "Multiple mount options specified with single -o flags.",
+			args:                 []string{"gcsfuse", "--o", "rw,nodev,user=jacobsa,noauto", "abc", "pqr"},
+			expectedMountOptions: []string{"rw", "nodev", "user=jacobsa", "noauto"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var mountOptions []string
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				mountOptions = cfg.FileSystem.FuseOptions
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedMountOptions, mountOptions)
 			}
 		})
 	}
