@@ -242,7 +242,7 @@ func (t *FlagsTest) TestDurations() {
 	assert.Equal(t.T(), 30*time.Second, f.MaxRetrySleep)
 }
 
-func (t *FlagsTest) TestMaps() {
+func (t *FlagsTest) TestSlice() {
 	args := []string{
 		"-o", "rw,nodev",
 		"-o", "user=jacobsa,noauto",
