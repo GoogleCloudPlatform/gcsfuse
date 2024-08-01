@@ -438,9 +438,6 @@ type fileSystem struct {
 	//
 	// INVARIANT: For each k/v, v.Name() == k
 	// INVARIANT: For each value v, inodes[v.ID()] == v
-	// INVARIANT: For each value v, v is not ExplicitDirInode
-	// INVARIANT: For each in in inodes such that in is DirInode but not
-	//            ExplicitDirInode, implicitDirInodes[d.Name()] == d
 	//
 	// GUARDED_BY(mu)
 	folderInodes map[inode.Name]inode.DirInode
