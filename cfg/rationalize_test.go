@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRationalize(t *testing.T) {
+func TestRationalizeEnableEmptyManagedFolders(t *testing.T) {
 	testcases := []struct {
 		name                              string
 		enableHns                         bool
@@ -59,9 +59,72 @@ func TestRationalize(t *testing.T) {
 				List:      ListConfig{EnableEmptyManagedFolders: tc.enableEmptyManagedFolders},
 			}
 
-			Rationalize(&c)
+			err := Rationalize(&c)
 
-			assert.Equal(t, tc.expectedEnableEmptyManagedFolders, c.List.EnableEmptyManagedFolders)
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedEnableEmptyManagedFolders, c.List.EnableEmptyManagedFolders)
+			}
+		})
+	}
+}
+
+func TestRationalizeCustomEndpointSuccessful(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		config                 *Config
+		expectedCustomEndpoint string
+	}{
+		{
+			name: "Valid Config where input and expected custom endpoint match.",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "https://bing.com/search?q=dotnet",
+				},
+			},
+			expectedCustomEndpoint: "https://bing.com/search?q=dotnet",
+		},
+		{
+			name: "Valid Config where input and expected custom endpoint differ.",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "https://j@ne:password@google.com",
+				},
+			},
+			expectedCustomEndpoint: "https://j%40ne:password@google.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.config)
+
+			assert.NoError(t, actualErr)
+			assert.Equal(t, tc.expectedCustomEndpoint, tc.config.GcsConnection.CustomEndpoint)
+		})
+	}
+}
+
+func TestRationalizeCustomEndpointUnsuccessful(t *testing.T) {
+	testCases := []struct {
+		name   string
+		config *Config
+	}{
+		{
+			name: "Invalid Config",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					CustomEndpoint: "a_b://abc",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualErr := Rationalize(tc.config)
+
+			assert.Error(t, actualErr)
+			assert.Equal(t, "", tc.config.GcsConnection.CustomEndpoint)
 		})
 	}
 }

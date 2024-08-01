@@ -17,7 +17,6 @@
 package cfg
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -126,7 +125,7 @@ type GcsConnectionConfig struct {
 
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
-	CustomEndpoint *url.URL `yaml:"custom-endpoint"`
+	CustomEndpoint string `yaml:"custom-endpoint"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
 

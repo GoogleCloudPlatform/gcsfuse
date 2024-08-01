@@ -15,7 +15,6 @@
 package cfg
 
 import (
-	"net/url"
 	"os"
 	"path"
 	"testing"
@@ -37,7 +36,6 @@ func bindFlag(t *testing.T, v *viper.Viper, key string, f *flag.Flag) {
 func TestParsingSuccess(t *testing.T) {
 	type TestConfig struct {
 		OctalParam       Octal
-		URLParam         *url.URL
 		BoolParam        bool
 		StringParam      string
 		IntParam         int
@@ -51,7 +49,6 @@ func TestParsingSuccess(t *testing.T) {
 	}
 	declareFlags := func() *flag.FlagSet {
 		fs := flag.NewFlagSet("test", flag.ExitOnError)
-		fs.String("urlParam", "", "")
 		fs.String("octalParam", "0", "")
 		fs.String("stringParam", "", "")
 		fs.Int("intParam", 0, "")
@@ -69,7 +66,6 @@ func TestParsingSuccess(t *testing.T) {
 	bindFlags := func(fs *flag.FlagSet) *viper.Viper {
 		t.Helper()
 		v := viper.New()
-		bindFlag(t, v, "URLParam", fs.Lookup("urlParam"))
 		bindFlag(t, v, "OctalParam", fs.Lookup("octalParam"))
 		bindFlag(t, v, "StringParam", fs.Lookup("stringParam"))
 		bindFlag(t, v, "IntParam", fs.Lookup("intParam"))
@@ -95,17 +91,6 @@ func TestParsingSuccess(t *testing.T) {
 			args: []string{"--octalParam=755"},
 			testFn: func(t *testing.T, c TestConfig) {
 				assert.Equal(t, Octal(0755), c.OctalParam)
-			},
-		},
-		{
-			name: "URL",
-			args: []string{"--urlParam=http://abc.xyz"},
-			testFn: func(t *testing.T, c TestConfig) {
-				u, err := url.Parse("http://abc.xyz")
-				if err != nil {
-					t.Fatalf("Error while parsing URL: %v", err)
-				}
-				assert.Equal(t, *u, *c.URLParam)
 			},
 		},
 		{
@@ -257,14 +242,12 @@ func TestParsingSuccess(t *testing.T) {
 func TestParsingError(t *testing.T) {
 	type TestConfig struct {
 		OctalParam       Octal
-		URLParam         *url.URL
 		LogSeverityParam LogSeverity
 		ProtocolParam    Protocol
 	}
 	declareFlags := func() *flag.FlagSet {
 		fs := flag.NewFlagSet("test", flag.ExitOnError)
 		fs.String("octalParam", "0", "")
-		fs.String("urlParam", "", "")
 		fs.String("logSeverityParam", "INFO", "")
 		fs.String("protocolParam", "http1", "")
 		return fs
@@ -273,7 +256,6 @@ func TestParsingError(t *testing.T) {
 		t.Helper()
 		v := viper.New()
 		bindFlag(t, v, "OctalParam", fs.Lookup("octalParam"))
-		bindFlag(t, v, "URLParam", fs.Lookup("urlParam"))
 		bindFlag(t, v, "LogSeverityParam", fs.Lookup("logSeverityParam"))
 		bindFlag(t, v, "ProtocolParam", fs.Lookup("protocolParam"))
 		return v
@@ -287,10 +269,6 @@ func TestParsingError(t *testing.T) {
 		{
 			name: "Octal",
 			args: []string{"--octalParam=923"},
-		},
-		{
-			name: "URL",
-			args: []string{"--urlParam=a_b://abc"},
 		},
 		{
 			name:   "LogSeverity",

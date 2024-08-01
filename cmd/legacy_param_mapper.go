@@ -35,6 +35,12 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		return nil, fmt.Errorf("PopulateNewConfigFromLegacyFlagsAndConfig: unexpected nil flags or mount config")
 	}
 
+	// Resolve custom endpoint url type to string.
+	var customEndPoint string
+	if flags.CustomEndpoint != nil {
+		customEndPoint = flags.CustomEndpoint.String()
+	}
+
 	resolvedConfig := &cfg.Config{}
 
 	structuredFlags := &map[string]interface{}{
@@ -66,7 +72,7 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 		"gcs-connection": map[string]interface{}{
 			"billing-project":               flags.BillingProject,
 			"client-protocol":               string(flags.ClientProtocol),
-			"custom-endpoint":               flags.CustomEndpoint,
+			"custom-endpoint":               customEndPoint,
 			"experimental-enable-json-read": flags.ExperimentalEnableJsonRead,
 			"http-client-timeout":           flags.HttpClientTimeout,
 			"limit-bytes-per-sec":           flags.EgressBandwidthLimitBytesPerSecond,

@@ -3,7 +3,7 @@
 # flag-name: Name of the CLI flag.
 # config-path: Location of the param in the config file. A value of "gcs-auth.anonymous-access" indicates that the param will be present under the gcs-auth:anonymous-access.
 # type: data type of the param - supports the following values: ["int", "float64", "bool", "string", "duration", "octal", "[]int",
-#			"[]string", "url", "logSeverity", "protocol", "resolvedPath"]
+#			"[]string", "logSeverity", "protocol", "resolvedPath"]
 # usage: The usage doc that will appear in the helpdoc
 # default: The default value of the param.
 # deprecated: Specifies whether the param is deprecated. This will cause warnings when the user specifies the flag.
@@ -88,7 +88,7 @@
 
 - flag-name: "custom-endpoint"
   config-path: "gcs-connection.custom-endpoint"
-  type: "url"
+  type: "string"
   usage: >-
     Specifies an alternative custom endpoint for fetching data. Should only be
     used for testing.  The custom endpoint must support the equivalent resources
@@ -96,6 +96,7 @@
     https://storage.googleapis.com/storage/v1. If a custom endpoint is not
     specified,  GCSFuse uses the global GCS JSON API endpoint,
     https://storage.googleapis.com/storage/v1.
+  default: ""
 
 - flag-name: "anonymous-access"
   config-path: "gcs-auth.anonymous-access"

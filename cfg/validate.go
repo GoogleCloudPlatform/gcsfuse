@@ -28,10 +28,22 @@ func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	return nil
 }
 
+func isValidURL(u string) error {
+	_, err := decodeURL(u)
+	return err
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(config *Config) error {
-	if err := isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
+	var err error
+
+	if err = isValidLogRotateConfig(&config.Logging.LogRotate); err != nil {
 		return fmt.Errorf("error parsing log-rotate config: %w", err)
 	}
+
+	if err = isValidURL(config.GcsConnection.CustomEndpoint); err != nil {
+		return fmt.Errorf("error parsing custom-endpoint config: %w", err)
+	}
+
 	return nil
 }

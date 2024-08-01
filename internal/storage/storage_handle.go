@@ -52,9 +52,9 @@ type storageClient struct {
 // Return clientOpts for both gRPC client and control client.
 func createClientOptionForGRPCClient(clientConfig *storageutil.StorageClientConfig) (clientOpts []option.ClientOption, err error) {
 	// Add Custom endpoint option.
-	if clientConfig.CustomEndpoint != nil {
+	if clientConfig.CustomEndpoint != "" {
 		if clientConfig.AnonymousAccess {
-			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint.String())))
+			clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
 			// Explicitly disable auth in case of custom-endpoint, aligned with the http-client.
 			// TODO: to revisit here when supporting TPC for grpc client.
 			clientOpts = append(clientOpts, option.WithoutAuthentication())
@@ -138,8 +138,8 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	// Add Custom endpoint option.
-	if clientConfig.CustomEndpoint != nil {
-		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint.String()))
+	if clientConfig.CustomEndpoint != "" {
+		clientOpts = append(clientOpts, option.WithEndpoint(clientConfig.CustomEndpoint))
 	}
 
 	return storage.NewClient(ctx, clientOpts...)

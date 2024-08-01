@@ -18,7 +18,6 @@ package cfg
 
 import (
 	"time"
-	"net/url"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/spf13/pflag"
