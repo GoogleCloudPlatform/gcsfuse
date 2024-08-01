@@ -558,7 +558,7 @@ func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 func TestPopulateConfigFromLegacyFlags_MountOption(t *testing.T) {
 	flags := &flagStorage{
 		MountOptions:   []string{"rw,nodev", "user=jacobsa,noauto"},
-		ClientProtocol: mountpkg.HTTP2,
+		ClientProtocol: mountpkg.ClientProtocol(cfg.HTTP2),
 	}
 
 	v, err := PopulateNewConfigFromLegacyFlagsAndConfig(&mockCLIContext{}, flags, &config.MountConfig{})
