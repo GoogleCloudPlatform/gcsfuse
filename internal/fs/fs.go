@@ -537,6 +537,29 @@ func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 	}
 }
 
+func (fs *fileSystem) checkInvariantsForFolderInodes() {
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.folderInodes {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.folderInodes {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %v %v",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
+		}
+	}
+}
+
 func (fs *fileSystem) checkInvariantsForImplicitDirs() {
 	// INVARIANT: For each k/v, v.Name() == k
 	for k, v := range fs.implicitDirInodes {
@@ -655,6 +678,7 @@ func (fs *fileSystem) checkInvariants() {
 	fs.checkInvariantsForInodes()
 	fs.checkInvariantsForGenerationBackedInodes()
 	fs.checkInvariantsForImplicitDirs()
+	fs.checkInvariantsForFolderInodes()
 	fs.checkInvariantsForLocalFileInodes()
 
 	//////////////////////////////////
@@ -806,6 +830,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 }
 
 func (fs *fileSystem) createInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) (inode.Inode, bool) {
+	var in inode.Inode
+	var ok bool
 	if !ic.FullName.IsDir() {
 		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
 	}
@@ -813,9 +839,9 @@ func (fs *fileSystem) createInode(ic inode.Core, inodes map[inode.Name]inode.Dir
 	var maxTriesToCreateInode = 3
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
-		in, ok := inodes[ic.FullName]
+		in, ok = inodes[ic.FullName]
 		if !ok {
-			in := fs.mintInode(ic)
+			in = fs.mintInode(ic)
 			inodes[in.Name()] = in.(inode.DirInode)
 			in.Lock()
 			return in, true
@@ -866,8 +892,9 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	fs.mu.Lock()
 
+	var ok bool
 	if ic.Folder != nil {
-		in, ok := fs.createInode(ic, fs.folderInodes)
+		in, ok = fs.createInode(ic, fs.folderInodes)
 		if ok {
 			return in
 		}
@@ -876,7 +903,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		in, ok := fs.createInode(ic, fs.implicitDirInodes)
+		in, ok = fs.createInode(ic, fs.implicitDirInodes)
 		if ok {
 			return in
 		}

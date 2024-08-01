@@ -69,6 +69,7 @@ func NewExplicitDirInode(
 			},
 		}
 	} else {
+		// In case of folder minObject will be nil and we will not require generation and metaGeneration in that case
 		d = &explicitDirInode{
 			dirInode: wrapped.(*dirInode),
 		}
