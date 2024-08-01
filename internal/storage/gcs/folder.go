@@ -22,15 +22,15 @@ import (
 )
 
 type Folder struct {
-	Name           string
-	UpdateTime     time.Time
+	Name       string
+	UpdateTime time.Time
 }
 
 func GCSFolder(bucketName string, attrs *controlpb.Folder) *Folder {
 	// Setting the parameters in Folder and doing conversions as necessary.
 	return &Folder{
-		Name:           getFolderName(bucketName, attrs.Name),
-		UpdateTime:     attrs.GetUpdateTime().AsTime(),
+		Name:       getFolderName(bucketName, attrs.Name),
+		UpdateTime: attrs.GetUpdateTime().AsTime(),
 	}
 }
 
@@ -47,7 +47,7 @@ func getFolderName(bucketName string, fullPath string) string {
 
 func (f *Folder) ConvertFolderToMinObject() *MinObject {
 	return &MinObject{
-		Name:           f.Name,
-		Updated:        f.UpdateTime,
+		Name:    f.Name,
+		Updated: f.UpdateTime,
 	}
 }

@@ -421,7 +421,7 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 	const name = "key1"
 	newEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -434,11 +434,11 @@ func (t *StatCacheTest) Test_InsertFolderCreateEntryWhenNoEntryIsPresent() {
 func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent() {
 	const name = "key1"
 	existingEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 	newEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -451,7 +451,7 @@ func (t *StatCacheTest) Test_InsertFolderOverrideEntryOldEntryIsAlreadyPresent()
 func (t *StatCacheTest) Test_LookupReturnFalseIfExpirationIsPassed() {
 	const name = "key1"
 	entry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 	t.statCache.InsertFolder(entry, expiration)
 
@@ -473,11 +473,11 @@ func (t *StatCacheTest) Test_LookupReturnFalseWhenIsNotPresent() {
 func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationIsOld() {
 	const name = "key1"
 	existingEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 	newEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 
 	t.statCache.InsertFolder(newEntry, expiration)
@@ -490,7 +490,7 @@ func (t *StatCacheTest) Test_InsertFolderShouldNotOverrideEntryIfMetagenerationI
 func (t *StatCacheTest) Test_AddNegativeEntryForFolderShouldAddNegativeEntryForFolder() {
 	const name = "key1"
 	existingEntry := &gcs.Folder{
-		Name:           name,
+		Name: name,
 	}
 	t.statCache.InsertFolder(existingEntry, expiration)
 
@@ -521,7 +521,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
-		Name:           "3",
+		Name: "3",
 	}
 	t.statCache.Insert(objectEntry1, expiration) // adds size of 1428
 	t.statCache.Insert(objectEntry2, expiration) // adds size of 1428
@@ -552,16 +552,16 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	localCache := lru.NewCache(uint64(10000))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	folderEntry1 := &gcs.Folder{
-		Name:           "a",
+		Name: "a",
 	}
 	objectEntry1 := &gcs.MinObject{Name: "a/b"}
 	objectEntry2 := &gcs.MinObject{Name: "a/b/c"}
 	objectEntry3 := &gcs.MinObject{Name: "d"}
 	folderEntry2 := &gcs.Folder{
-		Name:           "a/d",
+		Name: "a/d",
 	}
 	folderEntry3 := &gcs.Folder{
-		Name:           "b",
+		Name: "b",
 	}
 	t.statCache.InsertFolder(folderEntry1, expiration) //adds size of 220 and exceeds capacity
 	t.statCache.Insert(objectEntry1, expiration)       // adds size of 1428

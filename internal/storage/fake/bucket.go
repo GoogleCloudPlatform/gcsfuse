@@ -268,8 +268,8 @@ func (b *bucket) mintObject(
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	f = gcs.Folder{
-		Name:           folderName,
-		UpdateTime:     b.clock.Now(),
+		Name:       folderName,
+		UpdateTime: b.clock.Now(),
 	}
 
 	return
@@ -1005,8 +1005,8 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 	}
 
 	folder := &gcs.Folder{
-		Name:           destinationFolderId,
-		UpdateTime:     time.Now()}
+		Name:       destinationFolderId,
+		UpdateTime: time.Now()}
 
 	// Delete the src folder?
 	index := b.folders.find(folderName)
