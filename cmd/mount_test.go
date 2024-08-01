@@ -23,24 +23,48 @@ import (
 )
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
-	fsName := "mybucket"
-	newConfig := &cfg.Config{
-		FileSystem: cfg.FileSystemConfig{
-			FuseOptions: []string{"rw,nodev", "user=jacobsa,noauto"},
+	testCases := []struct {
+		name                string
+		inputFuseOptions    []string
+		expectedFuseOptions map[string]string
+	}{
+		{
+			name:             "Fuse options input with comma [legacy flag format].",
+			inputFuseOptions: []string{"rw,nodev", "user=jacobsa,noauto"},
+			expectedFuseOptions: map[string]string{
+				"noauto": "",
+				"nodev":  "",
+				"rw":     "",
+				"user":   "jacobsa",
+			},
+		},
+		{
+			name:             "Fuse options input without comma [new config format].",
+			inputFuseOptions: []string{"rw", "nodev", "user=jacobsa", "noauto"},
+			expectedFuseOptions: map[string]string{
+				"noauto": "",
+				"nodev":  "",
+				"rw":     "",
+				"user":   "jacobsa",
+			},
 		},
 	}
+
+	fsName := "mybucket"
 	mountConfig := &config.MountConfig{}
+	for _, tc := range testCases {
+		newConfig := &cfg.Config{
+			FileSystem: cfg.FileSystemConfig{
+				FuseOptions: tc.inputFuseOptions,
+			},
+		}
 
-	fuseMountCfg := getFuseMountConfig(fsName, newConfig, mountConfig)
+		fuseMountCfg := getFuseMountConfig(fsName, newConfig, mountConfig)
 
-	assert.Equal(t, fsName, fuseMountCfg.FSName)
-	assert.Equal(t, "gcsfuse", fuseMountCfg.Subtype)
-	assert.Equal(t, "gcsfuse", fuseMountCfg.VolumeName)
-	assert.Equal(t, map[string]string{
-		"noauto": "",
-		"nodev":  "",
-		"rw":     "",
-		"user":   "jacobsa",
-	}, fuseMountCfg.Options)
-	assert.True(t, fuseMountCfg.EnableParallelDirOps) // Default true unless explicitly disabled
+		assert.Equal(t, fsName, fuseMountCfg.FSName)
+		assert.Equal(t, "gcsfuse", fuseMountCfg.Subtype)
+		assert.Equal(t, "gcsfuse", fuseMountCfg.VolumeName)
+		assert.Equal(t, tc.expectedFuseOptions, fuseMountCfg.Options)
+		assert.True(t, fuseMountCfg.EnableParallelDirOps) // Default true unless explicitly disabled
+	}
 }
