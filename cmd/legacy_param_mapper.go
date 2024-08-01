@@ -52,9 +52,9 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 			"fuse":                        flags.DebugFuse,
 		},
 		"file-system": map[string]interface{}{
-			"dir-mode":  flags.DirMode,
-			"file-mode": flags.FileMode,
-			// Todo: "fuse-options":      nil,
+			"dir-mode":                   flags.DirMode,
+			"file-mode":                  flags.FileMode,
+			"fuse-options":               flags.MountOptions,
 			"gid":                        flags.Gid,
 			"ignore-interrupts":          flags.IgnoreInterrupts,
 			"rename-dir-limit":           flags.RenameDirLimit,
@@ -154,9 +154,11 @@ func PopulateNewConfigFromLegacyFlagsAndConfig(c cliContext, flags *flagStorage,
 	overrideWithFlag(c, "prometheus-port", &resolvedConfig.Metrics.PrometheusPort, prometheusPort)
 
 	if err := cfg.ValidateConfig(resolvedConfig); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cfg.ValidateConfig: %w", err)
 	}
-	cfg.Rationalize(resolvedConfig)
+	if err := cfg.Rationalize(resolvedConfig); err != nil {
+		return nil, fmt.Errorf("cfg.Rationalize: %w", err)
+	}
 	return resolvedConfig, nil
 }
 

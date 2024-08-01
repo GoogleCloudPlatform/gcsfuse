@@ -142,11 +142,29 @@ be interacting with the file system.`)
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
+
+	mountCfg := getFuseMountConfig(fsName, newConfig, mountConfig)
+	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
+	if err != nil {
+		err = fmt.Errorf("Mount: %w", err)
+		return
+	}
+
+	return
+}
+
+func getFuseMountConfig(fsName string, newConfig *cfg.Config, mountConfig *config.MountConfig) *fuse.MountConfig {
+	// Handle the repeated "-o" flag.
+	parsedOptions := make(map[string]string)
+	for _, o := range newConfig.FileSystem.FuseOptions {
+		mount.ParseOptions(parsedOptions, o)
+	}
+
 	mountCfg := &fuse.MountConfig{
 		FSName:     fsName,
 		Subtype:    "gcsfuse",
 		VolumeName: "gcsfuse",
-		Options:    flags.MountOptions,
+		Options:    parsedOptions,
 		// Allows parallel LookUpInode & ReadDir calls from Kernel's FUSE driver.
 		// GCSFuse takes exclusive lock on directory inodes during ReadDir call,
 		// hence there is no effect of parallelization of incoming ReadDir calls
@@ -160,12 +178,5 @@ be interacting with the file system.`)
 
 	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ")
 	mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ")
-
-	mfs, err = fuse.Mount(mountPoint, server, mountCfg)
-	if err != nil {
-		err = fmt.Errorf("Mount: %w", err)
-		return
-	}
-
-	return
+	return mountCfg
 }
