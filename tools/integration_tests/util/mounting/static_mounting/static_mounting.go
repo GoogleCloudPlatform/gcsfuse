@@ -55,6 +55,9 @@ func executeTestsForStaticMounting(flagsSet [][]string, m *testing.M) (successCo
 		}
 		log.Printf("Running static mounting tests with flags: %s", flagsSet[i])
 		successCode = setup.ExecuteTestForFlagsSet(flagsSet[i], m)
+		if successCode != 0 {
+			return
+		}
 	}
 	return
 }

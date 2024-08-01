@@ -76,6 +76,9 @@ func executeTestsForPersistentMounting(flagsSet [][]string, m *testing.M) (succe
 		}
 		log.Printf("Running persistent mounting tests with flags: %s", flagsSet[i])
 		successCode = setup.ExecuteTestForFlagsSet(flagsSet[i], m)
+		if successCode != 0 {
+			return
+		}
 	}
 	return
 }

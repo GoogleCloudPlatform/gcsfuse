@@ -70,6 +70,9 @@ func runTestsOnGivenMountedTestBucket(bucketName string, flags [][]string, rootM
 		// Unmounting can happen on rootMntDir. Changing mntDir to rootMntDir for unmounting.
 		setup.SetMntDir(rootMntDir)
 		setup.UnMountAndThrowErrorInFailure(flags[i], successCode)
+		if successCode != 0 {
+			return
+		}
 	}
 	return
 }
