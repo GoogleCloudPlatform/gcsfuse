@@ -91,6 +91,7 @@ const FileInDirThreeInCreateThreeLevelDirTest = "fileInDirThreeInCreateThreeLeve
 const ContentInFileInDirThreeInCreateThreeLevelDirTest = "Hello world!!"
 const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
+const storageClientTimeout = time.Minute * 50
 
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "operations-cache-dir")
@@ -160,7 +161,7 @@ func TestMain(m *testing.M) {
 	// Create storage client before running tests.
 	ctx := context.Background()
 	var storageClient *storage.Client
-	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*40)
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, storageClientTimeout)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
