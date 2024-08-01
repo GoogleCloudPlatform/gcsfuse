@@ -331,7 +331,7 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
     else:
       sub_folder_name = dir_str["nested_folders"]["folder_name"]
       for folder in dir_str["nested_folders"]["folder_structure"]:
-        # create the folder
+        # Create the folder.
         folder_name = folder["name"]
         num_files = folder["num_files"]
         filename_prefix = folder["file_name_prefix"]

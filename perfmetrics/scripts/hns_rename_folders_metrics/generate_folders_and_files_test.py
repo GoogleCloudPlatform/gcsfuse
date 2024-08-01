@@ -331,6 +331,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
     expected_size = 1024 * 1024 * int(file_size)
+    expected_log_message = f'{num_of_files}/{num_of_files} files uploaded to {destination_blob_name}\n'
 
     exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
@@ -350,7 +351,6 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     mock_call.assert_called_once_with(
         f'rm -rf {generate_folders_and_files.TEMPORARY_DIRECTORY}/*',
         shell=True)
-    expected_log_message = f'{num_of_files}/{num_of_files} files uploaded to {destination_blob_name}\n'
     mock_logmessage.assert_has_calls([call(expected_log_message,'info')])
 
 
@@ -370,18 +370,18 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     file_size = 1
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
 
     exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
         filename_prefix)
 
-    # Assert that temp_file is opened
+    # Assert that temp_file is opened.
     mock_open.assert_has_calls([call(temp_file, 'wb')])
     # Assert that 'truncate' was called with the expected size and file is
-    # created
-    expected_size = 1024 * 1024 * int(file_size)
+    # created.
     mock_open.return_value.truncate.assert_called_once_with(expected_size)
-    # Assert that error log message is written to logfile
+    # Assert that error log message is written to logfile.
     mock_open.assert_has_calls([call().write("Files were not created locally")])
     self.assertEqual(exit_code, 1)
 
@@ -405,27 +405,26 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     file_size = 1
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
 
     exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
         filename_prefix)
 
-    # Assert that temp_file is opened
+    # Assert that temp_file is opened.
     mock_open.assert_has_calls([call(temp_file, 'wb')])
-    # Assert that 'truncate' was called with the expected size
-    expected_size = 1024 * 1024 * int(file_size)
+    # Assert that 'truncate' was called with the expected size.
     mock_open.return_value.truncate.assert_called_once_with(expected_size)
-    # Assert that upload to GCS bucket was attempted
+    # Assert that upload to GCS bucket was attempted.
     mock_popen.assert_called_once_with(
         f'gcloud storage cp --recursive {generate_folders_and_files.TEMPORARY_DIRECTORY}/* {destination_blob_name}',
         shell=True)
-    # Assert that except block is executed due to the upload failure
+    # Assert that except block is executed due to the upload failure.
     mock_open.assert_has_calls([call().write('Issue while uploading files to GCS bucket.Aborting...')])
     self.assertEqual(exit_code, 1)
 
 
 class TestParseAndGenerateDirStructure(unittest.TestCase):
-
 
   @patch('generate_folders_and_files._logmessage')
   def test_no_dir_structure_passed(self,mock_logmessage):
