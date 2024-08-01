@@ -60,11 +60,13 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	}()
 
 	monitor.CaptureGCSReadMetrics(ctx, util.Parallel, end-start)
-	bufSize := directio.BlockSize * 16
+	bufSize := directio.BlockSize * 1024
 	buf := directio.AlignedBlock(bufSize)
+	bufSize = len(buf)
 	var bytesWritten int64
 	for bytesWritten < (end - start) {
-		readN, readErr := io.ReadFull(newReader, buf[:min(bufSize, int(end-start))])
+		buf = buf[:min(bufSize, int(end-start-bytesWritten))]
+		readN, readErr := io.ReadFull(newReader, buf)
 		if readErr != nil && readErr != io.EOF {
 			err = fmt.Errorf("downloadRange: while reading content to buffer %w", readErr)
 			return err
