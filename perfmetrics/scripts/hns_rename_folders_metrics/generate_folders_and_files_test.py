@@ -14,7 +14,8 @@
 import subprocess
 import unittest
 import generate_folders_and_files
-from mock import patch, call
+import mock
+from mock import patch, call ,mock_open
 
 
 class TestCheckForConfigFileInconsistency(unittest.TestCase):
@@ -126,7 +127,7 @@ class TestListDirectory(unittest.TestCase):
     dir_list = generate_folders_and_files._list_directory("gs://fake_bkt")
 
     self.assertEqual(dir_list, None)
-    mock_logmessage.assert_called_once_with('Error while listing')
+    mock_logmessage.assert_called_once_with('Error while listing','error')
 
   @patch('subprocess.check_output')
   def test_listing_directory(self, mock_check_output):
@@ -293,16 +294,133 @@ class TestDeleteExistingDataInGcsBucket(unittest.TestCase):
       ._delete_existing_data_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 1)
-    mock_logmessage.assert_called_once_with('Error while deleting')
+    mock_logmessage.assert_called_once_with('Error while deleting','error')
 
   @patch('subprocess.check_output')
-  def test_deleting_success(self,mock_check_output):
+  def test_deleting_success(self, mock_check_output):
     mock_check_output.return_value = 0
 
     exit_code = generate_folders_and_files \
       ._delete_existing_data_in_gcs_bucket("fake_bkt")
 
     self.assertEqual(exit_code, 0)
+
+
+class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
+
+  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
+  @patch('generate_folders_and_files.BATCH_SIZE', 10)
+  @patch('generate_folders_and_files.LOG_INFO','info')
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('os.listdir')
+  @patch('subprocess.Popen')
+  @patch('subprocess.call')
+  @patch('generate_folders_and_files._logmessage')
+  def test_files_generation_and_upload(self, mock_logmessage, mock_call,
+      mock_popen, mock_listdir, mock_open
+  ):
+    """
+    Tests that files are created,copied to destination bucket,deleted from the
+    temporary directory and the log message is written correctly.
+    """
+    mock_listdir.return_value = ['file1.txt']
+    mock_popen.return_value.communicate.return_value = 0
+    destination_blob_name = 'gs://fake-bucket'
+    num_of_files = 1
+    file_size_unit = 'MB'
+    file_size = 1
+    filename_prefix = 'file'
+    temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
+
+    exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
+        destination_blob_name, num_of_files, file_size_unit, file_size,
+        filename_prefix)
+
+    # Assert that temp_file is opened.
+    mock_open.assert_called_once_with(temp_file, 'wb')
+    # Assert that 'truncate' was called with the expected size.
+    mock_open.return_value.truncate.assert_called_once_with(expected_size)
+    # Assert that upload started to GCS bucket and exit code is 0 indicating
+    # successful upload.
+    mock_popen.assert_called_once_with(
+        f'gcloud storage cp --recursive {generate_folders_and_files.TEMPORARY_DIRECTORY}/* {destination_blob_name}',
+        shell=True)
+    self.assertEqual(exit_code, 0)
+    # Assert that files are deleted and correct logmessage is written.
+    mock_call.assert_called_once_with(
+        f'rm -rf {generate_folders_and_files.TEMPORARY_DIRECTORY}/*',
+        shell=True)
+    expected_log_message = f'{num_of_files}/{num_of_files} files uploaded to {destination_blob_name}\n'
+    mock_logmessage.assert_has_calls([call(expected_log_message,generate_folders_and_files.LOG_INFO)])
+
+  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
+  @patch('generate_folders_and_files.BATCH_SIZE', 10)
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('os.listdir')
+  def test_files_not_created_locally(self, mock_listdir, mock_open):
+    """
+    Tests that files are created,copied to destination bucket,deleted from the
+    temporary directory and the log message is written correctly.
+    """
+    mock_listdir.return_value = []
+    destination_blob_name = 'gs://fake-bucket'
+    num_of_files = 1
+    file_size_unit = 'MB'
+    file_size = 1
+    filename_prefix = 'file'
+    temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
+
+    exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
+        destination_blob_name, num_of_files, file_size_unit, file_size,
+        filename_prefix)
+
+    # Assert that temp_file is opened.
+    mock_open.assert_has_calls([call(temp_file, 'wb')])
+    # Assert that 'truncate' was called with the expected size and file is
+    # created.
+    mock_open.return_value.truncate.assert_called_once_with(expected_size)
+    # Assert that error log message is written to logfile.
+    mock_open.assert_has_calls([call().write("Files were not created locally")])
+    self.assertEqual(exit_code, 1)
+
+  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
+  @patch('generate_folders_and_files.BATCH_SIZE', 10)
+  @patch('builtins.open', new_callable=mock_open)
+  @patch('os.listdir')
+  @patch('subprocess.Popen')
+  def test_files_upload_failure(self, mock_popen, mock_listdir, mock_open):
+    """
+    Tests that files are created,copied to destination bucket,deleted from the
+    temporary directory and the log message is written correctly.
+    """
+    mock_listdir.return_value = ['file1.txt']
+    upload_cmd="gcloud storage cp --recursive ./tmp/data_gen/ gs://fake-bucket"
+    mock_popen.side_effect=subprocess.CalledProcessError(returncode=1,cmd=upload_cmd)
+    destination_blob_name = 'gs://fake-bucket'
+    num_of_files = 1
+    file_size_unit = 'MB'
+    file_size = 1
+    filename_prefix = 'file'
+    temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
+
+    exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
+        destination_blob_name, num_of_files, file_size_unit, file_size,
+        filename_prefix)
+
+    # Assert that temp_file is opened.
+    mock_open.assert_has_calls([call(temp_file, 'wb')])
+    # Assert that 'truncate' was called with the expected size.
+    mock_open.return_value.truncate.assert_called_once_with(expected_size)
+    # Assert that upload to GCS bucket was attempted.
+    mock_popen.assert_called_once_with(
+        f'gcloud storage cp --recursive {generate_folders_and_files.TEMPORARY_DIRECTORY}/* {destination_blob_name}',
+        shell=True)
+    # Assert that except block is executed due to the upload failure.
+    mock_open.assert_has_calls([call().write('Issue while uploading files to GCS bucket.Aborting...')])
+    self.assertEqual(exit_code, 1)
 
 
 if __name__ == '__main__':

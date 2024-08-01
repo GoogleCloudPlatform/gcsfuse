@@ -13,30 +13,37 @@
 
 # limitations under the License.
 # To run the script, run in terminal :
-# python3 generate_folder_and_files.py <config-file.json>
+# python3 generate_folders_and_files.py <config-file.json>
 
 import argparse
 import json
 from datetime import datetime as dt
 import logging
+import os
 import sys
 import subprocess
-from subprocess import Popen
 
 OUTPUT_FILE = str(dt.now().isoformat()) + '.out'
+TEMPORARY_DIRECTORY = './tmp/data_gen'
+BATCH_SIZE = 100
+LOG_ERROR = "error"
+LOG_INFO = "info"
 
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger()
 
 
-def _logmessage(message) -> None:
+def _logmessage(message,type) -> None:
   with open(OUTPUT_FILE, 'a') as out:
     out.write(message)
-  logger.error(message)
+  if type == LOG_ERROR:
+    logger.error(message)
+  else:
+    logger.info(message)
 
 
 def _check_for_config_file_inconsistency(config) -> (int):
@@ -50,30 +57,30 @@ def _check_for_config_file_inconsistency(config) -> (int):
       0 if no inconsistencies are found, 1 otherwise.
   """
   if "name" not in config:
-    _logmessage("Bucket name not specified")
+    _logmessage("Bucket name not specified",LOG_ERROR)
     return 1
 
   if "folders" in config:
     if not ("num_folders" in config["folders"] or "folder_structure" in config[
       "folders"]):
-      _logmessage("Key missing for folder")
+      _logmessage("Key missing for nested folder",LOG_ERROR)
       return 1
 
     if config["folders"]["num_folders"] != len(
         config["folders"]["folder_structure"]):
-      _logmessage("Inconsistency in the folder structure")
+      _logmessage("Inconsistency in the folder structure",LOG_ERROR)
       return 1
 
   if "nested_folders" in config:
     if not ("folder_name" in config["nested_folders"] or
             "num_folders" in config["nested_folders"] or
             "folder_structure" in config["nested_folders"]):
-      _logmessage("Key missing for nested folder")
+      _logmessage("Key missing for nested folder",LOG_ERROR)
       return 1
 
     if config["nested_folders"]["num_folders"] != len(
         config["nested_folders"]["folder_structure"]):
-      _logmessage("Inconsistency in the nested folder")
+      _logmessage("Inconsistency in the nested folder",LOG_ERROR)
       return 1
 
   return 0
@@ -94,7 +101,7 @@ def _list_directory(path) -> list:
     contents_url = contents.decode('utf-8').split('\n')[:-1]
     return contents_url
   except subprocess.CalledProcessError as e:
-    _logmessage(e.output.decode('utf-8'))
+    _logmessage(e.output.decode('utf-8'),LOG_ERROR)
 
 
 def _compare_folder_structure(folder, folder_url) -> bool:
@@ -238,8 +245,55 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
         'gcloud alpha storage rm -r gs://{}/*'.format(gcs_bucket), shell=True)
     return 0
   except subprocess.CalledProcessError as e:
-    _logmessage(e.output.decode('utf-8'))
+    _logmessage(e.output.decode('utf-8'),LOG_ERROR)
     return 1
+
+
+def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
+    file_size_unit, file_size,
+    filename_prefix) -> int:
+  for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
+    for file_num in range(batch_start, batch_start + BATCH_SIZE):
+      if file_num > num_of_files:
+        break
+
+      file_name = '{}_{}'.format(filename_prefix, file_num)
+      temp_file = '{}/{}.txt'.format(TEMPORARY_DIRECTORY, file_name)
+
+      # Creating files in temporary folder:
+      with open(temp_file, 'wb') as out:
+        if (file_size_unit.lower() == 'gb'):
+          out.truncate(1024 * 1024 * 1024 * int(file_size))
+        if (file_size_unit.lower() == 'mb'):
+          out.truncate(1024 * 1024 * int(file_size))
+        if (file_size_unit.lower() == 'kb'):
+          out.truncate(1024 * int(file_size))
+        if (file_size_unit.lower() == 'b'):
+          out.truncate(int(file_size))
+
+    num_files = os.listdir(TEMPORARY_DIRECTORY)
+
+    if not num_files:
+      _logmessage("Files were not created locally",LOG_ERROR)
+      return 1
+
+    # Starting upload to the gcs bucket.
+    try:
+        subprocess.Popen(
+        'gcloud storage cp --recursive {}/* {}'.format(TEMPORARY_DIRECTORY,
+                                         destination_blob_name),
+        shell=True).communicate()
+    except subprocess.CalledProcessError as e:
+      _logmessage("Issue while uploading files to GCS bucket.Aborting...",LOG_ERROR)
+      return 1
+
+    # Delete local files from temporary directory.
+    subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
+
+    # Writing number of files uploaded to output file after every batch uploads.
+    _logmessage('{}/{} files uploaded to {}\n'.format(len(num_files), num_of_files,
+                                                     destination_blob_name),LOG_INFO)
+  return 0
 
 
 if __name__ == '__main__':
@@ -247,7 +301,7 @@ if __name__ == '__main__':
   if len(argv) < 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 generate_files.py <config_file> [--keep_files]')
+                    'python3 generate_folders_and_files.py <config_file> [--keep_files]')
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -263,8 +317,8 @@ if __name__ == '__main__':
   args = parser.parse_args(argv[1:])
 
   # Checking that gcloud is installed:
-  _logmessage('Checking whether gcloud is installed.\n')
-  process = Popen('gcloud version', shell=True)
+  _logmessage('Checking whether gcloud is installed.\n',LOG_INFO)
+  process = subprocess.Popen('gcloud version', shell=True)
   process.communicate()
   exit_code = process.wait()
   if exit_code != 0:
@@ -287,5 +341,5 @@ if __name__ == '__main__':
   if not dir_structure_present:
     exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
-      print('Error while deleting bucket.Exiting...!')
+      print('Error while deleting content in bucket.Exiting...!')
       subprocess.call('bash', shell=True)
