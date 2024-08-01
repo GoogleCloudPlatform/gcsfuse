@@ -405,7 +405,6 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     file_size = 1
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
-    expected_size = 1024 * 1024 * int(file_size)
 
     exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
