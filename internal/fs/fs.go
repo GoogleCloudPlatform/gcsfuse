@@ -1996,7 +1996,7 @@ func (fs *fileSystem) handlePendingInodes(inodes *[]inode.DirInode) func() {
 func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirInode, name string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
 	dir, err := fs.lookUpOrCreateChildDirInode(ctx, parent, name)
 	if err != nil {
-		return nil, fmt.Errorf("lookup old directory: %w", err)
+		return nil, fmt.Errorf("lookup directory: %w", err)
 	}
 	*pendingInodes = append(*pendingInodes, dir)
 	return dir, nil
