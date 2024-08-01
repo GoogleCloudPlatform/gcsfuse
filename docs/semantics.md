@@ -165,14 +165,14 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
 **Kernel List Cache**
 
-The Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`). It significantly improves the workload which involves repeated listing. This is recommended to use it with Read-Only mounts specifically for Serving and Training workload.
+The Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`). It significantly improves the workload which involves repeated listing. This is recommended to use it with read-only mounts specifically for Serving and Training workload.
 
 By default, the list cache is disabled. It can be enabled by configuring the **--kernel-list-cache-ttl-secs** cli flag or **file-system:kernel-list-cache-ttl-secs** config flag where:
 *   a value of 0 means disabled. This is the default value.
 *   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache.
 *   -1 to bypass entry expiration and always return the list response from the cache if available.
 
-**Points to understand**
+**Important Points**
 *   The kernel-list-cache is kept within the page cache. Consequently, this functionality depends upon the availability of page cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
 *   The kernel's list cache is maintained on a per-directory level, resulting in either all list entries being retained in the page cache or none at all.
 *   The creation, renaming, or deletion of new files or folders causes the eviction of the page-cache of their immediate parent directory, but not of all ancestral directories.
