@@ -57,7 +57,7 @@ Examples:
 
 # Caching
 
-Cloud Storage FUSE has three forms of optional caching: stat, type, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
+Cloud Storage FUSE has four forms of optional caching: stat, type, list, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, kernel-list caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
 The different forms of caching are discussed in this section, along with their trade-offs and the situations in which they are and are not safe to use.
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
@@ -163,7 +163,27 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
    - If a Cloud Storage FUSE client modifies a cached file or its metadata, then the file is immediately invalidated and consistency is ensured in the following read by the same client. However, if different clients access the same file or its metadata, and its entries are cached, then the cached version of the file or metadata is read and not the updated version until the file is invalidated by that specific client's TTL setting.     
 
-**Note**: 
+**Kernel List Cache**
+
+The Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`). It significantly improves the workload which involves repeated listing. This is recommended to use it with Read-Only mounts specifically for Serving and Training workload.
+
+By default, the list cache is disabled. It can be enabled by configuring the **--kernel-list-cache-ttl-secs** cli flag or **file-system:kernel-list-cache-ttl-secs** config flag where:
+*   a value of 0 means disabled. This is the default value.
+*   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache.
+*   -1 to bypass entry expiration and always return the list response from the cache if available.
+
+**Points to understand**
+*   The kernel-list-cache is kept within the page cache. Consequently, this functionality depends upon the availability of page cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
+*   The kernel's list cache is maintained on a per-directory level, resulting in either all list entries being retained in the page cache or none at all.
+*   The creation, renaming, or deletion of new files or folders causes the eviction of the page-cache of their immediate parent directory, but not of all ancestral directories.
+
+**Consistency**
+*   Kernel List cache ensures consistency within the mount. That means, creation, deletion or rename of files/folder within a directory evicts the kernel list cache of the directory.
+*   Externally added objects are only visible after the kernel-list-cache-ttl-secs timer expires, even if they are touched (stat) via the same mount point. Since stat doesn’t evict the kernel-list-cache so there might be some list-stat inconsistency.
+*   Kernel-list-cache-ttl doesn't work with empty directories. Once an empty directory list response is cached, it requires a new file to be created from the same mount point to invalidate the cache.
+*   One of the known consistency issue: `rm -R` encounters consistency issues when objects are created externally in a bucket. Specifically, if a client (e.g., `Cloud Storage Fuse` client1) caches a directory listing and another client (client2) adds a new file to the directory before the cached listing expires, `rm -R` on the directory will fail with a "Directory not empty" error. This occurs because `rm -R` initially deletes the directory's children based on the cached listing and then checks the directory's emptiness by making a List call, which returns not empty due to the externally added file.
+
+**Note**:
 
 1. ```--stat-cache-ttl``` and ```--type-cache-ttl``` have been deprecated (starting v2.0) and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```.
 For now, for backward compatibility, both are accepted, and the minimum of the two, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
