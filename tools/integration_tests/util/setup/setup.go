@@ -410,6 +410,17 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
+func IsHNSBucket(ctx context.Context, storageClient *storage.Client) bool {
+	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
+	if err != nil {
+		return false
+	}
+	if attrs.HierarchicalNamespace != nil && !attrs.HierarchicalNamespace.Enabled {
+		return false
+	}
+	return true
+}
+
 // Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
 func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
 	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
