@@ -373,12 +373,10 @@ func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Nam
 		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
 	}
 
-	folderObject := folderResult.ConvertFolderToMinObject()
-
 	return &Core{
-		Bucket:    bucket,
-		FullName:  name,
-		MinObject: folderObject,
+		Bucket:   bucket,
+		FullName: name,
+		Folder:   folderResult,
 	}, nil
 }
 
@@ -838,16 +836,16 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
+	var f *gcs.Folder
+	var err error
 
 	// Check the bucket type.
 	if d.isBucketHierarchical() {
 		// For hierarchical buckets, create a folder.
-		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
+		f, err = d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
 		}
-		// Convert the folder to a minimal object.
-		m = f.ConvertFolderToMinObject()
 	} else {
 		// For non-hierarchical buckets, create a new object.
 		o, err := d.createNewObject(ctx, fullName, nil)
@@ -865,6 +863,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
 		MinObject: m,
+		Folder:    f,
 	}, nil
 }
 
