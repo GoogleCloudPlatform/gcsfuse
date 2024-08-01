@@ -537,7 +537,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     exit_code=generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
 
     self.assertEqual(exit_code,1)
-    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.",generate_folders_and_files.LOG_ERROR)
+    mock_logmessage.assert_called_once_with("Directory structure not specified via config file.",'error')
 
 
   @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
@@ -586,8 +586,8 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     # Verify subprocess calls.
     mock_subprocess.assert_has_calls(expected_subprocess_calls)
     # Verify log messages.
-    mock_log.assert_any_call('Making a temporary directory.\n', generate_folders_and_files.LOG_INFO)
-    mock_log.assert_any_call('Deleting the temporary directory.\n', generate_folders_and_files.LOG_INFO)
+    mock_log.assert_any_call('Making a temporary directory.\n', 'info')
+    mock_log.assert_any_call('Deleting the temporary directory.\n', 'info')
     # Verify generate_files_and_upload_to_gcs_bucket call.
     mock_generate.assert_has_calls(expected_generate_and_upload_calls)
 
