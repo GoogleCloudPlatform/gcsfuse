@@ -133,6 +133,8 @@ func (t *CoreTest) SanityCheck() {
 	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
 	m := storageutil.ConvertObjToMinObject(o)
 	AssertEq(nil, err)
+	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
+	AssertEq(nil, err)
 
 	c := &inode.Core{
 		Bucket:    &t.bucket,
@@ -140,6 +142,13 @@ func (t *CoreTest) SanityCheck() {
 		MinObject: nil,
 	}
 	ExpectEq(nil, c.SanityCheck()) // implicit dir is okay
+
+	c = &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewDirName(root, "folder"),
+		Folder:   f,
+	}
+	ExpectEq(nil, c.SanityCheck())
 
 	c = &inode.Core{
 		Bucket:    &t.bucket,
