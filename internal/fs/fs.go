@@ -23,6 +23,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -1924,6 +1925,9 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
@@ -1972,44 +1976,134 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
+func isSubdir(p1, p2 string) (bool, error) {
+	rel, err := filepath.Rel(p2, p1)
+	if err != nil {
+		return false, err
+	}
+	return !strings.HasPrefix(rel, "..") && rel != ".", nil
+}
+
+func (fs *fileSystem) handlePendingInodes(inodes *[]inode.DirInode) func() {
+	return func() {
+		for _, in := range *inodes {
+			fs.unlockAndDecrementLookupCount(in, 1)
+		}
+		*inodes = []inode.DirInode{}
+	}
+}
+
+func (fs *fileSystem) getOldDir(ctx context.Context, oldParent inode.DirInode, oldName string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
+	oldDir, err := fs.lookUpOrCreateChildDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return nil, fmt.Errorf("lookup old directory: %w", err)
+	}
+	*pendingInodes = append(*pendingInodes, oldDir)
+	return oldDir, nil
+}
+
+func (fs *fileSystem) checkAndHandleLocalFiles(oldDir inode.BucketOwnedDirInode, oldName string) error {
+	fs.mu.Lock()
+	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	fs.mu.Unlock()
+	if len(entries) != 0 {
+		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
+	}
+	return nil
+}
+
+func (fs *fileSystem) getNewDir(ctx context.Context, newParent inode.DirInode, newName string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
+	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)
+	if err != nil {
+		return nil, fmt.Errorf("lookup new directory: %w", err)
+	}
+	*pendingInodes = append(*pendingInodes, newDir)
+	return newDir, nil
+}
+
+func (fs *fileSystem) checkNewDirNonEmpty(newDir inode.BucketOwnedDirInode, newName string) error {
+	unexpected, err := newDir.ReadDescendants(context.Background(), 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
+	}
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
+	return nil
+}
+
+func (fs *fileSystem) renameWithinSameParent(ctx context.Context, oldParent inode.DirInode, oldDirName, newDirName string) error {
+	oldParent.Lock()
+	defer oldParent.Unlock()
+	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+	return err
+}
+
+func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParent, newParent inode.DirInode, oldDirName, newDirName string) error {
+	p1, p2 := oldParent, newParent
+	x, _ := isSubdir(oldParent.Name().GcsObjectName(), newParent.Name().GcsObjectName())
+	if x {
+		p1, p2 = newParent, oldParent
+	}
+
+	p1.Lock()
+	defer p1.Unlock()
+	p2.Lock()
+	defer p2.Unlock()
+
+	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+	return err
+}
+
+func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	var pendingInodes []inode.DirInode
+	defer fs.handlePendingInodes(&pendingInodes)()
+
+	oldDir, err := fs.getOldDir(ctx, oldParent, oldName, &pendingInodes)
+	if err != nil {
+		return err
+	}
+
+	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
+		return err
+	}
+
+	newDir, err := fs.getNewDir(ctx, newParent, newName, &pendingInodes)
+	if err != nil {
+		return err
+	}
+
+	if err = fs.checkNewDirNonEmpty(newDir, newName); err != nil {
+		return err
+	}
+
+	oldDirName := path.Join(oldParent.Name().GcsObjectName(), oldName)
+	newDirName := path.Join(newParent.Name().GcsObjectName(), newName)
+
+	if oldParent == newParent {
+		return fs.renameWithinSameParent(ctx, oldParent, oldDirName, newDirName)
+	} else {
+		return fs.renameAcrossDifferentParents(ctx, oldParent, newParent, oldDirName, newDirName)
+	}
+}
+
 // Rename an old directory to a new directory. If the new directory already
 // exists and is non-empty, return ENOTEMPTY.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_EXCLUDED(oldParent)
 // LOCKS_EXCLUDED(newParent)
-func (fs *fileSystem) renameDir(
-	ctx context.Context,
-	oldParent inode.DirInode,
-	oldName string,
-	newParent inode.DirInode,
-	newName string) error {
-
-	// Set up a function that throws away the lookup count increment from
-	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
-	// the kernel) and unlocks the pending inodes, but only once
+func (fs *fileSystem) renameDir(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) error {
 	var pendingInodes []inode.DirInode
-	releaseInodes := func() {
-		for _, in := range pendingInodes {
-			fs.unlockAndDecrementLookupCount(in, 1)
-		}
-		pendingInodes = []inode.DirInode{}
-	}
-	defer releaseInodes()
+	defer fs.handlePendingInodes(&pendingInodes)()
 
-	// Get the inode of the old directory
-	oldDir, err := fs.lookUpOrCreateChildDirInode(ctx, oldParent, oldName)
+	oldDir, err := fs.getOldDir(ctx, oldParent, oldName, &pendingInodes)
 	if err != nil {
-		return fmt.Errorf("lookup old directory: %w", err)
+		return err
 	}
-	pendingInodes = append(pendingInodes, oldDir)
 
-	// If old directory contains local (un-synced) files, rename operation is not supported.
-	fs.mu.Lock()
-	entries := oldDir.LocalFileEntries(fs.localFileInodes)
-	fs.mu.Unlock()
-	if len(entries) != 0 {
-		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
+	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
+		return err
 	}
 
 	// Fetch all the descendants of the old directory recursively
@@ -2035,27 +2129,18 @@ func (fs *fileSystem) renameDir(
 		}
 	}
 
-	// Get the inode of the new directory
-	newDir, err := fs.lookUpOrCreateChildDirInode(ctx, newParent, newName)
+	newDir, err := fs.getNewDir(ctx, newParent, newName, &pendingInodes)
 	if err != nil {
-		return fmt.Errorf("lookup new directory: %w", err)
-	}
-	pendingInodes = append(pendingInodes, newDir)
-
-	// Fail the operation if the new directory is non-empty.
-	unexpected, err := newDir.ReadDescendants(ctx, 1)
-	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
-	}
-	if len(unexpected) > 0 {
-		return fuse.ENOTEMPTY
+		return err
 	}
 
-	// Move all the files from the old directory to the new directory, keeping
-	// both directories locked.
+	if err := fs.checkNewDirNonEmpty(newDir, newName); err != nil {
+		return err
+	}
+
+	// Move all the files from the old directory to the new directory, keeping both directories locked.
 	for _, descendant := range descendants {
-		nameDiff := strings.TrimPrefix(
-			descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
+		nameDiff := strings.TrimPrefix(descendant.FullName.GcsObjectName(), oldDir.Name().GcsObjectName())
 		if nameDiff == descendant.FullName.GcsObjectName() {
 			return fmt.Errorf("unwanted descendant %q not from dir %q", descendant.FullName, oldDir.Name())
 		}
@@ -2073,8 +2158,7 @@ func (fs *fileSystem) renameDir(
 		}
 	}
 
-	// We are done with both directories.
-	releaseInodes()
+	fs.handlePendingInodes(&pendingInodes)()
 
 	// Delete the backing object of the old directory.
 	fs.mu.Lock()
@@ -2089,6 +2173,7 @@ func (fs *fileSystem) renameDir(
 
 	return nil
 }
+
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) Unlink(
