@@ -674,7 +674,7 @@ func (d *dirInode) readObjects(
 		// Given the alphabetical order of the objects, if a file "foo" and
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
-		if strings.HasSuffix(o.Name, "/") {
+		if strings.HasSuffix(o.Name, "/") && !d.isBucketHierarchical() {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{
 				Bucket:    d.Bucket(),
@@ -704,16 +704,27 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
-			continue
-		}
+		if d.isBucketHierarchical() {
+			folder := gcs.Folder{Name: dirName.objectName}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+			folderCore := &Core{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &folder,
+			}
+			cores[dirName] = folderCore
+		} else {
+			if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+				continue
+			}
+
+			implicitDir := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: nil,
+			}
+			cores[dirName] = implicitDir
 		}
-		cores[dirName] = implicitDir
 	}
 	return
 }
