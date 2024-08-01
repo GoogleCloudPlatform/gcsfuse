@@ -728,6 +728,7 @@ func(fs *fileSystem) createExplicitDirInode(ic inode.Core) (inode.Inode){
 		fs.cacheClock,
 		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
 		fs.mountConfig.EnableHNS)
+	
 	return in
 }
 

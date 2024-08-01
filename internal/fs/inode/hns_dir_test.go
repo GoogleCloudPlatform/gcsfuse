@@ -466,3 +466,86 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
+
+//func (t *HNSDirTest) TestReadAllEntries() {
+//	var err error
+//	var entry fuseutil.Dirent
+//
+//	// Set up contents.
+//	objs := []string{
+//		dirInodeName + "backed_dir_empty/",
+//		dirInodeName + "backed_dir_nonempty/",
+//		dirInodeName + "backed_dir_nonempty/blah",
+//		dirInodeName + "file",
+//		dirInodeName + "implicit_dir/blah",
+//		dirInodeName + "symlink",
+//	}
+//	folders := []string{
+//		dirInodeName + "folder1/",
+//		dirInodeName + "folder2/",
+//		dirInodeName + "folder2/blah",
+//	}
+//	err = storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+//	assert.NoError(t.T(), err)
+//	for i := 0; i < 3; i++ {
+//		err = t.bucket(t.ctx, t.bucket, objs)
+//		assert.NoError(t.T(), err)
+//	}
+//
+//	// Set up the symlink target.
+//	err = t.setSymlinkTarget(dirInodeName+"symlink", "blah")
+//	AssertEq(nil, err)
+//
+//	// Nil prevDirListingTimeStamp
+//	d := t.in.(*dirInode)
+//	AssertNe(nil, d)
+//	AssertTrue(d.prevDirListingTimeStamp.IsZero())
+//
+//	// Read entries.
+//	entries, err := t.readAllEntries()
+//
+//	AssertEq(nil, err)
+//	AssertEq(4, len(entries))
+//
+//	entry = entries[0]
+//	ExpectEq("backed_dir_empty", entry.Name)
+//	ExpectEq(fuseutil.DT_Directory, entry.Type)
+//	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_empty"))
+//
+//	entry = entries[1]
+//	ExpectEq("backed_dir_nonempty", entry.Name)
+//	ExpectEq(fuseutil.DT_Directory, entry.Type)
+//	ExpectEq(metadata.ExplicitDirType, t.getTypeFromCache("backed_dir_nonempty"))
+//
+//	entry = entries[2]
+//	ExpectEq("file", entry.Name)
+//	ExpectEq(fuseutil.DT_File, entry.Type)
+//	ExpectEq(metadata.RegularFileType, t.getTypeFromCache("file"))
+//
+//	entry = entries[3]
+//	ExpectEq("symlink", entry.Name)
+//	ExpectEq(fuseutil.DT_Link, entry.Type)
+//	ExpectEq(metadata.SymlinkType, t.getTypeFromCache("symlink"))
+//
+//	// Make sure prevDirListingTimeStamp is initialized.
+//	AssertFalse(d.prevDirListingTimeStamp.IsZero())
+//
+//	tok := ""
+//	var err error
+//	var entries []fuseutil.Dirent
+//	for {
+//		var tmp []fuseutil.Dirent
+//		tmp, tok, err = t.in.ReadEntries(t.ctx, tok)
+//		entries = append(entries, tmp...)
+//		if err != nil {
+//			return
+//		}
+//
+//		if tok == "" {
+//			break
+//		}
+//	}
+//
+//	sort.Sort(DirentSlice(entries))
+//	return
+//}
