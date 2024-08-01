@@ -62,7 +62,7 @@ func parseArgs(t *FlagsTest, args []string) (flags *flagStorage) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlagsTest) Defaults() {
+func (t *FlagsTest) TestDefaults() {
 	f := parseArgs(t, []string{})
 
 	// File system
@@ -71,28 +71,28 @@ func (t *FlagsTest) Defaults() {
 
 	assert.Equal(t.T(), os.FileMode(0755), f.DirMode)
 	assert.Equal(t.T(), os.FileMode(0644), f.FileMode)
-	assert.Equal(t.T(), -1, f.Uid)
-	assert.Equal(t.T(), -1, f.Gid)
+	assert.EqualValues(t.T(), -1, f.Uid)
+	assert.EqualValues(t.T(), -1, f.Gid)
 	assert.False(t.T(), f.ImplicitDirs)
-	assert.False(t.T(), f.IgnoreInterrupts)
+	assert.True(t.T(), f.IgnoreInterrupts)
 	assert.Equal(t.T(), config.DefaultKernelListCacheTtlSeconds, f.KernelListCacheTtlSeconds)
 
 	// GCS
 	assert.Equal(t.T(), "", f.KeyFile)
-	assert.Equal(t.T(), -1, f.EgressBandwidthLimitBytesPerSecond)
-	assert.Equal(t.T(), -1, f.OpRateLimitHz)
+	assert.EqualValues(t.T(), -1, f.EgressBandwidthLimitBytesPerSecond)
+	assert.EqualValues(t.T(), -1, f.OpRateLimitHz)
 	assert.True(t.T(), f.ReuseTokenFromUrl)
-	assert.Equal(t.T(), nil, f.CustomEndpoint)
+	assert.Nil(t.T(), f.CustomEndpoint)
 	assert.False(t.T(), f.AnonymousAccess)
 
 	// Tuning
 	assert.Equal(t.T(), mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
 	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
 	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
-	assert.Equal(t.T(), 0, f.HttpClientTimeout)
+	assert.EqualValues(t.T(), 0, f.HttpClientTimeout)
 	assert.Equal(t.T(), "", f.TempDir)
 	assert.Equal(t.T(), config.DefaultMaxRetryAttempts, f.MaxRetryAttempts)
-	assert.Equal(t.T(), 2, f.RetryMultiplier)
+	assert.EqualValues(t.T(), 2, f.RetryMultiplier)
 	assert.False(t.T(), f.EnableNonexistentTypeCache)
 	assert.Equal(t.T(), 0, f.MaxConnsPerHost)
 
@@ -108,7 +108,7 @@ func (t *FlagsTest) Defaults() {
 	assert.Equal(t.T(), 0, f.PrometheusPort)
 }
 
-func (t *FlagsTest) Bools() {
+func (t *FlagsTest) TestBools() {
 	names := []string{
 		"implicit-dirs",
 		"reuse-token-from-url",
@@ -172,7 +172,7 @@ func (t *FlagsTest) Bools() {
 	assert.True(t.T(), f.EnableNonexistentTypeCache)
 }
 
-func (t *FlagsTest) DecimalNumbers() {
+func (t *FlagsTest) TestDecimalNumbers() {
 	args := []string{
 		"--uid=17",
 		"--gid=19",
@@ -186,18 +186,18 @@ func (t *FlagsTest) DecimalNumbers() {
 	}
 
 	f := parseArgs(t, args)
-	assert.Equal(t.T(), 17, f.Uid)
-	assert.Equal(t.T(), 19, f.Gid)
+	assert.EqualValues(t.T(), 17, f.Uid)
+	assert.EqualValues(t.T(), 19, f.Gid)
 	assert.Equal(t.T(), 123.4, f.EgressBandwidthLimitBytesPerSecond)
 	assert.Equal(t.T(), 56.78, f.OpRateLimitHz)
 	assert.Equal(t.T(), 8192, f.StatCacheCapacity)
 	assert.Equal(t.T(), 100, f.MaxIdleConnsPerHost)
 	assert.Equal(t.T(), 100, f.MaxConnsPerHost)
-	assert.Equal(t.T(), 234, f.KernelListCacheTtlSeconds)
-	assert.Equal(t.T(), 100, f.MaxRetryAttempts)
+	assert.EqualValues(t.T(), 234, f.KernelListCacheTtlSeconds)
+	assert.EqualValues(t.T(), 100, f.MaxRetryAttempts)
 }
 
-func (t *FlagsTest) OctalNumbers() {
+func (t *FlagsTest) TestOctalNumbers() {
 	args := []string{
 		"--dir-mode=711",
 		"--file-mode", "611",
@@ -208,7 +208,7 @@ func (t *FlagsTest) OctalNumbers() {
 	assert.Equal(t.T(), os.FileMode(0611), f.FileMode)
 }
 
-func (t *FlagsTest) Strings() {
+func (t *FlagsTest) TestStrings() {
 	args := []string{
 		"--key-file", "-asdf",
 		"--temp-dir=foobar",
@@ -225,7 +225,7 @@ func (t *FlagsTest) Strings() {
 	assert.Equal(t.T(), config.ExperimentalMetadataPrefetchOnMountAsynchronous, f.ExperimentalMetadataPrefetchOnMount)
 }
 
-func (t *FlagsTest) Durations() {
+func (t *FlagsTest) TestDurations() {
 	args := []string{
 		"--stat-cache-ttl", "1m17s100ms",
 		"--type-cache-ttl", "50s900ms",
@@ -241,7 +241,7 @@ func (t *FlagsTest) Durations() {
 	assert.Equal(t.T(), 30*time.Second, f.MaxRetrySleep)
 }
 
-func (t *FlagsTest) Maps() {
+func (t *FlagsTest) TestMaps() {
 	args := []string{
 		"-o", "rw,nodev",
 		"-o", "user=jacobsa,noauto",
