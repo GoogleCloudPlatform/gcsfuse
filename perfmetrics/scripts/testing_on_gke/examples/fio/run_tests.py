@@ -18,13 +18,7 @@
 """This program takes in a json fio test-config file and generates and deploys helm charts."""
 
 import argparse
-from collections.abc import Sequence
-import json
-import os
-import pprint
 import subprocess
-
-from absl import app
 import fio_workload
 
 
@@ -61,23 +55,30 @@ def main(args) -> None:
   fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
       args.workload_config
   )
-  # for fioWorkload in fioWorkloads:
-  # fioWorkload.PPrint()
   helmInstallCommands = createHelmInstallCommands(fioWorkloads)
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
-    run_command(f'{helmInstallCommand}')
+    if not args.dry_run:
+      run_command(helmInstallCommand)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
       prog='FIO test runner',
       description=(
-          'This program takes in a json fio test-config file and generates'
-          ' helm install commands.'
+          'This program takes in a json test-config file and generates'
+          ' helm install commands to execute them using the active GKE cluster.'
       ),
-      # epilog='Text at the bottom of help',
   )
   parser.add_argument('--workload-config')
+  parser.add_argument(
+      '-n',
+      '--dry-run',
+      action='store_true',
+      help=(
+          'Only print out the test configurations that will run,'
+          ' not actually run them.'
+      ),
+  )
   args = parser.parse_args()
   main(args)
