@@ -1,31 +1,13 @@
-#!/usr/bin/env python
+"""This file defines a DlioWorkload (a DLIO Unet3d workload) and provides utility for parsing a json
 
-# Copyright 2018 The Kubernetes Authors.
-# Copyright 2022 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""This program takes in a json dlio test-config file and generates and deploys helm charts."""
+test-config file for a list of them.
+"""
 
 import json
 
-# import os
-
-from absl import app
-
 
 def validateDlioWorkload(workload, name):
-  """Validates the given dlio workload config."""
+  """Validates the given json workload object."""
   if (
       'dlioWorkload' not in workload
       or 'fioWorkload' in workload
@@ -36,15 +18,31 @@ def validateDlioWorkload(workload, name):
         " has 'fioWorkload' key in it"
     )
     return False
+
   dlioWorkload = workload['dlioWorkload']
-  for requiredField in ['numFilesTrain', 'recordLength', 'batchSizes']:
-    if requiredField not in dlioWorkload:
-      print(f'dlioWorkload for {name} does not have {requiredField} in it')
+  for requiredAttribute in ['numFilesTrain', 'recordLength', 'batchSizes']:
+    if requiredAttribute not in dlioWorkload:
+      print(f'dlioWorkload for {name} does not have {requiredAttribute} in it')
       return False
   return True
 
 
 class DlioWorkload:
+  """DlioWorkload holds data needed to define a DLIO Unet3d workload
+
+  (essentially the data needed to create a job file for DLIO run).
+
+  Members:
+  1. scenario (string): One of "local-ssd", "gcsfuse-generic",
+  "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
+  2. numFilesTrain (string): DLIO numFilesTrain argument in string format e.g.
+  '500000' etc.
+  3. recordLength (string): DLIO recordLength argument in string format e.g.
+  '100', '1000000', '10M' etc.
+  4. bucket (string): Name of a GCS bucket to read input files from.
+  5. batchSizes (list of strings): a string containing multiple comma-separated
+  integer values.
+  """
 
   def __init__(self, scenario, numFilesTrain, recordLength, bucket, batchSizes):
     self.scenario = scenario
@@ -55,9 +53,11 @@ class DlioWorkload:
 
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName):
+  """Parses the given workload test configuration file for DLIO workloads."""
+  print(f'Parsing {fioTestConfigFile} for DLIO workloads ...')
   with open(testConfigFileName) as f:
-    d = json.load(f)
-    testConfig = d['TestConfig']
+    file = json.load(f)
+    testConfig = file['TestConfig']
     workloadConfig = testConfig['workloadConfig']
     workloads = workloadConfig['workloads']
     dlioWorkloads = []
@@ -69,7 +69,7 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName):
     for i in range(len(workloads)):
       workload = workloads[i]
       if not validateDlioWorkload(workload, f'workload#{i}'):
-        print(f'workloads#{i} is not a valid dlio workload, so ignoring it.')
+        print(f'workloads#{i} is not a valid DLIO workload, so ignoring it.')
         pass
       else:
         for scenario in scenarios:

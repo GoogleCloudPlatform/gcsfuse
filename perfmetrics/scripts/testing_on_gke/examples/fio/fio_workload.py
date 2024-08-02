@@ -1,11 +1,13 @@
-"""This file defines a FioWorkload and provides logic for parsing a bunch of them from a json test-config file."""
+"""This file defines a FioWorkload and provides utility for parsing a json
+
+test-config file for a list of them.
+"""
 
 import json
-import pprint
 
 
 def validateFioWorkload(workload, name):
-  """Validates the given fio workload config."""
+  """Validates the given json workload object."""
   if (
       'fioWorkload' not in workload
       or 'dlioWorkload' in workload
@@ -13,26 +15,43 @@ def validateFioWorkload(workload, name):
   ):
     print(
         f"{name} does not have 'fioWorkload' or 'bucket' key in it, or"
-        " has 'dlioWorkload' key in it"
+        " has 'dlioWorkload' key in it."
     )
     return False
+
   fioWorkload = workload['fioWorkload']
-  for requiredField in [
+  for requiredAttribute in [
       'fileSize',
       'blockSize',
       'filesPerThread',
       'numThreads',
   ]:
-    if requiredField not in fioWorkload:
-      print(
-          f'fioWorkload for {name} does not have value for'
-          f' {requiredField} in it'
-      )
+    if requiredAttribute not in fioWorkload:
+      print(f'fioWorkload for {name} does not have {requiredAttribute} in it.')
       return False
   return True
 
 
 class FioWorkload:
+  """FioWorkload holds data needed to define a FIO workload
+
+  (essentially the data needed to create a job file for FIO run).
+
+  Members:
+  1. scenario (string): One of "local-ssd", "gcsfuse-generic",
+  "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
+  2. fileSize (string): fio filesize field in string format e.g. '100', '10K',
+  '10M' etc.
+  3. blockSize (string): equivalent of bs field in fio job file e.g. '8K',
+  '128K', '1M' etc.
+  4. filesPerThreads (int): equivalent of nrfiles in fio job file. Must be
+  greater than 0.
+  5. numThreads (int): equivalent of numjobs in fio job file. Must be greater
+  than 0.
+  6. bucket (string): Name of a GCS bucket to read input files from.
+  7. readTypes (list of strings): a list containing multiple values out of
+  'read', 'randread'.
+  """
 
   def __init__(
       self,
@@ -53,7 +72,6 @@ class FioWorkload:
     self.readTypes = readTypes
 
   def PPrint(self):
-    # pprint.pp(self)
     print(
         f'scenario:{self.scenario}, fileSize:{self.fileSize},'
         f' blockSize:{self.blockSize}, filesPerThread:{self.filesPerThread},'
@@ -63,10 +81,11 @@ class FioWorkload:
 
 
 def ParseTestConfigForFioWorkloads(fioTestConfigFile):
-  print(f'Parsing {fioTestConfigFile}')
+  """Parses the given workload test configuration file for FIO workloads."""
+  print(f'Parsing {fioTestConfigFile} for FIO workloads ...')
   with open(fioTestConfigFile) as f:
-    d = json.load(f)
-    testConfig = d['TestConfig']
+    file = json.load(f)
+    testConfig = file['TestConfig']
     workloadConfig = testConfig['workloadConfig']
     workloads = workloadConfig['workloads']
     fioWorkloads = []
@@ -78,11 +97,10 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile):
     for i in range(len(workloads)):
       workload = workloads[i]
       if not validateFioWorkload(workload, f'workload#{i}'):
-        print(f'workloads#{i} is not a valid fio workload, so ignoring it.')
+        print(f'workloads#{i} is not a valid FIO workload, so ignoring it.')
         pass
       else:
         for scenario in scenarios:
-          # print(f'workload#{i}:  {workloads[i]}')
           fioWorkload = workload['fioWorkload']
           fioWorkloads.append(
               FioWorkload(
@@ -93,7 +111,11 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile):
                   fioWorkload['numThreads'],
                   workload['bucket'],
                   (
-                      fioWorkload['readTypes'].split(',')
+                      (
+                          []
+                          if str.isspace(fioWorkload['readTypes'])
+                          else fioWorkload['readTypes'].split(',')
+                      )
                       if 'readTypes' in fioWorkload
                       else ['read', 'randread']
                   ),

@@ -1,19 +1,19 @@
 {
-  "_comment": "Any element starting with _ is a comment.",
+  "_comment": "_ in the starting of element name indicates comment.",
   "TestConfig": {
     "workloadConfig": {
       "_description": "workloadConfig has an optional field runOnSSD (default true if missing), and an array of workloads.",
       "runOnSSD": true,
       "workloads": [
         {
-          "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid dlioWorkload field and a valid bucket.",
+          "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
           "_dlioWorkload": {
-            "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. blockSizes is a comma-separated field with integer values",
+            "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is a comma-separated field with integer values",
             "numFilesTrain": "500000",
             "recordLength": "102400",
             "batchSizes":"800,128"
           },
-          "bucket":"The bucket must have the objects with the names 'train', 'valid', and train/img_{i}_of_{numFilesTrain}.npz where i:0-{numFilesTrain}-1 and each train/img_{i}_of_{numFilesTrain}.npz must be of size {recordLength} bytes."
+          "bucket":"The bucket must have objects with name 'train/', 'valid/', and train/img_{i}_of_{numFilesTrain}.npz for every i where i:0-{numFilesTrain}-1 and each train/img_{i}_of_{numFilesTrain}.npz must be of size {recordLength} bytes. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
           "dlioWorkload": {
@@ -22,7 +22,6 @@
             "batchSizes":"800,128"
           },
           "bucket":"dlio-unet3d-100kb-500k-us-west1",
-          "_bucket_alt1":"dlio-unet3d-100kb-500k-us-west1",
           "_bucket_alt2":"dlio-unet3d-100kb-500k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-100kb-500k"
         },
@@ -33,7 +32,6 @@
             "batchSizes":"800,128"
           },
           "bucket":"dlio-unet3d-500kb-1m-us-west1",
-          "_bucket_alt1":"dlio-unet3d-500kb-1m-us-west1",
           "_bucket_alt2":"dlio-unet3d-500kb-1m-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-500kb-1m"
         },
@@ -44,7 +42,6 @@
             "batchSizes":"200"
           },
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
-          "_bucket_alt1":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
         },
@@ -55,7 +52,6 @@
             "batchSizes":"4"
           },
           "bucket":"dlio-unet3d-150mb-5k-us-west1",
-          "_bucket_alt1":"dlio-unet3d-150mb-5k-us-west1",
           "_bucket_alt2":"dlio-unet3d-150mb-5k-us-central1",
           "_bucket_alt3":"gke-dlio-unet3d-150mb-5k"
         }
