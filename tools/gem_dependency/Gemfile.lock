@@ -23,7 +23,7 @@ GEM
       insist
       mustache (= 0.99.8)
       stud
-    rexml (3.3.2)
+    rexml (3.3.3)
       strscan
     strscan (3.1.0)
     stud (0.0.23)
