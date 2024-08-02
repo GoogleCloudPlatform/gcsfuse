@@ -704,7 +704,7 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
-func(fs *fileSystem) createExplicitDirInode(ic inode.Core) (inode.Inode){
+func (fs *fileSystem) createExplicitDirInode(ic inode.Core) inode.Inode {
 	in := inode.NewExplicitDirInode(
 		fs.nextInodeID,
 		ic.FullName,
@@ -728,7 +728,7 @@ func(fs *fileSystem) createExplicitDirInode(ic inode.Core) (inode.Inode){
 		fs.cacheClock,
 		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
 		fs.mountConfig.EnableHNS)
-	
+
 	return in
 }
 
@@ -875,6 +875,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	var ok bool
+	// Hanlde Folders in Hierarchical bucket.
 	if ic.Folder != nil {
 		in, ok = fs.createInode(ic, fs.folderInodes)
 		if ok {
