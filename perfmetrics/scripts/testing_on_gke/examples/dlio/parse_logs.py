@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import json, os, pprint, subprocess
 import sys
 import dlio_workload
@@ -64,6 +65,26 @@ def downloadDlioOutputs(dlioWorkloads):
 
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser(
+      prog="DLIO Unet3d test output parser",
+      description=(
+          "This program takes in a json test-config file and parses it for"
+          " output buckets. From each output bucket, it downloads all the dlio"
+          " output logs from gs://<bucket>/logs/ localy to"
+          f" {LOCAL_LOGS_LOCATION} and parses them for dlio test runs and their"
+          " output metrics."
+      ),
+  )
+  parser.add_argument("--workload-config")
+  parser.add_argument(
+      "--project-number",
+      help=(
+          "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
+          " utilization data from GCP."
+      ),
+  )
+  args = parser.parse_args()
+
   try:
     os.makedirs(LOCAL_LOGS_LOCATION)
   except FileExistsError:
@@ -155,10 +176,16 @@ if __name__ == "__main__":
         r["end"] = standard_timestamp(per_epoch_stats_data[str(i + 1)]["end"])
         if r["scenario"] != "local-ssd" and mash_installed:
           r["lowest_memory"], r["highest_memory"] = get_memory(
-              r["pod_name"], r["start"], r["end"]
+              r["pod_name"],
+              r["start"],
+              r["end"],
+              project_number=args.project_number,
           )
           r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-              r["pod_name"], r["start"], r["end"]
+              r["pod_name"],
+              r["start"],
+              r["end"],
+              project_number=args.project_number,
           )
           pass
 

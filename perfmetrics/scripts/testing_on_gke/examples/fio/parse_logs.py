@@ -52,7 +52,8 @@ def downloadFioOutputs(fioWorkloads):
       os.makedirs(LOCAL_LOGS_LOCATION + "/" + fioWorkload.fileSize)
     except FileExistsError:
       pass
-    print(f"Download FIO output from the folder {fioWorkload.bucket}...")
+
+    print(f"Downloading FIO outputs from {fioWorkload.bucket}...")
     result = subprocess.run(
         [
             "gsutil",
@@ -71,6 +72,26 @@ def downloadFioOutputs(fioWorkloads):
 
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser(
+      prog="DLIO Unet3d test output parser",
+      description=(
+          "This program takes in a json test-config file and parses it for"
+          " output buckets.From each output bucket, it downloads all the dlio"
+          " output logs from gs://<bucket>/logs/ locally to"
+          f" {LOCAL_LOGS_LOCATION} and parses them for dlio test runs and their"
+          " output metrics."
+      ),
+  )
+  parser.add_argument("--workload-config")
+  parser.add_argument(
+      "--project-number",
+      help=(
+          "project-number (93817472919) is needed to fetch the cpu/memory"
+          " utilization data from GCP."
+      ),
+  )
+  args = parser.parse_args()
+
   try:
     os.makedirs(LOCAL_LOGS_LOCATION)
   except FileExistsError:
@@ -161,10 +182,16 @@ if __name__ == "__main__":
       r["end"] = unix_to_timestamp(per_epoch_output_data["timestamp_ms"])
       if r["scenario"] != "local-ssd" and mash_installed:
         r["lowest_memory"], r["highest_memory"] = get_memory(
-            r["pod_name"], r["start"], r["end"]
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
         )
         r["lowest_cpu"], r["highest_cpu"] = get_cpu(
-            r["pod_name"], r["start"], r["end"]
+            r["pod_name"],
+            r["start"],
+            r["end"],
+            project_number=args.project_number,
         )
         pass
       r["gcsfuse_mount_options"] = gcsfuse_mount_options
