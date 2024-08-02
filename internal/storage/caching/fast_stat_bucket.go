@@ -329,7 +329,7 @@ func (b *fastStatBucket) DeleteFolder(ctx context.Context, folderName string) er
 		return err
 	}
 	// Add negative entry in the cache.
-	b.cache.Erase(folderName)
+	b.addNegativeEntryForFolder(folderName)
 
 	return err
 }
