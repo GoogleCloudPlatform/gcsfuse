@@ -48,7 +48,6 @@ func TestGCSFolder(t *testing.T) {
 	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
-	assert.Equal(t, attrs.Metageneration, gcsFolder.MetaGeneration)
 	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
 }
 
@@ -59,14 +58,12 @@ func TestConvertFolderToMinObject(t *testing.T) {
 	}
 
 	folder := Folder{
-		Name:           TestFolderName,
-		MetaGeneration: 10,
-		UpdateTime:     timestamp.AsTime(),
+		Name:       TestFolderName,
+		UpdateTime: timestamp.AsTime(),
 	}
 
 	result := folder.ConvertFolderToMinObject()
 
 	assert.Equal(t, result.Name, TestFolderName)
-	assert.Equal(t, result.MetaGeneration, int64(10))
 	assert.Equal(t, result.Updated, timestamp.AsTime())
 }

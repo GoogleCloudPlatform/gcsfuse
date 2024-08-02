@@ -102,8 +102,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	const name = "qux"
 	dirName := path.Join(dirInodeName, name) + "/"
 	folder := &gcs.Folder{
-		Name:           dirName,
-		MetaGeneration: int64(1),
+		Name: dirName,
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 
@@ -115,8 +114,6 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	assert.NotEqual(t.T(), nil, result.MinObject)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
-
 }
 
 func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
@@ -157,8 +154,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	dirName := path.Join(dirInodeName, name) + "/"
 	// mock get folder call
 	folder := &gcs.Folder{
-		Name:           dirName,
-		MetaGeneration: int64(1),
+		Name: dirName,
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
@@ -172,7 +168,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
@@ -181,8 +176,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	dirName := path.Join(dirInodeName, name) + "/"
 	// mock get folder call
 	folder := &gcs.Folder{
-		Name:           dirName,
-		MetaGeneration: int64(1),
+		Name: dirName,
 	}
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 	notFoundErr := &gcs.NotFoundError{Err: errors.New("storage: object doesn't exist")}
@@ -197,7 +191,6 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
-	assert.Equal(t.T(), int64(1), result.MinObject.MetaGeneration)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
