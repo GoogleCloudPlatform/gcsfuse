@@ -875,7 +875,7 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 	fs.mu.Lock()
 
 	var ok bool
-	// Hanlde Folders in Hierarchical bucket.
+	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
 		in, ok = fs.createInode(ic, fs.folderInodes)
 		if ok {

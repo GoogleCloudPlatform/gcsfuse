@@ -674,6 +674,7 @@ func (d *dirInode) readObjects(
 		// Given the alphabetical order of the objects, if a file "foo" and
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
+		// In a hierarchical bucket, we'll create a folder entry instead of a MinObject for each prefix entry.
 		if strings.HasSuffix(o.Name, "/") && !d.isBucketHierarchical() {
 			dirName := NewDirName(d.Name(), nameBase)
 			explicitDir := &Core{

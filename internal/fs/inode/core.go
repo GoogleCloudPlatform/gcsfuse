@@ -35,7 +35,7 @@ type Core struct {
 	// if the inode is the base directory or an implicit directory.
 	MinObject *gcs.MinObject
 
-	// The GCS folder in the HNS bucket above that backs up the inode.
+	// The GCS folder in the hierarchical bucket above that backs up the inode.
 	Folder *gcs.Folder
 
 	// Specifies a local object which is not yet synced to GCS.
