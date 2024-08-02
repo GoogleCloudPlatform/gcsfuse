@@ -1987,24 +1987,27 @@ func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirIno
 	return dir, nil
 }
 
-func (fs *fileSystem) checkAndHandleLocalFiles(oldDir inode.BucketOwnedDirInode, oldName string) error {
+func (fs *fileSystem) ensureNoOpenFilesInDirectory(dir inode.BucketOwnedDirInode, name string) error {
 	fs.mu.Lock()
-	entries := oldDir.LocalFileEntries(fs.localFileInodes)
+	entries := dir.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
+
 	if len(entries) != 0 {
-		return fmt.Errorf("can't rename directory %s with open files: %w", oldName, syscall.ENOTSUP)
+		return fmt.Errorf("can't rename directory %s with open files: %w", name, syscall.ENOTSUP)
 	}
 	return nil
 }
 
-func (fs *fileSystem) checkDirNotEmpty(newDir inode.BucketOwnedDirInode, newName string) error {
-	unexpected, err := newDir.ReadDescendants(context.Background(), 1)
+func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
+	unexpected, err := dir.ReadDescendants(context.Background(), 1)
 	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", newName, err)
+		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
 	}
+
 	if len(unexpected) > 0 {
 		return fuse.ENOTEMPTY
 	}
+
 	return nil
 }
 
