@@ -405,6 +405,7 @@ class TestGenerateFilesAndUploadToGcsBucket(unittest.TestCase):
     file_size = 1
     filename_prefix = 'file'
     temp_file='./tmp/data_gen/file_1.txt'
+    expected_size = 1024 * 1024 * int(file_size)
 
     exit_code = generate_folders_and_files._generate_files_and_upload_to_gcs_bucket(
         destination_blob_name, num_of_files, file_size_unit, file_size,
@@ -570,6 +571,7 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
             ]
         }
     }
+    mock_generate.return_value= 0
     expected_subprocess_calls = [
         call(['mkdir', '-p', generate_folders_and_files.TEMPORARY_DIRECTORY]),
         call(['rm', '-r', generate_folders_and_files.TEMPORARY_DIRECTORY])
@@ -589,6 +591,44 @@ class TestParseAndGenerateDirStructure(unittest.TestCase):
     mock_log.assert_any_call('Deleting the temporary directory.\n', 'info')
     # Verify generate_files_and_upload_to_gcs_bucket call.
     mock_generate.assert_has_calls(expected_generate_and_upload_calls)
+
+
+  @patch('generate_folders_and_files.TEMPORARY_DIRECTORY', './tmp/data_gen')
+  @patch('subprocess.call')
+  @patch('generate_folders_and_files._logmessage')
+  @patch('generate_folders_and_files._generate_files_and_upload_to_gcs_bucket')
+  def test_create_folder_failure(self, mock_generate, mock_log, mock_subprocess):
+    dir_str = {
+        "name": "test_bucket",
+        "folders": {
+            "num_folders":1,
+            "folder_structure": [
+                {
+                    "name": "test_folder",
+                    "num_files": 2,
+                    "file_name_prefix": "file",
+                    "file_size": "1kb"
+                }
+            ]
+        }
+    }
+    mock_generate.return_value= 1
+    expected_subprocess_calls = [
+        call(['mkdir', '-p', generate_folders_and_files.TEMPORARY_DIRECTORY])
+    ]
+    expected_generate_and_upload_calls = [
+        call( 'gs://test_bucket/test_folder/',2,'kb',1,'file')
+    ]
+
+    exit_code = generate_folders_and_files._parse_and_generate_directory_structure(dir_str)
+
+    self.assertEqual(exit_code, 1)
+    # Verify log messages.
+    mock_log.assert_any_call('Making a temporary directory.\n', 'info')
+    # Verify generate_files_and_upload_to_gcs_bucket call.
+    mock_generate.assert_has_calls(expected_generate_and_upload_calls)
+    # Verify subprocess calls.
+    mock_subprocess.assert_has_calls(expected_subprocess_calls)
 
 
 if __name__ == '__main__':
