@@ -252,6 +252,7 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
 def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     file_size_unit, file_size,
     filename_prefix) -> int:
+  # Creating folders locally in temp directory and copying to gcs bucket.
   for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
     for file_num in range(batch_start, batch_start + BATCH_SIZE):
       if file_num > num_of_files:
@@ -295,6 +296,30 @@ def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files
                                                      destination_blob_name),LOG_INFO)
   return 0
 
+def _create_folders(folder,destination_url_prefix) -> (int):
+  """
+   Creates folder at destination url using folder JSON object.
+
+   Args:
+       folder: JSON object representing folder to be created.
+       destination_url_prefix: Destination at which folder is to be created.
+
+   Returns:
+       0 if error is encountered, 1 otherwise.
+   """
+  folder_name = folder["name"]
+  num_files = folder["num_files"]
+  filename_prefix = folder["file_name_prefix"]
+  file_size = folder["file_size"][:-2]
+  file_size_unit = folder["file_size"][-2:]
+  destination_blob_name = '{}/{}/'.format(destination_url_prefix, folder_name)
+  exit_code= _generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                           int(num_files),
+                                           file_size_unit,
+                                           int(file_size),
+                                           filename_prefix)
+  return exit_code
+
 
 def _parse_and_generate_directory_structure(dir_str) -> int:
   if not dir_str:
@@ -310,43 +335,28 @@ def _parse_and_generate_directory_structure(dir_str) -> int:
     if "folders" not in dir_str:
       _logmessage("No folders specified in the config file",LOG_INFO)
     else:
+      destination_url="gs://{}".format(bucket_name)
       for folder in dir_str["folders"]["folder_structure"]:
-        # Create the folder.
-        folder_name = folder["name"]
-        num_files = folder["num_files"]
-        filename_prefix = folder["file_name_prefix"]
-        file_size = folder["file_size"][:-2]
-        file_size_unit = folder["file_size"][-2:]
-        # Creating folders locally in temp directory and copying to gcs bucket:
-        destination_blob_name = 'gs://{}/{}/'.format(bucket_name, folder_name)
-        _generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                                int(num_files),
-                                                file_size_unit,
-                                                int(file_size),
-                                                filename_prefix)
+        # Create the folder at destination url.
+        exit_code = _create_folders(folder,destination_url)
+        if exit_code != 0:
+          _logmessage("Could not create files for folder {}".format(folder["name"]),LOG_ERROR)
+          return exit_code
+
 
     # Creating a nested folder structure in gcs bucket.
     if "nested_folders" not in dir_str:
       _logmessage("No nested folders specified in the config file",LOG_INFO)
     else:
       sub_folder_name = dir_str["nested_folders"]["folder_name"]
+      destination_url = 'gs://{}/{}'.format(bucket_name,sub_folder_name)
       for folder in dir_str["nested_folders"]["folder_structure"]:
-        # Create the folder.
-        folder_name = folder["name"]
-        num_files = folder["num_files"]
-        filename_prefix = folder["file_name_prefix"]
-        file_size = folder["file_size"][:-2]
-        file_size_unit = folder["file_size"][-2:]
-
-        # Creating folders locally in temp directory and copying to gcs bucket:
-        destination_blob_name = 'gs://{}/{}/{}/'.format(bucket_name,
-                                                        sub_folder_name,
-                                                        folder_name)
-        _generate_files_and_upload_to_gcs_bucket(destination_blob_name,
-                                                int(num_files),
-                                                file_size_unit,
-                                                int(file_size),
-                                                filename_prefix)
+        # Create the folder at destination url.
+        exit_code = _create_folders(folder,destination_url)
+        if exit_code != 0:
+          _logmessage("Could not create files for folder {}/{}".format(
+              sub_folder_name,folder["name"]),LOG_ERROR)
+          return exit_code
 
     # Deleting temporary folder:
     _logmessage('Deleting the temporary directory.\n',LOG_INFO)
