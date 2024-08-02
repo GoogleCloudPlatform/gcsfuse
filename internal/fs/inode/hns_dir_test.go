@@ -467,14 +467,23 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 }
 
 func (t *HNSDirTest) TestReadEntriesInNonHierarchicalBucket() {
+	const (
+		dir1  = "dir1"
+		dir2  = "dir2"
+		file1 = "file1"
+		file2 = "file2"
+	)
 	tok := ""
-	obj1 := gcs.Object{Name: dirInodeName + "dir1/"}
-	obj2 := gcs.Object{Name: dirInodeName + "dir2/"}
-	obj3 := gcs.Object{Name: dirInodeName + "dir2/foo"}
-	obj4 := gcs.Object{Name: dirInodeName + "file"}
+	obj1 := gcs.Object{Name: path.Join(dirInodeName, dir1) + "/"}
+	obj2 := gcs.Object{Name: path.Join(dirInodeName, dir2) + "/"}
+	obj3 := gcs.Object{Name: path.Join(dirInodeName, dir1, file1)}
+	obj4 := gcs.Object{Name: path.Join(dirInodeName, file2)}
 	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4}
-	collapsedRuns := []string{dirInodeName + "dir1/", dirInodeName + "dir2/"}
-	listing := gcs.Listing{Objects: objects, CollapsedRuns: collapsedRuns}
+	collapsedRuns := []string{path.Join(dirInodeName, dir1) + "/", path.Join(dirInodeName, dir2) + "/"}
+	listing := gcs.Listing{
+		Objects:       objects,
+		CollapsedRuns: collapsedRuns,
+	}
 	listObjectReq := gcs.ListObjectsRequest{
 		Prefix:                   dirInodeName,
 		Delimiter:                "/",
@@ -493,35 +502,44 @@ func (t *HNSDirTest) TestReadEntriesInNonHierarchicalBucket() {
 	assert.Equal(t.T(), 4, len(entries))
 	for i := 0; i < 4; i++ {
 		switch entries[i].Name {
-		case "dir1":
-			assert.Equal(t.T(), "dir1", entries[i].Name)
+		case dir1:
+			assert.Equal(t.T(), dir1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir1"))
-		case "dir2":
-			assert.Equal(t.T(), "dir2", entries[i].Name)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), dir1))
+		case dir2:
+			assert.Equal(t.T(), dir2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir2"))
-		case "foo":
-			assert.Equal(t.T(), "foo", entries[i].Name)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), dir2))
+		case file1:
+			assert.Equal(t.T(), file1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "foo"))
-		case "file":
-			assert.Equal(t.T(), "file", entries[i].Name)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file1))
+		case file2:
+			assert.Equal(t.T(), file2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "file"))
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file2))
 		}
 	}
 }
 
 func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
+	const (
+		folder1 = "folder1"
+		folder2 = "folder2"
+		file1   = "file1"
+		file2   = "file2"
+	)
 	tok := ""
-	obj1 := gcs.Object{Name: dirInodeName + "folder1/"}
-	obj2 := gcs.Object{Name: dirInodeName + "folder2/"}
-	obj3 := gcs.Object{Name: dirInodeName + "folder2/foo"}
-	obj4 := gcs.Object{Name: dirInodeName + "file"}
+	obj1 := gcs.Object{Name: path.Join(dirInodeName, folder1) + "/"}
+	obj2 := gcs.Object{Name: path.Join(dirInodeName, folder2) + "/"}
+	obj3 := gcs.Object{Name: path.Join(dirInodeName, folder2, file1)}
+	obj4 := gcs.Object{Name: path.Join(dirInodeName, file2)}
 	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4}
-	collapsedRuns := []string{dirInodeName + "folder1/", dirInodeName + "folder2/"}
-	listing := gcs.Listing{Objects: objects, CollapsedRuns: collapsedRuns}
+	collapsedRuns := []string{path.Join(dirInodeName, folder1) + "/", path.Join(dirInodeName, folder2) + "/"}
+	listing := gcs.Listing{
+		Objects:       objects,
+		CollapsedRuns: collapsedRuns,
+	}
 	listObjectReq := gcs.ListObjectsRequest{
 		Prefix:                   dirInodeName,
 		Delimiter:                "/",
@@ -540,22 +558,22 @@ func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
 	assert.Equal(t.T(), 4, len(entries))
 	for i := 0; i < 4; i++ {
 		switch entries[i].Name {
-		case "dir1":
-			assert.Equal(t.T(), "dir1", entries[i].Name)
+		case folder1:
+			assert.Equal(t.T(), folder1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir1"))
-		case "dir2":
-			assert.Equal(t.T(), "dir2", entries[i].Name)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder1))
+		case folder2:
+			assert.Equal(t.T(), folder2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
-			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir2"))
-		case "foo":
-			assert.Equal(t.T(), "foo", entries[i].Name)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), folder2))
+		case file1:
+			assert.Equal(t.T(), file1, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "foo"))
-		case "file":
-			assert.Equal(t.T(), "file", entries[i].Name)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file1))
+		case file2:
+			assert.Equal(t.T(), file2, entries[i].Name)
 			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
-			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "file"))
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), file2))
 		}
 	}
 }
