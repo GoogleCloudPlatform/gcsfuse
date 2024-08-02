@@ -54,7 +54,7 @@ class DlioWorkload:
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName):
   """Parses the given workload test configuration file for DLIO workloads."""
-  print(f'Parsing {fioTestConfigFile} for DLIO workloads ...')
+  print(f'Parsing {testConfigFileName} for DLIO workloads ...')
   with open(testConfigFileName) as f:
     file = json.load(f)
     testConfig = file['TestConfig']
