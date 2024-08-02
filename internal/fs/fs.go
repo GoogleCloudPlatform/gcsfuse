@@ -2036,7 +2036,7 @@ func (fs *fileSystem) renameDir(
 	}
 	pendingInodes = append(pendingInodes, oldDir)
 
-	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
+	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
 		return err
 	}
 
