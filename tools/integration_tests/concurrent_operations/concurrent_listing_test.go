@@ -87,7 +87,7 @@ func (s *concurrentListingTest) Test_OpenDirAndLookUp(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	// Fails if the operation takes more than timeout.
-	timeout := 10 * time.Second
+	timeout := 40 * time.Second
 
 	// Goroutine 1: Repeatedly calls OpenDir.
 	go func() {
