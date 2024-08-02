@@ -1972,21 +1972,18 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
-func (fs *fileSystem) releasePendingInodes(inodes *[]inode.DirInode) func() {
-	return func() {
-		for _, in := range *inodes {
-			fs.unlockAndDecrementLookupCount(in, 1)
-		}
-		*inodes = []inode.DirInode{}
+func (fs *fileSystem) releasePendingInodes(inodes *[]inode.DirInode) {
+	for _, in := range *inodes {
+		fs.unlockAndDecrementLookupCount(in, 1)
 	}
+	*inodes = []inode.DirInode{}
 }
 
-func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirInode, name string, pendingInodes *[]inode.DirInode) (inode.BucketOwnedDirInode, error) {
+func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirInode, name string) (inode.BucketOwnedDirInode, error) {
 	dir, err := fs.lookUpOrCreateChildDirInode(ctx, parent, name)
 	if err != nil {
 		return nil, fmt.Errorf("lookup directory: %w", err)
 	}
-	*pendingInodes = append(*pendingInodes, dir)
 	return dir, nil
 }
 
@@ -2030,10 +2027,11 @@ func (fs *fileSystem) renameDir(
 	var pendingInodes []inode.DirInode
 	defer fs.releasePendingInodes(&pendingInodes)
 
-	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName, &pendingInodes)
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
 	if err != nil {
 		return err
 	}
+	pendingInodes = append(pendingInodes, oldDir)
 
 	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
 		return err
@@ -2062,10 +2060,11 @@ func (fs *fileSystem) renameDir(
 		}
 	}
 
-	newDir, err := fs.getBucketDirInode(ctx, newParent, newName, &pendingInodes)
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err != nil {
 		return err
 	}
+	pendingInodes = append(pendingInodes, newDir)
 
 	if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
 		return err
