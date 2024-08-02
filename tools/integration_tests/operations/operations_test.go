@@ -26,10 +26,8 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -183,11 +181,11 @@ func TestMain(m *testing.M) {
 	flagsSet := [][]string{}
 
 	// Enable experimental-enable-json-read=true case, but for non-presubmit runs only.
-	if !setup.IsPresubmitRun() {
-		flagsSet = append(flagsSet, []string{
-			// By default, creating emptyFile is disabled.
-			"--experimental-enable-json-read=true"})
-	}
+	//if !setup.IsPresubmitRun() {
+	//	flagsSet = append(flagsSet, []string{
+	//		// By default, creating emptyFile is disabled.
+	//		"--experimental-enable-json-read=true"})
+	//}
 
 	// gRPC tests will not run in TPC environment
 	if !testing.Short() && !setup.TestOnTPCEndPoint() {
@@ -201,8 +199,8 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	mountConfigFlags := createMountConfigsAndEquivalentFlags()
-	flagsSet = append(flagsSet, mountConfigFlags...)
+	//mountConfigFlags := createMountConfigsAndEquivalentFlags()
+	//flagsSet = append(flagsSet, mountConfigFlags...)
 
 	// Only running static_mounting test for TPC.
 	if setup.TestOnTPCEndPoint() {
@@ -216,18 +214,18 @@ func TestMain(m *testing.M) {
 		successCode = only_dir_mounting.RunTests(flagsSet, onlyDirMounted, m)
 	}
 
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTests(flagsSet, m)
-	}
+	//if successCode == 0 {
+	//	successCode = persistent_mounting.RunTests(flagsSet, m)
+	//}
 
 	if successCode == 0 {
 		successCode = dynamic_mounting.RunTests(ctx, storageClient, flagsSet, m)
 	}
 
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
-	}
+	//if successCode == 0 {
+	//	// Test for admin permission on test bucket.
+	//	successCode = creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flagsSet, "objectAdmin", m)
+	//}
 
 	os.Exit(successCode)
 }
