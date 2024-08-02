@@ -849,6 +849,7 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
+	var o *gcs.Object
 	var m *gcs.MinObject
 	var f *gcs.Folder
 	var err error
@@ -862,7 +863,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		}
 	} else {
 		// For non-hierarchical buckets, create a new object.
-		o, err := d.createNewObject(ctx, fullName, nil)
+		o, err = d.createNewObject(ctx, fullName, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -1192,6 +1192,9 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		if fs.localFileInodes[name] == in {
 			delete(fs.localFileInodes, name)
 		}
+		if fs.folderInodes[name] == in {
+			delete(fs.folderInodes, name)
+		}
 		fs.mu.Unlock()
 	}
 
