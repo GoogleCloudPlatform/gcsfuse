@@ -2003,11 +2003,9 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 	if err != nil {
 		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
 	}
-
 	if len(unexpected) > 0 {
 		return fuse.ENOTEMPTY
 	}
-
 	return nil
 }
 
