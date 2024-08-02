@@ -23,6 +23,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -1976,6 +1977,9 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
@@ -2060,6 +2064,79 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 		return fuse.ENOTEMPTY
 	}
 	return nil
+}
+
+func isSubdir(p1, p2 string) (bool, error) {
+	rel, err := filepath.Rel(p2, p1)
+	if err != nil {
+		return false, err
+	}
+	return !strings.HasPrefix(rel, "..") && rel != ".", nil
+}
+
+func (fs *fileSystem) renameWithinSameParent(ctx context.Context, oldParent inode.DirInode, oldDirName, newDirName string) error {
+	oldParent.Lock()
+	defer oldParent.Unlock()
+	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+	return err
+}
+
+func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParent, newParent inode.DirInode, oldDirName, newDirName string) error {
+	p1, p2 := oldParent, newParent
+	x, _ := isSubdir(oldParent.Name().GcsObjectName(), newParent.Name().GcsObjectName())
+	if x {
+		p1, p2 = newParent, oldParent
+	}
+
+	p1.Lock()
+	defer p1.Unlock()
+	p2.Lock()
+	defer p2.Unlock()
+
+	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+	return err
+}
+
+// Rename an old folder to a new folder in Hierarchical bucket. If the new folder already
+// exists and is non-empty, return ENOTEMPTY.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	var pendingInodes []inode.DirInode
+	defer fs.handlePendingInodes(&pendingInodes)()
+
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName, &pendingInodes)
+	if err != nil {
+		return err
+	}
+
+	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
+		return err
+	}
+
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName, &pendingInodes)
+	if err == nil {
+		if err = fs.checkNewDirNonEmpty(newDir, newName); err != nil {
+			return err
+		}
+	}
+
+	if oldParent == newParent {
+		// If both parents are the same, lock once
+		err = fs.renameWithinSameParent(ctx, oldParent, path.Join(oldParent.Name().GcsObjectName(), oldName), path.Join(newParent.Name().GcsObjectName(), newName))
+	} else {
+		// Determine lock order
+		err = fs.renameAcrossDifferentParents(ctx, oldParent, newParent, path.Join(oldParent.Name().GcsObjectName(), oldName), path.Join(newParent.Name().GcsObjectName(), newName))
+	}
+	if err != nil {
+		return err
+	}
+
+	fs.handlePendingInodes(&pendingInodes)()
+	fs.checkInvariantsForImplicitDirs()
+	return
 }
 
 // Rename an old directory to a new directory. If the new directory already
