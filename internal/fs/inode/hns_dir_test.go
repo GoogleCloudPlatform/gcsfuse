@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -463,4 +464,98 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 	assert.Equal(t.T(), dirName, result.MinObject.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
+}
+
+func (t *HNSDirTest) TestReadEntriesInNonHierarchicalBucket() {
+	tok := ""
+	obj1 := gcs.Object{Name: dirInodeName + "dir1/"}
+	obj2 := gcs.Object{Name: dirInodeName + "dir2/"}
+	obj3 := gcs.Object{Name: dirInodeName + "dir2/foo"}
+	obj4 := gcs.Object{Name: dirInodeName + "file"}
+	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4}
+	collapsedRuns := []string{dirInodeName + "dir1/", dirInodeName + "dir2/"}
+	listing := gcs.Listing{Objects: objects, CollapsedRuns: collapsedRuns}
+	listObjectReq := gcs.ListObjectsRequest{
+		Prefix:                   dirInodeName,
+		Delimiter:                "/",
+		IncludeFoldersAsPrefixes: true,
+		IncludeTrailingDelimiter: true,
+		MaxResults:               5000,
+		ProjectionVal:            gcs.NoAcl,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.NonHierarchical)
+	t.mockBucket.On("ListObjects", t.ctx, &listObjectReq).Return(&listing, nil)
+
+	entries, tok, err := t.in.ReadEntries(t.ctx, tok)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 4, len(entries))
+	for i := 0; i < 4; i++ {
+		switch entries[i].Name {
+		case "dir1":
+			assert.Equal(t.T(), "dir1", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir1"))
+		case "dir2":
+			assert.Equal(t.T(), "dir2", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir2"))
+		case "foo":
+			assert.Equal(t.T(), "foo", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "foo"))
+		case "file":
+			assert.Equal(t.T(), "file", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "file"))
+		}
+	}
+}
+
+func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
+	tok := ""
+	obj1 := gcs.Object{Name: dirInodeName + "folder1/"}
+	obj2 := gcs.Object{Name: dirInodeName + "folder2/"}
+	obj3 := gcs.Object{Name: dirInodeName + "folder2/foo"}
+	obj4 := gcs.Object{Name: dirInodeName + "file"}
+	objects := []*gcs.Object{&obj1, &obj2, &obj3, &obj4}
+	collapsedRuns := []string{dirInodeName + "folder1/", dirInodeName + "folder2/"}
+	listing := gcs.Listing{Objects: objects, CollapsedRuns: collapsedRuns}
+	listObjectReq := gcs.ListObjectsRequest{
+		Prefix:                   dirInodeName,
+		Delimiter:                "/",
+		IncludeFoldersAsPrefixes: true,
+		IncludeTrailingDelimiter: true,
+		MaxResults:               5000,
+		ProjectionVal:            gcs.NoAcl,
+	}
+	t.mockBucket.On("BucketType").Return(gcs.Hierarchical)
+	t.mockBucket.On("ListObjects", t.ctx, &listObjectReq).Return(&listing, nil)
+
+	entries, tok, err := t.in.ReadEntries(t.ctx, tok)
+
+	t.mockBucket.AssertExpectations(t.T())
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 4, len(entries))
+	for i := 0; i < 4; i++ {
+		switch entries[i].Name {
+		case "dir1":
+			assert.Equal(t.T(), "dir1", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir1"))
+		case "dir2":
+			assert.Equal(t.T(), "dir2", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_Directory, entries[i].Type)
+			assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "dir2"))
+		case "foo":
+			assert.Equal(t.T(), "foo", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "foo"))
+		case "file":
+			assert.Equal(t.T(), "file", entries[i].Name)
+			assert.Equal(t.T(), fuseutil.DT_File, entries[i].Type)
+			assert.Equal(t.T(), metadata.RegularFileType, t.typeCache.Get(t.in.(*dirInode).cacheClock.Now(), "file"))
+		}
+	}
 }
