@@ -42,7 +42,7 @@ const (
 
 var (
 	defaultLoggerFactory *loggerFactory
-	defaultLogger        *slog.Logger
+	Logger               *slog.Logger
 )
 
 // InitLogFile initializes the logger factory to create loggers that print to
@@ -95,7 +95,7 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 		level:           string(newLogConfig.Severity),
 		logRotateConfig: legacyLogConfig.LogRotateConfig,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
+	Logger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
 	return nil
 }
@@ -108,7 +108,7 @@ func init() {
 		level:           config.INFO, // setting log level to INFO by default
 		logRotateConfig: config.DefaultLogRotateConfig(),
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
+	Logger = defaultLoggerFactory.newLogger(config.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.
@@ -117,7 +117,7 @@ func SetLogFormat(format string) {
 		return
 	}
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
+	Logger = defaultLoggerFactory.newLogger(defaultLoggerFactory.level)
 }
 
 // Close closes the log file when necessary.
@@ -130,32 +130,32 @@ func Close() {
 
 // Tracef prints the message with TRACE severity in the specified format.
 func Tracef(format string, v ...interface{}) {
-	defaultLogger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
+	Logger.Log(context.Background(), LevelTrace, fmt.Sprintf(format, v...))
 }
 
 // Debugf prints the message with DEBUG severity in the specified format.
 func Debugf(format string, v ...interface{}) {
-	defaultLogger.Debug(fmt.Sprintf(format, v...))
+	Logger.Debug(fmt.Sprintf(format, v...))
 }
 
 // Infof prints the message with INFO severity in the specified format.
 func Infof(format string, v ...interface{}) {
-	defaultLogger.Info(fmt.Sprintf(format, v...))
+	Logger.Info(fmt.Sprintf(format, v...))
 }
 
 // Info prints the message with info severity.
 func Info(v ...interface{}) {
-	defaultLogger.Info(fmt.Sprint(v...))
+	Logger.Info(fmt.Sprint(v...))
 }
 
 // Warnf prints the message with WARNING severity in the specified format.
 func Warnf(format string, v ...interface{}) {
-	defaultLogger.Warn(fmt.Sprintf(format, v...))
+	Logger.Warn(fmt.Sprintf(format, v...))
 }
 
 // Errorf prints the message with ERROR severity in the specified format.
 func Errorf(format string, v ...interface{}) {
-	defaultLogger.Error(fmt.Sprintf(format, v...))
+	Logger.Error(fmt.Sprintf(format, v...))
 }
 
 // Fatal prints an error log and exits with non-zero exit code.
