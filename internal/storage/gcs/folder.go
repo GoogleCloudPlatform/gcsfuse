@@ -44,4 +44,3 @@ func getFolderName(bucketName string, fullPath string) string {
 
 	return folderName
 }
-
