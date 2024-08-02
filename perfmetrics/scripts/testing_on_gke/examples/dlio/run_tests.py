@@ -18,11 +18,7 @@
 """This program takes in a json dlio test-config file and generates and deploys helm charts."""
 
 import argparse
-from collections.abc import Sequence
-import os
 import subprocess
-
-from absl import app
 import dlio_workload
 
 
@@ -60,18 +56,27 @@ def main(args) -> None:
   helmInstallCommands = createHelmInstallCommands(dlioWorkloads)
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
-    run_command(helmInstallCommand)
+    if not args.dry_run:
+      run_command(helmInstallCommand)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
-      prog='DLIO test runner',
+      prog='DLIO Unet3d test runner',
       description=(
           'This program takes in a json dlio test-config file and generates'
-          ' helm install commands.'
+          ' helm install commands to execute them using the active GKE cluster.'
       ),
-      # epilog='Text at the bottom of help',
   )
   parser.add_argument('--workload-config')  # positional argument
+  parser.add_argument(
+      '-n',
+      '--dry-run',
+      action='store_true',
+      help=(
+          'Only print out the test configurations that will run,'
+          ' not actually run them.'
+      ),
+  )
   args = parser.parse_args()
   main(args)
