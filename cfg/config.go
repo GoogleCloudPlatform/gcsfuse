@@ -19,7 +19,6 @@ package cfg
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -571,7 +570,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-parallel-downloads", "", config.DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
+	flagSet.IntP("max-parallel-downloads", "", DefaultMaxParallelDownloads(), "Sets an uber limit of number of concurrent file download requests that are made across all files.")
 
 	err = v.BindPFlag("file-cache.max-parallel-downloads", flagSet.Lookup("max-parallel-downloads"))
 	if err != nil {

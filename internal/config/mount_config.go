@@ -16,6 +16,8 @@ package config
 
 import (
 	"math"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 )
 
 const (
@@ -66,10 +68,6 @@ const (
 	DefaultParallelDownloadsPerFile = 16
 	DefaultMaxRetryAttempts         = int64(0)
 )
-
-type WriteConfig struct {
-	CreateEmptyFile bool `yaml:"create-empty-file"`
-}
 
 type LogConfig struct {
 	Severity        string          `yaml:"severity"`
@@ -147,7 +145,7 @@ type GCSRetries struct {
 }
 
 type MountConfig struct {
-	WriteConfig         `yaml:"write"`
+	cfg.WriteConfig     `yaml:"write"`
 	LogConfig           `yaml:"logging"`
 	FileCacheConfig     `yaml:"file-cache"`
 	CacheDir            string `yaml:"cache-dir"`
@@ -196,7 +194,7 @@ func NewMountConfig() *MountConfig {
 		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
 		EnableParallelDownloads:  DefaultEnableParallelDownloads,
 		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
-		MaxParallelDownloads:     DefaultMaxParallelDownloads(),
+		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
 	}
