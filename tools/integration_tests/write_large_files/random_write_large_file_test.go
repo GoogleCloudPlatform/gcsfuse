@@ -34,10 +34,7 @@ const (
 
 func TestWriteLargeFileRandomly(t *testing.T) {
 	randomWriteDir := path.Join(setup.MntDir(), DirForRandomWrite)
-	err := os.Mkdir(randomWriteDir, setup.FilePermission_0600)
-	if err != nil {
-		t.Fatalf("Error in creating directory: %v", err)
-	}
+	setup.SetupTestDirectory(DirForRandomWrite)
 	filePath := path.Join(randomWriteDir, FiveHundredMBFile)
 
 	// Clean up.
