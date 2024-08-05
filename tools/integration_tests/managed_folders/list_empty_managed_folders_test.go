@@ -27,8 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/test_setup"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
@@ -144,17 +142,12 @@ func (s *enableEmptyManagedFoldersTrue) TestListDirectoryForEmptyManagedFolders(
 	}
 }
 
-func getMountConfigForEmptyManagedFolders() config.MountConfig {
-	mountConfig := config.MountConfig{
-		ListConfig: config.ListConfig{
-			EnableEmptyManagedFolders: true,
-		},
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
+func getMountConfigForEmptyManagedFolders() map[string]interface{} {
+	mountConfig := map[string]interface{}{
+		"list": map[string]interface{}{
+			"enable-empty-managed-folders": true,
 		},
 	}
-
 	return mountConfig
 }
 
@@ -170,9 +163,7 @@ func TestEnableEmptyManagedFoldersTrue(t *testing.T) {
 		return
 	}
 
-	configFile := setup.YAMLConfigFile(
-		getMountConfigForEmptyManagedFolders(),
-		"config.yaml")
+	configFile := setup.YAMLConfigFile(getMountConfigForEmptyManagedFolders(), "config.yaml")
 	flags := []string{"--implicit-dirs", "--config-file=" + configFile}
 
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)

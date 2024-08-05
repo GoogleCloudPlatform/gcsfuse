@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/persistent_mounting"
@@ -96,18 +95,14 @@ func checkErrorForObjectNotExist(err error, t *testing.T) {
 func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dir")
 
-	// Set up config file for file cache
-	mountConfig := config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
+	// Set up config file for file cache.
+	mountConfig := map[string]interface{}{
+		"file-cache": map[string]interface{}{
 			// Keeping the size as small because the operations are performed on small
-			// files
-			MaxSizeMB: 3,
+			// files.
+			"max-size-mb": 3,
 		},
-		CacheDir: cacheDirPath,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+		"cache-dir": cacheDirPath,
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, "config.yaml")
 	flags = append(flags, []string{"--o=ro", "--implicit-dirs=true", "--config-file=" + filePath})

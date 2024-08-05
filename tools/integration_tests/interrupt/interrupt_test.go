@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -57,14 +56,16 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucketFlag()
 
 	// Set up flags to run tests on.
-	mountConfig := config.MountConfig{
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
+	yamlContent1 := map[string]interface{}{
+		"file-system": map[string]interface{}{
+			"ignore-interrupts": true,
 		},
 	}
-	flags := [][]string{{"--implicit-dirs=true"},
-		{"--config-file=" + setup.YAMLConfigFile(mountConfig, "config.yaml")}}
+	yamlContent2 := map[string]interface{}{} // test default
+	flags := [][]string{
+		{"--implicit-dirs=true"},
+		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml")},
+		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
 
 	successCode := static_mounting.RunTests(flags, m)
 

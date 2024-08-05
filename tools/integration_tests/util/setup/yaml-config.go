@@ -5,12 +5,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
-func YAMLConfigFile(config config.MountConfig, fileName string) (filePath string) {
-	yamlData, err := yaml.Marshal(&config)
+func YAMLConfigFile(yamlContent interface{}, fileName string) (filePath string) {
+	yamlData, err := yaml.Marshal(yamlContent)
 	if err != nil {
 		LogAndExit(fmt.Sprintf("Error while marshaling config file: %v", err))
 	}

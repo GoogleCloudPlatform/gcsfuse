@@ -24,7 +24,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/dynamic_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/only_dir_mounting"
@@ -104,25 +103,17 @@ func createConfigFile(cacheSize int64, cacheFileForRangeRead bool, fileName stri
 	cacheDirPath = path.Join(setup.TestDir(), cacheDirName)
 
 	// Set up config file for file cache.
-	mountConfig := config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			// Keeping the size as low because the operations are performed on small
-			// files
-			MaxSizeMB:                cacheSize,
-			CacheFileForRangeRead:    cacheFileForRangeRead,
-			EnableParallelDownloads:  enableParallelDownloads,
-			ParallelDownloadsPerFile: parallelDownloadsPerFile,
-			MaxParallelDownloads:     maxParallelDownloads,
-			DownloadChunkSizeMB:      downloadChunkSizeMB,
-			EnableCRC:                enableCrcCheck,
+	mountConfig := map[string]interface{}{
+		"file-cache": map[string]interface{}{
+			"max-size-mb":                 cacheSize,
+			"cache-file-for-range-read":   cacheFileForRangeRead,
+			"enable-parallel-downloads":   enableParallelDownloads,
+			"parallel-downloads-per-file": parallelDownloadsPerFile,
+			"max-parallel-downloads":      maxParallelDownloads,
+			"download-chunk-size-mb":      downloadChunkSizeMB,
+			"enable-crc":                  enableCrcCheck,
 		},
-		CacheDir: cacheDirPath,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			Format:          "json",
-			FilePath:        setup.LogFile(),
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+		"cache-dir": cacheDirPath,
 	}
 	filePath := setup.YAMLConfigFile(mountConfig, fileName)
 	return filePath
