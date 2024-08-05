@@ -57,7 +57,7 @@ Examples:
 
 # Caching
 
-Cloud Storage FUSE has four forms of optional caching: stat, type, list, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, kernel-list caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
+Cloud Storage FUSE has four forms of optional caching: stat, type, list, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, list caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
 The different forms of caching are discussed in this section, along with their trade-offs and the situations in which they are and are not safe to use.
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
@@ -165,7 +165,7 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
 **Kernel List Cache**
 
-The Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`). It significantly improves the workload which involves repeated listing. This is recommended to use it with read-only mounts specifically for Serving and Training workload.
+As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`) in kernel page-cache. It significantly improves the workload which involves repeated listing. For multi node/mount-point scenario, this is recommended to be used only for read only workloads, specifically for Serving and Training workload.
 
 By default, the list cache is disabled. It can be enabled by configuring the **--kernel-list-cache-ttl-secs** cli flag or **file-system:kernel-list-cache-ttl-secs** config flag where:
 *   a value of 0 means disabled. This is the default value.
@@ -173,14 +173,14 @@ By default, the list cache is disabled. It can be enabled by configuring the **-
 *   -1 to bypass entry expiration and always return the list response from the cache if available.
 
 **Important Points**
-*   The kernel-list-cache is kept within the page cache. Consequently, this functionality depends upon the availability of page cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
+*   The kernel-list-cache is kept within the kernel's page-cache. Consequently, this functionality depends upon the availability of page-cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
 *   The kernel's list cache is maintained on a per-directory level, resulting in either all list entries being retained in the page cache or none at all.
 *   The creation, renaming, or deletion of new files or folders causes the eviction of the page-cache of their immediate parent directory, but not of all ancestral directories.
 
 **Consistency**
 *   Kernel List cache ensures consistency within the mount. That means, creation, deletion or rename of files/folder within a directory evicts the kernel list cache of the directory.
 *   Externally added objects are only visible after the kernel-list-cache-ttl-secs timer expires, even if they are touched (stat) via the same mount point. Since stat doesn’t evict the kernel-list-cache so there might be some list-stat inconsistency.
-*   Kernel-list-cache-ttl doesn't work with empty directories. Once an empty directory list response is cached, it requires a new file to be created from the same mount point to invalidate the cache.
+*   Kernel-list-cache-ttl doesn't work with empty directories. In case another external client adds a new file to the empty directory, the client1 is still not going to get the new file even after the TTL is expired
 *   One of the known consistency issue: `rm -R` encounters consistency issues when objects are created externally in a bucket. Specifically, if a client (e.g., `Cloud Storage Fuse` client1) caches a directory listing and another client (client2) adds a new file to the directory before the cached listing expires, `rm -R` on the directory will fail with a "Directory not empty" error. This occurs because `rm -R` initially deletes the directory's children based on the cached listing and then checks the directory's emptiness by making a List call, which returns not empty due to the externally added file.
 
 **Note**:
