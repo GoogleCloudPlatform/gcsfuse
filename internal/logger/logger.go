@@ -24,7 +24,6 @@ import (
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -105,10 +104,10 @@ func init() {
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
 		format:    defaultFormat,
-		level:     config.INFO, // setting log level to INFO by default
+		level:     cfg.INFO, // setting log level to INFO by default
 		logRotate: cfg.GetDefaultLoggingConfig().LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
+	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.

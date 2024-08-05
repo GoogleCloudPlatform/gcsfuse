@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -128,7 +127,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelOFF() {
 	}
 
 	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.OFF, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.OFF, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
@@ -137,7 +136,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelERROR() {
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.ERROR, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.ERROR, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
@@ -146,7 +145,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelWARNING() {
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.WARNING, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.WARNING, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
@@ -155,7 +154,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelINFO() {
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.INFO, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.INFO, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
@@ -164,7 +163,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelDEBUG() {
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.DEBUG, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.DEBUG, expected)
 }
 
 func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
@@ -173,7 +172,7 @@ func (t *LoggerTest) TestTextFormatLogs_LogLevelTRACE() {
 	}
 
 	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", config.TRACE, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "text", cfg.TRACE, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
@@ -182,7 +181,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelOFF() {
 	}
 
 	// Assert that nothing is logged when log level is OFF.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.OFF, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.OFF, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
@@ -191,7 +190,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelERROR() {
 	}
 
 	// Assert only error logs are logged when log level is ERROR.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.ERROR, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.ERROR, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
@@ -200,7 +199,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelWARNING() {
 	}
 
 	// Assert warning and error logs are logged when log level is WARNING.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.WARNING, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.WARNING, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
@@ -209,7 +208,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelINFO() {
 	}
 
 	// Assert info, warning & error logs are logged when log level is INFO.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.INFO, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.INFO, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
@@ -218,7 +217,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelDEBUG() {
 	}
 
 	// Assert debug, info, warning & error logs are logged when log level is DEBUG.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.DEBUG, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.DEBUG, expected)
 }
 
 func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
@@ -227,7 +226,7 @@ func (t *LoggerTest) TestJSONFormatLogs_LogLevelTRACE() {
 	}
 
 	// Assert all logs are logged when log level is TRACE.
-	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", config.TRACE, expected)
+	validateLogOutputAtSpecifiedFormatAndSeverity(t.T(), "json", cfg.TRACE, expected)
 }
 
 func (t *LoggerTest) TestSetLoggingLevel() {
@@ -237,27 +236,27 @@ func (t *LoggerTest) TestSetLoggingLevel() {
 		expectedProgramLevel slog.Level
 	}{
 		{
-			config.TRACE,
+			cfg.TRACE,
 			new(slog.LevelVar),
 			LevelTrace,
 		},
 		{
-			config.DEBUG,
+			cfg.DEBUG,
 			new(slog.LevelVar),
 			LevelDebug,
 		},
 		{
-			config.WARNING,
+			cfg.WARNING,
 			new(slog.LevelVar),
 			LevelWarn,
 		},
 		{
-			config.ERROR,
+			cfg.ERROR,
 			new(slog.LevelVar),
 			LevelError,
 		},
 		{
-			config.OFF,
+			cfg.OFF,
 			new(slog.LevelVar),
 			LevelOff,
 		},
@@ -292,7 +291,7 @@ func (t *LoggerTest) TestInitLogFile() {
 	assert.Equal(t.T(), filePath, defaultLoggerFactory.file.Name())
 	assert.Nil(t.T(), defaultLoggerFactory.sysWriter)
 	assert.Equal(t.T(), format, defaultLoggerFactory.format)
-	assert.Equal(t.T(), config.DEBUG, defaultLoggerFactory.level)
+	assert.Equal(t.T(), cfg.DEBUG, defaultLoggerFactory.level)
 	assert.Equal(t.T(), fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
 	assert.Equal(t.T(), backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
 	assert.True(t.T(), defaultLoggerFactory.logRotate.Compress)
@@ -301,7 +300,7 @@ func (t *LoggerTest) TestInitLogFile() {
 func (t *LoggerTest) TestSetLogFormatToText() {
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
-		level:     config.INFO, // setting log level to INFO by default
+		level:     cfg.INFO, // setting log level to INFO by default
 		logRotate: cfg.GetDefaultLoggingConfig().LogRotate,
 	}
 

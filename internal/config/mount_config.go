@@ -179,7 +179,7 @@ func NewMountConfig() *MountConfig {
 	logRotateConfig := cfg.GetDefaultLoggingConfig().LogRotate
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
-		Severity: INFO,
+		Severity: cfg.INFO,
 		// Setting default values of log rotate config.
 		LogRotateConfig: LogRotateConfig{
 			MaxFileSizeMB:   int(logRotateConfig.MaxFileSizeMb),

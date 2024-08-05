@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -95,7 +96,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
 	assert.True(t.T(), mountConfig.WriteConfig.CreateEmptyFile)
-	assert.Equal(t.T(), ERROR, mountConfig.LogConfig.Severity)
+	assert.Equal(t.T(), cfg.ERROR, mountConfig.LogConfig.Severity)
 	assert.Equal(t.T(), "/tmp/logfile.json", mountConfig.LogConfig.FilePath)
 	assert.Equal(t.T(), "text", mountConfig.LogConfig.Format)
 
