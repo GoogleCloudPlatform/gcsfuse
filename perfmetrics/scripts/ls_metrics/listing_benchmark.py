@@ -68,6 +68,7 @@ from bigquery import experiments_gcsfuse_bq
 from bigquery import constants
 
 from utils.mount_unmount_util import mount_gcs_bucket,unmount_gcs_bucket
+from utils.checks_util import check_dependencies
 
 logging.basicConfig(
     level=logging.INFO,
@@ -461,28 +462,6 @@ def _parse_arguments(argv):
   return parser.parse_args(argv[1:])
 
 
-def _check_dependencies(packages) -> None:
-  """Check whether the dependencies are installed or not.
-
-  Args:
-    packages: List containing the names of the dependencies to be checked.
-
-  Raises:
-    Aborts the execution if a particular dependency is not found.
-  """
-
-  for curr_package in packages:
-    log.info('Checking whether %s is installed.\n', curr_package)
-    exit_code = subprocess.call(
-        '{} --version'.format(curr_package), shell=True)
-    if exit_code != 0:
-      log.error(
-          '%s not installed. Please install. Aborting!\n', curr_package)
-      subprocess.call('bash', shell=True)
-
-  return
-
-
 def _export_to_gsheet(worksheet, ls_data, spreadsheet_id=""):
   """Writes list results to Google Spreadsheets
   Args:
@@ -524,7 +503,7 @@ if __name__ == '__main__':
 
   args = _parse_arguments(argv)
 
-  _check_dependencies(['gsutil', 'gcsfuse'])
+  check_dependencies(['gsutil', 'gcsfuse'])
 
   with open(os.path.abspath(args.config_file)) as file:
     config_json = json.load(file)
