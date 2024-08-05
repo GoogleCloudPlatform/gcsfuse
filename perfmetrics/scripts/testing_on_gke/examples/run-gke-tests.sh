@@ -560,7 +560,7 @@ function archiveDlioOutputs() {
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
-  rm -rfv ../../bin/fio-logs/*
+  # rm -rfv ../../bin/fio-logs/*
   python3 parse_logs.py
   cd -
 }
@@ -568,7 +568,7 @@ function fetchAndParseFioOutputs() {
 function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
-  rm -rfv ../../bin/dlio-logs/*
+  # rm -rfv ../../bin/dlio-logs/*
   python3 parse_logs.py
   cd -
 }
