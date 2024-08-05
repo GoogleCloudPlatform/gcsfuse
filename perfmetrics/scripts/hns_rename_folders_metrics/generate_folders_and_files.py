@@ -30,7 +30,7 @@ LOG_ERROR = "error"
 LOG_INFO = "info"
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)],
 )
@@ -42,7 +42,7 @@ def _logmessage(message,type) -> None:
     out.write(message)
   if type == LOG_ERROR:
     logger.error(message)
-  else:
+  elif type == LOG_INFO:
     logger.info(message)
 
 
@@ -252,6 +252,7 @@ def _delete_existing_data_in_gcs_bucket(gcs_bucket)->(int):
 def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     file_size_unit, file_size,
     filename_prefix) -> int:
+  # Creating folders locally in temp directory and copying to gcs bucket.
   for batch_start in range(1, num_of_files + 1, BATCH_SIZE):
     for file_num in range(batch_start, batch_start + BATCH_SIZE):
       if file_num > num_of_files:
@@ -296,6 +297,85 @@ def _generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files
   return 0
 
 
+def _create_folders(folder,destination_url_prefix) -> (int):
+  """
+   Creates folder at destination url using folder JSON object.
+
+   Args:
+       folder: JSON object representing folder to be created.
+       destination_url_prefix: Destination at which folder is to be created.
+
+   Returns:
+       0 if error is encountered, 1 otherwise.
+   """
+  folder_name = folder["name"]
+  num_files = folder["num_files"]
+  filename_prefix = folder["file_name_prefix"]
+  file_size = folder["file_size"][:-2]
+  file_size_unit = folder["file_size"][-2:]
+  destination_blob_name = '{}/{}/'.format(destination_url_prefix, folder_name)
+  exit_code= _generate_files_and_upload_to_gcs_bucket(destination_blob_name,
+                                           int(num_files),
+                                           file_size_unit,
+                                           int(file_size),
+                                           filename_prefix)
+  return exit_code
+
+
+def _delete_temp_directory():
+  _logmessage('Deleting the temporary directory.\n',LOG_INFO)
+  try:
+    subprocess.call(['rm', '-r', TEMPORARY_DIRECTORY])
+  except subprocess.CalledProcessError as e:
+    _logmessage("Could not delete directory.\n",LOG_ERROR)
+    return 1
+  return 0
+
+
+def _parse_and_generate_directory_structure(dir_str) -> int:
+  if not dir_str:
+    _logmessage("Directory structure not specified via config file.",LOG_ERROR)
+    return 1
+  else:
+    bucket_name = dir_str["name"]
+    # Making temporary folder and local bucket directory:
+    _logmessage('Making a temporary directory.\n',LOG_INFO)
+    subprocess.call(['mkdir', '-p', TEMPORARY_DIRECTORY])
+
+    # Creating a folder structure in gcs bucket.
+    if "folders" not in dir_str:
+      _logmessage("No folders specified in the config file",LOG_INFO)
+    else:
+      destination_url="gs://{}".format(bucket_name)
+      for folder in dir_str["folders"]["folder_structure"]:
+        # Create the folder at destination url.
+        exit_code = _create_folders(folder,destination_url)
+        if exit_code != 0:
+          _logmessage("Could not create files for folder {}".format(folder["name"]),LOG_ERROR)
+          _delete_temp_directory()
+          return exit_code
+
+
+    # Creating a nested folder structure in gcs bucket.
+    if "nested_folders" not in dir_str:
+      _logmessage("No nested folders specified in the config file",LOG_INFO)
+    else:
+      sub_folder_name = dir_str["nested_folders"]["folder_name"]
+      destination_url = 'gs://{}/{}'.format(bucket_name,sub_folder_name)
+      for folder in dir_str["nested_folders"]["folder_structure"]:
+        # Create the folder at destination url.
+        exit_code = _create_folders(folder,destination_url)
+        if exit_code != 0:
+          _logmessage("Could not create files for folder {}/{}".format(
+              sub_folder_name,folder["name"]),LOG_ERROR)
+          _delete_temp_directory()
+          return exit_code
+
+    # Deleting temporary folder if all file creation is successful:
+    exit_code = _delete_temp_directory()
+    return exit_code
+
+
 if __name__ == '__main__':
   argv = sys.argv
   if len(argv) < 2:
@@ -322,14 +402,14 @@ if __name__ == '__main__':
   process.communicate()
   exit_code = process.wait()
   if exit_code != 0:
-    print('gcloud not installed.')
+    _logmessage('gcloud not installed.',LOG_ERROR)
     subprocess.call('bash', shell=True)
 
   directory_structure = json.load(open(args.config_file))
 
   exit_code = _check_for_config_file_inconsistency(directory_structure)
   if exit_code != 0:
-    print('Exited with code {}'.format(exit_code))
+    _logmessage('Exited with code {}'.format(exit_code),LOG_ERROR)
     subprocess.call('bash', shell=True)
 
   # Compare the directory structure with the JSON config file to avoid recreation of
@@ -341,5 +421,9 @@ if __name__ == '__main__':
   if not dir_structure_present:
     exit_code = _delete_existing_data_in_gcs_bucket(directory_structure["name"])
     if exit_code != 0:
-      print('Error while deleting content in bucket.Exiting...!')
+      _logmessage('Error while deleting content in bucket.Exiting...!', LOG_ERROR)
       subprocess.call('bash', shell=True)
+
+    exit_code = _parse_and_generate_directory_structure(directory_structure)
+    if exit_code != 0:
+      _logmessage('Error while trying to generate files...', LOG_ERROR)
