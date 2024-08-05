@@ -10,10 +10,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-
 # limitations under the License.
-# To run the script, run in terminal :
-# python3 generate_folders_and_files.py <config-file.json>
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
