@@ -171,14 +171,6 @@ if __name__ == "__main__":
 
         output[key]["records"][r["scenario"]][i] = r
 
-  output_order = [
-      "500000-102400-800",
-      "500000-102400-128",
-      "1000000-512000-800",
-      "1000000-512000-128",
-      "100000-3145728-200",
-      "5000-157286400-4",
-  ]
   scenario_order = [
       "local-ssd",
       "gcsfuse-generic",
@@ -195,10 +187,7 @@ if __name__ == "__main__":
       " (core),Pod,Start,End,GcsfuseMountOptions\n"
   )
 
-  for key in output_order:
-    if key not in output:
-      print(f"{key} not in output so skipping")
-      continue
+  for key in output:
     record_set = output[key]
     total_size = int(
         int(record_set["mean_file_size"])
