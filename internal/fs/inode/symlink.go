@@ -84,6 +84,10 @@ func NewSymlinkInode(
 			Atime: m.Updated,
 			Ctime: m.Updated,
 			Mtime: m.Updated,
+			// POSIX spec requires that for symbolic links, size attribute
+			// reflects the length in bytes of the pathname contained in the
+			// symbolic link. This is also expected by symlink cache in FUSE.
+			Size: uint64(len(m.Metadata[SymlinkMetadataKey])),
 		},
 		target: m.Metadata[SymlinkMetadataKey],
 	}
