@@ -115,5 +115,6 @@ func (t *SymlinkTest) TestAttributes() {
 		ExpectEq(attrs.Uid, extracted.Uid)
 		ExpectEq(attrs.Gid, extracted.Gid)
 		ExpectEq(attrs.Mode, extracted.Mode)
+		ExpectEq(attrs.Size, uint64(len("target")))
 	}
 }
