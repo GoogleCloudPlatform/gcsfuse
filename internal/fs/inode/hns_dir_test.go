@@ -60,6 +60,7 @@ func (t *HNSDirTest) SetupTest() {
 	t.resetDirInode(false, false, true)
 }
 
+
 func (t *HNSDirTest) resetDirInode(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing bool) {
 	t.resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonexistentTypeCache, enableManagedFoldersListing, config.DefaultTypeCacheMaxSizeMB, typeCacheTTL)
 }
