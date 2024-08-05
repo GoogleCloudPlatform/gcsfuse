@@ -2091,6 +2091,7 @@ func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParen
 	defer p2.Unlock()
 
 	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+	logger.Errorf("After Rename")
 	return err
 }
 
