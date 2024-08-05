@@ -1972,7 +1972,7 @@ func (fs *fileSystem) renameFile(
 	return nil
 }
 
-func (fs *fileSystem) releasePendingInodes(inodes *[]inode.DirInode) {
+func (fs *fileSystem) releaseInodes(inodes *[]inode.DirInode) {
 	for _, in := range *inodes {
 		fs.unlockAndDecrementLookupCount(in, 1)
 	}
@@ -2027,7 +2027,7 @@ func (fs *fileSystem) renameDir(
 	// lookUpOrCreateChildInode (since the pending inodes are not sent back to
 	// the kernel) and unlocks the pending inodes, but only once
 	var pendingInodes []inode.DirInode
-	defer fs.releasePendingInodes(&pendingInodes)
+	defer fs.releaseInodes(&pendingInodes)
 
 	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
 	if err != nil {
@@ -2092,7 +2092,7 @@ func (fs *fileSystem) renameDir(
 		}
 	}
 
-	fs.releasePendingInodes(&pendingInodes)
+	fs.releaseInodes(&pendingInodes)
 
 	// Delete the backing object of the old directory.
 	fs.mu.Lock()
