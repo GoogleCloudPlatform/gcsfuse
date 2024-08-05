@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
@@ -421,12 +420,8 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 	}
 
 	var flags []string
-	mountConfig4 := config.MountConfig{
-		EnableHNS: true,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+	mountConfig4 := map[string]interface{}{
+		"enable-hns": true,
 	}
 	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
 	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.

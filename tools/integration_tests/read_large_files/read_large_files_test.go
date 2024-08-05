@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -41,33 +40,25 @@ func createMountConfigsAndEquivalentFlags() (flags [][]string) {
 	cacheDirPath := path.Join(os.Getenv("HOME"), "cache-dri")
 
 	// Set up config file for file cache with cache-file-for-range-read: false
-	mountConfig1 := config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
+	mountConfig1 := map[string]interface{}{
+		"file-cache": map[string]interface{}{
 			// Keeping the size as high because the operations are performed on large
-			// files
-			MaxSizeMB:             700,
-			CacheFileForRangeRead: true,
+			// files.
+			"max-size-mb":               700,
+			"cache-file-for-range-read": true,
 		},
-		CacheDir: cacheDirPath,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+		"cache-dir": cacheDirPath,
 	}
 	filePath1 := setup.YAMLConfigFile(mountConfig1, "config1.yaml")
 	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath1})
 
 	// Set up config file for file cache with unlimited capacity
-	mountConfig2 := config.MountConfig{
-		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
-			CacheFileForRangeRead: false,
+	mountConfig2 := map[string]interface{}{
+		"file-cache": map[string]interface{}{
+			"max-size-mb":               -1,
+			"cache-file-for-range-read": false,
 		},
-		CacheDir: cacheDirPath,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+		"cache-dir": cacheDirPath,
 	}
 	filePath2 := setup.YAMLConfigFile(mountConfig2, "config2.yaml")
 	flags = append(flags, []string{"--implicit-dirs=true", "--config-file=" + filePath2})

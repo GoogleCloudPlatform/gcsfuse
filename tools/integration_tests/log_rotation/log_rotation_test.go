@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -46,20 +45,19 @@ var (
 	logFilePath string
 )
 
-func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool,
-	logFilePath string) config.MountConfig {
-	mountConfig := config.MountConfig{
-		LogConfig: config.LogConfig{
-			Severity: config.TRACE,
-			FilePath: logFilePath,
-			LogRotateConfig: config.LogRotateConfig{
-				MaxFileSizeMB:   maxFileSizeMB,
-				BackupFileCount: backupFileCount,
-				Compress:        compress,
+func getMountConfigForLogRotation(maxFileSizeMB, backupFileCount int, compress bool, logFilePath string) map[string]interface{} {
+	yamlContent := map[string]interface{}{
+		"logging": map[string]interface{}{
+			"severity":  "TRACE",
+			"file-path": logFilePath,
+			"log-rotate": map[string]interface{}{
+				"max-file-size-mb":  maxFileSizeMB,
+				"backup-file-count": backupFileCount,
+				"compress":          compress,
 			},
 		},
 	}
-	return mountConfig
+	return yamlContent
 }
 
 ////////////////////////////////////////////////////////////////////////
