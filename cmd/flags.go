@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -536,6 +537,20 @@ type flagStorage struct {
 	// This is applicable only to single-bucket mount-points, and not to dynamic-mount points. This is because dynamic-mounts don't mount the bucket(s) at the time of
 	// gcsfuse command itself, which flag is targeted at.
 	ExperimentalMetadataPrefetchOnMount string
+}
+
+// MarshalJSON provides the way to implement custom marshaller for flagStorage.
+func (f flagStorage) MarshalJSON() ([]byte, error) {
+	type Alias flagStorage
+	return json.Marshal(struct {
+		Alias
+		FileMode string `json:"FileMode"`
+		DirMode  string `json:"DirMode"`
+	}{
+		Alias:    Alias(f),            // Include all other fields as they are
+		FileMode: f.FileMode.String(), // Convert os.FileMode to string
+		DirMode:  f.DirMode.String(),
+	})
 }
 
 func resolveFilePath(filePath string, configKey string) (resolvedPath string, err error) {
