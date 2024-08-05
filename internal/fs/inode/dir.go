@@ -634,8 +634,8 @@ func (d *dirInode) ReadDescendants(ctx context.Context, limit int) (map[Name]*Co
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) readObjects(
-		ctx context.Context,
-		tok string) (cores map[Name]*Core, newTok string, err error) {
+	ctx context.Context,
+	tok string) (cores map[Name]*Core, newTok string, err error) {
 	// Ask the bucket to list some objects.
 	req := &gcs.ListObjectsRequest{
 		Delimiter:                "/",
