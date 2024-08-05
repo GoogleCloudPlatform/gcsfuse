@@ -97,7 +97,9 @@ if __name__ == "__main__":
   except FileExistsError:
     pass
 
-  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads("workloads.json")
+  fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
+      args.workload_config
+  )
   downloadFioOutputs(fioWorkloads)
 
   """
