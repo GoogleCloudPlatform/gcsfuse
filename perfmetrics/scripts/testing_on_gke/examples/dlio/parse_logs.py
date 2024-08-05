@@ -91,7 +91,7 @@ if __name__ == "__main__":
     pass
 
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
-      "workloads.json"
+      args.workload_config
   )
   downloadDlioOutputs(dlioWorkloads)
 
