@@ -179,16 +179,6 @@ if __name__ == "__main__":
 
       output[key]["records"][scenario][epoch - 1] = r
 
-  output_order = [
-      "read-64K",
-      "read-128K",
-      "read-1M",
-      "read-100M",
-      "read-200G",
-      "randread-1M",
-      "randread-100M",
-      "randread-200G",
-  ]
   scenario_order = [
       "local-ssd",
       "gcsfuse-generic",
@@ -205,9 +195,7 @@ if __name__ == "__main__":
       " (core),Pod,Start,End,GcsfuseMoutOptions,BlockSize,FilesPerThread,NumThreads\n"
   )
 
-  for key in output_order:
-    if key not in output:
-      continue
+  for key in output:
     record_set = output[key]
 
     for scenario in scenario_order:
