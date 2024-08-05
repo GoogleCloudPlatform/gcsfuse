@@ -561,7 +561,7 @@ function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
   # rm -rfv ../../bin/fio-logs/*
-  python3 parse_logs.py
+  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
   cd -
 }
 
@@ -569,7 +569,7 @@ function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
   # rm -rfv ../../bin/dlio-logs/*
-  python3 parse_logs.py
+  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
   cd -
 }
 
