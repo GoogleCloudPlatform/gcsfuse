@@ -2074,10 +2074,10 @@ func isSubdir(p1, p2 string) (bool, error) {
 	return !strings.HasPrefix(rel, "..") && rel != ".", nil
 }
 
-func (fs *fileSystem) renameWithinSameParent(ctx context.Context, oldParent inode.DirInode, oldDirName, newDirName string) error {
-	oldParent.Lock()
-	defer oldParent.Unlock()
-	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
+func (fs *fileSystem) renameWithinSameParent(ctx context.Context, parent inode.DirInode, oldDirName, newDirName string) error {
+	parent.Lock()
+	defer parent.Unlock()
+	_, err := parent.RenameFolder(ctx, oldDirName, newDirName)
 	return err
 }
 
@@ -2105,22 +2105,24 @@ func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParen
 // LOCKS_EXCLUDED(newParent)
 func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
 	var pendingInodes []inode.DirInode
-	defer fs.handlePendingInodes(&pendingInodes)()
+	defer fs.releaseInodes(&pendingInodes)
 
-	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName, &pendingInodes)
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
 	if err != nil {
 		return err
 	}
 
-	if err = fs.checkAndHandleLocalFiles(oldDir, oldName); err != nil {
+	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
 		return err
 	}
 
-	newDir, err := fs.getBucketDirInode(ctx, newParent, newName, &pendingInodes)
-	if err == nil {
-		if err = fs.checkNewDirNonEmpty(newDir, newName); err != nil {
-			return err
-		}
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
+	if err != nil {
+		return err
+	}
+
+	if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
+		return err
 	}
 
 	if oldParent == newParent {
@@ -2134,7 +2136,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 		return err
 	}
 
-	fs.handlePendingInodes(&pendingInodes)()
+	fs.releaseInodes(&pendingInodes)
 	fs.checkInvariantsForImplicitDirs()
 	return
 }

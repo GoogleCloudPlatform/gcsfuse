@@ -54,7 +54,7 @@ func (t *RenameTests) TestRenameWithBucketTypeHNS() {
 		})
 	assert.NoError(t.T(), err)
 	oldDirPath := path.Join(mntDir, "foo")
-	_, err = bucket.GetFolder(ctx, oldDirPath)
+	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
 
 	newDirPath := path.Join(mntDir, "foo_rename")
