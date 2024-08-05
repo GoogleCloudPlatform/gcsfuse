@@ -127,13 +127,13 @@ if __name__ == "__main__":
         try:
           per_epoch_stats_data = json.load(f)
         except:
-          print("failed to json-parse ${per_epoch_stats_file}")
+          print(f"failed to json-parse {per_epoch_stats_file}")
           continue
       with open(summary_file, "r") as f:
         try:
           summary_data = json.load(f)
         except:
-          print("failed to json-parse ${summary_file}")
+          print(f"failed to json-parse {summary_file}")
           continue
 
       for i in range(summary_data["epochs"]):
@@ -230,7 +230,6 @@ if __name__ == "__main__":
           len(record_set["records"]["local-ssd"])
           == len(record_set["records"][scenario])
       ):
-        # print(f"num-records", len(record_set["records"]["local-ssd"]))
         for i in range(len(record_set["records"]["local-ssd"])):
           r = record_set["records"][scenario][i]
           r["throughput_over_local_ssd"] = round(
@@ -248,10 +247,6 @@ if __name__ == "__main__":
               f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\"\n"
           )
       else:
-        # print(
-        # f"num records for scenario={scenario}: ",
-        # len(record_set["records"][scenario]),
-        # )
         for i in range(len(record_set["records"][scenario])):
           r = record_set["records"][scenario][i]
           r["throughput_over_local_ssd"] = "NA"
