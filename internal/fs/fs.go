@@ -743,12 +743,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 
 	// Create the inode.
 	switch {
-	// Explicit Folders
-	case ic.Folder != nil:
-		in = fs.createExplicitDirInode(id, ic)
-
-	// Explicit directories
-	case ic.MinObject != nil && ic.FullName.IsDir():
+	// Explicit directories or Folders in Hierarchical bucket.
+	case (ic.MinObject != nil && ic.FullName.IsDir()) || ic.Folder != nil :
 		in = fs.createExplicitDirInode(id, ic)
 
 		// Implicit directories
