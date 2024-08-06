@@ -675,13 +675,16 @@ func (d *dirInode) readObjects(
 		// directory "foo/" coexist, the directory would eventually occupy
 		// the value of records["foo"].
 		if strings.HasSuffix(o.Name, "/") {
-			dirName := NewDirName(d.Name(), nameBase)
-			explicitDir := &Core{
-				Bucket:    d.Bucket(),
-				FullName:  dirName,
-				MinObject: storageutil.ConvertObjToMinObject(o),
+			// In a hierarchical bucket, we'll create a folder entry instead of a MinObject for each prefix entry.
+			if !d.isBucketHierarchical() {
+				dirName := NewDirName(d.Name(), nameBase)
+				explicitDir := &Core{
+					Bucket:    d.Bucket(),
+					FullName:  dirName,
+					MinObject: storageutil.ConvertObjToMinObject(o),
+				}
+				cores[dirName] = explicitDir
 			}
-			cores[dirName] = explicitDir
 		} else {
 			fileName := NewFileName(d.Name(), nameBase)
 			file := &Core{
@@ -704,16 +707,27 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
-			continue
-		}
+		if d.isBucketHierarchical() {
+			folder := gcs.Folder{Name: dirName.objectName}
 
-		implicitDir := &Core{
-			Bucket:    d.Bucket(),
-			FullName:  dirName,
-			MinObject: nil,
+			folderCore := &Core{
+				Bucket:   d.Bucket(),
+				FullName: dirName,
+				Folder:   &folder,
+			}
+			cores[dirName] = folderCore
+		} else {
+			if c, ok := cores[dirName]; ok && c.Type() == metadata.ExplicitDirType {
+				continue
+			}
+
+			implicitDir := &Core{
+				Bucket:    d.Bucket(),
+				FullName:  dirName,
+				MinObject: nil,
+			}
+			cores[dirName] = implicitDir
 		}
-		cores[dirName] = implicitDir
 	}
 	return
 }
