@@ -218,21 +218,6 @@ func contentSizeOfObjectAccessControl(acl *storagev1.ObjectAccessControl) (size 
 	return
 }
 
-func contentSizeOfArrayOfAclPointers(acls *[]*storagev1.ObjectAccessControl) (size int) {
-	if acls == nil {
-		return
-	}
-
-	for _, acl := range *acls {
-		// We could use unsafe.Sizeof(&acl) here instead of defining
-		// an unnecessary constant pointerSize, but that would
-		// have added cost of an extra unsafe.Sizeof on each
-		// member.
-		size += pointerSize + emptyObjectAccessControlSize + contentSizeOfObjectAccessControl(acl)
-	}
-	return
-}
-
 // NestedSizeOfGcsMinObject returns the full nested memory size
 // of the gcs.MinObject pointed by the passed pointer.
 // Improvement scope: This can be generalized to a general-struct
