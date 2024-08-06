@@ -2130,10 +2130,11 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
 	if oldParent == newParent {
-		logger.Errorf(fmt.Sprintf("Parent name: %s", oldParent.Name().GcsObjectName()))
-		logger.Errorf(fmt.Sprintf("Child name: %s", oldName))
+		logger.Info(fmt.Sprintf("Parent name: %s", oldParent.Name().GcsObjectName()))
+		logger.Info(fmt.Sprintf("Child name: %s", oldName))
 		// If both parents are the same, lock once
 		err = fs.renameWithinSameParent(ctx, oldParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+		logger.Info(fmt.Sprintf("After Rename: %s", oldName))
 	} else {
 		// Determine lock order
 		err = fs.renameAcrossDifferentParents(ctx, oldParent, newParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
