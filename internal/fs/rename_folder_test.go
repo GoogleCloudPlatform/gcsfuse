@@ -17,6 +17,7 @@ package fs_test
 import (
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -58,7 +59,7 @@ func (t *RenameTests) TestRenameFolderWithSrcDoesNotExist() {
 
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
-	//assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
 func (t *RenameTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
