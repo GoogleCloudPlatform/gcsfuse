@@ -91,6 +91,10 @@ type Job struct {
 	// This semaphore is shared across all jobs spawned by the job manager and is
 	// used to limit the download concurrency.
 	maxParallelismSem *semaphore.Weighted
+
+	// Channel which is used by goroutines to know which offsets need to be
+	// downloaded when parallel download is enabled.
+	offsetChan chan offset
 }
 
 // JobStatus represents the status of job.
@@ -105,6 +109,11 @@ type JobStatus struct {
 type jobSubscriber struct {
 	notificationC    chan<- JobStatus
 	subscribedOffset int64
+}
+
+type offset struct {
+	start uint64
+	end   uint64
 }
 
 func NewJob(
@@ -251,7 +260,7 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 // updateStatusOffset updates the offset in job's status and in file info cache
 // with the given offset. If the the update is successful, this function also
 // notify the subscribers.
-func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
+func (job *Job) updateStatusOffset(downloadedOffset uint64) (err error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
 		ObjectName: job.object.Name,
@@ -271,7 +280,7 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 	defer job.mu.Unlock()
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
-		job.status.Offset = downloadedOffset
+		job.status.Offset = int64(downloadedOffset)
 		// Notify subscribers if file cache is updated.
 		logger.Tracef("Job:%p (%s:/%s) downloaded till %v offset.", job, job.bucket.Name(), job.object.Name, job.status.Offset)
 		job.notifySubscribers()
@@ -287,9 +296,9 @@ func (job *Job) updateStatusOffset(downloadedOffset int64) (err error) {
 // to download the object.
 func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 	var newReader io.ReadCloser
-	var start, end, sequentialReadSize, newReaderLimit int64
-	end = int64(job.object.Size)
-	sequentialReadSize = int64(job.sequentialReadSizeMb) * cacheutil.MiB
+	var start, end, sequentialReadSize, newReaderLimit uint64
+	end = job.object.Size
+	sequentialReadSize = uint64(job.sequentialReadSizeMb) * cacheutil.MiB
 
 	// Each iteration of this for loop, reads ReadChunkSize size of range of the
 	// backing object from reader into the file handle and updates the file info
@@ -304,8 +313,8 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 					Name:       job.object.Name,
 					Generation: job.object.Generation,
 					Range: &gcs.ByteRange{
-						Start: uint64(start),
-						Limit: uint64(newReaderLimit),
+						Start: start,
+						Limit: newReaderLimit,
 					},
 					ReadCompressed: job.object.HasContentEncodingGzip(),
 				})
@@ -313,14 +322,14 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 				err = fmt.Errorf("downloadObjectToFile: error in creating NewReader with start %d and limit %d: %w", start, newReaderLimit, err)
 				return err
 			}
-			monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, newReaderLimit-start)
+			monitor.CaptureGCSReadMetrics(job.cancelCtx, util.Sequential, int64(newReaderLimit-start))
 		}
 
 		maxRead := min(ReadChunkSize, newReaderLimit-start)
 
 		// Copy the contents from NewReader to cache file.
-		offsetWriter := io.NewOffsetWriter(cacheFile, start)
-		_, err = io.CopyN(offsetWriter, newReader, maxRead)
+		offsetWriter := io.NewOffsetWriter(cacheFile, int64(start))
+		_, err = io.CopyN(offsetWriter, newReader, int64(maxRead))
 		if err != nil {
 			err = fmt.Errorf("downloadObjectToFile: error at the time of copying content to cache file %w", err)
 			return err
