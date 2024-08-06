@@ -21,7 +21,7 @@ def validateFioWorkload(workload: dict, name: str):
     return False
 
   fioWorkload = workload['fioWorkload']
-  for requiredAttribute, _type in {
+  for requiredAttribute, expectedType in {
       'fileSize': str,
       'blockSize': str,
       'filesPerThread': int,
@@ -30,10 +30,11 @@ def validateFioWorkload(workload: dict, name: str):
     if requiredAttribute not in fioWorkload:
       print(f'In {name}, fioWorkload does not have {requiredAttribute} in it')
       return False
-    if not type(fioWorkload[requiredAttribute]) is _type:
+    if not type(fioWorkload[requiredAttribute]) is expectedType:
       print(
           f'In {name}, fioWorkload[{requiredAttribute}] is of type'
-          f' {type(fioWorkload[requiredAttribute])}, not of type {_type} '
+          f' {type(fioWorkload[requiredAttribute])}, expected:'
+          f' {expectedType} '
       )
       return False
 

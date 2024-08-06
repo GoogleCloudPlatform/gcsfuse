@@ -21,7 +21,7 @@ def validateDlioWorkload(workload: dict, name: str):
     return False
 
   dlioWorkload = workload['dlioWorkload']
-  for requiredAttribute, _type in {
+  for requiredAttribute, expectedType in {
       'numFilesTrain': int,
       'recordLength': int,
       'batchSizes': list,
@@ -32,10 +32,11 @@ def validateDlioWorkload(workload: dict, name: str):
           f' {requiredAttribute} in it'
       )
       return False
-    if not type(dlioWorkload[requiredAttribute]) is _type:
+    if not type(dlioWorkload[requiredAttribute]) is expectedType:
       print(
           f'In {name}, dlioWorkload[{requiredAttribute}] is of type'
-          f' {type(dlioWorkload[requiredAttribute])}, not of type {_type} '
+          f' {type(dlioWorkload[requiredAttribute])}, expected:'
+          f' {expectedType} '
       )
       return False
 
