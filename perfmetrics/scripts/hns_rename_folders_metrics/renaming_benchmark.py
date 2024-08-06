@@ -78,6 +78,50 @@ def _record_time_for_folder_rename(mount_point,folder,num_samples):
   return time_op
 
 
+def _record_time_of_operation(mount_point, dir, num_samples):
+  """
+  This function records the time of rename operation for each testing folder
+  inside dir directory,for num_samples number of test runs.
+
+  Args:
+    mount_point: Mount point for the GCS bucket.
+    dir: JSON object representing the folders structure.
+    num_samples: Number of samples to collect for each test.
+
+  Returns:
+    A dictionary with lists containing time of rename operations in seconds,
+    corresponding to each folder.
+  """
+  results = dict()
+  # Collecting metrics for non-nested folders.
+  for folder in dir["folders"]["folder_structure"]:
+    results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
+  #TODO Add metric collection logic for nested-folders
+  return results
+
+
+def _perform_testing(dir, test_type, num_samples, results):
+  """
+  This function performs rename operations and records time of operation .
+  """
+  if test_type == "flat":
+    # Mounting the flat bucket.
+    flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
+    flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
+
+    # Record time of operation and populate the results dict.
+    flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
+    results["flat"] = flat_results
+
+    unmount_gcs_bucket(dir["name"], log)
+  elif test_type == "hns":
+    # TODO add mount function for test type hns
+    pass
+  else:
+    log.error('Incorrect test type passed.Must be either \"flat\" or \"hns\"\n')
+    subprocess.call('bash',shell=True)
+
+
 def _parse_arguments(argv):
   argv = sys.argv
   parser = argparse.ArgumentParser()
@@ -130,3 +174,6 @@ if __name__ == '__main__':
     log.error("Test data does not exist.To create test data, run : \
     python3 generate_folders_and_files.py <dir_config.json> ")
     sys.exit(1)
+
+  results = dict()  # Dict object to store the results corresonding to the test types.
+  _perform_testing(dir_str, "flat", args.num_samples, results)
