@@ -24,7 +24,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,9 +87,9 @@ func (t *FlagsTest) TestDefaults() {
 	assert.False(t.T(), f.AnonymousAccess)
 
 	// Tuning
-	assert.Equal(t.T(), mount.DefaultStatCacheCapacity, f.StatCacheCapacity)
-	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
-	assert.Equal(t.T(), mount.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
+	assert.Equal(t.T(), cfg.DefaultStatCacheCapacity, f.StatCacheCapacity)
+	assert.Equal(t.T(), cfg.DefaultStatOrTypeCacheTTL, f.StatCacheTTL)
+	assert.Equal(t.T(), cfg.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	assert.EqualValues(t.T(), 0, f.HttpClientTimeout)
 	assert.Equal(t.T(), "", f.TempDir)
 	assert.Equal(t.T(), config.DefaultMaxRetryAttempts, f.MaxRetryAttempts)
