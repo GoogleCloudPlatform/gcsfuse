@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
@@ -33,27 +34,6 @@ const (
 	HTTP2 ClientProtocol = "http2"
 	// Deprecated: Use the constant from cfg package
 	GRPC ClientProtocol = "grpc"
-	// DefaultStatOrTypeCacheTTL is the default value used for
-	// stat-cache-ttl or type-cache-ttl if they have not been set
-	// by the user.
-	DefaultStatOrTypeCacheTTL time.Duration = time.Minute
-	// DefaultStatCacheCapacity is the default value for stat-cache-capacity.
-	// This is equivalent of setting metadata-cache: stat-cache-max-size-mb.
-	DefaultStatCacheCapacity = 20460
-	// DefaultStatCacheMaxSizeMB is the default for stat-cache-max-size-mb
-	// and is to be used when neither stat-cache-max-size-mb nor
-	// stat-cache-capacity is set.
-	DefaultStatCacheMaxSizeMB = 32
-	// AverageSizeOfPositiveStatCacheEntry is the assumed size of each positive stat-cache-entry,
-	// meant for two purposes.
-	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
-	// 2. internal testing.
-	AverageSizeOfPositiveStatCacheEntry uint64 = 1400
-	// AverageSizeOfNegativeStatCacheEntry is the assumed size of each negative stat-cache-entry,
-	// meant for two purposes..
-	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
-	// 2. internal testing.
-	AverageSizeOfNegativeStatCacheEntry uint64 = 240
 )
 
 func (cp ClientProtocol) IsValid() bool {
@@ -129,15 +109,15 @@ func ResolveStatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCach
 			statCacheMaxSizeMB = uint64(mountConfigStatCacheMaxSizeMB)
 		}
 	} else {
-		if flagStatCacheCapacity != DefaultStatCacheCapacity {
+		if flagStatCacheCapacity != cfg.DefaultStatCacheCapacity {
 			if flagStatCacheCapacity < 0 {
 				return 0, fmt.Errorf("invalid value of stat-cache-capacity (%v), can't be less than 0", flagStatCacheCapacity)
 			}
-			avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+			avgTotalStatCacheEntrySize := cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry
 			return util.BytesToHigherMiBs(
 				uint64(flagStatCacheCapacity) * avgTotalStatCacheEntrySize), nil
 		} else {
-			return DefaultStatCacheMaxSizeMB, nil
+			return cfg.DefaultStatCacheMaxSizeMB, nil
 		}
 	}
 	return

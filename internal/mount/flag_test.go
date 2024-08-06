@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -54,36 +55,36 @@ func (t *FlagTest) TestResolveMetadataCacheTTL() {
 	}{
 		{
 			// Most common scenario, when user doesn't set any of the TTL config parameters.
-			statCacheTTL:             DefaultStatOrTypeCacheTTL,
-			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			statCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
 			ttlInSeconds:             config.TtlInSecsUnsetSentinel,
-			expectedMetadataCacheTTL: DefaultStatOrTypeCacheTTL,
+			expectedMetadataCacheTTL: cfg.DefaultStatOrTypeCacheTTL,
 		},
 		{
 			// Scenario where user sets only metadata-cache:ttl-secs and sets it to -1.
-			statCacheTTL:             DefaultStatOrTypeCacheTTL,
-			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			statCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
 			ttlInSeconds:             -1,
 			expectedMetadataCacheTTL: time.Duration(math.MaxInt64),
 		},
 		{
 			// Scenario where user sets only metadata-cache:ttl-secs and sets it to 0.
-			statCacheTTL:             DefaultStatOrTypeCacheTTL,
-			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			statCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
 			ttlInSeconds:             0,
 			expectedMetadataCacheTTL: 0,
 		},
 		{
 			// Scenario where user sets only metadata-cache:ttl-secs and sets it to a positive value.
-			statCacheTTL:             DefaultStatOrTypeCacheTTL,
-			typeCacheTTL:             DefaultStatOrTypeCacheTTL,
+			statCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
+			typeCacheTTL:             cfg.DefaultStatOrTypeCacheTTL,
 			ttlInSeconds:             30,
 			expectedMetadataCacheTTL: 30 * time.Second,
 		},
 		{
 			// Scenario where user sets only metadata-cache:ttl-secs and sets it to its highest supported value.
-			statCacheTTL: DefaultStatOrTypeCacheTTL,
-			typeCacheTTL: DefaultStatOrTypeCacheTTL,
+			statCacheTTL: cfg.DefaultStatOrTypeCacheTTL,
+			typeCacheTTL: cfg.DefaultStatOrTypeCacheTTL,
 			ttlInSeconds: config.MaxSupportedTtlInSeconds,
 
 			expectedMetadataCacheTTL: time.Second * time.Duration(config.MaxSupportedTtlInSeconds),
@@ -149,31 +150,31 @@ func (t *FlagTest) TestResolveStatCacheMaxSizeMB() {
 	}{
 		{
 			// Most common scenario, when user doesn't set either the flag or the config.
-			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			flagStatCacheCapacity:         cfg.DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: config.StatCacheMaxSizeMBUnsetSentinel,
-			expectedStatCacheMaxSizeMB:    DefaultStatCacheMaxSizeMB,
+			expectedStatCacheMaxSizeMB:    cfg.DefaultStatCacheMaxSizeMB,
 		},
 		{
 			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to -1.
-			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			flagStatCacheCapacity:         cfg.DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: -1,
 			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
 		},
 		{
 			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to 0.
-			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			flagStatCacheCapacity:         cfg.DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: 0,
 			expectedStatCacheMaxSizeMB:    0,
 		},
 		{
 			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to a positive value.
-			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			flagStatCacheCapacity:         cfg.DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: 100,
 			expectedStatCacheMaxSizeMB:    100,
 		},
 		{
 			// Scenario where user sets only metadata-cache:stat-cache-max-size-mb and sets it to its highest user-input value.
-			flagStatCacheCapacity:         DefaultStatCacheCapacity,
+			flagStatCacheCapacity:         cfg.DefaultStatCacheCapacity,
 			mountConfigStatCacheMaxSizeMB: int64(config.MaxSupportedStatCacheMaxSizeMB),
 			expectedStatCacheMaxSizeMB:    config.MaxSupportedStatCacheMaxSizeMB,
 		},
