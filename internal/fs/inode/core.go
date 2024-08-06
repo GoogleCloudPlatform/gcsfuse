@@ -51,9 +51,7 @@ func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
 		return metadata.UnknownType
-	case c.Folder != nil:
-		return metadata.ExplicitDirType
-	case c.MinObject == nil && !c.Local:
+	case c.MinObject == nil && c.Folder == nil && !c.Local:
 		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
 		return metadata.ExplicitDirType
