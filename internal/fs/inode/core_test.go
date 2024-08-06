@@ -176,7 +176,6 @@ func (t *CoreTest) TestFolderSanityCheck() {
 	root := inode.NewRootName(t.bucket.Name())
 	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
 	AssertEq(nil, err)
-
 	c := &inode.Core{
 		Bucket:   &t.bucket,
 		FullName: inode.NewDirName(root, "folder"),
@@ -190,7 +189,6 @@ func (t *CoreTest) ExplicitDirForFolder() {
 	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
 	AssertEq(nil, err)
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), f.Name)
-
 	c := &inode.Core{
 		Bucket:   &t.bucket,
 		FullName: name,
