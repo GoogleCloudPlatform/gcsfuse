@@ -80,17 +80,17 @@
           "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
           "_dlioWorkload": {
             "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is a comma-separated field with integer values",
-            "numFilesTrain": "500000",
-            "recordLength": "102400",
-            "batchSizes":"800,128"
+            "numFilesTrain": 500000,
+            "recordLength": 102400,
+            "batchSizes": [800,128]
           },
           "bucket":"The bucket must have objects with name 'train/', 'valid/', and train/img_{i}_of_{numFilesTrain}.npz for every i where i:0-{numFilesTrain}-1 and each train/img_{i}_of_{numFilesTrain}.npz must be of size {recordLength} bytes. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
         {
           "dlioWorkload": {
-            "numFilesTrain": "500000",
-            "recordLength": "102400",
-            "batchSizes":"800,128"
+            "numFilesTrain": 500000,
+            "recordLength": 102400,
+            "batchSizes": [800,128]
           },
           "bucket":"dlio-unet3d-100kb-500k-us-west1",
           "_bucket_alt2":"dlio-unet3d-100kb-500k-us-central1",
@@ -98,9 +98,9 @@
         },
         {
           "dlioWorkload": {
-            "numFilesTrain": "1000000",
-            "recordLength": "512000",
-            "batchSizes":"800,128"
+            "numFilesTrain": 1000000,
+            "recordLength": 512000,
+            "batchSizes": [800,128]
           },
           "bucket":"dlio-unet3d-500kb-1m-us-west1",
           "_bucket_alt2":"dlio-unet3d-500kb-1m-us-central1",
@@ -108,9 +108,9 @@
         },
         {
           "dlioWorkload": {
-            "numFilesTrain": "100000",
-            "recordLength": "3145728",
-            "batchSizes":"200"
+            "numFilesTrain": 100000,
+            "recordLength": 3145728,
+            "batchSizes": [200]
           },
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
@@ -118,9 +118,9 @@
         },
         {
           "dlioWorkload": {
-            "numFilesTrain": "5000",
-            "recordLength": "157286400",
-            "batchSizes":"4"
+            "numFilesTrain": 5000,
+            "recordLength": 157286400,
+            "batchSizes": [4]
           },
           "bucket":"dlio-unet3d-150mb-5k-us-west1",
           "_bucket_alt2":"dlio-unet3d-150mb-5k-us-central1",
