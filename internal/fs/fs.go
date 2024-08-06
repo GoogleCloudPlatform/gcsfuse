@@ -1957,7 +1957,6 @@ func (fs *fileSystem) Rename(
 		return fmt.Errorf("cannot rename open file %q: %w", op.OldName, syscall.ENOTSUP)
 	}
 
-	logger.Info("Op Name ", op.OldName)
 	// Else find the object in the old location (on GCS).
 	oldParent.Lock()
 	child, err := oldParent.LookUpChild(ctx, op.OldName)
@@ -2091,7 +2090,6 @@ func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParen
 	defer p2.Unlock()
 
 	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
-	logger.Errorf("After Rename")
 	return err
 }
 
@@ -2105,32 +2103,29 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	var pendingInodes []inode.DirInode
 	defer fs.releaseInodes(&pendingInodes)
 
-	logger.Info("Innnnnnnnn New Dir Inode: ",err)
 	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
 	if err != nil {
 		return err
 	}
+	pendingInodes = append(pendingInodes, oldDir)
 
 	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
 		return err
 	}
 
 	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
-
 	if err == nil {
 		if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
 			return err
 		}
+		pendingInodes = append(pendingInodes, newDir)
 	}
 
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
 	if oldParent == newParent {
-		logger.Info(fmt.Sprintf("Parent name: %s", oldParent.Name().GcsObjectName()))
-		logger.Info(fmt.Sprintf("Child name: %s", oldName))
 		// If both parents are the same, lock once
 		err = fs.renameWithinSameParent(ctx, oldParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
-		logger.Info(fmt.Sprintf("After Rename: %s", oldName))
 	} else {
 		// Determine lock order
 		err = fs.renameAcrossDifferentParents(ctx, oldParent, newParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
