@@ -111,8 +111,34 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				ExperimentalMetadataPrefetchOnMount: "sync",
 				ClientProtocol:                      cfg.HTTP1,
 			},
-			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
-			legacyMountConfig: &config.MountConfig{},
+			mockCLICtx: &mockCLIContext{
+				isFlagSet: map[string]bool{
+					"log-file":                   true,
+					"log-format":                 true,
+					"kernel-list-cache-ttl-secs": true,
+					"max-retry-attempts":         true,
+					"prometheus-port":            true,
+				},
+			},
+			legacyMountConfig: &config.MountConfig{
+				FileCacheConfig: config.FileCacheConfig{
+					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
+					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
+					EnableCRC:                cfg.DefaultEnableCRC,
+					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+					MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
+					MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
+					DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+				},
+				LogConfig: config.LogConfig{
+					Severity: "INFO",
+					LogRotateConfig: config.LogRotateConfig{
+						MaxFileSizeMB:   10,
+						BackupFileCount: 0,
+						Compress:        false,
+					},
+				},
+			},
 			expectedConfig: &cfg.Config{
 				AppName:    "vertex",
 				Foreground: false,
@@ -132,13 +158,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				OnlyDir:      "abc",
 				CacheDir:     "",
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    false,
-					ParallelDownloadsPerFile: 0,
-					EnableCrc:                false,
-					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     0,
-					MaxSizeMb:                0,
-					DownloadChunkSizeMb:      0,
+					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
+					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
+					EnableCrc:                cfg.DefaultEnableCRC,
+					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+					MaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
+					MaxSizeMb:                cfg.DefaultFileCacheMaxSizeMB,
+					DownloadChunkSizeMb:      cfg.DefaultDownloadChunkSizeMB,
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					KeyFile:           cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/key-file")),
@@ -165,7 +191,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
+					Severity: cfg.LogSeverity(cfg.TRACE), // Because debug fuse flag is set.
 					Format:   "json",
+					LogRotate: cfg.LogRotateLoggingConfig{
+						BackupFileCount: 0,
+						Compress:        false,
+						MaxFileSizeMb:   10,
+					},
 				},
 				MetadataCache: cfg.MetadataCacheConfig{
 					DeprecatedStatCacheCapacity:         200,
@@ -305,6 +337,15 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 			},
 			legacyMountConfig: &config.MountConfig{
+				FileCacheConfig: config.FileCacheConfig{
+					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
+					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
+					EnableCRC:                cfg.DefaultEnableCRC,
+					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+					MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
+					MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
+					DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+				},
 				LogConfig: config.LogConfig{
 					FilePath: "~/Documents/log-config.txt",
 					Format:   "text",
@@ -336,6 +377,15 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 						Compress:        true,
 						MaxFileSizeMb:   1,
 					},
+				},
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
+					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
+					EnableCrc:                cfg.DefaultEnableCRC,
+					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+					MaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
+					MaxSizeMb:                cfg.DefaultFileCacheMaxSizeMB,
+					DownloadChunkSizeMb:      cfg.DefaultDownloadChunkSizeMB,
 				},
 				FileSystem: cfg.FileSystemConfig{
 					IgnoreInterrupts:       false,

@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
@@ -144,6 +145,12 @@ func (t *fsTest) SetUpTestSuite() {
 	t.serverCfg.SequentialReadSizeMb = SequentialReadSizeMb
 	if t.serverCfg.MountConfig == nil {
 		t.serverCfg.MountConfig = config.NewMountConfig()
+	}
+
+	if t.serverCfg.Config == nil {
+		t.serverCfg.Config = &cfg.Config{
+			FileCache: cfg.DefaultFileCacheConfig(),
+		}
 	}
 
 	// Set up ownership.

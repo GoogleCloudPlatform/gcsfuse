@@ -190,3 +190,88 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
+	testCases := []struct {
+		name          string
+		configFile    string
+		expectedError string
+	}{
+		{
+			name:          "Invalid parallel downloads per file.",
+			configFile:    "testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml",
+			expectedError: cfg.ParallelDownloadsPerFileInvalidValueError,
+		},
+		{
+			name:          "Invalid download chunk size mb.",
+			configFile:    "testdata/file_cache_config/invalid_download_chunk_size_mb.yaml",
+			expectedError: cfg.DownloadChunkSizeMBInvalidValueError,
+		},
+		{
+			name:          "Invalid max size mb.",
+			configFile:    "testdata/file_cache_config/invalid_max_size_mb.yaml",
+			expectedError: cfg.FileCacheMaxSizeMBInvalidValueError,
+		},
+		{
+			name:          "Invalid max parallel downloads.",
+			configFile:    "testdata/file_cache_config/invalid_max_parallel_downloads.yaml",
+			expectedError: cfg.MaxParallelDownloadsInvalidValueError,
+		},
+		{
+			name:          "Invalid zero max parallel downloads",
+			configFile:    "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
+			expectedError: cfg.MaxParallelDownloadsCantBeZeroError,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			require.Error(t, err)
+			assert.Nil(t, gotConfig)
+			assert.ErrorContains(t, err, tc.expectedError)
+		})
+	}
+}
+
+func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.DefaultFileCacheConfig(),
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    true,
+					DownloadChunkSizeMb:      300,
+					EnableCrc:                true,
+					EnableParallelDownloads:  true,
+					MaxParallelDownloads:     200,
+					MaxSizeMb:                40,
+					ParallelDownloadsPerFile: 10,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
+			}
+		})
+	}
+}
