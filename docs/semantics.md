@@ -165,10 +165,10 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
 **Kernel List Cache**
 
-As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`) in kernel page-cache. It significantly improves the workload which involves repeated listing. For multi node/mount-point scenario, this is recommended to be used only for read only workloads, specifically for Serving and Training workload.
+As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`) in kernel page-cache. It significantly improves the workload which involves repeated listing. For multi node/mount-point scenario, this is recommended to be used only for read only workloads, e.g. for Serving and Training workloads.
 
-By default, the list cache is disabled. It can be enabled by configuring the **--kernel-list-cache-ttl-secs** cli flag or **file-system:kernel-list-cache-ttl-secs** config flag where:
-*   a value of 0 means disabled. This is the default value.
+By default, the list cache is disabled. It can be enabled by configuring the `--kernel-list-cache-ttl-secs` cli flag or `file-system:kernel-list-cache-ttl-secs` config flag where:
+*   A value of 0 means disabled. This is the default value.
 *   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache.
 *   -1 to bypass entry expiration and always return the list response from the cache if available.
 
@@ -179,8 +179,8 @@ By default, the list cache is disabled. It can be enabled by configuring the **-
 
 **Consistency**
 *   Kernel List cache ensures consistency within the mount. That means, creation, deletion or rename of files/folder within a directory evicts the kernel list cache of the directory.
-*   Externally added objects are only visible after the kernel-list-cache-ttl-secs timer expires, even if they are touched (stat) via the same mount point. Since stat doesn’t evict the kernel-list-cache so there might be some list-stat inconsistency.
-*   Kernel-list-cache-ttl doesn't work with empty directories. In case another external client adds a new file to the empty directory, the client1 is still not going to get the new file even after the TTL is expired
+*   Externally added objects are only visible after the kernel-list-cache-ttl-secs ttl expires, even if they are touched (stat) via the same mount point. Since stat doesn’t evict the kernel-list-cache so there might be some list-stat inconsistency.
+*   Kernel-list-cache-ttl doesn't work with empty directories. In case a new file is added to the empty directory remotely outside of the mount, the client will not be able to access the new file even if ttl is expired.
 *   One of the known consistency issue: `rm -R` encounters consistency issues when objects are created externally in a bucket. Specifically, if a client (e.g., `Cloud Storage Fuse` client1) caches a directory listing and another client (client2) adds a new file to the directory before the cached listing expires, `rm -R` on the directory will fail with a "Directory not empty" error. This occurs because `rm -R` initially deletes the directory's children based on the cached listing and then checks the directory's emptiness by making a List call, which returns not empty due to the externally added file.
 
 **Note**:
