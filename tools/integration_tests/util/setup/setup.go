@@ -1,4 +1,4 @@
-// Copyright 2024 Google Inc. All Rights Reserved.
+// Copyright 2023 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
@@ -44,6 +45,7 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
+	BufferSize          = 100
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -408,23 +410,33 @@ func AreBothMountedDirectoryAndTestBucketFlagsSet() bool {
 	return false
 }
 
-// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
+func IsHierarchicalBucket(ctx context.Context, storageClient *storage.Client) bool {
 	attrs, err := storageClient.Bucket(TestBucket()).Attrs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Error in getting bucket attrs: %w", err)
+		log.Printf("Error in getting bucket attrs: %v", err)
+		return false
 	}
-	if attrs.HierarchicalNamespace != nil && !attrs.HierarchicalNamespace.Enabled {
-		return nil, fmt.Errorf("Bucket is not Hierarchical")
+	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
+		return true
 	}
 
+	return false
+}
+
+// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
+func AddHNSFlagForHierarchicalBucket() []string {
 	var flags []string
-	mountConfig4 := map[string]interface{}{
-		"enable-hns": true,
+	mountConfig4 := config.MountConfig{
+		EnableHNS: true,
+		LogConfig: config.LogConfig{
+			Severity:        config.TRACE,
+			LogRotateConfig: config.DefaultLogRotateConfig(),
+		},
 	}
 	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-	flags = append(flags, "--config-file="+filePath4)
-	return flags, nil
+	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.
+	flags = append(flags, "--config-file="+filePath4, "--implicit-dirs")
+	return flags
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {
