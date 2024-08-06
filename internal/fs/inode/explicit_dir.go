@@ -60,14 +60,18 @@ func NewExplicitDirInode(
 		typeCacheMaxSizeMB,
 		enableHNS)
 
-	d = &explicitDirInode{
+	dirInode := &explicitDirInode{
 		dirInode: wrapped.(*dirInode),
-		generation: Generation{
-			Object:   m.Generation,
-			Metadata: m.MetaGeneration,
-		},
 	}
 
+	if m != nil {
+		dirInode.generation = Generation{
+			Object:   m.Generation,
+			Metadata: m.MetaGeneration,
+		}
+	}
+
+	d = dirInode
 	return
 }
 

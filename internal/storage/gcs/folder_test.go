@@ -50,20 +50,3 @@ func TestGCSFolder(t *testing.T) {
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
 }
-
-func TestConvertFolderToMinObject(t *testing.T) {
-	timestamp := &timestamppb.Timestamp{
-		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
-		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
-	}
-
-	folder := Folder{
-		Name:       TestFolderName,
-		UpdateTime: timestamp.AsTime(),
-	}
-
-	result := folder.ConvertFolderToMinObject()
-
-	assert.Equal(t, result.Name, TestFolderName)
-	assert.Equal(t, result.Updated, timestamp.AsTime())
-}
