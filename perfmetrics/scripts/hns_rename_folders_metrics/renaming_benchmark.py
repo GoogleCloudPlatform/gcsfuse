@@ -44,6 +44,13 @@ log = logging.getLogger()
 
 
 def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
+  """
+  Writes rename results to Google Spreadsheets.
+  Args:
+    worksheet (str): Google sheet name to which results will be uploaded.
+    data (list): metrics to be uploaded.
+    spreadsheet_id: Google spreadsheet id.
+  """
   # Changing directory to comply with "cred.json" path in "gsheet.py".
   os.chdir('..')
   exit_code = 0
@@ -58,6 +65,19 @@ def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
 
 
 def _get_values_to_export(dir, metrics, test_type):
+  """
+  This function takes in extracted metrics data, filters it, rearranges it,
+   and returns the modified data to export to Google Sheet.
+
+   Args:
+     dir: JSON object containing details of testing folders.
+     metrics: A dictionary containing all the result metrics for each
+              testing folder.
+     test_type: flat or hns ,which the metrics are related to.
+
+   Returns:
+     list: List of results to upload to GSheet.
+   """
   metrics_data = []
   # Getting values corrresponding to non nested folders.
   for folder in dir["folders"]["folder_structure"]:
@@ -92,7 +112,21 @@ def _get_values_to_export(dir, metrics, test_type):
 
   return metrics_data
 
+
 def _compute_metrics_from_time_of_operation(num_samples,results):
+  """
+   This function takes in a list containing the time of operation for num_samples
+   test runs.This will be used to generate various metrics like Mean,Median,Standard
+   Dev,Minimum,Maximum,etc.
+
+   Args:
+     num_samples: Number of samples collected for each test.
+     results: list containing time of operation corresponding to num_samples
+              number of tests.
+
+   Returns:
+     A dictionary containing the various metrics in a JSON format.
+   """
   metrics=dict()
   metrics['Number of samples'] = num_samples
 
@@ -120,6 +154,17 @@ def _compute_metrics_from_time_of_operation(num_samples,results):
 
 
 def _parse_results(dir, results, num_samples):
+  """
+  This function takes in dictionary containing the list of results for each
+  testing folder which will be used to generate various metrics.
+
+  Args:
+    num_samples: Number of samples collected for each test.
+    results: Dictionary containing the list of results for each testing folder.
+
+  Returns:
+    A dictionary containing the various metrics in a JSON format.
+  """
   metrics = dict()
   # Parsing metrics for non-nested folder.
   for folder in dir["folders"]["folder_structure"]:
@@ -133,9 +178,15 @@ def _parse_results(dir, results, num_samples):
 
 def _extract_folder_name_prefix(folder_name) -> (str):
   """
-  Extract the prefix from folder_name_for_ease of rename
-  for example: filename_0 must get renamed to filename_1.This function returns
-  the prefix excluding the iteration i.e. in this case , filename_
+  Extract the prefix from folder_name_for_ease of rename using regex matching.
+  Example: filename_0 must get renamed to filename_1.This function returns
+  the prefix excluding the iteration i.e. in this case , filename_ .
+
+  Args:
+    folder_name: String representing folder name.
+
+  Returns:
+    Prefix of folder_name which excludes the iteration.
   """
   try:
     folder_prefix = re.search("(?s:.*)\_", folder_name).group()
@@ -145,14 +196,34 @@ def _extract_folder_name_prefix(folder_name) -> (str):
           to begin.Exiting...")
     subprocess.call('bash', shell=True)
 
+
 def _record_time_for_folder_rename(mount_point,folder,num_samples):
+  """
+  This function records the time of rename operation for folder,for num_samples
+  number of test runs.
+
+  Args:
+    mount_point: Mount point for the GCS bucket.
+    folder: JSON object representing the folder being renamed.
+    num_samples: Number of samples to collect for each test.
+
+  Returns:
+    A list containing time of rename operations in seconds.
+  """
   folder_prefix = _extract_folder_name_prefix(folder["name"])
   folder_path_prefix = '{}/{}'.format(mount_point, folder_prefix)
   time_op = []
   for iter in range(num_samples):
+    # For the first half of iterations, iteration value being appended to the
+    # folder_prefix increases i.e. the rename operations look like:
+    # folder_name_0 to folder_name_1 .
     if iter < num_samples / 2:
       rename_from = '{}{}'.format(folder_path_prefix, iter)
       rename_to = '{}{}'.format(folder_path_prefix, iter + 1)
+    # For the second half of iterations, iteration value being appended to the
+    # folder_prefix decreases,so that after the tests are complete , the folder
+    # names are restored back to original i.e. the rename operations look like:
+    # folder_name_1 to folder_name_0 .
     else:
       rename_from = '{}{}'.format(folder_path_prefix, num_samples - iter)
       rename_to = '{}{}'.format(folder_path_prefix, num_samples - iter - 1)
@@ -163,9 +234,23 @@ def _record_time_for_folder_rename(mount_point,folder,num_samples):
 
   return time_op
 
+
 def _record_time_of_operation(mount_point, dir, num_samples):
+  """
+  This function records the time of rename operation for each testing folder
+  inside dir directory,for num_samples number of test runs.
+
+  Args:
+    mount_point: Mount point for the GCS bucket.
+    dir: JSON object representing the folders structure.
+    num_samples: Number of samples to collect for each test.
+
+  Returns:
+    A dictionary with lists containing time of rename operations in seconds,
+    corresponding to each folder.
+  """
   results = dict()
-  # Collecting metrics for non-nested folders
+  # Collecting metrics for non-nested folders.
   for folder in dir["folders"]["folder_structure"]:
     results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
   #TODO Add metric collection logic for nested-folders
@@ -173,12 +258,15 @@ def _record_time_of_operation(mount_point, dir, num_samples):
 
 
 def _perform_testing(dir, test_type, num_samples, results):
+  """
+  This function performs rename operations and records time of operation .
+  """
   if test_type == "flat":
-    # Mounting the flat bucket .
+    # Mounting the flat bucket.
     flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
     flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
 
-    # Record time of operation
+    # Record time of operation and populate the results dict.
     flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
     results["flat"] = flat_results
 
