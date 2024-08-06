@@ -60,10 +60,7 @@ func writeFile(fileName string, fileSize int64, t *testing.T) error {
 
 func TestMultipleFilesAtSameTime(t *testing.T) {
 	concurrentWriteDir := path.Join(setup.MntDir(), DirForConcurrentWrite)
-	err := os.Mkdir(concurrentWriteDir, setup.FilePermission_0600)
-	if err != nil {
-		t.Fatalf("Error in creating directory: %v", err)
-	}
+	setup.SetupTestDirectory(DirForConcurrentWrite)
 
 	// Clean up.
 	defer operations.RemoveDir(concurrentWriteDir)
@@ -84,7 +81,7 @@ func TestMultipleFilesAtSameTime(t *testing.T) {
 	}
 
 	// Wait on threads to end.
-	err = eG.Wait()
+	err := eG.Wait()
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}
