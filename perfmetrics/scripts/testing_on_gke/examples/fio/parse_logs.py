@@ -58,7 +58,7 @@ def downloadFioOutputs(fioWorkloads):
         [
             "gsutil",
             "-m",  # download multiple files parallelly
-            "-q",  # do it quietly
+            "-q",  # download silently without any logs
             "cp",
             "-r",
             f"gs://{fioWorkload.bucket}/fio-output",
@@ -76,19 +76,27 @@ if __name__ == "__main__":
       prog="DLIO Unet3d test output parser",
       description=(
           "This program takes in a json test-config file and parses it for"
-          " output buckets.From each output bucket, it downloads all the dlio"
+          " output buckets. From each output bucket, it downloads all the FIO"
           " output logs from gs://<bucket>/logs/ locally to"
-          f" {LOCAL_LOGS_LOCATION} and parses them for dlio test runs and their"
+          f" {LOCAL_LOGS_LOCATION} and parses them for FIO test runs and their"
           " output metrics."
       ),
   )
-  parser.add_argument("--workload-config")
+  parser.add_argument(
+      "--workload-config",
+      description=(
+          "A json configuration file to define workloads that were run to"
+          " generate the outputs that should be parsed."
+      ),
+      required=True,
+  )
   parser.add_argument(
       "--project-number",
       help=(
-          "project-number (93817472919) is needed to fetch the cpu/memory"
+          "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
           " utilization data from GCP."
       ),
+      required=True,
   )
   args = parser.parse_args()
 
@@ -125,6 +133,7 @@ if __name__ == "__main__":
         print(f"ignoring file {per_epoch_output} as it's not a json file")
         continue
 
+      gcsfuse_mount_options = ""
       gcsfuse_mount_options_file = root + "/gcsfuse_mount_options"
       if os.path.isfile(gcsfuse_mount_options_file):
         with open(gcsfuse_mount_options_file) as f:

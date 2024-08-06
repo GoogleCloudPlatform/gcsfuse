@@ -50,7 +50,7 @@ def downloadDlioOutputs(dlioWorkloads):
     result = subprocess.run(
         [
             "gsutil",
-            "-m",  # download files parallely
+            "-m",  # download multiple files parallelly
             "-q",  # download silently without any logs
             "cp",
             "-r",
@@ -69,19 +69,27 @@ if __name__ == "__main__":
       prog="DLIO Unet3d test output parser",
       description=(
           "This program takes in a json test-config file and parses it for"
-          " output buckets. From each output bucket, it downloads all the dlio"
+          " output buckets. From each output bucket, it downloads all the DLIO"
           " output logs from gs://<bucket>/logs/ localy to"
-          f" {LOCAL_LOGS_LOCATION} and parses them for dlio test runs and their"
+          f" {LOCAL_LOGS_LOCATION} and parses them for DLIO test runs and their"
           " output metrics."
       ),
   )
-  parser.add_argument("--workload-config")
+  parser.add_argument(
+      "--workload-config",
+      description=(
+          "A json configuration file to define workloads that were run to"
+          " generate the outputs that should be parsed."
+      ),
+      required=True,
+  )
   parser.add_argument(
       "--project-number",
       help=(
           "project-number (e.g. 93817472919) is needed to fetch the cpu/memory"
           " utilization data from GCP."
       ),
+      required=True,
   )
   args = parser.parse_args()
 
@@ -129,6 +137,7 @@ if __name__ == "__main__":
         except:
           print(f"failed to json-parse {per_epoch_stats_file}")
           continue
+
       with open(summary_file, "r") as f:
         try:
           summary_data = json.load(f)
