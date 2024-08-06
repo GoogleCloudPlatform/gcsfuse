@@ -284,9 +284,9 @@ function enableManagedCsiDriverIfNeeded() {
 }
 
 function dataLoaderBucketNames() {
-  local workloadConfigFileName="$1"
-  for workloadFileName in "${workloadConfigFileName}" ; do
-    workloadConfigFilePath="${gke_testing_dir}"/examples/$workloadFileName
+  local workloadConfigFileNames="$@"
+  for workloadFileName in "${workloadConfigFileNames}" ; do
+    workloadConfigFilePath="$workloadFileName"
     if test -f "${workloadConfigFilePath}"; then
       grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' | sort | uniq
     fi
@@ -294,11 +294,11 @@ function dataLoaderBucketNames() {
 }
 
 function fioDataLoaderBucketNames() {
-  dataLoaderBucketNames fio/workloads.json
+  dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
 }
 
 function dlioDataLoaderBucketNames() {
-  dataLoaderBucketNames dlio/workloads.json
+  dataLoaderBucketNames "${gke_testing_dir}"/examples/workloads.json
 }
 
 function configureClusterCredentials() {
