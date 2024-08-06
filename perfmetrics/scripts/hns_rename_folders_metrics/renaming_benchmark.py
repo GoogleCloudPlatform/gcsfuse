@@ -12,12 +12,15 @@ import numpy as np
 sys.path.insert(0, '..')
 from utils.mount_unmount_util import mount_gcs_bucket,unmount_gcs_bucket
 from utils.checks_util import check_dependencies
+from gsheet import gsheet
 
 
 # The script requires the num of samples to be even in order to restore test
 # data to original state.
 # Common flags for both flat and hns bucket mounting.
 GCSFUSE_MOUNT_FLAGS= "--implicit-dirs --rename-dir-limit=1000000"
+WORKSHEET_NAME_FLAT='rename_metrics_flat'
+SPREADSHEET_ID='1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,6 +28,21 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger()
+
+
+def _upload_to_gsheet(worksheet,data,spreadsheet_id) -> (int):
+  # Changing directory to comply with "cred.json" path in "gsheet.py".
+  os.chdir('..')
+  exit_code = 0
+  if spreadsheet_id == "":
+    log.error('Empty spreadsheet id passed!')
+    exit_code= 1
+  else:
+    gsheet.write_to_google_sheet(worksheet, data, spreadsheet_id)
+  # Changing the directory back to current directory.
+  os.chdir('./hns_rename_folders_metrics')
+  return exit_code
+
 
 def _get_values_to_export(dir,metrics,test_type):
   metrics_data=[]
@@ -201,8 +219,8 @@ if __name__ == '__main__':
   flat_parsed_metrics=_parse_results(dir_str,results,args.num_samples,"flat")
   upload_values_flat = _get_values_to_export(dir_str,flat_parsed_metrics,'flat')
 
-
-
-
-
-
+  if args.upload_gs:
+    log.info('Uploading files to the Google Sheet\n')
+    exit_code= _upload_to_gsheet(WORKSHEET_NAME_FLAT,upload_values_flat,SPREADSHEET_ID)
+    if exit_code !=0:
+      log.error("Upload to gsheet unsuccessful!")
