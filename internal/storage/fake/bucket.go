@@ -545,10 +545,18 @@ func (b *bucket) ListObjects(
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
 
-				// In hierarchical buckets, a directory is represented both as a prefix
-				// and a folder. Consequently, if a folder entry is discovered, it indicates
-				// that it's exclusively a prefix entry. This check was incorporated because createFolder
-				// needs to add an entry to the objects, and we cannot distinguish from that entry whether it's solely a prefix.
+				// In hierarchical buckets, a directory is represented both as a prefix and a folder.
+				// Consequently, if a folder entry is discovered, it indicates that it's exclusively a prefix entry.
+				//
+				// This check was incorporated because createFolder needs to add an entry to the objects, and
+				// we cannot distinguish from that entry whether it's solely a prefix.
+				//
+				// For example, mkdir test will create both a folder entry and a test/ prefix.
+				// In our createFolder fake bucket implementation, we created both a folder and an object for
+				// the given folderName. There, we can't define whether it's only a prefix and not an object.
+				// Hence, we added this check here.
+				//
+				// Note that in a real ListObject call, the entry will appear only as a prefix and not as an object.
 				folderIndex := b.folders.find(resultPrefix)
 				if folderIndex < len(b.folders) {
 					lastResultWasPrefix = true
@@ -940,8 +948,8 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 	// Remove the folder.
 	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
-	// Note: In the hierarchical bucket control client API, folders will also be
-	// created as prefixes for backward compatibility. Therefore, a prefix object
+	// In the hierarchical bucket, control client API deletes folders as well as
+	// prefixes for backward compatibility. Therefore, a prefix object
 	// entry needs to be deleted here as well.
 
 	// Do we possess the prefix object with the given name?
@@ -996,9 +1004,10 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 		sort.Sort(b.folders)
 	}
 
-	// Note: In the hierarchical bucket control client API, folders should also be
-	// created as prefixes for backward compatibility. Therefore, a prefix object
+	// In the hierarchical bucket, control client API creates folders  as well as
+	// prefixes for backward compatibility. Therefore, a prefix object
 	// entry needs to be created here as well.
+
 	// Find any existing record for this name.
 	existingObjectPrefixIndex := b.objects.find(folderName)
 
