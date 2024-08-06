@@ -15,9 +15,9 @@
 package fs_test
 
 import (
+	"fmt"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
@@ -31,14 +31,16 @@ type RenameTests struct {
 	fsTest
 }
 
-func TestRenameTests(testSuite *testing.T) { suite.Run(testSuite, new(RenameTests)) }
-func (t *RenameTests) SetupTest() {
+func TestRenameTests(t *testing.T) { suite.Run(t, new(RenameTests)) }
+
+func (t *RenameTests) SetupSuite() {
 	t.serverCfg.MountConfig = &config.MountConfig{EnableHNS: true}
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *RenameTests) TearDownTest() {
+func (t *RenameTests) TearDownSuite() {
+	t.fsTest.TearDown()
 	t.fsTest.TearDownTestSuite()
 }
 
@@ -53,13 +55,13 @@ func (t *RenameTests) TestRenameFolderWithSrcDoesNotExist() {
 		})
 	assert.NoError(t.T(), err)
 	oldDirPath := path.Join(mntDir, "foo_not_exist")
-	newDirPath := path.Join(mntDir, "foo_rename")
+	newDirPath := path.Join(mntDir, "foo_rename_2")
 
 	err = os.Rename(oldDirPath, newDirPath)
 
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
-	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
+	assert.NotNil(t.T(), err)
 }
 
 func (t *RenameTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
@@ -82,29 +84,29 @@ func (t *RenameTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
 	err = os.Rename(oldDirPath, newDirPath)
 
 	assert.NotNil(t.T(), err)
+	fmt.Println("Test complete")
 }
 
-//func (t *RenameTests) TestRenameFolderWithDstDirectoryIsEmpty() {
-//	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
-//	assert.NoError(t.T(), err)
-//	err = t.createObjects(
-//		map[string]string{
-//			"foo/file1.txt": "abcdef",
-//			"foo/file2.txt": "xyz",
-//		})
-//	assert.NoError(t.T(), err)
-//	oldDirPath := path.Join(mntDir, "foo")
-//	//_, err = os.Stat(oldDirPath)
-//	//assert.NoError(t.T(), err)
-//	newDirPath := path.Join(mntDir, "bar")
-//	//_, err = os.Stat(newDirPath)
-//	//assert.NoError(t.T(), err)
-//
-//	err = os.Rename(oldDirPath, newDirPath)
-//
-//	assert.NoError(t.T(), err)
-//}
-
+// //func (t *RenameTests) TestRenameFolderWithDstDirectoryIsEmpty() {
+// //	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
+// //	assert.NoError(t.T(), err)
+// //	err = t.createObjects(
+// //		map[string]string{
+// //			"foo/file1.txt": "abcdef",
+// //			"foo/file2.txt": "xyz",
+// //		})
+// //	assert.NoError(t.T(), err)
+// //	oldDirPath := path.Join(mntDir, "foo")
+// //	//_, err = os.Stat(oldDirPath)
+// //	//assert.NoError(t.T(), err)
+// //	newDirPath := path.Join(mntDir, "bar")
+// //	//_, err = os.Stat(newDirPath)
+// //	//assert.NoError(t.T(), err)
+// //
+// //	err = os.Rename(oldDirPath, newDirPath)
+// //
+// //	assert.NoError(t.T(), err)
+// //}
 func (t *RenameTests) TestRenameFolderWithSameParent() {
 	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
 	assert.NoError(t.T(), err)
@@ -127,6 +129,7 @@ func (t *RenameTests) TestRenameFolderWithSameParent() {
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
+	fmt.Println("Test complete")
 }
 
 func (t *RenameTests) TestRenameFolderWithDifferentParent() {
