@@ -17,13 +17,14 @@
 # where dir-config.json file contains the directory structure details for the test.
 
 import os
-import re
 import sys
 import argparse
 import logging
 import subprocess
 import time
 import json
+import statistics as stat
+import numpy as np
 
 sys.path.insert(0, '..')
 from generate_folders_and_files import _check_for_config_file_inconsistency,_check_if_dir_structure_exists
@@ -36,6 +37,70 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger()
+
+
+def _compute_metrics_from_time_of_operation(num_samples,results):
+  """
+   This function takes in a list containing the time of operation for num_samples
+   test runs.This will be used to generate various metrics like Mean,Median,Standard
+   Dev,Minimum,Maximum,etc.
+
+   Args:
+     num_samples: Number of samples collected for each test.
+     results: list containing time of operation corresponding to num_samples
+              number of tests.
+
+   Returns:
+     A dictionary containing the various metrics in a JSON format.
+   """
+  metrics=dict()
+  metrics['Number of samples'] = num_samples
+
+  # Sorting based on time to get the mean,median,etc.
+  results = sorted(results)
+
+  metrics['Mean'] = round(
+      stat.mean(results), 3)
+  metrics['Median'] = round(
+      stat.median(results), 3)
+  metrics['Standard Dev'] = round(
+      stat.stdev(results), 3)
+  metrics['Min']= round(
+      np.min(results),3)
+  metrics['Max']= round(
+      np.max(results),3)
+  metrics['Quantiles'] = dict()
+  sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
+  for percentile in sample_set:
+    metrics['Quantiles'][
+      '{} %ile'.format(percentile)] = round(
+        np.percentile(results, percentile), 3)
+
+  return metrics
+
+
+def _parse_results(dir, results, num_samples):
+  """
+  This function takes in dictionary containing the list of results for each
+  testing folder which will be used to generate various metrics.
+
+  Args:
+    dir: JSON object representing folder structure in gcs bucket.
+    num_samples: Number of samples collected for each test.
+    results: Dictionary containing the list of results for each testing folder.
+
+  Returns:
+    A dictionary containing the various metrics in a JSON format.
+  """
+  metrics = dict()
+  # Parsing metrics for non-nested folder.
+  for folder in dir["folders"]["folder_structure"]:
+    folder_name = folder["name"]
+    metrics[folder_name] = _compute_metrics_from_time_of_operation(
+        num_samples, results[folder_name])
+  #TODO add logic for metrics parsing for nested folder
+
+  return metrics
 
 
 def _record_time_for_folder_rename(mount_point,folder,num_samples):
@@ -205,3 +270,4 @@ if __name__ == '__main__':
 
   results = dict()  # Dict object to store the results corresonding to the test types.
   _perform_testing(dir_str, "flat", args.num_samples, results)
+  flat_parsed_metrics = _parse_results(dir_str, results['flat'], args.num_samples)
