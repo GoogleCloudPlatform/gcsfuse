@@ -38,7 +38,6 @@ class FioWorkloadTest(unittest.TestCase):
   def test_validate_fio_workload_invalid_missing_fileSize(self):
     workload = dict({
         "fioWorkload": {
-            # "fileSize": "1kb",
             "filesPerThread": 2,
             "numThreads": 100,
             "blockSize": "1kb",
@@ -50,13 +49,29 @@ class FioWorkloadTest(unittest.TestCase):
     )
     pass
 
+  def test_validate_fio_workload_invalid_unsupported_fileSize(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": 1000,
+            "filesPerThread": 2,
+            "numThreads": 100,
+            "blockSize": "1kb",
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-fileSize"
+        )
+    )
+    pass
+
   def test_validate_fio_workload_invalid_missing_blockSize(self):
     workload = dict({
         "fioWorkload": {
             "fileSize": "1kb",
             "filesPerThread": 2,
             "numThreads": 100,
-            # "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
     })
@@ -65,11 +80,27 @@ class FioWorkloadTest(unittest.TestCase):
     )
     pass
 
+  def test_validate_fio_workload_invalid_unsupported_blockSize(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "blockSize": 1000,
+            "filesPerThread": 2,
+            "numThreads": 100,
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-blockSize"
+        )
+    )
+    pass
+
   def test_validate_fio_workload_invalid_missing_filesPerThread(self):
     workload = dict({
         "fioWorkload": {
             "fileSize": "1kb",
-            # "filesPerThread": 2,
             "numThreads": 100,
             "blockSize": "1kb",
         },
@@ -82,18 +113,105 @@ class FioWorkloadTest(unittest.TestCase):
     )
     pass
 
+  def test_validate_fio_workload_invalid_unsupported_filesPerThread(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": "1k",
+            "numThreads": 100,
+            "blockSize": "1kb",
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-filesPerThread"
+        )
+    )
+    pass
+
   def test_validate_fio_workload_invalid_missing_numThreads(self):
     workload = dict({
         "fioWorkload": {
             "fileSize": "1kb",
             "filesPerThread": 2,
-            # "numThreads": 100,
             "blockSize": "1kb",
         },
         "bucket": "dummy-bucket",
     })
     self.assertFalse(
         validateFioWorkload(workload, "invalid-fio-workload-missing-numThreads")
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_unsupported_numThreads(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": "1k",
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-numThreads"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_unsupported_readTypes_1(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": 10,
+            "readTypes": True,
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-readTypes-1"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_unsupported_readTypes_2(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": 10,
+            "readTypes": ["read", 1],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-readTypes-2"
+        )
+    )
+    pass
+
+  def test_validate_fio_workload_invalid_unsupported_readTypes_3(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "blockSize": "1kb",
+            "numThreads": 10,
+            "readTypes": ["read", "write"],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateFioWorkload(
+            workload, "invalid-fio-workload-unsupported-readTypes-3"
+        )
     )
     pass
 
@@ -117,7 +235,21 @@ class FioWorkloadTest(unittest.TestCase):
             "filesPerThread": 2,
             "numThreads": 100,
             "blockSize": "1kb",
-            "readTypes": "read,randread",
+            "readTypes": ["read", "randread"],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertTrue(validateFioWorkload(workload, "valid-fio-workload-2"))
+    pass
+
+  def test_validate_fio_workload_valid_with_single_readType(self):
+    workload = dict({
+        "fioWorkload": {
+            "fileSize": "1kb",
+            "filesPerThread": 2,
+            "numThreads": 100,
+            "blockSize": "1kb",
+            "readTypes": ["randread"],
         },
         "bucket": "dummy-bucket",
     })

@@ -20,15 +20,49 @@ def validateFioWorkload(workload, name):
     return False
 
   fioWorkload = workload['fioWorkload']
-  for requiredAttribute in [
-      'fileSize',
-      'blockSize',
-      'filesPerThread',
-      'numThreads',
-  ]:
+  for requiredAttribute, _type in {
+      'fileSize': str,
+      'blockSize': str,
+      'filesPerThread': int,
+      'numThreads': int,
+  }.items():
     if requiredAttribute not in fioWorkload:
-      print(f'fioWorkload for {name} does not have {requiredAttribute} in it.')
+      print(
+          f'In {name}, fioWorkload for {name} does not have'
+          f' {requiredAttribute} in it'
+      )
       return False
+    if not type(fioWorkload[requiredAttribute]) is _type:
+      print(
+          f'In {name}, fioWorkload[{requiredAttribute}] is of type'
+          f' {type(fioWorkload[requiredAttribute])}, not of type {_type} '
+      )
+      return False
+
+  if 'readTypes' in fioWorkload:
+    readTypes = fioWorkload['readTypes']
+    if not type(readTypes) is list:
+      print(
+          f"In {name}, fioWorkload['readTypes'] is of type {type(readTypes)},"
+          " not 'list'."
+      )
+      return False
+    for readType in readTypes:
+      if not type(readType) is str:
+        print(
+            f'In {name}, one of the values in'
+            f" fioWorkload['readTypes'] is '{readType}', which is of type"
+            f' {type(readType)}, not str'
+        )
+        return False
+      if not readType == 'read' and not readType == 'randread':
+        print(
+            f"In {name}, one of the values in fioWorkload['readTypes'] is"
+            f" '{readType}' which is not a supported value. Supported values"
+            ' are read, randread'
+        )
+        return False
+
   return True
 
 
