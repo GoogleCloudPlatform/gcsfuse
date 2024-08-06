@@ -536,7 +536,6 @@ func (b *bucketHandle) GetFolder(ctx context.Context, folderName string) (*gcs.F
 }
 
 func (b *bucketHandle) CreateFolder(ctx context.Context, folderName string) (*gcs.Folder, error) {
-
 	req := &controlpb.CreateFolderRequest{
 		Parent:    fmt.Sprintf(FullBucketPathHNS, b.bucketName),
 		FolderId:  folderName,
