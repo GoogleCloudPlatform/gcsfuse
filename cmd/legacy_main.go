@@ -89,14 +89,14 @@ func getUserAgent(appName string, config string) string {
 	}
 }
 
-func getConfigForUserAgent(mountConfig *config.MountConfig) string {
+func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
 	if config.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
 	}
 	isFileCacheForRangeReadEnabled := "0"
-	if mountConfig.FileCacheConfig.CacheFileForRangeRead {
+	if mountConfig.FileCache.CacheFileForRangeRead {
 		isFileCacheForRangeReadEnabled = "1"
 	}
 	return fmt.Sprintf("%s:%s", isFileCacheEnabled, isFileCacheForRangeReadEnabled)
@@ -150,7 +150,7 @@ func mountWithArgs(
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(mountConfig))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, mountConfig, userAgent)
 		if err != nil {

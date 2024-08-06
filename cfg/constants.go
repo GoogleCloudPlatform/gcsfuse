@@ -24,3 +24,14 @@ const (
 	ERROR   string = "ERROR"
 	OFF     string = "OFF"
 )
+
+const (
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       int64 = -1
+	DefaultEnableCRC                      = false
+	DefaultEnableParallelDownloads        = false
+	DefaultDownloadChunkSizeMB            = 50
+	DefaultParallelDownloadsPerFile       = 16
+	DefaultCacheFileForRangeRead          = false
+)

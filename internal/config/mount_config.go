@@ -39,13 +39,12 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB               int64 = -1
-	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnPoolSize                       = 1
-	DefaultAnonymousAccess                        = false
-	DefaultEnableHNS                              = false
-	DefaultIgnoreInterrupts                       = true
-	DefaultPrometheusPort                         = 0
+	DefaultEnableEmptyManagedFoldersListing = false
+	DefaultGrpcConnPoolSize                 = 1
+	DefaultAnonymousAccess                  = false
+	DefaultEnableHNS                        = false
+	DefaultIgnoreInterrupts                 = true
+	DefaultPrometheusPort                   = 0
 
 	// ExperimentalMetadataPrefetchOnMountDisabled is the mode without metadata-prefetch.
 	ExperimentalMetadataPrefetchOnMountDisabled string = "disabled"
@@ -57,12 +56,7 @@ const (
 	DefaultExperimentalMetadataPrefetchOnMount = ExperimentalMetadataPrefetchOnMountDisabled
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
-
-	DefaultEnableCRC                = false
-	DefaultEnableParallelDownloads  = false
-	DefaultDownloadChunkSizeMB      = 50
-	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(0)
+	DefaultMaxRetryAttempts                = int64(0)
 )
 
 type LogConfig struct {
@@ -106,13 +100,13 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMb                int64 `yaml:"max-size-mb"`
+	MaxSizeMB                int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
 	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
 	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
 	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
-	DownloadChunkSizeMb      int   `yaml:"download-chunk-size-mb,omitempty"`
-	EnableCrc                bool  `yaml:"enable-crc"`
+	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCRC                bool  `yaml:"enable-crc"`
 }
 
 type MetadataCacheConfig struct {
@@ -185,12 +179,12 @@ func NewMountConfig() *MountConfig {
 		},
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMb:                DefaultFileCacheMaxSizeMB,
-		EnableParallelDownloads:  DefaultEnableParallelDownloads,
-		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
+		MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+		ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
 		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-		DownloadChunkSizeMb:      DefaultDownloadChunkSizeMB,
-		EnableCrc:                DefaultEnableCRC,
+		DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+		EnableCRC:                cfg.DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

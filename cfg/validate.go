@@ -18,6 +18,14 @@ import (
 	"fmt"
 )
 
+const (
+	FileCacheMaxSizeMBInvalidValueError       = "the value of max-size-mb for file-cache can't be less than -1"
+	MaxParallelDownloadsInvalidValueError     = "the value of max-parallel-downloads for file-cache can't be less than -1"
+	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
+	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
+	MaxParallelDownloadsCantBeZeroError       = "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true"
+)
+
 func isValidLogRotateConfig(config *LogRotateLoggingConfig) error {
 	if config.MaxFileSizeMb <= 0 {
 		return fmt.Errorf("max-file-size-mb should be atleast 1")
@@ -33,6 +41,26 @@ func isValidURL(u string) error {
 	return err
 }
 
+func isValidFileCacheConfig(config *FileCacheConfig) error {
+	if config.MaxSizeMb < -1 {
+		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
+	}
+	if config.MaxParallelDownloads < -1 {
+		return fmt.Errorf(MaxParallelDownloadsInvalidValueError)
+	}
+	if config.EnableParallelDownloads && config.MaxParallelDownloads == 0 {
+		return fmt.Errorf(MaxParallelDownloadsCantBeZeroError)
+	}
+	if config.ParallelDownloadsPerFile < 1 {
+		return fmt.Errorf(ParallelDownloadsPerFileInvalidValueError)
+	}
+	if config.DownloadChunkSizeMb < 1 {
+		return fmt.Errorf(DownloadChunkSizeMBInvalidValueError)
+	}
+
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(config *Config) error {
 	var err error
@@ -43,6 +71,10 @@ func ValidateConfig(config *Config) error {
 
 	if err = isValidURL(config.GcsConnection.CustomEndpoint); err != nil {
 		return fmt.Errorf("error parsing custom-endpoint config: %w", err)
+	}
+
+	if err = isValidFileCacheConfig(&config.FileCache); err != nil {
+		return fmt.Errorf("error parsing file cache config: %w", err)
 	}
 
 	return nil

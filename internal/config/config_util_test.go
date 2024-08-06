@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -50,28 +51,28 @@ func TestConfigSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ConfigTest) TestIsFileCacheEnabled() {
-	mountConfig := &MountConfig{
+	mountConfig := &cfg.Config{
 		CacheDir: "/tmp/folder/",
-		FileCacheConfig: FileCacheConfig{
+		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb: -1,
 		},
 	}
 	assert.True(t.T(), IsFileCacheEnabled(mountConfig))
 
-	mountConfig1 := &MountConfig{}
+	mountConfig1 := &cfg.Config{}
 	assert.False(t.T(), IsFileCacheEnabled(mountConfig1))
 
-	mountConfig2 := &MountConfig{
+	mountConfig2 := &cfg.Config{
 		CacheDir: "",
-		FileCacheConfig: FileCacheConfig{
+		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb: -1,
 		},
 	}
 	assert.False(t.T(), IsFileCacheEnabled(mountConfig2))
 
-	mountConfig3 := &MountConfig{
+	mountConfig3 := &cfg.Config{
 		CacheDir: "//tmp//folder//",
-		FileCacheConfig: FileCacheConfig{
+		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb: 0,
 		},
 	}

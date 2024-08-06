@@ -23,10 +23,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	cacheutil "github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/monitor"
@@ -60,7 +60,7 @@ type Job struct {
 	fileInfoCache        *lru.Cache
 	sequentialReadSizeMb int32
 	fileSpec             data.FileSpec
-	fileCacheConfig      *config.FileCacheConfig
+	fileCacheConfig      *cfg.FileCacheConfig
 
 	/////////////////////////
 	// Mutable state
@@ -114,7 +114,7 @@ func NewJob(
 	sequentialReadSizeMb int32,
 	fileSpec data.FileSpec,
 	removeJobCallback func(),
-	fileCacheConfig *config.FileCacheConfig,
+	fileCacheConfig *cfg.FileCacheConfig,
 	maxParallelismSem *semaphore.Weighted,
 ) (job *Job) {
 	job = &Job{

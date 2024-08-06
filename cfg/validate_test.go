@@ -36,7 +36,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: DefaultFileCacheConfig(),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
@@ -45,7 +46,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: DefaultFileCacheConfig(),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
@@ -70,7 +72,8 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 		{
 			name: "Invalid Config due to invalid custom endpoint",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: DefaultFileCacheConfig(),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
 				},

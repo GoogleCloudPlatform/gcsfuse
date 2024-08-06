@@ -29,17 +29,13 @@ import (
 const (
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 
-	MetadataCacheTtlSecsInvalidValueError     = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError          = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxSizeMBInvalidValueError       = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBInvalidValueError       = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBTooHighError            = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeMB            = util.MaxMiBsInUint64
-	UnsupportedMetadataPrefixModeError        = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
-	FileCacheMaxSizeMBInvalidValueError       = "the value of max-size-mb for file-cache can't be less than -1"
-	MaxParallelDownloadsInvalidValueError     = "the value of max-parallel-downloads for file-cache can't be less than -1"
-	ParallelDownloadsPerFileInvalidValueError = "the value of parallel-downloads-per-file for file-cache can't be less than 1"
-	DownloadChunkSizeMBInvalidValueError      = "the value of download-chunk-size-mb for file-cache can't be less than 1"
+	MetadataCacheTtlSecsInvalidValueError = "the value of ttl-secs for metadata-cache can't be less than -1"
+	MetadataCacheTtlSecsTooHighError      = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
+	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
+	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
+	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
+	UnsupportedMetadataPrefixModeError    = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
 )
 
 func IsValidLogSeverity(severity string) bool {
@@ -54,26 +50,6 @@ func IsValidLogSeverity(severity string) bool {
 		return true
 	}
 	return false
-}
-
-func (fileCacheConfig *FileCacheConfig) validate() error {
-	if fileCacheConfig.MaxSizeMb < -1 {
-		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
-	}
-	if fileCacheConfig.MaxParallelDownloads < -1 {
-		return fmt.Errorf(MaxParallelDownloadsInvalidValueError)
-	}
-	if fileCacheConfig.EnableParallelDownloads && fileCacheConfig.MaxParallelDownloads == 0 {
-		return fmt.Errorf("the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
-	}
-	if fileCacheConfig.ParallelDownloadsPerFile < 1 {
-		return fmt.Errorf(ParallelDownloadsPerFileInvalidValueError)
-	}
-	if fileCacheConfig.DownloadChunkSizeMb < 1 {
-		return fmt.Errorf(DownloadChunkSizeMBInvalidValueError)
-	}
-
-	return nil
 }
 
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
@@ -145,10 +121,6 @@ func ParseConfigFile(fileName string) (mountConfig *MountConfig, err error) {
 	if !IsValidLogSeverity(mountConfig.LogConfig.Severity) {
 		err = fmt.Errorf("error parsing config file: log severity should be one of [trace, debug, info, warning, error, off]")
 		return
-	}
-
-	if err = mountConfig.FileCacheConfig.validate(); err != nil {
-		return mountConfig, fmt.Errorf("error parsing file-cache configs: %w", err)
 	}
 
 	if err = mountConfig.MetadataCacheConfig.validate(); err != nil {

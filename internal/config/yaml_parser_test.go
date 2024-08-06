@@ -145,36 +145,6 @@ func (t *YamlParserTest) TestReadConfigFile_InvalidLogConfig() {
 	assert.ErrorContains(t.T(), err, fmt.Sprintf(parseConfigFileErrMsgFormat, "log severity should be one of [trace, debug, info, warning, error, off]"))
 }
 
-func (t *YamlParserTest) TestReadConfigFile_InvalidFileCacheMaxSizeConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_size_mb.yaml")
-
-	assert.ErrorContains(t.T(), err, FileCacheMaxSizeMBInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidMaxParallelDownloadsConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_max_parallel_downloads.yaml")
-
-	assert.ErrorContains(t.T(), err, MaxParallelDownloadsInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidZeroMaxParallelDownloadsConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml")
-
-	assert.ErrorContains(t.T(), err, "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true")
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidParallelDownloadsPerFileConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml")
-
-	assert.ErrorContains(t.T(), err, ParallelDownloadsPerFileInvalidValueError)
-}
-
-func (t *YamlParserTest) TestReadConfigFile_InvalidDownloadChunkSizeMBConfig() {
-	_, err := ParseConfigFile("testdata/file_cache_config/invalid_download_chunk_size_mb.yaml")
-
-	assert.ErrorContains(t.T(), err, DownloadChunkSizeMBInvalidValueError)
-}
-
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidTTL() {
 	_, err := ParseConfigFile("testdata/metadata_cache_config_invalid_ttl.yaml")
 

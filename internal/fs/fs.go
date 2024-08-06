@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -122,8 +123,11 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
-	// MountConfig has all the config specified by the user using configFile flag.
+	// Deprecated MountConfig has all the config specified by the user using configFile flag.
 	MountConfig *config.MountConfig
+
+	// Config has all the config specified by the user using configFile or CLI flags.
+	Config *cfg.Config
 }
 
 // Create a fuse file system server according to the supplied configuration.
@@ -154,7 +158,7 @@ func NewFileSystem(
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if config.IsFileCacheEnabled(cfg.MountConfig) {
+	if config.IsFileCacheEnabled(cfg.Config) {
 		var err error
 		fileCacheHandler, err = createFileCacheHandler(cfg)
 		if err != nil {
@@ -189,7 +193,7 @@ func NewFileSystem(
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+		cacheFileForRangeRead:      cfg.Config.FileCache.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
@@ -221,14 +225,14 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMb == -1 {
+	if cfg.Config.FileCache.MaxSizeMb == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMb) * cacheutil.MiB
+		sizeInBytes = uint64(cfg.Config.FileCache.MaxSizeMb) * cacheutil.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	cacheDir := string(cfg.MountConfig.CacheDir)
+	cacheDir := string(cfg.Config.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
 	// the future.
@@ -242,10 +246,8 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
-		cfg.SequentialReadSizeMb, &cfg.MountConfig.FileCacheConfig)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheDir, filePerm, dirPerm)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, cfg.SequentialReadSizeMb, &cfg.Config.FileCache)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm)
 	return
 }
 
