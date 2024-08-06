@@ -1,3 +1,21 @@
+# Copyright 2024 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+
+# limitations under the License.
+# To run the script,run in terminal:
+# python3 renaming_benchmark.py <dir-config.json> [--upload_gs]  [--num_samples NUM_SAMPLES]
+# where dir-config.json file contains the directory structure details for the test.
+
 import os
 import json
 import sys
@@ -10,17 +28,12 @@ import re
 import numpy as np
 
 sys.path.insert(0, '..')
-from utils.mount_unmount_util import mount_gcs_bucket,unmount_gcs_bucket
+from utils.mount_unmount_util import mount_gcs_bucket, unmount_gcs_bucket
 from utils.checks_util import check_dependencies
 from gsheet import gsheet
 
-
-# The script requires the num of samples to be even in order to restore test
-# data to original state.
-# Common flags for both flat and hns bucket mounting.
-GCSFUSE_MOUNT_FLAGS= "--implicit-dirs --rename-dir-limit=1000000"
-WORKSHEET_NAME_FLAT='rename_metrics_flat'
-SPREADSHEET_ID='1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
+WORKSHEET_NAME_FLAT = 'rename_metrics_flat'
+SPREADSHEET_ID = '1UVEvsf49eaDJdTGLQU1rlNTIAxg8PZoNQCy_GX6Nw-A'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,13 +43,13 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
-def _upload_to_gsheet(worksheet,data,spreadsheet_id) -> (int):
+def _upload_to_gsheet(worksheet, data, spreadsheet_id) -> (int):
   # Changing directory to comply with "cred.json" path in "gsheet.py".
   os.chdir('..')
   exit_code = 0
   if spreadsheet_id == "":
     log.error('Empty spreadsheet id passed!')
-    exit_code= 1
+    exit_code = 1
   else:
     gsheet.write_to_google_sheet(worksheet, data, spreadsheet_id)
   # Changing the directory back to current directory.
@@ -44,8 +57,8 @@ def _upload_to_gsheet(worksheet,data,spreadsheet_id) -> (int):
   return exit_code
 
 
-def _get_values_to_export(dir,metrics,test_type):
-  metrics_data=[]
+def _get_values_to_export(dir, metrics, test_type):
+  metrics_data = []
   # Getting values corrresponding to non nested folders.
   for folder in dir["folders"]["folder_structure"]:
     num_files = folder["num_files"]
@@ -56,20 +69,22 @@ def _get_values_to_export(dir,metrics,test_type):
         test_type,
         num_files,
         num_folders,
-        metrics[test_type][folder["name"]]['Number of samples'],
-        metrics[test_type][folder["name"]]['Mean'],
-        metrics[test_type][folder["name"]]['Median'],
-        metrics[test_type][folder["name"]]['Standard Dev'],
-        metrics[test_type][folder["name"]]['Quantiles']['0 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['20 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['50 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['90 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['95 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['98 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['99 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['99.5 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['99.9 %ile'],
-        metrics[test_type][folder["name"]]['Quantiles']['100 %ile']
+        metrics[folder["name"]]['Number of samples'],
+        metrics[folder["name"]]['Mean'],
+        metrics[folder["name"]]['Median'],
+        metrics[folder["name"]]['Standard Dev'],
+        metrics[folder["name"]]['Min'],
+        metrics[folder["name"]]['Max'],
+        metrics[folder["name"]]['Quantiles']['0 %ile'],
+        metrics[folder["name"]]['Quantiles']['20 %ile'],
+        metrics[folder["name"]]['Quantiles']['50 %ile'],
+        metrics[folder["name"]]['Quantiles']['90 %ile'],
+        metrics[folder["name"]]['Quantiles']['95 %ile'],
+        metrics[folder["name"]]['Quantiles']['98 %ile'],
+        metrics[folder["name"]]['Quantiles']['99 %ile'],
+        metrics[folder["name"]]['Quantiles']['99.5 %ile'],
+        metrics[folder["name"]]['Quantiles']['99.9 %ile'],
+        metrics[folder["name"]]['Quantiles']['100 %ile']
 
     ]
 
@@ -77,38 +92,50 @@ def _get_values_to_export(dir,metrics,test_type):
 
   return metrics_data
 
+def _compute_metrics_from_time_of_operation(num_samples,results):
+  metrics=dict()
+  metrics['Number of samples'] = num_samples
 
-def _parse_results(dir,results,num_samples ,test_type):
-  test_metrics = dict()
+  # Sorting based on time to get the mean,median,etc.
+  results = sorted(results)
+
+  metrics['Mean'] = round(
+      stat.mean(results), 3)
+  metrics['Median'] = round(
+      stat.median(results), 3)
+  metrics['Standard Dev'] = round(
+      stat.stdev(results), 3)
+  metrics['Min']= round(
+      np.min(results),3)
+  metrics['Max']= round(
+      np.max(results),3)
+  metrics['Quantiles'] = dict()
+  sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
+  for percentile in sample_set:
+    metrics['Quantiles'][
+      '{} %ile'.format(percentile)] = round(
+        np.percentile(results, percentile), 3)
+
+  return metrics
+
+
+def _parse_results(dir, results, num_samples):
   metrics = dict()
-  # Parsing metrics for non-nested folders
+  # Parsing metrics for non-nested folder.
   for folder in dir["folders"]["folder_structure"]:
-    folder_name= folder["name"]
-    metrics[folder_name]=dict()
-    metrics[folder_name]['Number of samples'] = num_samples
+    folder_name = folder["name"]
+    metrics[folder_name] = _compute_metrics_from_time_of_operation(
+        num_samples, results[folder_name])
+  #TODO add logic for metrics parsing for nested folder
 
-    # Sorting based on time to get the mean,median,etc.
-    results[test_type][folder_name]=sorted(results[test_type][folder_name])
-
-    metrics[folder_name]['Mean']=round(
-        stat.mean(results[test_type][folder_name]),3)
-    metrics[folder_name]['Median'] = round(
-        stat.median(results[test_type][folder_name]), 3)
-    metrics[folder_name]['Standard Dev'] = round(
-        stat.stdev(results[test_type][folder_name]), 3)
-    metrics[folder_name]['Quantiles'] = dict()
-    sample_set = [0, 20, 50, 90, 95, 98, 99, 99.5, 99.9, 100]
-    for percentile in sample_set:
-      metrics[folder_name]['Quantiles'][
-        '{} %ile'.format(percentile)] = round(
-          np.percentile(results[test_type][folder_name], percentile), 3)
-  test_metrics[test_type]=metrics
-  return test_metrics
+  return metrics
 
 
-def _extract_folder_name_prefix(folder_name) ->(str):
+def _extract_folder_name_prefix(folder_name) -> (str):
   """
   Extract the prefix from folder_name_for_ease of rename
+  for example: filename_0 must get renamed to filename_1.This function returns
+  the prefix excluding the iteration i.e. in this case , filename_
   """
   try:
     folder_prefix = re.search("(?s:.*)\_", folder_name).group()
@@ -116,59 +143,55 @@ def _extract_folder_name_prefix(folder_name) ->(str):
   except:
     log.error("Folder name format is incorrect. Must be in the format prefix_0 \
           to begin.Exiting...")
-    subprocess.call('bash',shell=True)
+    subprocess.call('bash', shell=True)
 
+def _record_time_for_folder_rename(mount_point,folder,num_samples):
+  folder_prefix = _extract_folder_name_prefix(folder["name"])
+  folder_path_prefix = '{}/{}'.format(mount_point, folder_prefix)
+  time_op = []
+  for iter in range(num_samples):
+    if iter < num_samples / 2:
+      rename_from = '{}{}'.format(folder_path_prefix, iter)
+      rename_to = '{}{}'.format(folder_path_prefix, iter + 1)
+    else:
+      rename_from = '{}{}'.format(folder_path_prefix, num_samples - iter)
+      rename_to = '{}{}'.format(folder_path_prefix, num_samples - iter - 1)
+    start_time_sec = time.time()
+    subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
+    end_time_sec = time.time()
+    time_op.append(end_time_sec - start_time_sec)
 
-def _record_time_of_operation(mount_point,dir,num_samples):
-  results= dict()
+  return time_op
+
+def _record_time_of_operation(mount_point, dir, num_samples):
+  results = dict()
   # Collecting metrics for non-nested folders
   for folder in dir["folders"]["folder_structure"]:
-    folder_prefix = _extract_folder_name_prefix(folder["name"])
-    folder_path_prefix='{}/{}'.format(mount_point,folder_prefix)
-    time_op=[]
-    for iter in range(num_samples):
-      if iter < num_samples/2:
-        rename_from='{}{}'.format(folder_path_prefix,iter)
-        rename_to= '{}{}'.format(folder_path_prefix,iter+1)
-      else:
-        rename_from='{}{}'.format(folder_path_prefix,num_samples - iter)
-        rename_to= '{}{}'.format(folder_path_prefix,num_samples - iter-1)
-      start_time_sec = time.time()
-      subprocess.call('mv ./{} ./{}'.format(rename_from,rename_to),shell=True)
-      end_time_sec = time.time()
-      time_op.append(end_time_sec - start_time_sec)
-
-
-    results[folder["name"]]=time_op
-
+    results[folder["name"]] = _record_time_for_folder_rename(mount_point,folder,num_samples)
+  #TODO Add metric collection logic for nested-folders
   return results
 
 
-def _perform_testing(dir,test_type,num_samples,results):
-
-  if test_type== "flat":
-
+def _perform_testing(dir, test_type, num_samples, results):
+  if test_type == "flat":
     # Mounting the flat bucket .
-    flat_mount_flags=GCSFUSE_MOUNT_FLAGS
-    flat_bucket= mount_gcs_bucket( dir["name"],flat_mount_flags,log)
+    flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
+    flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
 
     # Record time of operation
-    flat_results=_record_time_of_operation(flat_bucket,dir,num_samples)
-    results["flat"]=flat_results
+    flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
+    results["flat"] = flat_results
 
-    unmount_gcs_bucket(dir["name"],log)
-
+    unmount_gcs_bucket(dir["name"], log)
   elif test_type == "hns":
-    #TODO add mount function for test type hns
+    # TODO add mount function for test type hns
     pass
   else:
-      log.error('Incorrect test type passed.Must be either \"flat\" or \"hns\"\n')
-      return 1
-
+    log.error('Incorrect test type passed.Must be either \"flat\" or \"hns\"\n')
+    subprocess.call('bash',shell=True)
 
 
 def _parse_arguments(argv):
-
   argv = sys.argv
   parser = argparse.ArgumentParser()
 
@@ -201,26 +224,32 @@ if __name__ == '__main__':
   if len(argv) < 4:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
-                    'python3 listing_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES]    config_file ')
+                    'python3 listing_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file ')
 
   args = _parse_arguments(argv)
-  check_dependencies(['gsutil', 'gcsfuse'],log)
+  check_dependencies(['gsutil', 'gcsfuse'], log)
 
   with open(os.path.abspath(args.dir_config_file)) as file:
     dir_str = json.load(file)
 
-  if args.num_samples %2 !=0:
+  # The script requires the num of samples to be even in order to restore test
+  # data to original state after the tests are complete.
+  if args.num_samples % 2 != 0:
     log.error("Only even number of samples allowed to restore the test data to\
                 original state at the end of test.")
-    subprocess.call('bash',shell=True)
+    subprocess.call('bash', shell=True)
 
-  results = dict()
-  _perform_testing(dir_str,"flat",args.num_samples,results)
-  flat_parsed_metrics=_parse_results(dir_str,results,args.num_samples,"flat")
-  upload_values_flat = _get_values_to_export(dir_str,flat_parsed_metrics,'flat')
+  results = dict()  # Dict object to store the results corresonding to the test types.
+  _perform_testing(dir_str, "flat", args.num_samples, results)
+  flat_parsed_metrics = _parse_results(dir_str, results['flat'], args.num_samples)
+  upload_values_flat = _get_values_to_export(dir_str, flat_parsed_metrics,
+                                             "flat")
 
   if args.upload_gs:
     log.info('Uploading files to the Google Sheet\n')
-    exit_code= _upload_to_gsheet(WORKSHEET_NAME_FLAT,upload_values_flat,SPREADSHEET_ID)
-    if exit_code !=0:
+    exit_code = _upload_to_gsheet(WORKSHEET_NAME_FLAT, upload_values_flat,
+                                  SPREADSHEET_ID)
+    if exit_code != 0:
       log.error("Upload to gsheet unsuccessful!")
+  else:
+    print(upload_values_flat)
