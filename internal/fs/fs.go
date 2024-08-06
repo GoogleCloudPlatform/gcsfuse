@@ -2115,6 +2115,7 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 
 	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
+		// If the directory exists, then check if it is empty or not.
 		if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
 			return err
 		}
@@ -2124,10 +2125,10 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
 	newDirName := inode.NewDirName(newParent.Name(), newName)
 	if oldParent == newParent {
-		// If both parents are the same, lock once
+		// If both parents are the same, lock once.
 		err = fs.renameWithinSameParent(ctx, oldParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	} else {
-		// Determine lock order
+		// Determine lock order.
 		err = fs.renameAcrossDifferentParents(ctx, oldParent, newParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	}
 	if err != nil {
