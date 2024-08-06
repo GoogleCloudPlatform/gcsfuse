@@ -40,8 +40,6 @@ type Core struct {
 
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool
-
-	Folder *gcs.Folder
 }
 
 // Exists returns true iff the back object exists implicitly or explicitly.
