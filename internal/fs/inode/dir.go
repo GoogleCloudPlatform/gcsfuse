@@ -360,23 +360,23 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
-	if errors.As(folderErr, &gcsErr) {
+	if errors.As(err, &gcsErr) {
 		return nil, nil
 	}
 
 	// Annotate others.
-	if folderErr != nil {
-		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
+	if folder == nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", err)
 	}
 
 	return &Core{
 		Bucket:   bucket,
 		FullName: name,
-		Folder:   folderResult,
+		Folder:   folder,
 	}, nil
 }
 
@@ -835,7 +835,6 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, error) {
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
-	var o *gcs.Object
 	var m *gcs.MinObject
 	var f *gcs.Folder
 	var err error
@@ -848,6 +847,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 			return nil, err
 		}
 	} else {
+		var o *gcs.Object
 		// For non-hierarchical buckets, create a new object.
 		o, err = d.createNewObject(ctx, fullName, nil)
 		if err != nil {

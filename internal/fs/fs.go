@@ -811,7 +811,12 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	return
 }
 
-func (fs *fileSystem) createInode(ic inode.Core, inodes *map[inode.Name]inode.DirInode) (inode.Inode, bool) {
+// Return the dir Inode.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(parent)
+// LOCK_FUNCTION(child)
+func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
 	var in inode.Inode
 	var ok bool
 	if !ic.FullName.IsDir() {
@@ -821,27 +826,27 @@ func (fs *fileSystem) createInode(ic inode.Core, inodes *map[inode.Name]inode.Di
 	var maxTriesToCreateInode = 3
 
 	for n := 0; n < maxTriesToCreateInode; n++ {
-		in, ok = (*inodes)[ic.FullName]
+		in, ok = (inodes)[ic.FullName]
 		if !ok {
 			in = fs.mintInode(ic)
-			(*inodes)[in.Name()] = in.(inode.DirInode)
+			(inodes)[in.Name()] = in.(inode.DirInode)
 			in.Lock()
-			return in, true
+			return in
 		}
 
 		fs.mu.Unlock()
 		in.Lock()
 		fs.mu.Lock()
 
-		if (*inodes)[ic.FullName] != in {
+		if (inodes)[ic.FullName] != in {
 			in.Unlock()
 			continue
 		}
 
-		return in, true
+		return in
 	}
 
-	return nil, false
+	return nil
 }
 
 // Attempt to find an inode for a backing object or an implicit directory.
@@ -874,23 +879,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	fs.mu.Lock()
 
-	var ok bool
 	// Handle Folders in hierarchical bucket.
 	if ic.Folder != nil {
-		in, ok = fs.createInode(ic, &fs.folderInodes)
-		if ok {
-			return in
-		}
-		return nil
+		return fs.createDirInode(ic, fs.folderInodes)
 	}
 
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		in, ok = fs.createInode(ic, &fs.implicitDirInodes)
-		if ok {
-			return in
-		}
-		return nil
+		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
 
 	oGen := inode.Generation{

@@ -133,8 +133,6 @@ func (t *CoreTest) SanityCheck() {
 	o, err := storageutil.CreateObject(t.ctx, t.bucket, "bar", []byte(""))
 	m := storageutil.ConvertObjToMinObject(o)
 	AssertEq(nil, err)
-	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
-	AssertEq(nil, err)
 
 	c := &inode.Core{
 		Bucket:    &t.bucket,
@@ -142,13 +140,6 @@ func (t *CoreTest) SanityCheck() {
 		MinObject: nil,
 	}
 	ExpectEq(nil, c.SanityCheck()) // implicit dir is okay
-
-	c = &inode.Core{
-		Bucket:   &t.bucket,
-		FullName: inode.NewDirName(root, "folder"),
-		Folder:   f,
-	}
-	ExpectEq(nil, c.SanityCheck())
 
 	c = &inode.Core{
 		Bucket:    &t.bucket,
@@ -179,4 +170,33 @@ func (t *CoreTest) SanityCheck() {
 		Local:     false,
 	}
 	ExpectNe(nil, c.SanityCheck()) // Missing object for non-local fileInode.
+}
+
+func (t *CoreTest) TestFolderSanityCheck() {
+	root := inode.NewRootName(t.bucket.Name())
+	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
+	AssertEq(nil, err)
+
+	c := &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: inode.NewDirName(root, "folder"),
+		Folder:   f,
+	}
+
+	ExpectEq(nil, c.SanityCheck())
+}
+
+func (t *CoreTest) ExplicitDirForFolder() {
+	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
+	AssertEq(nil, err)
+	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), f.Name)
+
+	c := &inode.Core{
+		Bucket:   &t.bucket,
+		FullName: name,
+		Folder:   f,
+	}
+
+	ExpectTrue(c.Exists())
+	ExpectEq(metadata.ExplicitDirType, c.Type())
 }

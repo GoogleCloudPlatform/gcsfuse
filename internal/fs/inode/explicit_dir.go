@@ -60,21 +60,18 @@ func NewExplicitDirInode(
 		typeCacheMaxSizeMB,
 		enableHNS)
 
+	dirInode := &explicitDirInode{
+		dirInode: wrapped.(*dirInode),
+	}
+
 	if m != nil {
-		d = &explicitDirInode{
-			dirInode: wrapped.(*dirInode),
-			generation: Generation{
-				Object:   m.Generation,
-				Metadata: m.MetaGeneration,
-			},
-		}
-	} else {
-		// In the case of a folder, minObject will be nil, and we won't require generation and metaGeneration in that scenario.
-		d = &explicitDirInode{
-			dirInode: wrapped.(*dirInode),
+		dirInode.generation = Generation{
+			Object:   m.Generation,
+			Metadata: m.MetaGeneration,
 		}
 	}
 
+	d = dirInode
 	return
 }
 
