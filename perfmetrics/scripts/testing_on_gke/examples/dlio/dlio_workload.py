@@ -20,10 +20,40 @@ def validateDlioWorkload(workload, name):
     return False
 
   dlioWorkload = workload['dlioWorkload']
-  for requiredAttribute in ['numFilesTrain', 'recordLength', 'batchSizes']:
+  for requiredAttribute, _type in {
+      'numFilesTrain': int,
+      'recordLength': int,
+      'batchSizes': list,
+  }.items():
     if requiredAttribute not in dlioWorkload:
-      print(f'dlioWorkload for {name} does not have {requiredAttribute} in it')
+      print(
+          f'In {name}, dlioWorkload for {name} does not have'
+          f' {requiredAttribute} in it'
+      )
       return False
+    if not type(dlioWorkload[requiredAttribute]) is _type:
+      print(
+          f'In {name}, dlioWorkload[{requiredAttribute}] is of type'
+          f' {type(dlioWorkload[requiredAttribute])}, not of type {_type} '
+      )
+      return False
+
+  for batchSize in dlioWorkload['batchSizes']:
+    if not type(batchSize) is int:
+      print(
+          f'In {name}, one of the batch-size values in'
+          f" dlioWorkload['batchSizes'] is '{batchSize}', which is of type"
+          f' {type("batchSize")}, not int'
+      )
+      return False
+    if batchSize < 1:
+      print(
+          f'In {name}, one of the batch-size values in'
+          f" dlioWorkload['batchSizes'] is '{batchSize}' < 1, which is not"
+          ' supported.'
+      )
+      return False
+
   return True
 
 

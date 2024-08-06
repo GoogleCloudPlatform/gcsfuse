@@ -42,15 +42,30 @@ class DlioWorkloadTest(unittest.TestCase):
   def test_validate_dlio_workload_invalid_missing_numFilesTrain(self):
     workload = dict({
         "dlioWorkload": {
-            # "numFilesTrain": 1000,
-            "recordLength": "10kb",
-            "batchSizes": "100,200",
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
     })
     self.assertFalse(
         validateDlioWorkload(
-            workload, "invalid-dlio-workload-missing-blockSize"
+            workload, "invalid-dlio-workload-missing-numFilesTrain"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_unsupported_numFilesTrain(self):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": "1000",
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-numFilesTrain"
         )
     )
     pass
@@ -59,14 +74,29 @@ class DlioWorkloadTest(unittest.TestCase):
     workload = dict({
         "dlioWorkload": {
             "numFilesTrain": 1000,
-            # "recordLength": "10kb",
-            "batchSizes": "100,200",
+            "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
     })
     self.assertFalse(
         validateDlioWorkload(
-            workload, "invalid-dlio-workload-missing-filesPerThread"
+            workload, "invalid-dlio-workload-missing-recordLength"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_unsupported_recordLength(self):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": "10000",
+            "batchSizes": [100, 200],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-recordLength"
         )
     )
     pass
@@ -75,14 +105,45 @@ class DlioWorkloadTest(unittest.TestCase):
     workload = dict({
         "dlioWorkload": {
             "numFilesTrain": 1000,
-            "recordLength": "10kb",
-            # "batchSizes": "100,200",
+            "recordLength": 10000,
         },
         "bucket": "dummy-bucket",
     })
     self.assertFalse(
         validateDlioWorkload(
-            workload, "invalid-dlio-workload-missing-numThreads"
+            workload, "invalid-dlio-workload-missing-batchSizes"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_unsupported_batchSizes1(self):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": ["100"],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-batchSizes1"
+        )
+    )
+    pass
+
+  def test_validate_dlio_workload_invalid_unsupported_batchSizes2(self):
+    workload = dict({
+        "dlioWorkload": {
+            "numFilesTrain": 1000,
+            "recordLength": 10000,
+            "batchSizes": [0, -1],
+        },
+        "bucket": "dummy-bucket",
+    })
+    self.assertFalse(
+        validateDlioWorkload(
+            workload, "invalid-dlio-workload-unsupported-batchSizes2"
         )
     )
     pass
@@ -91,8 +152,8 @@ class DlioWorkloadTest(unittest.TestCase):
     workload = dict({
         "dlioWorkload": {
             "numFilesTrain": 1000,
-            "recordLength": "10kb",
-            "batchSizes": "100",
+            "recordLength": 10000,
+            "batchSizes": [100],
         },
         "bucket": "dummy-bucket",
     })
@@ -103,8 +164,8 @@ class DlioWorkloadTest(unittest.TestCase):
     workload = dict({
         "dlioWorkload": {
             "numFilesTrain": 1000,
-            "recordLength": "10kb",
-            "batchSizes": "100,200",
+            "recordLength": 10000,
+            "batchSizes": [100, 200],
         },
         "bucket": "dummy-bucket",
     })
