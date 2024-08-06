@@ -14,8 +14,13 @@
 
 package cfg
 
-import "runtime"
+const (
+	// Logging-level constants
 
-func DefaultMaxParallelDownloads() int {
-	return max(16, 2*runtime.NumCPU())
-}
+	TRACE   string = "TRACE"
+	DEBUG   string = "DEBUG"
+	INFO    string = "INFO"
+	WARNING string = "WARNING"
+	ERROR   string = "ERROR"
+	OFF     string = "OFF"
+)

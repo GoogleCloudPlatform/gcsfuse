@@ -14,8 +14,17 @@
 
 package cfg
 
-import "runtime"
-
-func DefaultMaxParallelDownloads() int {
-	return max(16, 2*runtime.NumCPU())
+// DefaultLoggingConfig returns the default configuration that is to be used
+// during the application startup - when the provided configuration hasn't been
+// parsed yet.
+func DefaultLoggingConfig() LoggingConfig {
+	return LoggingConfig{
+		Severity: "INFO",
+		Format:   "json",
+		LogRotate: LogRotateLoggingConfig{
+			BackupFileCount: 10,
+			Compress:        true,
+			MaxFileSizeMb:   512,
+		},
+	}
 }
