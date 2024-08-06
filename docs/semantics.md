@@ -332,7 +332,7 @@ See [Key Differences from a POSIX filesystem](https://cloud.google.com/storage/d
 
 ## Unlinking directories
 
-Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first do a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
+Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first performs a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
 
 Since, the complete unlink directory operation is not atomic, this may lead to inconsistency. E.g. as soon as Cloud Storage fuse gets the response of list call as `empty`, meanwhile some other machines may create a file in the same directory. As a result, the content of a non-empty directory that is unlinked are not deleted but simply become inaccessible (Unless --implicit-dirs is set; see the section on implicit directories above.)
 
