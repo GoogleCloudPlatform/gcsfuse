@@ -544,6 +544,10 @@ func (b *bucket) ListObjects(
 					listing.CollapsedRuns[len(listing.CollapsedRuns)-1] != resultPrefix {
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
+				if b.BucketType() == gcs.Hierarchical {
+					lastResultWasPrefix = true
+					continue
+				}
 
 				// In hierarchical buckets, a directory is represented both as a prefix and a folder.
 				// Consequently, if a folder entry is discovered, it indicates that it's exclusively a prefix entry.
