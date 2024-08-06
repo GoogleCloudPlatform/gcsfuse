@@ -178,5 +178,26 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_log.error.assert_called_once_with('Empty spreadsheet id passed!')
 
 
+  def test_compute_metrics_from_op_time(self):
+    num_samples=2
+    results=[1,1]
+    expected_metrics={
+        'Number of samples':2,
+        'Mean':1.0,
+        'Median':1.0,
+        'Standard Dev':0,
+        'Min': 1.0,
+        'Max':1.0,
+        'Quantiles':{'0 %ile': 1.0, '20 %ile': 1.0, '50 %ile': 1.0,
+                     '90 %ile': 1.0, '95 %ile': 1.0, '98 %ile': 1.0,
+                     '99 %ile': 1.0, '99.5 %ile': 1.0, '99.9 %ile': 1.0,
+                     '100 %ile': 1.0}
+    }
+
+    metrics=renaming_benchmark._compute_metrics_from_time_of_operation(num_samples,results)
+
+    self.assertEqual(metrics,expected_metrics)
+
+
 if __name__ == '__main__':
   unittest.main()
