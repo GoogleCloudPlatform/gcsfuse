@@ -298,10 +298,11 @@ func (t *LoggerTest) TestInitLogFile() {
 }
 
 func (t *LoggerTest) TestSetLogFormatToText() {
+	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
-		level:     cfg.INFO, // setting log level to INFO by default
-		logRotate: cfg.GetDefaultLoggingConfig().LogRotate,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
 	}
 
 	testData := []struct {

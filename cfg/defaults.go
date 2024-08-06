@@ -14,10 +14,10 @@
 
 package cfg
 
-// GetDefaultLoggingConfig returns the default configuration that is to be used
+// DefaultLoggingConfig returns the default configuration that is to be used
 // during the application startup - when the provided configuration hasn't been
 // parsed yet.
-func GetDefaultLoggingConfig() LoggingConfig {
+func DefaultLoggingConfig() LoggingConfig {
 	return LoggingConfig{
 		Severity: "INFO",
 		LogRotate: LogRotateLoggingConfig{

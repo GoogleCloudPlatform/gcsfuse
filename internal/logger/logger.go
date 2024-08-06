@@ -34,9 +34,7 @@ import (
 const (
 	ProgrammeName           string = "gcsfuse"
 	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-	jsonFormat              string = "json"
 	textFormat              string = "text"
-	defaultFormat           string = jsonFormat
 )
 
 var (
@@ -101,11 +99,12 @@ func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 
 // init initializes the logger factory to use stdout and stderr.
 func init() {
+	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
 		file:      nil,
-		format:    defaultFormat,
-		level:     cfg.INFO, // setting log level to INFO by default
-		logRotate: cfg.GetDefaultLoggingConfig().LogRotate,
+		format:    logConfig.Format,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }

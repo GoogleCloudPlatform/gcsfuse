@@ -21,10 +21,6 @@ import (
 )
 
 const (
-	// Default log rotation config values.
-	defaultMaxFileSizeMB   = 512
-	defaultBackupFileCount = 10
-	defaultCompress        = true
 
 	// TtlInSecsUnsetSentinel is the value internally
 	// set for metada-cache:ttl-secs
@@ -176,10 +172,11 @@ type LogRotateConfig struct {
 
 func NewMountConfig() *MountConfig {
 	mountConfig := &MountConfig{}
-	logRotateConfig := cfg.GetDefaultLoggingConfig().LogRotate
+	logConfig := cfg.DefaultLoggingConfig()
+	logRotateConfig := logConfig.LogRotate
 	mountConfig.LogConfig = LogConfig{
 		// Making the default severity as INFO.
-		Severity: cfg.INFO,
+		Severity: string(logConfig.Severity),
 		// Setting default values of log rotate config.
 		LogRotateConfig: LogRotateConfig{
 			MaxFileSizeMB:   int(logRotateConfig.MaxFileSizeMb),
