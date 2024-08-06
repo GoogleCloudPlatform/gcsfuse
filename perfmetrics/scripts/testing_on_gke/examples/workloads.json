@@ -8,12 +8,12 @@
         {
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload' object and a valid 'bucket' attribute.",
           "_fioWorkload": {
-            "_description": "Every fioWorkload must have fileSize, filesPerThread, numThreads, and blockSize fields. readTypes is an optional comma-separated field with supported values 'read' and 'randread', which if missed equals 'read,randread'.",
+            "_description": "Every fioWorkload must have fileSize, filesPerThread, numThreads, and blockSize fields. readTypes is an array of string values 'read' and 'randread'. If readTypes is missing, then it defaults to [\"read\",\"randread\"].",
             "fileSize": "64k",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
-            "readTypes": "read or randread or read,randread"
+            "readTypes": ["read","randread"]
           },
           "bucket":"The bucket must have objects with name Workload.{i}/{j} for every i,j where i:0-{numThreads}-1, j:0-{filesPerThread}-1, and each of these objects must be of size {fileSize}. The buckets gke-* are all in us-central1, are owned by GKE team and are in their GCP project(s)."
         },
@@ -23,7 +23,7 @@
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "64K",
-            "readTypes": "read"
+            "readTypes": ["read"]
           },
           "bucket":"fio-64k-1m-us-west1",
           "_bucket_alt2":"fio-64k-1m-us-central1",
@@ -35,7 +35,7 @@
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "128K",
-            "readTypes": "read"
+            "readTypes": ["read"]
           },
           "bucket":"fio-128k-1m-us-west1",
           "_bucket_alt2":"fio-128k-1m-us-central1",
@@ -47,7 +47,7 @@
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "256K",
-            "readTypes": "read,randread"
+            "readTypes": ["read","randread"]
           },
           "bucket":"fio-1mb-1m-us-west1",
           "_bucket_alt2":"fio-1mb-1m-us-central1",
@@ -79,7 +79,7 @@
         {
           "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
           "_dlioWorkload": {
-            "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is a comma-separated field with integer values",
+            "_description": "Every dlioWorkload must have numFilesTrain, recordLength, and batchSizes fields. batchSizes is an array of integer values",
             "numFilesTrain": 500000,
             "recordLength": 102400,
             "batchSizes": [800,128]

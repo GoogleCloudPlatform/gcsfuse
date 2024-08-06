@@ -110,15 +110,7 @@ def ParseTestConfigForDlioWorkloads(testConfigFileName):
                   dlioWorkload['numFilesTrain'],
                   dlioWorkload['recordLength'],
                   workload['bucket'],
-                  (
-                      dlioWorkload['batchSizes'].split(',')
-                      if (
-                          'batchSizes' in dlioWorkload
-                          and dlioWorkload['batchSizes']
-                          and not str.isspace(dlioWorkload['batchSizes'])
-                      )
-                      else []
-                  ),
+                  dlioWorkload['batchSizes'],
               )
           )
   return dlioWorkloads

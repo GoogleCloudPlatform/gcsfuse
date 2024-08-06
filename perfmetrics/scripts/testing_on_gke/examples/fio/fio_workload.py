@@ -89,13 +89,13 @@ class FioWorkload:
 
   def __init__(
       self,
-      scenario,
-      fileSize,
-      blockSize,
-      filesPerThread,
-      numThreads,
-      bucket,
-      readTypes,
+      scenario: str,
+      fileSize: str,
+      blockSize: str,
+      filesPerThread: int,
+      numThreads: int,
+      bucket: str,
+      readTypes: list,
   ):
     self.scenario = scenario
     self.fileSize = fileSize
@@ -114,7 +114,7 @@ class FioWorkload:
     )
 
 
-def ParseTestConfigForFioWorkloads(fioTestConfigFile):
+def ParseTestConfigForFioWorkloads(fioTestConfigFile: str):
   """Parses the given workload test configuration file for FIO workloads."""
   print(f'Parsing {fioTestConfigFile} for FIO workloads ...')
   with open(fioTestConfigFile) as f:
@@ -145,11 +145,7 @@ def ParseTestConfigForFioWorkloads(fioTestConfigFile):
                   fioWorkload['numThreads'],
                   workload['bucket'],
                   (
-                      (
-                          []
-                          if str.isspace(fioWorkload['readTypes'])
-                          else fioWorkload['readTypes'].split(',')
-                      )
+                      fioWorkload['readTypes']
                       if 'readTypes' in fioWorkload
                       else ['read', 'randread']
                   ),
