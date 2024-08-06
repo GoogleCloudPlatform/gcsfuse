@@ -6,17 +6,18 @@ test-config file for a list of them.
 import json
 
 
-def validateFioWorkload(workload, name):
+def validateFioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if (
-      'fioWorkload' not in workload
-      or 'dlioWorkload' in workload
-      or 'bucket' not in workload
-  ):
-    print(
-        f"{name} does not have 'fioWorkload' or 'bucket' key in it, or"
-        " has 'dlioWorkload' key in it."
-    )
+  if 'fioWorkload' not in workload:
+    print(f"{name} does not have 'fioWorkload' key in it.")
+    return False
+
+  if 'bucket' not in workload:
+    print(f"{name} does not have 'bucket' key in it.")
+    return False
+
+  if 'dlioWorkload' in workload:
+    print(f"{name} has 'dlioWorkload' key in it, which is unexpected.")
     return False
 
   fioWorkload = workload['fioWorkload']
@@ -27,10 +28,7 @@ def validateFioWorkload(workload, name):
       'numThreads': int,
   }.items():
     if requiredAttribute not in fioWorkload:
-      print(
-          f'In {name}, fioWorkload for {name} does not have'
-          f' {requiredAttribute} in it'
-      )
+      print(f'In {name}, fioWorkload does not have {requiredAttribute} in it')
       return False
     if not type(fioWorkload[requiredAttribute]) is _type:
       print(

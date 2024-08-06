@@ -6,17 +6,18 @@ test-config file for a list of them.
 import json
 
 
-def validateDlioWorkload(workload, name):
+def validateDlioWorkload(workload: dict, name: str):
   """Validates the given json workload object."""
-  if (
-      'dlioWorkload' not in workload
-      or 'fioWorkload' in workload
-      or 'bucket' not in workload
-  ):
-    print(
-        f"{name} does not have 'dlioWorkload' or 'bucket' key in it, or"
-        " has 'fioWorkload' key in it"
-    )
+  if 'dlioWorkload' not in workload:
+    print(f"{name} does not have 'dlioWorkload' key in it.")
+    return False
+
+  if 'bucket' not in workload:
+    print(f"{name} does not have 'bucket' key in it.")
+    return False
+
+  if 'fioWorkload' in workload:
+    print(f"{name} has 'fioWorkload' key in it, which is unexpected.")
     return False
 
   dlioWorkload = workload['dlioWorkload']
@@ -82,7 +83,7 @@ class DlioWorkload:
     self.batchSizes = batchSizes
 
 
-def ParseTestConfigForDlioWorkloads(testConfigFileName):
+def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
   """Parses the given workload test configuration file for DLIO workloads."""
   print(f'Parsing {testConfigFileName} for DLIO workloads ...')
   with open(testConfigFileName) as f:
