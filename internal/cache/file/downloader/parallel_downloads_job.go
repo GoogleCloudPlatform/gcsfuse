@@ -68,7 +68,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	return err
 }
 
-func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() error {
+func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
 	return func() error {
 		for {
 			// Read the offset to be downloaded from the channel.
@@ -83,6 +83,36 @@ func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() 
 			if err != nil {
 				return err
 			}
+
+			job.mu.Lock()
+			finalStart := offsetToDownload.start
+			finalEnd := offsetToDownload.end
+			if offsetToDownload.start != 0 {
+				leftStart, exist := rangeMap[offsetToDownload.start]
+				if exist {
+					finalStart = leftStart
+					delete(rangeMap, offsetToDownload.start)
+					delete(rangeMap, leftStart)
+				}
+			}
+			rightEnd, exist := rangeMap[offsetToDownload.end]
+			if exist {
+				finalEnd = rightEnd
+				delete(rangeMap, offsetToDownload.end)
+				delete(rangeMap, rightEnd)
+			}
+			rangeMap[finalStart] = finalEnd
+			rangeMap[finalEnd] = finalStart
+			if finalStart == 0 {
+				logger.Errorf("Found range starting from 0: %v", finalEnd)
+				updateErr := job.updateStatusOffset(finalEnd)
+				if updateErr != nil {
+					job.mu.Unlock()
+					return updateErr
+				}
+			}
+			job.mu.Unlock()
+
 		}
 	}
 }
@@ -96,6 +126,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	var start uint64
 	downloadChunkSize := uint64(job.fileCacheConfig.DownloadChunkSizeMB) * uint64(cacheutil.MiB)
 	downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
+	rangeMap := make(map[uint64]uint64)
 
 	// Start the goroutines as per the config and the availability.
 	for numGoRoutines = 0; (numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < job.object.Size); numGoRoutines++ {
@@ -104,7 +135,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			break
 		}
 
-		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
 		start = start + downloadChunkSize
 	}
 
