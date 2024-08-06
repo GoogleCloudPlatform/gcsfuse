@@ -74,7 +74,7 @@ func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() 
 			// Read the offset to be downloaded from the channel.
 			offsetToDownload, ok := <-job.offsetChan
 			if !ok {
-				// In case channel is closed return.
+				// In case channel is closed, return.
 				return nil
 			}
 

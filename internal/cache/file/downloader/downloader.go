@@ -107,8 +107,8 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	if ok {
 		return job
 	}
-	downloadPath := util.GetDownloadPath(jm.cacheDir, objectPath)
-	fileSpec := data.FileSpec{Path: downloadPath, FilePerm: jm.filePerm, DirPerm: jm.dirPerm}
+	//downloadPath := util.GetDownloadPath(jm.cacheDir, objectPath)
+	fileSpec := data.FileSpec{Path: "dev/null", FilePerm: jm.filePerm, DirPerm: jm.dirPerm}
 	// Pass call back function to Job. When this callback function is called, it
 	// removes the job reference from jobs map.
 	removeJobCallback := func() {
