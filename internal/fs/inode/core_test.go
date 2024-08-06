@@ -172,7 +172,7 @@ func (t *CoreTest) SanityCheck() {
 	ExpectNe(nil, c.SanityCheck()) // Missing object for non-local fileInode.
 }
 
-func (t *CoreTest) TestFolderSanityCheck() {
+func (t *CoreTest) SanityCheckForFolder() {
 	root := inode.NewRootName(t.bucket.Name())
 	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
 	AssertEq(nil, err)
@@ -185,7 +185,7 @@ func (t *CoreTest) TestFolderSanityCheck() {
 	ExpectEq(nil, c.SanityCheck())
 }
 
-func (t *CoreTest) TestExplicitDirForFolder() {
+func (t *CoreTest) ExplicitDirTypeForFolder() {
 	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
 	AssertEq(nil, err)
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), f.Name)
