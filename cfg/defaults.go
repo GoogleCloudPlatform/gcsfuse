@@ -20,6 +20,7 @@ package cfg
 func DefaultLoggingConfig() LoggingConfig {
 	return LoggingConfig{
 		Severity: "INFO",
+		Format:   "json",
 		LogRotate: LogRotateLoggingConfig{
 			BackupFileCount: 10,
 			Compress:        true,
