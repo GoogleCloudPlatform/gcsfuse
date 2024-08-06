@@ -77,7 +77,7 @@ if __name__ == "__main__":
   )
   parser.add_argument(
       "--workload-config",
-      description=(
+      help=(
           "A json configuration file to define workloads that were run to"
           " generate the outputs that should be parsed."
       ),
