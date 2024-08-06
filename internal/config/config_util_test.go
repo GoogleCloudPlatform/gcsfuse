@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -198,9 +199,9 @@ func Test_ListCacheTtlSecsToDuration(t *testing.T) {
 		ttlInSecs        int64
 		expectedDuration time.Duration
 	}{
-		{"-1", -1, MaxSupportedTtl},
+		{"-1", -1, cfg.MaxSupportedTtl},
 		{"0", 0, time.Duration(0)},
-		{"Max supported positive", 9223372036, MaxSupportedTtl},
+		{"Max supported positive", 9223372036, cfg.MaxSupportedTtl},
 		{"Positive", 1, time.Second},
 	}
 

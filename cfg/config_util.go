@@ -14,8 +14,39 @@
 
 package cfg
 
-import "runtime"
+import (
+	"os"
+	"runtime"
+	"strings"
+
+	"github.com/spf13/viper"
+)
 
 func DefaultMaxParallelDownloads() int {
 	return max(16, 2*runtime.NumCPU())
+}
+
+func IsViperEnabled() bool {
+	return strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true"
+}
+
+func isMetadataCacheTtlSet(c *MetadataCacheConfig) bool {
+	if IsViperEnabled() {
+		return viper.IsSet("metadata-cache.ttl-secs")
+	}
+	return c.TtlSecs != TtlInSecsUnsetSentinel
+}
+
+func isStatCacheMaxSizeMbSet(c *MetadataCacheConfig) bool {
+	if IsViperEnabled() {
+		return viper.IsSet("metadata-cache.stat-cache-max-size-mb")
+	}
+	return c.TtlSecs != StatCacheMaxSizeMBUnsetSentinel
+}
+
+func isStatCacheCapacitySet(c *MetadataCacheConfig) bool {
+	if IsViperEnabled() {
+		return viper.IsSet("metadata-cache.deprecated-stat-cache-capacity")
+	}
+	return c.DeprecatedStatCacheCapacity != DefaultStatCacheCapacity
 }

@@ -16,8 +16,9 @@ package config
 
 import (
 	"fmt"
-	"math"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 )
 
 const (
@@ -28,10 +29,7 @@ const (
 	TtlInSecsInvalidValueError = "the value of ttl-secs can't be less than -1"
 	TtlInSecsTooHighError      = "the value of ttl-secs is too high to be supported. Max is 9223372036"
 
-	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
-	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
-	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
-	MaxRetryAttempts         = "max-retry-attempts"
+	MaxRetryAttempts = "max-retry-attempts"
 )
 
 // cliContext is abstraction over the IsSet() method of cli.Context, Specially
@@ -76,7 +74,7 @@ func IsTtlInSecsValid(ttlInSecs int64) error {
 		return fmt.Errorf(TtlInSecsInvalidValueError)
 	}
 
-	if ttlInSecs > MaxSupportedTtlInSeconds {
+	if ttlInSecs > cfg.MaxSupportedTtlInSeconds {
 		return fmt.Errorf(TtlInSecsTooHighError)
 	}
 
@@ -90,7 +88,7 @@ func ListCacheTtlSecsToDuration(secs int64) time.Duration {
 	}
 
 	if secs == -1 {
-		return MaxSupportedTtl
+		return cfg.MaxSupportedTtl
 	}
 
 	return time.Duration(secs * int64(time.Second))

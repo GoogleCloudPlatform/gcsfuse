@@ -14,7 +14,13 @@
 
 package cfg
 
-import "net/url"
+import (
+	"math"
+	"net/url"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+)
 
 func decodeURL(u string) (string, error) {
 	// TODO: check if we can replace url.Parse with url.ParseRequestURI.
@@ -42,5 +48,35 @@ func Rationalize(c *Config) error {
 		c.Logging.Severity = "TRACE"
 	}
 
+	c.MetadataCache.StatCacheMaxSizeMb = resolveStatCacheMaxSizeMB(&c.MetadataCache)
+	c.MetadataCache.TtlSecs = int64(resolveMetadataCacheTTL(&c.MetadataCache).Seconds())
+
 	return nil
+}
+
+// resolveMetadataCacheTTL returns the ttl to be used for stat/type cache based on the user flags/configs.
+func resolveMetadataCacheTTL(c *MetadataCacheConfig) time.Duration {
+	if !isMetadataCacheTtlSet(c) {
+		return time.Second * time.Duration(uint64(math.Ceil(math.Min(c.DeprecatedStatCacheTtl.Seconds(), c.DeprecatedTypeCacheTtl.Seconds()))))
+	}
+	if c.TtlSecs == -1 {
+		return time.Duration(math.MaxInt64)
+	}
+	return time.Second * time.Duration(c.TtlSecs)
+}
+
+// resolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
+func resolveStatCacheMaxSizeMB(c *MetadataCacheConfig) int64 {
+	if isStatCacheMaxSizeMbSet(c) {
+		if c.StatCacheMaxSizeMb == -1 {
+			return int64(MaxSupportedStatCacheMaxSizeMB)
+		}
+		return c.StatCacheMaxSizeMb
+	}
+	if isStatCacheCapacitySet(c) {
+		avgTotalStatCacheEntrySize := AverageSizeOfPositiveStatCacheEntry + AverageSizeOfNegativeStatCacheEntry
+		return int64(util.BytesToHigherMiBs(
+			uint64(c.DeprecatedStatCacheCapacity) * avgTotalStatCacheEntrySize))
+	}
+	return DefaultStatCacheMaxSizeMB
 }
