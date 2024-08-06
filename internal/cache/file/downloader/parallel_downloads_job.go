@@ -91,6 +91,7 @@ func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() 
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
+	fmt.Println(job.fileCacheConfig.ParallelDownloadsPerFile)
 	job.offsetChan = make(chan offset, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
 	var start uint64
