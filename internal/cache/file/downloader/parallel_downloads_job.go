@@ -153,7 +153,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			// This may not be the ideal way, but since we don't have any way of
 			// listening if goroutines from other jobs have freed up, checking it here.
 			for numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile && job.maxParallelismSem.TryAcquire(1) {
-				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
 				numGoRoutines++
 			}
 		case <-downloadErrGroupCtx.Done():
