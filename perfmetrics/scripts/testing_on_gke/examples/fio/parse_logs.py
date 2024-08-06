@@ -16,9 +16,9 @@
 # limitations under the License.
 
 import argparse
-from collections.abc import Sequence
 import json, os, pprint, subprocess
 import sys
+import fio_workload
 
 sys.path.append("../")
 from utils.utils import get_memory, get_cpu, unix_to_timestamp, is_mash_installed
@@ -84,7 +84,7 @@ if __name__ == "__main__":
   )
   parser.add_argument(
       "--workload-config",
-      description=(
+      help=(
           "A json configuration file to define workloads that were run to"
           " generate the outputs that should be parsed."
       ),
