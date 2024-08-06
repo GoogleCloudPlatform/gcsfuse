@@ -810,8 +810,8 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 // Return the dir Inode.
 //
 // LOCKS_EXCLUDED(fs.mu)
-// LOCKS_EXCLUDED(parent)
-// LOCK_FUNCTION(child)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(in)
 func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
 	var in inode.Inode
 	var ok bool
