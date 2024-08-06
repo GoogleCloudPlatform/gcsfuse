@@ -15,7 +15,6 @@
 package fs_test
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -23,37 +22,47 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type RenameTests struct {
+type RenameFolderTests struct {
 	suite.Suite
 	fsTest
 }
 
-func TestRenameTests(t *testing.T) { suite.Run(t, new(RenameTests)) }
+func TestRenameFolderTests(t *testing.T) { suite.Run(t, new(RenameFolderTests)) }
 
-func (t *RenameTests) SetupSuite() {
+func (t *RenameFolderTests) SetupSuite() {
 	t.serverCfg.MountConfig = &config.MountConfig{EnableHNS: true}
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *RenameTests) TearDownSuite() {
-	t.fsTest.TearDown()
+func (t *RenameFolderTests) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
-func (t *RenameTests) TestRenameFolderWithSrcDoesNotExist() {
-	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
-	assert.NoError(t.T(), err)
+func (t *RenameFolderTests) SetupTest() {
+	err = t.createFolders([]string{"foo/", "bar/", "foo/test/", "foo/test2/", "foo/test/subDir/", "rename/"})
+	require.NoError(t.T(), err)
 	err = t.createObjects(
 		map[string]string{
-			"foo/file1.txt": "abcdef",
-			"foo/file2.txt": "xyz",
-			"bar/file1.txt": "-1234556789",
+			"foo/file1.txt":             "abcdef",
+			"foo/file2.txt":             "xyz",
+			"foo/test/file3.txt":        "xyz",
+			"foo/test/file4.txt":        "xyz",
+			"foo/test/subDir/file4.txt": "xyz",
+			"bar/file1.txt":             "-1234556789",
 		})
-	assert.NoError(t.T(), err)
+	require.NoError(t.T(), err)
+}
+
+func (t *RenameFolderTests) TearDown() {
+	t.fsTest.TearDown()
+}
+
+func (t *RenameFolderTests) TestRenameFolderWithSrcDoesNotExist() {
 	oldDirPath := path.Join(mntDir, "foo_not_exist")
 	newDirPath := path.Join(mntDir, "foo_rename_2")
 
@@ -64,16 +73,7 @@ func (t *RenameTests) TestRenameFolderWithSrcDoesNotExist() {
 	assert.NotNil(t.T(), err)
 }
 
-func (t *RenameTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
-	err = t.createFolders([]string{"foo/", "bar/", "foo/test2/"})
-	assert.NoError(t.T(), err)
-	err = t.createObjects(
-		map[string]string{
-			"foo/file1.txt": "abcdef",
-			"foo/file2.txt": "xyz",
-			"bar/file3.txt": "aaaa",
-		})
-	assert.NoError(t.T(), err)
+func (t *RenameFolderTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -84,39 +84,9 @@ func (t *RenameTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
 	err = os.Rename(oldDirPath, newDirPath)
 
 	assert.NotNil(t.T(), err)
-	fmt.Println("Test complete")
 }
 
-// //func (t *RenameTests) TestRenameFolderWithDstDirectoryIsEmpty() {
-// //	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
-// //	assert.NoError(t.T(), err)
-// //	err = t.createObjects(
-// //		map[string]string{
-// //			"foo/file1.txt": "abcdef",
-// //			"foo/file2.txt": "xyz",
-// //		})
-// //	assert.NoError(t.T(), err)
-// //	oldDirPath := path.Join(mntDir, "foo")
-// //	//_, err = os.Stat(oldDirPath)
-// //	//assert.NoError(t.T(), err)
-// //	newDirPath := path.Join(mntDir, "bar")
-// //	//_, err = os.Stat(newDirPath)
-// //	//assert.NoError(t.T(), err)
-// //
-// //	err = os.Rename(oldDirPath, newDirPath)
-// //
-// //	assert.NoError(t.T(), err)
-// //}
-func (t *RenameTests) TestRenameFolderWithSameParent() {
-	err = t.createFolders([]string{"foo/", "bar/", " ", "foo/test2/"})
-	assert.NoError(t.T(), err)
-	err = t.createObjects(
-		map[string]string{
-			"foo/file1.txt": "abcdef",
-			"foo/file2.txt": "xyz",
-			"bar/file1.txt": "-1234556789",
-		})
-	assert.NoError(t.T(), err)
+func (t *RenameFolderTests) TestRenameFolderWithSameParent() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
@@ -129,22 +99,9 @@ func (t *RenameTests) TestRenameFolderWithSameParent() {
 	assert.NotNil(t.T(), err)
 	_, err = os.Stat(newDirPath)
 	assert.NoError(t.T(), err)
-	fmt.Println("Test complete")
 }
 
-func (t *RenameTests) TestRenameFolderWithDifferentParent() {
-	err = t.createFolders([]string{"foo/", "bar/", "foo/test/", "foo/test2/", "foo/test/subDir/", "rename/"})
-	assert.NoError(t.T(), err)
-	err = t.createObjects(
-		map[string]string{
-			"foo/file1.txt":             "abcdef",
-			"foo/file2.txt":             "xyz",
-			"foo/test/file3.txt":        "xyz",
-			"foo/test/file4.txt":        "xyz",
-			"foo/test/subDir/file4.txt": "xyz",
-			"bar/file1.txt":             "-1234556789",
-		})
-	assert.NoError(t.T(), err)
+func (t *RenameFolderTests) TestRenameFolderWithDifferentParent() {
 	oldDirPath := path.Join(mntDir, "foo", "test")
 	_, err = os.Stat(oldDirPath)
 	assert.NoError(t.T(), err)
