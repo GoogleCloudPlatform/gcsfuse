@@ -185,7 +185,7 @@ func (t *CoreTest) TestFolderSanityCheck() {
 	ExpectEq(nil, c.SanityCheck())
 }
 
-func (t *CoreTest) ExplicitDirForFolder() {
+func (t *CoreTest) TestExplicitDirForFolder() {
 	f, err := t.bucket.CreateFolder(t.ctx, "folder/")
 	AssertEq(nil, err)
 	name := inode.NewDirName(inode.NewRootName(t.bucket.Name()), f.Name)
