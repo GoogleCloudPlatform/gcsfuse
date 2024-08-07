@@ -102,7 +102,7 @@ class FioWorkload:
     self.filesPerThread = filesPerThread
     self.numThreads = numThreads
     self.bucket = bucket
-    self.readTypes = readTypes
+    self.readTypes = set(readTypes)
 
   def PPrint(self):
     print(

@@ -40,12 +40,13 @@ def validateDlioWorkload(workload: dict, name: str):
       )
       return False
 
-  for batchSize in dlioWorkload['batchSizes']:
+  batchSizes = dlioWorkload['batchSizes']
+  for batchSize in batchSizes:
     if not type(batchSize) is int:
       print(
           f'In {name}, one of the batch-size values in'
           f" dlioWorkload['batchSizes'] is '{batchSize}', which is of type"
-          f' {type("batchSize")}, not int'
+          f' {type(batchSize)}, not int'
       )
       return False
     if batchSize < 1:
@@ -67,21 +68,26 @@ class DlioWorkload:
   Members:
   1. scenario (string): One of "local-ssd", "gcsfuse-generic",
   "gcsfuse-file-cache" and "gcsfuse-no-file-cache".
-  2. numFilesTrain (string): DLIO numFilesTrain argument in string format e.g.
-  '500000' etc.
-  3. recordLength (string): DLIO recordLength argument in string format e.g.
-  '100', '1000000', '10M' etc.
-  4. bucket (string): Name of a GCS bucket to read input files from.
-  5. batchSizes (list of strings): a string containing multiple comma-separated
-  integer values.
+  2. numFilesTrain (int): DLIO numFilesTrain argument e.g. 500000 etc.
+  3. recordLength (int): DLIO recordLength argument e.g. 100, 1000000 etc.
+  4. bucket (str): Name of a GCS bucket to read input files from.
+  5. batchSizes (set of ints): a set of ints representing multiple batchsize
+  values to test.
   """
 
-  def __init__(self, scenario, numFilesTrain, recordLength, bucket, batchSizes):
+  def __init__(
+      self,
+      scenario: str,
+      numFilesTrain: int,
+      recordLength: int,
+      bucket: str,
+      batchSizes: list,
+  ):
     self.scenario = scenario
     self.numFilesTrain = numFilesTrain
     self.recordLength = recordLength
     self.bucket = bucket
-    self.batchSizes = batchSizes
+    self.batchSizes = set(batchSizes)
 
 
 def ParseTestConfigForDlioWorkloads(testConfigFileName: str):
