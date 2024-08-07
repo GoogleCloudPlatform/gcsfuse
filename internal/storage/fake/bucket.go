@@ -723,10 +723,6 @@ func (b *bucket) CopyObject(
 		sort.Sort(b.objects)
 	}
 
-	if b.BucketType() == gcs.Hierarchical {
-		b.addFolderEntry(req.DstName)
-	}
-
 	o = copyObject(&dst.metadata)
 	return
 }
