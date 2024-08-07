@@ -925,6 +925,7 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	childName := NewDirName(d.Name(), name)
+
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err := d.bucket.DeleteObject(
