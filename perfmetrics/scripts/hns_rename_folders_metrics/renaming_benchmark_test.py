@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import subprocess
 import unittest
 import renaming_benchmark
-from mock import patch, call ,mock_open
+from mock import patch, call
 
 class TestRenamingBenchmark(unittest.TestCase):
 
@@ -26,13 +25,13 @@ class TestRenamingBenchmark(unittest.TestCase):
 
     self.assertEqual(prefix,expected_folder_prefix)
 
-  @patch('subprocess.call')
-  def test_invalid_folder_name_prefix(self,mock_subprocess):
+  @patch('sys.exit')
+  def test_invalid_folder_name_prefix(self,mock_exit):
     invalid_folder_name="invalidName"
 
     prefix=renaming_benchmark._extract_folder_name_prefix(invalid_folder_name)
 
-    mock_subprocess.assert_called_once_with('bash',shell=True)
+    mock_exit.assert_called_once()
 
   @patch('subprocess.call')
   @patch('time.time')

@@ -56,7 +56,7 @@ def _extract_folder_name_prefix(folder_name) -> (str):
   except:
     log.error("Folder name format is incorrect. Must be in the format prefix_0 \
           to begin.Exiting...")
-    subprocess.call('bash', shell=True)
+    sys.exit()
 
 
 def _record_time_for_folder_rename(mount_point,folder,num_samples):
@@ -76,23 +76,19 @@ def _record_time_for_folder_rename(mount_point,folder,num_samples):
   folder_path_prefix = '{}/{}'.format(mount_point, folder_prefix)
   time_op = []
   for iter in range(num_samples):
-    # For the first half of iterations, iteration value being appended to the
-    # folder_prefix increases i.e. the rename operations look like:
-    # folder_name_0 to folder_name_1 .
-    if iter < num_samples / 2:
-      rename_from = '{}{}'.format(folder_path_prefix, iter)
-      rename_to = '{}{}'.format(folder_path_prefix, iter + 1)
-    # For the second half of iterations, iteration value being appended to the
-    # folder_prefix decreases,so that after the tests are complete , the folder
-    # names are restored back to original i.e. the rename operations look like:
-    # folder_name_1 to folder_name_0 .
-    else:
-      rename_from = '{}{}'.format(folder_path_prefix, num_samples - iter)
-      rename_to = '{}{}'.format(folder_path_prefix, num_samples - iter - 1)
+    rename_from = '{}{}'.format(folder_path_prefix, iter%2)
+    rename_to = '{}{}'.format(folder_path_prefix, 1- iter%2)
     start_time_sec = time.time()
     subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
     end_time_sec = time.time()
     time_op.append(end_time_sec - start_time_sec)
+
+  # If the number of samples is odd, we need another unrecorded rename operation
+  # to restore test data back to its original form.
+  if num_samples % 2 == 1:
+    rename_from = '{}{}'.format(folder_path_prefix, num_samples%2)
+    rename_to = '{}{}'.format(folder_path_prefix, 1- num_samples%2)
+    subprocess.call('mv ./{} ./{}'.format(rename_from, rename_to), shell=True)
 
   return time_op
 
@@ -138,21 +134,14 @@ if __name__ == '__main__':
   with open(os.path.abspath(args.dir_config_file)) as file:
     dir_str = json.load(file)
 
-  # The script requires the num of samples to be even in order to restore test
-  # data to original state after the tests are complete.
-  if args.num_samples % 2 != 0:
-    log.error("Only even number of samples allowed to restore the test data to\
-                original state at the end of test.")
-    subprocess.call('bash', shell=True)
-
   exit_code = _check_for_config_file_inconsistency(dir_str)
   if exit_code != 0:
     log.error('Exited with code {}'.format(exit_code))
-    subprocess.call('bash', shell=True)
+    sys.exit()
 
   # Check if test data exists.
   dir_structure_present = _check_if_dir_structure_exists(dir_str)
   if not dir_structure_present:
     log.error("Test data does not exist.To create test data, run : \
     python3 generate_folders_and_files.py <dir_config.json> ")
-    subprocess.call('bash',shell=True)
+    sys.exit()
