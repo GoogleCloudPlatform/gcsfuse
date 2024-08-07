@@ -41,7 +41,7 @@ func isStatCacheMaxSizeMbSet(c *MetadataCacheConfig) bool {
 	if IsViperEnabled() {
 		return viper.IsSet("metadata-cache.stat-cache-max-size-mb")
 	}
-	return c.TtlSecs != StatCacheMaxSizeMBUnsetSentinel
+	return c.StatCacheMaxSizeMb != StatCacheMaxSizeMBUnsetSentinel
 }
 
 func isStatCacheCapacitySet(c *MetadataCacheConfig) bool {
