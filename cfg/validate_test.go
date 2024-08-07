@@ -40,6 +40,9 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
 			},
 		},
 		{
@@ -48,6 +51,36 @@ func TestValidateConfigSuccessful(t *testing.T) {
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
+				},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+			},
+		},
+		{
+			name: "experimental-metadata-prefetch-on-mount disabled",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
+				},
+			},
+		},
+		{
+			name: "experimental-metadata-prefetch-on-mount async",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "async",
+				},
+			},
+		},
+		{
+			name: "experimental-metadata-prefetch-on-mount sync",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
 			},
 		},
@@ -73,6 +106,15 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
+				},
+			},
+		},
+		{
+			name: "Invalid experimental-metadata-prefetch-on-mount",
+			config: &Config{
+				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "a",
 				},
 			},
 		},

@@ -43,9 +43,9 @@ func (o *Octal) String() string {
 type Protocol string
 
 const (
-	HTTP1 Protocol = "http1"
-	HTTP2 Protocol = "http2"
-	GRPC  Protocol = "grpc"
+	HTTP1 = "http1"
+	HTTP2 = "http2"
+	GRPC  = "grpc"
 )
 
 func (p *Protocol) UnmarshalText(text []byte) error {

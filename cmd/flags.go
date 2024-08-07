@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -392,7 +393,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  ExperimentalMetadataPrefetchOnMountFlag,
-				Value: config.DefaultExperimentalMetadataPrefetchOnMount,
+				Value: "disabled",
 				Usage: "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.",
 			},
 		},
@@ -667,25 +668,12 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 	return
 }
 
-func validateExperimentalMetadataPrefetchOnMount(mode string) error {
-	switch mode {
-	case config.ExperimentalMetadataPrefetchOnMountDisabled:
-		fallthrough
-	case config.ExperimentalMetadataPrefetchOnMountSynchronous:
-		fallthrough
-	case config.ExperimentalMetadataPrefetchOnMountAsynchronous:
-		return nil
-	default:
-		return fmt.Errorf(config.UnsupportedMetadataPrefixModeError, mode)
-	}
-}
-
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
 	}
 
-	if err = validateExperimentalMetadataPrefetchOnMount(flags.ExperimentalMetadataPrefetchOnMount); err != nil {
+	if err = cfg.IsValidExperimentalMetadataPrefetchOnMount(flags.ExperimentalMetadataPrefetchOnMount); err != nil {
 		return fmt.Errorf("%s: is not valid; error = %w", ExperimentalMetadataPrefetchOnMountFlag, err)
 	}
 

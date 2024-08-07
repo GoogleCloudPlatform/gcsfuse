@@ -109,7 +109,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				DebugInvariants:                     true,
 				DebugMutex:                          true,
 				ExperimentalMetadataPrefetchOnMount: "sync",
-				ClientProtocol:                      mountpkg.HTTP1,
+				ClientProtocol:                      cfg.HTTP1,
 			},
 			mockCLICtx:        &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{},
@@ -193,7 +193,8 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		{
 			testName: "Test decode legacy config.",
 			legacyFlagStorage: &flagStorage{
-				ClientProtocol: mountpkg.GRPC,
+				ClientProtocol:                      cfg.GRPC,
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			},
 			mockCLICtx: &mockCLIContext{isFlagSet: map[string]bool{}},
 			legacyMountConfig: &config.MountConfig{
@@ -260,9 +261,10 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				CacheDir: cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "cache-dir")),
 				MetadataCache: cfg.MetadataCacheConfig{
-					TtlSecs:            200,
-					TypeCacheMaxSizeMb: 7,
-					StatCacheMaxSizeMb: 4,
+					TtlSecs:                             200,
+					TypeCacheMaxSizeMb:                  7,
+					StatCacheMaxSizeMb:                  4,
+					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 				List: cfg.ListConfig{
 					EnableEmptyManagedFolders: true,
@@ -283,13 +285,14 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 		{
 			testName: "Test overlapping flags and configs set.",
 			legacyFlagStorage: &flagStorage{
-				LogFile:                   "~/Documents/log-flag.txt",
-				LogFormat:                 "json",
-				IgnoreInterrupts:          false,
-				AnonymousAccess:           false,
-				KernelListCacheTtlSeconds: -1,
-				MaxRetryAttempts:          100,
-				ClientProtocol:            mountpkg.HTTP2,
+				LogFile:                             "~/Documents/log-flag.txt",
+				LogFormat:                           "json",
+				IgnoreInterrupts:                    false,
+				AnonymousAccess:                     false,
+				KernelListCacheTtlSeconds:           -1,
+				MaxRetryAttempts:                    100,
+				ClientProtocol:                      cfg.HTTP2,
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			},
 			mockCLICtx: &mockCLIContext{
 				isFlagSet: map[string]bool{
@@ -340,6 +343,9 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					AnonymousAccess: false,
+				},
+				MetadataCache: cfg.MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
 				GcsConnection: cfg.GcsConnectionConfig{
 					ClientProtocol: cfg.Protocol("http2"),
@@ -397,7 +403,7 @@ func TestPopulateConfigFromLegacyFlags_KeyFileResolution(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockCLICtx := &mockCLIContext{}
 			legacyFlagStorage := &flagStorage{
-				ClientProtocol: mountpkg.HTTP2,
+				ClientProtocol: cfg.HTTP2,
 				KeyFile:        tc.givenKeyFile,
 			}
 			legacyMountCfg := &config.MountConfig{}
@@ -445,7 +451,7 @@ func TestPopulateConfigFromLegacyFlags_LogFileResolution(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockCLICtx := &mockCLIContext{}
 			legacyFlagStorage := &flagStorage{
-				ClientProtocol: mountpkg.HTTP2,
+				ClientProtocol: cfg.HTTP2,
 				LogFile:        tc.givenLogFile,
 			}
 			legacyMountCfg := &config.MountConfig{}
@@ -463,7 +469,7 @@ func TestCustomEndpointResolutionFromFlags(t *testing.T) {
 	u, err := url.Parse("http://abc.xyz")
 	require.Nil(t, err)
 	legacyFlagStorage := &flagStorage{
-		ClientProtocol: mountpkg.HTTP2,
+		ClientProtocol: cfg.HTTP2,
 		CustomEndpoint: u,
 	}
 
@@ -558,10 +564,11 @@ func TestLogSeverityRationalization(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			flags := &flagStorage{
-				ClientProtocol: mountpkg.ClientProtocol("http1"),
-				DebugFuse:      tc.debugFuse,
-				DebugGCS:       tc.debugGCS,
-				DebugMutex:     tc.debugMutex,
+				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
+				ExperimentalMetadataPrefetchOnMount: "disabled",
+				DebugFuse:                           tc.debugFuse,
+				DebugGCS:                            tc.debugGCS,
+				DebugMutex:                          tc.debugMutex,
 			}
 			c := config.NewMountConfig()
 			c.Severity = tc.cfgSev
@@ -614,7 +621,8 @@ func TestEnableEmptyManagedFoldersRationalization(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			flags := &flagStorage{
-				ClientProtocol: mountpkg.ClientProtocol("http1"),
+				ClientProtocol:                      mountpkg.ClientProtocol("http1"),
+				ExperimentalMetadataPrefetchOnMount: "disabled",
 			}
 			c := config.NewMountConfig()
 			c.EnableHNS = tc.enableHns
