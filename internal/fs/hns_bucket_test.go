@@ -99,4 +99,3 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 	_, err = os.Stat(dirPath)
 	assert.NotNil(t.T(), err)
 }
-
