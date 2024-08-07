@@ -109,6 +109,11 @@ func TestMain(m *testing.M) {
 		{"--config-file=" + configFile1},
 		{"--config-file=" + configFile2},
 	}
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--config-file=" + configFile1)
+		flags = append(flags, hnsFlagSet)
+	}
+
 
 	successCode := static_mounting.RunTests(flags, m)
 

@@ -530,6 +530,12 @@ func TestInfiniteKernelListCacheTest(t *testing.T) {
 		{"--kernel-list-cache-ttl-secs=-1"},
 	}
 
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=-1")
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
+
+
 	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags
