@@ -24,7 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
@@ -665,7 +664,6 @@ func (d *dirInode) readObjects(
 	}()
 
 	for _, o := range listing.Objects {
-		logger.Infof("Object Name: ", o)
 		// Skip empty results or the directory object backing this inode.
 		if o.Name == d.Name().GcsObjectName() || o.Name == "" {
 			continue
@@ -710,7 +708,6 @@ func (d *dirInode) readObjects(
 	for _, p := range listing.CollapsedRuns {
 		pathBase := path.Base(p)
 		dirName := NewDirName(d.Name(), pathBase)
-		logger.Infof("CollapsedRuns: ", dirName)
 		if d.isBucketHierarchical() {
 			folder := gcs.Folder{Name: dirName.objectName}
 
@@ -919,8 +916,6 @@ func (d *dirInode) DeleteChildDir(
 	isImplicitDir bool) error {
 	d.cache.Erase(name)
 
-	logger.Info("Implicit dir: ", isImplicitDir)
-	logger.Info("HNS bucket: ", d.isBucketHierarchical())
 	// if the directory is an implicit directory, then no backing object
 	// exists in the gcs bucket, so returning from here.
 	// Hierarchical buckets don't have implicit dirs.
@@ -929,7 +924,6 @@ func (d *dirInode) DeleteChildDir(
 	}
 
 	childName := NewDirName(d.Name(), name)
-	logger.Info("Delete Child ", childName)
 	// Delete the backing object. Unfortunately we have no way to precondition
 	// this on the directory being empty.
 	err := d.bucket.DeleteObject(

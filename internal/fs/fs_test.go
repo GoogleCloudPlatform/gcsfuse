@@ -100,8 +100,8 @@ var (
 	// To mount a special bucket, override `bucket`;
 	// To mount multiple buckets, override `buckets`;
 	// Otherwise, a default bucket will be used.
-	bucket  gcs.Bucket
-	buckets map[string]gcs.Bucket
+	bucket     gcs.Bucket
+	buckets    map[string]gcs.Bucket
 	bucketType gcs.BucketType
 )
 
@@ -166,13 +166,13 @@ func (t *fsTest) SetUpTestSuite() {
 	mountCfg := t.mountCfg
 	mountCfg.OpContext = ctx
 
-	//if mountCfg.ErrorLogger == nil {
-	//	mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
-	//}
+	if mountCfg.ErrorLogger == nil {
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ")
+	}
 
-//	if *fDebug {
-//		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelInfo, "fuse: ")
-//	}
+	if *fDebug {
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ")
+	}
 
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
