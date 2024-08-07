@@ -35,7 +35,7 @@ func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
 func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.MountConfig = &config.MountConfig{EnableHNS: true}
-	t.serverCfg.ImplicitDirectories = true
+	t.serverCfg.ImplicitDirectories = false
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }

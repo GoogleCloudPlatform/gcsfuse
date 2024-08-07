@@ -276,13 +276,15 @@ func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	return
 }
 
-//In the hierarchical bucket, all directory objects are also retained as folder entries.
-// In LookUpInode, we call the getFolder API, which searches for folder entries.
+// In the hierarchical bucket, all directory objects are also retained as folder entries even if we create object with non control client API.
 // Therefore, whenever we create directory objects in the fake bucket, we also need to create a corresponding folder entry for them in HNS.
 func (b *bucket) addFolderEntry(path string) {
 	path = filepath.Dir(path) // Get the directory part of the path
 	parts := strings.Split(path, string(filepath.Separator))
 
+	// This is for adding implicit directories as folder entries.
+	// For example, createObject(A/B/a.txt) where A and B are implicit directories.
+	// We need to add both "A" and "A/B/" as folder entries.
 	for i := range parts {
 		folder := gcs.Folder{Name: strings.Join(parts[:i+1], string(filepath.Separator)) + string(filepath.Separator)}
 		existingIndex := b.folders.find(folder.Name)
