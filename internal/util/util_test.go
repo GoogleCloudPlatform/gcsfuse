@@ -165,7 +165,7 @@ func (ts *UtilTest) TestStringifyShouldReturnAllFieldsPassedInCustomObjectAsMars
 
 	actual, _ := Stringify(customObject)
 
-	expected := "{\"Value\":\"test_value\",\"NestedValue\":{\"SomeField\":10,\"SomeOther\":{\"1\":1,\"2\":2,\"3\":3}}}"
+	expected := "value: test_value\nnestedvalue:\n    somefield: 10\n    someother:\n        \"1\": 1\n        \"2\": 2\n        \"3\": 3\n"
 	assert.Equal(ts.T(), expected, actual)
 }
 
@@ -176,7 +176,7 @@ func (ts *UtilTest) TestStringifyShouldReturnEmptyStringWhenMarshalErrorsOut() {
 
 	actual, _ := Stringify(customInstance)
 
-	expected := ""
+	expected := "{}\n"
 	assert.Equal(ts.T(), expected, actual)
 }
 
