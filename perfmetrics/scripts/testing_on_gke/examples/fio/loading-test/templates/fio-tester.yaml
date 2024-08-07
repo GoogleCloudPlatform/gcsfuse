@@ -127,6 +127,7 @@ spec:
         echo "Run fio tests..."
         mkdir -p /data/fio-output/{{ .Values.scenario }}/$read_type
 
+        # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic" }}
         echo "{{ .Values.gcsfuse.mountOptions }}" > /data/fio-output/{{ .Values.scenario }}/$read_type/gcsfuse_mount_options
         {{ end }}
@@ -174,7 +175,7 @@ spec:
       driver: gcsfuse.csi.storage.gke.io
       volumeAttributes:
         bucketName: {{ .Values.bucketName }}
-        # gcsfuseLoggingSeverity: "info"
+        gcsfuseLoggingSeverity: "info"
         mountOptions: "{{ .Values.gcsfuse.mountOptions }}"
   {{- else if eq .Values.scenario "gcsfuse-file-cache" }}
     csi:
