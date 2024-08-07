@@ -230,6 +230,74 @@ func TestArgsParsing_CreateEmptyFileFlag(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_FileCacheFlags(t *testing.T) {
+	tests := []struct {
+		name                             string
+		args                             []string
+		expectedCacheFileForRangeRead    bool
+		expectedDownloadChunkSizeMb      int64
+		expectedEnableCrc                bool
+		expectedEnableParallelDownloads  bool
+		expectedMaxParallelDownloads     int64
+		expectedMaxSizeMb                int64
+		expectedParallelDownloadsPerFile int64
+	}{
+		{
+			name:                             "Test default file cache flags.",
+			args:                             []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "abc", "pqr"},
+			expectedCacheFileForRangeRead:    true,
+			expectedDownloadChunkSizeMb:      20,
+			expectedEnableCrc:                true,
+			expectedEnableParallelDownloads:  true,
+			expectedMaxParallelDownloads:     40,
+			expectedMaxSizeMb:                100,
+			expectedParallelDownloadsPerFile: 2,
+		},
+		{
+			name:                             "Test default file cache flags.",
+			args:                             []string{"gcsfuse", "abc", "pqr"},
+			expectedCacheFileForRangeRead:    false,
+			expectedDownloadChunkSizeMb:      50,
+			expectedEnableCrc:                false,
+			expectedEnableParallelDownloads:  false,
+			expectedMaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
+			expectedMaxSizeMb:                -1,
+			expectedParallelDownloadsPerFile: 16,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var cacheFileForRangeRead, enableCrc, enableParallelDownloads bool
+			var downloadChunkSizeMb, maxParallelDownloads, maxSizeMb, parallelDownloadsPerFile int64
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				cacheFileForRangeRead = cfg.FileCache.CacheFileForRangeRead
+				downloadChunkSizeMb = cfg.FileCache.DownloadChunkSizeMb
+				enableCrc = cfg.FileCache.EnableCrc
+				enableParallelDownloads = cfg.FileCache.EnableParallelDownloads
+				maxParallelDownloads = cfg.FileCache.MaxParallelDownloads
+				maxSizeMb = cfg.FileCache.MaxSizeMb
+				parallelDownloadsPerFile = cfg.FileCache.ParallelDownloadsPerFile
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedCacheFileForRangeRead, cacheFileForRangeRead)
+				assert.Equal(t, tc.expectedDownloadChunkSizeMb, downloadChunkSizeMb)
+				assert.Equal(t, tc.expectedEnableCrc, enableCrc)
+				assert.Equal(t, tc.expectedEnableParallelDownloads, enableParallelDownloads)
+				assert.Equal(t, tc.expectedMaxParallelDownloads, maxParallelDownloads)
+				assert.Equal(t, tc.expectedMaxSizeMb, maxSizeMb)
+				assert.Equal(t, tc.expectedParallelDownloadsPerFile, parallelDownloadsPerFile)
+			}
+		})
+	}
+}
+
 func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 	tests := []struct {
 		name          string
