@@ -16,13 +16,17 @@
 package gzip_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/gzip/helpers"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
@@ -177,6 +181,21 @@ func TestMain(m *testing.M) {
 
 	commonFlags := []string{"--sequential-read-size-mb=" + fmt.Sprint(SeqReadSizeMb), "--implicit-dirs"}
 	flags := [][]string{commonFlags}
+
+	// Create storage client before running tests.
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flags = append(flags, hnsFlagSet)
+	}
 
 	if !testing.Short() {
 		gRPCFlags := append(commonFlags, "--client-protocol=grpc")

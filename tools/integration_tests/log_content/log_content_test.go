@@ -16,10 +16,14 @@
 package log_content
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
@@ -48,6 +52,21 @@ func TestMain(m *testing.M) {
 	// which are enabled by default by static_mounting.RunTests
 	// and by the above call to set log-file.
 	flagsSet := [][]string{{}}
+	// Create storage client before running tests.
+	ctx := context.Background()
+	var storageClient *storage.Client
+	closeStorageClient := client.CreateStorageClientWithTimeOut(&ctx, &storageClient, time.Minute*15)
+	defer func() {
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
+		}
+	}()
+
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=-1")
+		flagsSet = append(flagsSet, hnsFlagSet)
+	}
 
 	successCode := 0
 	if successCode == 0 {

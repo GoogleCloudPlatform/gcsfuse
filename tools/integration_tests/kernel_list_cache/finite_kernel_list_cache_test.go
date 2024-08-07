@@ -117,6 +117,11 @@ func TestFiniteKernelListCacheTest(t *testing.T) {
 		{"--kernel-list-cache-ttl-secs=5", "--rename-dir-limit=10"},
 	}
 
+	//if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+	//	hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=5")
+	//	flagsSet = append(flagsSet, hnsFlagSet)
+	//}
+
 	// Run tests.
 	for _, flags := range flagsSet {
 		ts.flags = flags

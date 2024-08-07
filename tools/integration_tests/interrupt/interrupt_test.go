@@ -67,6 +67,11 @@ func TestMain(m *testing.M) {
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent1, "ignore_interrupts.yaml")},
 		{"--config-file=" + setup.YAMLConfigFile(yamlContent2, "default_ignore_interrupts.yaml")}}
 
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flags = append(flags, hnsFlagSet)
+	}
+
+
 	successCode := static_mounting.RunTests(flags, m)
 
 	// Clean up test directory created.
