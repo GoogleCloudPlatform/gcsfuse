@@ -38,3 +38,4 @@ gcsfuse:
   metadataTypeCacheCapacity: "-1"
   fileCacheCapacity: "-1"
   fileCacheForRangeRead: "true"
+
