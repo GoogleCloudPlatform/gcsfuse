@@ -46,6 +46,7 @@ readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
 readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
 # Test runtime configuration
 readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
+readonly DEFAULT_INSTANCE_ID=${USER}-$(date +%Y%m%d-%H%M%S)
 
 function printHelp() {
   echo "Usage guide: "
@@ -72,6 +73,7 @@ function printHelp() {
   echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}">"
+  echo "instance_id=<string, not containing spaces, representing unique id for particular test-run e.g. "${DEFAULT_INSTANCE_ID}""
   echo ""
   echo ""
   echo ""
@@ -111,6 +113,7 @@ test -n "${csi_src_dir}" || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
 test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
 # Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
+test -n "${instance_id}" || export instance_id="${DEFAULT_INSTANCE_ID}"
 
 function printRunParameters() {
   echo "Running $0 with following parameters:"
@@ -137,6 +140,7 @@ function printRunParameters() {
   echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
+  echo "instance_id=\"${instance_id}\""
   echo ""
   echo ""
   echo ""
@@ -411,12 +415,12 @@ function deleteAllPods() {
 
 function deployAllFioHelmCharts() {
   echo "Deploying all fio helm charts ..."
-  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py && cd -
+  cd "${gke_testing_dir}"/examples/fio && python3 ./run_tests.py --workload-config ${gke_testing_dir}/examples/workloads.json --instance-id ${instance_id} && cd -
 }
 
 function deployAllDlioHelmCharts() {
   echo "Deploying all dlio helm charts ..."
-  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py && cd -
+  cd "${gke_testing_dir}"/examples/dlio && python3 ./run_tests.py --workload-config ${gke_testing_dir}/examples/workloads.json --instance-id ${instance_id} && cd -
 }
 
 function listAllHelmCharts() {
@@ -500,7 +504,7 @@ function revertPodConfigsFilesAfterTestRuns() {
   # echo ""
   # fioDataLoaderBucketNames | while read bucket; do
     # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/fio-output/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
+    # gcloud storage ls -l gs://${bucket}/fio-output/${instance_id}/*/*/* | (grep -e 'json\|gcsfuse_mount_options' || true)
   # done
 # }
 #
@@ -508,7 +512,7 @@ function revertPodConfigsFilesAfterTestRuns() {
   # echo ""
   # dlioDataLoaderBucketNames | while read bucket; do
     # echo "${bucket}:"
-    # gcloud storage ls -l gs://${bucket}/logs/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
+    # gcloud storage ls -l gs://${bucket}/logs/${instance_id}/*/*/* | (grep -e 'summary\.json\|per_epoch_stats\.json\|gcsfuse_mount_options' || true)
   # done
 # }
 
@@ -549,14 +553,14 @@ function revertPodConfigsFilesAfterTestRuns() {
 function fetchAndParseFioOutputs() {
   echo "Fetching and parsing fio outputs ..."
   cd "${gke_testing_dir}"/examples/fio
-  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
+  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id}
   cd -
 }
 
 function fetchAndParseDlioOutputs() {
   echo "Fetching and parsing dlio outputs ..."
   cd "${gke_testing_dir}"/examples/dlio
-  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json
+  python3 parse_logs.py --project-number=${project_number} --workload-config="${gke_testing_dir}"/examples/workloads.json --instance-id ${instance_id}
   cd -
 }
 

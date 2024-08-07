@@ -21,6 +21,7 @@ image: jiaxun/dlio:v1.2.0
 bucketName: gke-dlio-test-data
 scenario: local-ssd
 nodeType: n2-standard-96
+instanceId: ldap-yyyymmdd-hhmmss
 
 resourceLimits:
   cpu: 0
