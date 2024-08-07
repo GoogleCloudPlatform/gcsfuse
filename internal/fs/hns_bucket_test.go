@@ -26,25 +26,25 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type ReadDirTests struct {
+type HNSBucketTests struct {
 	suite.Suite
 	fsTest
 }
 
-func TestReadDirTests(t *testing.T) { suite.Run(t, new(ReadDirTests)) }
+func TestHNSBucketTests(t *testing.T) { suite.Run(t, new(HNSBucketTests)) }
 
-func (t *ReadDirTests) SetupSuite() {
+func (t *HNSBucketTests) SetupSuite() {
 	t.serverCfg.MountConfig = &config.MountConfig{EnableHNS: true}
 	t.serverCfg.ImplicitDirectories = false
 	bucketType = gcs.Hierarchical
 	t.fsTest.SetUpTestSuite()
 }
 
-func (t *ReadDirTests) TearDownSuite() {
+func (t *HNSBucketTests) TearDownSuite() {
 	t.fsTest.TearDownTestSuite()
 }
 
-func (t *ReadDirTests) SetupTest() {
+func (t *HNSBucketTests) SetupTest() {
 	err = t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
 	require.NoError(t.T(), err)
 	err = t.createObjects(
@@ -58,11 +58,11 @@ func (t *ReadDirTests) SetupTest() {
 	require.NoError(t.T(), err)
 }
 
-func (t *ReadDirTests) TearDown() {
+func (t *HNSBucketTests) TearDown() {
 	t.fsTest.TearDown()
 }
 
-func (t *ReadDirTests) TestReadDir() {
+func (t *HNSBucketTests) TestReadDir() {
 	dirPath := path.Join(mntDir, "foo")
 
 	dirEntries, err := os.ReadDir(dirPath)
@@ -89,3 +89,14 @@ func (t *ReadDirTests) TestReadDir() {
 		}
 	}
 }
+
+func (t *HNSBucketTests) TestDeleteFolder() {
+	dirPath := path.Join(mntDir, "foo")
+
+	err = os.RemoveAll(dirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(dirPath)
+	assert.NotNil(t.T(), err)
+}
+
