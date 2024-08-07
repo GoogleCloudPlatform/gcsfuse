@@ -35,8 +35,8 @@ func (o *Octal) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (o *Octal) String() string {
-	return fmt.Sprintf("%o", *o)
+func (o *Octal) MarshalText() (text []byte, err error) {
+	return []byte(strconv.FormatInt(int64(*o), 8)), nil
 }
 
 // Protocol is the datatype that specifies the type of connection: http1/http2/grpc.

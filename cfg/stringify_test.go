@@ -18,14 +18,28 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestConfigStringify() {
-	
-}
+func TestOctalFieldInConfigStringify(t *testing.T) {
+	c := Config{
+		FileSystem: FileSystemConfig{
+			DirMode: 0755,
+		},
+	}
 
+	str, err := util.Stringify(&c)
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, "", str)
+	}
+}
 func TestOctalStringify(t *testing.T) {
 	o := Octal(0765)
 
-	util.Stringify(o)
+	str, err := util.Stringify(o)
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, `"765"`, str)
+	}
 }
