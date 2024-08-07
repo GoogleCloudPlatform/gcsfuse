@@ -276,10 +276,13 @@ func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	return
 }
 
-// In the hierarchical bucket, all directory objects are also retained as folder entries even if we create object with non control client API.
-// Therefore, whenever we create directory objects in the fake bucket, we also need to create a corresponding folder entry for them in HNS.
-// Note that these changes are specifically for testing purposes, as we are creating implicit directories using the same createObject method.
-// In a real-world scenario, From GCSFuse CreateObject will never be called when creating a directory in HNS.
+// In a hierarchical bucket, all directory objects are also retained as folder entries,
+// even if we create objects with non-control client API.
+// Therefore, whenever we create directory objects in the fake bucket,
+// we also need to create a corresponding folder entry for them in HNS.
+// For example, when creating an object A/B/a.txt where A and B are implicit directories.
+// In our existing flow in the fake bucket, we ignore adding entries for A and B.
+// In HNS, we have to add these implicit directories as folder entries.
 func (b *bucket) addFolderEntry(path string) {
 	path = filepath.Dir(path) // Get the directory part of the path
 	parts := strings.Split(path, string(filepath.Separator))
