@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -75,12 +77,22 @@ func GetResolvedPath(filePath string) (resolvedPath string, err error) {
 	}
 }
 
-// Stringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
-func Stringify(input any) (string, error) {
+// JSONStringify marshals an object (only exported attribute) to a JSON string. If marshalling fails, it returns an empty string.
+func JSONStringify(input any) (string, error) {
 	inputBytes, err := json.Marshal(input)
 
 	if err != nil {
-		return "", fmt.Errorf("error in Stringify %w", err)
+		return "", fmt.Errorf("error in JSONStringify %w", err)
+	}
+	return string(inputBytes), nil
+}
+
+// YAMLStringify marshals an object to a YAML string. If marshalling fails, it returns an error.
+func YAMLStringify(input any) (string, error) {
+	inputBytes, err := yaml.Marshal(input)
+
+	if err != nil {
+		return "", fmt.Errorf("error in YAMLStringify %w", err)
 	}
 	return string(inputBytes), nil
 }
