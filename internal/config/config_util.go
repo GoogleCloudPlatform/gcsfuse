@@ -31,7 +31,6 @@ const (
 	// MaxSupportedTtlInSeconds represents maximum multiple of seconds representable by time.Duration.
 	MaxSupportedTtlInSeconds = math.MaxInt64 / int64(time.Second)
 	MaxSupportedTtl          = time.Duration(MaxSupportedTtlInSeconds * int64(time.Second))
-	MaxRetryAttempts         = "max-retry-attempts"
 )
 
 // cliContext is abstraction over the IsSet() method of cli.Context, Specially

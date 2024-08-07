@@ -56,8 +56,7 @@ type typeCacheTestCommon struct {
 }
 
 const (
-	foo  = "foo"
-	taco = "taco"
+	foo = "foo"
 )
 
 var (

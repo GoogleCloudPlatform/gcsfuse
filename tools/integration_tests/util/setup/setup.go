@@ -44,7 +44,6 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
-	BufferSize          = 100
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"

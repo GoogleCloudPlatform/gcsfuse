@@ -44,8 +44,7 @@ const (
 	NestedDefaultObjectName = "dir/foo.txt"
 	DefaultDir              = "dir"
 
-	RenamedDir       = "renamed_dir"
-	UserTempLocation = "my/temp"
+	RenamedDir = "renamed_dir"
 )
 
 func init() {
