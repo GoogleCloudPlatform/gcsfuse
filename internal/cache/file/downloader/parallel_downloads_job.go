@@ -68,7 +68,44 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	return err
 }
 
-func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() error {
+func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, offsetEnd uint64) error {
+	// Check if the chunk downloaded completes a range [0, R) and find that
+	// R.
+	job.mu.Lock()
+	defer job.mu.Unlock()
+
+	finalStart := offsetStart
+	finalEnd := offsetEnd
+
+	if offsetStart != 0 {
+		leftStart, exist := rangeMap[offsetStart]
+		if exist {
+			finalStart = leftStart
+			delete(rangeMap, offsetStart)
+			delete(rangeMap, leftStart)
+		}
+	}
+
+	rightEnd, exist := rangeMap[offsetEnd]
+	if exist {
+		finalEnd = rightEnd
+		delete(rangeMap, offsetEnd)
+		delete(rangeMap, rightEnd)
+	}
+
+	rangeMap[finalStart] = finalEnd
+	rangeMap[finalEnd] = finalStart
+
+	if finalStart == 0 {
+		updateErr := job.updateStatusOffset(finalEnd)
+		if updateErr != nil {
+			return updateErr
+		}
+	}
+	return nil
+}
+
+func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
 	return func() error {
 		for {
 			// Read the offset to be downloaded from the channel.
@@ -83,6 +120,11 @@ func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() 
 			if err != nil {
 				return err
 			}
+
+			err = job.updateRangeMap(rangeMap, offsetToDownload.start, offsetToDownload.end)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -91,7 +133,7 @@ func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File) func() 
 // into given file handle using multiple NewReader method of gcs.Bucket running
 // in parallel. This function is canceled if job.cancelCtx is canceled.
 func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
-	fmt.Println(job.fileCacheConfig.ParallelDownloadsPerFile)
+	rangeMap := make(map[uint64]uint64)
 	job.offsetChan = make(chan offset, 2*job.fileCacheConfig.ParallelDownloadsPerFile)
 	var numGoRoutines int64
 	var start uint64
@@ -105,7 +147,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			break
 		}
 
-		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
 		start = start + downloadChunkSize
 	}
 
@@ -123,7 +165,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			// This may not be the ideal way, but since we don't have any way of
 			// listening if goroutines from other jobs have freed up, checking it here.
 			for numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile && job.maxParallelismSem.TryAcquire(1) {
-				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile))
+				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
 				numGoRoutines++
 			}
 		case <-downloadErrGroupCtx.Done():
@@ -136,7 +178,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 
 // Job can be success or failure. This method will handle all the scenarios and
 // return the appropriate error.
-func (job *Job) handleJobCompletion(ctx context.Context, start uint64, group *errgroup.Group) error {
+func (job *Job) handleJobCompletion(ctx context.Context, offset uint64, group *errgroup.Group) error {
 	// Close the channel since we are ending the job.
 	close(job.offsetChan)
 
@@ -150,11 +192,6 @@ func (job *Job) handleJobCompletion(ctx context.Context, start uint64, group *er
 
 	// If any of the go routines failed, consider the async job failed.
 	err = group.Wait()
-	if err != nil {
-		return err
-	}
-
-	err = job.updateStatusOffset(start)
 	if err != nil {
 		return err
 	}

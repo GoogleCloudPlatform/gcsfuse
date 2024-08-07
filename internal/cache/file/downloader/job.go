@@ -258,8 +258,9 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 }
 
 // updateStatusOffset updates the offset in job's status and in file info cache
-// with the given offset. If the the update is successful, this function also
+// with the given offset. If the update is successful, this function also
 // notify the subscribers.
+// Not concurrency safe and requires LOCK(job.mu)
 func (job *Job) updateStatusOffset(downloadedOffset uint64) (err error) {
 	fileInfoKey := data.FileInfoKey{
 		BucketName: job.bucket.Name(),
@@ -274,10 +275,9 @@ func (job *Job) updateStatusOffset(downloadedOffset uint64) (err error) {
 
 	updatedFileInfo := data.FileInfo{
 		Key: fileInfoKey, ObjectGeneration: job.object.Generation,
-		FileSize: job.object.Size, Offset: uint64(downloadedOffset),
+		FileSize: job.object.Size, Offset: downloadedOffset,
 	}
-	job.mu.Lock()
-	defer job.mu.Unlock()
+
 	err = job.fileInfoCache.UpdateWithoutChangingOrder(fileInfoKeyName, updatedFileInfo)
 	if err == nil {
 		job.status.Offset = int64(downloadedOffset)
@@ -347,7 +347,9 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			newReader = nil
 		}
 
+		job.mu.Lock()
 		err = job.updateStatusOffset(start)
+		job.mu.Unlock()
 		if err != nil {
 			return err
 		}
