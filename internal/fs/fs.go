@@ -1624,21 +1624,15 @@ func (fs *fileSystem) createLocalFile(
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
 	if !ok {
-		var result *inode.Core
-		result, err = parent.CreateLocalChildFile(name)
-		if err != nil {
-			return
-		}
+		err = parent.CreateLocalChildFile(name, func(core inode.Core) error {
+			child = fs.mintInode(core)
+			fs.localFileInodes[child.Name()] = child
 
-		child = fs.mintInode(*result)
-		fs.localFileInodes[child.Name()] = child
+			// Empty file is created to be able to set attributes on the file.
+			fileInode := child.(*inode.FileInode)
+			return fileInode.CreateEmptyTempFile()
+		})
 
-		// Empty file is created to be able to set attributes on the file.
-		fileInode := child.(*inode.FileInode)
-		err = fileInode.CreateEmptyTempFile()
-		if err != nil {
-			return
-		}
 	}
 
 	return

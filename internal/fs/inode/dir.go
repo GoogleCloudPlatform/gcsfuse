@@ -94,7 +94,7 @@ type DirInode interface {
 
 	// Create an empty local child file with the supplied (relative) name. Local
 	// file means the object is not yet created in GCS.
-	CreateLocalChildFile(name string) (*Core, error)
+	CreateLocalChildFile(name string, updateInodeFn func(core Core) error) error
 
 	// Like CreateChildFile, except clone the supplied source object instead of
 	// creating an empty object.
@@ -771,15 +771,19 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 	}, nil
 }
 
-func (d *dirInode) CreateLocalChildFile(name string) (*Core, error) {
+func (d *dirInode) CreateLocalChildFile(name string, updateInodeFn func(core Core) error) error {
 	fullName := NewFileName(d.Name(), name)
-
-	return &Core{
+	core := Core{
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
 		MinObject: nil,
 		Local:     true,
-	}, nil
+	}
+	if err := updateInodeFn(core); err != nil {
+		return err
+	}
+	d.cache.Insert(d.cacheClock.Now(), name, metadata.RegularFileType)
+	return nil
 }
 
 // LOCKS_REQUIRED(d)
