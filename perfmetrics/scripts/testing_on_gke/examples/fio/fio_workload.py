@@ -82,7 +82,7 @@ class FioWorkload:
   5. numThreads (int): equivalent of numjobs in fio job file. Must be greater
   than 0.
   6. bucket (string): Name of a GCS bucket to read input files from.
-  7. readTypes (list of strings): a list containing multiple values out of
+  7. readTypes (set of strings): a set containing multiple values out of
   'read', 'randread'.
   """
 
