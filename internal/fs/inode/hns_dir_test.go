@@ -467,7 +467,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsNonHNSWithSuccess() {
 }
 
 func (t *HNSDirTest) TestReadEntriesInHierarchicalBucket() {
-	t.resetDirInode(true, false, true)
+	t.resetDirInode(false, false, true)
 	const (
 		folder1     = "folder1"
 		folder2     = "folder2"
