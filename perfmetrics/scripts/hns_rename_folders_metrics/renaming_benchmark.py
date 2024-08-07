@@ -26,6 +26,7 @@ import time
 import json
 
 sys.path.insert(0, '..')
+from generate_folders_and_files import _check_for_config_file_inconsistency,_check_if_dir_structure_exists
 from utils.mount_unmount_util import mount_gcs_bucket, unmount_gcs_bucket
 from utils.checks_util import check_dependencies
 
@@ -126,13 +127,13 @@ def _parse_arguments(argv):
 
 if __name__ == '__main__':
   argv = sys.argv
-  if len(argv) < 4:
+  if len(argv) < 2:
     raise TypeError('Incorrect number of arguments.\n'
                     'Usage: '
                     'python3 renaming_benchmark.py  [--upload_gs] [--num_samples NUM_SAMPLES] config_file ')
 
   args = _parse_arguments(argv)
-  check_dependencies(['gsutil', 'gcsfuse'], log)
+  check_dependencies(['gcloud', 'gcsfuse'], log)
 
   with open(os.path.abspath(args.dir_config_file)) as file:
     dir_str = json.load(file)
@@ -143,3 +144,15 @@ if __name__ == '__main__':
     log.error("Only even number of samples allowed to restore the test data to\
                 original state at the end of test.")
     subprocess.call('bash', shell=True)
+
+  exit_code = _check_for_config_file_inconsistency(dir_str)
+  if exit_code != 0:
+    log.error('Exited with code {}'.format(exit_code))
+    subprocess.call('bash', shell=True)
+
+  # Check if test data exists.
+  dir_structure_present = _check_if_dir_structure_exists(dir_str)
+  if not dir_structure_present:
+    log.error("Test data does not exist.To create test data, run : \
+    python3 generate_folders_and_files.py <dir_config.json> ")
+    subprocess.call('bash',shell=True)
