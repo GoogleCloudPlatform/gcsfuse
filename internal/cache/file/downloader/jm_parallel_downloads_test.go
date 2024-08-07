@@ -144,7 +144,7 @@ func TestParallelDownloads(t *testing.T) {
 				select {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
-						assert.LessOrEqual(t, tc.expectedOffset, jobStatus.Offset)
+						assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
 						verifyFileTillOffset(t,
 							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, tc.expectedOffset,
 							content)
