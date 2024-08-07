@@ -26,4 +26,4 @@ Please provide a clear description of what you were trying to achieve along with
 Add any other context about the problem here.
 
 **SLO:**
-We strive to respond to all bug reports within 24 business hours.
+We strive to respond to all bug reports within 24 business hours provided the information mentioned above is included.
