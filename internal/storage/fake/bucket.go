@@ -283,7 +283,7 @@ func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 //
 // For example, when creating an object A/B/a.txt where A and B are implicit directories.
 // In our existing flow in the fake bucket, we ignore adding entries for A and B.
-// In HNS, we have to add these implicit directories as folder entries.
+// In HNS, we haves to add these implicit directories as folder entries.
 func (b *bucket) addFolderEntry(path string) {
 	path = filepath.Dir(path) // Get the directory part of the path
 	parts := strings.Split(path, string(filepath.Separator))
