@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: fio-tester-{{ .Values.fio.readType }}-{{ lower .Values.fio.fileSize }}-{{ lower .Values.fio.blockSize }}-{{ .Values.scenario }}
+  name: fio-tester-{{ .Values.instanceId }}-{{ .Values.scenario }}-{{ .Values.fio.readType }}-{{ lower .Values.fio.fileSize }}-{{ lower .Values.fio.blockSize }}-{{ .Values.fio.numThreads }}-{{ .Values.fio.filesPerThread }}
   {{- if ne .Values.scenario "local-ssd" }}
   annotations:
     gke-gcsfuse/volumes: "true"
@@ -45,7 +45,12 @@ spec:
         echo "Install dependencies..."
         apt-get update
         apt-get install -y libaio-dev gcc make git time wget
-        
+
+        no_of_files_per_thread={{ .Values.fio.filesPerThread }}
+        block_size={{ .Values.fio.blockSize }}
+        file_size={{ .Values.fio.fileSize }}
+        num_of_threads={{ .Values.fio.numThreads }}
+
         {{ if eq .Values.scenario "local-ssd" }}
         echo "Installing gsutil..."
         apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
@@ -105,12 +110,8 @@ spec:
 
         echo "Setup default values..."
         epoch=4
-        no_of_files_per_thread={{ .Values.fio.filesPerThread }}
         read_type={{ .Values.fio.readType }}
         pause_in_seconds=20
-        block_size={{ .Values.fio.blockSize }}
-        file_size={{ .Values.fio.fileSize }}
-        num_of_threads={{ .Values.fio.numThreads }}
         workload_dir=/data
 
         # Cleaning the pagecache, dentries and inode cache before the starting the workload.
@@ -125,18 +126,18 @@ spec:
         time ls -R $workload_dir 1> /dev/null
 
         echo "Run fio tests..."
-        mkdir -p /data/fio-output/{{ .Values.scenario }}/$read_type
+        output_dir=/data/fio-output/{{ .Values.instanceId }}/${file_size}-{{ lower .Values.fio.blockSize}}-${num_of_threads}-${no_of_files_per_thread}/{{ .Values.scenario }}/$read_type
+        mkdir -p ${output_dir}
 
         # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic" }}
-        echo "{{ .Values.gcsfuse.mountOptions }}" > /data/fio-output/{{ .Values.scenario }}/$read_type/gcsfuse_mount_options
+        echo "{{ .Values.gcsfuse.mountOptions }}" > ${output_dir}/gcsfuse_mount_options
         {{ end }}
 
         for i in $(seq $epoch); do
-
           echo "[Epoch ${i}] start time:" `date +%s`
           free -mh # Memory usage before workload start.
-          NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="/data/fio-output/{{ .Values.scenario }}/${read_type}/epoch${i}.json"
+          NUMJOBS=$num_of_threads NRFILES=$no_of_files_per_thread FILE_SIZE=$file_size BLOCK_SIZE=$block_size READ_TYPE=$read_type DIR=$workload_dir fio ${filename} --alloc-size=1048576 --output-format=json --output="${output_dir}/epoch${i}.json"
           free -mh # Memory usage after workload completion.
           echo "[Epoch ${i}] end time:" `date +%s`
 
@@ -154,7 +155,7 @@ spec:
         done
         
         {{ if eq .Values.scenario "local-ssd" }}
-        gsutil -m cp -R /data/fio-output/local-ssd gs://{{ .Values.bucketName }}/fio-output
+        gsutil -m cp -R /data/fio-output/{{ .Values.instanceId }}/* gs://{{ .Values.bucketName }}/fio-output/{{ .Values.instanceId }}/
         {{ end }}
         
         echo "fio job completed!"
