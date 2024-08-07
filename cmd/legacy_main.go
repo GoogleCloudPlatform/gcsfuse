@@ -89,6 +89,30 @@ func getUserAgent(appName string, config string) string {
 	}
 }
 
+func logNewConfiguration(newConfig *cfg.Config) {
+	cfgStr, err := util.Stringify(newConfig)
+	if err != nil {
+		logger.Warnf("failed to stringify configuration: %v", err)
+		return
+	}
+	logger.Infof("GCSFuse mount config: %s", cfgStr)
+}
+func logLegacyConfiguration(flags *flagStorage, mountConfig *config.MountConfig) {
+	flagsStringified, err := util.Stringify(*flags)
+	if err != nil {
+		logger.Warnf("failed to stringify cli flags: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+	}
+
+	mountConfigStringified, err := util.Stringify(*mountConfig)
+	if err != nil {
+		logger.Warnf("failed to stringify config-file: %v", err)
+	} else {
+		logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
+	}
+}
+
 func getConfigForUserAgent(mountConfig *config.MountConfig) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
@@ -297,19 +321,12 @@ func runCLIApp(c *cli.Context) (err error) {
 	// if these are already being logged into a log-file, otherwise
 	// there will be duplicate logs for these in both places (stdout and log-file).
 	if newConfig.Foreground || newConfig.Logging.FilePath == "" {
-		flagsStringified, err := util.Stringify(*flags)
-		if err != nil {
-			logger.Warnf("failed to stringify cli flags: %v", err)
+		if cfg.IsNewConfigEnabled() {
+			logNewConfiguration(newConfig)
 		} else {
-			logger.Infof("GCSFuse mount command flags: %s", flagsStringified)
+			logLegacyConfiguration(flags, mountConfig)
 		}
 
-		mountConfigStringified, err := util.Stringify(*mountConfig)
-		if err != nil {
-			logger.Warnf("failed to stringify config-file: %v", err)
-		} else {
-			logger.Infof("GCSFuse mount config flags: %s", mountConfigStringified)
-		}
 	}
 
 	// The following will not warn if the user explicitly passed the default value for StatCacheCapacity.

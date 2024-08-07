@@ -15,15 +15,17 @@
 package cfg
 
 import (
-	"os"
-	"runtime"
-	"strings"
+	"testing"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
-func DefaultMaxParallelDownloads() int {
-	return max(16, 2*runtime.NumCPU())
+func TestConfigStringify() {
+	
 }
 
-func IsNewConfigEnabled() bool {
-	return strings.ToLower(os.Getenv("ENABLE_GCSFUSE_VIPER_CONFIG")) == "true"
+func TestOctalStringify(t *testing.T) {
+	o := Octal(0765)
+
+	util.Stringify(o)
 }
