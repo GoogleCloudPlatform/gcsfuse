@@ -545,6 +545,24 @@ func (b *bucket) ListObjects(
 					listing.CollapsedRuns = append(listing.CollapsedRuns, resultPrefix)
 				}
 
+				// In hierarchical buckets, a directory is represented both as a prefix and a folder.
+				// Consequently, if a folder entry is discovered, it indicates that it's exclusively a prefix entry.
+				//
+				// This check was incorporated because createFolder needs to add an entry to the objects, and
+				// we cannot distinguish from that entry whether it's solely a prefix.
+				//
+				// For example, mkdir test will create both a folder entry and a test/ prefix.
+				// In our createFolder fake bucket implementation, we created both a folder and an object for
+				// the given folderName. There, we can't define whether it's only a prefix and not an object.
+				// Hence, we added this check here.
+				//
+				// Note that in a real ListObject call, the entry will appear only as a prefix and not as an object.
+				folderIndex := b.folders.find(resultPrefix)
+				if folderIndex < len(b.folders) {
+					lastResultWasPrefix = true
+					continue
+				}
+
 				isTrailingDelimiter := (delimiterIndex == len(nameMinusQueryPrefix)-1)
 				if !isTrailingDelimiter || !req.IncludeTrailingDelimiter {
 					lastResultWasPrefix = true
@@ -923,12 +941,25 @@ func (b *bucket) DeleteFolder(ctx context.Context, folderName string) (err error
 
 	// Do we possess the folder with the given name?
 	index := b.folders.find(folderName)
-	if index == len(b.objects) {
+	if index == len(b.folders) {
 		return
 	}
 
 	// Remove the folder.
 	b.folders = append(b.folders[:index], b.folders[index+1:]...)
+
+	// In the hierarchical bucket, control client API deletes folders as well as
+	// prefixes for backward compatibility. Therefore, a prefix object
+	// entry needs to be deleted here as well.
+
+	// Do we possess the prefix object with the given name?
+	index = b.objects.find(folderName)
+	if index == len(b.objects) {
+		return
+	}
+
+	// Remove the prefix object.
+	b.objects = append(b.objects[:index], b.objects[index+1:]...)
 
 	return
 }
@@ -973,6 +1004,25 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 		sort.Sort(b.folders)
 	}
 
+	// In the hierarchical bucket, control client API creates folders  as well as
+	// prefixes for backward compatibility. Therefore, a prefix object
+	// entry needs to be created here as well.
+
+	// Find any existing record for this name.
+	existingObjectPrefixIndex := b.objects.find(folderName)
+
+	// Create a prefix object record from the given attributes.
+	var prefixObject fakeObject
+	prefixObject.metadata = gcs.Object{Name: folderName}
+
+	// Replace an entry in or add an entry to our list of objects.
+	if existingObjectPrefixIndex < len(b.objects) {
+		b.objects[existingObjectPrefixIndex] = prefixObject
+	} else {
+		b.objects = append(b.objects, prefixObject)
+		sort.Sort(b.objects)
+	}
+
 	return &fo, nil
 }
 
@@ -983,7 +1033,7 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 		return nil, err
 	}
 
-	// Does the folder exist?
+	// Check if the source folder exists.
 	srcIndex := b.folders.find(folderName)
 	if srcIndex == len(b.folders) {
 		err = &gcs.NotFoundError{
@@ -992,29 +1042,33 @@ func (b *bucket) RenameFolder(ctx context.Context, folderName string, destinatio
 		return nil, err
 	}
 
-	dst := b.folders[srcIndex]
-	dst.Name = destinationFolderId
-
-	// Insert into our array.
-	existingIndex := b.folders.find(folderName)
-	if existingIndex < len(b.folders) {
-		b.folders[existingIndex] = dst
-	} else {
-		b.folders = append(b.folders, dst)
-		sort.Sort(b.folders)
+	// Find all folders starting with the given prefix and update their names.
+	for i := range b.folders {
+		if strings.HasPrefix(b.folders[i].Name, folderName) {
+			b.folders[i].Name = strings.Replace(b.folders[i].Name, folderName, destinationFolderId, 1)
+			b.folders[i].UpdateTime = time.Now()
+		}
 	}
 
+	// Sort the updated folders.
+	sort.Sort(b.folders)
+
+	// Find all objects starting with the given prefix and update their names.
+	for i := range b.objects {
+		if strings.HasPrefix(b.objects[i].metadata.Name, folderName) {
+			b.objects[i].metadata.Name = strings.Replace(b.objects[i].metadata.Name, folderName, destinationFolderId, 1)
+			b.objects[i].metadata.Updated = time.Now()
+		}
+	}
+
+	// Sort the updated objects.
+	sort.Sort(b.objects)
+
+	// Return the updated folder.
 	folder := &gcs.Folder{
 		Name:       destinationFolderId,
-		UpdateTime: time.Now()}
-
-	// Delete the src folder?
-	index := b.folders.find(folderName)
-	if index == len(b.folders) {
-		return folder, nil
+		UpdateTime: time.Now(),
 	}
-	// Remove the src folder?
-	b.folders = append(b.folders[:index], b.folders[index+1:]...)
 
 	return folder, nil
 }
