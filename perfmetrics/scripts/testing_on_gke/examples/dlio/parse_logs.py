@@ -44,7 +44,7 @@ record = {
 }
 
 
-def downloadDlioOutputs(dlioWorkloads):
+def downloadDlioOutputs(dlioWorkloads: set, instanceId: str):
   for dlioWorkload in dlioWorkloads:
     print(f"Downloading DLIO logs from the bucket {dlioWorkload.bucket}...")
     result = subprocess.run(
@@ -54,8 +54,8 @@ def downloadDlioOutputs(dlioWorkloads):
             "-q",  # download silently without any logs
             "cp",
             "-r",
-            f"gs://{dlioWorkload.bucket}/logs",
-            LOCAL_LOGS_LOCATION,
+            f"gs://{dlioWorkload.bucket}/logs/{instanceId}",
+            LOCAL_LOGS_LOCATION + "/logs",
         ],
         capture_output=False,
         text=True,
@@ -91,17 +91,22 @@ if __name__ == "__main__":
       ),
       required=True,
   )
+  parser.add_argument(
+      "--instance-id",
+      help="unique string ID for current test-run",
+      required=True,
+  )
   args = parser.parse_args()
 
   try:
-    os.makedirs(LOCAL_LOGS_LOCATION)
+    os.makedirs(LOCAL_LOGS_LOCATION + "/logs")
   except FileExistsError:
     pass
 
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
       args.workload_config
   )
-  downloadDlioOutputs(dlioWorkloads)
+  downloadDlioOutputs(dlioWorkloads, args.instance_id)
 
   """
     "{num_files_train}-{mean_file_size}-{batch_size}":
@@ -119,7 +124,9 @@ if __name__ == "__main__":
   if not mash_installed:
     print("Mash is not installed, will skip parsing CPU and memory usage.")
 
-  for root, _, files in os.walk(LOCAL_LOGS_LOCATION):
+  for root, _, files in os.walk(
+      LOCAL_LOGS_LOCATION + "/logs/" + args.instance_id
+  ):
     if files:
       print(f"Parsing directory {root} ...")
       per_epoch_stats_file = root + "/per_epoch_stats.json"
@@ -152,9 +159,9 @@ if __name__ == "__main__":
 
         if key not in output:
           output[key] = {
-              "num_files_train": part_list[2],
-              "mean_file_size": part_list[3],
-              "batch_size": part_list[4],
+              "num_files_train": part_list[-3],
+              "mean_file_size": part_list[-2],
+              "batch_size": part_list[-1],
               "records": {
                   "local-ssd": [],
                   "gcsfuse-generic": [],
@@ -166,7 +173,7 @@ if __name__ == "__main__":
         r = record.copy()
         r["pod_name"] = summary_data["hostname"]
         r["epoch"] = i + 1
-        r["scenario"] = "-".join(part_list[5:])
+        r["scenario"] = root.split("/")[-1]
         r["train_au_percentage"] = round(
             summary_data["metric"]["train_au_percentage"][i], 2
         )
@@ -220,7 +227,7 @@ if __name__ == "__main__":
       " (s),GPU Utilization (%),Throughput (sample/s),Throughput"
       " (MB/s),Throughput over Local SSD (%),GCSFuse Lowest Memory (MB),GCSFuse"
       " Highest Memory (MB),GCSFuse Lowest CPU (core),GCSFuse Highest CPU"
-      " (core),Pod,Start,End,GcsfuseMountOptions\n"
+      " (core),Pod,Start,End,GcsfuseMountOptions,InstanceID\n"
   )
 
   for key in output:
@@ -241,19 +248,25 @@ if __name__ == "__main__":
       ):
         for i in range(len(record_set["records"]["local-ssd"])):
           r = record_set["records"][scenario][i]
-          r["throughput_over_local_ssd"] = round(
-              r["train_throughput_mb_per_second"]
-              / record_set["records"]["local-ssd"][i][
-                  "train_throughput_mb_per_second"
-              ]
-              * 100,
-              2,
-          )
+          try:
+            r["throughput_over_local_ssd"] = round(
+                r["train_throughput_mb_per_second"]
+                / record_set["records"]["local-ssd"][i][
+                    "train_throughput_mb_per_second"
+                ]
+                * 100,
+                2,
+            )
+          except ZeroDivisionError:
+            print("Got ZeroDivisionError. Ignoring it.")
+            r["throughput_over_local_ssd"] = 0
+          except:
+            raise
           output_file.write(
               f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
           )
           output_file.write(
-              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\"\n"
+              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
           )
       else:
         for i in range(len(record_set["records"][scenario])):
@@ -263,7 +276,7 @@ if __name__ == "__main__":
               f"{record_set['mean_file_size']},{record_set['num_files_train']},{total_size},{record_set['batch_size']},{scenario},"
           )
           output_file.write(
-              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\"\n"
+              f"{r['epoch']},{r['duration']},{r['train_au_percentage']},{r['train_throughput_samples_per_second']},{r['train_throughput_mb_per_second']},{r['throughput_over_local_ssd']},{r['lowest_memory']},{r['highest_memory']},{r['lowest_cpu']},{r['highest_cpu']},{r['pod_name']},{r['start']},{r['end']},\"{r['gcsfuse_mount_options']}\",{args.instance_id}\n"
           )
 
   output_file.close()

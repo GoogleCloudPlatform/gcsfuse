@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: dlio-tester-{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}-{{ .Values.scenario }}
+  name: dlio-tester-{{ .Values.scenario }}-{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}
   {{- if ne .Values.scenario "local-ssd" }}
   annotations:
     gke-gcsfuse/volumes: "true"
@@ -84,14 +84,14 @@ spec:
         ++workload.reader.batch_size={{ .Values.dlio.batchSize }} \
         ++workload.dataset.record_length={{ .Values.dlio.recordLength }} \
         ++workload.reader.read_threads={{ .Values.dlio.readThreads }} \
-        ++workload.output.folder=/logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
+        ++workload.output.folder=/logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
 
         # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic"}}
-        echo "{{ .Values.gcsfuse.mountOptions }}" > /logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}/gcsfuse_mount_options
+        echo "{{ .Values.gcsfuse.mountOptions }}" > /logs/{{ .Values.instanceId }}/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}/gcsfuse_mount_options
         {{ end }}
 
-        gsutil -m cp -R /logs gs://{{ .Values.bucketName }}/logs/$(date +"%Y-%m-%d-%H-%M")
+        gsutil -m cp -R /logs/{{ .Values.instanceId }} gs://{{ .Values.bucketName }}/logs/{{ .Values.instanceId }}/$(date +"%Y-%m-%d-%H-%M")
     volumeMounts:
     - name: dshm
       mountPath: /dev/shm

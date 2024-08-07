@@ -33,7 +33,7 @@ def run_command(command: str):
   print(result.stderr)
 
 
-def createHelmInstallCommands(fioWorkloads):
+def createHelmInstallCommands(fioWorkloads: list, instanceId: str):
   """Create helm install commands for the given set of fioWorkload objects."""
   helm_commands = []
   for fioWorkload in fioWorkloads:
@@ -41,7 +41,7 @@ def createHelmInstallCommands(fioWorkloads):
       commands = [
           (
               'helm install'
-              f' fio-loading-test-{fioWorkload.fileSize.lower()}-{readType}-{fioWorkload.scenario} loading-test'
+              f' fio-load-{fioWorkload.scenario}-{readType}-{fioWorkload.fileSize.lower()}-{fioWorkload.blockSize.lower()}-{fioWorkload.numThreads}-{fioWorkload.filesPerThread} loading-test'
           ),
           f'--set bucketName={fioWorkload.bucket}',
           f'--set scenario={fioWorkload.scenario}',
@@ -50,6 +50,7 @@ def createHelmInstallCommands(fioWorkloads):
           f'--set fio.blockSize={fioWorkload.blockSize}',
           f'--set fio.filesPerThread={fioWorkload.filesPerThread}',
           f'--set fio.numThreads={fioWorkload.numThreads}',
+          f'--set instanceId={instanceId}',
       ]
 
       helm_command = ' '.join(commands)
@@ -61,7 +62,9 @@ def main(args) -> None:
   fioWorkloads = fio_workload.ParseTestConfigForFioWorkloads(
       args.workload_config
   )
-  helmInstallCommands = createHelmInstallCommands(fioWorkloads)
+  helmInstallCommands = createHelmInstallCommands(
+      fioWorkloads, args.instance_id
+  )
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
     if not args.dry_run:
@@ -80,6 +83,11 @@ if __name__ == '__main__':
   parser.add_argument(
       '--workload-config',
       help='Runs FIO tests using this JSON workload configuration',
+      required=True,
+  )
+  parser.add_argument(
+      '--instance-id',
+      help='unique string ID for current test-run',
       required=True,
   )
   parser.add_argument(
