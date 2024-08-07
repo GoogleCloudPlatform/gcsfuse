@@ -1908,7 +1908,6 @@ func (fs *fileSystem) RmDir(
 	_, isImplicitDir := fs.implicitDirInodes[child.Name()]
 	fs.mu.Unlock()
 	parent.Lock()
-	logger.Info("Implicit dirs: ", isImplicitDir, child.Name())
 	err = parent.DeleteChildDir(ctx, op.Name, isImplicitDir)
 	parent.Unlock()
 
