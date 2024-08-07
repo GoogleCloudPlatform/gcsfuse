@@ -46,13 +46,13 @@ class TestRenamingBenchmark(unittest.TestCase):
         "folders": {
             "folder_structure": [
                 {
-                    'name': "test_folder1_0",
+                    'name': "test_folder1",
                     "num_files": 1,
                     "file_name_prefix": "file",
                     "file_size": "1kb"
                 },
                 {
-                    'name': "test_folder2_0",
+                    'name': "test_folder2",
                     "num_files": 1,
                     "file_name_prefix": "file",
                     "file_size": "1kb"
@@ -63,11 +63,11 @@ class TestRenamingBenchmark(unittest.TestCase):
 
     num_samples=2
     mock_time.side_effect = [1.0, 2.0, 3.0, 4.0,1.0, 2.0, 3.0, 4.0]
-    expected_time_of_operation={'test_folder1_0':[1.0,1.0] ,'test_folder2_0':[1.0,1.0]}
-    expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1_0 ./gcs_bucket/test_folder1_1",shell=True),
-                               call("mv ./gcs_bucket/test_folder1_1 ./gcs_bucket/test_folder1_0",shell=True),
-                               call("mv ./gcs_bucket/test_folder2_0 ./gcs_bucket/test_folder2_1",shell=True),
-                               call("mv ./gcs_bucket/test_folder2_1 ./gcs_bucket/test_folder2_0",shell=True),]
+    expected_time_of_operation={'test_folder1':[1.0,1.0] ,'test_folder2':[1.0,1.0]}
+    expected_subprocess_calls=[call("mv ./gcs_bucket/test_folder1 ./gcs_bucket/test_folder1_renamed",shell=True),
+                               call("mv ./gcs_bucket/test_folder1_renamed ./gcs_bucket/test_folder1",shell=True),
+                               call("mv ./gcs_bucket/test_folder2 ./gcs_bucket/test_folder2_renamed",shell=True),
+                               call("mv ./gcs_bucket/test_folder2_renamed ./gcs_bucket/test_folder2",shell=True),]
 
     time_op=renaming_benchmark._record_time_of_operation(mount_point,dir,num_samples)
 
@@ -85,7 +85,7 @@ class TestRenamingBenchmark(unittest.TestCase):
         "folders":{
             "num_folders":1,
             "folder_structure":{
-                'name': "test_folder_0",
+                'name': "test_folder",
                 "num_files": 1,
                 "file_name_prefix": "file",
                 "file_size": "1kb"
@@ -97,8 +97,8 @@ class TestRenamingBenchmark(unittest.TestCase):
     results = {}
     mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
     mock_mount_gcs_bucket.return_value="flat_bucket"
-    mock_record_time_of_operation.return_value = {"test_folder_0": [0.1, 0.2, 0.3, 0.4]}
-    expected_results = {"flat": {"test_folder_0": [0.1, 0.2, 0.3, 0.4]}}
+    mock_record_time_of_operation.return_value = {"test_folder": [0.1, 0.2, 0.3, 0.4]}
+    expected_results = {"flat": {"test_folder": [0.1, 0.2, 0.3, 0.4]}}
 
 
     renaming_benchmark._perform_testing(dir, test_type, num_samples, results)
@@ -110,21 +110,6 @@ class TestRenamingBenchmark(unittest.TestCase):
     mock_record_time_of_operation.assert_called_once_with(mock_mount_gcs_bucket.return_value, dir, num_samples)
     mock_unmount_gcs_bucket.assert_called_once_with(dir["name"], mock_log)
     mock_log.error.assert_not_called()  # No errors should be logged
-
-  @patch('subprocess.call')
-  @patch('renaming_benchmark.log')
-  def test_perform_testing_incorrect_type(self, mock_log, mock_subprocess_call):
-    dir = {"name": "some_bucket"}
-    test_type = "invalid_type"
-    num_samples = 6
-    results = {}
-    expected_error='Incorrect test type passed.Must be either \"flat\" or \"hns\"\n'
-
-    renaming_benchmark._perform_testing(dir, test_type, num_samples, results)
-
-    self.assertEqual(results, {})
-    mock_log.error.assert_called_once_with(expected_error)
-    mock_subprocess_call.assert_called_once_with('bash', shell=True)
 
 
 if __name__ == '__main__':

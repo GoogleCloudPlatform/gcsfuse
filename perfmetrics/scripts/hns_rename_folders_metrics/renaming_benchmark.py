@@ -104,22 +104,19 @@ def _perform_testing(dir, test_type, num_samples, results):
   """
   This function performs rename operations and records time of operation .
   """
-  if test_type == "flat":
-    # Mounting the flat bucket.
-    flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
-    flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
-
-    # Record time of operation and populate the results dict.
-    flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
-    results["flat"] = flat_results
-
-    unmount_gcs_bucket(dir["name"], log)
-  elif test_type == "hns":
+  if test_type == "hns":
     # TODO add mount function for test type hns
-    pass
-  else:
-    log.error('Incorrect test type passed.Must be either \"flat\" or \"hns\"\n')
-    subprocess.call('bash',shell=True)
+    return
+
+  # Mounting the gcs bucket.
+  flat_mount_flags = "--implicit-dirs --rename-dir-limit=1000000"
+  flat_bucket = mount_gcs_bucket(dir["name"], flat_mount_flags, log)
+
+  # Record time of operation and populate the results dict.
+  flat_results = _record_time_of_operation(flat_bucket, dir, num_samples)
+  results["flat"] = flat_results
+
+  unmount_gcs_bucket(dir["name"], log)
 
 
 def _parse_arguments(argv):
