@@ -15,7 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This program takes in a json dlio test-config file and generates and deploys helm charts."""
+"""This program takes in a json test-config file, finds out valid
+
+DLIO workloads from it and generates and deploys a helm chart for
+each DLIO workload.
+"""
 
 import argparse
 import subprocess
@@ -23,12 +27,14 @@ import dlio_workload
 
 
 def run_command(command: str):
+  """Runs the given string command as a subprocess."""
   result = subprocess.run(command.split(' '), capture_output=True, text=True)
   print(result.stdout)
   print(result.stderr)
 
 
-def createHelmInstallCommands(dlioWorkloads):
+def createHelmInstallCommands(dlioWorkloads: set):
+  """Create helm install commands for the given set of dlioWorkload objects."""
   helm_commands = []
   for dlioWorkload in dlioWorkloads:
     for batchSize in dlioWorkload.batchSizes:
@@ -64,11 +70,16 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(
       prog='DLIO Unet3d test runner',
       description=(
-          'This program takes in a json dlio test-config file and generates'
-          ' helm install commands to execute them using the active GKE cluster.'
+          'This program takes in a json test-config file, finds out valid DLIO'
+          ' workloads from it and generates and deploys a helm chart for each'
+          ' DLIO workload.'
       ),
   )
-  parser.add_argument('--workload-config')  # positional argument
+  parser.add_argument(
+      '--workload-config',
+      help='Runs DLIO Unet3d tests using this JSON workload configuration.',
+      required=True,
+  )
   parser.add_argument(
       '-n',
       '--dry-run',
