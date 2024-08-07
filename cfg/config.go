@@ -24,185 +24,185 @@ import (
 )
 
 type Config struct {
-	AppName string `yaml:"app-name"`
+	AppName string `yaml:"app-name,omitempty"`
 
-	CacheDir ResolvedPath `yaml:"cache-dir"`
+	CacheDir ResolvedPath `yaml:"cache-dir,omitempty"`
 
-	Debug DebugConfig `yaml:"debug"`
+	Debug DebugConfig `yaml:"debug,omitempty"`
 
-	EnableHns bool `yaml:"enable-hns"`
+	EnableHns bool `yaml:"enable-hns,omitempty"`
 
-	FileCache FileCacheConfig `yaml:"file-cache"`
+	FileCache FileCacheConfig `yaml:"file-cache,omitempty"`
 
-	FileSystem FileSystemConfig `yaml:"file-system"`
+	FileSystem FileSystemConfig `yaml:"file-system,omitempty"`
 
-	Foreground bool `yaml:"foreground"`
+	Foreground bool `yaml:"foreground,omitempty"`
 
-	GcsAuth GcsAuthConfig `yaml:"gcs-auth"`
+	GcsAuth GcsAuthConfig `yaml:"gcs-auth,omitempty"`
 
-	GcsConnection GcsConnectionConfig `yaml:"gcs-connection"`
+	GcsConnection GcsConnectionConfig `yaml:"gcs-connection,omitempty"`
 
-	GcsRetries GcsRetriesConfig `yaml:"gcs-retries"`
+	GcsRetries GcsRetriesConfig `yaml:"gcs-retries,omitempty"`
 
-	ImplicitDirs bool `yaml:"implicit-dirs"`
+	ImplicitDirs bool `yaml:"implicit-dirs,omitempty"`
 
-	List ListConfig `yaml:"list"`
+	List ListConfig `yaml:"list,omitempty"`
 
-	Logging LoggingConfig `yaml:"logging"`
+	Logging LoggingConfig `yaml:"logging,omitempty"`
 
-	MetadataCache MetadataCacheConfig `yaml:"metadata-cache"`
+	MetadataCache MetadataCacheConfig `yaml:"metadata-cache,omitempty"`
 
-	Metrics MetricsConfig `yaml:"metrics"`
+	Metrics MetricsConfig `yaml:"metrics,omitempty"`
 
-	Monitoring MonitoringConfig `yaml:"monitoring"`
+	Monitoring MonitoringConfig `yaml:"monitoring,omitempty"`
 
-	OnlyDir string `yaml:"only-dir"`
+	OnlyDir string `yaml:"only-dir,omitempty"`
 
-	Write WriteConfig `yaml:"write"`
+	Write WriteConfig `yaml:"write,omitempty"`
 }
 
 type DebugConfig struct {
-	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation"`
+	ExitOnInvariantViolation bool `yaml:"exit-on-invariant-violation,omitempty"`
 
-	Fuse bool `yaml:"fuse"`
+	Fuse bool `yaml:"fuse,omitempty"`
 
-	Gcs bool `yaml:"gcs"`
+	Gcs bool `yaml:"gcs,omitempty"`
 
-	LogMutex bool `yaml:"log-mutex"`
+	LogMutex bool `yaml:"log-mutex,omitempty"`
 }
 
 type FileCacheConfig struct {
-	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read"`
+	CacheFileForRangeRead bool `yaml:"cache-file-for-range-read,omitempty"`
 
-	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb"`
+	DownloadChunkSizeMb int64 `yaml:"download-chunk-size-mb,omitempty"`
 
-	EnableCrc bool `yaml:"enable-crc"`
+	EnableCrc bool `yaml:"enable-crc,omitempty"`
 
-	EnableParallelDownloads bool `yaml:"enable-parallel-downloads"`
+	EnableParallelDownloads bool `yaml:"enable-parallel-downloads,omitempty"`
 
-	MaxParallelDownloads int64 `yaml:"max-parallel-downloads"`
+	MaxParallelDownloads int64 `yaml:"max-parallel-downloads,omitempty"`
 
-	MaxSizeMb int64 `yaml:"max-size-mb"`
+	MaxSizeMb int64 `yaml:"max-size-mb,omitempty"`
 
-	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file"`
+	ParallelDownloadsPerFile int64 `yaml:"parallel-downloads-per-file,omitempty"`
 }
 
 type FileSystemConfig struct {
-	DirMode Octal `yaml:"dir-mode"`
+	DirMode Octal `yaml:"dir-mode,omitempty"`
 
-	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
+	DisableParallelDirops bool `yaml:"disable-parallel-dirops,omitempty"`
 
-	FileMode Octal `yaml:"file-mode"`
+	FileMode Octal `yaml:"file-mode,omitempty"`
 
-	FuseOptions []string `yaml:"fuse-options"`
+	FuseOptions []string `yaml:"fuse-options,omitempty"`
 
-	Gid int64 `yaml:"gid"`
+	Gid int64 `yaml:"gid,omitempty"`
 
-	IgnoreInterrupts bool `yaml:"ignore-interrupts"`
+	IgnoreInterrupts bool `yaml:"ignore-interrupts,omitempty"`
 
-	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
+	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs,omitempty"`
 
-	RenameDirLimit int64 `yaml:"rename-dir-limit"`
+	RenameDirLimit int64 `yaml:"rename-dir-limit,omitempty"`
 
-	TempDir ResolvedPath `yaml:"temp-dir"`
+	TempDir ResolvedPath `yaml:"temp-dir,omitempty"`
 
-	Uid int64 `yaml:"uid"`
+	Uid int64 `yaml:"uid,omitempty"`
 }
 
 type GcsAuthConfig struct {
-	AnonymousAccess bool `yaml:"anonymous-access"`
+	AnonymousAccess bool `yaml:"anonymous-access,omitempty"`
 
-	KeyFile ResolvedPath `yaml:"key-file"`
+	KeyFile ResolvedPath `yaml:"key-file,omitempty"`
 
-	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
+	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url,omitempty"`
 
-	TokenUrl string `yaml:"token-url"`
+	TokenUrl string `yaml:"token-url,omitempty"`
 }
 
 type GcsConnectionConfig struct {
-	BillingProject string `yaml:"billing-project"`
+	BillingProject string `yaml:"billing-project,omitempty"`
 
-	ClientProtocol Protocol `yaml:"client-protocol"`
+	ClientProtocol Protocol `yaml:"client-protocol,omitempty"`
 
-	CustomEndpoint string `yaml:"custom-endpoint"`
+	CustomEndpoint string `yaml:"custom-endpoint,omitempty"`
 
-	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
+	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read,omitempty"`
 
-	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size"`
+	GrpcConnPoolSize int64 `yaml:"grpc-conn-pool-size,omitempty"`
 
-	HttpClientTimeout time.Duration `yaml:"http-client-timeout"`
+	HttpClientTimeout time.Duration `yaml:"http-client-timeout,omitempty"`
 
-	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec"`
+	LimitBytesPerSec float64 `yaml:"limit-bytes-per-sec,omitempty"`
 
-	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec"`
+	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec,omitempty"`
 
-	MaxConnsPerHost int64 `yaml:"max-conns-per-host"`
+	MaxConnsPerHost int64 `yaml:"max-conns-per-host,omitempty"`
 
-	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host"`
+	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host,omitempty"`
 
-	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb"`
+	SequentialReadSizeMb int64 `yaml:"sequential-read-size-mb,omitempty"`
 }
 
 type GcsRetriesConfig struct {
-	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
+	MaxRetryAttempts int64 `yaml:"max-retry-attempts,omitempty"`
 
-	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
+	MaxRetrySleep time.Duration `yaml:"max-retry-sleep,omitempty"`
 
-	Multiplier float64 `yaml:"multiplier"`
+	Multiplier float64 `yaml:"multiplier,omitempty"`
 }
 
 type ListConfig struct {
-	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders"`
+	EnableEmptyManagedFolders bool `yaml:"enable-empty-managed-folders,omitempty"`
 }
 
 type LogRotateLoggingConfig struct {
-	BackupFileCount int64 `yaml:"backup-file-count"`
+	BackupFileCount int64 `yaml:"backup-file-count,omitempty"`
 
-	Compress bool `yaml:"compress"`
+	Compress bool `yaml:"compress,omitempty"`
 
-	MaxFileSizeMb int64 `yaml:"max-file-size-mb"`
+	MaxFileSizeMb int64 `yaml:"max-file-size-mb,omitempty"`
 }
 
 type LoggingConfig struct {
-	FilePath ResolvedPath `yaml:"file-path"`
+	FilePath ResolvedPath `yaml:"file-path,omitempty"`
 
-	Format string `yaml:"format"`
+	Format string `yaml:"format,omitempty"`
 
-	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
+	LogRotate LogRotateLoggingConfig `yaml:"log-rotate,omitempty"`
 
-	Severity LogSeverity `yaml:"severity"`
+	Severity LogSeverity `yaml:"severity,omitempty"`
 }
 
 type MetadataCacheConfig struct {
-	DeprecatedStatCacheCapacity int64 `yaml:"deprecated-stat-cache-capacity"`
+	DeprecatedStatCacheCapacity int64 `yaml:"deprecated-stat-cache-capacity,omitempty"`
 
-	DeprecatedStatCacheTtl time.Duration `yaml:"deprecated-stat-cache-ttl"`
+	DeprecatedStatCacheTtl time.Duration `yaml:"deprecated-stat-cache-ttl,omitempty"`
 
-	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl"`
+	DeprecatedTypeCacheTtl time.Duration `yaml:"deprecated-type-cache-ttl,omitempty"`
 
-	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
+	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache,omitempty"`
 
-	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
+	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount,omitempty"`
 
-	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb"`
+	StatCacheMaxSizeMb int64 `yaml:"stat-cache-max-size-mb,omitempty"`
 
-	TtlSecs int64 `yaml:"ttl-secs"`
+	TtlSecs int64 `yaml:"ttl-secs,omitempty"`
 
-	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb"`
+	TypeCacheMaxSizeMb int64 `yaml:"type-cache-max-size-mb,omitempty"`
 }
 
 type MetricsConfig struct {
-	PrometheusPort int64 `yaml:"prometheus-port"`
+	PrometheusPort int64 `yaml:"prometheus-port,omitempty"`
 
-	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
+	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval,omitempty"`
 }
 
 type MonitoringConfig struct {
-	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address"`
+	ExperimentalOpentelemetryCollectorAddress string `yaml:"experimental-opentelemetry-collector-address,omitempty"`
 }
 
 type WriteConfig struct {
-	CreateEmptyFile bool `yaml:"create-empty-file"`
+	CreateEmptyFile bool `yaml:"create-empty-file,omitempty"`
 }
 
 func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
