@@ -93,7 +93,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomReadEnabled()
 	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB:             -1,
+			MaxSizeMb:             -1,
 			CacheFileForRangeRead: true,
 		},
 	}
@@ -107,7 +107,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheEnabledRandomDisabled() {
 	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB: -1,
+			MaxSizeMb: -1,
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
@@ -118,7 +118,7 @@ func (t *MainTest) TestGetUserAgentConfigWithFileCacheSizeSetCacheDirNotSet() {
 	// Test File cache disabled where MaxSize is set but Cache Dir is not set.
 	mountConfig := &config.MountConfig{
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB: -1,
+			MaxSizeMb: -1,
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))
@@ -131,7 +131,7 @@ func (t *MainTest) TestGetUserAgentConfigWithCacheDirSetMaxSizeDisabled() {
 	mountConfig := &config.MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: config.FileCacheConfig{
-			MaxSizeMB: 0,
+			MaxSizeMb: 0,
 		},
 	}
 	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig))

@@ -211,13 +211,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					},
 				},
 				FileCacheConfig: config.FileCacheConfig{
-					MaxSizeMB:                20,
+					MaxSizeMb:                20,
 					CacheFileForRangeRead:    true,
 					EnableParallelDownloads:  true,
 					ParallelDownloadsPerFile: 3,
 					MaxParallelDownloads:     6,
-					DownloadChunkSizeMB:      9,
-					EnableCRC:                true,
+					DownloadChunkSizeMb:      9,
+					EnableCrc:                true,
 				},
 				CacheDir: "~/cache-dir",
 				MetadataCacheConfig: config.MetadataCacheConfig{

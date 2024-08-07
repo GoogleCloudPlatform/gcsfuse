@@ -67,7 +67,7 @@ func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, 
 }
 
 func IsFileCacheEnabled(mountConfig *MountConfig) bool {
-	return mountConfig.FileCacheConfig.MaxSizeMB != 0 && string(mountConfig.CacheDir) != ""
+	return mountConfig.FileCacheConfig.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
 }
 
 // IsTtlInSecsValid return nil error if ttlInSecs is valid.

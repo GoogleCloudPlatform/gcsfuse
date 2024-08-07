@@ -57,7 +57,7 @@ func IsValidLogSeverity(severity string) bool {
 }
 
 func (fileCacheConfig *FileCacheConfig) validate() error {
-	if fileCacheConfig.MaxSizeMB < -1 {
+	if fileCacheConfig.MaxSizeMb < -1 {
 		return fmt.Errorf(FileCacheMaxSizeMBInvalidValueError)
 	}
 	if fileCacheConfig.MaxParallelDownloads < -1 {
@@ -69,7 +69,7 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 	if fileCacheConfig.ParallelDownloadsPerFile < 1 {
 		return fmt.Errorf(ParallelDownloadsPerFileInvalidValueError)
 	}
-	if fileCacheConfig.DownloadChunkSizeMB < 1 {
+	if fileCacheConfig.DownloadChunkSizeMb < 1 {
 		return fmt.Errorf(DownloadChunkSizeMBInvalidValueError)
 	}
 

@@ -106,13 +106,13 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                int64 `yaml:"max-size-mb"`
+	MaxSizeMb                int64 `yaml:"max-size-mb"`
 	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
 	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
 	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
 	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
-	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
-	EnableCRC                bool  `yaml:"enable-crc"`
+	DownloadChunkSizeMb      int   `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCrc                bool  `yaml:"enable-crc"`
 }
 
 type MetadataCacheConfig struct {
@@ -185,12 +185,12 @@ func NewMountConfig() *MountConfig {
 		},
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
+		MaxSizeMb:                DefaultFileCacheMaxSizeMB,
 		EnableParallelDownloads:  DefaultEnableParallelDownloads,
 		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
 		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
-		EnableCRC:                DefaultEnableCRC,
+		DownloadChunkSizeMb:      DefaultDownloadChunkSizeMB,
+		EnableCrc:                DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

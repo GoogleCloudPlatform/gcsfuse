@@ -53,7 +53,7 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig := &MountConfig{
 		CacheDir: "/tmp/folder/",
 		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: -1,
+			MaxSizeMb: -1,
 		},
 	}
 	assert.True(t.T(), IsFileCacheEnabled(mountConfig))
@@ -64,7 +64,7 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig2 := &MountConfig{
 		CacheDir: "",
 		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: -1,
+			MaxSizeMb: -1,
 		},
 	}
 	assert.False(t.T(), IsFileCacheEnabled(mountConfig2))
@@ -72,7 +72,7 @@ func (t *ConfigTest) TestIsFileCacheEnabled() {
 	mountConfig3 := &MountConfig{
 		CacheDir: "//tmp//folder//",
 		FileCacheConfig: FileCacheConfig{
-			MaxSizeMB: 0,
+			MaxSizeMb: 0,
 		},
 	}
 	assert.False(t.T(), IsFileCacheEnabled(mountConfig3))

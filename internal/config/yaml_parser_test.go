@@ -41,13 +41,13 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.Equal(t, 10, mountConfig.LogConfig.LogRotateConfig.BackupFileCount)
 	assert.True(t, bool(mountConfig.LogConfig.LogRotateConfig.Compress))
 	assert.Equal(t, "", string(mountConfig.CacheDir))
-	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMB)
+	assert.Equal(t, int64(-1), mountConfig.FileCacheConfig.MaxSizeMb)
 	assert.False(t, mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.False(t, mountConfig.FileCacheConfig.EnableParallelDownloads)
 	assert.Equal(t, 16, mountConfig.FileCacheConfig.ParallelDownloadsPerFile)
 	assert.GreaterOrEqual(t, mountConfig.FileCacheConfig.MaxParallelDownloads, 16)
-	assert.Equal(t, 50, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
-	assert.False(t, mountConfig.FileCacheConfig.EnableCRC)
+	assert.Equal(t, 50, mountConfig.FileCacheConfig.DownloadChunkSizeMb)
+	assert.False(t, mountConfig.FileCacheConfig.EnableCrc)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -124,13 +124,13 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.True(t.T(), mountConfig.FileSystemConfig.DisableParallelDirops)
 
 	// file-cache config
-	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMB)
+	assert.Equal(t.T(), int64(100), mountConfig.FileCacheConfig.MaxSizeMb)
 	assert.True(t.T(), mountConfig.FileCacheConfig.CacheFileForRangeRead)
 	assert.True(t.T(), mountConfig.FileCacheConfig.EnableParallelDownloads)
 	assert.Equal(t.T(), 10, mountConfig.ParallelDownloadsPerFile)
 	assert.Equal(t.T(), -1, mountConfig.MaxParallelDownloads)
-	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
-	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
+	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMb)
+	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCrc)
 
 	// gcs-retries
 	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)

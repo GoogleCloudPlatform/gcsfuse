@@ -221,10 +221,10 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
+	if cfg.MountConfig.FileCacheConfig.MaxSizeMb == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * cacheutil.MiB
+		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMb) * cacheutil.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
