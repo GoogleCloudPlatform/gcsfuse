@@ -1017,7 +1017,7 @@ func (b *bucket) CreateFolder(ctx context.Context, folderName string) (*gcs.Fold
 
 	// Replace an entry in or add an entry to our list of objects.
 	if existingObjectPrefixIndex < len(b.objects) {
-		b.objects[existingIndex] = prefixObject
+		b.objects[existingObjectPrefixIndex] = prefixObject
 	} else {
 		b.objects = append(b.objects, prefixObject)
 		sort.Sort(b.objects)
