@@ -270,7 +270,7 @@ func (t *fsTest) createFolders(folders []string) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////

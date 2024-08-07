@@ -47,6 +47,7 @@ func (t *HNSBucketTests) TearDownSuite() {
 func (t *HNSBucketTests) SetupTest() {
 	err = t.createFolders([]string{"foo/", "bar/", "foo/test2/", "foo/test/"})
 	require.NoError(t.T(), err)
+
 	err = t.createObjects(
 		map[string]string{
 			"foo/file1.txt":              "abcdef",
