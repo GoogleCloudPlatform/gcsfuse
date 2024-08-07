@@ -86,6 +86,7 @@ spec:
         ++workload.reader.read_threads={{ .Values.dlio.readThreads }} \
         ++workload.output.folder=/logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}
 
+        # dump the gcsfuse-mount-configuration to a file in output-directory.
         {{ if eq .Values.scenario "gcsfuse-generic"}}
         echo "{{ .Values.gcsfuse.mountOptions }}" > /logs/{{ .Values.dlio.numFilesTrain }}-{{ .Values.dlio.recordLength }}-{{ .Values.dlio.batchSize }}/{{ .Values.scenario }}/gcsfuse_mount_options
         {{ end }}
