@@ -34,7 +34,7 @@ const (
 	Random     = "Random"
 	Parallel   = "Parallel"
 
-	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
+	MaxMiBsInUInt64 = uint64(math.MaxUint64 >> 20)
 
 	// HeapSizeToRssConversionFactor is a constant factor
 	// which we multiply to the calculated heap-size
@@ -91,7 +91,7 @@ func Stringify(input any) (string, error) {
 // It supports only upto 2^44-1 MiBs (~4 Tebi MiBs, or ~4 Ebi bytes)
 // as inputs, and panics for higher inputs.
 func MiBsToBytes(mibs uint64) uint64 {
-	if mibs > MaxMiBsInUint64 {
+	if mibs > MaxMiBsInUInt64 {
 		panic("Inputs above (2^44 - 1) not supported.")
 	}
 	return mibs << 20
@@ -103,8 +103,8 @@ func MiBsToBytes(mibs uint64) uint64 {
 // then it returns the next higher no. of MiBs.
 // For reference, each MiB = 2^20 bytes.
 func BytesToHigherMiBs(bytes uint64) uint64 {
-	if bytes > (MaxMiBsInUint64 << 20) {
-		return MaxMiBsInUint64 + 1
+	if bytes > (MaxMiBsInUInt64 << 20) {
+		return MaxMiBsInUInt64 + 1
 	}
 	const bytesInOneMiB uint64 = 1 << 20
 	return uint64(math.Ceil(float64(bytes) / float64(bytesInOneMiB)))

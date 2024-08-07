@@ -22,19 +22,12 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 
-	MetadataCacheTtlSecsInvalidValueError     = "the value of ttl-secs for metadata-cache can't be less than -1"
-	MetadataCacheTtlSecsTooHighError          = "the value of ttl-secs in metadata-cache is too high to be supported. Max is 9223372036"
-	TypeCacheMaxSizeMBInvalidValueError       = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBInvalidValueError       = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
-	StatCacheMaxSizeMBTooHighError            = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeMB            = util.MaxMiBsInUint64
 	UnsupportedMetadataPrefixModeError        = "unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async"
 	FileCacheMaxSizeMBInvalidValueError       = "the value of max-size-mb for file-cache can't be less than -1"
 	MaxParallelDownloadsInvalidValueError     = "the value of max-parallel-downloads for file-cache can't be less than -1"
@@ -77,24 +70,24 @@ func (fileCacheConfig *FileCacheConfig) validate() error {
 }
 
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
-	if metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
+	if metadataCacheConfig.TtlInSeconds != cfg.TtlInSecsUnsetSentinel {
 		if metadataCacheConfig.TtlInSeconds < -1 {
-			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
+			return fmt.Errorf(cfg.MetadataCacheTtlSecsInvalidValueError)
 		}
-		if metadataCacheConfig.TtlInSeconds > MaxSupportedTtlInSeconds {
-			return fmt.Errorf(MetadataCacheTtlSecsTooHighError)
+		if metadataCacheConfig.TtlInSeconds > cfg.MaxSupportedTtlInSeconds {
+			return fmt.Errorf(cfg.MetadataCacheTtlSecsTooHighError)
 		}
 	}
 	if metadataCacheConfig.TypeCacheMaxSizeMB < -1 {
-		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
+		return fmt.Errorf(cfg.TypeCacheMaxSizeMBInvalidValueError)
 	}
 
-	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
+	if metadataCacheConfig.StatCacheMaxSizeMB != cfg.StatCacheMaxSizeMBUnsetSentinel {
 		if metadataCacheConfig.StatCacheMaxSizeMB < -1 {
-			return fmt.Errorf(StatCacheMaxSizeMBInvalidValueError)
+			return fmt.Errorf(cfg.StatCacheMaxSizeMBInvalidValueError)
 		}
-		if metadataCacheConfig.StatCacheMaxSizeMB > int64(MaxSupportedStatCacheMaxSizeMB) {
-			return fmt.Errorf(StatCacheMaxSizeMBTooHighError)
+		if metadataCacheConfig.StatCacheMaxSizeMB > int64(cfg.MaxSupportedStatCacheMaxSizeMB) {
+			return fmt.Errorf(cfg.StatCacheMaxSizeMBTooHighError)
 		}
 	}
 	return nil
