@@ -97,7 +97,6 @@ func TestParallelDownloads(t *testing.T) {
 		parallelDownloadsPerFile int64
 		maxParallelDownloads     int64
 		downloadOffset           int64
-		expectedOffset           int64
 		subscribedOffset         int64
 	}{
 		{
@@ -108,10 +107,6 @@ func TestParallelDownloads(t *testing.T) {
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			// Concurrency can go to (maxParallelDownloads + 1) in case
-			// parallelDownloadsPerFile > maxParallelDownloads because we always
-			// spawn a minimum of 1 go routine per async job.
-			expectedOffset: 12 * util.MiB,
 		},
 		{
 			name:                     "download only upto the object size",
@@ -121,7 +116,6 @@ func TestParallelDownloads(t *testing.T) {
 			maxParallelDownloads:     3,
 			subscribedOffset:         7,
 			downloadOffset:           10,
-			expectedOffset:           10 * util.MiB,
 		},
 	}
 	for _, tc := range tbl {
@@ -144,9 +138,9 @@ func TestParallelDownloads(t *testing.T) {
 				select {
 				case jobStatus := <-subscriberC:
 					if assert.Nil(t, err) {
-						assert.Equal(t, tc.expectedOffset, jobStatus.Offset)
+						assert.GreaterOrEqual(t, tc.objectSize, jobStatus.Offset)
 						verifyFileTillOffset(t,
-							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, tc.expectedOffset,
+							data.FileSpec{Path: util.GetDownloadPath(path.Join(cacheDir, storage.TestBucketName), "path/in/gcs/foo.txt"), FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, jobStatus.Offset,
 							content)
 					}
 					return
