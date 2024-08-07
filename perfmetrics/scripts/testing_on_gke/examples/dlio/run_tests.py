@@ -33,7 +33,7 @@ def run_command(command: str):
   print(result.stderr)
 
 
-def createHelmInstallCommands(dlioWorkloads: set):
+def createHelmInstallCommands(dlioWorkloads: list, instanceId: str):
   """Create helm install commands for the given set of dlioWorkload objects."""
   helm_commands = []
   for dlioWorkload in dlioWorkloads:
@@ -41,13 +41,14 @@ def createHelmInstallCommands(dlioWorkloads: set):
       commands = [
           (
               'helm install'
-              f' {dlioWorkload.bucket}-{batchSize}-{dlioWorkload.scenario} unet3d-loading-test'
+              f' dlio-unet3d-{dlioWorkload.scenario}-{dlioWorkload.numFilesTrain}-{dlioWorkload.recordLength}-{batchSize} unet3d-loading-test'
           ),
           f'--set bucketName={dlioWorkload.bucket}',
           f'--set scenario={dlioWorkload.scenario}',
           f'--set dlio.numFilesTrain={dlioWorkload.numFilesTrain}',
           f'--set dlio.recordLength={dlioWorkload.recordLength}',
           f'--set dlio.batchSize={batchSize}',
+          f'--set instanceId={instanceId}',
       ]
 
       helm_command = ' '.join(commands)
@@ -59,7 +60,9 @@ def main(args) -> None:
   dlioWorkloads = dlio_workload.ParseTestConfigForDlioWorkloads(
       args.workload_config
   )
-  helmInstallCommands = createHelmInstallCommands(dlioWorkloads)
+  helmInstallCommands = createHelmInstallCommands(
+      dlioWorkloads, args.instance_id
+  )
   for helmInstallCommand in helmInstallCommands:
     print(f'{helmInstallCommand}')
     if not args.dry_run:
@@ -78,6 +81,11 @@ if __name__ == '__main__':
   parser.add_argument(
       '--workload-config',
       help='Runs DLIO Unet3d tests using this JSON workload configuration.',
+      required=True,
+  )
+  parser.add_argument(
+      '--instance-id',
+      help='unique string ID for current test-run',
       required=True,
   )
   parser.add_argument(
