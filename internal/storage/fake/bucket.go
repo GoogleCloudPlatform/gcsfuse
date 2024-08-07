@@ -280,6 +280,7 @@ func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 // even if we create objects with non-control client API.
 // Therefore, whenever we create directory objects in the fake bucket,
 // we also need to create a corresponding folder entry for them in HNS.
+//
 // For example, when creating an object A/B/a.txt where A and B are implicit directories.
 // In our existing flow in the fake bucket, we ignore adding entries for A and B.
 // In HNS, we have to add these implicit directories as folder entries.
