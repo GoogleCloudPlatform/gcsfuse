@@ -677,6 +677,7 @@ func (d *dirInode) readObjects(
 		if strings.HasSuffix(o.Name, "/") {
 			// In a hierarchical bucket, create a folder entry instead of a minObject for each prefix.
 			// This is because in a hierarchical bucket, every directory is considered a folder.
+			// Adding folder entries while looping to through CollapsedRuns instead of here to avoid duplicate entries.
 			if !d.isBucketHierarchical() {
 				dirName := NewDirName(d.Name(), nameBase)
 				explicitDir := &Core{
