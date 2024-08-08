@@ -123,13 +123,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 			},
 			legacyMountConfig: &config.MountConfig{
 				FileCacheConfig: config.FileCacheConfig{
-					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
-					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
-					EnableCRC:                cfg.DefaultEnableCRC,
-					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
-					MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-					MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
-					DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCRC:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     max(16, 2*runtime.NumCPU()),
+					MaxSizeMB:                -1,
+					DownloadChunkSizeMB:      50,
 				},
 				LogConfig: config.LogConfig{
 					Severity: "INFO",
@@ -159,13 +159,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				OnlyDir:      "abc",
 				CacheDir:     "",
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
-					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
-					EnableCrc:                cfg.DefaultEnableCRC,
-					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
-					MaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
-					MaxSizeMb:                cfg.DefaultFileCacheMaxSizeMB,
-					DownloadChunkSizeMb:      cfg.DefaultDownloadChunkSizeMB,
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCrc:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                -1,
+					DownloadChunkSizeMb:      50,
 				},
 				GcsAuth: cfg.GcsAuthConfig{
 					KeyFile:           cfg.ResolvedPath(path.Join(os.Getenv("HOME"), "Documents/key-file")),
@@ -192,7 +192,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 				},
 				Logging: cfg.LoggingConfig{
 					FilePath: cfg.ResolvedPath("/tmp/log-file.json"),
-					Severity: cfg.LogSeverity(cfg.TRACE), // Because debug fuse flag is set.
+					Severity: "TRACE", // Because debug fuse flag is set.
 					Format:   "json",
 					LogRotate: cfg.LogRotateLoggingConfig{
 						BackupFileCount: 0,
