@@ -75,7 +75,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount disabled",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
@@ -84,7 +85,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount async",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "async",
 				},
@@ -93,7 +95,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount sync",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
