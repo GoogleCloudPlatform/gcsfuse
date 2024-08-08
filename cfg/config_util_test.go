@@ -69,9 +69,7 @@ func TestIsFileCacheEnabled(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotIsFileCacheEnabled := IsFileCacheEnabled(tc.config)
-
-			assert.Equal(t, tc.expectedIsFileCacheEnabled, gotIsFileCacheEnabled)
+			assert.Equal(t, tc.expectedIsFileCacheEnabled, IsFileCacheEnabled(tc.config))
 		})
 	}
 
