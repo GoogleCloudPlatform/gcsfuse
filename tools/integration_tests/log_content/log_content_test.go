@@ -64,8 +64,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		hnsFlagSet = append(hnsFlagSet, "--kernel-list-cache-ttl-secs=-1")
-		flagsSet = append(flagsSet, hnsFlagSet)
+		flagsSet = [][]string{hnsFlagSet}
 	}
 
 	successCode := 0

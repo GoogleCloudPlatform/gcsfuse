@@ -65,6 +65,10 @@ func TestMain(m *testing.M) {
 
 	// Test for viewer permission on test bucket.
 	flags := [][]string{{"--implicit-dirs=true"}, {"--implicit-dirs=false"}}
+	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
+		flags = [][]string{hnsFlagSet}
+	}
+
 	successCode := creds_tests.RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(flags, "objectViewer", m)
 
 	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))

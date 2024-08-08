@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	if hnsFlagSet, err := setup.AddHNSFlagForHierarchicalBucket(ctx, storageClient); err == nil {
-		flags = append(flags, hnsFlagSet)
+		flags = [][]string{hnsFlagSet}
 	}
 
 	if setup.TestBucket() == "" && setup.MountedDirectory() != "" {
