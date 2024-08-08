@@ -29,7 +29,7 @@ func validLogRotateConfig() LogRotateLoggingConfig {
 	}
 }
 
-func defaultFileCacheConfig(t *testing.T) FileCacheConfig {
+func validFileCacheConfig(t *testing.T) FileCacheConfig {
 	t.Helper()
 	return FileCacheConfig{
 		CacheFileForRangeRead:    false,
@@ -51,7 +51,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: defaultFileCacheConfig(t),
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
@@ -64,7 +64,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: defaultFileCacheConfig(t),
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
@@ -120,7 +120,7 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 			name: "Invalid Config due to invalid custom endpoint",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: defaultFileCacheConfig(t),
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
 				},
