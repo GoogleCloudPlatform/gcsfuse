@@ -47,7 +47,7 @@ func init() { RegisterTestSuite(&parallelDownloaderTest{}) }
 
 func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableParallelDownloads: true,
-		ParallelDownloadsPerFile: 3, DownloadChunkSizeMb: 3, EnableCrc: true}
+		ParallelDownloadsPerFile: 3, DownloadChunkSizeMb: 3, EnableCrc: true, WriteBufferSize: 4 * 1024 * 1024}
 	dt.setupHelper()
 }
 

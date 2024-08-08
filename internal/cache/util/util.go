@@ -16,17 +16,19 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/jacobsa/fuse/fsutil"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
+	"github.com/jacobsa/fuse/fsutil"
 )
 
 const (
@@ -38,15 +40,16 @@ const (
 	FallbackToGCSErrMsg                       = "read via gcs"
 	FileNotPresentInCacheErrMsg               = "file is not present in cache"
 	CacheHandleNotRequiredForRandomReadErrMsg = "cacheFileForRangeRead is false, read type random read and fileInfo entry is absent"
-	BufferSizeForCRC                          = 65536
 )
 
 const (
-	MiB             = 1024 * 1024
-	KiB             = 1024
-	DefaultFilePerm = os.FileMode(0600)
-	DefaultDirPerm  = os.FileMode(0700)
-	FileCache       = "gcsfuse-file-cache"
+	MiB                        = 1024 * 1024
+	KiB                        = 1024
+	DefaultFilePerm            = os.FileMode(0600)
+	DefaultDirPerm             = os.FileMode(0700)
+	FileCache                  = "gcsfuse-file-cache"
+	BufferSizeForCRC           = 65536
+	MinimumAlignSizeForWriting = 4096
 )
 
 // CreateFile creates file with given file spec i.e. permissions and returns
@@ -179,4 +182,97 @@ func TruncateAndRemoveFile(filePath string) error {
 		return err
 	}
 	return nil
+}
+
+// GetMemoryAlignedBuffer creates a buffer([]byte) of size bufferSize aligned to
+// memory address in multiple of alignSize.
+func GetMemoryAlignedBuffer(bufferSize uint64, alignSize uint64) (buffer []byte, err error) {
+	if bufferSize == 0 {
+		return make([]byte, 0), nil
+	}
+	if alignSize == 0 {
+		return make([]byte, bufferSize), nil
+	}
+
+	// Create and align buffer
+	createAndAlignBuffer := func() {
+		buffer = make([]byte, bufferSize+alignSize)
+		l := uint64(uintptr(unsafe.Pointer(&buffer[0])) % uintptr(alignSize))
+		skipOffset := alignSize - l
+		buffer = buffer[skipOffset : skipOffset+bufferSize]
+
+		// Check if buffer is aligned or not
+		l = uint64(uintptr(unsafe.Pointer(&buffer[0])) % uintptr(alignSize))
+		if l != 0 {
+			buffer = nil
+			err = fmt.Errorf("failed to align buffer")
+		}
+	}
+
+	// Though we haven't seen any error while aligning buffer but still it is safer
+	// to attempt few times in case alignment fails.
+	for try := 0; try < 3; try++ {
+		createAndAlignBuffer()
+		if err == nil {
+			return buffer, err
+		}
+	}
+	return buffer, err
+}
+
+// CopyUsingMemoryAlignedBuffer copies content from src reader to dst writer
+// by staging content into a memory aligned buffer of size bufferSize and
+// aligned to multiple of MinimumAlignSizeForWriting. Note: The minimum write
+// size is MinimumAlignSizeForWriting which means the total size of content
+// written to dst writer is always in multiple of MinimumAlignSizeForWriting.
+// If contentSize is lesser than MinimumAlignSizeForWriting then extra null data
+// is written at the last.
+func CopyUsingMemoryAlignedBuffer(ctx context.Context, src io.Reader, dst io.Writer, contentSize, bufferSize uint64) (n int64, err error) {
+	var alignSize uint64 = MinimumAlignSizeForWriting
+	if bufferSize < alignSize || ((bufferSize % alignSize) != 0) {
+		return 0, fmt.Errorf("buffer size (%v) should be a multiple of %v", bufferSize, alignSize)
+	}
+
+	reqBufferSize := uint64(math.Ceil(float64(min(bufferSize, contentSize))/float64(alignSize))) * alignSize
+	buffer, err := GetMemoryAlignedBuffer(reqBufferSize, alignSize)
+	// Try creating the memory aligned buffer two more times in case the first
+	// time faced any issue.
+	for try := 0; try < 2 && err != nil; try++ {
+		buffer, err = GetMemoryAlignedBuffer(reqBufferSize, alignSize)
+	}
+	if err != nil {
+		return n, fmt.Errorf("error while creating buffer: %w", err)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return n, fmt.Errorf("copying cancelled: %w", ctx.Err())
+		default:
+			if n < int64(contentSize) {
+				remainingContentSize := contentSize - uint64(n)
+				reqBufferSize = uint64(math.Ceil(float64(min(bufferSize, remainingContentSize))/float64(alignSize))) * alignSize
+				buffer = buffer[:reqBufferSize]
+
+				readN, readErr := io.ReadFull(src, buffer)
+				expectedEOFError := uint64(len(buffer)) > remainingContentSize
+
+				if readErr != nil && !errors.Is(readErr, io.EOF) && !(errors.Is(readErr, io.ErrUnexpectedEOF) && expectedEOFError) {
+					return n, fmt.Errorf("error while reading to buffer: %w", readErr)
+				}
+
+				writeN, writeErr := dst.Write(buffer)
+				if writeErr != nil {
+					return n, fmt.Errorf("error while writing from buffer: %w", writeErr)
+				}
+				if readN != writeN && !(expectedEOFError && (uint64(readN) == remainingContentSize)) {
+					return n, fmt.Errorf("size of content read (%v) mismatch with content written (%v)", readN, writeN)
+				}
+
+				n = n + int64(writeN)
+			} else {
+				return n, err
+			}
+		}
+	}
 }

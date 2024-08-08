@@ -22,6 +22,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
@@ -381,7 +382,20 @@ func (job *Job) downloadObjectAsync() {
 	defer job.cleanUpDownloadAsyncJob()
 
 	// Create, open and truncate cache file for writing object into it.
-	cacheFile, err := cacheutil.CreateFile(job.fileSpec, os.O_TRUNC|os.O_WRONLY)
+	openFileFlags := os.O_TRUNC | os.O_WRONLY
+	var cacheFile *os.File
+	var err error
+	// Try using O_DIRECT while opening file in case of parallel downloads.
+	if job.fileCacheConfig.EnableParallelDownloads {
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags|syscall.O_DIRECT)
+		if errors.Is(err, syscall.EINVAL) {
+			logger.Warnf("downloadObjectAsync: failure in opening file with O_DIRECT, falling back to without O_DIRECT")
+			cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+		}
+	} else {
+		cacheFile, err = cacheutil.CreateFile(job.fileSpec, openFileFlags)
+	}
+
 	if err != nil {
 		err = fmt.Errorf("downloadObjectAsync: error in creating cache file: %w", err)
 		job.handleError(err)
@@ -412,6 +426,14 @@ func (job *Job) downloadObjectAsync() {
 			job.updateStatusAndNotifySubscribers(Invalid, err)
 			return
 		}
+		job.handleError(err)
+		return
+	}
+
+	// Truncate as the parallel downloads can create file of size little higher.
+	err = cacheFile.Truncate(int64(job.object.Size))
+	if err != nil {
+		err = fmt.Errorf("downloadObjectAsync: error while truncating cache file: %w", err)
 		job.handleError(err)
 		return
 	}

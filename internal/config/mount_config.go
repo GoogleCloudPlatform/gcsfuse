@@ -18,6 +18,7 @@ import (
 	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
 )
 
 const (
@@ -56,6 +57,7 @@ const (
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
+	DefaultWriteBufferSize          = uint64(4 * util.MiB)
 )
 
 type LogConfig struct {
@@ -99,13 +101,14 @@ type FileSystemConfig struct {
 }
 
 type FileCacheConfig struct {
-	MaxSizeMB                int64 `yaml:"max-size-mb"`
-	CacheFileForRangeRead    bool  `yaml:"cache-file-for-range-read"`
-	EnableParallelDownloads  bool  `yaml:"enable-parallel-downloads,omitempty"`
-	ParallelDownloadsPerFile int   `yaml:"parallel-downloads-per-file,omitempty"`
-	MaxParallelDownloads     int   `yaml:"max-parallel-downloads,omitempty"`
-	DownloadChunkSizeMB      int   `yaml:"download-chunk-size-mb,omitempty"`
-	EnableCRC                bool  `yaml:"enable-crc"`
+	MaxSizeMB                int64  `yaml:"max-size-mb"`
+	CacheFileForRangeRead    bool   `yaml:"cache-file-for-range-read"`
+	EnableParallelDownloads  bool   `yaml:"enable-parallel-downloads,omitempty"`
+	ParallelDownloadsPerFile int    `yaml:"parallel-downloads-per-file,omitempty"`
+	MaxParallelDownloads     int    `yaml:"max-parallel-downloads,omitempty"`
+	DownloadChunkSizeMB      int    `yaml:"download-chunk-size-mb,omitempty"`
+	EnableCRC                bool   `yaml:"enable-crc"`
+	WriteBufferSize          uint64 `yaml:"write-buffer-size,omitempty"`
 }
 
 type MetadataCacheConfig struct {
@@ -184,6 +187,7 @@ func NewMountConfig() *MountConfig {
 		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
 		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
 		EnableCRC:                DefaultEnableCRC,
+		WriteBufferSize:          DefaultWriteBufferSize,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,

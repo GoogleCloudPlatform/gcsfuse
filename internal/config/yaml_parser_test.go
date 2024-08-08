@@ -48,6 +48,7 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.GreaterOrEqual(t, mountConfig.FileCacheConfig.MaxParallelDownloads, 16)
 	assert.Equal(t, 50, mountConfig.FileCacheConfig.DownloadChunkSizeMB)
 	assert.False(t, mountConfig.FileCacheConfig.EnableCRC)
+	assert.Equal(t, uint64(4*1024*1024), mountConfig.FileCacheConfig.WriteBufferSize)
 	assert.Equal(t, 1, mountConfig.GCSConnection.GRPCConnPoolSize)
 	assert.False(t, mountConfig.GCSAuth.AnonymousAccess)
 	assert.False(t, bool(mountConfig.EnableHNS))
@@ -131,6 +132,7 @@ func (t *YamlParserTest) TestReadConfigFile_ValidConfig() {
 	assert.Equal(t.T(), -1, mountConfig.MaxParallelDownloads)
 	assert.Equal(t.T(), 100, mountConfig.DownloadChunkSizeMB)
 	assert.False(t.T(), mountConfig.FileCacheConfig.EnableCRC)
+	assert.Equal(t.T(), uint64(8192), mountConfig.FileCacheConfig.WriteBufferSize)
 
 	// gcs-retries
 	assert.Equal(t.T(), int64(6), mountConfig.GCSRetries.MaxRetryAttempts)
