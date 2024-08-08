@@ -3,7 +3,7 @@
   "TestConfig": {
     "workloadConfig": {
       "_description": "workloadConfig has an optional field runOnSSD (default true if missing), and an array of workloads.",
-      "runOnSSD": true,
+      "runOnSSD": false,
       "workloads": [
         {
           "_description": "This is a dummy fio workload (missing the 'fioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a fio workload, it must have a valid 'fioWorkload' object and a valid 'bucket' attribute.",
@@ -30,12 +30,47 @@
           "_bucket_alt3":"gke-fio-64k-1m"
         },
         {
+          "fioWorkload": {
+            "fileSize": "64k",
+            "filesPerThread": 100,
+            "numThreads": 20,
+            "blockSize": "64K",
+            "readTypes": ["randread"]
+          },
+          "bucket":"fio-64k-1m-us-west1",
+          "_bucket_alt2":"fio-64k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-64k-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "64k",
+            "filesPerThread": 10,
+            "numThreads": 100,
+            "blockSize": "64K",
+            "readTypes": ["randread"]
+          },
+          "bucket":"fio-64k-1m-us-west1",
+          "_bucket_alt2":"fio-64k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-64k-1m"
+        },
+        {
+          "fioWorkload": {
+            "fileSize": "64k",
+            "filesPerThread": 10,
+            "numThreads": 10,
+            "blockSize": "32K"
+          },
+          "bucket":"fio-64k-1m-us-west1",
+          "_bucket_alt2":"fio-64k-1m-us-central1",
+          "_bucket_alt3":"gke-fio-64k-1m"
+        },
+        {
           "_fioWorkload": {
             "fileSize": "128K",
             "filesPerThread": 20000,
             "numThreads": 50,
             "blockSize": "128K",
-            "readTypes": ["read"]
+            "readTypes": ["randread"]
           },
           "bucket":"fio-128k-1m-us-west1",
           "_bucket_alt2":"fio-128k-1m-us-central1",
@@ -65,7 +100,7 @@
           "_bucket_alt3":"gke-fio-100mb-50k"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "_description": "This workload's job file is configured differently from the rest. It has one file, whis is read in parallel depending on the value of numThreads (only 100 supported right now).",
             "fileSize": "200G",
             "filesPerThread": 1,
@@ -76,6 +111,39 @@
           "bucket":"fio-200gb-1-us-west1",
           "_bucket_alt2":"fio-200gb-1-us-central1",
           "_bucket_alt3":"gke-fio-200gb-1"
+        },
+        {
+          "_fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 16,
+            "numThreads": 1,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        },
+        {
+          "_fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 2,
+            "numThreads": 8,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
+        },
+        {
+          "_fioWorkload": {
+            "fileSize": "10G",
+            "filesPerThread": 1,
+            "numThreads": 96,
+            "blockSize": "1M",
+            "readTypes": ["read"]
+          },
+          "bucket":"fio-10g-500-us-west1",
+          "_bucket_alt2":"fio-10g-500-us-central1"
         },
         {
           "_description": "This is a dummy dlio workload (missing the 'dlioWorkload' field), purely standing as a header and does not execute any workload. For it to execute a dlio workload, it must have a valid 'dlioWorkload' object and a valid 'bucket' attribute.",
@@ -108,10 +176,30 @@
           "_bucket_alt3":"gke-dlio-unet3d-500kb-1m"
         },
         {
-          "dlioWorkload": {
+          "_dlioWorkload": {
             "numFilesTrain": 100000,
             "recordLength": 3145728,
             "batchSizes": [200]
+          },
+          "bucket":"dlio-unet3d-3mb-100k-us-west1",
+          "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
+          "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
+        },
+        {
+          "_dlioWorkload": {
+            "numFilesTrain": 100,
+            "recordLength": 3145728,
+            "batchSizes": [100]
+          },
+          "bucket":"dlio-unet3d-3mb-100k-us-west1",
+          "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
+          "_bucket_alt3":"gke-dlio-unet3d-3mb-100k"
+        },
+        {
+          "_dlioWorkload": {
+            "numFilesTrain": 150,
+            "recordLength": 3145728,
+            "batchSizes": [50]
           },
           "bucket":"dlio-unet3d-3mb-100k-us-west1",
           "_bucket_alt2":"dlio-unet3d-3mb-100k-us-central1",
