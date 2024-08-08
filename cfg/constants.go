@@ -14,7 +14,12 @@
 
 package cfg
 
-import "time"
+import (
+	"math"
+	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
+)
 
 const (
 	// Logging-level constants
@@ -57,4 +62,41 @@ const (
 	// 1. for conversion from stat-cache-capacity to stat-cache-max-size-mb.
 	// 2. internal testing.
 	AverageSizeOfNegativeStatCacheEntry uint64 = 240
+
+	// TtlInSecsUnsetSentinel is the value internally
+	// set for metada-cache:ttl-secs
+	// when it is not set in the gcsfuse mount config file.
+	// The constant value has been chosen deliberately
+	// to be improbable for a user to explicitly set.
+	TtlInSecsUnsetSentinel int64 = math.MinInt64
+
+	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
+	// The value is set at the size needed for about 21k type-cache entries,
+	// each of which is about 200 bytes in size.
+	DefaultTypeCacheMaxSizeMB int = 4
+
+	// StatCacheMaxSizeMBUnsetSentinel is the value internally
+	// set for metada-cache:stat-cache-max-size-mb
+	// when it is not set in the gcsfuse mount config file.
+	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
+
+	DefaultEnableEmptyManagedFoldersListing = false
+	DefaultGrpcConnPoolSize                 = 1
+	DefaultAnonymousAccess                  = false
+	DefaultEnableHNS                        = false
+	DefaultIgnoreInterrupts                 = true
+	DefaultPrometheusPort                   = 0
+
+	DefaultKernelListCacheTtlSeconds int64 = 0
+	DefaultMaxRetryAttempts                = int64(0)
+
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       = -1
+	DefaultEnableCRC                = false
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
+
+	MaxSupportedStatCacheMaxSizeMB = util.MaxMiBsInUint64
 )

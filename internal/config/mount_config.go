@@ -15,47 +15,7 @@
 package config
 
 import (
-	"math"
-
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-)
-
-const (
-
-	// TtlInSecsUnsetSentinel is the value internally
-	// set for metada-cache:ttl-secs
-	// when it is not set in the gcsfuse mount config file.
-	// The constant value has been chosen deliberately
-	// to be improbable for a user to explicitly set.
-	TtlInSecsUnsetSentinel int64 = math.MinInt64
-
-	// DefaultTypeCacheMaxSizeMB is the default value of type-cache max-size for every directory in MiBs.
-	// The value is set at the size needed for about 21k type-cache entries,
-	// each of which is about 200 bytes in size.
-	DefaultTypeCacheMaxSizeMB int = 4
-
-	// StatCacheMaxSizeMBUnsetSentinel is the value internally
-	// set for metada-cache:stat-cache-max-size-mb
-	// when it is not set in the gcsfuse mount config file.
-	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
-
-	DefaultEnableEmptyManagedFoldersListing = false
-	DefaultGrpcConnPoolSize                 = 1
-	DefaultAnonymousAccess                  = false
-	DefaultEnableHNS                        = false
-	DefaultIgnoreInterrupts                 = true
-	DefaultPrometheusPort                   = 0
-
-	DefaultKernelListCacheTtlSeconds int64 = 0
-	DefaultMaxRetryAttempts                = int64(0)
-
-	// File Cache Config constants.
-
-	DefaultFileCacheMaxSizeMB       = -1
-	DefaultEnableCRC                = false
-	DefaultEnableParallelDownloads  = false
-	DefaultDownloadChunkSizeMB      = 50
-	DefaultParallelDownloadsPerFile = 16
 )
 
 type LogConfig struct {
@@ -178,41 +138,41 @@ func NewMountConfig() *MountConfig {
 		},
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
-		EnableParallelDownloads:  DefaultEnableParallelDownloads,
-		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
+		MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
+		ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
 		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
-		EnableCRC:                DefaultEnableCRC,
+		DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+		EnableCRC:                cfg.DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
-		TtlInSeconds:       TtlInSecsUnsetSentinel,
-		TypeCacheMaxSizeMB: DefaultTypeCacheMaxSizeMB,
-		StatCacheMaxSizeMB: StatCacheMaxSizeMBUnsetSentinel,
+		TtlInSeconds:       cfg.TtlInSecsUnsetSentinel,
+		TypeCacheMaxSizeMB: cfg.DefaultTypeCacheMaxSizeMB,
+		StatCacheMaxSizeMB: cfg.StatCacheMaxSizeMBUnsetSentinel,
 	}
 	mountConfig.ListConfig = ListConfig{
-		EnableEmptyManagedFolders: DefaultEnableEmptyManagedFoldersListing,
+		EnableEmptyManagedFolders: cfg.DefaultEnableEmptyManagedFoldersListing,
 	}
 	mountConfig.GCSConnection = GCSConnection{
-		GRPCConnPoolSize: DefaultGrpcConnPoolSize,
+		GRPCConnPoolSize: cfg.DefaultGrpcConnPoolSize,
 	}
 	mountConfig.GCSAuth = GCSAuth{
-		AnonymousAccess: DefaultAnonymousAccess,
+		AnonymousAccess: cfg.DefaultAnonymousAccess,
 	}
-	mountConfig.EnableHNS = DefaultEnableHNS
+	mountConfig.EnableHNS = cfg.DefaultEnableHNS
 
 	mountConfig.FileSystemConfig = FileSystemConfig{
-		KernelListCacheTtlSeconds: DefaultKernelListCacheTtlSeconds,
+		KernelListCacheTtlSeconds: cfg.DefaultKernelListCacheTtlSeconds,
 	}
 
-	mountConfig.FileSystemConfig.IgnoreInterrupts = DefaultIgnoreInterrupts
+	mountConfig.FileSystemConfig.IgnoreInterrupts = cfg.DefaultIgnoreInterrupts
 
 	mountConfig.GCSRetries = GCSRetries{
-		MaxRetryAttempts: DefaultMaxRetryAttempts,
+		MaxRetryAttempts: cfg.DefaultMaxRetryAttempts,
 	}
 
 	mountConfig.MetricsConfig = MetricsConfig{
-		PrometheusPort: DefaultPrometheusPort,
+		PrometheusPort: cfg.DefaultPrometheusPort,
 	}
 
 	return mountConfig

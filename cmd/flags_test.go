@@ -75,7 +75,7 @@ func (t *FlagsTest) TestDefaults() {
 	assert.EqualValues(t.T(), -1, f.Gid)
 	assert.False(t.T(), f.ImplicitDirs)
 	assert.True(t.T(), f.IgnoreInterrupts)
-	assert.Equal(t.T(), config.DefaultKernelListCacheTtlSeconds, f.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), cfg.DefaultKernelListCacheTtlSeconds, f.KernelListCacheTtlSeconds)
 
 	// GCS
 	assert.Equal(t.T(), "", f.KeyFile)
@@ -91,7 +91,7 @@ func (t *FlagsTest) TestDefaults() {
 	assert.Equal(t.T(), cfg.DefaultStatOrTypeCacheTTL, f.TypeCacheTTL)
 	assert.EqualValues(t.T(), 0, f.HttpClientTimeout)
 	assert.Equal(t.T(), "", f.TempDir)
-	assert.Equal(t.T(), config.DefaultMaxRetryAttempts, f.MaxRetryAttempts)
+	assert.Equal(t.T(), cfg.DefaultMaxRetryAttempts, f.MaxRetryAttempts)
 	assert.EqualValues(t.T(), 2, f.RetryMultiplier)
 	assert.False(t.T(), f.EnableNonexistentTypeCache)
 	assert.Equal(t.T(), 0, f.MaxConnsPerHost)

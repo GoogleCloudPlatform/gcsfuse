@@ -53,8 +53,8 @@ func validateDefaultConfig(t *testing.T, mountConfig *MountConfig) {
 	assert.False(t, bool(mountConfig.EnableHNS))
 	assert.True(t, mountConfig.FileSystemConfig.IgnoreInterrupts)
 	assert.False(t, mountConfig.FileSystemConfig.DisableParallelDirops)
-	assert.Equal(t, DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
-	assert.Equal(t, DefaultMaxRetryAttempts, mountConfig.GCSRetries.MaxRetryAttempts)
+	assert.Equal(t, cfg.DefaultKernelListCacheTtlSeconds, mountConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t, cfg.DefaultMaxRetryAttempts, mountConfig.GCSRetries.MaxRetryAttempts)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_EmptyFileName() {
@@ -156,7 +156,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlNotSet() {
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
+	assert.Equal(t.T(), cfg.TtlInSecsUnsetSentinel, mountConfig.MetadataCacheConfig.TtlInSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TtlTooHigh() {
@@ -176,7 +176,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_TypeCacheMaxSize
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
+	assert.Equal(t.T(), cfg.DefaultTypeCacheMaxSizeMB, mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_InvalidStatCacheSize() {
@@ -190,7 +190,7 @@ func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeNot
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
+	assert.Equal(t.T(), cfg.StatCacheMaxSizeMBUnsetSentinel, mountConfig.MetadataCacheConfig.StatCacheMaxSizeMB)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_MetatadaCacheConfig_StatCacheSizeTooHigh() {
@@ -210,7 +210,7 @@ func (t *YamlParserTest) TestReadConfigFile_GrpcClientConfig_unsetConnPoolSize()
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultGrpcConnPoolSize, mountConfig.GCSConnection.GRPCConnPoolSize)
+	assert.Equal(t.T(), cfg.DefaultGrpcConnPoolSize, mountConfig.GCSConnection.GRPCConnPoolSize)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_InvalidIgnoreInterruptsValue() {
@@ -272,7 +272,7 @@ func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_UnsetKernelListCach
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), mountConfig)
-	assert.Equal(t.T(), DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
+	assert.Equal(t.T(), cfg.DefaultKernelListCacheTtlSeconds, mountConfig.FileSystemConfig.KernelListCacheTtlSeconds)
 }
 
 func (t *YamlParserTest) TestReadConfigFile_FileSystemConfig_ValidKernelListCacheTtl() {

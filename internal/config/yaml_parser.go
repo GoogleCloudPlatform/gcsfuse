@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,7 +33,6 @@ const (
 	TypeCacheMaxSizeMBInvalidValueError   = "the value of type-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBInvalidValueError   = "the value of stat-cache-max-size-mb for metadata-cache can't be less than -1"
 	StatCacheMaxSizeMBTooHighError        = "the value of stat-cache-max-size-mb for metadata-cache is too high! Max supported: 17592186044415"
-	MaxSupportedStatCacheMaxSizeMB        = util.MaxMiBsInUint64
 )
 
 func IsValidLogSeverity(severity string) bool {
@@ -52,7 +50,7 @@ func IsValidLogSeverity(severity string) bool {
 }
 
 func (metadataCacheConfig *MetadataCacheConfig) validate() error {
-	if metadataCacheConfig.TtlInSeconds != TtlInSecsUnsetSentinel {
+	if metadataCacheConfig.TtlInSeconds != cfg.TtlInSecsUnsetSentinel {
 		if metadataCacheConfig.TtlInSeconds < -1 {
 			return fmt.Errorf(MetadataCacheTtlSecsInvalidValueError)
 		}
@@ -64,11 +62,11 @@ func (metadataCacheConfig *MetadataCacheConfig) validate() error {
 		return fmt.Errorf(TypeCacheMaxSizeMBInvalidValueError)
 	}
 
-	if metadataCacheConfig.StatCacheMaxSizeMB != StatCacheMaxSizeMBUnsetSentinel {
+	if metadataCacheConfig.StatCacheMaxSizeMB != cfg.StatCacheMaxSizeMBUnsetSentinel {
 		if metadataCacheConfig.StatCacheMaxSizeMB < -1 {
 			return fmt.Errorf(StatCacheMaxSizeMBInvalidValueError)
 		}
-		if metadataCacheConfig.StatCacheMaxSizeMB > int64(MaxSupportedStatCacheMaxSizeMB) {
+		if metadataCacheConfig.StatCacheMaxSizeMB > int64(cfg.MaxSupportedStatCacheMaxSizeMB) {
 			return fmt.Errorf(StatCacheMaxSizeMBTooHighError)
 		}
 	}

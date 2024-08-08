@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 )
 
@@ -77,7 +76,7 @@ func ParseOptions(m map[string]string, s string) {
 func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeconds int64) (metadataCacheTTL time.Duration) {
 	// If metadata-cache:ttl-secs has been set in config-file, then
 	// it overrides both stat-cache-ttl and type-cache-tll.
-	if ttlInSeconds != config.TtlInSecsUnsetSentinel {
+	if ttlInSeconds != cfg.TtlInSecsUnsetSentinel {
 		// if ttl-secs is set to -1, set StatOrTypeCacheTTL to the max possible duration.
 		if ttlInSeconds == -1 {
 			metadataCacheTTL = time.Duration(math.MaxInt64)
@@ -93,9 +92,9 @@ func ResolveMetadataCacheTTL(statCacheTTL, typeCacheTTL time.Duration, ttlInSeco
 
 // ResolveStatCacheMaxSizeMB returns the stat-cache size in MiBs based on the user old and new flags/configs.
 func ResolveStatCacheMaxSizeMB(mountConfigStatCacheMaxSizeMB int64, flagStatCacheCapacity int) (statCacheMaxSizeMB uint64, err error) {
-	if mountConfigStatCacheMaxSizeMB != config.StatCacheMaxSizeMBUnsetSentinel {
+	if mountConfigStatCacheMaxSizeMB != cfg.StatCacheMaxSizeMBUnsetSentinel {
 		if mountConfigStatCacheMaxSizeMB == -1 {
-			statCacheMaxSizeMB = config.MaxSupportedStatCacheMaxSizeMB
+			statCacheMaxSizeMB = cfg.MaxSupportedStatCacheMaxSizeMB
 		} else {
 			statCacheMaxSizeMB = uint64(mountConfigStatCacheMaxSizeMB)
 		}

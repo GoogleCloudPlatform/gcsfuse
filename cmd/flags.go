@@ -245,7 +245,7 @@ func newApp() (app *cli.App) {
 
 			cli.Int64Flag{
 				Name:  config.KernelListCacheTtlFlagName,
-				Value: config.DefaultKernelListCacheTtlSeconds,
+				Value: cfg.DefaultKernelListCacheTtlSeconds,
 				Usage: "How long the directory listing (output of ls <dir>) should be cached in the kernel page cache." +
 					"If a particular directory cache entry is kept by kernel for longer than TTL, then it will be sent for invalidation " +
 					"by gcsfuse on next opendir (comes in the start, as part of next listing) call. 0 means no caching. " +
