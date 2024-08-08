@@ -37,10 +37,10 @@ const (
 const (
 	// File Cache Config constants.
 
-	DefaultFileCacheMaxSizeMB       int64 = -1
-	DefaultEnableCRC                      = false
-	DefaultEnableParallelDownloads        = false
-	DefaultDownloadChunkSizeMB            = 50
-	DefaultParallelDownloadsPerFile       = 16
-	DefaultCacheFileForRangeRead          = false
+	DefaultFileCacheMaxSizeMB       = -1
+	DefaultEnableCRC                = false
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
+	DefaultCacheFileForRangeRead    = false
 )

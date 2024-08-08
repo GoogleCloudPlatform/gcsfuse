@@ -23,3 +23,32 @@ import (
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }
+
+func TestIsFileCacheEnabled(t *testing.T) {
+	mountConfig := &Config{
+		CacheDir: "/tmp/folder/",
+		FileCache: FileCacheConfig{
+			MaxSizeMb: -1,
+		},
+	}
+	assert.True(t, IsFileCacheEnabled(mountConfig))
+
+	mountConfig1 := &Config{}
+	assert.False(t, IsFileCacheEnabled(mountConfig1))
+
+	mountConfig2 := &Config{
+		CacheDir: "",
+		FileCache: FileCacheConfig{
+			MaxSizeMb: -1,
+		},
+	}
+	assert.False(t, IsFileCacheEnabled(mountConfig2))
+
+	mountConfig3 := &Config{
+		CacheDir: "//tmp//folder//",
+		FileCache: FileCacheConfig{
+			MaxSizeMb: 0,
+		},
+	}
+	assert.False(t, IsFileCacheEnabled(mountConfig3))
+}

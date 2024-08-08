@@ -81,7 +81,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 	for start < end {
 		downloadErrGroup, downloadErrGroupCtx := errgroup.WithContext(job.cancelCtx)
 
-		for goRoutineIdx := 0; (int64(goRoutineIdx) < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < end); goRoutineIdx++ {
+		for goRoutineIdx := int64(0); (goRoutineIdx < job.fileCacheConfig.ParallelDownloadsPerFile) && (start < end); goRoutineIdx++ {
 			rangeStart := start
 			rangeEnd := min(rangeStart+parallelReadRequestSize, end)
 			currGoRoutineIdx := goRoutineIdx

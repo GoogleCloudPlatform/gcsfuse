@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -109,6 +110,18 @@ var (
 var _ SetUpTestSuiteInterface = &fsTest{}
 var _ TearDownTestSuiteInterface = &fsTest{}
 
+func defaultFileCacheConfig() cfg.FileCacheConfig {
+	return cfg.FileCacheConfig{
+		CacheFileForRangeRead:    false,
+		DownloadChunkSizeMb:      50,
+		EnableCrc:                false,
+		EnableParallelDownloads:  false,
+		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                -1,
+		ParallelDownloadsPerFile: 16,
+	}
+}
+
 func (t *fsTest) SetUpTestSuite() {
 	var err error
 	ctx = context.Background()
@@ -147,9 +160,9 @@ func (t *fsTest) SetUpTestSuite() {
 		t.serverCfg.MountConfig = config.NewMountConfig()
 	}
 
-	if t.serverCfg.Config == nil {
-		t.serverCfg.Config = &cfg.Config{
-			FileCache: cfg.DefaultFileCacheConfig(),
+	if t.serverCfg.NewConfig == nil {
+		t.serverCfg.NewConfig = &cfg.Config{
+			FileCache: defaultFileCacheConfig(),
 		}
 	}
 

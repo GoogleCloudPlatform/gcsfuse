@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 )
 
 const (
@@ -65,10 +63,6 @@ func OverrideWithKernelListCacheTtlFlag(c cliContext, mountConfig *MountConfig, 
 	if c.IsSet(KernelListCacheTtlFlagName) {
 		mountConfig.FileSystemConfig.KernelListCacheTtlSeconds = ttl
 	}
-}
-
-func IsFileCacheEnabled(mountConfig *cfg.Config) bool {
-	return mountConfig.FileCache.MaxSizeMb != 0 && string(mountConfig.CacheDir) != ""
 }
 
 // IsTtlInSecsValid return nil error if ttlInSecs is valid.

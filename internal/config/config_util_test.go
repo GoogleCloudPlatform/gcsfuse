@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -49,35 +48,6 @@ func TestConfigSuite(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
-
-func (t *ConfigTest) TestIsFileCacheEnabled() {
-	mountConfig := &cfg.Config{
-		CacheDir: "/tmp/folder/",
-		FileCache: cfg.FileCacheConfig{
-			MaxSizeMb: -1,
-		},
-	}
-	assert.True(t.T(), IsFileCacheEnabled(mountConfig))
-
-	mountConfig1 := &cfg.Config{}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig1))
-
-	mountConfig2 := &cfg.Config{
-		CacheDir: "",
-		FileCache: cfg.FileCacheConfig{
-			MaxSizeMb: -1,
-		},
-	}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig2))
-
-	mountConfig3 := &cfg.Config{
-		CacheDir: "//tmp//folder//",
-		FileCache: cfg.FileCacheConfig{
-			MaxSizeMb: 0,
-		},
-	}
-	assert.False(t.T(), IsFileCacheEnabled(mountConfig3))
-}
 
 type TestCliContext struct {
 	isSet bool

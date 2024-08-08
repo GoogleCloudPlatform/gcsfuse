@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,19 @@ func validLogRotateConfig() LogRotateLoggingConfig {
 	}
 }
 
+func defaultFileCacheConfig(t *testing.T) FileCacheConfig {
+	t.Helper()
+	return FileCacheConfig{
+		CacheFileForRangeRead:    false,
+		DownloadChunkSizeMb:      50,
+		EnableCrc:                false,
+		EnableParallelDownloads:  false,
+		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                -1,
+		ParallelDownloadsPerFile: 16,
+	}
+}
+
 func TestValidateConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -37,7 +51,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: DefaultFileCacheConfig(),
+				FileCache: defaultFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
@@ -50,7 +64,7 @@ func TestValidateConfigSuccessful(t *testing.T) {
 			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: DefaultFileCacheConfig(),
+				FileCache: defaultFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
@@ -106,7 +120,7 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 			name: "Invalid Config due to invalid custom endpoint",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
-				FileCache: DefaultFileCacheConfig(),
+				FileCache: defaultFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
 				},

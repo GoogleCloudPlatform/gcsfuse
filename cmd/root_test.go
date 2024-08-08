@@ -17,6 +17,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -243,7 +244,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 		expectedParallelDownloadsPerFile int64
 	}{
 		{
-			name:                             "Test default file cache flags.",
+			name:                             "Test file cache flags.",
 			args:                             []string{"gcsfuse", "--cache-file-for-range-read", "--download-chunk-size-mb=20", "--enable-crc", "--enable-parallel-downloads", "--max-parallel-downloads=40", "--file-cache-max-size-mb=100", "--parallel-downloads-per-file=2", "abc", "pqr"},
 			expectedCacheFileForRangeRead:    true,
 			expectedDownloadChunkSizeMb:      20,
@@ -260,7 +261,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			expectedDownloadChunkSizeMb:      50,
 			expectedEnableCrc:                false,
 			expectedEnableParallelDownloads:  false,
-			expectedMaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
+			expectedMaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
 			expectedMaxSizeMb:                -1,
 			expectedParallelDownloadsPerFile: 16,
 		},
@@ -268,16 +269,9 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var cacheFileForRangeRead, enableCrc, enableParallelDownloads bool
-			var downloadChunkSizeMb, maxParallelDownloads, maxSizeMb, parallelDownloadsPerFile int64
+			var gotConfig *cfg.Config
 			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
-				cacheFileForRangeRead = cfg.FileCache.CacheFileForRangeRead
-				downloadChunkSizeMb = cfg.FileCache.DownloadChunkSizeMb
-				enableCrc = cfg.FileCache.EnableCrc
-				enableParallelDownloads = cfg.FileCache.EnableParallelDownloads
-				maxParallelDownloads = cfg.FileCache.MaxParallelDownloads
-				maxSizeMb = cfg.FileCache.MaxSizeMb
-				parallelDownloadsPerFile = cfg.FileCache.ParallelDownloadsPerFile
+				gotConfig = cfg
 				return nil
 			})
 			require.Nil(t, err)
@@ -286,13 +280,13 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				assert.Equal(t, tc.expectedCacheFileForRangeRead, cacheFileForRangeRead)
-				assert.Equal(t, tc.expectedDownloadChunkSizeMb, downloadChunkSizeMb)
-				assert.Equal(t, tc.expectedEnableCrc, enableCrc)
-				assert.Equal(t, tc.expectedEnableParallelDownloads, enableParallelDownloads)
-				assert.Equal(t, tc.expectedMaxParallelDownloads, maxParallelDownloads)
-				assert.Equal(t, tc.expectedMaxSizeMb, maxSizeMb)
-				assert.Equal(t, tc.expectedParallelDownloadsPerFile, parallelDownloadsPerFile)
+				assert.Equal(t, tc.expectedCacheFileForRangeRead, gotConfig.FileCache.CacheFileForRangeRead)
+				assert.Equal(t, tc.expectedDownloadChunkSizeMb, gotConfig.FileCache.DownloadChunkSizeMb)
+				assert.Equal(t, tc.expectedEnableCrc, gotConfig.FileCache.EnableCrc)
+				assert.Equal(t, tc.expectedEnableParallelDownloads, gotConfig.FileCache.EnableParallelDownloads)
+				assert.Equal(t, tc.expectedMaxParallelDownloads, gotConfig.FileCache.MaxParallelDownloads)
+				assert.Equal(t, tc.expectedMaxSizeMb, gotConfig.FileCache.MaxSizeMb)
+				assert.Equal(t, tc.expectedParallelDownloadsPerFile, gotConfig.FileCache.ParallelDownloadsPerFile)
 			}
 		})
 	}

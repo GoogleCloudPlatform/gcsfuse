@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -44,6 +45,19 @@ func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Config, error) {
 	t.Helper()
 	return getConfigObject(t, []string{fmt.Sprintf("--config-file=%s", configFilePath)})
+}
+
+func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
+	t.Helper()
+	return cfg.FileCacheConfig{
+		CacheFileForRangeRead:    false,
+		DownloadChunkSizeMb:      50,
+		EnableCrc:                false,
+		EnableParallelDownloads:  false,
+		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                -1,
+		ParallelDownloadsPerFile: 16,
+	}
 }
 
 func TestValidateConfigFile(t *testing.T) {
@@ -200,37 +214,37 @@ func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
 		{
 			name:          "Invalid parallel downloads per file.",
 			configFile:    "testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml",
-			expectedError: cfg.ParallelDownloadsPerFileInvalidValueError,
+			expectedError: "the value of parallel-downloads-per-file for file-cache can't be less than 1",
 		},
 		{
 			name:          "Invalid download chunk size mb.",
 			configFile:    "testdata/file_cache_config/invalid_download_chunk_size_mb.yaml",
-			expectedError: cfg.DownloadChunkSizeMBInvalidValueError,
+			expectedError: "the value of download-chunk-size-mb for file-cache can't be less than 1",
 		},
 		{
 			name:          "Invalid max size mb.",
 			configFile:    "testdata/file_cache_config/invalid_max_size_mb.yaml",
-			expectedError: cfg.FileCacheMaxSizeMBInvalidValueError,
+			expectedError: "the value of max-size-mb for file-cache can't be less than -1",
 		},
 		{
 			name:          "Invalid max parallel downloads.",
 			configFile:    "testdata/file_cache_config/invalid_max_parallel_downloads.yaml",
-			expectedError: cfg.MaxParallelDownloadsInvalidValueError,
+			expectedError: "the value of max-parallel-downloads for file-cache can't be less than -1",
 		},
 		{
 			name:          "Invalid zero max parallel downloads",
 			configFile:    "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
-			expectedError: cfg.MaxParallelDownloadsCantBeZeroError,
+			expectedError: "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
-			require.Error(t, err)
-			assert.Nil(t, gotConfig)
-			assert.ErrorContains(t, err, tc.expectedError)
+			if assert.Error(t, err) {
+				assert.ErrorContains(t, err, tc.expectedError)
+			}
 		})
 	}
 }
@@ -245,7 +259,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 			name:       "Empty config file [default values].",
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
-				FileCache: cfg.DefaultFileCacheConfig(),
+				FileCache: defaultFileCacheConfig(t),
 			},
 		},
 		{

@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -338,13 +339,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 			},
 			legacyMountConfig: &config.MountConfig{
 				FileCacheConfig: config.FileCacheConfig{
-					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
-					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
-					EnableCRC:                cfg.DefaultEnableCRC,
-					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
-					MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-					MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
-					DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCRC:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     max(16, 2*runtime.NumCPU()),
+					MaxSizeMB:                -1,
+					DownloadChunkSizeMB:      50,
 				},
 				LogConfig: config.LogConfig{
 					FilePath: "~/Documents/log-config.txt",
@@ -379,13 +380,13 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					},
 				},
 				FileCache: cfg.FileCacheConfig{
-					CacheFileForRangeRead:    cfg.DefaultCacheFileForRangeRead,
-					ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
-					EnableCrc:                cfg.DefaultEnableCRC,
-					EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
-					MaxParallelDownloads:     int64(cfg.DefaultMaxParallelDownloads()),
-					MaxSizeMb:                cfg.DefaultFileCacheMaxSizeMB,
-					DownloadChunkSizeMb:      cfg.DefaultDownloadChunkSizeMB,
+					CacheFileForRangeRead:    false,
+					ParallelDownloadsPerFile: 16,
+					EnableCrc:                false,
+					EnableParallelDownloads:  false,
+					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+					MaxSizeMb:                -1,
+					DownloadChunkSizeMb:      50,
 				},
 				FileSystem: cfg.FileSystemConfig{
 					IgnoreInterrupts:       false,

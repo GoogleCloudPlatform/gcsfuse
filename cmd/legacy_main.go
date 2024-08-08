@@ -92,7 +92,7 @@ func getUserAgent(appName string, config string) string {
 func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	// Minimum configuration details created in a bitset fashion. Right now, its restricted only to File Cache Settings.
 	isFileCacheEnabled := "0"
-	if config.IsFileCacheEnabled(mountConfig) {
+	if cfg.IsFileCacheEnabled(mountConfig) {
 		isFileCacheEnabled = "1"
 	}
 	isFileCacheForRangeReadEnabled := "0"

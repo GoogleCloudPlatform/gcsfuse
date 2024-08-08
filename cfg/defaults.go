@@ -28,15 +28,3 @@ func DefaultLoggingConfig() LoggingConfig {
 		},
 	}
 }
-
-func DefaultFileCacheConfig() FileCacheConfig {
-	return FileCacheConfig{
-		CacheFileForRangeRead:    DefaultCacheFileForRangeRead,
-		DownloadChunkSizeMb:      DefaultDownloadChunkSizeMB,
-		EnableCrc:                DefaultEnableCRC,
-		EnableParallelDownloads:  DefaultEnableParallelDownloads,
-		MaxParallelDownloads:     int64(DefaultMaxParallelDownloads()),
-		MaxSizeMb:                DefaultFileCacheMaxSizeMB,
-		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
-	}
-}

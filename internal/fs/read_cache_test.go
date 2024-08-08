@@ -65,7 +65,7 @@ type FileCacheTest struct {
 
 func (t *FileCacheTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.Config = &cfg.Config{
+	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb:             FileCacheSizeInMb,
 			CacheFileForRangeRead: false,
@@ -601,7 +601,7 @@ type FileCacheWithCacheForRangeRead struct {
 
 func (t *FileCacheWithCacheForRangeRead) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.Config = &cfg.Config{
+	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb:             -1,
 			CacheFileForRangeRead: true,
@@ -734,7 +734,7 @@ type FileCacheIsDisabledWithCacheDirAndZeroMaxSize struct {
 
 func (t *FileCacheIsDisabledWithCacheDirAndZeroMaxSize) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.Config = &cfg.Config{
+	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb:             0,
 			CacheFileForRangeRead: true,
@@ -778,7 +778,7 @@ type FileCacheDestroyTest struct {
 
 func (t *FileCacheDestroyTest) SetUpTestSuite() {
 	t.serverCfg.ImplicitDirectories = true
-	t.serverCfg.Config = &cfg.Config{
+	t.serverCfg.NewConfig = &cfg.Config{
 		FileCache: cfg.FileCacheConfig{
 			MaxSizeMb:             -1,
 			CacheFileForRangeRead: true,
