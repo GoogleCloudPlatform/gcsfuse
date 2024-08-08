@@ -39,21 +39,23 @@ const (
 	// when it is not set in the gcsfuse mount config file.
 	StatCacheMaxSizeMBUnsetSentinel int64 = math.MinInt64
 
-	DefaultFileCacheMaxSizeMB               int64 = -1
-	DefaultEnableEmptyManagedFoldersListing       = false
-	DefaultGrpcConnPoolSize                       = 1
-	DefaultAnonymousAccess                        = false
-	DefaultEnableHNS                              = false
-	DefaultIgnoreInterrupts                       = true
-	DefaultPrometheusPort                         = 0
+	DefaultEnableEmptyManagedFoldersListing = false
+	DefaultGrpcConnPoolSize                 = 1
+	DefaultAnonymousAccess                  = false
+	DefaultEnableHNS                        = false
+	DefaultIgnoreInterrupts                 = true
+	DefaultPrometheusPort                   = 0
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
+	DefaultMaxRetryAttempts                = int64(0)
 
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       = -1
 	DefaultEnableCRC                = false
 	DefaultEnableParallelDownloads  = false
 	DefaultDownloadChunkSizeMB      = 50
 	DefaultParallelDownloadsPerFile = 16
-	DefaultMaxRetryAttempts         = int64(0)
 )
 
 type LogConfig struct {

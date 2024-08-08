@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
@@ -122,41 +123,42 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
-	// MountConfig has all the config specified by the user using configFile flag.
+	// Deprecated MountConfig has all the config specified by the user using config-file flag.
 	MountConfig *config.MountConfig
+
+	// NewConfig has all the config specified by the user using config-file or CLI flags.
+	NewConfig *cfg.Config
 }
 
 // Create a fuse file system server according to the supplied configuration.
-func NewFileSystem(
-	ctx context.Context,
-	cfg *ServerConfig) (fuseutil.FileSystem, error) {
+func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileSystem, error) {
 	// Check permissions bits.
-	if cfg.FilePerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal file perms: %v", cfg.FilePerms)
+	if serverCfg.FilePerms&^os.ModePerm != 0 {
+		return nil, fmt.Errorf("Illegal file perms: %v", serverCfg.FilePerms)
 	}
 
-	if cfg.DirPerms&^os.ModePerm != 0 {
-		return nil, fmt.Errorf("Illegal dir perms: %v", cfg.FilePerms)
+	if serverCfg.DirPerms&^os.ModePerm != 0 {
+		return nil, fmt.Errorf("Illegal dir perms: %v", serverCfg.FilePerms)
 	}
 
 	mtimeClock := timeutil.RealClock()
 
-	contentCache := contentcache.New(cfg.TempDir, mtimeClock)
+	contentCache := contentcache.New(serverCfg.TempDir, mtimeClock)
 
-	if cfg.LocalFileCache {
+	if serverCfg.LocalFileCache {
 		err := contentCache.RecoverCache()
 		if err != nil {
 			fmt.Printf("Encountered error retrieving files from cache directory, disabling local file cache: %v", err)
-			cfg.LocalFileCache = false
+			serverCfg.LocalFileCache = false
 		}
 	}
 
 	// Create file cache handler if cache is enabled by user. Cache is considered
 	// enabled only if cache-dir is not empty and file-cache:max-size-mb is non 0.
 	var fileCacheHandler *file.CacheHandler
-	if config.IsFileCacheEnabled(cfg.MountConfig) {
+	if cfg.IsFileCacheEnabled(serverCfg.NewConfig) {
 		var err error
-		fileCacheHandler, err = createFileCacheHandler(cfg)
+		fileCacheHandler, err = createFileCacheHandler(serverCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -165,21 +167,21 @@ func NewFileSystem(
 	// Set up the basic struct.
 	fs := &fileSystem{
 		mtimeClock:                 mtimeClock,
-		cacheClock:                 cfg.CacheClock,
-		bucketManager:              cfg.BucketManager,
-		localFileCache:             cfg.LocalFileCache,
+		cacheClock:                 serverCfg.CacheClock,
+		bucketManager:              serverCfg.BucketManager,
+		localFileCache:             serverCfg.LocalFileCache,
 		contentCache:               contentCache,
-		implicitDirs:               cfg.ImplicitDirectories,
-		enableNonexistentTypeCache: cfg.EnableNonexistentTypeCache,
-		inodeAttributeCacheTTL:     cfg.InodeAttributeCacheTTL,
-		dirTypeCacheTTL:            cfg.DirTypeCacheTTL,
-		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(cfg.MountConfig.KernelListCacheTtlSeconds),
-		renameDirLimit:             cfg.RenameDirLimit,
-		sequentialReadSizeMb:       cfg.SequentialReadSizeMb,
-		uid:                        cfg.Uid,
-		gid:                        cfg.Gid,
-		fileMode:                   cfg.FilePerms,
-		dirMode:                    cfg.DirPerms | os.ModeDir,
+		implicitDirs:               serverCfg.ImplicitDirectories,
+		enableNonexistentTypeCache: serverCfg.EnableNonexistentTypeCache,
+		inodeAttributeCacheTTL:     serverCfg.InodeAttributeCacheTTL,
+		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
+		kernelListCacheTTL:         config.ListCacheTtlSecsToDuration(serverCfg.MountConfig.KernelListCacheTtlSeconds),
+		renameDirLimit:             serverCfg.RenameDirLimit,
+		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
+		uid:                        serverCfg.Uid,
+		gid:                        serverCfg.Gid,
+		fileMode:                   serverCfg.FilePerms,
+		dirMode:                    serverCfg.DirPerms | os.ModeDir,
 		inodes:                     make(map[fuseops.InodeID]inode.Inode),
 		nextInodeID:                fuseops.RootInodeID + 1,
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
@@ -187,19 +189,19 @@ func NewFileSystem(
 		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
-		mountConfig:                cfg.MountConfig,
+		mountConfig:                serverCfg.MountConfig,
 		fileCacheHandler:           fileCacheHandler,
-		cacheFileForRangeRead:      cfg.MountConfig.FileCacheConfig.CacheFileForRangeRead,
+		cacheFileForRangeRead:      serverCfg.NewConfig.FileCache.CacheFileForRangeRead,
 	}
 
 	// Set up root bucket
 	var root inode.DirInode
-	if cfg.BucketName == "" || cfg.BucketName == "_" {
+	if serverCfg.BucketName == "" || serverCfg.BucketName == "_" {
 		logger.Info("Set up root directory for all accessible buckets")
 		root = makeRootForAllBuckets(fs)
 	} else {
-		logger.Info("Set up root directory for bucket " + cfg.BucketName)
-		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, cfg.BucketName, false)
+		logger.Info("Set up root directory for bucket " + serverCfg.BucketName)
+		syncerBucket, err := fs.bucketManager.SetUpBucket(ctx, serverCfg.BucketName, false)
 		if err != nil {
 			return nil, fmt.Errorf("SetUpBucket: %w", err)
 		}
@@ -217,18 +219,18 @@ func NewFileSystem(
 	return fs, nil
 }
 
-func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
+func createFileCacheHandler(serverCfg *ServerConfig) (fileCacheHandler *file.CacheHandler, err error) {
 	var sizeInBytes uint64
 	// -1 means unlimited size for cache, the underlying LRU cache doesn't handle
 	// -1 explicitly, hence we pass MaxUint64 as capacity in that case.
-	if cfg.MountConfig.FileCacheConfig.MaxSizeMB == -1 {
+	if serverCfg.NewConfig.FileCache.MaxSizeMb == -1 {
 		sizeInBytes = math.MaxUint64
 	} else {
-		sizeInBytes = uint64(cfg.MountConfig.FileCacheConfig.MaxSizeMB) * cacheutil.MiB
+		sizeInBytes = uint64(serverCfg.NewConfig.FileCache.MaxSizeMb) * cacheutil.MiB
 	}
 	fileInfoCache := lru.NewCache(sizeInBytes)
 
-	cacheDir := string(cfg.MountConfig.CacheDir)
+	cacheDir := string(serverCfg.NewConfig.CacheDir)
 	// Adding a new directory inside cacheDir to keep file-cache separate from
 	// metadata cache if and when we support storing metadata cache on disk in
 	// the future.
@@ -242,10 +244,8 @@ func createFileCacheHandler(cfg *ServerConfig) (fileCacheHandler *file.CacheHand
 		return nil, fmt.Errorf("createFileCacheHandler: while creating file cache directory: %w", cacheDirErr)
 	}
 
-	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir,
-		cfg.SequentialReadSizeMb, &cfg.MountConfig.FileCacheConfig)
-	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager,
-		cacheDir, filePerm, dirPerm)
+	jobManager := downloader.NewJobManager(fileInfoCache, filePerm, dirPerm, cacheDir, serverCfg.SequentialReadSizeMb, &serverCfg.NewConfig.FileCache)
+	fileCacheHandler = file.NewCacheHandler(fileInfoCache, jobManager, cacheDir, filePerm, dirPerm)
 	return
 }
 
@@ -469,7 +469,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
 
-	// Config specified by the user using configFile flag.
+	// Config specified by the user using config-file flag.
 	mountConfig *config.MountConfig
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when

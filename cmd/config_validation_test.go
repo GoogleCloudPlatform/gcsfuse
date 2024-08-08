@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -44,6 +45,19 @@ func getConfigObject(t *testing.T, args []string) (*cfg.Config, error) {
 func getConfigObjectWithConfigFile(t *testing.T, configFilePath string) (*cfg.Config, error) {
 	t.Helper()
 	return getConfigObject(t, []string{fmt.Sprintf("--config-file=%s", configFilePath)})
+}
+
+func defaultFileCacheConfig(t *testing.T) cfg.FileCacheConfig {
+	t.Helper()
+	return cfg.FileCacheConfig{
+		CacheFileForRangeRead:    false,
+		DownloadChunkSizeMb:      50,
+		EnableCrc:                false,
+		EnableParallelDownloads:  false,
+		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+		MaxSizeMb:                -1,
+		ParallelDownloadsPerFile: 16,
+	}
 }
 
 func TestValidateConfigFile(t *testing.T) {
@@ -186,6 +200,83 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.EqualValues(t, tc.expectedConfig.Write, gotConfig.Write)
+			}
+		})
+	}
+}
+
+func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
+	testCases := []struct {
+		name       string
+		configFile string
+	}{
+		{
+			name:       "Invalid parallel downloads per file.",
+			configFile: "testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml",
+		},
+		{
+			name:       "Invalid download chunk size mb.",
+			configFile: "testdata/file_cache_config/invalid_download_chunk_size_mb.yaml",
+		},
+		{
+			name:       "Invalid max size mb.",
+			configFile: "testdata/file_cache_config/invalid_max_size_mb.yaml",
+		},
+		{
+			name:       "Invalid max parallel downloads.",
+			configFile: "testdata/file_cache_config/invalid_max_parallel_downloads.yaml",
+		},
+		{
+			name:       "Invalid zero max parallel downloads",
+			configFile: "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configFile     string
+		expectedConfig *cfg.Config
+	}{
+		{
+			name:       "Empty config file [default values].",
+			configFile: "testdata/empty_file.yaml",
+			expectedConfig: &cfg.Config{
+				FileCache: defaultFileCacheConfig(t),
+			},
+		},
+		{
+			name:       "Valid config file.",
+			configFile: "testdata/valid_config.yaml",
+			expectedConfig: &cfg.Config{
+				FileCache: cfg.FileCacheConfig{
+					CacheFileForRangeRead:    true,
+					DownloadChunkSizeMb:      300,
+					EnableCrc:                true,
+					EnableParallelDownloads:  true,
+					MaxParallelDownloads:     200,
+					MaxSizeMb:                40,
+					ParallelDownloadsPerFile: 10,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
+
+			if assert.NoError(t, err) {
+				assert.EqualValues(t, tc.expectedConfig.FileCache, gotConfig.FileCache)
 			}
 		})
 	}
