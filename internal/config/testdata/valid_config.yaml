@@ -17,6 +17,7 @@ file-cache:
   max-parallel-downloads: -1
   download-chunk-size-mb: 100
   enable-crc: false
+  write-buffer-size: 8192
 metadata-cache:
   ttl-secs: 5
   type-cache-max-size-mb: 1
