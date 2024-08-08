@@ -61,7 +61,6 @@ func isValidFileCacheConfig(config *FileCacheConfig) error {
 	return nil
 }
 
-
 func IsValidExperimentalMetadataPrefetchOnMount(mode string) error {
 	switch mode {
 	case ExperimentalMetadataPrefetchOnMountDisabled,
