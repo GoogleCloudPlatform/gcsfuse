@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
@@ -103,7 +104,7 @@ func (t *FlagsTest) TestDefaults() {
 	assert.False(t.T(), f.DebugInvariants)
 
 	// Post-mount actions
-	assert.Equal(t.T(), config.ExperimentalMetadataPrefetchOnMountDisabled, f.ExperimentalMetadataPrefetchOnMount)
+	assert.Equal(t.T(), cfg.ExperimentalMetadataPrefetchOnMountDisabled, f.ExperimentalMetadataPrefetchOnMount)
 
 	// Metrics
 	assert.Equal(t.T(), 0, f.PrometheusPort)
@@ -223,7 +224,7 @@ func (t *FlagsTest) TestStrings() {
 	assert.Equal(t.T(), "foobar", f.TempDir)
 	assert.Equal(t.T(), "baz", f.OnlyDir)
 	assert.Equal(t.T(), mountpkg.HTTP2, f.ClientProtocol)
-	assert.Equal(t.T(), config.ExperimentalMetadataPrefetchOnMountAsynchronous, f.ExperimentalMetadataPrefetchOnMount)
+	assert.Equal(t.T(), cfg.ExperimentalMetadataPrefetchOnMountAsynchronous, f.ExperimentalMetadataPrefetchOnMount)
 }
 
 func (t *FlagsTest) TestDurations() {
@@ -300,7 +301,7 @@ func (t *FlagsTest) TestResolvePathForTheFlagsInContext() {
 func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                0,
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
+		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
 	}
 
 	err := validateFlags(flags)
@@ -312,7 +313,7 @@ func (t *FlagsTest) TestValidateFlagsForZeroSequentialReadSize() {
 func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                2048,
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
+		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
 	}
 
 	err := validateFlags(flags)
@@ -324,7 +325,7 @@ func (t *FlagsTest) TestValidateFlagsForSequentialReadSizeGreaterThan1024() {
 func (t *FlagsTest) TestValidateFlagsForValidSequentialReadSize() {
 	flags := &flagStorage{
 		SequentialReadSizeMb:                10,
-		ExperimentalMetadataPrefetchOnMount: config.DefaultExperimentalMetadataPrefetchOnMount,
+		ExperimentalMetadataPrefetchOnMount: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
 	}
 
 	err := validateFlags(flags)
@@ -346,24 +347,6 @@ func (t *FlagsTest) TestValidateFlagsForSupportedExperimentalMetadataPrefetchOnM
 		err := validateFlags(flags)
 
 		assert.Equal(t.T(), nil, err)
-	}
-}
-
-func (t *FlagsTest) TestValidateFlagsForUnsupportedExperimentalMetadataPrefetchOnMount() {
-	for _, input := range []string{
-		"", "unsupported",
-	} {
-		flags := &flagStorage{
-			// Unrelated fields, not being tested here, so set to sane values.
-			SequentialReadSizeMb: 200,
-			// The flag being tested.
-			ExperimentalMetadataPrefetchOnMount: input,
-		}
-
-		err := validateFlags(flags)
-
-		assert.NotEqual(t.T(), nil, err)
-		assert.ErrorContains(t.T(), err, fmt.Sprintf(config.UnsupportedMetadataPrefixModeError, input))
 	}
 }
 

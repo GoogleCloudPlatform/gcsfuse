@@ -45,5 +45,20 @@ func ValidateConfig(config *Config) error {
 		return fmt.Errorf("error parsing custom-endpoint config: %w", err)
 	}
 
+	if err = IsValidExperimentalMetadataPrefetchOnMount(config.MetadataCache.ExperimentalMetadataPrefetchOnMount); err != nil {
+		return fmt.Errorf("error parsing experimental-metadata-prefetch-on-mount: %w", err)
+	}
+
 	return nil
+}
+
+func IsValidExperimentalMetadataPrefetchOnMount(mode string) error {
+	switch mode {
+	case ExperimentalMetadataPrefetchOnMountDisabled,
+		ExperimentalMetadataPrefetchOnMountSynchronous,
+		ExperimentalMetadataPrefetchOnMountAsynchronous:
+		return nil
+	default:
+		return fmt.Errorf("unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async", mode)
+	}
 }
