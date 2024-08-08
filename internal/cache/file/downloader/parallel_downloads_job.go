@@ -105,7 +105,7 @@ func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, o
 	return nil
 }
 
-func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
+func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int64, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
 	return func() error {
 		// Since we keep a goroutine for each job irrespective of the maxParallelism,
 		// not releasing the default goroutine to the pool.
