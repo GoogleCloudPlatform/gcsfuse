@@ -24,7 +24,6 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
-	mountpkg "github.com/googlecloudplatform/gcsfuse/v2/internal/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -222,7 +221,7 @@ func (t *FlagsTest) TestStrings() {
 	assert.Equal(t.T(), "-asdf", f.KeyFile)
 	assert.Equal(t.T(), "foobar", f.TempDir)
 	assert.Equal(t.T(), "baz", f.OnlyDir)
-	assert.Equal(t.T(), mountpkg.HTTP2, f.ClientProtocol)
+	assert.EqualValues(t.T(), cfg.HTTP2, f.ClientProtocol)
 	assert.Equal(t.T(), cfg.ExperimentalMetadataPrefetchOnMountAsynchronous, f.ExperimentalMetadataPrefetchOnMount)
 }
 

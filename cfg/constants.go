@@ -14,6 +14,8 @@
 
 package cfg
 
+import "time"
+
 const (
 	// Logging-level constants
 

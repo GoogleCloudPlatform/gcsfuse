@@ -278,7 +278,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  "client-protocol",
-				Value: string(mountpkg.HTTP1),
+				Value: string(cfg.HTTP1),
 				Usage: "The protocol used for communicating with the GCS backend. " +
 					"Value can be 'http1' (HTTP/1.1) or 'http2' (HTTP/2) or grpc.",
 			},

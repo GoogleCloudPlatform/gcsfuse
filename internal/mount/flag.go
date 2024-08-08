@@ -27,18 +27,9 @@ import (
 
 type ClientProtocol string
 
-const (
-	// Deprecated: Use the constant from cfg package
-	HTTP1 ClientProtocol = "http1"
-	// Deprecated: Use the constant from cfg package
-	HTTP2 ClientProtocol = "http2"
-	// Deprecated: Use the constant from cfg package
-	GRPC ClientProtocol = "grpc"
-)
-
 func (cp ClientProtocol) IsValid() bool {
 	switch cp {
-	case HTTP1, HTTP2, GRPC:
+	case cfg.HTTP1, cfg.HTTP2, cfg.GRPC:
 		return true
 	}
 	return false
