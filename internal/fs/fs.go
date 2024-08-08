@@ -23,7 +23,6 @@ import (
 	"math"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -2062,37 +2061,6 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 	return nil
 }
 
-func isSubdir(p1, p2 string) (bool, error) {
-	rel, err := filepath.Rel(p2, p1)
-	if err != nil {
-		return false, err
-	}
-	return !strings.HasPrefix(rel, "..") && rel != ".", nil
-}
-
-func (fs *fileSystem) renameWithinSameParent(ctx context.Context, parent inode.DirInode, oldDirName, newDirName string) error {
-	parent.Lock()
-	defer parent.Unlock()
-	_, err := parent.RenameFolder(ctx, oldDirName, newDirName)
-	return err
-}
-
-func (fs *fileSystem) renameAcrossDifferentParents(ctx context.Context, oldParent, newParent inode.DirInode, oldDirName, newDirName string) error {
-	p1, p2 := oldParent, newParent
-	x, _ := isSubdir(oldParent.Name().GcsObjectName(), newParent.Name().GcsObjectName())
-	if x {
-		p1, p2 = newParent, oldParent
-	}
-
-	p1.Lock()
-	defer p1.Unlock()
-	p2.Lock()
-	defer p2.Unlock()
-
-	_, err := oldParent.RenameFolder(ctx, oldDirName, newDirName)
-	return err
-}
-
 // Rename an old folder to a new folder in Hierarchical bucket. If the new folder already
 // exists and is non-empty, return ENOTEMPTY.
 //
@@ -2126,10 +2094,17 @@ func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode
 	newDirName := inode.NewDirName(newParent.Name(), newName)
 	if oldParent == newParent {
 		// If both parents are the same, lock once.
-		err = fs.renameWithinSameParent(ctx, oldParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+		oldParent.Lock()
+		defer oldParent.Unlock()
+
+		_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	} else {
-		// Determine lock order.
-		err = fs.renameAcrossDifferentParents(ctx, oldParent, newParent, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+		oldParent.Lock()
+		defer oldParent.Unlock()
+		newParent.Lock()
+		defer newParent.Unlock()
+
+		_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
 	}
 	if err != nil {
 		return err
