@@ -24,8 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/setup"
 )
 
-const DirectoryInTestBucket = "Test"
-
 func MountGcsfuseWithOnlyDir(flags []string) (err error) {
 	defaultArg := []string{"--only-dir",
 		setup.OnlyDirMounted(),

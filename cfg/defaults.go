@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,26 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package setup
+package cfg
 
-import (
-	"fmt"
-	"os"
-	"path"
-
-	"gopkg.in/yaml.v3"
-)
-
-func YAMLConfigFile(yamlContent interface{}, fileName string) (filePath string) {
-	yamlData, err := yaml.Marshal(yamlContent)
-	if err != nil {
-		LogAndExit(fmt.Sprintf("Error while marshaling config file: %v", err))
+// DefaultLoggingConfig returns the default configuration that is to be used
+// during the application startup - when the provided configuration hasn't been
+// parsed yet.
+func DefaultLoggingConfig() LoggingConfig {
+	return LoggingConfig{
+		Severity: "INFO",
+		Format:   "json",
+		LogRotate: LogRotateLoggingConfig{
+			BackupFileCount: 10,
+			Compress:        true,
+			MaxFileSizeMb:   512,
+		},
 	}
-
-	filePath = path.Join(TestDir(), fileName)
-	err = os.WriteFile(filePath, yamlData, 0644)
-	if err != nil {
-		LogAndExit("Unable to write data into config file.")
-	}
-	return
 }

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 )
 
 const (
@@ -40,17 +40,17 @@ const (
 func setLoggingLevel(level string, programLevel *slog.LevelVar) {
 	switch level {
 	// logs having severity >= the configured value will be logged.
-	case config.TRACE:
+	case cfg.TRACE:
 		programLevel.Set(LevelTrace)
-	case config.DEBUG:
+	case cfg.DEBUG:
 		programLevel.Set(LevelDebug)
-	case config.INFO:
+	case cfg.INFO:
 		programLevel.Set(LevelInfo)
-	case config.WARNING:
+	case cfg.WARNING:
 		programLevel.Set(LevelWarn)
-	case config.ERROR:
+	case cfg.ERROR:
 		programLevel.Set(LevelError)
-	case config.OFF:
+	case cfg.OFF:
 		programLevel.Set(LevelOff)
 	}
 }
@@ -65,19 +65,19 @@ func customiseLevels(a *slog.Attr) {
 	level := a.Value.Any().(slog.Level)
 	switch {
 	case level == LevelTrace:
-		a.Value = slog.StringValue(string(config.TRACE))
+		a.Value = slog.StringValue(string(cfg.TRACE))
 	case level == LevelDebug:
-		a.Value = slog.StringValue(string(config.DEBUG))
+		a.Value = slog.StringValue(string(cfg.DEBUG))
 	case level == LevelInfo:
-		a.Value = slog.StringValue(string(config.INFO))
+		a.Value = slog.StringValue(string(cfg.INFO))
 	case level == LevelWarn:
-		a.Value = slog.StringValue(string(config.WARNING))
+		a.Value = slog.StringValue(string(cfg.WARNING))
 	case level == LevelError:
-		a.Value = slog.StringValue(string(config.ERROR))
+		a.Value = slog.StringValue(string(cfg.ERROR))
 	case level == LevelOff:
-		a.Value = slog.StringValue(string(config.OFF))
+		a.Value = slog.StringValue(string(cfg.OFF))
 	default:
-		a.Value = slog.StringValue(string(config.INFO))
+		a.Value = slog.StringValue(string(cfg.INFO))
 	}
 }
 

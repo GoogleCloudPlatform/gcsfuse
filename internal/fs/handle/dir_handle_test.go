@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -52,7 +53,7 @@ func init() { RegisterTestSuite(&DirHandleTest{}) }
 func (t *DirHandleTest) SetUp(ti *TestInfo) {
 	t.ctx = ti.Ctx
 	t.bucket = gcsx.NewSyncerBucket(
-		1, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket"))
+		1, ".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.NonHierarchical))
 	t.clock.SetTime(time.Date(2022, 8, 15, 22, 56, 0, 0, time.Local))
 	t.resetDirHandle()
 }

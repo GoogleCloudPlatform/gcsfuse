@@ -38,5 +38,9 @@ func Rationalize(c *Config) error {
 		return err
 	}
 
+	if c.Debug.Fuse || c.Debug.Gcs || c.Debug.LogMutex {
+		c.Logging.Severity = "TRACE"
+	}
+
 	return nil
 }

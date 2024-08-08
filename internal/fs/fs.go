@@ -184,6 +184,7 @@ func NewFileSystem(
 		nextInodeID:                fuseops.RootInodeID + 1,
 		generationBackedInodes:     make(map[inode.Name]inode.GenerationBackedInode),
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
+		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
 		handles:                    make(map[fuseops.HandleID]interface{}),
 		mountConfig:                cfg.MountConfig,
@@ -208,6 +209,7 @@ func NewFileSystem(
 	root.IncrementLookupCount()
 	fs.inodes[fuseops.RootInodeID] = root
 	fs.implicitDirInodes[root.Name()] = root
+	fs.folderInodes[root.Name()] = root
 	root.Unlock()
 
 	// Set up invariant checking.
@@ -430,6 +432,16 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	implicitDirInodes map[inode.Name]inode.DirInode
 
+	// A map from folder name to the folder inode that represents
+	// that name, if any. There can be at most one folder inode for a
+	// given name accessible to us at any given time.
+	//
+	// INVARIANT: For each k/v, v.Name() == k
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	//
+	// GUARDED_BY(mu)
+	folderInodes map[inode.Name]inode.DirInode
+
 	// A map from object name to the local fileInode that represents
 	// that name. There can be at most one local file inode for a
 	// given name accessible to us at any given time.
@@ -518,6 +530,29 @@ func (fs *fileSystem) checkInvariantsForLocalFileInodes() {
 					fs.localFileInodes[in.Name()],
 					in))
 			}
+		}
+	}
+}
+
+func (fs *fileSystem) checkInvariantsForFolderInodes() {
+	// INVARIANT: For each k/v, v.Name() == k
+	for k, v := range fs.folderInodes {
+		if !(v.Name() == k) {
+			panic(fmt.Sprintf(
+				"Unexpected name: \"%s\" vs. \"%s\"",
+				v.Name(),
+				k))
+		}
+	}
+
+	// INVARIANT: For each value v, inodes[v.ID()] == v
+	for _, v := range fs.folderInodes {
+		if fs.inodes[v.ID()] != v {
+			panic(fmt.Sprintf(
+				"Mismatch for ID %v: %v %v",
+				v.ID(),
+				fs.inodes[v.ID()],
+				v))
 		}
 	}
 }
@@ -640,6 +675,7 @@ func (fs *fileSystem) checkInvariants() {
 	fs.checkInvariantsForInodes()
 	fs.checkInvariantsForGenerationBackedInodes()
 	fs.checkInvariantsForImplicitDirs()
+	fs.checkInvariantsForFolderInodes()
 	fs.checkInvariantsForLocalFileInodes()
 
 	//////////////////////////////////
@@ -668,6 +704,34 @@ func (fs *fileSystem) checkInvariants() {
 	}
 }
 
+func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core) inode.Inode {
+	in := inode.NewExplicitDirInode(
+		inodeID,
+		ic.FullName,
+		ic.MinObject,
+		fuseops.InodeAttributes{
+			Uid:  fs.uid,
+			Gid:  fs.gid,
+			Mode: fs.dirMode,
+
+			// We guarantee only that directory times be "reasonable".
+			Atime: fs.mtimeClock.Now(),
+			Ctime: fs.mtimeClock.Now(),
+			Mtime: fs.mtimeClock.Now(),
+		},
+		fs.implicitDirs,
+		fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
+		fs.enableNonexistentTypeCache,
+		fs.dirTypeCacheTTL,
+		ic.Bucket,
+		fs.mtimeClock,
+		fs.cacheClock,
+		fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
+		fs.mountConfig.EnableHNS)
+
+	return in
+}
+
 // Implementation detail of lookUpOrCreateInodeIfNotStale; do not use outside
 // of that function.
 //
@@ -679,31 +743,9 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 
 	// Create the inode.
 	switch {
-	// Explicit directories
-	case ic.MinObject != nil && ic.FullName.IsDir():
-		in = inode.NewExplicitDirInode(
-			id,
-			ic.FullName,
-			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
-			fs.implicitDirs,
-			fs.mountConfig.ListConfig.EnableEmptyManagedFolders,
-			fs.enableNonexistentTypeCache,
-			fs.dirTypeCacheTTL,
-			ic.Bucket,
-			fs.mtimeClock,
-			fs.cacheClock,
-			fs.mountConfig.MetadataCacheConfig.TypeCacheMaxSizeMB,
-			fs.mountConfig.EnableHNS)
+	// Explicit directories or folders in hierarchical bucket.
+	case (ic.MinObject != nil && ic.FullName.IsDir()), ic.Folder != nil:
+		in = fs.createExplicitDirInode(id, ic)
 
 		// Implicit directories
 	case ic.FullName.IsDir():
@@ -765,6 +807,44 @@ func (fs *fileSystem) mintInode(ic inode.Core) (in inode.Inode) {
 	return
 }
 
+// Return the dir Inode.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// UNLOCK_FUNCTION(fs.mu)
+// LOCK_FUNCTION(in)
+func (fs *fileSystem) createDirInode(ic inode.Core, inodes map[inode.Name]inode.DirInode) inode.Inode {
+	var in inode.Inode
+	var ok bool
+	if !ic.FullName.IsDir() {
+		panic(fmt.Sprintf("Unexpected name for a directory: %q", ic.FullName))
+	}
+
+	var maxTriesToCreateInode = 3
+
+	for n := 0; n < maxTriesToCreateInode; n++ {
+		in, ok = (inodes)[ic.FullName]
+		if !ok {
+			in = fs.mintInode(ic)
+			(inodes)[in.Name()] = in.(inode.DirInode)
+			in.Lock()
+			return in
+		}
+
+		fs.mu.Unlock()
+		in.Lock()
+		fs.mu.Lock()
+
+		if (inodes)[ic.FullName] != in {
+			in.Unlock()
+			continue
+		}
+
+		return in
+	}
+
+	return nil
+}
+
 // Attempt to find an inode for a backing object or an implicit directory.
 // Create an inode if (1) it has never yet existed, or (2) the object is newer
 // than the existing one.
@@ -795,49 +875,14 @@ func (fs *fileSystem) lookUpOrCreateInodeIfNotStale(ic inode.Core) (in inode.Ino
 
 	fs.mu.Lock()
 
+	// Handle Folders in hierarchical bucket.
+	if ic.Folder != nil {
+		return fs.createDirInode(ic, fs.folderInodes)
+	}
+
 	// Handle implicit directories.
 	if ic.MinObject == nil {
-		if !ic.FullName.IsDir() {
-			panic(fmt.Sprintf("Unexpected name for an implicit directory: %q", ic.FullName))
-		}
-
-		var ok bool
-		var maxTriesToCreateInode = 3
-		for n := 0; n < maxTriesToCreateInode; n++ {
-			in, ok = fs.implicitDirInodes[ic.FullName]
-			// If we don't have an entry, create one.
-			if !ok {
-				in = fs.mintInode(ic)
-				fs.implicitDirInodes[in.Name()] = in.(inode.DirInode)
-				// Since we are creating inode here, there is no chance that something else
-				// is holding the lock for inode. Hence its safe to take lock on inode
-				// without releasing fs.mu.lock.
-				in.Lock()
-				return
-			}
-
-			// If the inode already exists, we need to follow the lock ordering rules
-			// to get the lock. First get inode lock and then fs lock.
-			fs.mu.Unlock()
-			in.Lock()
-			fs.mu.Lock()
-
-			// Check if inode is still valid by the time we got the lock. If not,
-			// its means inode is in the process of getting destroyed. Try creating it
-			// again.
-			if fs.implicitDirInodes[ic.FullName] != in {
-				in.Unlock()
-				continue
-			}
-
-			return
-		}
-
-		// Incase we exhausted the number of tries to createInode, we will return
-		// nil object. Returning nil is handled by callers to throw appropriate
-		// errors back to kernel.
-		in = nil
-		return
+		return fs.createDirInode(ic, fs.implicitDirInodes)
 	}
 
 	oGen := inode.Generation{
@@ -1138,6 +1183,9 @@ func (fs *fileSystem) unlockAndDecrementLookupCount(in inode.Inode, N uint64) {
 		}
 		if fs.localFileInodes[name] == in {
 			delete(fs.localFileInodes, name)
+		}
+		if fs.folderInodes[name] == in {
+			delete(fs.folderInodes, name)
 		}
 		fs.mu.Unlock()
 	}

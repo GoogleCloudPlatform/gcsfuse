@@ -360,25 +360,23 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 }
 
 func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*Core, error) {
-	folderResult, folderErr := bucket.GetFolder(ctx, name.GcsObjectName())
+	folder, err := bucket.GetFolder(ctx, name.GcsObjectName())
 
 	// Suppress "not found" errors.
 	var gcsErr *gcs.NotFoundError
-	if errors.As(folderErr, &gcsErr) {
+	if errors.As(err, &gcsErr) {
 		return nil, nil
 	}
 
 	// Annotate others.
-	if folderErr != nil {
-		return nil, fmt.Errorf("error in get folder for lookup : %w", folderErr)
+	if folder == nil {
+		return nil, fmt.Errorf("error in get folder for lookup : %w", err)
 	}
 
-	folderObject := folderResult.ConvertFolderToMinObject()
-
 	return &Core{
-		Bucket:    bucket,
-		FullName:  name,
-		MinObject: folderObject,
+		Bucket:   bucket,
+		FullName: name,
+		Folder:   folder,
 	}, nil
 }
 
@@ -838,19 +836,20 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
 	var m *gcs.MinObject
+	var f *gcs.Folder
+	var err error
 
 	// Check the bucket type.
 	if d.isBucketHierarchical() {
 		// For hierarchical buckets, create a folder.
-		f, err := d.bucket.CreateFolder(ctx, fullName.objectName)
+		f, err = d.bucket.CreateFolder(ctx, fullName.objectName)
 		if err != nil {
 			return nil, err
 		}
-		// Convert the folder to a minimal object.
-		m = f.ConvertFolderToMinObject()
 	} else {
+		var o *gcs.Object
 		// For non-hierarchical buckets, create a new object.
-		o, err := d.createNewObject(ctx, fullName, nil)
+		o, err = d.createNewObject(ctx, fullName, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -865,6 +864,7 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 		Bucket:    d.Bucket(),
 		FullName:  fullName,
 		MinObject: m,
+		Folder:    f,
 	}, nil
 }
 

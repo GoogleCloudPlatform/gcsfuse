@@ -32,7 +32,6 @@ import (
 const (
 	InvalidFileHandleErrMsg                   = "invalid file handle"
 	InvalidFileDownloadJobErrMsg              = "invalid download job"
-	InvalidCacheHandleErrMsg                  = "invalid cache handle"
 	InvalidFileInfoCacheErrMsg                = "invalid file info cache"
 	ErrInSeekingFileHandleMsg                 = "error while seeking file handle"
 	ErrInReadingFileHandleMsg                 = "error while reading file handle"

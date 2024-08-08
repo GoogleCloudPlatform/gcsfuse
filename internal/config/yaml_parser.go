@@ -21,18 +21,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	TRACE   string = "TRACE"
-	DEBUG   string = "DEBUG"
-	INFO    string = "INFO"
-	WARNING string = "WARNING"
-	ERROR   string = "ERROR"
-	OFF     string = "OFF"
-
 	parseConfigFileErrMsgFormat = "error parsing config file: %v"
 
 	MetadataCacheTtlSecsInvalidValueError     = "the value of ttl-secs for metadata-cache can't be less than -1"
@@ -51,12 +45,12 @@ const (
 func IsValidLogSeverity(severity string) bool {
 	switch severity {
 	case
-		TRACE,
-		DEBUG,
-		INFO,
-		WARNING,
-		ERROR,
-		OFF:
+		cfg.TRACE,
+		cfg.DEBUG,
+		cfg.INFO,
+		cfg.WARNING,
+		cfg.ERROR,
+		cfg.OFF:
 		return true
 	}
 	return false

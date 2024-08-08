@@ -35,6 +35,9 @@ type Core struct {
 	// if the inode is the base directory or an implicit directory.
 	MinObject *gcs.MinObject
 
+	// The GCS folder in the hierarchical bucket that backs up the inode.
+	Folder *gcs.Folder
+
 	// Specifies a local object which is not yet synced to GCS.
 	Local bool
 }
@@ -48,7 +51,7 @@ func (c *Core) Type() metadata.Type {
 	switch {
 	case c == nil:
 		return metadata.UnknownType
-	case c.MinObject == nil && !c.Local:
+	case c.MinObject == nil && c.Folder == nil && !c.Local:
 		return metadata.ImplicitDirType
 	case c.FullName.IsDir():
 		return metadata.ExplicitDirType
@@ -62,6 +65,10 @@ func (c *Core) Type() metadata.Type {
 // SanityCheck returns an error if the object is conflicting with itself, which
 // means the metadata of the file system is broken.
 func (c Core) SanityCheck() error {
+	if c.Folder != nil && c.FullName.objectName != c.Folder.Name {
+		return fmt.Errorf("inode name %q mismatches folder name %q", c.FullName, c.Folder.Name)
+	}
+
 	if c.MinObject != nil && c.FullName.objectName != c.MinObject.Name {
 		return fmt.Errorf("inode name %q mismatches object name %q", c.FullName, c.MinObject.Name)
 	}

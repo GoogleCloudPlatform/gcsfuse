@@ -24,7 +24,6 @@ import (
 	"runtime/debug"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -35,9 +34,7 @@ import (
 const (
 	ProgrammeName           string = "gcsfuse"
 	GCSFuseInBackgroundMode string = "GCSFUSE_IN_BACKGROUND_MODE"
-	jsonFormat              string = "json"
 	textFormat              string = "text"
-	defaultFormat           string = jsonFormat
 )
 
 var (
@@ -52,7 +49,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfig) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -68,9 +65,9 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 		}
 		fileWriter = &lumberjack.Logger{
 			Filename:   f.Name(),
-			MaxSize:    legacyLogConfig.LogRotateConfig.MaxFileSizeMB,
-			MaxBackups: legacyLogConfig.LogRotateConfig.BackupFileCount,
-			Compress:   legacyLogConfig.LogRotateConfig.Compress,
+			MaxSize:    int(newLogConfig.LogRotate.MaxFileSizeMb),
+			MaxBackups: int(newLogConfig.LogRotate.BackupFileCount),
+			Compress:   newLogConfig.LogRotate.Compress,
 		}
 	} else {
 		if _, ok := os.LookupEnv(GCSFuseInBackgroundMode); ok {
@@ -88,12 +85,12 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:            f,
-		sysWriter:       sysWriter,
-		fileWriter:      fileWriter,
-		format:          newLogConfig.Format,
-		level:           string(newLogConfig.Severity),
-		logRotateConfig: legacyLogConfig.LogRotateConfig,
+		file:       f,
+		sysWriter:  sysWriter,
+		fileWriter: fileWriter,
+		format:     newLogConfig.Format,
+		level:      string(newLogConfig.Severity),
+		logRotate:  newLogConfig.LogRotate,
 	}
 	defaultLogger = defaultLoggerFactory.newLogger(string(newLogConfig.Severity))
 
@@ -102,13 +99,14 @@ func InitLogFile(legacyLogConfig config.LogConfig, newLogConfig cfg.LoggingConfi
 
 // init initializes the logger factory to use stdout and stderr.
 func init() {
+	logConfig := cfg.DefaultLoggingConfig()
 	defaultLoggerFactory = &loggerFactory{
-		file:            nil,
-		format:          defaultFormat,
-		level:           config.INFO, // setting log level to INFO by default
-		logRotateConfig: config.DefaultLogRotateConfig(),
+		file:      nil,
+		format:    logConfig.Format,
+		level:     string(logConfig.Severity), // setting log level to INFO by default
+		logRotate: logConfig.LogRotate,
 	}
-	defaultLogger = defaultLoggerFactory.newLogger(config.INFO)
+	defaultLogger = defaultLoggerFactory.newLogger(cfg.INFO)
 }
 
 // SetLogFormat updates the log format of default logger.
@@ -167,12 +165,12 @@ func Fatal(format string, v ...interface{}) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file            *os.File
-	sysWriter       *syslog.Writer
-	format          string
-	level           string
-	logRotateConfig config.LogRotateConfig
-	fileWriter      *lumberjack.Logger
+	file       *os.File
+	sysWriter  *syslog.Writer
+	format     string
+	level      string
+	logRotate  cfg.LogRotateLoggingConfig
+	fileWriter *lumberjack.Logger
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {

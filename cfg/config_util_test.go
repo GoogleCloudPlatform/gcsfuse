@@ -20,56 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOverrideWithLoggingFlags(t *testing.T) {
-	testCases := []struct {
-		name        string
-		mountConfig *Config
-		debugFuse   bool
-		debugGCS    bool
-		debugMutex  bool
-		expected    LogSeverity
-	}{
-		{
-			name:        "No debug flags",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "DEBUG"}}, // Initial severity
-			expected:    "DEBUG",                                            // Should remain unchanged
-		},
-		{
-			name:        "debugFuse true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "INFO"}},
-			debugFuse:   true,
-			expected:    "TRACE",
-		},
-		{
-			name:        "debugGCS true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "WARNING"}},
-			debugGCS:    true,
-			expected:    "TRACE",
-		},
-		{
-			name:        "debugMutex true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "OFF"}},
-			debugMutex:  true,
-			expected:    "TRACE",
-		},
-		{
-			name:        "Multiple debug flags true",
-			mountConfig: &Config{Logging: LoggingConfig{Severity: "INFO"}},
-			debugFuse:   true,
-			debugGCS:    true,
-			expected:    "TRACE",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			OverrideWithLoggingFlags(tc.mountConfig, tc.debugFuse, tc.debugGCS, tc.debugMutex)
-
-			assert.Equal(t, tc.expected, tc.mountConfig.Logging.Severity)
-		})
-	}
-}
-
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }

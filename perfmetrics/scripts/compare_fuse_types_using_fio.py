@@ -1,13 +1,27 @@
+# Copyright 2024 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Python script to do FIO test for GCSFuse Vs GCSFuse/Goofys.
 
 To run the script:
-python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_version=<version1> --flags_1=<flags1> 
+python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_version=<version1> --flags_1=<flags1>
 --fuse_type_2=<value2> --fuse_type_2_version=<version2> --flags_2=<flags2> --jobfile_path=<jobfile_path> --gcs_bucket=<gcs_bucket>
 
 1) --fuse_type_1=<value1> & --fuse_type_2=<value2>
 -> Value1 and value2 can be fuse based filesystem name.
--> fuse based filesystem name is used for logging so it can be anything. 
--> For GCSFuse it should be 'gcsfuse' 
+-> fuse based filesystem name is used for logging so it can be anything.
+-> For GCSFuse it should be 'gcsfuse'
 2) --fuse_type_1_version=<version1> & --fuse_type_2_version=<version2>
 -> For GCSFuse you can mention any released version or ‘master’ as version if you want to build from source.
 -> For other fuse based filesystem provide the link of github repository.
@@ -20,8 +34,8 @@ python3 compare_fuse_types_using_fio.py -- --fuse_type_1=<value1> --fuse_type_1_
 5) --gcs_bucket=<gcs_bucket>
 -> Name of the GCS bucket to be mounted for FIO load test.
 
-The code takes input the fuse based filesystem type and its version, required flags to mount the bucket, jobfile_path, 
-and gcs bucket name as input for fio test. Then it will perform the fio test for each of the given 
+The code takes input the fuse based filesystem type and its version, required flags to mount the bucket, jobfile_path,
+and gcs bucket name as input for fio test. Then it will perform the fio test for each of the given
 fuse based filesystem type at a specific version
 and extract fio_metrics to 'output.txt' file in the 'out' directory.
 """
@@ -38,9 +52,9 @@ GCSFUSE_FLAGS = "--implicit-dirs"
 
 def _install_gcsfuse(version, gcs_bucket, gcsfuse_flags) -> None:
   """Install gcsfuse with Specific version.
-  
+
   Args:
-    version(str): Gcsfuse version to be installed. 
+    version(str): Gcsfuse version to be installed.
     gcs_bucket(str): GCS bucket to be mounted.
     gcsfuse_flags(str): Fuse flags for mounting the GCS bucket.
   """
@@ -53,9 +67,9 @@ def _install_gcsfuse(version, gcs_bucket, gcsfuse_flags) -> None:
 
 def _install_gcsfuse_source(gcs_bucket, gcsfuse_flags) -> None:
   """Run gcsfuse from source code.
-  
+
   Args:
-    version(str): Gcsfuse version to be installed. 
+    version(str): Gcsfuse version to be installed.
     gcs_bucket(str): GCS bucket to be mounted.
   """
   os.system(f'''git clone {GCSFUSE_REPO}
@@ -65,10 +79,10 @@ def _install_gcsfuse_source(gcs_bucket, gcsfuse_flags) -> None:
             cd ..
             ''')
 
-  
+
 def _remove_gcsfuse(version) -> None:
   """Remove gcsfuse with specific version.
-  
+
   Args:
     version(str): Gcsfuse version to be removed.
   """
@@ -82,7 +96,7 @@ def _remove_gcsfuse(version) -> None:
 
 def _install_fuse(fuse_type, fuse_url, fuse_flags, gcs_bucket) -> None:
   """Install latest version of given fuse based filesystem.
-  
+
   Args:
     fuse_type(str): Fuse type for fio test.
     fuse_url(str): URL of github repo of given fuse based filesystem.
@@ -100,7 +114,7 @@ def _install_fuse(fuse_type, fuse_url, fuse_flags, gcs_bucket) -> None:
 
 def _remove_fuse(fuse_type) -> None:
   """Remove the given fuse based filesystem.
-  
+
   Args:
     fuse_type(str): Fuse type for fio test.
   """
@@ -112,7 +126,7 @@ def _remove_fuse(fuse_type) -> None:
 
 def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
   """Run fio test and extract metrics to output.txt file.
-  
+
   Args:
     jobfile(str): Path of the job file.
     fio_metrics_obj(str): Object for extracting fio metrics.
@@ -127,7 +141,7 @@ def _run_fio_test(jobfile_path, fio_metrics_obj) -> None:
 
 def _gcsfuse_fio_test(version, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags) -> None:
   """FIO test for gcsfuse of given version.
-  
+
   Args:
     version(str): Gcsfuse version to perform fio test.
     jobfile(str): Path of the job file.
@@ -139,14 +153,14 @@ def _gcsfuse_fio_test(version, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_f
     _install_gcsfuse_source(gcs_bucket, fuse_flags)
   else:
     _install_gcsfuse(version, gcs_bucket, fuse_flags)
-  
+
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_gcsfuse(version)
 
 
 def _fuse_fio_test(fuse_type, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_flags, fuse_url) -> None:
   """FIO test for latest version of goofys.
-  
+
   Args:
     fuse_type(str): Fuse type for fio test.
     jobfile(str): Path of the job file.
@@ -159,10 +173,10 @@ def _fuse_fio_test(fuse_type, jobfile_path, fio_metrics_obj, gcs_bucket, fuse_fl
   _run_fio_test(jobfile_path, fio_metrics_obj)
   _remove_fuse(fuse_type)
 
-  
+
 def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags) -> None:
   """FIO test for specific version of given fuse type.
-  
+
   Args:
     fuse_type(str): Fuse type for fio test.
     fuse_type_version(str): Fuse type version for fio test.
@@ -175,8 +189,8 @@ def _fuse_test(fuse_type, fuse_type_version, jobfile_path, fio_metric_obj, gcs_b
     _gcsfuse_fio_test(fuse_type_version, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags)
   else:
     _fuse_fio_test(fuse_type, jobfile_path, fio_metric_obj, gcs_bucket, fuse_flags, fuse_type_version)
-      
-  
+
+
 def main(argv) -> None:
 
   parser = argparse.ArgumentParser()
@@ -226,4 +240,4 @@ def main(argv) -> None:
 
 if __name__ == '__main__':
   app.run(main)
-  
+

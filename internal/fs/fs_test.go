@@ -123,7 +123,7 @@ func (t *fsTest) SetUpTestSuite() {
 	} else {
 		// mount a single bucket
 		if bucket == nil {
-			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket")
+			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket", gcs.NonHierarchical)
 		}
 		t.serverCfg.BucketName = bucket.Name()
 		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}

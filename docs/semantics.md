@@ -57,7 +57,7 @@ Examples:
 
 # Caching
 
-Cloud Storage FUSE has three forms of optional caching: stat, type, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
+Cloud Storage FUSE has four forms of optional caching: stat, type, list, and file. Stat and type caches are enabled by default. Using Cloud Storage FUSE with file caching, list caching, stat caching, or type caching enabled can significantly increase performance but reduces consistency guarantees.
 The different forms of caching are discussed in this section, along with their trade-offs and the situations in which they are and are not safe to use.
 
 The default behavior is appropriate, and brings significant performance benefits, when the bucket is never modified or is modified only via a single Cloud Storage FUSE mount. If you are using Cloud Storage FUSE in a situation where multiple actors will be modifying a bucket, be sure to read the rest of this section carefully and consider disabling caching.
@@ -163,7 +163,27 @@ Additional file cache [behavior](https://cloud.google.com/storage/docs/gcsfuse-c
 
    - If a Cloud Storage FUSE client modifies a cached file or its metadata, then the file is immediately invalidated and consistency is ensured in the following read by the same client. However, if different clients access the same file or its metadata, and its entries are cached, then the cached version of the file or metadata is read and not the updated version until the file is invalidated by that specific client's TTL setting.     
 
-**Note**: 
+**Kernel List Cache**
+
+As the name suggests, the Cloud Storage FUSE kernel-list-cache is used to cache the directory listing (output of `ls`) in kernel page-cache. It significantly improves the workload which involves repeated listing. For multi node/mount-point scenario, this is recommended to be used only for read only workloads, e.g. for Serving and Training workloads.
+
+By default, the list cache is disabled. It can be enabled by configuring the `--kernel-list-cache-ttl-secs` cli flag or `file-system:kernel-list-cache-ttl-secs` config flag where:
+*   A value of 0 means disabled. This is the default value.
+*   A positive value represents the ttl (in seconds) to keep the directory list response in the kernel page-cache.
+*   -1 to bypass entry expiration and always return the list response from the cache if available.
+
+**Important Points**
+*   The kernel-list-cache is kept within the kernel's page-cache. Consequently, this functionality depends upon the availability of page-cache memory on the system. This contrasts with the stat and type caches, which are retained in user memory as part of Cloud Storage Fuse daemon.
+*   The kernel's list cache is maintained on a per-directory level, resulting in either all list entries being retained in the page cache or none at all.
+*   The creation, renaming, or deletion of new files or folders causes the eviction of the page-cache of their immediate parent directory, but not of all ancestral directories.
+
+**Consistency**
+*   Kernel List cache ensures consistency within the mount. That means, creation, deletion or rename of files/folder within a directory evicts the kernel list cache of the directory.
+*   Externally added objects are only visible after the kernel-list-cache-ttl-secs ttl expires, even if they are touched (stat) via the same mount point. Since stat doesn’t evict the kernel-list-cache so there might be some list-stat inconsistency.
+*   Kernel-list-cache-ttl doesn't work with empty directories. In case a new file is added to the empty directory remotely outside of the mount, the client will not be able to access the new file even if ttl is expired.
+*   One of the known consistency issue: `rm -R` encounters consistency issues when objects are created externally in a bucket. Specifically, if a client (e.g., `Cloud Storage Fuse` client1) caches a directory listing and another client (client2) adds a new file to the directory before the cached listing expires, `rm -R` on the directory will fail with a "Directory not empty" error. This occurs because `rm -R` initially deletes the directory's children based on the cached listing and then checks the directory's emptiness by making a List call, which returns not empty due to the externally added file.
+
+**Note**:
 
 1. ```--stat-cache-ttl``` and ```--type-cache-ttl``` have been deprecated (starting v2.0) and only ```metadata-cache: ttl-secs``` in the gcsfuse config-file will be supported. So, it is recommended to switch from these two to ```metadata-cache: ttl-secs```.
 For now, for backward compatibility, both are accepted, and the minimum of the two, rounded to the next higher multiple of a second, is used as TTL for both stat-cache and type-cache, when ```metadata-cache: ttl-secs``` is not set.
@@ -332,7 +352,7 @@ See [Key Differences from a POSIX filesystem](https://cloud.google.com/storage/d
 
 ## Unlinking directories
 
-Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first do a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
+Because Cloud Storage offers no way to delete an object conditional on the non-existence of other objects, there is no way for Cloud Storage FUSE to unlink a directory if and only if it is empty. So Cloud Storage FUSE first performs a list call to Cloud Storage to check if the directory is empty or not. And then deletes the directory object only if the list call response is empty.  
 
 Since, the complete unlink directory operation is not atomic, this may lead to inconsistency. E.g. as soon as Cloud Storage fuse gets the response of list call as `empty`, meanwhile some other machines may create a file in the same directory. As a result, the content of a non-empty directory that is unlinked are not deleted but simply become inaccessible (Unless --implicit-dirs is set; see the section on implicit directories above.)
 

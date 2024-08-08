@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All Rights Reserved.
+// Copyright 2024 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	"google.golang.org/api/iterator"
@@ -45,7 +44,6 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const (
-	BufferSize          = 100
 	FilePermission_0600 = 0600
 	DirPermission_0755  = 0755
 	Charset             = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -421,12 +419,8 @@ func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage
 	}
 
 	var flags []string
-	mountConfig4 := config.MountConfig{
-		EnableHNS: true,
-		LogConfig: config.LogConfig{
-			Severity:        config.TRACE,
-			LogRotateConfig: config.DefaultLogRotateConfig(),
-		},
+	mountConfig4 := map[string]interface{}{
+		"enable-hns": true,
 	}
 	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
 	// TODO: Remove --implicit-dirs flag, once the GetFolder API has been successfully implemented.

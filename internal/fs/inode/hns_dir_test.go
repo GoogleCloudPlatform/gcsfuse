@@ -113,7 +113,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	assert.Nil(t.T(), err)
 	assert.NotEqual(t.T(), nil, result.MinObject)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), dirName, result.Folder.Name)
 }
 
 func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
@@ -166,8 +166,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckOnlyForExplicitHNSDirectory() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), dirName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
+	assert.Equal(t.T(), dirName, result.Folder.Name)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
@@ -189,8 +188,7 @@ func (t *HNSDirTest) TestLookUpChildShouldCheckForHNSDirectoryWhenTypeNotPresent
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), dirName, result.FullName.GcsObjectName())
-	assert.Equal(t.T(), dirName, result.MinObject.Name)
-	assert.Equal(t.T(), int64(0), result.MinObject.Generation)
+	assert.Equal(t.T(), dirName, result.Folder.Name)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
 
@@ -427,7 +425,7 @@ func (t *HNSDirTest) TestCreateChildDirWhenBucketTypeIsHNSWithSuccess() {
 	t.mockBucket.AssertExpectations(t.T())
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), result)
-	assert.Equal(t.T(), dirName, result.MinObject.Name)
+	assert.Equal(t.T(), dirName, result.Folder.Name)
 	assert.Equal(t.T(), dirName, result.FullName.objectName)
 	assert.Equal(t.T(), metadata.ExplicitDirType, t.typeCache.Get(t.fixedTime.Now(), name))
 }
