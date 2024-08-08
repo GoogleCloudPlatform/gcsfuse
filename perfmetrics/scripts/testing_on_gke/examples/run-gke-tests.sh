@@ -1,119 +1,128 @@
 #!/bin/bash
 
+# This is a top-level script which can work stand-alone.
+# It takes in parameters through environment variables. For learning about them, run this script with `--help` argument.
+# For debugging, you can pass argument `--debug` which will print all the shell commands that runs.
+# It fetches GCSFuse and GKE GCSFuse CSI driver code if you don't provide it pre-existing clones of these directories.
+# It installs all the necessary depencies on its own.
+# It can create a GKE cluster and other GCP resources (if needed), based on a number of configuration parameters e.g. gcp-project-name/number, cluster-name, zone (for resource location), machine-type (of node), number of local SSDs.
+# It creates fio/dlio tests as helm charts, based on the provided JSON workload configuration file and deploys them on the GKE cluster.
+# A sample workload-configuration file is available at https://github.com/GoogleCloudPlatform/gcsfuse/blob/b2286ec3466dd285b2d5ea3be8636a809efbfb1b/perfmetrics/scripts/testing_on_gke/examples/workloads.json#L2 .
+
+# Fail script if any of the command fails.
 set -e
 
+# Print all shell commands if user passes argument `--debug`
 if ([ $# -gt 0 ] && ([ "$1" == "-debug" ] || [ "$1" == "--debug" ])); then
   set -x
 fi
 
+# Utilities
+function exitWithSuccess() { exit 0; }
+function exitWithFailure() { exit 1; }
+
+# Default values, to be used for parameters in case user does not specify them.
+# GCP related
 readonly DEFAULT_PROJECT_ID="gcs-fuse-test"
 readonly DEFAULT_PROJECT_NUMBER=927584127901
 readonly DEFAULT_ZONE="us-west1-b"
+# GKE cluster related
 readonly DEFAULT_CLUSTER_NAME="${USER}-testing-us-west1-1"
-# readonly DEFAULT_CLUSTER_VERSION=1.29.4-gke.1043004
 readonly DEFAULT_NODE_POOL=default-pool
-readonly DEFAULT_NUM_NODES=4
+readonly DEFAULT_MACHINE_TYPE="n2-standard-96"
+readonly DEFAULT_NUM_NODES=8
+readonly DEFAULT_NUM_SSD=16
 readonly DEFAULT_APPNAMESPACE=default
 readonly DEFAULT_KSA=default
-readonly DEFAULT_SRC_DIR=$(realpath .)/src
-readonly DEFAULT_MACHINE_TYPE="n2-standard-32"
-readonly DEFAULT_NUM_SSD=4
-readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
-readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 readonly DEFAULT_USE_CUSTOM_CSI_DRIVER=false
-
+# GCSFuse/GKE GCSFuse CSI Driver source code related
+readonly DEFAULT_SRC_DIR=$(realpath .)/src
 readonly csi_driver_github_path=https://github.com/googlecloudplatform/gcs-fuse-csi-driver
 readonly csi_driver_branch=main
-# readonly csi_driver_github_path=https://github.com/gargnitingoogle/gcs-fuse-driver
-# readonly csi_driver_branch=gargnitin/changes-for-running-fio/dlio-tests
 readonly gcsfuse_github_path=https://github.com/googlecloudplatform/gcsfuse
 readonly gcsfuse_branch=garnitin/add-gke-load-testing/v1
 # readonly gcsfuse_branch=master
+# GCSFuse configuration related
+readonly DEFAULT_GCSFUSE_MOUNT_OPTIONS="implicit-dirs"
+# Test runtime configuration
+readonly DEFAULT_POD_WAIT_TIME_IN_SECONDS=300
 
 readonly rebuildCustomCsiDriver=true
 readonly authChecks=true
 
-# alias ignoreFirstLine='tail -n +2'
-
-function exitWithSuccess() {
-  exit 0
-}
-
-function exitWithFailure() {
-  exit 1
-}
-
 function printHelp() {
   echo "Usage guide: "
-  echo "[ENV_OPTIONS] $0 [ARGS]"
+  echo "[ENV_OPTIONS] "${0}" [ARGS]"
   echo ""
   echo "ENV_OPTIONS (all are optional): "
   echo ""
-  echo "project_id=<project-id default="${DEFAULT_PROJECT_ID}">"
-  echo "project_number=<number default="${DEFAULT_PROJECT_NUMBER}">"
-  echo "zone=<region-zone default="${DEFAULT_ZONE}">"
-  echo "cluster_name=<cluster-name default="${DEFAULT_CLUSTER_NAME}">"
-  echo "node_pool=<pool-name default="${DEFAULT_NODE_POOL}">"
-  echo "machine_type=<machine-type default="${DEFAULT_MACHINE_TYPE}">"
-  echo "num_nodes=<number from 1-8, default="${DEFAULT_NUM_NODES}">"
-  echo "num_ssd=<number from 0-16, default="${DEFAULT_NUM_SSD}">"
-  # echo "appnamespace=<namespace-name, default="${DEFAULT_APPNAMESPACE}">"
-  # echo "ksa=<kubernetes-service-account, default="${DEFAULT_KSA}">"
+  # GCP related
+  echo "project_id=<project-id default=\"${DEFAULT_PROJECT_ID}\">"
+  echo "project_number=<number default=\"${DEFAULT_PROJECT_NUMBER}\">"
+  echo "zone=<region-zone default=\"${DEFAULT_ZONE}\">"
+  # GKE cluster related
+  echo "cluster_name=<cluster-name default=\"${DEFAULT_CLUSTER_NAME}\">"
+  echo "node_pool=<pool-name default=\"${DEFAULT_NODE_POOL}\">"
+  echo "machine_type=<machine-type default=\"${DEFAULT_MACHINE_TYPE}\">"
+  echo "num_nodes=<number from 1-8, default=\"${DEFAULT_NUM_NODES}\">"
+  echo "num_ssd=<number from 0-16, default=\"${DEFAULT_NUM_SSD}\">"
+  echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default=\"${DEFAULT_USE_CUSTOM_CSI_DRIVER}\">"
+  # GCSFuse/GKE GCSFuse CSI Driver source code related
+  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default=\"${DEFAULT_SRC_DIR}\">"
+  echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}/gcsfuse\">"
+  echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default=\"${DEFAULT_SRC_DIR}\"/gcs-fuse-csi-driver>"
+  # GCSFuse configuration related
   echo "gcsfuse_mount_options=<\"comma-separated-gcsfuse-mount-options\" e.g. \""${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"\">"
-  echo "src_dir=<\"directory/to/clone/github/repos/if/needed\", default="\"${DEFAULT_SRC_DIR}">"
-  echo "gcsfuse_src_dir=<\"/path/of/gcsfuse/src/to/use/if/available\", default="${DEFAULT_SRC_DIR}"/gcsfuse>"
-  echo "csi_src_dir=<\"/path/of/gcs-fuse-csi-driver/to/use/if/available\", default="${DEFAULT_SRC_DIR}"/gcs-fuse-csi-driver>"
+  # Test runtime configuration
   echo "pod_wait_time_in_seconds=<number e.g. 60 for checking pod status every 1 min, default="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}">"
-  echo "use_custom_csi_driver=<true|false, true means build and use a new custom csi driver using gcsfuse code, default="${DEFAULT_USE_CUSTOM_CSI_DRIVER}">"
   echo ""
   echo ""
   echo ""
-  echo "ARGS (all are optional):"
+  echo "ARGS (all are optional) : "
   echo ""
   echo "--debug     Print out shell commands for debugging. Aliases: -debug "
   echo "--help      Print out this help. Aliases: help , -help , -h , --h"
 }
 
+# Print out help if user passes argument `--help`
 if ([ $# -gt 0 ] && ([ "$1" == "-help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ])); then
   printHelp
   exitWithSuccess
 fi
 
-# set environment variables
-#  gcp resources
+# Set environment variables.
+# GCP related
 test -n "${project_id}" || export project_id=${DEFAULT_PROJECT_ID}
 test -n "${project_number}" || export project_number=${DEFAULT_PROJECT_NUMBER}
 test -n "${zone}" || export zone=${DEFAULT_ZONE}
+# GKE cluster related
 test -n "${cluster_name}" || export cluster_name=${DEFAULT_CLUSTER_NAME}
-# test -n "${cluster_version}" || export cluster_version=${DEFAULT_CLUSTER_VERSION}
-test -z "${cluster_version}" || (
-  echo "Setting cluster_version not supported."
-  exit 1
-)
 test -n "${node_pool}" || export node_pool=${DEFAULT_NODE_POOL}
 test -n "${machine_type}" || export machine_type=${DEFAULT_MACHINE_TYPE}
 test -n "${num_nodes}" || export num_nodes=${DEFAULT_NUM_NODES}
 test -n "${num_ssd}" || export num_ssd=${DEFAULT_NUM_SSD}
 test -n "${appnamespace}" || export appnamespace=${DEFAULT_APPNAMESPACE}
 test -n "${ksa}" || export ksa=${DEFAULT_KSA}
-# gcsfuse mount configuration
-test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
-# source-code related variables
+test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
+# GCSFuse/GKE GCSFuse CSI Driver source code related
 test -n "${src_dir}" || export src_dir=${DEFAULT_SRC_DIR}
 test -d "${src_dir}" || mkdir -pv "${src_dir}"
 test -n "${gcsfuse_src_dir}" || export gcsfuse_src_dir="${src_dir}"/gcsfuse
 export gke_testing_dir="${gcsfuse_src_dir}"/perfmetrics/scripts/testing_on_gke
 test -n "${csi_src_dir}" || export csi_src_dir="${src_dir}"/gcs-fuse-csi-driver
-# runtime configuration
+# GCSFuse configuration related
+test -n "${gcsfuse_mount_options}" || export gcsfuse_mount_options="${DEFAULT_GCSFUSE_MOUNT_OPTIONS}"
+# Test runtime configuration
 test -n "${pod_wait_time_in_seconds}" || export pod_wait_time_in_seconds="${DEFAULT_POD_WAIT_TIME_IN_SECONDS}"
-test -n "${use_custom_csi_driver}" || export use_custom_csi_driver="${DEFAULT_USE_CUSTOM_CSI_DRIVER}"
 
 function printRunParameters() {
   echo "Running $0 with following parameters:"
   echo ""
+  # GCP related
   echo "project_id=\"${project_id}\""
   echo "project_number=\"${project_number}\""
   echo "zone=\"${zone}\""
+  # GKE cluster related
   echo "cluster_name=\"${cluster_name}\""
   echo "node_pool=\"${node_pool}\""
   echo "machine_type=\"${machine_type}\""
@@ -121,15 +130,19 @@ function printRunParameters() {
   echo "num_ssd=\"${num_ssd}\""
   echo "appnamespace=\"${appnamespace}\""
   echo "ksa=\"${ksa}\""
-  echo "gcsfuse_mount_options=\"${gcsfuse_mount_options}\""
+  echo "use_custom_csi_driver=\"${use_custom_csi_driver}\""
+  # GCSFuse/GKE GCSFuse CSI Driver source code related
   echo "src_dir=\"${src_dir}\""
   echo "gcsfuse_src_dir=\"${gcsfuse_src_dir}\""
   echo "csi_src_dir=\"${csi_src_dir}\""
-  echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
+  # GCSFuse configuration related
+  echo "gcsfuse_mount_options=\"${gcsfuse_mount_options}\""
   echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
+  # Test runtime configuration
+  echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
 }
 
-# install dependencies
+# Install dependencies.
 function installDependencies() {
   which helm || (cd "${src_dir}" && (test -d "./helm" || git clone https://github.com/helm/helm.git) && cd helm && make && ls -lh bin/ && mkdir -pv ~/bin && cp -fv bin/helm ~/bin/ && chmod +x ~/bin/helm && export PATH=$PATH:$HOME/bin && echo $PATH && which helm && cd - && cd -)
   # install o
@@ -140,7 +153,7 @@ function installDependencies() {
   gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
 }
 
-# gcloud auth/config
+# Ensure gcloud auth/config.
 # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
 if ${authChecks}; then
   if ! $(gcloud auth list | grep -q ${USER}); then
@@ -149,6 +162,7 @@ if ${authChecks}; then
   gcloud config set project ${project_id} && gcloud config list
 fi
 
+# Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 function validateMachineConfig() {
   echo "Validiting input parameters ..."
   local machine_type=${1}
@@ -236,7 +250,6 @@ function prepareCluster() {
   if ClusterExists ${cluster_name}; then
     gcloud container clusters update ${cluster_name} --location=${zone} --workload-pool=${project_id}.svc.id.goog
   else
-    # gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --cluster-version "${cluster_version}" --workload-pool=${project_id}.svc.id.goog
     gcloud container --project "${project_id}" clusters create ${cluster_name} --zone "${zone}" --workload-pool=${project_id}.svc.id.goog --machine-type "${machine_type}" --image-type "COS_CONTAINERD" --num-nodes ${num_nodes} --ephemeral-storage-local-ssd count=${num_ssd}
   fi
 }
