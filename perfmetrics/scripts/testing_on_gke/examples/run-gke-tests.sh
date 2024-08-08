@@ -157,14 +157,16 @@ function installDependencies() {
   gke-gcloud-auth-plugin --version || (gcloud components install gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version) || (sudo apt-get update -y && sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin && gke-gcloud-auth-plugin --version)
 }
 
-# Ensure gcloud auth/config.
-# Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
-if ${authChecks}; then
-  if ! $(gcloud auth list | grep -q ${USER}); then
-    gcloud auth application-default login --no-launch-browser && (gcloud auth list | grep -q ${USER})
+function checkAuths() {
+  # gcloud auth/config
+  # Make sure you have access to the necessary GCP resources. The easiest way to enable it is to use <your-ldap>@google.com as active auth (sample below).
+  if ${authChecks}; then
+    if ! $(gcloud auth list | grep -q ${USER}) ; then
+      gcloud auth application-default login --no-launch-browser && ( gcloud auth list | grep -q ${USER})
+    fi
+    gcloud config set project ${project_id} && gcloud config list
   fi
-  gcloud config set project ${project_id} && gcloud config list
-fi
+}
 
 # Verify that the passed machine configuration parameters (machine-type, num-nodes, num-ssd) are compatible.
 function validateMachineConfig() {
