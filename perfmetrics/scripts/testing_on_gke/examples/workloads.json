@@ -113,7 +113,7 @@
           "_bucket_alt3":"gke-fio-200gb-1"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "10G",
             "filesPerThread": 16,
             "numThreads": 1,
@@ -124,7 +124,7 @@
           "_bucket_alt2":"fio-10g-500-us-central1"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "10G",
             "filesPerThread": 2,
             "numThreads": 8,
@@ -135,7 +135,7 @@
           "_bucket_alt2":"fio-10g-500-us-central1"
         },
         {
-          "fioWorkload": {
+          "_fioWorkload": {
             "fileSize": "10G",
             "filesPerThread": 1,
             "numThreads": 96,
