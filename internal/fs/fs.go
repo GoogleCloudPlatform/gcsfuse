@@ -1606,7 +1606,6 @@ func (fs *fileSystem) createLocalFile(
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(parentID)
-	fs.mu.Unlock()
 
 	defer func() {
 		// We need to release the filesystem lock before acquiring the inode lock.
@@ -1619,11 +1618,11 @@ func (fs *fileSystem) createLocalFile(
 		}
 	}()
 
-	fs.mu.Lock()
-
 	fullName := inode.NewFileName(parent.Name(), name)
 	child, ok := fs.localFileInodes[fullName]
 	if !ok {
+		parent.Lock()
+		defer parent.Unlock()
 		err = parent.CreateLocalChildFile(name, func(core inode.Core) error {
 			child = fs.mintInode(core)
 			fs.localFileInodes[child.Name()] = child
@@ -1632,7 +1631,6 @@ func (fs *fileSystem) createLocalFile(
 			fileInode := child.(*inode.FileInode)
 			return fileInode.CreateEmptyTempFile()
 		})
-
 	}
 
 	return
