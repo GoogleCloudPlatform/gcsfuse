@@ -1972,6 +1972,9 @@ func (fs *fileSystem) Rename(
 	}
 
 	if child.FullName.IsDir() {
+		if child.Bucket.BucketType() == gcs.Hierarchical {
+			return fs.renameFolder(ctx, oldParent, op.OldName, newParent, op.NewName)
+		}
 		return fs.renameDir(ctx, oldParent, op.OldName, newParent, op.NewName)
 	}
 	return fs.renameFile(ctx, oldParent, op.OldName, child.MinObject, newParent, op.NewName)
@@ -2056,6 +2059,60 @@ func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name strin
 		return fuse.ENOTEMPTY
 	}
 	return nil
+}
+
+// Rename an old folder to a new folder in Hierarchical bucket. If the new folder already
+// exists and is non-empty, return ENOTEMPTY.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_EXCLUDED(oldParent)
+// LOCKS_EXCLUDED(newParent)
+func (fs *fileSystem) renameFolder(ctx context.Context, oldParent inode.DirInode, oldName string, newParent inode.DirInode, newName string) (err error) {
+	var pendingInodes []inode.DirInode
+	defer fs.releaseInodes(&pendingInodes)
+
+	oldDir, err := fs.getBucketDirInode(ctx, oldParent, oldName)
+	if err != nil {
+		return err
+	}
+	pendingInodes = append(pendingInodes, oldDir)
+
+	if err = fs.ensureNoOpenFilesInDirectory(oldDir, oldName); err != nil {
+		return err
+	}
+
+	newDir, err := fs.getBucketDirInode(ctx, newParent, newName)
+	if err == nil {
+		// If the directory exists, then check if it is empty or not.
+		if err = fs.checkDirNotEmpty(newDir, newName); err != nil {
+			return err
+		}
+		pendingInodes = append(pendingInodes, newDir)
+	}
+
+	oldDirName := inode.NewDirName(oldParent.Name(), oldName)
+	newDirName := inode.NewDirName(newParent.Name(), newName)
+	if oldParent == newParent {
+		// If both parents are the same, lock once.
+		oldParent.Lock()
+		defer oldParent.Unlock()
+
+		_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	} else {
+		oldParent.Lock()
+		defer oldParent.Unlock()
+		newParent.Lock()
+		defer newParent.Unlock()
+
+		_, err = oldParent.RenameFolder(ctx, oldDirName.GcsObjectName(), newDirName.GcsObjectName())
+	}
+	if err != nil {
+		return err
+	}
+
+	fs.releaseInodes(&pendingInodes)
+	fs.checkInvariantsForImplicitDirs()
+	return
 }
 
 // Rename an old directory to a new directory. If the new directory already

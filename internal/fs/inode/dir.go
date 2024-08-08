@@ -1000,8 +1000,6 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 	// TODO: Cache updates won't be necessary once type cache usage is removed from HNS.
 	// Remove old entry from type cache.
 	d.cache.Erase(folderName)
-	// Add new renamed folder in type cache.
-	d.cache.Insert(d.cacheClock.Now(), destinationFolderName, metadata.ExplicitDirType)
 
 	return folder, nil
 }

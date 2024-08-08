@@ -100,3 +100,57 @@ func (t *HNSBucketTests) TestDeleteFolder() {
 	_, err = os.Stat(dirPath)
 	assert.NotNil(t.T(), err)
 }
+
+func (t *HNSBucketTests) TestRenameFolderWithSrcDoesNotExist() {
+	oldDirPath := path.Join(mntDir, "foo_not_exist")
+	newDirPath := path.Join(mntDir, "foo_rename_2")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NotNil(t.T(), err)
+	_, err = os.Stat(newDirPath)
+	assert.NotNil(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDstDirectoryIsNotEmpty() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar")
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NotNil(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithSameParent() {
+	oldDirPath := path.Join(mntDir, "foo")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.NotNil(t.T(), err)
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+}
+
+func (t *HNSBucketTests) TestRenameFolderWithDifferentParent() {
+	oldDirPath := path.Join(mntDir, "foo", "test")
+	_, err = os.Stat(oldDirPath)
+	assert.NoError(t.T(), err)
+	newDirPath := path.Join(mntDir, "bar", "test_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.NoError(t.T(), err)
+	_, err = os.Stat(oldDirPath)
+	assert.NotNil(t.T(), err)
+	_, err = os.Stat(newDirPath)
+	assert.NoError(t.T(), err)
+}
