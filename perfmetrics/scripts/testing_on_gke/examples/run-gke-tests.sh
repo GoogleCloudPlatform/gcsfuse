@@ -140,6 +140,9 @@ function printRunParameters() {
   echo "${gcsfuse_mount_options}" >gcsfuse_mount_options
   # Test runtime configuration
   echo "pod_wait_time_in_seconds=\"${pod_wait_time_in_seconds}\""
+  echo ""
+  echo ""
+  echo ""
 }
 
 # Install dependencies.
@@ -326,10 +329,9 @@ function createKSA() {
   log="$(kubectl create namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
   log="$(kubectl create serviceaccount ${ksa} --namespace ${appnamespace} 2>&1)" || [[ "$log" == *"already exists"* ]]
 
-  for workloadFileName in fio/workloads.json dlio/workloads.json; do
-    workloadConfigFilePath="${gke_testing_dir}"/examples/$workloadFileName
-    if test -f "${workloadConfigFilePath}"; then
-      grep -wh '\"bucket\"' "${workloadConfigFilePath}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
+  for workloadFileName in "${gke_testing_dir}"/examples/workloads.json; do
+    if test -f "${workloadFileName}"; then
+      grep -wh '\"bucket\"' "${workloadFileName}" | cut -d: -f2 | cut -d, -f1 | cut -d \" -f2 | sort | uniq | grep -v ' ' |
         while read workload_bucket; do
           gcloud storage buckets add-iam-policy-binding gs://${workload_bucket} \
             --member "principal://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${project_id}.svc.id.goog/subject/ns/${appnamespace}/sa/${ksa}" \
