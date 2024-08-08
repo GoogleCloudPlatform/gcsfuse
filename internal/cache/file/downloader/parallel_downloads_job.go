@@ -105,8 +105,14 @@ func (job *Job) updateRangeMap(rangeMap map[uint64]uint64, offsetStart uint64, o
 	return nil
 }
 
-func (job *Job) downloadOffsets(ctx context.Context, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
+func (job *Job) downloadOffsets(ctx context.Context, goroutineIndex int, cacheFile *os.File, rangeMap map[uint64]uint64) func() error {
 	return func() error {
+		// Since we keep a goroutine for each job irrespective of the maxParallelism,
+		// not releasing the default goroutine to the pool.
+		if goroutineIndex > 0 {
+			defer job.maxParallelismSem.Release(1)
+		}
+
 		for {
 			// Read the offset to be downloaded from the channel.
 			offsetToDownload, ok := <-job.offsetChan
@@ -147,7 +153,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			break
 		}
 
-		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
+		downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, rangeMap))
 		start = start + downloadChunkSize
 	}
 
@@ -165,7 +171,7 @@ func (job *Job) parallelDownloadObjectToFile(cacheFile *os.File) (err error) {
 			// This may not be the ideal way, but since we don't have any way of
 			// listening if goroutines from other jobs have freed up, checking it here.
 			for numGoRoutines < job.fileCacheConfig.ParallelDownloadsPerFile && job.maxParallelismSem.TryAcquire(1) {
-				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, cacheFile, rangeMap))
+				downloadErrGroup.Go(job.downloadOffsets(downloadErrGroupCtx, numGoRoutines, cacheFile, rangeMap))
 				numGoRoutines++
 			}
 		case <-downloadErrGroupCtx.Done():
