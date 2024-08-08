@@ -350,24 +350,6 @@ func (t *FlagsTest) TestValidateFlagsForSupportedExperimentalMetadataPrefetchOnM
 	}
 }
 
-func (t *FlagsTest) TestValidateFlagsForUnsupportedExperimentalMetadataPrefetchOnMount() {
-	for _, input := range []string{
-		"", "unsupported",
-	} {
-		flags := &flagStorage{
-			// Unrelated fields, not being tested here, so set to sane values.
-			SequentialReadSizeMb: 200,
-			// The flag being tested.
-			ExperimentalMetadataPrefetchOnMount: input,
-		}
-
-		err := validateFlags(flags)
-
-		assert.NotEqual(t.T(), nil, err)
-		assert.ErrorContains(t.T(), err, fmt.Sprintf("unsupported metadata-prefix-mode: \"%s\"; supported values: disabled, sync, async", input))
-	}
-}
-
 func (t *FlagsTest) Test_resolveConfigFilePaths() {
 	mountConfig := &config.MountConfig{}
 	mountConfig.CacheDir = "~/cache-dir"

@@ -393,7 +393,7 @@ func newApp() (app *cli.App) {
 
 			cli.StringFlag{
 				Name:  ExperimentalMetadataPrefetchOnMountFlag,
-				Value: "disabled",
+				Value: cfg.ExperimentalMetadataPrefetchOnMountDisabled,
 				Usage: "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.",
 			},
 		},
@@ -671,10 +671,6 @@ func populateFlags(c *cli.Context) (flags *flagStorage, err error) {
 func validateFlags(flags *flagStorage) (err error) {
 	if flags.SequentialReadSizeMb < 1 || flags.SequentialReadSizeMb > maxSequentialReadSizeMb {
 		return fmt.Errorf("SequentialReadSizeMb should be less than %d", maxSequentialReadSizeMb)
-	}
-
-	if err = cfg.IsValidExperimentalMetadataPrefetchOnMount(flags.ExperimentalMetadataPrefetchOnMount); err != nil {
-		return fmt.Errorf("%s: is not valid; error = %w", ExperimentalMetadataPrefetchOnMountFlag, err)
 	}
 
 	if err = config.IsTtlInSecsValid(flags.KernelListCacheTtlSeconds); err != nil {

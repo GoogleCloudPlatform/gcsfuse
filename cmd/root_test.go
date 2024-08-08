@@ -235,42 +235,31 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 		name          string
 		args          []string
 		expectedValue string
-		wantErr       bool
 	}{
 		{
 			name:          "set to sync",
 			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=sync", "abc", "pqr"},
 			expectedValue: "sync",
-			wantErr:       false,
 		},
 		{
 			name:          "set to async",
 			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=async", "abc", "pqr"},
 			expectedValue: "async",
-			wantErr:       false,
 		},
 		{
 			name:          "set to async, space-separated",
 			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount", "async", "abc", "pqr"},
 			expectedValue: "async",
-			wantErr:       false,
 		},
 		{
 			name:          "set to disabled",
 			args:          []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=disabled", "abc", "pqr"},
 			expectedValue: "disabled",
-			wantErr:       false,
 		},
 		{
 			name:          "Test default.",
 			args:          []string{"gcsfuse", "abc", "pqr"},
 			expectedValue: "disabled",
-			wantErr:       false,
-		},
-		{
-			name:    "Test invalid value.",
-			args:    []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=foo", "abc", "pqr"},
-			wantErr: true,
 		},
 	}
 
@@ -286,13 +275,39 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 
 			err = cmd.Execute()
 
-			if tc.wantErr {
-				assert.Error(t, err)
-			} else {
-				if assert.NoError(t, err) {
-					assert.Equal(t, tc.expectedValue, experimentalMetadataPrefetch)
-				}
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedValue, experimentalMetadataPrefetch)
 			}
+		})
+	}
+}
+
+func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "Test invalid value 1",
+			args: []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=foo", "abc", "pqr"},
+		},
+		{
+			name: "Test invalid value 2",
+			args: []string{"gcsfuse", "--experimental-metadata-prefetch-on-mount=123", "abc", "pqr"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := NewRootCmd(func(cfg *cfg.Config, _ string, _ string) error {
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(tc.args)
+
+			err = cmd.Execute()
+
+			assert.Error(t, err)
 		})
 	}
 }
