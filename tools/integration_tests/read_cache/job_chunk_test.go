@@ -95,7 +95,7 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads(t *testing.T) {
 	// and is in multiples of chunkSize.
 	for i := 1; i < len(structuredJobLogs[0].JobEntries); i++ {
 		offsetDiff := structuredJobLogs[0].JobEntries[i].Offset - structuredJobLogs[0].JobEntries[i-1].Offset
-		assert.Greater(t, offsetDiff, 0)
+		assert.Greater(t, offsetDiff, int64(0))
 		assert.Equal(t, int64(0), offsetDiff%s.chunkSize)
 	}
 
