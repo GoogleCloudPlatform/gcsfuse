@@ -33,14 +33,3 @@ const (
 	// ExperimentalMetadataPrefetchOnMountAsynchronous is the prefetch-mode where mounting is marked complete once prefetch has started.
 	ExperimentalMetadataPrefetchOnMountAsynchronous = "async"
 )
-
-const (
-	// File Cache Config constants.
-
-	DefaultFileCacheMaxSizeMB       = -1
-	DefaultEnableCRC                = false
-	DefaultEnableParallelDownloads  = false
-	DefaultDownloadChunkSizeMB      = 50
-	DefaultParallelDownloadsPerFile = 16
-	DefaultCacheFileForRangeRead    = false
-)

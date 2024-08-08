@@ -25,30 +25,54 @@ func Test_DefaultMaxParallelDownloads(t *testing.T) {
 }
 
 func TestIsFileCacheEnabled(t *testing.T) {
-	mountConfig := &Config{
-		CacheDir: "/tmp/folder/",
-		FileCache: FileCacheConfig{
-			MaxSizeMb: -1,
+	testCases := []struct {
+		name                       string
+		config                     *Config
+		expectedIsFileCacheEnabled bool
+	}{
+		{
+			name: "Config with CacheDir set and cache size non zero.",
+			config: &Config{
+				CacheDir: "/tmp/folder/",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			expectedIsFileCacheEnabled: true,
+		},
+		{
+			name:                       "Empty Config.",
+			config:                     &Config{},
+			expectedIsFileCacheEnabled: false,
+		},
+		{
+			name: "Config with CacheDir unset",
+			config: &Config{
+				CacheDir: "",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			expectedIsFileCacheEnabled: false,
+		},
+		{
+			name: "Config with CacheDir set and cache size zero.",
+			config: &Config{
+				CacheDir: "//tmp//folder//",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 0,
+				},
+			},
+			expectedIsFileCacheEnabled: false,
 		},
 	}
-	assert.True(t, IsFileCacheEnabled(mountConfig))
 
-	mountConfig1 := &Config{}
-	assert.False(t, IsFileCacheEnabled(mountConfig1))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotIsFileCacheEnabled := IsFileCacheEnabled(tc.config)
 
-	mountConfig2 := &Config{
-		CacheDir: "",
-		FileCache: FileCacheConfig{
-			MaxSizeMb: -1,
-		},
+			assert.Equal(t, tc.expectedIsFileCacheEnabled, gotIsFileCacheEnabled)
+		})
 	}
-	assert.False(t, IsFileCacheEnabled(mountConfig2))
 
-	mountConfig3 := &Config{
-		CacheDir: "//tmp//folder//",
-		FileCache: FileCacheConfig{
-			MaxSizeMb: 0,
-		},
-	}
-	assert.False(t, IsFileCacheEnabled(mountConfig3))
 }

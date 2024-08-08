@@ -19,7 +19,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"runtime"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
@@ -127,7 +126,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ParallelDownloadsPerFile: 16,
 					EnableCRC:                false,
 					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     max(16, 2*runtime.NumCPU()),
+					MaxParallelDownloads:     5,
 					MaxSizeMB:                -1,
 					DownloadChunkSizeMB:      50,
 				},
@@ -163,7 +162,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ParallelDownloadsPerFile: 16,
 					EnableCrc:                false,
 					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+					MaxParallelDownloads:     5,
 					MaxSizeMb:                -1,
 					DownloadChunkSizeMb:      50,
 				},
@@ -343,7 +342,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ParallelDownloadsPerFile: 16,
 					EnableCRC:                false,
 					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     max(16, 2*runtime.NumCPU()),
+					MaxParallelDownloads:     5,
 					MaxSizeMB:                -1,
 					DownloadChunkSizeMB:      50,
 				},
@@ -384,7 +383,7 @@ func TestPopulateConfigFromLegacyFlags(t *testing.T) {
 					ParallelDownloadsPerFile: 16,
 					EnableCrc:                false,
 					EnableParallelDownloads:  false,
-					MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+					MaxParallelDownloads:     5,
 					MaxSizeMb:                -1,
 					DownloadChunkSizeMb:      50,
 				},

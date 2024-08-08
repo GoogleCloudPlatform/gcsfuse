@@ -15,7 +15,6 @@
 package cfg
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func validFileCacheConfig(t *testing.T) FileCacheConfig {
 		DownloadChunkSizeMb:      50,
 		EnableCrc:                false,
 		EnableParallelDownloads:  false,
-		MaxParallelDownloads:     int64(max(16, 2*runtime.NumCPU())),
+		MaxParallelDownloads:     4,
 		MaxSizeMb:                -1,
 		ParallelDownloadsPerFile: 16,
 	}

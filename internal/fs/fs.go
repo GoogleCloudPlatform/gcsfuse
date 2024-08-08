@@ -123,10 +123,10 @@ type ServerConfig struct {
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
-	// Deprecated MountConfig has all the config specified by the user using configFile flag.
+	// Deprecated MountConfig has all the config specified by the user using config-file flag.
 	MountConfig *config.MountConfig
 
-	// NewConfig has all the config specified by the user using configFile or CLI flags.
+	// NewConfig has all the config specified by the user using config-file or CLI flags.
 	NewConfig *cfg.Config
 }
 
@@ -469,7 +469,7 @@ type fileSystem struct {
 	// GUARDED_BY(mu)
 	nextHandleID fuseops.HandleID
 
-	// Config specified by the user using configFile flag.
+	// Config specified by the user using config-file flag.
 	mountConfig *config.MountConfig
 
 	// fileCacheHandler manages read only file cache. It is non-nil only when

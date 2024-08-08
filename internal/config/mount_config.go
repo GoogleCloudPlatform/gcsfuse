@@ -48,6 +48,14 @@ const (
 
 	DefaultKernelListCacheTtlSeconds int64 = 0
 	DefaultMaxRetryAttempts                = int64(0)
+
+	// File Cache Config constants.
+
+	DefaultFileCacheMaxSizeMB       = -1
+	DefaultEnableCRC                = false
+	DefaultEnableParallelDownloads  = false
+	DefaultDownloadChunkSizeMB      = 50
+	DefaultParallelDownloadsPerFile = 16
 )
 
 type LogConfig struct {
@@ -170,12 +178,12 @@ func NewMountConfig() *MountConfig {
 		},
 	}
 	mountConfig.FileCacheConfig = FileCacheConfig{
-		MaxSizeMB:                cfg.DefaultFileCacheMaxSizeMB,
-		EnableParallelDownloads:  cfg.DefaultEnableParallelDownloads,
-		ParallelDownloadsPerFile: cfg.DefaultParallelDownloadsPerFile,
+		MaxSizeMB:                DefaultFileCacheMaxSizeMB,
+		EnableParallelDownloads:  DefaultEnableParallelDownloads,
+		ParallelDownloadsPerFile: DefaultParallelDownloadsPerFile,
 		MaxParallelDownloads:     cfg.DefaultMaxParallelDownloads(),
-		DownloadChunkSizeMB:      cfg.DefaultDownloadChunkSizeMB,
-		EnableCRC:                cfg.DefaultEnableCRC,
+		DownloadChunkSizeMB:      DefaultDownloadChunkSizeMB,
+		EnableCRC:                DefaultEnableCRC,
 	}
 	mountConfig.MetadataCacheConfig = MetadataCacheConfig{
 		TtlInSeconds:       TtlInSecsUnsetSentinel,
