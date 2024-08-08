@@ -23,3 +23,54 @@ import (
 func Test_DefaultMaxParallelDownloads(t *testing.T) {
 	assert.GreaterOrEqual(t, DefaultMaxParallelDownloads(), 16)
 }
+
+func TestIsFileCacheEnabled(t *testing.T) {
+	testCases := []struct {
+		name                       string
+		config                     *Config
+		expectedIsFileCacheEnabled bool
+	}{
+		{
+			name: "Config with CacheDir set and cache size non zero.",
+			config: &Config{
+				CacheDir: "/tmp/folder/",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			expectedIsFileCacheEnabled: true,
+		},
+		{
+			name:                       "Empty Config.",
+			config:                     &Config{},
+			expectedIsFileCacheEnabled: false,
+		},
+		{
+			name: "Config with CacheDir unset",
+			config: &Config{
+				CacheDir: "",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			expectedIsFileCacheEnabled: false,
+		},
+		{
+			name: "Config with CacheDir set and cache size zero.",
+			config: &Config{
+				CacheDir: "//tmp//folder//",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 0,
+				},
+			},
+			expectedIsFileCacheEnabled: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expectedIsFileCacheEnabled, IsFileCacheEnabled(tc.config))
+		})
+	}
+
+}

@@ -28,6 +28,19 @@ func validLogRotateConfig() LogRotateLoggingConfig {
 	}
 }
 
+func validFileCacheConfig(t *testing.T) FileCacheConfig {
+	t.Helper()
+	return FileCacheConfig{
+		CacheFileForRangeRead:    false,
+		DownloadChunkSizeMb:      50,
+		EnableCrc:                false,
+		EnableParallelDownloads:  false,
+		MaxParallelDownloads:     4,
+		MaxSizeMb:                -1,
+		ParallelDownloadsPerFile: 16,
+	}
+}
+
 func TestValidateConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -36,7 +49,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "Valid Config where input and expected custom endpoint match.",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://bing.com/search?q=dotnet",
 				},
@@ -48,7 +62,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "Valid Config where input and expected custom endpoint differ.",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "https://j@ne:password@google.com",
 				},
@@ -60,7 +75,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount disabled",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 				},
@@ -69,7 +85,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount async",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "async",
 				},
@@ -78,7 +95,8 @@ func TestValidateConfigSuccessful(t *testing.T) {
 		{
 			name: "experimental-metadata-prefetch-on-mount sync",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				MetadataCache: MetadataCacheConfig{
 					ExperimentalMetadataPrefetchOnMount: "sync",
 				},
@@ -103,7 +121,8 @@ func TestValidateConfigUnsuccessful(t *testing.T) {
 		{
 			name: "Invalid Config due to invalid custom endpoint",
 			config: &Config{
-				Logging: LoggingConfig{LogRotate: validLogRotateConfig()},
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
 				GcsConnection: GcsConnectionConfig{
 					CustomEndpoint: "a_b://abc",
 				},

@@ -22,10 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v2/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v2/internal/config"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v2/internal/storage/gcs"
@@ -39,7 +39,7 @@ var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
 func TestDownloader(t *testing.T) { RunTests(t) }
 
 type downloaderTest struct {
-	defaultFileCacheConfig *config.FileCacheConfig
+	defaultFileCacheConfig *cfg.FileCacheConfig
 	job                    *Job
 	bucket                 gcs.Bucket
 	object                 gcs.MinObject
@@ -65,7 +65,7 @@ func (dt *downloaderTest) setupHelper() {
 }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {
-	dt.defaultFileCacheConfig = &config.FileCacheConfig{EnableCRC: true}
+	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{EnableCrc: true}
 	dt.setupHelper()
 }
 
