@@ -61,7 +61,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 		if path == testDir {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfExplicitObjects {
-				t.Errorf("Incorrect number of objects in the bucket.")
+				t.Fatalf("Incorrect number of objects in the bucket: found %d expected %d", len(objs), implicit_and_explicit_dir_setup.NumberOfExplicitObjects)
 			}
 
 			// testBucket/dirForExplicitDirTests/explicitDir     -- Dir
