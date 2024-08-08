@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -275,6 +276,31 @@ func (b *bucket) mintFolder(folderName string) (f gcs.Folder) {
 	return
 }
 
+// In a hierarchical bucket, all directory objects are also retained as folder entries,
+// even if we create objects with non-control client API.
+// Therefore, whenever we create directory objects in the fake bucket,
+// we also need to create a corresponding folder entry for them in HNS.
+//
+// For example, when creating an object A/B/a.txt where A and B are implicit directories.
+// In our existing flow in the fake bucket, we ignore adding entries for A and B.
+// In HNS, we have to add these implicit directories as folder entries.
+func (b *bucket) addFolderEntry(path string) {
+	path = filepath.Dir(path) // Get the directory part of the path
+	parts := strings.Split(path, string(filepath.Separator))
+
+	// This is for adding implicit directories as folder entries.
+	// For example, createObject(A/B/a.txt) where A and B are implicit directories.
+	// We need to add both "A" and "A/B/" as folder entries.
+	for i := range parts {
+		folder := gcs.Folder{Name: strings.Join(parts[:i+1], string(filepath.Separator)) + string(filepath.Separator)}
+		existingIndex := b.folders.find(folder.Name)
+		if existingIndex == len(b.folders) {
+			b.folders = append(b.folders, folder)
+		}
+	}
+	sort.Sort(b.folders)
+}
+
 // LOCKS_REQUIRED(b.mu)
 func (b *bucket) createObjectLocked(
 	req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
@@ -390,6 +416,9 @@ func (b *bucket) createObjectLocked(
 		sort.Sort(b.objects)
 	}
 
+	if b.BucketType() == gcs.Hierarchical {
+		b.addFolderEntry(req.Name)
+	}
 	return
 }
 

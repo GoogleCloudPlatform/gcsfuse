@@ -100,8 +100,9 @@ var (
 	// To mount a special bucket, override `bucket`;
 	// To mount multiple buckets, override `buckets`;
 	// Otherwise, a default bucket will be used.
-	bucket  gcs.Bucket
-	buckets map[string]gcs.Bucket
+	bucket     gcs.Bucket
+	buckets    map[string]gcs.Bucket
+	bucketType gcs.BucketType
 )
 
 var _ SetUpTestSuiteInterface = &fsTest{}
@@ -115,6 +116,9 @@ func (t *fsTest) SetUpTestSuite() {
 	mtimeClock = timeutil.RealClock()
 	cacheClock.SetTime(time.Date(2015, 4, 5, 2, 15, 0, 0, time.Local))
 	t.serverCfg.CacheClock = &cacheClock
+	if bucketType == gcs.Nil {
+		bucketType = gcs.NonHierarchical
+	}
 
 	if buckets != nil {
 		// mount all buckets
@@ -123,7 +127,7 @@ func (t *fsTest) SetUpTestSuite() {
 	} else {
 		// mount a single bucket
 		if bucket == nil {
-			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket", gcs.NonHierarchical)
+			bucket = fake.NewFakeBucket(mtimeClock, "some_bucket", bucketType)
 		}
 		t.serverCfg.BucketName = bucket.Name()
 		buckets = map[string]gcs.Bucket{bucket.Name(): bucket}
@@ -256,6 +260,17 @@ func (t *fsTest) deleteObject(name string) error {
 func (t *fsTest) createEmptyObjects(names []string) error {
 	err := storageutil.CreateEmptyObjects(ctx, bucket, names)
 	return err
+}
+
+func (t *fsTest) createFolders(folders []string) error {
+	for i := 0; i < len(folders); i++ {
+		_, err = bucket.CreateFolder(ctx, folders[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////
