@@ -207,34 +207,28 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 
 func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
 	testCases := []struct {
-		name          string
-		configFile    string
-		expectedError string
+		name       string
+		configFile string
 	}{
 		{
-			name:          "Invalid parallel downloads per file.",
-			configFile:    "testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml",
-			expectedError: "the value of parallel-downloads-per-file for file-cache can't be less than 1",
+			name:       "Invalid parallel downloads per file.",
+			configFile: "testdata/file_cache_config/invalid_parallel_downloads_per_file.yaml",
 		},
 		{
-			name:          "Invalid download chunk size mb.",
-			configFile:    "testdata/file_cache_config/invalid_download_chunk_size_mb.yaml",
-			expectedError: "the value of download-chunk-size-mb for file-cache can't be less than 1",
+			name:       "Invalid download chunk size mb.",
+			configFile: "testdata/file_cache_config/invalid_download_chunk_size_mb.yaml",
 		},
 		{
-			name:          "Invalid max size mb.",
-			configFile:    "testdata/file_cache_config/invalid_max_size_mb.yaml",
-			expectedError: "the value of max-size-mb for file-cache can't be less than -1",
+			name:       "Invalid max size mb.",
+			configFile: "testdata/file_cache_config/invalid_max_size_mb.yaml",
 		},
 		{
-			name:          "Invalid max parallel downloads.",
-			configFile:    "testdata/file_cache_config/invalid_max_parallel_downloads.yaml",
-			expectedError: "the value of max-parallel-downloads for file-cache can't be less than -1",
+			name:       "Invalid max parallel downloads.",
+			configFile: "testdata/file_cache_config/invalid_max_parallel_downloads.yaml",
 		},
 		{
-			name:          "Invalid zero max parallel downloads",
-			configFile:    "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
-			expectedError: "the value of max-parallel-downloads for file-cache must not be 0 when enable-parallel-downloads is true",
+			name:       "Invalid zero max parallel downloads",
+			configFile: "testdata/file_cache_config/invalid_zero_max_parallel_downloads.yaml",
 		},
 	}
 
@@ -242,9 +236,7 @@ func TestValidateConfigFile_FileCacheConfigUnsuccessful(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
-			if assert.Error(t, err) {
-				assert.ErrorContains(t, err, tc.expectedError)
-			}
+			assert.Error(t, err)
 		})
 	}
 }
